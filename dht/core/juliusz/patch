@@ -1,0 +1,221 @@
+--- dht.original	2011-02-15 20:31:54.000000000 -0500
++++ dht.c.new	2011-02-15 20:31:17.000000000 -0500
+@@ -178,12 +178,14 @@
+     struct search *next;
+ };
+ 
++/* Implemented in cjdns modular dht.
+ struct peer {
+     time_t time;
+     unsigned char ip[16];
+     unsigned short len;
+     unsigned short port;
+ };
++*/
+ 
+ /* The maximum number of peers we store for a given hash. */
+ #ifndef DHT_MAX_PEERS
+@@ -205,13 +207,15 @@
+ #define DHT_SEARCH_EXPIRE_TIME (62 * 60)
+ #endif
+ 
++/* Implemented in cjdns modular dht.
+ struct storage {
+     unsigned char id[20];
+     int numpeers, maxpeers;
+     struct peer *peers;
+     struct storage *next;
+ };
+-
++*/
++/* Implemented in cjdns modular dht. */
+ static int send_ping(const struct sockaddr *sa, int salen,
+                      const unsigned char *tid, int tid_len);
+ static int send_pong(const struct sockaddr *sa, int salen,
+@@ -225,11 +229,13 @@
+                             const unsigned char *nodes6, int nodes6_len,
+                             int af, struct storage *st,
+                             const unsigned char *token, int token_len);
++/* #end# */
+ static int send_closest_nodes(const struct sockaddr *sa, int salen,
+                               const unsigned char *tid, int tid_len,
+                               const unsigned char *id, int want,
+                               int af, struct storage *st,
+                               const unsigned char *token, int token_len);
++/* Implemented in cjdns modular dht. */
+ static int send_get_peers(const struct sockaddr *sa, int salen,
+                           unsigned char *tid, int tid_len,
+                           unsigned char *infohash, int want, int confirm);
+@@ -242,6 +248,7 @@
+ static int send_error(const struct sockaddr *sa, int salen,
+                       unsigned char *tid, int tid_len,
+                       int code, const char *message);
++/* #end# */
+ 
+ #define ERROR 0
+ #define REPLY 1
+@@ -253,6 +260,7 @@
+ #define WANT4 1
+ #define WANT6 2
+ 
++/* Implemented in cjdns modular dht.
+ static int parse_message(const unsigned char *buf, int buflen,
+                          unsigned char *tid_return, int *tid_len,
+                          unsigned char *id_return,
+@@ -265,6 +273,22 @@
+                          unsigned char *values_return, int *values_len,
+                          unsigned char *values6_return, int *values6_len,
+                          int *want_return);
++*/
++/* Required for in cjdns modular dht. */
++static int
++parse_message2(bobj_t* bencodedMessage,
++               unsigned char *tid_return, int *tid_len,
++               unsigned char *id_return,
++               unsigned char *info_hash_return,
++               unsigned char *target_return,
++               unsigned short *port_return,
++               unsigned char *token_return, int *token_len,
++               unsigned char *nodes_return, int *nodes_len,
++               unsigned char *nodes6_return, int *nodes6_len,
++               unsigned char *values_return, int *values_len,
++               unsigned char *values6_return, int *values6_len,
++               int *want_return);
++/* #end# */
+ 
+ static const unsigned char zeroes[20] = {0};
+ static const unsigned char ones[20] = {
+@@ -1842,17 +1866,26 @@
+     return 0;
+ }
+ 
++/* Altered to interface with cjdns modular dht.
+ int
+ dht_periodic(const void *buf, size_t buflen,
+              const struct sockaddr *from, int fromlen,
+              time_t *tosleep,
+              dht_callback *callback, void *closure)
++*/
++int
++dht_periodic(int available, time_t *tosleep,
++             dht_callback *callback, void *closure,
++             struct DHTMessage* packet)
+ {
+     int i;
+ 
+     gettimeofday(&now, NULL);
+ 
++/*
+     if(buflen > 0) {
++*/
++    if (available) {
+         int message;
+         unsigned char tid[16], id[20], info_hash[20], target[20];
+         unsigned char nodes[256], nodes6[1024], token[128];
+@@ -1864,6 +1897,13 @@
+         int want;
+         unsigned short ttid;
+ 
++        /* For cjdns compatability */
++        struct sockaddr_storage source_storage;
++        struct sockaddr *from = (struct sockaddr*)&source_storage;
++        socklen_t fromlen = sizeof(source_storage);
++        NetowrkTools_getPeerAddress(packet->peerAddress, packet->addressLength, &source_storage);
++        /* #end# */
++
+         if(is_martian(from))
+             goto dontread;
+ 
+@@ -1873,8 +1913,8 @@
+                 goto dontread;
+             }
+         }
+-
+-        /* See parse_message. */
++        /* Replaced by cjdns modular dht.
++        * See parse_message. *
+ 
+         if(((char*)buf)[buflen] != '\0') {
+             debugf("Unterminated message.\n");
+@@ -1887,10 +1927,17 @@
+                                 nodes, &nodes_len, nodes6, &nodes6_len,
+                                 values, &values_len, values6, &values6_len,
+                                 &want);
++        */
++        message = parse_message2(packet->bencoded, tid, &tid_len, id, info_hash,
++                                 target, &port, token, &token_len,
++                                 nodes, &nodes_len, nodes6, &nodes6_len,
++                                 values, &values_len, values6, &values6_len,
++                                 &want);
++        /* #end# */
+ 
+         if(message < 0 || message == ERROR || id_cmp(id, zeroes) == 0) {
+             debugf("Unparseable message: ");
+-            debug_printable(buf, buflen);
++            debug_printable(buf, rc);
+             debugf("\n");
+             goto dontread;
+         }
+@@ -1912,7 +1959,7 @@
+         case REPLY:
+             if(tid_len != 4) {
+                 debugf("Broken node truncates transaction ids: ");
+-                debug_printable(buf, buflen);
++                debug_printable(buf, rc);
+                 debugf("\n");
+                 /* This is really annoying, as it means that we will
+                    time-out all our searches that go through this node.
+@@ -2022,7 +2069,7 @@
+                 }
+             } else {
+                 debugf("Unexpected reply: ");
+-                debug_printable(buf, buflen);
++                debug_printable(buf, rc);
+                 debugf("\n");
+             }
+             break;
+@@ -2276,6 +2323,8 @@
+ /* We could use a proper bencoding printer and parser, but the format of
+    DHT messages is fairly stylised, so this seemed simpler. */
+ 
++/* Handled in cjdns modular dht engine
++
+ #define CHECK(offset, delta, size)                      \
+     if(delta < 0 || offset + delta > size) goto fail
+ 
+@@ -2415,9 +2464,9 @@
+     }
+ 
+     if(st && st->numpeers > 0) {
+-        /* We treat the storage as a circular list, and serve a randomly
++        / We treat the storage as a circular list, and serve a randomly
+            chosen slice.  In order to make sure we fit within 1024 octets,
+-           we limit ourselves to 50 peers. */
++           we limit ourselves to 50 peers. /
+ 
+         len = af == AF_INET ? 4 : 16;
+         j0 = random() % st->numpeers;
+@@ -2451,6 +2500,7 @@
+     errno = ENOSPC;
+     return -1;
+ }
++*/
+ 
+ static int
+ insert_closest_node(unsigned char *nodes, int numnodes,
+@@ -2559,6 +2609,7 @@
+                             af, st, token, token_len);
+ }
+ 
++/* Handled in cjdns modular dht
+ int
+ send_get_peers(const struct sockaddr *sa, int salen,
+                unsigned char *tid, int tid_len, unsigned char *infohash,
+@@ -2667,6 +2718,7 @@
+ #undef INC
+ #undef COPY
+ #undef ADD_V
++*/
+ 
+ #ifndef HAVE_MEMMEM
+ static void *

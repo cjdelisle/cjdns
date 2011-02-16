@@ -1,0 +1,14 @@
+v0.4: (Apr 2009)
+  - signature generation is deterministic now
+  - fix in the allocation routines for secure memory
+  - minor bugfixes
+
+v0.3: (Aug 2006)
+  - added signcryption as shortcut for signing and subsequent encryption
+  - added -a mode (inline signature)
+
+v0.2: (Aug 2006)
+  - added Diffie-Hellman key exchange
+
+v0.1: (July 2006)
+  - initial release

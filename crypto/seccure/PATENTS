@@ -1,0 +1,23 @@
+
+   SECCURE Elliptic Curve Crypto Utility for Reliable Encryption
+
+              http://point-at-infinity.org/seccure/
+
+
+seccure builds on a bunch of cryptographic algorithms and techniques
+(a comprehensive list is presented below). To my best knowledge none
+of these and in particular no part of seccure is covered by patents.
+
+- ECIES, ECDSA, ECDH
+- AES256, SHA256, SHA512, CTR Mode, HMAC Mode
+- Point compression on elliptic curves over prime fields
+- Point multiplication using Double-And-Add-Algorithm
+  (may be replaced by a NAF-Algorithm in the future)
+
+Note: Diffie-Hellman key agreement actually has been patented in 1977. 
+The patent expired regularly in 1997. 
+
+Note: some of the supported elliptic curves are defined over prime
+fields with moduli of "Crandall type" (which may be patented). Seccure
+doesn't make use of the special structure these primes offer and
+therefore doesn't touch the Crandall patents.

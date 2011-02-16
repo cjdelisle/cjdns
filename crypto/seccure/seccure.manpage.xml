@@ -1,0 +1,298 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE manpage SYSTEM "http://masqmail.cx/xmltoman/xmltoman.dtd">
+
+<!--
+
+  seccure  -  Copyright 2009 B. Poettering
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of the
+  License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+  02111-1307 USA
+
+//-->
+
+<?xml-stylesheet type="text/xsl"
+href="http://masqmail.cx/xmltoman/xmltoman.xsl" ?>
+
+<manpage name="seccure" section="1" 
+  desc="SECCURE Elliptic Curve Crypto Utility for Reliable Encryption">
+
+<synopsis>
+      <cmd>seccure-key [-c <arg>curve</arg>] [-F <arg>pwfile</arg>] [-d] [-v] [-q]</cmd>
+      <cmd>seccure-encrypt [-m <arg>maclen</arg>] [-c <arg>curve</arg>] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-v] [-q] <arg>key</arg> </cmd>
+      <cmd>seccure-decrypt [-m <arg>maclen</arg>] [-c <arg>curve</arg>] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-F <arg>pwfile</arg>] [-d] [-v] [-q] </cmd>
+      <cmd>seccure-sign [-f] [-b] [-a] [-c <arg>curve</arg>] [-s <arg>sigfile</arg>] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-F <arg>pwfile</arg>] [-d] [-v] [-q] </cmd>
+      <cmd>seccure-verify [-f] [-b] [-a] [-c <arg>curve</arg>] [-s <arg>sigfile</arg>] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-v] [-q] <arg>key</arg> [<arg>sig</arg>] </cmd>
+      <cmd>seccure-signcrypt [-c <arg>sig_curve</arg> [-c <arg>enc_curve</arg>]] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-F <arg>pwfile</arg>] [-d] [-v] [-q] <arg>key</arg></cmd>
+      <cmd>seccure-veridec [-c <arg>enc_curve</arg> [-c <arg>sig_curve</arg>]] [-i <arg>infile</arg>] [-o <arg>outfile</arg>] [-F <arg>pwfile</arg>] [-d] [-v] [-q] <arg>key</arg></cmd>
+      <cmd>seccure-dh [-c <arg>curve</arg>] [-v] [-q]</cmd>
+</synopsis>
+
+<description>
+
+<p>The <opt>seccure</opt> toolset implements a selection of asymmetric
+algorithms based on elliptic curve cryptography (ECC). In particular
+it offers public key encryption / decryption, signature generation /
+verification and basic key establishment.
+</p>
+<p>
+ECC schemes offer a much better key size to security ratio than
+classical systems (RSA, DSA). Keys are short enough to make direct
+specification of keys on the command line possible (sometimes this is
+more convenient than the management of PGP-like key rings).
+<opt>seccure</opt> builds on this feature and therefore is the tool of
+choice whenever lightweight but nevertheless strong asymmetric
+cryptography -- independent of key servers, revocation certificates,
+the Web of Trust or even configuration files -- is required.
+</p>
+
+
+</description>
+
+<section name ="Commands">
+      <p><opt>seccure-key</opt>: Prompt for a passphrase and
+      calculate the corresponding public key.</p>
+      
+      <p><opt>seccure-encrypt</opt>: Encrypt a message with 
+      public key <arg>key</arg>.</p>
+
+      <p><opt>seccure-decrypt</opt>: Prompt for a passphrase
+      and decrypt a 
+      <opt>seccure-encrypt</opt>ed message.</p>
+
+      <p><opt>seccure-sign</opt>: Prompt for a passphrase and
+      digitally sign a message.</p>
+
+      <p><opt>seccure-verify</opt>: Verify signature <arg>sig</arg>
+      with public key <arg>key</arg>.</p>
+
+      <p><opt>seccure-signcrypt</opt>: Sign a message first, encrypt
+      it subsequently (in <opt>-b -a</opt> and <opt>-m 0</opt> mode,
+      respectively). This is basically a shortcut for two separate
+      <opt>seccure</opt> invocations.</p>
+
+      <p><opt>seccure-veridec</opt>: Counterpart to signcryption.
+      </p>
+
+      <p><opt>seccure-dh</opt>: Perform a Diffie-Hellman key
+      exchange.</p>
+      
+</section>
+
+<options>
+
+      <option>
+<p><opt>-c <arg>curve</arg></opt></p> 
+
+<optdesc> <p>Use elliptic curve <arg>curve</arg>. Available are:
+<arg>secp112r1</arg>, <arg>secp128r1</arg>, <arg>secp160r1</arg>,
+<arg>secp192r1/nistp192</arg>, <arg>secp224r1/nistp224</arg>,
+<arg>secp256r1/nistp256</arg>, <arg>secp384r1/nistp384</arg> and
+<arg>secp521r1/nistp521</arg>.  The curve name may be abbreviated by
+any non-ambiguous substring (for instance it is suggested to specify
+<arg>p224</arg> for the <arg>secp224r1/nistp224</arg> curve). The
+default curve is <arg>p160</arg>, which provides reasonable security
+for everyday use. (See also <opt>HOW TO CHOOSE THE
+CURVE</opt>.)</p>
+
+<p>
+Note: If a public key is given on the command line
+<opt>seccure</opt> can determine the corresponding curve on its
+own. It's then unnecessary to specify the curve explicitly.
+</p>
+</optdesc>
+</option>
+
+      <option>
+<p><opt>-F <arg>pwfile</arg></opt></p>
+<optdesc>
+      <p>Don't prompt for a passphrase; instead, take the first text
+  line of <arg>pwfile</arg>.</p>
+</optdesc>
+</option>      
+      
+      <option><p><opt>-m <arg>maclen</arg></opt></p>
+<optdesc>
+      <p>Set the MAC length to <arg>maclen</arg> bits. Only multiples
+of 8 in the range from 0 to 256 are allowed. The default MAC length is
+80 bits, which provides a reasonable level of integrity protection for
+everyday use.</p>
+
+</optdesc>
+</option>      
+      
+      <option><p><opt>-i <arg>infile</arg></opt></p>
+<optdesc>
+      <p>
+Read from <arg>infile</arg> instead of STDIN.
+</p>
+</optdesc>
+</option>      
+      <option><p><opt>-o <arg>outfile</arg></opt></p>
+<optdesc>
+      <p>
+Write to <arg>outfile</arg> instead of STDOUT.
+</p>
+</optdesc>
+</option>      
+      <option><p><opt>-s <arg>sigfile</arg></opt></p>
+<optdesc>
+
+      <p>For <opt>seccure-sign</opt>: Write signature to
+<arg>sigfile</arg> instead of STDERR. </p>
+
+<p>For <opt>seccure-verify</opt>: Read signature from
+<arg>sigfile</arg> instead of using <arg>sig</arg>.
+</p>
+</optdesc>
+</option>      
+
+      <option><p><opt>-f</opt></p>
+<optdesc>
+      <p>Filter mode: Copy all data read from STDIN verbatim to STDOUT
+      (eventually attaching or detaching a signature in <opt>-a</opt>
+      mode).</p>
+
+</optdesc>
+</option>      
+      <option><p><opt>-b</opt></p>
+<optdesc>
+      <p>Binary mode: Read/write signatures as binary strings. This
+      leads to very compact signatures.</p>
+</optdesc>
+</option>      
+      <option><p><opt>-a</opt></p>
+<optdesc>
+      <p>Append mode: </p> <p>For <opt>seccure-sign</opt>: Append
+      signature to the end of the document. This enforces <opt>-f</opt>
+      mode.</p>
+
+<p>For <opt>seccure-verify</opt>: Detach signature from
+the end of the document.
+</p>
+</optdesc>
+</option>      
+
+      <option><p><opt>-d</opt></p>
+<optdesc>
+      <p>Double prompt mode: When reading a passphrase from the
+console: prompt twice and assure the phrases are the same.
+</p>
+</optdesc>
+</option>      
+      <option><p><opt>-v</opt></p>
+<optdesc>
+      <p>Verbose mode: Print some extra information.</p>
+</optdesc>
+</option>      
+
+      <option><p><opt>-q</opt></p>
+<optdesc>
+      <p>Quiet mode: Disable all unnecessary output.</p>
+</optdesc>
+</option>      
+
+</options>
+
+<section name="Exit Status">
+<p>All commands in the <opt>seccure</opt> software suite exit with a
+status of zero if the desired operation could be completed
+successfully. Any error leads to a nonzero exit code.</p>
+</section>
+
+<section name="Example">
+<p>Given the passphrase 'seccure is secure', run</p> 
+<p><opt>seccure-key</opt></p> 
+
+<p>to determine the corresponding public key (which is
+'2@DupCaCKykHBe-QHpAP%d%B[' on curve <arg>p160</arg>).</p>
+
+<p>To encrypt the file 'document.msg' with that key run</p>
+
+<p><opt>seccure-encrypt -i document.msg -o document.enc '2@DupCaCKykHBe-QHpAP%d%B['</opt></p>
+
+<p>The message can be recovered with </p>
+
+<p><opt>seccure-decrypt -i document.enc</opt></p>
+
+<p>To sign the file run</p>
+
+<p><opt>seccure-sign -i document.msg -s document.sig</opt></p>
+
+<p>and enter the passphrase. The signature is 
+stored in 'document.sig' and can be verified with
+</p>
+
+<p><opt>seccure-verify -i document.msg -s document.sig
+'2@DupCaCKykHBe-QHpAP%d%B['</opt></p>
+
+</section>
+
+<section name="Key establishment">
+  <opt>seccure-dh</opt> performs an interactive Diffie-Hellman key
+  exchange. Two instances have to be run in parallel; the token
+  generated by the first instance is the input for the second one and vice
+  versa. The output consists of two shared keys: it is guaranteed that
+  no attacker can ever find out the established key as soon as the two
+  parties can confirm that both have the same verification key. The
+  authentic comparision of the verification keys can, for example, be
+  realized via signed messages or via telephone (using 'voice
+  authentication').
+</section>
+
+<section name="How to choose the curve">
+<p>
+The number in the name of a curve measures its security level.
+Rule of thumb: the workload to 'break' a k-bit curve is 2^(k/2)
+approximately (example: it takes about 2^112 steps to break
+<arg>secp224r1</arg>). If the 80 bit security of the default curve
+doesn't seem sufficient, choosing a stronger curve (<arg>p192</arg>
+and upwards) may, of course, be considered. But the suggestion
+remains: <arg>p160</arg> offers reasonable security for everyday use.
+<opt>Warning:</opt> the curves <arg>p112</arg> and <arg>p128</arg> do
+not satisfy demands for long-time security.
+</p>
+
+</section>
+
+<section name="Algorithms">
+<p>
+<opt>seccure</opt> uses derivated versions of ECIES (Elliptic
+Curve Integrated Encryption Scheme), ECDSA (Elliptic Curve Digital
+Signature Algorithm) and ECDH (Elliptic Curve Diffie-Hellman) as
+encryption, signature and key establishment scheme, respectively. For
+the symmetric parts (bulk encryption, hashing, key derivation, HMAC
+calculation) <opt>seccure</opt> builds on AES256 (in CTR mode), SHA256
+and SHA512. To my best knowledge no part of <opt>seccure</opt> is covered
+by patents. See the file PATENTS for an explicit patent statement.
+</p>
+</section>
+
+<!--
+<section name="Known Limitations">
+<p>
+<opt>seccure</opt> doesn't support "Vollbit Verschluesselung" yet! ;-)
+</p>
+</section>
+//-->
+
+<section name="Author">
+        This software (v0.4) was written by B. Poettering (seccure AT
+        point-at-infinity.org) in 2009. It is released under the terms of the
+        GNU General Public License (GPL). Find the latest version of
+        <opt>seccure</opt> on the project's homepage: <url
+        href="http://point-at-infinity.org/seccure/"/>.
+</section>
+
+</manpage>

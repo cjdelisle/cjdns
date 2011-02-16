@@ -1,0 +1,4 @@
+This is the core of the DHT implementation which uses Juliusz Chroboczek's DHT.
+Since Juliusz's DHT engine does not interface well with the cjdns DHT modular DHT,
+the code in this directory is intended to encapsulate Juliusz's engine with
+minimal changes to the engine itself.
