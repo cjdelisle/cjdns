@@ -22,12 +22,14 @@ static void dht_hash_impl(void *hash_return, int hash_size,
                           const void *v3, int len3);
 
 static void print_hex(const unsigned char *buf, int buflen);
+static int hexDecode(char* hex, size_t length, char* output, size_t* outLength);
 
 int main(int argc, char** argv)
 {
     if (argc < 4) {
-        printf("Usage: cjdns dns_ip:port dht_ip:port dht_ping_ip:port\n"
-               "   EG: cjdns 127.0.0.1:5353 0.0.0.0:5000 67.215.242.138:6881\n");
+        printf("Usage: cjdns dns_ip:port dht_ip:port dht_ping_ip:port [hex node id]\n"
+               "   EG: cjdns 127.0.0.1:5353 0.0.0.0:5000 67.215.242.138:6881 "
+               "01e11520f60cf0d7ed23521288cf5bf640bb7608\n");
         return -1;
     }
 
@@ -55,7 +57,7 @@ printf("binding dns on socket %s\n", argv[1]);
         return -1;
     }
 
-    char* buffer = malloc(32000);
+    char* buffer = malloc(32000000);
     if (buffer == NULL) {
         printf("Failed to allocate memory\n");
         return -1;
@@ -66,8 +68,18 @@ printf("binding dns on socket %s\n", argv[1]);
         return -1;
     }
 
+    /* Ohhhh jeeee: operation is not possible without initialized secure memory */
     Crypto_init();
-    KeyPair* kp = Crypto_newKeyPair("p160");
+
+    char idBuff[20];
+    char* id = idBuff;
+    size_t idLen = 20;
+    if (argc > 4) {
+        hexDecode(argv[4], strlen(argv[4]), id, &idLen);
+    } else {
+        KeyPair* kp = Crypto_newKeyPair("p160");
+        id = kp->publicKey.as.bstr->bytes;
+    }
 
     struct event_base* base = event_base_new();
 
@@ -95,11 +107,11 @@ printf("binding dns on socket %s\n", argv[1]);
     }
 
     printf("\n\nANNOUNCING: ");
-    print_hex((unsigned char*) kp->publicKey.as.bstr->bytes, 20);
+    print_hex((unsigned char*) id, 20);
     printf(".dht\nThis is your domain address.\n\n\n\n");
 
     struct DHTModule* legacy =
-        LegacyConnectorModule_new(base, kp->publicKey.as.bstr->bytes, registry, dht_random, dht_hash_impl);
+        LegacyConnectorModule_new(base, id, registry, dht_random, dht_hash_impl);
     if (legacy == NULL) {
         printf("Failed to allocate DHT legacy connector module.\n");
         return -1;
@@ -112,7 +124,7 @@ printf("binding dns on socket %s\n", argv[1]);
     }
 
     struct DHTModule* debug = DebugModule_new(allocator);
-
+/*debug = debug;*/
     int ret = DHTModules_register(legacy, registry)
             | DHTModules_register(bridgeDHT, registry)
             | DHTModules_register(serialization, registry)
@@ -176,4 +188,50 @@ static void print_hex(const unsigned char *buf, int buflen)
     for(i = 0; i < buflen; i++) {
         printf("%02x", buf[i]);
     }
+}
+
+/**
+ * @return 0 if all went well, -1 if the length is not an even number, -2 if outLength is
+ *           too small to hold the output, -3 if the input contains an invalid char.
+ */
+static int hexDecode(char* hex, size_t length, char* output, size_t* outLength)
+{
+    if ((size_t)(length &~ 2) != length) {
+        /* That can't be hex. */
+        return -1;
+    }
+    if (outLength == NULL || *outLength < length / 2) {
+        /* Not enough output space. */
+        return -2;
+    }
+
+    const char* allChars = "0123456789abcdefABCDEF";
+    char* ptr;
+
+    size_t i;
+    int outIndex = 0;
+    int thisByte = 0;
+    for (i = 0; i < length; i++) {
+        ptr = strchr(allChars, hex[i]);
+        if (ptr == NULL) {
+            /* invalid char. */
+            return -3;
+        }
+        if (ptr - allChars > 16) {
+            ptr -= 6;
+        }
+
+        thisByte += ptr - allChars;
+
+        if (i & 1) {
+            output[outIndex] = (char) thisByte;
+            outIndex++;
+            thisByte = 0;
+        } else {
+            thisByte = thisByte << 4;
+        }
+    }
+    *outLength = outIndex;
+
+    return 0;
 }

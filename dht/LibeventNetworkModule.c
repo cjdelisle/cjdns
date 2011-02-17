@@ -231,6 +231,10 @@ static struct DHTModule* getModule(LibeventNetworkModule_context* context)
         .name = "LibeventNetworkModule",
         .context = context,
         .free = freeModule,
+        .serialize = NULL,
+        .deserialize = NULL,
+        .compareNodes = NULL,
+        .handleIncoming = NULL,
         .handleOutgoing = handleOutgoing
     };
     memcpy(mod, &localMod, sizeof(struct DHTModule));

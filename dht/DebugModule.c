@@ -54,7 +54,7 @@ void printPeer(struct DHTMessage* message)
 {
     int i;
     for (i = 0; i < 4; i++) {
-        fprintf(stderr, "%d", (int) message->peerAddress[i]);
+        fprintf(stderr, "%d", (int) ((unsigned char)message->peerAddress[i]));
         if (i < 3) {
             fprintf(stderr, ".");
         }

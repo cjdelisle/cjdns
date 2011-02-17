@@ -50,7 +50,7 @@ static int handleIncomingDHT(struct DHTMessage* message,
                              void* vcontext);
 
 #define WARN(x) fprintf(stderr, x);
-#define DEBUG(x)
+#define DEBUG(x) fprintf(stderr, x);
 
 /**
  * Create a new DNS module for failing any requests which are not in the .key zone.
@@ -195,12 +195,13 @@ static int handleKeyLookup(const struct evdns_server_question* question,
 
     return -1;
 }
-
+#include <assert.h>
 static int handleIncomingDHT(struct DHTMessage* message,
                              void* vcontext)
 {
     struct BridgeModule_context* context =
         (struct BridgeModule_context*) vcontext;
+assert(context != NULL);
 
     if (message->bencoded == NULL || message->bencoded->type != BENC_DICT) {
         /* the message must always be a dictionary. */

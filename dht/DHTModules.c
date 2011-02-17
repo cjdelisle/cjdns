@@ -109,25 +109,30 @@ int DHTModules_compareNodes(const benc_bstr_t nodeId,
     forEachModule(compare, NULL, registry);
     return score;
 }
-
+#include <assert.h>
 /** @see DHTModules.h */
 void DHTModules_handleIncoming(struct DHTMessage* message,
                                const struct DHTModuleRegistry* registry)
 {
-
     if (!(message && registry && registry->members && registry->memberCount)) {
         return;
     }
 
     struct DHTModule** firstModulePtr = registry->members;
-    struct DHTModule** modulePtr =
-        &registry->members[registry->memberCount - 1];
+    struct DHTModule** modulePtr = registry->members + registry->memberCount - 1;
     struct DHTModule* module;
 
     while (modulePtr >= firstModulePtr) {
+        assert(modulePtr != NULL);
         module = *modulePtr;
+        assert(module != NULL);
         if (module && module->handleIncoming) {
+    fprintf(stderr, "<< calling: %s->handleIncoming\n", module->name);
+    fflush(stderr);
             module->handleIncoming(message, module->context);
+        } else {
+    fprintf(stderr, "<< skipping %s->handleIncoming\n", module->name);
+    fflush(stderr);
         }
         modulePtr--;
     }
@@ -135,8 +140,14 @@ void DHTModules_handleIncoming(struct DHTMessage* message,
 
 static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* message)
 {
+    assert(module != NULL);
     if (module->handleOutgoing) {
+    fprintf(stderr, ">> calling: %s->handleOutgoing\n", module->name);
+    fflush(stderr);
         return module->handleOutgoing(message, module->context);
+    } else {
+    fprintf(stderr, ">> skipping: %s->handleOutgoing\n", module->name);
+    fflush(stderr);
     }
     return 0;
 }
