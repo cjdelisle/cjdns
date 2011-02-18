@@ -339,8 +339,11 @@ static time_t expire_stuff_time;
 static time_t token_bucket_time;
 static int token_bucket_tokens;
 
-/*FILE *dht_debug = NULL;*/
+#ifdef DEBUG_DHT
 #define dht_debug stderr
+#else
+FILE *dht_debug = NULL;
+#endif
 
 #ifdef __GNUC__
     __attribute__ ((format (printf, 1, 2)))

@@ -19,6 +19,9 @@
 #include "libbenc/bencode.h"
 #include "DHTModules.h"
 
+#define DEBUG2(x, y)
+/* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
+
 /*--------------------Prototypes--------------------*/
 static void forEachModule(int (*doThis)(struct DHTModule* module, struct DHTMessage* message),
                           struct DHTMessage* message,
@@ -127,12 +130,10 @@ void DHTModules_handleIncoming(struct DHTMessage* message,
         module = *modulePtr;
         assert(module != NULL);
         if (module && module->handleIncoming) {
-    fprintf(stderr, "<< calling: %s->handleIncoming\n", module->name);
-    fflush(stderr);
+            DEBUG2("<< calling: %s->handleIncoming\n", module->name);
             module->handleIncoming(message, module->context);
         } else {
-    fprintf(stderr, "<< skipping %s->handleIncoming\n", module->name);
-    fflush(stderr);
+            DEBUG2("<< skipping %s->handleIncoming\n", module->name);
         }
         modulePtr--;
     }
@@ -142,12 +143,10 @@ static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* 
 {
     assert(module != NULL);
     if (module->handleOutgoing) {
-    fprintf(stderr, ">> calling: %s->handleOutgoing\n", module->name);
-    fflush(stderr);
+        DEBUG2(">> calling: %s->handleOutgoing\n", module->name);
         return module->handleOutgoing(message, module->context);
     } else {
-    fprintf(stderr, ">> skipping: %s->handleOutgoing\n", module->name);
-    fflush(stderr);
+        DEBUG2(">> skipping: %s->handleOutgoing\n", module->name);
     }
     return 0;
 }

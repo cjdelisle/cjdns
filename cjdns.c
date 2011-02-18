@@ -29,7 +29,11 @@ int main(int argc, char** argv)
     if (argc < 4) {
         printf("Usage: cjdns dns_ip:port dht_ip:port dht_ping_ip:port [hex node id]\n"
                "   EG: cjdns 127.0.0.1:5353 0.0.0.0:5000 67.215.242.138:6881 "
-               "01e11520f60cf0d7ed23521288cf5bf640bb7608\n");
+               "whenYouChooseANonRandomIdGodKillsAKitten\n"
+               "The Id really really should be random and in hex format.\n"
+               "When you first start the node, just copy the id it gives you have into "
+               "a text file\n"
+               "then you can restart it with the same id and be in the same neighborhood\n");
         return -1;
     }
 
@@ -42,7 +46,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-printf("binding dns on socket %s\n", argv[1]);
     evutil_socket_t dnsSocket = NetworkTools_bindSocket(argv[1]);
 
     if (dnsSocket == -1) {
@@ -123,12 +126,17 @@ printf("binding dns on socket %s\n", argv[1]);
         return -1;
     }
 
-    struct DHTModule* debug = DebugModule_new(allocator);
-/*debug = debug;*/
+    /* Need 2 debug modules one for incoming and one for outgoing so that
+     * the outgoing module will have access to the serialized message and the incoming
+     * will have access to the fully parsed message. */
+    struct DHTModule* debugIn = DebugModule_new(allocator, -1);
+    struct DHTModule* debugOut = DebugModule_new(allocator, 1);
+
     int ret = DHTModules_register(legacy, registry)
             | DHTModules_register(bridgeDHT, registry)
+            | DHTModules_register(debugIn, registry)
             | DHTModules_register(serialization, registry)
-            | DHTModules_register(debug, registry)
+            | DHTModules_register(debugOut, registry)
             | LibeventNetworkModule_register(base, dhtSocket, 6, registry);
 
     if (ret != 0) {
@@ -147,7 +155,6 @@ printf("binding dns on socket %s\n", argv[1]);
         return -1;
     }
 
-    ret |= DNSModules_register(bridgeDNS, dnsRegistry);
     ret |= DNSModules_register(checkZone, dnsRegistry);
     ret |= DNSNetworkModule_register(dnsNetwork, dnsRegistry);
     if (ret != 0) {

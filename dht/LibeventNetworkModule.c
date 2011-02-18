@@ -320,6 +320,7 @@ static void handleEvent(evutil_socket_t socket,
     assert(eventType == EV_READ);
 
     struct DHTMessage message;
+    /* messageType MUST be set to 0. */
     memset(&message, 0, sizeof(struct DHTMessage));
 
     struct sockaddr_storage addrStore;

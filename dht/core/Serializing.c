@@ -1,5 +1,6 @@
 #include "dht/core/LegacyConnectorModuleInternal.h"
 #include "dht/DHTConstants.h"
+#include "dht/MessageTypes.h"
 #include "net/NetworkTools.h"
 #include <string.h>
 
@@ -61,7 +62,8 @@ static int sendMessage(struct sockaddr* address,
                        benc_bstr_t* transactionId,
                        benc_bstr_t* argumentsKey,
                        benc_dict_entry_t* arguments,
-                       int wantProtocols)
+                       int wantProtocols,
+                       int type)
 {
     benc_dict_entry_t* entry = NULL;
 
@@ -141,9 +143,10 @@ static int sendMessage(struct sockaddr* address,
         return -1;
     }
 
-
     /* The last entry in the list is considered the dictionary. */
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
+
+    message.messageType = type;
 
     DHTModules_handleOutgoing(&message, context->registry);
 
@@ -197,7 +200,8 @@ int send_ping(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_arguments,
                        &arguments,
-                       0);
+                       0,
+                       MessageTypes_PING);
 }
 
 /**
@@ -237,7 +241,8 @@ int send_pong(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        &arguments,
-                       0);
+                       0,
+                       MessageTypes_PONG);
 }
 
 /**
@@ -307,7 +312,8 @@ int send_find_node(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_arguments,
                        &arguments,
-                       wantProtocols);
+                       wantProtocols,
+                       MessageTypes_FIND_NODE);
 }
 
 /**
@@ -378,7 +384,8 @@ int send_get_peers(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_arguments,
                        &arguments,
-                       wantProtocols);
+                       wantProtocols,
+                       MessageTypes_GET_PEERS);
 }
 
 struct LegacyConnectorModule_internal_node {
@@ -429,11 +436,20 @@ int send_nodes_peers(struct sockaddr *address,
     /* Might be doing any of 3 things :/
      *
      * if tokenLength == 0 then this is a response to a find_node
-     * else if storage == NULL then this is a response to a get_peers
+     * else if store == NULL then this is a response to a get_peers
      *     request but we don't know any peers so we send a node instead.
      * else this is a response to a get_peers request and we do know
      *     peers.
      */
+
+    int messageType;
+    if (tokenLength == 0) {
+        messageType = MessageTypes_FOUND_NODE;
+    } else if (store == NULL) {
+        messageType = MessageTypes_NO_PEERS_HERES_NODE;
+    } else {
+        messageType = MessageTypes_GOT_PEERS;
+    }
 
     benc_dict_entry_t* arguments = NULL;
 
@@ -520,7 +536,8 @@ int send_nodes_peers(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        arguments,
-                       0);
+                       0,
+                       messageType);
 }
 
 /**
@@ -616,7 +633,8 @@ int send_announce_peer(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_arguments,
                        arguments,
-                       0);
+                       0,
+                       MessageTypes_ANNOUNCE_PEER);
 }
 
 /**
@@ -664,7 +682,8 @@ int send_peer_announced(struct sockaddr *address,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        arguments,
-                       0);
+                       0,
+                       MessageTypes_PEER_ANNOUNCED);
 }
 
 int send_error(struct sockaddr *address,
@@ -737,6 +756,8 @@ int send_error(struct sockaddr *address,
 
     /* The last entry in the list is considered the dictionary. */
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
+
+    message.messageType = MessageTypes_ERROR;
 
     DHTModules_handleOutgoing(&message, context->registry);
 

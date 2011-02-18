@@ -32,7 +32,7 @@ struct DHTMessage {
     /** The message as a libbenc object. */
     bobj_t* bencoded;
 
-    /** The type of message. */
+    /** The type of message. see: MessageTypes.h */
     int messageType;
 
 };

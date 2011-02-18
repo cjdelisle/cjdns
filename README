@@ -1,0 +1,130 @@
+20110216-20110216
+ircerr@EFNet
+
+How To compile cjdns on Debian
+
+**UNTESTED/INCOMPLETE/RFC**
+**UNTESTED/INCOMPLETE/RFC**
+**UNTESTED/INCOMPLETE/RFC**
+
+Assumed:
+-You use debian (probally works on ubuntu)
+
+# [command] lines are commands..
+- [comment] lines are comments (or instructions/commands.. do it!)
+* [therest] is obvious
+
+-Remove older versions of deps
+
+-Be sure libevent is gone
+# dpkg -l | grep ^ii| grep libevent
+ii  libevent-dev                    1.3e-3                     Development libraries, header files and docs
+ii  libevent1                       1.3e-3                     An asynchronous event notification library
+
+--Remove it if found
+# apt-get remove libevent-dev
+
+-Note: You may need to (re)compile tor.
+
+--Get newest versions of deps
+
+--Get gcrypt
+# apt-get install libgcrypt11-dev
+
+-Grab a copy of libevent ( http://monkey.org/~provos/libevent/ )
+# git clone git://levent.git.sourceforge.net/gitroot/levent/libevent libevent
+
+-Go there
+# cd libevent
+
+-Pre-config, detect what ya got
+# ./autogen.sh
+
+-Config
+# ./configure
+
+-Build
+# make
+
+-Install
+# make install
+
+-Go back.. DoH
+# cd ..
+
+--Libevent is now done.
+
+--cjdns
+-Grab it
+# git clone https://github.com/cjdelisle/cjdns.git cjdns
+
+-Go there
+# cd cjdns
+
+-Setup build dir
+# mkdir build
+
+-Go there
+# cd build
+
+-pre-build
+# cmake ..
+
+-Build
+# make
+
+-Look for:
+Linking C executable DNSTools_test
+[100%] Built target DNSTools_test
+
+--ALL DONE
+
+--Test? Sure.
+
+-use screen or such to get a few ttys, Xshells, pipe to log and bg, whatever.
+-Setup a session, pointing at 2nd session
+# ./cjdns 127.0.0.1:5353 127.0.0.1:5000 127.0.0.1:5001
+-Setup 2nd session pointing at first session
+# ./cjdns 127.0.0.1:5354 127.0.0.1:5001 127.0.0.1:5000
+
+--Look for this line when it starts:
+ANNOUNCING: 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
+This is your domain address.
+
+-Whatever that number is points to you. If you shut down cjdns or it (OMG) crashes,
+-you can and should enter that number again in the command line like so:
+# ./cjdns 127.0.0.1:5354 127.0.0.1:5001 127.0.0.1:5000 01901520f60cf0d7ed23521288cf5bf640bb7608
+-This is more important when in the real swarm since you will not suddenly be
+-in the wrong neighborhood for your id.
+
+Now for the fun:  ** REPLACE [string].dht with YOUR DHT ^^ seen above **
+
+-Do a lookup via DHT
+# dig @127.0.0.1 -p 5353 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
+
+; <<>> DiG 9.6-ESV-R1 <<>> @127.0.0.1 -p 5353 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12313
+;; flags: qr rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;01901520f60cf0d7ed23521288cf5bf640bb7608.dht. IN A
+
+;; ANSWER SECTION:
+01901520f60cf0d7ed23521288cf5bf640bb7608.dht. 30 IN A 208.91.129.187
+
+;; Query time: 71 msec
+;; SERVER: 127.0.0.1#5353(127.0.0.1)
+;; WHEN: Thu Feb 17 18:53:43 2011
+;; MSG SIZE  rcvd: 78
+
+^that's a real query of another dht node on the net,
+yea 71 msec
+really ;)
+
+
+--Thats IT for now.
+-Run it again on a public IP with a known dht host

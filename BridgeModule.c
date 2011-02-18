@@ -27,7 +27,7 @@ struct BridgeModule_waitingDnsRequest {
 };
 
 struct BridgeModule_context {
-    unsigned int topRequest;
+    unsigned int nextRequestSlot;
     struct BridgeModule_waitingDnsRequest waitingRequests[MAX_CONCURRENT_REQUESTS];
     struct DHTModule asDHT;
     struct DNSModule asDNS;
@@ -44,13 +44,22 @@ static int handleQuestion(const struct evdns_server_question* question,
 static int handleKeyLookup(const struct evdns_server_question* question,
                            struct evdns_server_request* request,
                            struct BridgeModule_context* context);
-static int removeWaitingRequest(unsigned int requestNumber,
-                                struct BridgeModule_context* context);
+static int removeRequest(unsigned int requestNumber,
+                         struct BridgeModule_context* context);
 static int handleIncomingDHT(struct DHTMessage* message,
                              void* vcontext);
 
-#define WARN(x) fprintf(stderr, x);
-#define DEBUG(x) fprintf(stderr, x);
+#define WARN(x) fprintf(stderr, x)
+
+#ifdef DEBUG_DNS
+#define DEBUG(x) fprintf(stderr, x)
+#define DEBUG2(x, y) fprintf(stderr, x, y)
+#define DEBUG3(x, y, z) fprintf(stderr, x, y, z)
+#else
+#define DEBUG(x)
+#define DEBUG2(x, y)
+#define DEBUG3(x, y, z)
+#endif
 
 /**
  * Create a new DNS module for failing any requests which are not in the .key zone.
@@ -67,7 +76,7 @@ struct DNSModule* BridgeModule_registerNew(struct DNSModuleRegistry* registry,
     if (context == NULL) {
         return NULL;
     }
-
+    context->nextRequestSlot = 0;
     context->dnsRegistry = registry;
 
     struct DNSModule localModule = {
@@ -129,6 +138,8 @@ static int handleIncoming(struct DNSMessage* message,
             DNSModules_handleOutgoing(message, registry);
             return -1;
         }
+        /* If we handle more than one question the request gets released too many times. */
+        return 0;
     }
 
     return 0;
@@ -180,33 +191,34 @@ static int handleKeyLookup(const struct evdns_server_question* question,
         return 0;
     }
 
-    if (context->topRequest == MAX_CONCURRENT_REQUESTS) {
+    if (context->nextRequestSlot == MAX_CONCURRENT_REQUESTS) {
         WARN("Maximum requests reached, discarding request! "
              "Consider increasing MAX_CONCURRENT_REQUESTS in BridgeModule.c");
         return -1;
     }
 
     struct BridgeModule_waitingDnsRequest* waitingRequestPtr =
-        &context->waitingRequests[context->topRequest++];
+        context->waitingRequests + context->nextRequestSlot;
+    context->nextRequestSlot++;
 
+    DEBUG3("Adding question. %p for domain: %s\n", request, question->name);
     memcpy(waitingRequestPtr, &waitingRequest, sizeof(struct BridgeModule_waitingDnsRequest));
 
     dht_search((unsigned char*) waitingRequestPtr->key, 0, AF_INET, NULL, NULL);
 
     return -1;
 }
-#include <assert.h>
+
 static int handleIncomingDHT(struct DHTMessage* message,
                              void* vcontext)
 {
     struct BridgeModule_context* context =
         (struct BridgeModule_context*) vcontext;
-assert(context != NULL);
 
     if (message->bencoded == NULL || message->bencoded->type != BENC_DICT) {
         /* the message must always be a dictionary. */
         return -1;
-    } 
+    }
     bobj_t* reply = bobj_dict_lookup(message->bencoded, &DHTConstants_reply);
 
     /* If it's not a reply then 99% sure we don't have the node we want. */
@@ -232,7 +244,8 @@ assert(context != NULL);
     /* Now look for a matching job. */
     size_t i;
     struct BridgeModule_waitingDnsRequest* waitingRequest;
-    for (i = 0; i < context->topRequest; i++) {
+
+    for (i = 0; i < context->nextRequestSlot; i++) {
         waitingRequest = context->waitingRequests + i;
         if (memcmp(id, waitingRequest->key, 20) == 0) {
             DEBUG("MATCH!!\n");
@@ -247,12 +260,13 @@ assert(context != NULL);
                 .returnCode = 0
             };
             DNSModules_handleOutgoing(&response, context->dnsRegistry);
+            removeRequest(i, context);
 
-            removeWaitingRequest(i, context);
-            /* There might be more requests for the same node so we won't break. */
         } else if (waitingRequest->timeout < now) {
-            DEBUG("NO MATCH! Removing entry.\n");
-            removeWaitingRequest(i, context);
+            DEBUG2("NO MATCH! Removing entry %p\n", waitingRequest->request);
+            evdns_server_request_drop(waitingRequest->request);
+            removeRequest(i, context);
+
         } else {
             DEBUG("NO MATCH!\n");
         }
@@ -260,13 +274,17 @@ assert(context != NULL);
     return 0;
 }
 
-static int removeWaitingRequest(unsigned int requestNumber,
-                                struct BridgeModule_context* context)
+static int removeRequest(unsigned int requestNumber,
+                         struct BridgeModule_context* context)
 {
-    memcpy(context->waitingRequests + requestNumber,
-           context->waitingRequests + context->topRequest,
-           sizeof(struct BridgeModule_waitingDnsRequest));
-    context->topRequest--;
+    if (context->nextRequestSlot > 1
+        && requestNumber + 1 < context->nextRequestSlot)
+    {
+        memcpy(context->waitingRequests + requestNumber,
+               context->waitingRequests + context->nextRequestSlot - 1,
+               sizeof(struct BridgeModule_waitingDnsRequest));
+    }
+    context->nextRequestSlot--;
     return 0;
 }
 

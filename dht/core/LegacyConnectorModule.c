@@ -12,7 +12,11 @@
 
 #include <errno.h>
 
+#ifdef DEBUG_DHT
 #define DEBUG2(string, item) fprintf(stderr, string, item)
+#else
+#define DEBUG2(string, item)
+#endif
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);

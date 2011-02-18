@@ -119,11 +119,13 @@ int benc_bstr_parse(struct Reader* reader,
     number[i] = '\0';
     size_t length = strtoul(number, NULL, 10);
 
-    char* string = allocator->malloc(length, allocator);
+    char* string = allocator->malloc(length + 1, allocator);
     benc_bstr_t* bstr = allocator->malloc(sizeof(benc_bstr_t), allocator);
     if (string == NULL || bstr == NULL) {
         return OUT_OF_SPACE_TO_WRITE;
     }
+    /* Put a null terminator after the end so it can be treated as a normal string. */
+    string[length] = '\0';
 
     if (reader->read(string, length, reader) != 0) {
         return OUT_OF_CONTENT_TO_READ;

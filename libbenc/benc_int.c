@@ -37,13 +37,13 @@ void benc_int_encode(bbuf_t *b, benc_int_t i)
 
 /** @see bencode.h */
 int benc_int_print(struct Writer* writer,
-                           benc_int_t integer)
+                   benc_int_t integer)
 {
     char buffer[32];
     memset(buffer, 0, 32);
 
-    /* int64_t max value is 19 digits long, this should be safe. */
-    sprintf(buffer, "%ld", integer);
+    /* Need to handle 32 bit or 64 bit boxen. */
+    sprintf(buffer, (sizeof(long int) == 8) ? "%ld" : "%lld", integer);
 
     return writer->write(buffer, strlen(buffer), writer);
 }
