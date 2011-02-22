@@ -98,8 +98,8 @@ struct DHTModule {
      *         if the second node is more favorable,
      *         0 if they are considered equal.
      */
-    int (* const compareNodes)(const benc_bstr_t nodeId,
-                               const benc_bstr_t otherNodeId,
+    int (* const compareNodes)(const char nodeId[20],
+                               const char otherNodeId[20],
                                void* context);
 
     /**
@@ -163,8 +163,8 @@ int DHTModules_register(struct DHTModule* module,
 /**
  * @see DHTModule->compareNodes()
  */
-int DHTModules_compareNodes(const benc_bstr_t nodeId,
-                            const benc_bstr_t otherNodeId,
+int DHTModules_compareNodes(const char nodeId[20],
+                            const char otherNodeId[20],
                             const struct DHTModuleRegistry* registry);
 
 /**

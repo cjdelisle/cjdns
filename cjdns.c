@@ -129,8 +129,10 @@ int main(int argc, char** argv)
     /* Need 2 debug modules one for incoming and one for outgoing so that
      * the outgoing module will have access to the serialized message and the incoming
      * will have access to the fully parsed message. */
-    struct DHTModule* debugIn = DebugModule_new(allocator, -1);
-    struct DHTModule* debugOut = DebugModule_new(allocator, 1);
+    struct DHTModule* debugIn = DebugModule_new(allocator);
+    struct DHTModule* debugOut = DebugModule_forOutput(debugIn);
+    FILE* log = fopen("cjdns.log", "a+");
+    DebugModule_setLog(log, debugIn);
 
     int ret = DHTModules_register(legacy, registry)
             | DHTModules_register(bridgeDHT, registry)
@@ -224,7 +226,7 @@ static int hexDecode(char* hex, size_t length, char* output, size_t* outLength)
             /* invalid char. */
             return -3;
         }
-        if (ptr - allChars > 16) {
+        if (ptr - allChars > 15) {
             ptr -= 6;
         }
 

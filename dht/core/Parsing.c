@@ -40,42 +40,43 @@ parse_message2(bobj_t* bencodedMessage,
 #define QUERY 6
 
     /* Get the message and query types. */
-    int thisMessageType;
-    int thisQueryType;
+    int thisMessageType = -1;
+    int thisQueryType = -1;
 
-    if ((value = bobj_dict_lookup(bencodedMessage, &DHTConstants_messageType)) == NULL) {
-        thisMessageType = -1;
-    } else {
-        stringValue = value->as.bstr;
-
-        if (benc_bstr_compare(stringValue, &DHTConstants_reply) == 0) {
-            thisMessageType = REPLY;
-        } else if (benc_bstr_compare(stringValue, &DHTConstants_error) == 0) {
-            thisMessageType = ERROR;
-        } else if (benc_bstr_compare(stringValue, &DHTConstants_query) == 0) {
-            thisMessageType = QUERY;
+    value = bobj_dict_lookup(bencodedMessage, &DHTConstants_messageType);
+    if (value != NULL) {
+        if (value->type == BENC_BSTR) {
+            stringValue = value->as.bstr;
+            if (benc_bstr_compare(stringValue, &DHTConstants_reply) == 0) {
+                thisMessageType = REPLY;
+            } else if (benc_bstr_compare(stringValue, &DHTConstants_error) == 0) {
+                thisMessageType = ERROR;
+            } else if (benc_bstr_compare(stringValue, &DHTConstants_query) == 0) {
+                thisMessageType = QUERY;
+            }
         } else {
-            thisMessageType = -1;
+            DEBUG("A message type with which is not a string.");
         }
     }
 
     /* Get the query type. */
-    if (stringValue == NULL
-        || (value = bobj_dict_lookup(bencodedMessage, stringValue)) == NULL)
-    {
-        thisQueryType = -1;
-    } else {
-        stringValue = value->as.bstr;
-        if (benc_bstr_compare(stringValue, &DHTConstants_ping) == 0) {
-            thisQueryType = PING;
-        } else if (benc_bstr_compare(stringValue, &DHTConstants_findNode) == 0) {
-            thisQueryType = FIND_NODE;
-        } else if (benc_bstr_compare(stringValue, &DHTConstants_getPeers) == 0) {
-            thisQueryType = GET_PEERS;
-        } else if (benc_bstr_compare(stringValue, &DHTConstants_announcePeer) == 0) {
-            thisQueryType = ANNOUNCE_PEER;
-        } else {
-            thisQueryType = -1;
+    if (stringValue != NULL) {
+        value = bobj_dict_lookup(bencodedMessage, stringValue);
+        if (value != NULL) {
+            if (value->type == BENC_BSTR) {
+                stringValue = value->as.bstr;
+                if (benc_bstr_compare(stringValue, &DHTConstants_ping) == 0) {
+                    thisQueryType = PING;
+                } else if (benc_bstr_compare(stringValue, &DHTConstants_findNode) == 0) {
+                    thisQueryType = FIND_NODE;
+                } else if (benc_bstr_compare(stringValue, &DHTConstants_getPeers) == 0) {
+                    thisQueryType = GET_PEERS;
+                } else if (benc_bstr_compare(stringValue, &DHTConstants_announcePeer) == 0) {
+                    thisQueryType = ANNOUNCE_PEER;
+                }
+            } else {
+                DEBUG("A query type which is not a string.");
+            }
         }
     }
 
@@ -103,6 +104,7 @@ parse_message2(bobj_t* bencodedMessage,
 #define COPY(bObj, outBuffer, outBufferLength, bStr)         \
     if (outBuffer && outBufferLength) {                      \
         if (!bObj                                            \
+            || bObj->type != BENC_BSTR                       \
             || (bStr = bObj->as.bstr) == NULL                \
             || (unsigned int) *outBufferLength < bStr->len   \
             || bStr->len < 1)                                \
@@ -129,6 +131,9 @@ parse_message2(bobj_t* bencodedMessage,
          thisMessageArguments = bobj_dict_lookup(bencodedMessage, &DHTConstants_arguments);
     }
 
+    if (thisMessageArguments && thisMessageArguments->type != BENC_DICT) {
+        DEBUG("Message arguments which are not a dictionary.");
+    }
 
     if (!thisMessageArguments) {
         if (token_len) { *token_len = 0; }
@@ -149,7 +154,7 @@ parse_message2(bobj_t* bencodedMessage,
  *                   benc_bstr_t *bStr)
  */
 #define COPY_KNOWN_LENGTH(bObj, outBuffer, length, bStr)              \
-    if (bObj && outBuffer) {                                          \
+    if (bObj && outBuffer && bObj->type == BENC_BSTR) {               \
         bStr = bObj->as.bstr;                                         \
         if (length == bStr->len) {                                    \
             memcpy(outBuffer, bStr->bytes, length);                   \
@@ -174,9 +179,13 @@ parse_message2(bobj_t* bencodedMessage,
     value = bobj_dict_lookup(thisMessageArguments, &DHTConstants_port);
     int portNum = 0;
     if (value) {
-        portNum = value->as.int_;
+        if (value->type == BENC_INT) {
+            portNum = value->as.int_;
+        } else {
+            DEBUG("A port number which is not a number.");
+        }
     }
-    if (portNum && portNum < 65536 && portNum > 0) {
+    if (portNum < 65536 && portNum > 0) {
         *port_return = (unsigned short) portNum;
     } else {
         *port_return = 0;
@@ -196,30 +205,38 @@ parse_message2(bobj_t* bencodedMessage,
     value = bobj_dict_lookup(thisMessageArguments, &DHTConstants_values);
     benc_list_entry_t *valueList = NULL;
     if (value) {
-        valueList = value->as.list;
+        if (value->type == BENC_LIST) {
+            valueList = value->as.list;
+        } else {
+            DEBUG("A values list which is not a list.")
+        }
     }
     size_t values_return_offset = 0;
     size_t values6_return_offset = 0;
     while (valueList) {
         value = valueList->elem;
-        if (value) {
-            stringValue = value->as.bstr;
-            if (stringValue->len == 6) {
-                /* IP4 address. 4 bytes + port# */
-                if (values_return_offset + 6 < (unsigned int) *values_len) {
-                    memcpy((char*) values_return + values_return_offset,
-                           stringValue->bytes, 6);
-                    values_return_offset += 6;
-                }
-            } else if (stringValue->len == 18) {
-                /* IP6 address. 16 bytes + port# */
-                if (values6_return_offset + 18 < (unsigned int) *values6_len) {
-                    memcpy((char*) values6_return + values6_return_offset,
-                           stringValue->bytes, 18);
-                    values6_return_offset += 18;
+        if (value != NULL) {
+            if (value->type == BENC_BSTR) {
+                stringValue = value->as.bstr;
+                if (stringValue->len == 6) {
+                    /* IP4 address. 4 bytes + port# */
+                    if (values_return_offset + 6 < (unsigned int) *values_len) {
+                        memcpy((char*) values_return + values_return_offset,
+                               stringValue->bytes, 6);
+                        values_return_offset += 6;
+                    }
+                } else if (stringValue->len == 18) {
+                    /* IP6 address. 16 bytes + port# */
+                    if (values6_return_offset + 18 < (unsigned int) *values6_len) {
+                        memcpy((char*) values6_return + values6_return_offset,
+                               stringValue->bytes, 18);
+                        values6_return_offset += 18;
+                    }
+                } else {
+                    DEBUG2("Received weird value -- %d bytes.\n", (int) stringValue->len);
                 }
             } else {
-                DEBUG2("Received weird value -- %d bytes.\n", (int) stringValue->len);
+                DEBUG("That's interesting, a value wntry which is not a string.");
             }
         }
         valueList = valueList->next;
@@ -233,17 +250,22 @@ parse_message2(bobj_t* bencodedMessage,
         value = bobj_dict_lookup(thisMessageArguments, &DHTConstants_want);
         if (!value) {
             *want_return = -1;
+        } else if (value->type != BENC_LIST) {
+            DEBUG("That's interesting, a want list which is not a list.");
+            *want_return = -1;
         } else {
             benc_list_entry_t *peerWants = value->as.list;
             while (peerWants) {
                 value = peerWants->elem;
-                if (value) {
+                if (value && value->type == BENC_BSTR) {
                     stringValue = value->as.bstr;
                     if (benc_bstr_compare(stringValue, &DHTConstants_wantIp4) == 0) {
                         *want_return |= WANT4;
                     } else if (benc_bstr_compare(stringValue, &DHTConstants_wantIp6) == 0) {
                         *want_return |= WANT6;
                     }
+                } else {
+                    DEBUG("That's interesting, a want value which is not a string.");
                 }
                 peerWants = peerWants->next;
             }

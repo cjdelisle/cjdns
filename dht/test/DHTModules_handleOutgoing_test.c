@@ -30,9 +30,7 @@ int testOutputHandler()
 
     /* These should be ignored. */
     DHTModules_handleIncoming(&theMessage, reg);
-    DHTModules_compareNodes((benc_bstr_t) {2, "id"},
-                            (benc_bstr_t) {3, "id2"},
-                            reg);
+    DHTModules_compareNodes("00000000000000000000", "11111111111111111111", reg);
     DHTModules_free(reg);
 
     if (context == -1) {

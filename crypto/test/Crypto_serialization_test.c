@@ -40,7 +40,7 @@ int parse0_test()
 
     int out = parse0(control, strlen(control) + 2, &a, &aSize, &b, &bSize, &c, &cSize);
     if (out != 0) {
-        printf("Returned error: %d" + out);
+        printf("Returned error: %d", out);
         return -1;
     }
 

@@ -94,8 +94,8 @@ int DHTModules_register(struct DHTModule* module,
 }
 
 /** @see DHTModules.h */
-int DHTModules_compareNodes(const benc_bstr_t nodeId,
-                            const benc_bstr_t otherNodeId,
+int DHTModules_compareNodes(const char nodeId[20],
+                            const char otherNodeId[20],
                             const struct DHTModuleRegistry* registry)
 {
     int score = 0;
@@ -112,7 +112,7 @@ int DHTModules_compareNodes(const benc_bstr_t nodeId,
     forEachModule(compare, NULL, registry);
     return score;
 }
-#include <assert.h>
+
 /** @see DHTModules.h */
 void DHTModules_handleIncoming(struct DHTMessage* message,
                                const struct DHTModuleRegistry* registry)
@@ -126,9 +126,7 @@ void DHTModules_handleIncoming(struct DHTMessage* message,
     struct DHTModule* module;
 
     while (modulePtr >= firstModulePtr) {
-        assert(modulePtr != NULL);
         module = *modulePtr;
-        assert(module != NULL);
         if (module && module->handleIncoming) {
             DEBUG2("<< calling: %s->handleIncoming\n", module->name);
             module->handleIncoming(message, module->context);

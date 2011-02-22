@@ -16,27 +16,54 @@ static int handleIncoming(struct DHTMessage* message,
 
 /*--------------------Interface--------------------*/
 
+struct DebugModule_context {
+    struct DHTModule inModule;
+    struct DHTModule outModule;
+    uint64_t messageCounter;
+    FILE* log;
+};
+
 /**
  * @param allocator a means to allocate memory.
- * @param incoming if < 0 this module only handles incoming traffic, if > 0 then only outgoing.
  */
-struct DHTModule* DebugModule_new(struct MemAllocator* allocator, int inOutAll)
+struct DHTModule* DebugModule_new(struct MemAllocator* allocator)
 {
-    struct DHTModule* module = allocator->malloc(sizeof(struct DHTModule), allocator);
+    struct DebugModule_context* context =
+        allocator->malloc(sizeof(struct DebugModule_context), allocator);
 
-    struct DHTModule localModule = {
-        .name = "DebugModule",
-        .context = NULL,
+    struct DHTModule inModule = {
+        .name = "DebugInputModule",
+        .context = context,
         .free = NULL,
         .serialize = NULL,
         .deserialize = NULL,
         .compareNodes = NULL,
-        .handleIncoming = (inOutAll > 0) ? NULL : handleIncoming,
-        .handleOutgoing = (inOutAll < 0) ? NULL : handleOutgoing
+        .handleIncoming = handleIncoming,
+        .handleOutgoing = NULL
     };
-    memcpy(module, &localModule, sizeof(struct DHTModule));
+    struct DHTModule outModule = {
+        .name = "DebugModule",
+        .context = context,
+        .free = NULL,
+        .serialize = NULL,
+        .deserialize = NULL,
+        .compareNodes = NULL,
+        .handleIncoming = NULL,
+        .handleOutgoing = handleOutgoing
+    };
+    memcpy(&context->inModule, &inModule, sizeof(struct DHTModule));
+    memcpy(&context->outModule, &outModule, sizeof(struct DHTModule));
+    return &context->inModule;
+}
 
-    return module;
+struct DHTModule* DebugModule_forOutput(struct DHTModule* inputModule)
+{
+    return &((struct DebugModule_context*)inputModule->context)->outModule;
+}
+
+void DebugModule_setLog(FILE* file, struct DHTModule* module)
+{
+    ((struct DebugModule_context*)module->context)->log = file;
 }
 
 /*--------------------Internals--------------------*/
@@ -207,7 +234,7 @@ static void printError(struct DHTMessage* message)
     unparsable(message);
 }
 
-static void printMessage(struct DHTMessage* message)
+static void printMessage(struct DHTMessage* message, uint64_t counter)
 {
     char type = getMessageType(message);
     printPeer(message);
@@ -255,27 +282,59 @@ static void printMessage(struct DHTMessage* message)
         fprintf(stderr, "%s ", idHex);
     }
 
+    bobj_t* version = bobj_dict_lookup(message->bencoded, &DHTConstants_version);
+    if (version == NULL) {
+        fprintf(stderr, "No version.");
+    } else if (version->type != BENC_BSTR) {
+        fprintf(stderr, "Version tag not a string!");
+    } else if (version->as.bstr->len < 2) {
+        fprintf(stderr, "Version length is %d", (int) version->as.bstr->len);
+    } else {
+        benc_bstr_t* vs = version->as.bstr;
+        char v[3];
+        memcpy(v, vs->bytes, 2);
+        v[2] = '\0';
+        fprintf(stderr, "%s:", v);
+        if (vs->len < 4) {
+            fprintf(stderr, " No version given.");
+        } else {
+            unsigned short num = ntohs((unsigned short) *(((char*)vs->bytes) + 2));
+            fprintf(stderr, ":%d", num);
+        }
+    }
+    fprintf(stderr, (sizeof(long int) == 8) ? " #%ld " : " #%lld ", counter);
+
     fprintf(stderr, "\n");
+}
+
+static void writeMessage(struct DHTMessage* message,
+                         struct DebugModule_context* context)
+{
+    fprintf(context->log, (sizeof(long int) == 8) ? "\n%d %ld " : "\n%d %lld ",
+            message->length, context->messageCounter);
+    fwrite(message->bytes, 1, message->length, context->log);
 }
 
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    /* Avoid unused warning. */
-    vcontext = vcontext;
+    struct DebugModule_context* context = (struct DebugModule_context*) vcontext;
+    writeMessage(message, context);
 
     fprintf(stderr, "<-- ");
-    printMessage(message);
+    printMessage(message, context->messageCounter);
+    context->messageCounter++;
     return 0;
 }
 
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    /* Avoid unused warning. */
-    vcontext = vcontext;
+    struct DebugModule_context* context = (struct DebugModule_context*) vcontext;
+    writeMessage(message, context);
 
     fprintf(stderr, "--> ");
-    printMessage(message);
+    printMessage(message, context->messageCounter);
+    context->messageCounter++;
     return 0;
 }

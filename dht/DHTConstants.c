@@ -51,3 +51,10 @@ benc_bstr_t DHTConstants_infoHash = {9, "info_hash"};
 benc_bstr_t DHTConstants_authToken = {5, "token"};
 /* port is included only in announcePeer queries. */
 benc_bstr_t DHTConstants_port = {4, "port"};
+
+/**
+ * Key for a string sent at the top level of a message to indicate the
+ * what type and version the sender's client is.
+ * see: http://www.rasterbar.com/products/libtorrent/dht_extensions.html
+ */
+benc_bstr_t DHTConstants_version = {1, "v"};
