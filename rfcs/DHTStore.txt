@@ -1,0 +1,203 @@
+DHT Store
+
+I would like to propose the addition to DHT of 4 primitive functions. These functions will allow for loading
+and storing of small pieces of static or mutable data.
+get, put, getm, and putm.
+
+get:
+  A very simple function which sends a hash and receives a value in return. The value must be hashed
+  and compared to the requested hash.
+
+  A node may choose to lookup only some number of bytes of the beginning of the hash rather than the entire
+  hash. The first 20 bytes are mandatory and must be sent with the "target" key. Additional bytes of the
+  hash may be added with the optional "k" dictionary key.
+
+  If the responding node finds one or more entries which match the hash prefix provided, it may return
+  whichever one it likes and if the rest of the hash is incorrect then the requesting node shall ask again
+  with a larger piece of the hash.
+  Since over time, hash functions are obsoleted and replaced, the get function should exist for any kind of
+  hash function. I propose that the function name has an underscore and a protocol identifier appended to
+  it so get an entry from a SHA-1 key would require get_sha1, it is recommended for DHT coherence that all
+  nodes support the same set of hashes. Clearly entries hashed with one function should be stored in a
+  separate "namespace" from entries hashed with a different function.
+  I propose that all nodes shall support SHA-1 and SHA-256 hash functions. I propose 2 functions so that in
+  the event that SHA-1 is proven unsuitable for collision free storage, an upgrade to SHA-256 will not take
+  as long as an entire development release and adoption cycle.
+  These protocols must be identified by:
+  get_sha1 -- get request with SHA-1
+  get_sha256 -- put request with SHA-256
+  put_sha1 -- get request with SHA-1
+  put_sha256 -- put request with SHA-256
+
+  get_sha256 request:
+  {
+     "a": {
+        "id": <20 byte ID of sending node>,
+        "k": <Optional number of bytes which follow the first 20, to be used as a discriminator on lookup.>
+        "target": <160 high bits of the hash represented as a string.>
+     },
+     "q": "get_sha256",
+     "t": <transaction-id>,
+     "y": "q"
+  }
+
+  In response to a get request where a matching entry is found, the responding node shall return a string
+  which is no longer than 767 bytes. The node also returns it's own Id, a write token and however many ipv4
+  and/or ipv6 nodes will fit within the maximum packet size.
+  The write token does not play the role which it does with announce_peer requests where it attempts to
+  prevent denial of service by signing someone else up for a torrent. In this case it serves 2 purposes,
+  #1 It prevents abusive nodes from evading IP blacklists by spoofing source address.
+  #2 It attaches identity to an announcement since one must be in possession of the IP address which they
+     announce from, thus discouraging those who would abuse an opportunity to anonymously store things on
+     other people's hard drives.
+
+  get_sha256 response:
+  {
+     "r": {
+        "v": <A string of length less than 768 whose SHA-256 is equal to the requested "token" + "k">,
+        "id": <20 byte id of sending node>,
+        "token": <write-token>,
+        "nodes": <n * compact IPv4-port pair>,
+        "nodes6": <n * compact IPv6-port pair>
+     },
+     "t": <transaction-id>,
+     "y": "r"
+  }
+
+put:
+  A put request is used to store a static piece of data in the hash table. It must be less than 768 bytes
+  in length. This limit is to prevent abuse of the table which is meant only for discovery but also to
+  limit the feasibility of storing legally problematic or morally troubling content.
+  Any attempt to store more than this size string should be met with an error message.
+  The storing node generates a hash and bounces it back as a confirmation that it did actually store the
+  content and it received it all correctly.
+
+  put_sha256 request:
+  {
+     "a": {
+        "id": <20 byte ID of sending node>,
+        "v": <A string of length less than 768>
+     },
+     "q": "put_sha256",
+     "token": <write-token as obtained by previous request>,
+     "t": <transaction-id>,
+     "y": "q"
+  }
+
+  put_sha256 response:
+  {
+     "r": {
+        "id": <20 byte id of sending node>,
+        "k": <The entire hash of "v" as computed by the storing node.>
+     },
+     "t": <transaction-id>,
+     "y": "r"
+  }
+
+
+getm:
+  In order to be able to have syndication feeds, one needs to be able to have entries whose IDs are static
+  while their content is mutable. Mutable content requires cryptographic public key signature to verify the
+  changes to the content. I propose that the getm function like the get function has an underscore and a
+  protocol identifier appended to it. Getting mutable data which is signed with ECDSA using curve nistp256
+  will be done with: getm_dsap256. If a node who supports ECDSA with nistp256 is issued a getm request for
+  a protocol which it does not support, it must not return an entry even if it has an entry which matches
+  the id. If a node supports multiple protocols then it must store entries for each protocol in a separate
+  namespace lest a broken protocol be used to overwrite entries for an unbroken protocol.
+
+  As with get, a requesting node may send a request with only some number of bytes of the beginning of the
+  key. If the responding node has one or more entries for that key then she shall send whichever one she
+  likes. If the requesting node cannot validate the signature on the item then he may ask again with a
+  larger segment of the key.
+
+  I propose that every node support ECDSA with NISTp256 and RSA-2048. Whether or not point compression
+  should be used is a matter for debate but the worst case is RSA-2048 which will contain a 256 bytes for
+  key and 256 for signature in the putm message, the value itself may be as much as 767 bytes and the
+  node id will add another 20. The packet size will still only be 1299 and has 175 bytes of space for
+  miscellaneous entries and bencoding overhead before reaching the common MTU of 1500
+  (including IP and UDP headers). mget packets will necessarily be smaller than mput packets since the key
+  is omitted and the requests which comprise the majority of the packets will be even smaller since they
+  can omit most of the key from the request. In comparison with the gigantic RSA-2048 keys, 64 byte
+  uncompressed p256 keys seem tiny. 
+  These protocols must be identified by:
+  getm_dsap256 -- getm request with ECDSA-NISTp256
+  getm_rsa2048 -- putm request with RSA-2048
+  putm_dsap256 -- getm request with ECDSA-NISTp256
+  putm_rsa2048 -- putm request with RSA-2048
+
+  getm_dsap256 request:
+  {
+     "a": {
+        "id": <20 byte ID of sending node>,
+        "k": <Optional additional bytes of the key to discriminate which entry to get.>
+        "target": <160 high bits of the key represented as a string>
+     },
+     "q": "getm_dsap256",
+     "t": <transaction-id>,
+     "y": "q"
+  }
+
+  getm_dsap256 response:
+  {
+     "r": {
+        "v": <A string of length less than 768 whose signature matches the requested key>,
+        "sig": <A string representation of a signature on the content of the string "v">,
+        "seq": <An integer which represents the version number of the content>,
+        "id": <20 byte id of sending node>,
+        "token": <write-token>,
+        "nodes": <n * compact IPv4-port pair>,
+        "nodes6": <n * compact IPv6-port pair>
+     },
+     "t": <transaction-id>,
+     "y": "r"
+  }
+  
+
+putm:
+  A putm request is used to store a mutable piece of data in the hash table. The stored data must be less
+  than 768 bytes in length as with "put". If the storing node already has a valid entry signed with the
+  same key and the stored entry's sequence number ("seq") is greater than or equal to the sequence number
+  in the announced entry then the storing node does not store the entry but instead responds with an
+  error message. The storing node must do signature verification on the entry before storing it and if
+  verification fails then it must not store the entry and instead return an error message.
+
+  putm_dsap256 request:
+  {
+     "a": {
+        "id": <20 byte ID of sending node>,
+        "seq": <An integer which represents the version number of the content>,
+        "v": <A string of length less than 768>,
+        "sig": <A signature on the sequence number and value>
+        "k": <The entire key which is used to sign the value "v" and the sequence number "seq">
+     },
+     "q": "putm_dsap256",
+     "token": <write-token as obtained by previous request>,
+     "t": <transaction-id>,
+     "y": "q"
+  }
+
+  putm_dsap256 response:
+  {
+     "r": {
+        "id": <20 byte id of sending node>,
+     },
+     "t": <transaction-id>,
+     "y": "r"
+  }
+
+Signature verification:
+  In order to make it maximally difficult to attack the bencoding parser, signing and verification of the
+  value and sequence number should be done as follows:
+  1. encode value and sequence number separately
+  2. concatenate "3:seq" and the encoded sequence number and "1:v" and the encoded value.
+  3. sign or verify the result.
+  sequence number 1 of value "Hello World!" would be converted to: 3:seqi1e1:v12:Hello World!
+  In this way it is not possible to convince a node that part of the length is actually part of the
+  sequence number even if the parser contains certain bugs. Furthermore it is not possible to have a
+  verification failure if a bencoding serializer alters the order of entries in the dictionary.
+
+Expiration:
+  Without re-announcement, these entries should expire in twice as long as normal peer announcements.
+  The logic for making them last longer is that they are more static in nature. It is up to the developer
+  who designs a protocol based on these primitives to decide whether subscribers will re-announce or whether
+  the publisher will do all announcing.
