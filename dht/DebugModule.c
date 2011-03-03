@@ -298,7 +298,11 @@ static void printMessage(struct DHTMessage* message, uint64_t counter)
         if (vs->len < 4) {
             fprintf(stderr, " No version given.");
         } else {
-            unsigned short num = ntohs((unsigned short) *(((char*)vs->bytes) + 2));
+            /* TODO: This is undocumented, it must be either big endian or little endian
+             *       right now it is machine dependent since using htons produced numbers which
+             *       looked quite wrong.
+             */
+            unsigned short num = (unsigned short) *(((char*)vs->bytes) + 2);
             fprintf(stderr, ":%d", num);
         }
     }
