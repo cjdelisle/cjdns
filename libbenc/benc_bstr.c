@@ -196,7 +196,7 @@ found_separator:
 
 int benc_bstr_compare(benc_bstr_t *a, benc_bstr_t *b)
 {
-    if (a == NULL || b != NULL) {
+    if (a == NULL || b == NULL) {
         return (a == NULL) - (b == NULL);
     }
     size_t i;
