@@ -54,7 +54,7 @@ get:
   get_sha256 response:
   {
      "r": {
-        "v": <A string of length less than 768 whose SHA-256 is equal to the requested "token" + "k">,
+        "v": <A string of length less than 768 whose SHA-256 is equal to the requested "target" + "k">,
         "id": <20 byte id of sending node>,
         "token": <write-token>,
         "nodes": <n * compact IPv4-port pair>,
