@@ -13,7 +13,7 @@ int Crypto_signVerify_test()
 
     benc_bstr_t bMessage = {strlen(message), message};
 
-    KeyPair *pair = Crypto_newKeyPair("p160");
+    KeyPair *pair = Crypto_newKeyPair("p256");
     if (pair == NULL) {
         printf("No key!");
         return -1;
@@ -25,6 +25,8 @@ int Crypto_signVerify_test()
         printf("failed to sign");
         return -1;
     }
+
+    printf("signature length is %d\n", (int) sig->len);
 
     if (!Crypto_isSignatureValid(bMessage,
                                    *sig,

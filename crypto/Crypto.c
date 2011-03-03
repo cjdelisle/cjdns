@@ -35,14 +35,14 @@
 /** @see Crypto.h */
 int Crypto_init()
 {
-    gcry_error_t err = gcry_control(GCRYCTL_INIT_SECMEM, 1);
+    gcry_error_t err = gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
     if (gcry_err_code(err)) {
         fprintf(stderr,
                 "Cannot enable gcrypt's secure memory management\n");
         return -1;
     }
 
-    err = gcry_control(GCRYCTL_USE_SECURE_RNDPOOL, 1);
+    err = gcry_control(GCRYCTL_USE_SECURE_RNDPOOL, 0);
     if (gcry_err_code(err)) {
         fprintf(stderr,
                 "Cannot enable gcrypt's random number generator\n");
