@@ -95,16 +95,14 @@ static unsigned short getMessageType(struct DHTMessage* message,
             if (benc_bstr_compare(queryString, &DHTConstants_ping) == 0) {
                 return MessageTypes_PING;
             }
-            if (benc_bstr_compare(queryString, &DHTConstants_findNode) == 0) {
-                return MessageTypes_FIND_NODE;
-            }
             if (benc_bstr_compare(queryString, &DHTConstants_getPeers) == 0) {
                 return MessageTypes_GET_PEERS;
             }
             if (benc_bstr_compare(queryString, &DHTConstants_announcePeer) == 0) {
                 return MessageTypes_ANNOUNCE_PEER;
             }
-            return 0;
+            /* Unknown types --> find_node */
+            return MessageTypes_FIND_NODE;
 
         case MessageTypes_REPLY : ;
             /* The jch dht engine puts message type into tid. 

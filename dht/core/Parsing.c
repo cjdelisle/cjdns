@@ -67,12 +67,13 @@ parse_message2(bobj_t* bencodedMessage,
                 stringValue = value->as.bstr;
                 if (benc_bstr_compare(stringValue, &DHTConstants_ping) == 0) {
                     thisQueryType = PING;
-                } else if (benc_bstr_compare(stringValue, &DHTConstants_findNode) == 0) {
-                    thisQueryType = FIND_NODE;
                 } else if (benc_bstr_compare(stringValue, &DHTConstants_getPeers) == 0) {
                     thisQueryType = GET_PEERS;
                 } else if (benc_bstr_compare(stringValue, &DHTConstants_announcePeer) == 0) {
                     thisQueryType = ANNOUNCE_PEER;
+                } else {
+                    /* Unknown query --> FIND_NODE. */
+                    thisQueryType = FIND_NODE;
                 }
             } else {
                 DEBUG("A query type which is not a string.");
