@@ -124,11 +124,9 @@ static int handleOutgoing(struct DHTMessage* message,
  *
  * @see DHTModule->handleIncoming in DHTModules.h
  */
-#include <assert.h>
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    assert(vcontext != NULL);
     struct MemAllocator* allocator =
         ((struct SerializationModule_context*) vcontext)->allocator;
 

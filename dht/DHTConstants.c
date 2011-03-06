@@ -23,16 +23,22 @@ benc_bstr_t DHTConstants_arguments = {1, "a"};
 /* Possible message arguments. */
 /* myId is included with all query types. */
 benc_bstr_t DHTConstants_myId = {2, "id"};
+
 /* targetId is included with the findNode query only. */
 benc_bstr_t DHTConstants_targetId = {6, "target"};
-/* a findNode query response contains either nodes/nodes6 or values. */
-/* nodes == ids of nodes as a char* made by concatinating the node ids. */
+
+/* a findNode query response contains nodes/nodes6 and possibly values.
+ * nodes == ids of nodes as a char* made by concatinating the node ids and
+ * ip address/port pairs.
+ */
 benc_bstr_t DHTConstants_nodes = {5, "nodes"};
+
 /*
  * Nodes who are located in ipv6 space.
  * http://www.pps.jussieu.fr/~jch/software/bittorrent/bep-dht-ipv6.html
  */
 benc_bstr_t DHTConstants_nodes6 = {6, "nodes6"};
+
 /*
  * This represents a list of network stacks for which which nodes should be
  * shared. Want is only used with getPeers and findNode requests.
@@ -40,15 +46,19 @@ benc_bstr_t DHTConstants_nodes6 = {6, "nodes6"};
 benc_bstr_t DHTConstants_want = {4, "want"};
 benc_bstr_t DHTConstants_wantIp4 = {2, "n4"};
 benc_bstr_t DHTConstants_wantIp6 = {2, "n6"};
+
 /* values == ip address + ports of nodes, this is a bEncoded list. */
 benc_bstr_t DHTConstants_values = {6, "values"};
+
 /* infoHash is included with getPeers and announcePeer query types. */
 benc_bstr_t DHTConstants_infoHash = {9, "info_hash"};
+
 /*
  * authToken is included in the response to getPeers queries
  * and queries of announcePeer type.
  */
 benc_bstr_t DHTConstants_authToken = {5, "token"};
+
 /* port is included only in announcePeer queries. */
 benc_bstr_t DHTConstants_port = {4, "port"};
 

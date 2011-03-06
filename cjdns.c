@@ -1,11 +1,12 @@
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "net/NetworkTools.h"
+#include "crypto/Crypto.h"
 #include "dht/core/LegacyConnectorModule.h"
 #include "dht/LibeventNetworkModule.h"
 #include "dht/SerializationModule.h"
+#include "dht/MessageTypeModule.h"
 #include "dht/DebugModule.h"
-#include "crypto/Crypto.h"
 #include "dns/DNSModules.h"
 #include "dns/DNSNetworkModule.h"
 #include "dns/DNSCheckZoneModule.h"
@@ -60,12 +61,12 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    char* buffer = malloc(32000000);
+    char* buffer = malloc(1000000);
     if (buffer == NULL) {
         printf("Failed to allocate memory\n");
         return -1;
     }
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 32000000);
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1000000);
     if (allocator == NULL) {
         printf("Failed to build a memory allocator\n");
         return -1;
@@ -80,7 +81,7 @@ int main(int argc, char** argv)
     if (argc > 4) {
         hexDecode(argv[4], strlen(argv[4]), id, &idLen);
     } else {
-        KeyPair* kp = Crypto_newKeyPair("p160");
+        KeyPair* kp = Crypto_newKeyPair("p160", allocator);
         id = kp->publicKey.as.bstr->bytes;
     }
 
@@ -134,9 +135,12 @@ int main(int argc, char** argv)
     FILE* log = fopen("cjdns.log", "a+");
     DebugModule_setLog(log, debugIn);
 
+    struct DHTModule* messageType = MessageTypeModule_new(allocator);
+
     int ret = DHTModules_register(legacy, registry)
             | DHTModules_register(bridgeDHT, registry)
             | DHTModules_register(debugIn, registry)
+            | DHTModules_register(messageType, registry)
             | DHTModules_register(serialization, registry)
             | DHTModules_register(debugOut, registry)
             | LibeventNetworkModule_register(base, dhtSocket, 6, registry);

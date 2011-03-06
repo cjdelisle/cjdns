@@ -85,30 +85,6 @@ static void unparsable(struct DHTMessage* message)
     fprintf(stderr, "\n\n");
 }
 
-static benc_bstr_t* getTransactionId(struct DHTMessage* message)
-{
-    bobj_t* tid = bobj_dict_lookup(message->bencoded, &DHTConstants_transactionId);
-    if (tid != NULL && tid->type == BENC_BSTR) {
-        return tid->as.bstr;
-    }
-    return NULL;
-}
-
-/** @return a character indicating the message type 'q', 'r', or 'e', otherwise '\0'. */
-static char getMessageType(struct DHTMessage* message)
-{
-    bobj_t* msgType = bobj_dict_lookup(message->bencoded, &DHTConstants_messageType);
-    char out;
-    if (msgType != NULL
-        && msgType->type == BENC_BSTR
-        && msgType->as.bstr->len == 1)
-    {
-        out = msgType->as.bstr->bytes[0];
-        return (out == 'q' || out == 'r' || out == 'e') ? out : '\0';
-    }
-    return '\0';
-}
-
 /** @return a dictionary type or NULL. */
 static bobj_t* getArguments(struct DHTMessage* message)
 {
@@ -124,6 +100,25 @@ static bobj_t* getArguments(struct DHTMessage* message)
 }
 
 /** @return 0 on success -1 on failure. */
+static int getTargetHex(struct DHTMessage* message, char hexOut[41])
+{
+    bobj_t* args = getArguments(message);
+    bobj_t* id = bobj_dict_lookup(args, &DHTConstants_targetId);
+    if (id != NULL
+        && id->type == BENC_BSTR
+        && id->as.bstr->len == 20)
+    {
+        int i;
+        unsigned char* idStr = (unsigned char*) id->as.bstr->bytes;
+        for (i = 0; i < 20; i++) {
+            sprintf(hexOut + (2 * i), "%02X", idStr[i]);
+        }
+        return 0;
+    }
+    return -1;
+}
+
+/** @return 0 on success -1 on failure. */
 static int getNodeIdHex(struct DHTMessage* message, char hexOut[41])
 {
     bobj_t* args = getArguments(message);
@@ -135,7 +130,7 @@ static int getNodeIdHex(struct DHTMessage* message, char hexOut[41])
         int i;
         unsigned char* idStr = (unsigned char*) id->as.bstr->bytes;
         for (i = 0; i < 20; i++) {
-            sprintf(hexOut + (2 * i), "%02x", idStr[i]);
+            sprintf(hexOut + (2 * i), "%02X", idStr[i]);
         }
         return 0;
     }
@@ -166,52 +161,6 @@ static void printPeer(struct DHTMessage* message)
     fprintf(stderr, buffer);
 }
 
-static int isQueryType(struct DHTMessage* message, char* fullName, char code[2])
-{
-    char type = getMessageType(message);
-    switch (type) {
-        case 'q' : ;
-            bobj_t* queryType = bobj_dict_lookup(message->bencoded, &DHTConstants_query);
-            return queryType != NULL
-                && queryType->type == BENC_BSTR
-                && strcmp(queryType->as.bstr->bytes, fullName) == 0;
-        case 'r' : ;
-            /* our dht engine puts message type into tid, wooo stateless. */
-            benc_bstr_t* tid = getTransactionId(message);
-            return tid != NULL && tid->len > 1 && memcmp(code, tid->bytes, 2) == 0;
-    }
-    return false;
-}
-
-static int isPing(struct DHTMessage* message)
-{
-    return message->messageType == MessageTypes_PING
-        || message->messageType == MessageTypes_PONG
-        || isQueryType(message, "ping", "pn");
-}
-
-static int isAnnounce(struct DHTMessage* message)
-{
-    return message->messageType == MessageTypes_ANNOUNCE_PEER
-        || message->messageType == MessageTypes_PEER_ANNOUNCED
-        || isQueryType(message, "announce_peer", "ap");
-}
-
-static int isGetPeers(struct DHTMessage* message)
-{
-    return message->messageType == MessageTypes_GET_PEERS
-        || message->messageType == MessageTypes_GOT_PEERS
-        || message->messageType == MessageTypes_NO_PEERS_HERES_NODE
-        || isQueryType(message, "get_peers", "gp");
-}
-
-static int isFindNode(struct DHTMessage* message)
-{
-    return message->messageType == MessageTypes_FIND_NODE
-        || message->messageType == MessageTypes_FOUND_NODE
-        || isQueryType(message, "find_node", "fn");
-}
-
 static void printError(struct DHTMessage* message)
 {
     bobj_t* error = bobj_dict_lookup(message->bencoded, &DHTConstants_error);
@@ -236,50 +185,53 @@ static void printError(struct DHTMessage* message)
 
 static void printMessage(struct DHTMessage* message, uint64_t counter)
 {
-    char type = getMessageType(message);
     printPeer(message);
     fprintf(stderr, " ");
-    if (type != 'q' && type != 'r') {
+    if ((message->messageType & MessageTypes_CLASS) == MessageTypes_ERROR) {
         fprintf(stderr, " ");
         printError(message);
         return;
     }
 
-    if (isPing(message)) {
-        if (type == 'q') {
+    switch (message->messageType) {
+        case MessageTypes_PING : ;
             fprintf(stderr, "Ping      ");
-        } else {
+            break;
+        case MessageTypes_PONG : ;
             fprintf(stderr, "Pong      ");
-        }
-    } else if (isGetPeers(message)) {
-        if (type == 'q') {
-            fprintf(stderr, "GetPeers  ");
-        } else {
-            fprintf(stderr, "GotPeers  ");
-        }
-    } else if (isAnnounce(message)) {
-        if (type == 'q') {
-            fprintf(stderr, "Announce  ");
-        } else {
-            fprintf(stderr, "Announced ");
-        }
-    } else if (isFindNode(message)) {
-        if (type == 'q') {
+            break;
+        case MessageTypes_FIND_NODE : ;
             fprintf(stderr, "FindNode  ");
-        } else {
+            break;
+        case MessageTypes_FOUND_NODE : ;
             fprintf(stderr, "FoundNode ");
-        }
+            break;
+        case MessageTypes_GET_PEERS : ;
+            fprintf(stderr, "GetPeers  ");
+            break;
+        case MessageTypes_GOT_PEERS : ;
+            fprintf(stderr, "GotPeers  ");
+            break;
+        case MessageTypes_ANNOUNCE_PEER : ;
+            fprintf(stderr, "Announce  ");
+            break;
+        case MessageTypes_PEER_ANNOUNCED : ;
+            fprintf(stderr, "Announced ");
+            break;
+        default :
+            return unparsable(message);
+    };
 
-    } else {
-        return unparsable(message);
-    }
-
-    char idHex[41];
-    if (getNodeIdHex(message, idHex) != 0) {
+    char hex[41];
+    if (getNodeIdHex(message, hex) != 0) {
         unparsable(message);
         return;
     } else {
-        fprintf(stderr, "%s ", idHex);
+        fprintf(stderr, "%s ", hex);
+    }
+
+    if (message->messageType & MessageTypes_QUERY && getTargetHex(message, hex) == 0) {
+        fprintf(stderr, "Target: %s ", hex);
     }
 
     bobj_t* version = bobj_dict_lookup(message->bencoded, &DHTConstants_version);

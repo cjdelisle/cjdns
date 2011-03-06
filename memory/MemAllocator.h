@@ -21,6 +21,19 @@ struct MemAllocator {
     void (* const free)(struct MemAllocator* this);
 
     /**
+     * Add a function to be called when the allocator is freed.
+     * This helps keep track of memory allocated by third party applications
+     * which demand to use malloc themselves.
+     *
+     * @param callback the function to call.
+     * @param callbackContext the data to pass the function when calling it.
+     * @param this the memory allocator.
+     */
+    void (* const onFree)(void (*callback)(void* callbackContext),
+                          void* callbackContext,
+                          const struct MemAllocator* this);
+
+    /**
      * Allocate some memory from this memory allocator.
      * The allocation will be aligned on the size of a pointer, if you need further alignment then
      * you must handle it manually.
@@ -31,7 +44,7 @@ struct MemAllocator {
      * @see malloc()
      */
     void* (* const malloc)(size_t numberOfBytes,
-                           struct MemAllocator* this);
+                           const struct MemAllocator* this);
 
     /**
      * Allocate some memory from this memory allocator.
@@ -47,7 +60,7 @@ struct MemAllocator {
      */
     void* (* const calloc)(size_t numberOfBytes,
                            size_t multiplier,
-                           struct MemAllocator* this);
+                           const struct MemAllocator* this);
 
     /**
      * Get a new child of this allocator.
@@ -56,7 +69,7 @@ struct MemAllocator {
      * @param this the memory allocator, use allocator->child(allocator) to get a child.
      * @return a child allocator.
      */
-    struct MemAllocator* (* const child)(struct MemAllocator* this);
+    struct MemAllocator* (* const child)(const struct MemAllocator* this);
 };
 
 #endif /* MEMALLOCATOR_H */

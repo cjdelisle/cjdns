@@ -4,6 +4,16 @@
 #include "net/NetworkTools.h"
 #include <string.h>
 
+static void getLastMessage(struct DHTMessage* message)
+{
+    if (message->messageType & MessageTypes_REPLY) {
+        message->replyTo = context->lastMessage;
+    } else {
+        message->replyTo = NULL;
+    }
+    context->lastMessage = NULL;
+}
+
 /**
  * Get a bobj_t for a string.
  *
@@ -147,6 +157,8 @@ static int sendMessage(struct sockaddr* address,
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
 
     message.messageType = type;
+
+    getLastMessage(&message);
 
     DHTModules_handleOutgoing(&message, context->registry);
 
@@ -445,8 +457,6 @@ int send_nodes_peers(struct sockaddr *address,
     int messageType;
     if (tokenLength == 0) {
         messageType = MessageTypes_FOUND_NODE;
-    } else if (store == NULL) {
-        messageType = MessageTypes_NO_PEERS_HERES_NODE;
     } else {
         messageType = MessageTypes_GOT_PEERS;
     }
@@ -758,6 +768,8 @@ int send_error(struct sockaddr *address,
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
 
     message.messageType = MessageTypes_ERROR;
+
+    getLastMessage(&message);
 
     DHTModules_handleOutgoing(&message, context->registry);
 

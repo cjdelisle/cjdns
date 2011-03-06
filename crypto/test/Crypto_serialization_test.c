@@ -80,13 +80,23 @@ int parse0_test()
 
 int Crypto_keySerializeParse_test()
 {
-    KeyPair* pair = Crypto_newKeyPair("p160");
+    char buffer[512];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 512);
+
+    KeyPair* pair = Crypto_newKeyPair("p256", allocator);
     if (pair == NULL) {
         printf("No key!\n");
         return -1;
     }
     char* ser = NULL;
     int length = Crypto_serializeKeyPair(pair, &ser);
+
+    if (length == -2) {
+        printf("Failure in gcrypt\n");
+    }
+    if (length == -1) {
+        printf("Overlong key\n");
+    }
 
     if (ser == NULL) {
         printf("No key was generated.\n");
@@ -118,12 +128,7 @@ int Crypto_keySerializeParse_test()
     unsigned int chr;
     for (i = 0; i < (size_t) length; i++) {
         chr = (unsigned int) ser[i] & 0xFF;
-        /* Nonprinting chars, and \ and " are hex'd */
-        if (chr < 0x7f && chr > 0x20 && chr != 0x5c && chr != 0x22) {
-            printf("%c", ser[i]);
-        } else {
-            printf("\\x%.2X", (unsigned int) ser[i] & 0xFF);
-        }
+        printf("\\x%.2X", (unsigned int) ser[i] & 0xFF);
     }
     printf("\n\n\n\n");
 

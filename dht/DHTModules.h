@@ -33,8 +33,14 @@ struct DHTMessage {
     bobj_t* bencoded;
 
     /** The type of message. see: MessageTypes.h */
-    int messageType;
+    unsigned short messageType;
 
+    /**
+     * If this message is an outgoing reply,
+     * the replyTo field is a pointer to the incoming
+     * message which is being replied to. Otherwise it is NULL.
+     */
+    struct DHTMessage* replyTo;
 };
 
 /* Prototyped because it's included in DHTModule->free */

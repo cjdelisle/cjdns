@@ -34,16 +34,14 @@ int Crypto_init();
  * @param curveName one of "p112", "p128", "p160",
  *                  "p192", "p224", "p256", "p384",
  *                  or "p521", the name of the curve to use.
+ * @param allocator a means of getting memory. The private key will be allocated
+ *                  in gcrypt provided secure memory no matter what type this
+ *                  allocator is. However all parts of the key including the private
+ *                  key will be freed when this allocator is freed.
  * @return a new KeyPair suitable for signing.
  */
-KeyPair* Crypto_newKeyPair(const char *curveName);
-
-/**
- * Free a KeyPair.
- *
- * @param toFree this key pair will be destroyed.
- */
-void Crypto_freeKeyPair(KeyPair *toFree);
+KeyPair* Crypto_newKeyPair(const char *curveName,
+                           const struct MemAllocator* allocator);
 
 /**
  * Serialize a keyPair.
@@ -75,11 +73,13 @@ KeyPair* Crypto_parseKeyPair(const char* serialized, size_t bufferLength);
  *
  * @param message the text to sign.
  * @param keyPair the KeyPair to sign with.
+ * @param allocator a means to get memory to put the signature in.
  * @return a string representing a signature
  *         or null if the memory cannot be allocated.
  */
 benc_bstr_t* Crypto_sign(const benc_bstr_t message,
-                           const KeyPair *keyPair);
+                         const KeyPair* const keyPair,
+                         const struct MemAllocator* allocator);
 
 /**
  * Verify a signature.
@@ -96,8 +96,8 @@ benc_bstr_t* Crypto_sign(const benc_bstr_t message,
  *       If these do not match then 0 will return.
  */
 int Crypto_isSignatureValid(const benc_bstr_t message,
-                              const benc_bstr_t signature,
-                              const benc_bstr_t publicKey,
-                              const struct curve_params *params);
+                            const benc_bstr_t signature,
+                            const benc_bstr_t publicKey,
+                            const struct curve_params *params);
 
 #endif
