@@ -104,6 +104,9 @@ static int getTargetHex(struct DHTMessage* message, char hexOut[41])
 {
     bobj_t* args = getArguments(message);
     bobj_t* id = bobj_dict_lookup(args, &DHTConstants_targetId);
+    if (id == NULL) {
+        id = bobj_dict_lookup(args, &DHTConstants_infoHash);
+    }
     if (id != NULL
         && id->type == BENC_BSTR
         && id->as.bstr->len == 20)
