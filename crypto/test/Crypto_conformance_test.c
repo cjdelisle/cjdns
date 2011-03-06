@@ -32,7 +32,8 @@ int Crypto_conformance_test()
     /*------------------------Tests------------------------*/
 
     size_t privateKeyLength = 32;
-    size_t publicKeyLength = 65;
+    size_t publicKeyLength = 64;
+    size_t signatureLength = 64;
 
     /* Craft the cjdns crypto format serialized keypair from the public and private keys. */
     unsigned char keyPair[121];
@@ -66,14 +67,14 @@ int Crypto_conformance_test()
         return -1;
     }
 
-    if (sig->len != 64 || memcmp(signature, sig->bytes, 64) != 0) {
+    if (sig->len != signatureLength || memcmp(signature, sig->bytes, signatureLength) != 0) {
         printf("Signature is not the same!\n");
         return -1;
     }
 
     if (!Crypto_isSignatureValid(bMessage,
-                                 (benc_bstr_t){ .len = 64, .bytes = signature },
-                                 (benc_bstr_t){ .len = 65, .bytes = publicKey },
+                                 (benc_bstr_t){ .len = signatureLength, .bytes = signature },
+                                 (benc_bstr_t){ .len = publicKeyLength, .bytes = publicKey },
                                  pair->params))
     {
         printf("verification failed.");
