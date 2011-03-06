@@ -69,9 +69,6 @@ struct DHTModule* SerializationModule_new()
         .name = "SerializationModule",
         .context = context,
         .free = freeModule,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .compareNodes = NULL,
         .handleIncoming = handleIncoming,
         .handleOutgoing = handleOutgoing
     };

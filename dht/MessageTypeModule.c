@@ -27,12 +27,7 @@ struct DHTModule* MessageTypeModule_new(struct MemAllocator* allocator)
     struct DHTModule module = {
         .name = "DebugInputModule",
         .context = context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .compareNodes = NULL,
         .handleIncoming = handleIncoming,
-        .handleOutgoing = NULL
     };
     memcpy(&context->module, &module, sizeof(struct DHTModule));
     return &context->module;

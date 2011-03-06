@@ -82,11 +82,7 @@ struct DNSModule* BridgeModule_registerNew(struct DNSModuleRegistry* registry,
     struct DNSModule localModule = {
         .name = "BridgeModule",
         .context = context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .handleIncoming = handleIncoming,
-        .handleOutgoing = NULL
+        .handleIncoming = handleIncoming
     };
     memcpy(&(context->asDNS), &localModule, sizeof(struct DNSModule));
 
@@ -107,11 +103,7 @@ struct DHTModule* BridgeModule_asDhtModule(struct DNSModule* module)
     struct DHTModule localModule = {
         .name = "BridgeModule",
         .context = module->context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .handleIncoming = handleIncomingDHT,
-        .handleOutgoing = NULL
+        .handleIncoming = handleIncomingDHT
     };
     memcpy(&context->asDHT, &localModule, sizeof(struct DHTModule));
 

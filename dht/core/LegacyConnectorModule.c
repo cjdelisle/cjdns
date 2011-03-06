@@ -45,13 +45,8 @@ struct DHTModule* LegacyConnectorModule_new(struct event_base* base,
     struct DHTModule localModule = {
         .name = "LegacyConnectorModule",
         .context = context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .handleOutgoing = NULL,
         .handleIncoming = handleIncoming
     };
-    assert(localModule.handleOutgoing == NULL);
     memcpy(module, &localModule, sizeof(struct DHTModule));
 
     /* Setup the context. */

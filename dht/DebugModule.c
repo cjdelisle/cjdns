@@ -34,21 +34,11 @@ struct DHTModule* DebugModule_new(struct MemAllocator* allocator)
     struct DHTModule inModule = {
         .name = "DebugInputModule",
         .context = context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .compareNodes = NULL,
         .handleIncoming = handleIncoming,
-        .handleOutgoing = NULL
     };
     struct DHTModule outModule = {
         .name = "DebugModule",
         .context = context,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .compareNodes = NULL,
-        .handleIncoming = NULL,
         .handleOutgoing = handleOutgoing
     };
     memcpy(&context->inModule, &inModule, sizeof(struct DHTModule));

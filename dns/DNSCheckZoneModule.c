@@ -31,12 +31,7 @@ struct DNSModule* DNSCheckZoneModule_new(struct MemAllocator* allocator)
 
     struct DNSModule localModule = {
         .name = "DNSCheckZoneModule",
-        .context = NULL,
-        .free = NULL,
-        .serialize = NULL,
-        .deserialize = NULL,
         .handleIncoming = handleIncoming,
-        .handleOutgoing = NULL
     };
     memcpy(module, &localModule, sizeof(struct DNSModule));
 

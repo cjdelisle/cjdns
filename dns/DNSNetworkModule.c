@@ -45,9 +45,6 @@ struct DNSModule* DNSNetworkModule_new(struct event_base* base,
         .name = "DNSNetworkModule",
         .context = context,
         .free = shutdownModule,
-        .serialize = NULL,
-        .deserialize = NULL,
-        .handleIncoming = NULL,
         .handleOutgoing = handleOutgoing
     };
     memcpy(module, &localModule, sizeof(struct DNSModule));
