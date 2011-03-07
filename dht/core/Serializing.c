@@ -1,6 +1,5 @@
 #include "dht/core/LegacyConnectorModuleInternal.h"
 #include "dht/DHTConstants.h"
-#include "dht/MessageTypes.h"
 #include "net/NetworkTools.h"
 #include <string.h>
 

@@ -1,7 +1,6 @@
 #include <event2/event.h>
 
 #include "dht/core/LegacyConnectorModuleInternal.h"
-#include "dht/MessageTypes.h"
 
 #include "dht/core/juliusz/dht.h"
 #include "libbenc/benc.h"

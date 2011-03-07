@@ -2,7 +2,6 @@
 #include "memory/BufferAllocator.h"
 #include "dht/DHTModules.h"
 #include "dht/MessageTypeModule.h"
-#include "dht/MessageTypes.h"
 #include "libbenc/benc.h"
 #include <stdio.h>
 #include <string.h>

@@ -3,7 +3,6 @@
 #include <netinet/in.h>
 
 #include "dht/DHTConstants.h"
-#include "dht/MessageTypes.h"
 #include "dht/DHTModules.h"
 #include "memory/MemAllocator.h"
 #include "libbenc/benc.h"
