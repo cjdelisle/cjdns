@@ -194,7 +194,7 @@ found_separator:
     return true;
 }
 
-int benc_bstr_compare(benc_bstr_t *a, benc_bstr_t *b)
+int benc_bstr_compare(const benc_bstr_t* a, const benc_bstr_t* b)
 {
     if (a == NULL || b == NULL) {
         return (a == NULL) - (b == NULL);

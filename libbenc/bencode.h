@@ -32,7 +32,6 @@ void            benc_bstr_free(benc_bstr_t *s);
 size_t          benc_bstr_repsize(benc_bstr_t *s);
 void            benc_bstr_encode(bbuf_t *b, benc_bstr_t *s);
 bool            benc_bstr_decode(bbuf_t *b, benc_bstr_t **s_p);
-int             benc_bstr_compare(benc_bstr_t *a, benc_bstr_t *b);
 
 /**
  * Print a bobject of unknown type in human readable format.

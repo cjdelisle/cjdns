@@ -132,10 +132,6 @@ static int getNodeIdHex(struct DHTMessage* message, char hexOut[41])
 
 static void printPeer(struct DHTMessage* message)
 {
-    char buffer[64];
-    memset(buffer, ' ', 63);
-    buffer[63] = '\0';
-
     unsigned short port = message->peerAddress[5];
     port <<= 8;
     port |= message->peerAddress[4];
@@ -147,11 +143,7 @@ static void printPeer(struct DHTMessage* message)
         (int) ((unsigned char) message->peerAddress[3]),
         (int) ntohs(port)
     };
-    sprintf(buffer, "%d.%d.%d.%d:%d             ",
-            addr[0], addr[1], addr[2], addr[3], addr[4]);
-
-    buffer[21] = '\0';
-    fprintf(stderr, buffer);
+    fprintf(stderr, "%d.%d.%d.%d:%d", addr[0], addr[1], addr[2], addr[3], addr[4]);
 }
 
 static void printError(struct DHTMessage* message)
@@ -180,40 +172,22 @@ static void printMessage(struct DHTMessage* message, uint64_t counter)
 {
     printPeer(message);
     fprintf(stderr, " ");
-    if ((message->messageType & MessageTypes_CLASS) == MessageTypes_ERROR) {
+    if (benc_bstr_compare(message->messageClass, &DHTConstants_error) == 0) {
         fprintf(stderr, " ");
         printError(message);
         return;
     }
 
-    switch (message->messageType) {
-        case MessageTypes_PING : ;
-            fprintf(stderr, "Ping      ");
-            break;
-        case MessageTypes_PONG : ;
-            fprintf(stderr, "Pong      ");
-            break;
-        case MessageTypes_FIND_NODE : ;
-            fprintf(stderr, "FindNode  ");
-            break;
-        case MessageTypes_FOUND_NODE : ;
-            fprintf(stderr, "FoundNode ");
-            break;
-        case MessageTypes_GET_PEERS : ;
-            fprintf(stderr, "GetPeers  ");
-            break;
-        case MessageTypes_GOT_PEERS : ;
-            fprintf(stderr, "GotPeers  ");
-            break;
-        case MessageTypes_ANNOUNCE_PEER : ;
-            fprintf(stderr, "Announce  ");
-            break;
-        case MessageTypes_PEER_ANNOUNCED : ;
-            fprintf(stderr, "Announced ");
-            break;
-        default :
-            return unparsable(message);
-    };
+    fprintf(stderr, "%s", message->queryType->bytes);
+    if (benc_bstr_compare(message->messageClass, &DHTConstants_reply) == 0) {
+        fprintf(stderr, "_reply");
+    } else if (benc_bstr_compare(message->messageClass, &DHTConstants_error) == 0) {
+        fprintf(stderr, "_error");
+        fprintf(stderr, " ");
+        printError(message);
+        return;
+    }
+    fprintf(stderr, " ");
 
     char hex[41];
     if (getNodeIdHex(message, hex) != 0) {
@@ -223,33 +197,21 @@ static void printMessage(struct DHTMessage* message, uint64_t counter)
         fprintf(stderr, "%s ", hex);
     }
 
-    if (message->messageType & MessageTypes_QUERY && getTargetHex(message, hex) == 0) {
+    if (getTargetHex(message, hex) == 0) {
         fprintf(stderr, "Target: %s ", hex);
     }
 
     bobj_t* version = bobj_dict_lookup(message->bencoded, &DHTConstants_version);
-    if (version == NULL) {
-        fprintf(stderr, "No version.");
-    } else if (version->type != BENC_BSTR) {
-        fprintf(stderr, "Version tag not a string!");
-    } else if (version->as.bstr->len < 2) {
-        fprintf(stderr, "Version length is %d", (int) version->as.bstr->len);
+    if (version == NULL
+        || version->type != BENC_BSTR
+        || version->as.bstr->len != 4) {
+        fprintf(stderr, " NONE");
     } else {
         benc_bstr_t* vs = version->as.bstr;
-        char v[3];
-        memcpy(v, vs->bytes, 2);
-        v[2] = '\0';
-        fprintf(stderr, "%s:", v);
-        if (vs->len < 4) {
-            fprintf(stderr, " No version given.");
-        } else {
-            /* TODO: This is undocumented, it must be either big endian or little endian
-             *       right now it is machine dependent since using htons produced numbers which
-             *       looked quite wrong.
-             */
-            unsigned short num = (unsigned short) *(((char*)vs->bytes) + 2);
-            fprintf(stderr, ":%d", num);
-        }
+        fprintf(stderr, "%c%c:", vs->bytes[0], vs->bytes[1]);
+        /* TODO: This will fail on big endian boxes. */
+        unsigned short num = (unsigned short) *(((char*)vs->bytes) + 2);
+        fprintf(stderr, "%d", num);
     }
     fprintf(stderr, (sizeof(long int) == 8) ? " #%ld " : " #%lld ", counter);
 
@@ -259,9 +221,11 @@ static void printMessage(struct DHTMessage* message, uint64_t counter)
 static void writeMessage(struct DHTMessage* message,
                          struct DebugModule_context* context)
 {
-    fprintf(context->log, (sizeof(long int) == 8) ? "\n%d %ld " : "\n%d %lld ",
-            message->length, context->messageCounter);
-    fwrite(message->bytes, 1, message->length, context->log);
+    if (context->log != NULL) {
+        fprintf(context->log, (sizeof(long int) == 8) ? "\n%d %ld " : "\n%d %lld ",
+                message->length, context->messageCounter);
+        fwrite(message->bytes, 1, message->length, context->log);
+    }
 }
 
 static int handleOutgoing(struct DHTMessage* message,

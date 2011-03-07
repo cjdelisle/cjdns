@@ -46,6 +46,21 @@ bobj_t *        bobj_dict_remove(bobj_t *obj, benc_bstr_t *key);
 void            bobj_free(bobj_t *o);
 
 /**
+ * Compare 2 bencoded strings.
+ * If the first differing character is numerically smaller for input a then
+ * a negative number is returned, if the first differing character is numerically
+ * smaller for input b then a positive number. If all characters in a and b are
+ * the same then the difference in length (a->len - b->len) is returned.
+ * If a is NULL and b is not NULL then a negative is returned, if b is NULL and a
+ * not NULL then a positive is returned, if both NULL then 0.
+ *
+ * @param a the first string to compare.
+ * @param b the second string to compare.
+ * @return the output from comparison, 0 if and only if they are equal.
+ */
+int benc_bstr_compare(const benc_bstr_t* a, const benc_bstr_t* b);
+
+/**
  * Print a bobject in human readable format.
  *
  * @param writer the Writer to write to.

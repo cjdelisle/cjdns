@@ -30,7 +30,8 @@ int main()
     send_error((struct sockaddr*) &ipAddr, -1,
                (unsigned char*) "aa", 2,
                201,
-               "A Generic Error Ocurred");
+               "A Generic Error Ocurred",
+               NULL);
 
     printf("error: %s\n\n", testContext.message);
 

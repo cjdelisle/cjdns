@@ -6,14 +6,25 @@
 #include "memory/MemAllocator.h"
 #include "libbenc/bencode.h"
 
+#define WARN(errorString, dhtMessage) \
+    fprintf(stderr, "%s", errorString) \
+
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message,
+                          void* vcontext);
+static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
 
 /*--------------------Interface--------------------*/
 
 struct MessageTypeModule_context {
     struct DHTModule module;
+
+    /** We allow 256 possible types of query. */
+    benc_bstr_t queryTypes[256];
+
+    /** A means to get memory for storing bytes of query type strings. */
+    struct MemAllocator* allocator;
 };
 
 /**
@@ -24,10 +35,13 @@ struct DHTModule* MessageTypeModule_new(struct MemAllocator* allocator)
     struct MessageTypeModule_context* context =
         allocator->malloc(sizeof(struct MessageTypeModule_context), allocator);
 
+    context->allocator = allocator;
+
     struct DHTModule module = {
         .name = "DebugInputModule",
         .context = context,
         .handleIncoming = handleIncoming,
+        .handleOutgoing = handleOutgoing
     };
     memcpy(&context->module, &module, sizeof(struct DHTModule));
     return &context->module;
@@ -35,110 +49,115 @@ struct DHTModule* MessageTypeModule_new(struct MemAllocator* allocator)
 
 /*--------------------Internals--------------------*/
 
-/**
- * Get the transaction id of the message.
- * 
- */
-static benc_bstr_t* getTransactionId(struct DHTMessage* message)
-{
-    bobj_t* tid = bobj_dict_lookup(message->bencoded, &DHTConstants_transactionId);
-    if (tid != NULL && tid->type == BENC_BSTR) {
-        return tid->as.bstr;
-    }
-    return NULL;
-}
-
-/**
- * @param message the message to check, must have already been parsed by the serialization module.
- * @return a MessageTypes_QUERY,
- *           MessageTypes_REPLY,
- *           MessageTypes_ERROR or 0 if the type cannot be determined.
- */
-static unsigned short getMessageClass(struct DHTMessage* message)
-{
-    bobj_t* msgType = bobj_dict_lookup(message->bencoded, &DHTConstants_messageType);
-    if (msgType != NULL && msgType->type == BENC_BSTR) {
-        benc_bstr_t* msgTypeString = msgType->as.bstr;
-        if (benc_bstr_compare(msgTypeString, &DHTConstants_query) == 0) {
-            return MessageTypes_QUERY;
-        }
-        if (benc_bstr_compare(msgTypeString, &DHTConstants_reply) == 0) {
-            return MessageTypes_REPLY;
-        }
-        if (benc_bstr_compare(msgTypeString, &DHTConstants_error) == 0) {
-            return MessageTypes_ERROR;
-        }
-    }
-    return 0;
-}
-
-/**
- * Check the query type of the message.
- *
- * @param message the message to check, must have already been parsed by the serialization module.
- * @param messageClass if this is MessageTypes_QUERY then this function will look for a query entry
- *                     if this is MessageTypes_REPLY then this function will attempt to extract the
- *                     type of query from the transaction id.
- * @return a MessageType such as MessageType_PING or MessageType_GOT_PEERS, or 0 if a message type
- *         could not be determined.
- */
-static unsigned short getMessageType(struct DHTMessage* message,
-                                     unsigned short messageClass)
-{
-    switch (messageClass) {
-        case MessageTypes_QUERY : ;
-            bobj_t* queryType = bobj_dict_lookup(message->bencoded, &DHTConstants_query);
-            if (queryType == NULL || queryType->type != BENC_BSTR) {
-                return 0;
-            }
-            benc_bstr_t* queryString = queryType->as.bstr;
-            if (benc_bstr_compare(queryString, &DHTConstants_ping) == 0) {
-                return MessageTypes_PING;
-            }
-            if (benc_bstr_compare(queryString, &DHTConstants_getPeers) == 0) {
-                return MessageTypes_GET_PEERS;
-            }
-            if (benc_bstr_compare(queryString, &DHTConstants_announcePeer) == 0) {
-                return MessageTypes_ANNOUNCE_PEER;
-            }
-            /* Unknown types --> find_node */
-            return MessageTypes_FIND_NODE;
-
-        case MessageTypes_REPLY : ;
-            /* The jch dht engine puts message type into tid. 
-             * TODO: Move that into this module and remove the tid from the core entirely.
-             */
-            benc_bstr_t* tid = getTransactionId(message);
-            if (tid == NULL || tid->len < 2) {
-                return 0;
-            }
-            if (memcmp(tid->bytes, "pn", 2) == 0) {
-                return MessageTypes_PONG;
-            }
-            if (memcmp(tid->bytes, "fn", 2) == 0) {
-                return MessageTypes_FOUND_NODE;
-            }
-            if (memcmp(tid->bytes, "gp", 2) == 0) {
-                return MessageTypes_GOT_PEERS;
-            }
-            if (memcmp(tid->bytes, "ap", 2) == 0) {
-                return MessageTypes_PEER_ANNOUNCED;
-            }
-            return 0;
-    };
-    return 0;
-}
-
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    /* Don't need any context at the moment. */
-    vcontext = vcontext;
+    struct MessageTypeModule_context* context =
+        (struct MessageTypeModule_context*) vcontext;
 
-    unsigned short messageType = 0;
-    messageType |= getMessageClass(message);
-    messageType |= getMessageType(message, messageType);
-    message->messageType = messageType;
 
+    bobj_t* type = bobj_dict_lookup(message->bencoded, &DHTConstants_messageType);
+    if (type != NULL && type->type == BENC_BSTR) {
+        message->messageClass = type->as.bstr;
+    }
+
+    bobj_t* tid = bobj_dict_lookup(message->bencoded, &DHTConstants_transactionId);
+    if (tid != NULL && tid->type == BENC_BSTR) {
+        message->transactionId = tid->as.bstr;
+    }
+
+    if (message->messageClass == NULL || message->transactionId == NULL) {
+        /* Non-conforming message, drop. */
+        return -1;
+    }
+
+    if (benc_bstr_compare(message->messageClass, &DHTConstants_reply) == 0
+        || benc_bstr_compare(message->messageClass, &DHTConstants_error) == 0)
+    {
+        if (message->transactionId->len < 1) {
+            /* We did not send a 0 length tid in a query, this is bogus. */
+            return -1;
+        }
+        unsigned char index = message->transactionId->bytes[message->transactionId->len - 1];
+        if (context->queryTypes[index].bytes == NULL) {
+            /* I didn't ask for that. */
+            return -1;
+        }
+        message->queryType = &context->queryTypes[index];
+
+        /* deincrement the length since this module added the byte which we just read. */
+        message->transactionId->len--;
+    } else {
+        /* It's a query. */
+        bobj_t* query = bobj_dict_lookup(message->bencoded, &DHTConstants_query);
+        if (query != NULL && query->type == BENC_BSTR) {
+            message->queryType = query->as.bstr;
+        }
+    }
+
+    if (message->queryType == NULL) {
+        /* One way of another this should be set. */
+        return -1;
+    }
+
+    return 0;
+}
+
+static void errorOutOfSpaces(struct MessageTypeModule_context* context)
+{
+    fprintf(stderr, "MessageTypeModule: Out of spaces in message type array.\n"
+                    "Registered message types:\n");
+    unsigned char i = 0;
+    do {
+        fprintf(stderr, "%s\n", context->queryTypes[i].bytes);
+        i++;
+    } while (i > 0);
+}
+
+static int handleOutgoing(struct DHTMessage* message,
+                          void* vcontext)
+{
+    struct MessageTypeModule_context* context =
+        (struct MessageTypeModule_context*) vcontext;
+
+    if (message->messageClass == NULL) {
+        /* An outgoing message with no class. */
+        WARN("An outgoing message with no class", message);
+        return 0;
+    }
+    if (message->queryType == NULL) {
+        /* A message with no queryType. */
+        WARN("An outgoing message with no query type", message);
+        return 0;
+    }
+    if (benc_bstr_compare(message->messageClass, &DHTConstants_query) == 0) {
+        /* Preset the index to a position with some entropy
+         * so that messages will not have to try each location before finding
+         * a match. */
+        unsigned char beginAt = message->queryType->bytes[0] + message->queryType->len;
+
+        unsigned char index = beginAt + 1;
+        while(context->queryTypes[index].bytes != NULL 
+              && benc_bstr_compare(message->queryType, context->queryTypes + index) != 0) {
+            if (index == beginAt) {
+                errorOutOfSpaces(context);
+            }
+            index++;
+        }
+        /* Add an entry if it is not already there. */
+        if (context->queryTypes[index].bytes == NULL) {
+            char* type =
+                context->allocator->calloc(message->queryType->len + 1, 1, context->allocator);
+            memcpy(type, message->queryType->bytes, message->queryType->len);
+            context->queryTypes[index].bytes = type;
+            context->queryTypes[index].len = message->queryType->len;
+        }
+
+        if (message->transactionId->len >= MAX_TRANSACTION_ID_SIZE) {
+            WARN("Killed an outgoing query for having too large a transaction id.", message);
+        }
+        message->transactionId->bytes[message->transactionId->len] = index;
+        message->transactionId->len++;
+    }
     return 0;
 }

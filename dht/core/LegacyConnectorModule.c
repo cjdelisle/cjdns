@@ -99,12 +99,6 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     /*struct LibeventNetworkModuleTest_context* context =
         (struct LibeventNetworkModuleTest_context*) vcontext;*/
 
-    if (message->messageType & MessageTypes_QUERY) {
-        context->lastMessage = message;
-    } else {
-        context->lastMessage = NULL;
-    }
-
     time_t now;
     time(&now);
 
@@ -112,8 +106,6 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     dht_periodic(1, &secondsToSleep, NULL, NULL, message);
     context->whenToCallDHTPeriodic = now + secondsToSleep;
     DEBUG2("Sleeping for %d\n", (int) secondsToSleep);
-
-    context->lastMessage = NULL;
 
     return 0;
 }
@@ -140,7 +132,6 @@ static void handleTimeoutEvent(evutil_socket_t socket,
     time(&now);
 
     if (now > context->whenToCallDHTPeriodic) {
-        context->lastMessage = NULL;
         time_t secondsToSleep;
         dht_periodic(0, &secondsToSleep, NULL, NULL, NULL);
         context->whenToCallDHTPeriodic = now + secondsToSleep;

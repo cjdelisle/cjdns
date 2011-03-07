@@ -21,12 +21,6 @@ struct LegacyConnectorModule_context {
     DHTHashFunction dhtHashFunction;
 
     DHTRandomBytes dhtRandomBytes;
-
-    /**
-     * This is used so that a reply to a message can be associated
-     * with the message which caused it to be sent.
-     */
-    struct DHTMessage* lastMessage;
 };
 
 /**

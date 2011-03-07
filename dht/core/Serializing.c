@@ -4,16 +4,6 @@
 #include "net/NetworkTools.h"
 #include <string.h>
 
-static void getLastMessage(struct DHTMessage* message)
-{
-    if (message->messageType & MessageTypes_REPLY) {
-        message->replyTo = context->lastMessage;
-    } else {
-        message->replyTo = NULL;
-    }
-    context->lastMessage = NULL;
-}
-
 /**
  * Get a bobj_t for a string.
  *
@@ -54,17 +44,17 @@ static void getLastMessage(struct DHTMessage* message)
  *
  * @param address the ip address of the node to ping.
  * @param messageType the type of message,
- *                    DHTDHTConstants_query or DHTDHTConstants_reply
+ *                    DHTConstants_query or DHTConstants_reply
  * @param queryType if messageType is reply then this should be NULL,
  *                  one of [ping, find_node, get_peers, announce_peer]
  * @param transactionId a string to expect back if a query, return back if a
  *                      response.
  * @param argumentsKey the key to put arguments under.
- *                     DHTDHTConstants_arguments or DHTDHTConstants_reply.
+ *                     DHTConstants_arguments or DHTConstants_reply.
  * @param arguments what will go under the "q" or "r" key.
  * @param wantProtocols if set then additional entries will be added for ip4
  *                      and/or ip6.
- * @return 0 if all goes well, -1 if there is an error and errno will be set.
+ * @return 0 if all goes well, -1 if there is an error.
  */
 static int sendMessage(struct sockaddr* address,
                        benc_bstr_t* messageType,
@@ -73,8 +63,11 @@ static int sendMessage(struct sockaddr* address,
                        benc_bstr_t* argumentsKey,
                        benc_dict_entry_t* arguments,
                        int wantProtocols,
-                       int type)
+                       int isReply)
 {
+    struct DHTMessage message;
+    memset(&message, 0, sizeof(struct DHTMessage));
+
     benc_dict_entry_t* entry = NULL;
 
     if (arguments && argumentsKey) {
@@ -87,6 +80,14 @@ static int sendMessage(struct sockaddr* address,
 
     /* "t":"aa" */
     if (transactionId) {
+        if (!isReply) {
+            if (transactionId->len > MAX_TRANSACTION_ID_SIZE) {
+                return -1;
+            }
+            memcpy(message.transactionIdBuffer, transactionId->bytes, transactionId->len);
+            transactionId->bytes = message.transactionIdBuffer;
+            message.transactionId = transactionId;
+        }
         entry = &(benc_dict_entry_t) {
             .next = entry,
             .key = &DHTConstants_transactionId,
@@ -104,7 +105,7 @@ static int sendMessage(struct sockaddr* address,
     }
 
     /* "q":"find_node" */
-    if (queryType) {
+    if (queryType && !isReply) {
         entry = &(benc_dict_entry_t) {
             .next = entry,
             .key = &DHTConstants_query,
@@ -142,9 +143,6 @@ static int sendMessage(struct sockaddr* address,
         }
     }
 
-    struct DHTMessage message;
-    memset(&message, 0, sizeof(struct DHTMessage));
-
     message.addressLength =
         NetworkTools_addressFromSockaddr((struct sockaddr_storage*) address,
                                          message.peerAddress);
@@ -156,9 +154,8 @@ static int sendMessage(struct sockaddr* address,
     /* The last entry in the list is considered the dictionary. */
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
 
-    message.messageType = type;
-
-    getLastMessage(&message);
+    message.messageClass = (isReply == true) ? &DHTConstants_reply : &DHTConstants_query;
+    message.queryType = queryType;
 
     DHTModules_handleOutgoing(&message, context->registry);
 
@@ -213,7 +210,7 @@ int send_ping(struct sockaddr *address,
                        &DHTConstants_arguments,
                        &arguments,
                        0,
-                       MessageTypes_PING);
+                       false);
 }
 
 /**
@@ -249,12 +246,12 @@ int send_pong(struct sockaddr *address,
 
     return sendMessage(address,
                        &DHTConstants_reply,
-                       NULL,
+                       &DHTConstants_ping,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        &arguments,
                        0,
-                       MessageTypes_PONG);
+                       true);
 }
 
 /**
@@ -325,7 +322,7 @@ int send_find_node(struct sockaddr *address,
                        &DHTConstants_arguments,
                        &arguments,
                        wantProtocols,
-                       MessageTypes_FIND_NODE);
+                       false);
 }
 
 /**
@@ -397,7 +394,7 @@ int send_get_peers(struct sockaddr *address,
                        &DHTConstants_arguments,
                        &arguments,
                        wantProtocols,
-                       MessageTypes_GET_PEERS);
+                       false);
 }
 
 struct LegacyConnectorModule_internal_node {
@@ -453,13 +450,6 @@ int send_nodes_peers(struct sockaddr *address,
      * else this is a response to a get_peers request and we do know
      *     peers.
      */
-
-    int messageType;
-    if (tokenLength == 0) {
-        messageType = MessageTypes_FOUND_NODE;
-    } else {
-        messageType = MessageTypes_GOT_PEERS;
-    }
 
     benc_dict_entry_t* arguments = NULL;
 
@@ -542,12 +532,12 @@ int send_nodes_peers(struct sockaddr *address,
 
     return sendMessage(address,
                        &DHTConstants_reply,
-                       NULL,
+                       (tokenLength == 0) ? &DHTConstants_findNode : &DHTConstants_getPeers,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        arguments,
                        0,
-                       messageType);
+                       true);
 }
 
 /**
@@ -644,7 +634,7 @@ int send_announce_peer(struct sockaddr *address,
                        &DHTConstants_arguments,
                        arguments,
                        0,
-                       MessageTypes_ANNOUNCE_PEER);
+                       false);
 }
 
 /**
@@ -688,12 +678,12 @@ int send_peer_announced(struct sockaddr *address,
 
     return sendMessage(address,
                        &DHTConstants_reply,
-                       NULL,
+                       &DHTConstants_announcePeer,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
                        &DHTConstants_reply,
                        arguments,
                        0,
-                       MessageTypes_PEER_ANNOUNCED);
+                       true);
 }
 
 int send_error(struct sockaddr *address,
@@ -701,7 +691,8 @@ int send_error(struct sockaddr *address,
                unsigned char *transactionId,
                int transactionIdLength,
                int code,
-               const char *errorMessage)
+               const char *errorMessage,
+               const benc_bstr_t* queryType)
 {
     /* Unused. */
     addressLength = addressLength;
@@ -767,9 +758,8 @@ int send_error(struct sockaddr *address,
     /* The last entry in the list is considered the dictionary. */
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
 
-    message.messageType = MessageTypes_ERROR;
-
-    getLastMessage(&message);
+    message.queryType = queryType;
+    message.messageClass = &DHTConstants_error;
 
     DHTModules_handleOutgoing(&message, context->registry);
 

@@ -9,6 +9,8 @@
  */
 #define MAX_MESSAGE_SIZE 1536
 
+#define MAX_TRANSACTION_ID_SIZE 16
+
 /**
  * This struct represents a DHT message which will be passed to the
  * modules. The only part of the message which will be available to
@@ -21,26 +23,31 @@ struct DHTMessage {
     char peerAddress[18];
 
     /** Length of the peer's address. 6 for ip4, 18 for ip6. */
-    int addressLength;
+    unsigned char addressLength;
 
     /** The message in binary format. */
     char bytes[MAX_MESSAGE_SIZE];
 
     /** The length of the binary message. */
-    unsigned int length;
+    unsigned short length;
 
     /** The message as a libbenc object. */
     bobj_t* bencoded;
 
-    /** The type of message. see: MessageTypes.h */
-    unsigned short messageType;
+    /** The name of the message query type EG: "find_node" or "get_peers". */
+    const benc_bstr_t* queryType;
+
+    /** The name of the class of message EG: "q" for query or "r" for reply. */
+    const benc_bstr_t* messageClass;
+
+    /** The ID for this message, for responses this id tag must be bounced back to the asker. */
+    benc_bstr_t* transactionId;
 
     /**
-     * If this message is an outgoing reply,
-     * the replyTo field is a pointer to the incoming
-     * message which is being replied to. Otherwise it is NULL.
+     * A place for outgoing transaction Ids to be build,
+     * each module can add a byte to an outgoing message and remove that byte from the response.
      */
-    struct DHTMessage* replyTo;
+    char transactionIdBuffer[MAX_TRANSACTION_ID_SIZE];
 };
 
 /* Prototyped because it's included in DHTModule->free */

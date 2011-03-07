@@ -71,4 +71,5 @@ int send_peer_announced(struct sockaddr *sa, int salen,
 int send_error(struct sockaddr *sa, int salen,
                unsigned char *tid, int tid_len,
                int code,
-               const char *message);
+               const char *message,
+               const benc_bstr_t* queryType);

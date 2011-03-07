@@ -30,6 +30,8 @@ THE SOFTWARE.
 
 /* Needed for getting a socket address from a packet. */
 #include "net/NetworkTools.h"
+/* Needed for sending the query type with error packets. */
+#include "dht/DHTConstants.h"
 
 /* For memmem. */
 #define _GNU_SOURCE
@@ -249,7 +251,7 @@ extern int send_peer_announced(const struct sockaddr *sa, int salen,
                                unsigned char *tid, int tid_len);
 extern int send_error(const struct sockaddr *sa, int salen,
                       unsigned char *tid, int tid_len,
-                      int code, const char *message);
+                      int code, const char *message, const benc_bstr_t* queryType);
 
 #define ERROR 0
 #define REPLY 1
@@ -2099,7 +2101,7 @@ dht_periodic(int available, time_t *tosleep,
             if(id_cmp(info_hash, zeroes) == 0) {
                 debugf("Eek!  Got get_peers with no info_hash.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Get_peers with no info_hash");
+                           203, "Get_peers with no info_hash", &DHTConstants_getPeers);
                 break;
             } else {
                 struct storage *st = find_storage(info_hash);
@@ -2127,19 +2129,19 @@ dht_periodic(int available, time_t *tosleep,
             if(id_cmp(info_hash, zeroes) == 0) {
                 debugf("Announce_peer with no info_hash.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with no info_hash");
+                           203, "Announce_peer with no info_hash", &DHTConstants_announcePeer);
                 break;
             }
             if(!token_match(token, token_len, from)) {
                 debugf("Incorrect token for announce_peer.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with wrong token");
+                           203, "Announce_peer with wrong token", &DHTConstants_announcePeer);
                 break;
             }
             if(port == 0) {
                 debugf("Announce_peer with forbidden port %d.\n", port);
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with forbidden port number");
+                           203, "Announce_peer with forbidden port number", &DHTConstants_announcePeer);
                 break;
             }
             storage_store(info_hash, from);
