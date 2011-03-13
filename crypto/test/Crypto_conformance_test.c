@@ -58,8 +58,9 @@ int Crypto_conformance_test()
         return -1;
     }
 
-    char buffer[512];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 512);
+    #define BUFFER_SIZE 256
+    char buffer[BUFFER_SIZE];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, BUFFER_SIZE);
     benc_bstr_t* sig = Crypto_sign(bMessage, pair, allocator);
 
     if (sig == NULL) {

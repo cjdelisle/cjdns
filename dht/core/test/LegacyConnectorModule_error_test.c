@@ -27,6 +27,7 @@ int main()
 
     DHTModules_register(&receiver, registry);
 
+    prepareFakeQuery();
     send_error((struct sockaddr*) &ipAddr, -1,
                (unsigned char*) "aa", 2,
                201,

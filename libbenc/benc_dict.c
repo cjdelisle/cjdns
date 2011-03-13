@@ -1,78 +1,9 @@
 #include "bencode.h"
 
-benc_dict_entry_t * benc_dict_entry_new(benc_dict_entry_t *next, benc_bstr_t *k, bobj_t *v);
-bobj_t * benc_dict_entry_free_return_val(benc_dict_entry_t *d);
-
-void benc_dict_free(benc_dict_entry_t *head)
-{
-    benc_dict_entry_t *curr = head;
-    benc_dict_entry_t *tmp;
-    while (NULL != curr)
-    {
-        tmp = curr->next;
-        bobj_t *val = benc_dict_entry_free_return_val(curr);
-        bobj_free(val);
-        curr = tmp;
-    }
-}
-
-size_t benc_dict_repsize(benc_dict_entry_t *head)
-{
-    size_t repsize = 2;
-    benc_dict_entry_t *curr = head;
-    while (NULL != curr)
-    {
-        repsize += benc_bstr_repsize(curr->key);
-        repsize += bobj_repsize(curr->val);
-        curr = curr->next;
-    }
-    return repsize;
-}
-
-void benc_dict_encode(bbuf_t *b, benc_dict_entry_t *head)
-{
-    benc_dict_entry_t *curr = head;
-    *(b->ptr)++ = 'd';
-    while (NULL != curr)
-    {
-        benc_bstr_encode(b, curr->key);
-        bobj_encode(b, curr->val);
-        curr = curr->next;
-    }
-    *(b->ptr)++ = 'e';
-}
-
-bool benc_dict_decode(bbuf_t *b, benc_dict_entry_t **head_p)
-{
-    bbuf_inc_ptr(b);
-    benc_dict_entry_t **prev_p, *curr;
-    prev_p = head_p;
-    while (*(b->ptr) != 'e')
-    {
-        benc_bstr_t *key = NULL;
-        if (!benc_bstr_decode(b, &key))
-        {
-            BENC_LOG_EXCEPTION("couldn't read dict key");
-            return false;
-        }
-        bobj_t *val = bdec_mem(b);
-        if (NULL == val)
-        {
-            BENC_LOG_EXCEPTION("couldn't read dict value");
-            return false;
-        }
-        curr = benc_dict_entry_new(NULL, key, val);
-        *prev_p = curr;
-        prev_p = &(curr->next);
-    }
-    bbuf_inc_ptr(b);
-    return true;
-}
-
 /** @see bencode.h */
-int benc_dict_print(struct Writer* writer,
+int benc_dict_print(const struct Writer* writer,
                     size_t padSpaceCount,
-                    benc_dict_entry_t* head)
+                    const benc_dict_entry_t* head)
 {
     char* thirtyTwoSpaces = "                                ";
     int padCounter = 0;
@@ -85,7 +16,7 @@ int benc_dict_print(struct Writer* writer,
 
     writer->write("{\n", 2, writer);
 
-    benc_dict_entry_t* entry = head;
+    const benc_dict_entry_t* entry = head;
     while (entry != NULL) {
         PAD(padSpaceCount + 2);
         benc_bstr_print(writer, entry->key);
@@ -105,10 +36,10 @@ int benc_dict_print(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_dict_serialize(struct Writer* writer,
-                        benc_dict_entry_t* head)
+int benc_dict_serialize(const struct Writer* writer,
+                        const benc_dict_entry_t* head)
 {
-    benc_dict_entry_t* entry = head;
+    const benc_dict_entry_t* entry = head;
     writer->write("d", 1, writer);
     while (entry != NULL)
     {
@@ -120,8 +51,8 @@ int benc_dict_serialize(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_dict_parse(struct Reader* reader,
-                    struct MemAllocator* allocator,
+int benc_dict_parse(const struct Reader* reader,
+                    const struct MemAllocator* allocator,
                     benc_dict_entry_t** headPointer)
 {
     #define OUT_OF_SPACE_TO_WRITE -1
@@ -188,40 +119,14 @@ int benc_dict_parse(struct Reader* reader,
     #undef UNPARSABLE
 }
 
-benc_dict_entry_t * benc_dict_entry_new(benc_dict_entry_t *next, benc_bstr_t *key, bobj_t *val)
+static bobj_t* lookupObject(const Dict* dictionary, const String* key)
 {
-    benc_dict_entry_t *d = (benc_dict_entry_t *)malloc(sizeof(benc_dict_entry_t));
-    d->next = next;
-    d->key = key;
-    d->val = val;
-    return d;
-}
-
-bobj_t * benc_dict_entry_free_return_val(benc_dict_entry_t *d)
-{
-    bobj_t *val = d->val;
-    benc_bstr_free(d->key);
-    free(d);
-    return val;
-}
-
-bobj_t * bobj_dict_new()
-{
-    bobj_t *obj = bobj_new(BENC_DICT);
-    obj->as.dict = NULL;
-    return obj;
-}
-
-bobj_t * bobj_dict_lookup(bobj_t *obj, benc_bstr_t *key)
-{
-    if (obj == NULL || key == NULL || obj->type != BENC_DICT) {
+    if (dictionary == NULL || key == NULL) {
         return NULL;
     }
-    benc_dict_entry_t *curr = obj->as.dict;
-    while (NULL != curr)
-    {
-        if (0 == benc_bstr_compare(key, curr->key))
-        {
+    const benc_dict_entry_t* curr = *dictionary;
+    while (curr != NULL) {
+        if (benc_stringEquals(key, curr->key)) {
             return curr->val;
         }
         
@@ -232,47 +137,121 @@ bobj_t * bobj_dict_lookup(bobj_t *obj, benc_bstr_t *key)
     return NULL;
 }
 
-bool bobj_dict_insert(bobj_t *obj, benc_bstr_t *key, bobj_t *val)
+bobj_t * bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key)
 {
-    benc_dict_entry_t **prev_p = &(obj->as.dict);
-    benc_dict_entry_t *curr = obj->as.dict;
-    while (NULL != curr)
-    {
-        int cmp = benc_bstr_compare(key, curr->key);
-        if (cmp < 0)
-        {
-            break;
-        }
-        else if (cmp == 0)
-        {
-            BENC_LOG_EXCEPTION("dict already contains this key");
-            return false;
-        }
-        
-        prev_p = &(curr->next);
-        curr = curr->next;
+    if (obj == NULL || key == NULL || obj->type != BENC_DICT) {
+        return NULL;
     }
-    
-    *prev_p = benc_dict_entry_new(curr, key, val);
-    return true;
+    benc_dict_entry_t* dict = obj->as.dict;
+    return lookupObject(&dict, key);
 }
 
-bobj_t * bobj_dict_remove(bobj_t *obj, benc_bstr_t *key)
+String* benc_lookupString(const Dict* dictionary, const String* key)
 {
-    benc_dict_entry_t **prev_p = &(obj->as.dict);
-    benc_dict_entry_t *curr = obj->as.dict;
-    while (NULL != curr)
-    {
-        if (0 == benc_bstr_compare(key, curr->key))
-        {
-            *prev_p = curr->next;
-            return benc_dict_entry_free_return_val(curr);
+    bobj_t* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != BENC_BSTR) {
+        return NULL;
+    }
+    return obj->as.bstr;
+}
+
+Dict* benc_lookupDictionary(const Dict* dictionary, const String* key)
+{
+    bobj_t* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != BENC_DICT) {
+        return NULL;
+    }
+    return &(obj->as.dict);
+}
+
+Dict* benc_newDictionary(const struct MemAllocator* allocator)
+{
+    return allocator->calloc(sizeof(Dict), 1, allocator);
+}
+
+/** @see benc.h */
+Object* benc_putObject(Dict* dictionary,
+                       const String* key,
+                       Object* value,
+                       const struct MemAllocator* allocator)
+{
+    benc_dict_entry_t** prev_p = dictionary;
+    benc_dict_entry_t* current = *dictionary;
+    while (current != NULL) {
+        int cmp = benc_bstr_compare(key, current->key);
+        if (cmp < 0) {
+            break;
+        } else if (cmp == 0) {
+            bobj_t* out = current->val;
+            current->val = value;
+            return out;
+        }
+        prev_p = &(current->next);
+        current = current->next;
+    }
+    benc_dict_entry_t* entry = allocator->malloc(sizeof(benc_dict_entry_t), allocator);
+    entry->key = key;
+    entry->val = value;
+    entry->next = current;
+    *prev_p = entry;
+
+    return NULL;
+}
+
+/** @see benc.h */
+Object* benc_putString(Dict* dictionary,
+                       const String* key,
+                       String* value,
+                       const struct MemAllocator* allocator)
+{
+    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
+        .type = BENC_BSTR,
+        .as.bstr = value
+    });
+    return benc_putObject(dictionary, key, v, allocator);
+}
+
+/** @see benc.h */
+Object* benc_putList(Dict* dictionary,
+                     const String* key,
+                     List* value,
+                     const struct MemAllocator* allocator)
+{
+    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
+        .type = BENC_LIST,
+        /* Lists and dictionaries are double pointers so they have to be loaded. */
+        .as.list = *value
+    });
+    return benc_putObject(dictionary, key, v, allocator);
+}
+
+Object* benc_putDictionary(Dict* dictionary,
+                           const String* key,
+                           Dict* value,
+                           const struct MemAllocator* allocator)
+{
+    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
+        .type = BENC_DICT,
+        /* Lists and dictionaries are double pointers so they have to be loaded. */
+        .as.dict = *value
+    });
+    return benc_putObject(dictionary, key, v, allocator);
+}
+
+/** @see benc.h */
+bobj_t* benc_removeEntry(Dict* dictionary, const String* key)
+{
+    benc_dict_entry_t** prev_p = dictionary;
+    benc_dict_entry_t* current = *dictionary;
+    while (current != NULL) {
+        if (benc_stringEquals(key, current->key)) {
+            *prev_p = current->next;
+            return current->val;
         }
         
-        prev_p = &(curr->next);
-        curr = curr->next;
+        prev_p = &(current->next);
+        current = current->next;
     }
-    
-    BENC_LOG_EXCEPTION("key not found");
+
     return NULL;
 }

@@ -3,6 +3,7 @@ add_definitions(-Wall -Wextra -std=gnu99 -Werror)
 find_package(Libevent2 REQUIRED)
 
 add_subdirectory(core)
+#add_subdirectory(dhtstore)
 
 add_library(dht
     DHTConstants.c
@@ -10,9 +11,8 @@ add_library(dht
     LibeventNetworkModule.c
     SerializationModule.c
     DebugModule.c
-    MessageTypeModule.c
 )
-target_link_libraries(dht dhtcore)
+target_link_libraries(dht dhtcore )#dhtstore)
 
 # Everything must be tested.
 enable_testing()

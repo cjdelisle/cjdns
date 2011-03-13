@@ -27,17 +27,11 @@
 
 #include <string.h>
 
-/* The number of bytes for storing deserialized packets. */
-#define WORKSPACE_SIZE 4096
-
 struct SerializationModule_context {
-    char workspace[WORKSPACE_SIZE];
-    struct MemAllocator* allocator;
     struct DHTModule module;
 };
 
 /*--------------------Prototypes--------------------*/
-static void freeModule(struct DHTModule* module);
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
 static int handleIncoming(struct DHTMessage* message,
@@ -50,48 +44,26 @@ static int handleIncoming(struct DHTMessage* message,
  *
  * @return a new SerializationModule or NULL if there is no space to allocate required memory.
  */
-struct DHTModule* SerializationModule_new()
+#include<assert.h>
+struct DHTModule* SerializationModule_new(struct MemAllocator* allocator)
 {
     struct SerializationModule_context* context =
-        malloc(sizeof(struct SerializationModule_context));
+        allocator->malloc(sizeof(struct SerializationModule_context), allocator);
+    memcpy(context, &(struct SerializationModule_context) {
+        .module = {
+            .name = "SerializationModule",
+            .context = context,
+            .handleIncoming = handleIncoming,
+            .handleOutgoing = handleOutgoing
+        }
+    }, sizeof(struct SerializationModule_context));
 
-    if (context == NULL) {
-        return NULL;
-    }
-
-    context->allocator = BufferAllocator_new(context->workspace, WORKSPACE_SIZE);
-
-    if (context->allocator == NULL) {
-        return NULL;
-    }
-
-    struct DHTModule module = {
-        .name = "SerializationModule",
-        .context = context,
-        .free = freeModule,
-        .handleIncoming = handleIncoming,
-        .handleOutgoing = handleOutgoing
-    };
-
-    memcpy(&context->module, &module, sizeof(struct DHTModule));
+    assert(context == context->module.context);
 
     return &context->module;
 }
 
 /*--------------------Internals--------------------*/
-
-/** @see DHTModule->freeContext in DHTModules.h */
-static void freeModule(struct DHTModule* module)
-{
-    if (module == NULL) {
-        return;
-    }
-
-    struct SerializationModule_context* context =
-        (struct SerializationModule_context*) module->context;
-
-    free(context);
-}
 
 /**
  * Take an outgoing message and serialize the bencoded message.
@@ -101,11 +73,8 @@ static void freeModule(struct DHTModule* module)
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    struct MemAllocator* allocator =
-        ((struct SerializationModule_context*) vcontext)->allocator;
-
-    allocator->free(allocator);
-    struct Writer* writer = ArrayWriter_new(message->bytes, MAX_MESSAGE_SIZE, allocator);
+    vcontext = vcontext;
+    struct Writer* writer = ArrayWriter_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
     if (writer == NULL) {
         return -1;
     }
@@ -124,18 +93,16 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    struct MemAllocator* allocator =
-        ((struct SerializationModule_context*) vcontext)->allocator;
+    vcontext = vcontext;
+    struct Reader* reader = ArrayReader_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
 
-    allocator->free(allocator);
-    struct Reader* reader = ArrayReader_new(message->bytes, MAX_MESSAGE_SIZE, allocator);
-    if (reader == NULL) {
+    bobj_parse(reader, message->allocator, &message->bencoded);
+
+    /* sanity check. */
+    if (message->bencoded == NULL || message->bencoded->type != BENC_DICT) {
         return -1;
     }
-
-    bobj_parse(reader, allocator, &message->bencoded);
+    message->asDict = &(message->bencoded->as.dict);
 
     return 0;
 }
-
-#undef WORKSPACE_SIZE

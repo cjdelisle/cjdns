@@ -17,19 +17,19 @@ struct Reader {
      * @param readInto a pointer to a memory location which will have content written to it.
      * @param length the number of bytes to read. If this number is 0 then the next
      *               byte will be returned without incrementing the pointer.
-     * @param this the Reader which is being called. Use: reader->read(X, Y, reader);
+     * @param thisReader the Reader which is being called. Use: reader->read(X, Y, reader);
      * @return 0 if read went well, -1 if the content ran out and no more could be read.
      */
-    int (* const read)(void* readInto, size_t length, struct Reader* this);
+    int (* const read)(void* readInto, size_t length, const struct Reader* thisReader);
 
     /**
      * Advance the pointer a number of bytes without reading any.
      * This function will happily skip off the end of the source and the next read will fail.
      *
      * @param byteCount how far to advance the pointer
-     * @param this the Reader which is being called. Use: reader->skip(Y, reader);
+     * @param thisReader the Reader which is being called. Use: reader->skip(Y, reader);
      */
-    void (* const skip)(size_t byteCount, struct Reader* this);
+    void (* const skip)(size_t byteCount, const struct Reader* thisReader);
 };
 
 #endif

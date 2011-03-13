@@ -5,7 +5,6 @@
 #include "dht/core/LegacyConnectorModule.h"
 #include "dht/LibeventNetworkModule.h"
 #include "dht/SerializationModule.h"
-#include "dht/MessageTypeModule.h"
 #include "dht/DebugModule.h"
 #include "dns/DNSModules.h"
 #include "dns/DNSNetworkModule.h"
@@ -121,7 +120,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    struct DHTModule* serialization = SerializationModule_new();
+    struct DHTModule* serialization = SerializationModule_new(allocator);
     if (serialization == NULL) {
         printf("Failed to allocate DHT serialization module.\n");
         return -1;
@@ -135,15 +134,12 @@ int main(int argc, char** argv)
     FILE* log = fopen("cjdns.log", "a+");
     DebugModule_setLog(log, debugIn);
 
-    struct DHTModule* messageType = MessageTypeModule_new(allocator);
-
     int ret = DHTModules_register(legacy, registry)
             | DHTModules_register(bridgeDHT, registry)
             | DHTModules_register(debugIn, registry)
-            | DHTModules_register(messageType, registry)
             | DHTModules_register(serialization, registry)
             | DHTModules_register(debugOut, registry)
-            | LibeventNetworkModule_register(base, dhtSocket, 6, registry);
+            | LibeventNetworkModule_register(base, dhtSocket, 6, registry, allocator);
 
     if (ret != 0) {
         printf("Failed to register modules\n");

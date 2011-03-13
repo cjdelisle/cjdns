@@ -8,13 +8,13 @@ struct ArrayWriter_context {
     int returnCode;
 };
 
-static int write(void* toWrite, size_t length, struct Writer* writer);
-static uint64_t bytesWritten(struct Writer* writer);
+static int write(const void* toWrite, size_t length, const struct Writer* writer);
+static uint64_t bytesWritten(const struct Writer* writer);
 
 /** @see ArrayWriter.h */
 struct Writer* ArrayWriter_new(void* writeToBuffer,
                                size_t length,
-                               struct MemAllocator* allocator)
+                               const struct MemAllocator* allocator)
 {
     struct Writer* writer =
         allocator->calloc(sizeof(struct Writer), 1, allocator);
@@ -40,7 +40,7 @@ struct Writer* ArrayWriter_new(void* writeToBuffer,
 }
 
 /** @see Writer->write() */
-static int write(void* toWrite, size_t length, struct Writer* writer)
+static int write(const void* toWrite, size_t length, const struct Writer* writer)
 {
     struct ArrayWriter_context* context =
         (struct ArrayWriter_context*) writer->context;
@@ -64,7 +64,7 @@ static int write(void* toWrite, size_t length, struct Writer* writer)
     return 0;
 }
 
-static uint64_t bytesWritten(struct Writer* writer)
+static uint64_t bytesWritten(const struct Writer* writer)
 {
     struct ArrayWriter_context* context =
         (struct ArrayWriter_context*) writer->context;

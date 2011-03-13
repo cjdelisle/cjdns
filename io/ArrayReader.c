@@ -6,13 +6,13 @@ struct ArrayReader_context {
     char* endPointer;
 };
 
-static int read(void* readInto, size_t length, struct Reader* reader);
-static void skip(size_t byteCount, struct Reader* reader);
+static int read(void* readInto, size_t length, const struct Reader* reader);
+static void skip(size_t byteCount, const struct Reader* reader);
 
 /** @see ArrayReader.h */
 struct Reader* ArrayReader_new(const void* bufferToRead,
                                size_t length,
-                               struct MemAllocator* allocator)
+                               const struct MemAllocator* allocator)
 {
     struct Reader* reader =
         allocator->calloc(sizeof(struct Reader), 1, allocator);
@@ -37,7 +37,7 @@ struct Reader* ArrayReader_new(const void* bufferToRead,
 }
 
 /** @see Reader->read() */
-static int read(void* readInto, size_t length, struct Reader* reader)
+static int read(void* readInto, size_t length, const struct Reader* reader)
 {
     struct ArrayReader_context* context =
         (struct ArrayReader_context*) reader->context;
@@ -62,7 +62,7 @@ static int read(void* readInto, size_t length, struct Reader* reader)
 }
 
 /** @see Reader->skip() */
-static void skip(size_t byteCount, struct Reader* reader)
+static void skip(size_t byteCount, const struct Reader* reader)
 {
     ((struct ArrayReader_context*) reader->context)->pointer += byteCount;
 }

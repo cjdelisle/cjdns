@@ -3,8 +3,10 @@
 int main()
 {
     const char* control =
-        "d1:q13:announce_peer1:y1:q1:t2:aa1:ad4:porti13111e2:id20:abcdefghij0123456789"
-        "5:token8:aoeusnth9:info_hash20:abcdefghijklmnopqrstee";
+        "d1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz1234564:porti6881e5:token8:aoeusnthe1:q13:announce_peer1:t2:aa1:y1:qe";
+
+/*        "d1:q13:announce_peer1:y1:q1:t2:aa1:ad4:porti13111e2:id20:abcdefghij0123456789"
+        "5:token8:aoeusnth9:info_hash20:abcdefghijklmnopqrstee";*/
 
     struct sockaddr_in ipAddr;
     NetworkTools_getPeerAddress("\x7F\x00\x00\x01\x1E\xD3", 6, (struct sockaddr_storage*) &ipAddr);
@@ -33,8 +35,8 @@ int main()
 
     send_announce_peer((struct sockaddr*) &ipAddr, -1,
                        (unsigned char*) "aa", 2,
-                       (unsigned char*) "abcdefghijklmnopqrst",
-                       (unsigned short) 13111,
+                       (unsigned char*) "mnopqrstuvwxyz123456",
+                       (unsigned short) 6881,
                        (unsigned char*) "aoeusnth", 8,
                        -1);
 

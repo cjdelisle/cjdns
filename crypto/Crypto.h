@@ -56,7 +56,7 @@ KeyPair* Crypto_newKeyPair(const char *curveName,
  *         size was over 2032 bits.
  */
 int Crypto_serializeKeyPair(const KeyPair* toSerialize,
-                              char** pointToOutput);
+                            char** pointToOutput);
 
 /**
  * Parse a serialized KeyPair.
@@ -95,9 +95,33 @@ benc_bstr_t* Crypto_sign(const benc_bstr_t message,
  *       and signature is expected to be params->sig_len_bin long.
  *       If these do not match then 0 will return.
  */
-int Crypto_isSignatureValid(const benc_bstr_t message,
-                            const benc_bstr_t signature,
-                            const benc_bstr_t publicKey,
-                            const struct curve_params *params);
+uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
+                                 const benc_bstr_t signature,
+                                 const benc_bstr_t publicKey,
+                                 const struct curve_params *params);
+
+/**
+ * Generate a SHA-1 hash of a message.
+ * This function will produce a benc_bstr_t object of length 20
+ * allocated in the provided allocator.
+ *
+ * @param hashThis a bencoded string to be hashed.
+ * @param allocator a means of getting memory for storing the output.
+ * @return a bencoded string containing the hash output in binary.
+ */
+benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
+                            const struct MemAllocator* allocator);
+
+/**
+ * Generate a SHA-256 hash of a message.
+ * This function will produce a benc_bstr_t object of length 32
+ * allocated in the provided allocator.
+ *
+ * @param hashThis a bencoded string to be hashed.
+ * @param allocator a means of getting memory for storing the output.
+ * @return a bencoded string containing the hash output in binary.
+ */
+benc_bstr_t* Crypto_sha256sum(const benc_bstr_t* hashThis,
+                              const struct MemAllocator* allocator);
 
 #endif

@@ -1,49 +1,11 @@
 #include "bencode.h"
 
-benc_list_entry_t * benc_list_entry_new(benc_list_entry_t *next, bobj_t *e);
 bobj_t * benc_list_entry_free_return_elem(benc_list_entry_t *l);
 
-void benc_list_free(benc_list_entry_t *head)
-{
-    benc_list_entry_t *curr = head;
-    benc_list_entry_t *tmp;
-    while (NULL != curr)
-    {
-        tmp = curr->next;
-        bobj_free(curr->elem);
-        free(curr);
-        curr = tmp;
-    }
-}
-
-size_t benc_list_repsize(benc_list_entry_t *head)
-{
-    size_t repsize = 2;
-    benc_list_entry_t *curr = head;
-    while (NULL != curr)
-    {
-        repsize += bobj_repsize(curr->elem);
-        curr = curr->next;
-    }
-    return repsize;
-}
-
-void benc_list_encode(bbuf_t *b, benc_list_entry_t *head)
-{
-    *(b->ptr)++ = 'l';
-    benc_list_entry_t *curr = head;
-    while (NULL != curr)
-    {
-        bobj_encode(b, curr->elem);
-        curr = curr->next;
-    }
-    *(b->ptr)++ = 'e';
-}
-
 /** @see bencode.h */
-int benc_list_print(struct Writer* writer,
-                    size_t padSpaceCount,
-                    benc_list_entry_t* head)
+int benc_list_print(const struct Writer* writer,
+                    const size_t padSpaceCount,
+                    const benc_list_entry_t* head)
 {
     char* thirtyTwoSpaces = "                                ";
     int padCounter = 0;
@@ -56,7 +18,7 @@ int benc_list_print(struct Writer* writer,
 
     writer->write("[\n", 2, writer);
 
-    benc_list_entry_t* entry = head;
+    const benc_list_entry_t* entry = head;
     while (entry != NULL) {
         PAD(padSpaceCount + 2);
         benc_bobj_print(writer, padSpaceCount + 2, entry->elem);
@@ -74,11 +36,11 @@ int benc_list_print(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_list_serialize(struct Writer* writer,
-                        benc_list_entry_t* head)
+int benc_list_serialize(const struct Writer* writer,
+                        const benc_list_entry_t* head)
 {
     int ret = writer->write("l", 1, writer);
-    benc_list_entry_t* entry = head;
+    const benc_list_entry_t* entry = head;
     while (ret == 0 && entry != NULL) {
         bobj_serialize(writer, entry->elem);
         entry = entry->next;
@@ -88,8 +50,8 @@ int benc_list_serialize(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_list_parse(struct Reader* reader,
-                    struct MemAllocator* allocator,
+int benc_list_parse(const struct Reader* reader,
+                    const struct MemAllocator* allocator,
                     benc_list_entry_t** listPointer)
 {
     #define OUT_OF_SPACE_TO_WRITE -1
@@ -141,52 +103,11 @@ int benc_list_parse(struct Reader* reader,
     #undef UNPARSABLE
 }
 
-bool benc_list_decode(bbuf_t *b, benc_list_entry_t **head_p)
-{
-    bbuf_inc_ptr(b);
-    benc_list_entry_t **prev_p, *curr;
-    prev_p = head_p;
-    while (*(b->ptr) != 'e')
-    {
-        bobj_t *elem = bdec_mem(b);
-        if (NULL == elem)
-        {
-            BENC_LOG_EXCEPTION("couldn't read list element");
-            return false;
-        }
-        curr = benc_list_entry_new(NULL, elem);
-        *prev_p = curr;
-        prev_p = &(curr->next);
-    }
-    bbuf_inc_ptr(b);
-    return true;
-}
-
-benc_list_entry_t * benc_list_entry_new(benc_list_entry_t *next, bobj_t *elem)
-{
-    benc_list_entry_t *l = (benc_list_entry_t *)malloc(sizeof(benc_list_entry_t));
-    l->next = next;
-    l->elem = elem;
-    return l;
-}
-
 bobj_t * benc_list_entry_free_return_elem(benc_list_entry_t *l)
 {
     bobj_t *elem = l->elem;
     free(l);
     return elem;
-}
-
-bobj_t * bobj_list_new()
-{
-    bobj_t *obj = bobj_new(BENC_LIST);
-    obj->as.list = NULL;
-    return obj;
-}
-
-void bobj_list_push(bobj_t *obj, bobj_t *elem)
-{
-    obj->as.list = benc_list_entry_new(obj->as.list, elem);
 }
 
 bobj_t * bobj_list_pop(bobj_t *obj)
@@ -200,4 +121,27 @@ bobj_t * bobj_list_pop(bobj_t *obj)
     bobj_t *elem = benc_list_entry_free_return_elem(obj->as.list);
     obj->as.list = new_head;
     return elem;
+}
+
+List* benc_addObject(List* list, Object* item, const struct MemAllocator* allocator)
+{
+    if (list == NULL) {
+        List* newList = allocator->calloc(sizeof(List), 1, allocator);
+        return benc_addObject(newList, item, allocator);
+    }
+
+    benc_list_entry_t* entry = allocator->malloc(sizeof(benc_list_entry_t), allocator);
+    entry->next = *list;
+    entry->elem = item;
+    *list = entry;
+
+    return list;
+}
+
+List* benc_addString(List* list, String* toAdd, const struct MemAllocator* allocator)
+{
+    Object* strObj = allocator->malloc(sizeof(Object), allocator);
+    strObj->type = BENC_BSTR;
+    strObj->as.bstr = toAdd;
+    return benc_addObject(list, strObj, allocator);
 }

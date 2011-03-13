@@ -1,42 +1,13 @@
-#include "bencode.h"
+#include <string.h>
+#include <stdio.h>
+/* For playing nice with strtol() */
 #include <errno.h>
 #include <limits.h>
 
-size_t pseudo_log10_benc_int_t(benc_int_t i);
-
-size_t benc_int_repsize(benc_int_t i)
-{
-    size_t repsize = 2;
-    if (i < 0)
-    {
-        ++repsize;
-        i = -i;
-    }
-    repsize += pseudo_log10_benc_int_t(i);
-    return repsize;
-}
-
-void benc_int_encode(bbuf_t *b, benc_int_t i)
-{
-    *(b->ptr)++ = 'i';
-    if (i < 0)
-    {
-        i = -i;
-        *(b->ptr)++ = '-';
-    }
-    b->ptr += pseudo_log10_benc_int_t(i);
-    char *resume = b->ptr;
-    do
-    {
-        *--(b->ptr) = '0' + (char)(i % 10);
-        i /= 10;
-    } while (i > 0);
-    b->ptr = resume;
-    *(b->ptr)++ = 'e';
-}
+#include "bencode.h"
 
 /** @see bencode.h */
-int benc_int_print(struct Writer* writer,
+int benc_int_print(const struct Writer* writer,
                    benc_int_t integer)
 {
     char buffer[32];
@@ -49,7 +20,7 @@ int benc_int_print(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_int_serialize(struct Writer* writer,
+int benc_int_serialize(const struct Writer* writer,
                        benc_int_t integer)
 {
     writer->write("i", 1, writer);
@@ -58,7 +29,7 @@ int benc_int_serialize(struct Writer* writer,
 }
 
 /** @see bencode.h */
-int benc_int_parse(struct Reader* reader,
+int benc_int_parse(const struct Reader* reader,
                    benc_int_t* intPointer)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -111,83 +82,11 @@ int benc_int_parse(struct Reader* reader,
     #undef UNPARSABLE
 }
 
-bool benc_int_decode(bbuf_t *b, benc_int_t *i_p)
+/** @see benc.h */
+bobj_t* benc_newInteger(int64_t number, const struct MemAllocator* allocator)
 {
-    bbuf_inc_ptr(b);
-    *i_p = 0;
-    benc_int_t sign = 1;
-    switch (*(b->ptr))
-    {
-    case '-':
-        sign = -1;
-        break;
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-        *i_p = (benc_int_t)(*(b->ptr) - '0');
-        break;
-    default:
-        goto unexpected_character;
-    }
-    while (bbuf_inc_ptr(b))
-    {
-        switch (*(b->ptr))
-        {
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            *i_p *= 10;
-            *i_p += (benc_int_t)(*(b->ptr) - '0');
-            break;
-        case 'e':
-            goto found_terminator;
-        default:
-            goto unexpected_character;
-        }
-    }
-    /*
-    // if loop exits normally, we ran out of buffer
-    // and an exception would have been raised
-    */
-    return false;
-    
-unexpected_character:    
-    BENC_LOG_EXCEPTION("unexpected character: \\x%02x", *(b->ptr));
-    return false;
-    
-found_terminator:
-    bbuf_inc_ptr(b);
-    *i_p *= sign;
-    return true;
-}
-
-size_t pseudo_log10_benc_int_t(benc_int_t i)
-{
-    size_t pseudo_log = 0;
-    do {
-        ++pseudo_log;
-        i /= 10;
-    } while (i > 0);
-    return pseudo_log;
-}
-
-bobj_t * bobj_int_new(benc_int_t i)
-{
-    bobj_t *obj = bobj_new(BENC_INT);
-    obj->as.int_ = i;
-    return obj;
+    bobj_t* out = allocator->malloc(sizeof(bobj_t), allocator);
+    out->type = BENC_INT;
+    out->as.int_ = number;
+    return out;
 }

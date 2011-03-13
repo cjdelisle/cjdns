@@ -3,20 +3,16 @@
 int main()
 {
     const char* control =
-        "d1:q9:find_node1:y1:q1:t2:aa1:ad2:id20:mnopqrstuvwxyz123456"
-        "6:target20:mnopqrstuvwxyz123456ee";
+        "d1:ad2:id20:mnopqrstuvwxyz1234566:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe";
 
     const char* control4 =
-        "d4:wantl2:n4e1:q9:find_node1:y1:q1:t2:aa1:ad2:id20:mnopqrstuvwxyz123456"
-        "6:target20:mnopqrstuvwxyz123456ee";
+        "d1:ad2:id20:mnopqrstuvwxyz1234566:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa4:wantl2:n4e1:y1:qe";
 
     const char* control6 =
-        "d4:wantl2:n6e1:q9:find_node1:y1:q1:t2:aa1:ad2:id20:mnopqrstuvwxyz123456"
-        "6:target20:mnopqrstuvwxyz123456ee";
+        "d1:ad2:id20:mnopqrstuvwxyz1234566:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa4:wantl2:n6e1:y1:qe";
 
     const char* control46 =
-        "d4:wantl2:n62:n4e1:q9:find_node1:y1:q1:t2:aa1:ad2:id20:mnopqrstuvwxyz123456"
-        "6:target20:mnopqrstuvwxyz123456ee";
+        "d1:ad2:id20:mnopqrstuvwxyz1234566:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa4:wantl2:n62:n4e1:y1:qe";
 
     struct sockaddr_in ipAddr;
     NetworkTools_getPeerAddress("\x7F\x00\x00\x01\x1E\xD3", 6, (struct sockaddr_storage*) &ipAddr);

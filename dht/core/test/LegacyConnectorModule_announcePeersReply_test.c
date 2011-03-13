@@ -2,7 +2,7 @@
 
 int main()
 {
-    const char* control = "d1:y1:r1:t2:aa1:rd2:id20:abcdefghij0123456789ee";
+    const char* control = "d1:rd2:id20:mnopqrstuvwxyz123456e1:t2:aa1:y1:re";
 
     struct sockaddr_in ipAddr;
     NetworkTools_getPeerAddress("\x7F\x00\x00\x01\x1E\xD3", 6, (struct sockaddr_storage*) &ipAddr);
@@ -11,7 +11,7 @@ int main()
     LegacyConnectorModuleInternal_setContext(
         &(struct LegacyConnectorModule_context) {
             .registry = registry,
-            .myId = {20, "abcdefghij0123456789"},
+            .myId = {20, "mnopqrstuvwxyz123456"},
             .whenToCallDHTPeriodic = 0
         }
     );
@@ -27,6 +27,7 @@ int main()
 
     DHTModules_register(&receiver, registry);
 
+    prepareFakeQuery();
     send_peer_announced((struct sockaddr*) &ipAddr, -1, (unsigned char*) "aa", 2);
 
     printf("announce_peer reply: %s\n\n", testContext.message);

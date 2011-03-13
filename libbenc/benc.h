@@ -1,49 +1,180 @@
 #ifndef BENC_H
 #define BENC_H
 
-#include <stdbool.h>
-/*#include <stdint.h>*/
-
-/* Needed for size_t */
-/*#include <stddef.h>*/
-
 #include <memory/MemAllocator.h>
 #include <io/Reader.h>
 #include <io/Writer.h>
 
-typedef struct bbuf_s               bbuf_t;
 typedef struct bobj_s               bobj_t;
 typedef int64_t                     benc_int_t;
 typedef struct benc_bstr_s          benc_bstr_t;
 typedef struct benc_list_entry_s    benc_list_entry_t;
 typedef struct benc_dict_entry_s    benc_dict_entry_t;
+#define String benc_bstr_t
+/* Dictionaries and lists are pointers to the head entry so that the head can change. */
+/*#define Dict benc_dict_entry_t* */
+typedef benc_dict_entry_t* Dict;
+#define List benc_list_entry_t*
+#define Object bobj_t
 
 enum benc_data_type { BENC_INT, BENC_BSTR, BENC_LIST, BENC_DICT };
 
-/*
-bool            benc_file(bobj_t *o, char *file_path);
-bobj_t *        bdec_file(char *file_path);
+bobj_t *        bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key);
+
+/**
+ * Remove an entry from the dictionary.
+ *
+ * @param dictionary the dictionary to remove the entry from.
+ * @param key the key which the entry is entered under.
+ * @return the value of the entry if it exists, otherwise NULL.
  */
+Object* benc_removeEntry(Dict* dictionary, const String* key);
 
-bbuf_t *        bbuf_new(size_t len, char *base);
-void            bbuf_free(bbuf_t *b);
-/*bbuf_t *        benc_mem(bobj_t *o);*/
-bobj_t *        bdec_mem(bbuf_t *b);
+/**
+ * Add an item to a list, if the list does not exist then it is allocated.
+ * NOTE: This will not copy the given object, only add a pointer to it in the list.
+ *
+ * @param list the list to add an item to, if NULL then it is allocated.
+ * @param item the item to add to the list.
+ * @param allocator the means to get memory to store list item and possibly the newly allocated list.
+ * @return the list after adding the item.
+ */
+List* benc_addObject(List* list, Object* item, const struct MemAllocator* allocator);
 
-bobj_t *        bobj_int_new(benc_int_t i);
+/**
+ * Add a String to a list, if the list does not exist then it is allocated.
+ * NOTE: This will not copy the given string, only add a pointer to it in the list.
+ *
+ * @param list the list to add the string item to, if NULL then it is allocated.
+ * @param toAdd the string to add to the list.
+ * @param allocator the means of getting memory space for storing the list entry.
+ * @return the list after adding the string.
+ */
+List* benc_addString(List* list, String* toAdd, const struct MemAllocator* allocator);
 
-bobj_t *        bobj_bstr_new(size_t len, char *bytes);
+/**
+ * Put a key:value pair into a dictionary.
+ * NOTE: This will not copy the given object,
+ *       only add a pointer to it in the dictionary.
+ * If dictionary is NULL then a new dictionary will be created and returned.
+ *
+ * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary is made.
+ * @param key the reference key to use for putting the entry in the dictionary.
+ * @param value the value to insert with the key.
+ * @param allocator the means to get memory for storing the dictionary entry wrapper.
+ * @return if the dictionary parameter is NULL then this will be the newly created dictionary.
+ *         Otherwise: if the key already exists in the dictionary then the value which was
+ *         displaced by the put, if not then NULL.
+ */
+Object* benc_putObject(Dict* dictionary,
+                       const String* key,
+                       Object* value,
+                       const struct MemAllocator* allocator);
 
-bobj_t *        bobj_list_new();
-void            bobj_list_push(bobj_t *obj, bobj_t *elem);
-bobj_t *        bobj_list_pop(bobj_t *obj);
+/**
+ * Utility function which wraps value as a bencoded generic object and calls benc_putEntry()
+ *
+ * @param putIntoThis the dictionary to insert an entry into.
+ * @param key the reference key to use for putting the entry in the dictionary.
+ * @param value the string to insert.
+ * @param allocator the means to get memory for storing the dictionary entry wrapper.
+ * @return if the key already exists in the dictionary then the value which was
+ *         displaced by the put, otherwise NULL.
+ */
+Object* benc_putString(Dict* putIntoThis,
+                       const String* key,
+                       String* value,
+                       const struct MemAllocator* allocator);
 
-bobj_t *        bobj_dict_new();
-bobj_t *        bobj_dict_lookup(bobj_t *obj, benc_bstr_t *key);
-bool            bobj_dict_insert(bobj_t *obj, benc_bstr_t *key, bobj_t *val);
-bobj_t *        bobj_dict_remove(bobj_t *obj, benc_bstr_t *key);
+/**
+ * Insert a Dictionary object into another dictionary.
+ * NOTE: This will not copy the given object,
+ *       only add a pointer to it in the dictionary.
+ *
+ * @param putIntoThis the dictionary to insert an entry into.
+ * @param key the reference key to use for putting the entry in the dictionary.
+ * @param value the value to insert.
+ * @param allocator the memory allocator to use for getting memory for the entry.
+ * @return if the key already exists in the dictionary then the value which was
+ *         displaced by the put, otherwise NULL.
+ */
+Object* benc_putDictionary(Dict* putIntoThis,
+                           const String* key,
+                           Dict* value,
+                           const struct MemAllocator* allocator);
 
-void            bobj_free(bobj_t *o);
+/**
+ * Insert a List object into a dictionary.
+ * NOTE: This will not copy the given object,
+ *       only add a pointer to it in the dictionary.
+ *
+ * @param putIntoThis the dictionary to insert an entry into.
+ * @param key the reference key to use for putting the entry in the dictionary.
+ * @param value the list to insert.
+ * @param allocator the memory allocator to use for getting memory for the entry.
+ * @return if the key already exists in the dictionary then the value which was
+ *         displaced by the put, otherwise NULL.
+ */
+Object* benc_putList(Dict* putIntoThis,
+                     const String* key,
+                     List* value,
+                     const struct MemAllocator* allocator);
+
+/**
+ * Lookup a value from a dictionary type if the value is not present or is not a bencoded
+ * string type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ */
+String* benc_lookupString(const Dict* dictionary, const String* key);
+
+/**
+ * Lookup a value from a dictionary type if the value is not present or is not a bencoded
+ * dictionary type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ */
+Dict* benc_lookupDictionary(const Dict* dictionary, const String* key);
+
+/**
+ * Create a new bencoded dictionary type.
+ *
+ * @param allocator the place to allocate the memory for storing the dictionary.
+ */
+Dict* benc_newDictionary(const struct MemAllocator* allocator);
+
+/**
+ * Create a new bencoded integer from an integer. This will copy the integer into
+ * the allocator.
+ *
+ * @param number the number to create a bencoded integer from.
+ * @param allocator a means of getting the memory to store the bencoded number.
+ * @return a bencoded integer object.
+ */
+bobj_t* benc_newInteger(int64_t number, const struct MemAllocator* allocator);
+
+/**
+ * Create a new bencoded string from a C null terminated string.
+ * This implementation will make a copy of the string into the memory provided by the allocator.
+ *
+ * @param bytes the beginning of a memory location containing the string to use.
+ * @param allocator a means of getting the memory to store the string object.
+ * @return a bencoded string.
+ */
+String* benc_newString(const char* bytes, const struct MemAllocator* allocator);
+
+/**
+ * Create a new bencoded string from a set of bytes.
+ * This implementation will make a copy of the string into the memory provided by the allocator.
+ *
+ * @param bytes the beginning of a memory location containing thre string to use.
+ * @param length the number of bytes to use from the location.
+ * @param allocator a means of getting the memory to store the string object.
+ * @return a bencoded string.
+ */
+String* benc_newBinaryString(const char* bytes, size_t length, const struct MemAllocator* allocator);
 
 /**
  * Compare 2 bencoded strings.
@@ -61,6 +192,15 @@ void            bobj_free(bobj_t *o);
 int benc_bstr_compare(const benc_bstr_t* a, const benc_bstr_t* b);
 
 /**
+ * Will return 1 if and only if the benc_bstr_compare() would return 0.
+ *
+ * @param a the first string to compare.
+ * @param b the second string to compare.
+ * @return !(benc_bstr_compare(a, b))
+ */
+int32_t benc_stringEquals(const benc_bstr_t* a, const benc_bstr_t* b);
+
+/**
  * Print a bobject in human readable format.
  *
  * @param writer the Writer to write to.
@@ -68,7 +208,7 @@ int benc_bstr_compare(const benc_bstr_t* a, const benc_bstr_t* b);
  * @return whatever the Writer returns when writing or -2
  *         if the type of object cannot be determined.
  */
-int bobj_print(struct Writer* writer,
+int bobj_print(const struct Writer* writer,
                bobj_t* obj);
 
 /**
@@ -79,7 +219,7 @@ int bobj_print(struct Writer* writer,
  * @return -2 if the type of object cannot be determined, otherwise
  *            whatever is returned by the Writer.
  */
-int bobj_serialize(struct Writer* writer,
+int bobj_serialize(const struct Writer* writer,
                    bobj_t* obj);
 
 /**
@@ -96,28 +236,9 @@ int bobj_serialize(struct Writer* writer,
  *           overflow, -2 if -1 returned by read indicating an array underflow,
  *           -3 if content unparsable.
  */
-int bobj_parse(struct Reader* reader,
-               struct MemAllocator* allocator,
+int bobj_parse(const struct Reader* reader,
+               const struct MemAllocator* allocator,
                bobj_t** objPointer);
-
-/**
- * Create a new MemAllocator which writes to memory allocated on the heap.
- * Since writer->write() returns a pointer to the location in memory, when this
- * writer runs out of memory it will allocate another block and continue writing there.
- * It is critical that writer->free() is called when it is finished since it will have
- * multiple pointers to separate memory blocks.
- *
- * @param blockSize the number of bytes which will be allocated in each allocation.
- *                  for optimum performance make this larger than you expect the content to be.
- */
-/*struct MemAllocator MemAllocator_allocating(const size_t blockSize);*/
-
-
-struct bbuf_s {
-    char                         *base;
-    size_t                       len;
-    char                         *ptr;
-};
 
 struct bobj_s {
     enum benc_data_type          type;
@@ -141,7 +262,7 @@ struct benc_list_entry_s {
 
 struct benc_dict_entry_s {
     benc_dict_entry_t            *next;
-    benc_bstr_t                  *key;
+    const benc_bstr_t* key;
     bobj_t                       *val;
 };
 

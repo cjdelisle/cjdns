@@ -1,16 +1,11 @@
-#include <event2/event.h>
-
 #include "dht/core/LegacyConnectorModuleInternal.h"
-
 #include "dht/core/juliusz/dht.h"
 #include "libbenc/benc.h"
-#include <assert.h>
+
+#include <event2/event.h>
 #include <time.h>
 #include <stdlib.h>
-
 #include <string.h>
-
-#include <errno.h>
 
 #ifdef DEBUG_DHT
 #define DEBUG2(string, item) fprintf(stderr, string, item)
@@ -93,10 +88,10 @@ void dht_hash(void *hash_return, int hash_size,
  */
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
-    /* not needed since context is global. */
-    vcontext = vcontext;
-    /*struct LibeventNetworkModuleTest_context* context =
-        (struct LibeventNetworkModuleTest_context*) vcontext;*/
+    struct LegacyConnectorModule_context* context =
+        (struct LegacyConnectorModule_context*) vcontext;
+
+    context->lastMessage = message;
 
     time_t now;
     time(&now);
@@ -105,6 +100,8 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     dht_periodic(1, &secondsToSleep, NULL, NULL, message);
     context->whenToCallDHTPeriodic = now + secondsToSleep;
     DEBUG2("Sleeping for %d\n", (int) secondsToSleep);
+
+    context->lastMessage = NULL;
 
     return 0;
 }

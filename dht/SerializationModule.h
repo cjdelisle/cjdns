@@ -8,6 +8,7 @@
  *
  * @return a new SerializationModule or NULL if there is no space to allocate required memory.
  */
-struct DHTModule* SerializationModule_new();
+struct DHTModule* SerializationModule_new(struct MemAllocator* allocator)
+    __attribute__((nonnull));
 
 #endif

@@ -1,27 +1,6 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307 USA
- */
-
 #include <assert.h>
-#include "libbenc/bencode.h"
-#include "DHTModules.h"
-
+#include <string.h>
 #include <event2/event.h>
-
-/** Love you Bill. */
 #ifndef WIN32
  #include <arpa/inet.h>
  #include <sys/types.h>
@@ -38,7 +17,17 @@
  #endif
 #endif
 
-typedef struct {
+#include "libbenc/bencode.h"
+#include "dht/DHTModules.h"
+#include "net/NetworkTools.h"
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
+
+struct LibeventNetworkModule_Context
+{
+    /** The network module. */
+    struct DHTModule module;
+
     /**
      * The event registered with libevent.
      * Needed only so it can be freed.
@@ -46,7 +35,7 @@ typedef struct {
     struct event* incomingMessageEvent;
 
     /** The socket to write to on handleOutgoing. */
-    evutil_socket_t socket;
+    const evutil_socket_t socket;
 
     /**
      * Only handle outgoing packets who are destined
@@ -56,27 +45,22 @@ typedef struct {
      * IPv6 == addressLength 18
      * IPv4 == addressLength 6
      */
-    int addressLength;
+    const int addressLength;
 
     /** The registry to call when a message comes in. */
-    struct DHTModuleRegistry* registry;
+    const struct DHTModuleRegistry* registry;
 
-
-} LibeventNetworkModule_context;
+    /** A memory allocator which will be reset after each message is sent. */
+    const struct MemAllocator* perMessageAllocator;
+};
 
 /*--------------------Prototypes--------------------*/
-static void freeModule(struct DHTModule* module);
+static void freeEvent(void* vevent);
 static inline int confirmIfRecent(char* addressAndPort,
                                   int addressAndPortLength,
-                                  LibeventNetworkModule_context* context);
+                                  struct LibeventNetworkModule_Context* context);
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
-static struct DHTModule* getModule(LibeventNetworkModule_context* context);
-static inline int setPeerAddress(struct DHTMessage* message,
-                                 struct sockaddr_storage* addrStore);
-static inline socklen_t getPeerAddress(char* peerAddress,
-                                       int addressLength,
-                                       struct sockaddr_storage* out);
 static void handleEvent(evutil_socket_t socket,
                         short eventType,
                         void* vcontext);
@@ -92,63 +76,60 @@ static void handleEvent(evutil_socket_t socket,
  *                      6 for IPv4 and 18 for IPv6.
  * @param registry the module registry to send the incoming messages
  *                 to and send messages from.
- * @return -2 if inputs are null,
- *         -1 if memory cannot be allocated.
+ * @param allocator the means of getting memory for the module.
+ * @return -1 if inputs are null. -2 if registering the event handler fails.
  */
 int LibeventNetworkModule_register(struct event_base* base,
                                    evutil_socket_t socket,
                                    int addressLength,
-                                   struct DHTModuleRegistry* registry)
+                                   struct DHTModuleRegistry* registry,
+                                   struct MemAllocator* allocator)
 {
-    if (registry == NULL || base == NULL) {
+    if (registry == NULL || base == NULL || allocator == NULL) {
         return -1;
     }
 
-    LibeventNetworkModule_context* context =
-        calloc(sizeof(LibeventNetworkModule_context), 1);
+    char* messageBuffer = allocator->malloc(4096, allocator);
+    struct MemAllocator* perMessageAllocator = BufferAllocator_new(messageBuffer, 4096);
 
-    if (context == NULL) {
-        return -2;
-    }
+    struct LibeventNetworkModule_Context* context =
+        allocator->malloc(sizeof(struct LibeventNetworkModule_Context), allocator);
+    memcpy(context, &(struct LibeventNetworkModule_Context) {
+        .module = {
+            .name = "LibeventNetworkModule",
+            .context = context,
+            .handleOutgoing = handleOutgoing
+        },
+        .socket = socket,
+        .addressLength = addressLength,
+        .registry = registry,
+        .perMessageAllocator = perMessageAllocator
+    }, sizeof(struct LibeventNetworkModule_Context));
 
-    context->registry = registry;
-    context->socket = socket;
-    context->addressLength = addressLength;
-
-    context->incomingMessageEvent =
-        event_new(base, socket, EV_READ | EV_PERSIST, handleEvent, context);
+    context->incomingMessageEvent = event_new(base, socket, EV_READ | EV_PERSIST, handleEvent, context);
 
     if (context->incomingMessageEvent == NULL) {
-        free(context);
+        return -2;
     }
 
     event_add(context->incomingMessageEvent, NULL);
 
-    struct DHTModule* module = getModule(context);
-    if (module == NULL) {
-        /* Can't allocate memory. */
-        return -2;
-    }
+    allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
 
-    return DHTModules_register(module, registry);
+    return DHTModules_register(&(context->module), registry);
 }
 
 /*--------------------Internals--------------------*/
 
-/** @see DHTModule->freeContext in DHTModules.h */
-static void freeModule(struct DHTModule* module)
+/**
+ * Release the event used by this module.
+ *
+ * @param vevent a void pointer cast of the event structure.
+ */
+static void freeEvent(void* vevent)
 {
-    if (module == NULL) {
-        return;
-    }
-
-    LibeventNetworkModule_context* context =
-        (LibeventNetworkModule_context*) module->context;
-
-    event_del(context->incomingMessageEvent);
-    event_free(context->incomingMessageEvent);
-    free(context);
-    free(module);
+    event_del((struct event*) vevent);
+    event_free((struct event*) vevent);
 }
 
 /**
@@ -163,7 +144,7 @@ static void freeModule(struct DHTModule* module)
  */
 static inline int confirmIfRecent(char* addressAndPort,
                                   int addressAndPortLength,
-                                  LibeventNetworkModule_context* context)
+                                  struct LibeventNetworkModule_Context* context)
 {
 #ifndef MSG_CONFIRM
     return 0;
@@ -183,8 +164,8 @@ static inline int confirmIfRecent(char* addressAndPort,
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    LibeventNetworkModule_context* context =
-        (LibeventNetworkModule_context*) vcontext;
+    struct LibeventNetworkModule_Context* context =
+        (struct LibeventNetworkModule_Context*) vcontext;
 
     if (message->addressLength != context->addressLength) {
         /* This message is intended for another interface. */
@@ -192,8 +173,7 @@ static int handleOutgoing(struct DHTMessage* message,
     }
 
     struct sockaddr_storage addr;
-    socklen_t length =
-        getPeerAddress(message->peerAddress, message->addressLength, &addr);
+    socklen_t length = NetworkTools_getPeerAddress(message->peerAddress, message->addressLength, &addr);
 
     if (length) {
 
@@ -214,98 +194,12 @@ static int handleOutgoing(struct DHTMessage* message,
 }
 
 /**
- * Get a new DHTModule.
- *
- * @param context the state for this module.
- * @return a new DHTModule for this module.
- */
-static struct DHTModule* getModule(LibeventNetworkModule_context* context)
-{
-    struct DHTModule* mod = NULL;
-    mod = calloc(sizeof(struct DHTModule), 1);
-    if (mod == NULL) {
-        return NULL;
-    }
-
-    struct DHTModule localMod = {
-        .name = "LibeventNetworkModule",
-        .context = context,
-        .free = freeModule,
-        .handleOutgoing = handleOutgoing
-    };
-    memcpy(mod, &localMod, sizeof(struct DHTModule));
-
-    return mod;
-}
-
-/**
- * Set the address in the message.
- *
- * @param message the DHTMessage which will have it's peerAddress and port set.
- * @param addrStore one of sockaddr_in or sockaddr_in6 as DHT only currently
- *                  supports ip4 and ip6.
- * @return -1 if the address family was not AF_INET or AF_INET6.
- *          0 if everything went well.
- */
-static inline int setPeerAddress(struct DHTMessage* message,
-                                 struct sockaddr_storage* addrStore)
-{
-    if (addrStore->ss_family == AF_INET) {
-        struct sockaddr_in *ipAddr = (struct sockaddr_in*) addrStore;
-        memcpy(message->peerAddress, &ipAddr->sin_addr, 4);
-        memcpy(&message->peerAddress[4], &ipAddr->sin_port, 2);
-        message->addressLength = 6;
-    } else if (addrStore->ss_family == AF_INET6) {
-        struct sockaddr_in6 *ip6Addr = (struct sockaddr_in6*) addrStore;
-        memcpy(message->peerAddress, &ip6Addr->sin6_addr, 16);
-        memcpy(&message->peerAddress[16], &ip6Addr->sin6_port, 2);
-        message->addressLength = 18;
-    } else {
-        return -1;
-    }
-    return 0;
-}
-
-/**
- * Convert a byte array containing ip address concatinated to port
- * into a sockaddr struct.
- *
- * @param peerAddress the array containing ip address and port.
- * @param addressLength the length of the peer's address.
- * @param out a pointer to the sockaddr_storage struct which will
- *            hold the output. This will be either sockaddr_in or
- *            sockaddr_in6.
- * @return the size of the socket address or 0 if the address type
- *         cannot be determined by the length.
- */
-static inline socklen_t getPeerAddress(char* peerAddress,
-                                       int addressLength,
-                                       struct sockaddr_storage* out)
-{
-    if (addressLength == 6) {
-        struct sockaddr_in* ipAddr = (struct sockaddr_in*) out;
-        ipAddr->sin_family = AF_INET;
-        memcpy(&ipAddr->sin_addr, peerAddress, 4);
-        memcpy(&ipAddr->sin_port, &peerAddress[4], 2);
-        return sizeof(struct sockaddr_in);
-    }
-    if (addressLength == 18) {
-        struct sockaddr_in6* ip6Addr = (struct sockaddr_in6*) out;
-        ip6Addr->sin6_family = AF_INET6;
-        memcpy(&ip6Addr->sin6_addr, peerAddress, 16);
-        memcpy(&ip6Addr->sin6_port, &peerAddress[16], 2);
-        return sizeof(struct sockaddr_in6);
-    }
-    return 0;
-}
-
-/**
  * Handle input from Libevent.
  * This is a callback whihc is passed to libevent.
  *
  * @param socket the socket on which the input came.
  * @param eventType this should equal EV_READ
- * @param vcontext the LibeventNetworkModule_context cast to
+ * @param vcontext the LibeventNetworkModule_Context cast to
  *                 void* which libevent understands.
  */
 static void handleEvent(evutil_socket_t socket,
@@ -338,11 +232,14 @@ static void handleEvent(evutil_socket_t socket,
 
     message.length = rc;
 
-    if (setPeerAddress(&message, &addrStore) > -1) {
+    struct LibeventNetworkModule_Context* context = (struct LibeventNetworkModule_Context*) vcontext;
 
-        LibeventNetworkModule_context* context =
-            (LibeventNetworkModule_context*) vcontext;
+    context->perMessageAllocator->free(context->perMessageAllocator);
+    message.allocator = context->perMessageAllocator;
 
-        DHTModules_handleIncoming(&message, context->registry);
+    int32_t length = NetworkTools_addressFromSockaddr(&addrStore, message.peerAddress);
+    if (length > -1) {
+        message.addressLength = length;
+        DHTModules_handleIncoming(&message, ((struct LibeventNetworkModule_Context*) vcontext)->registry);
     }
 }

@@ -17,6 +17,7 @@
  * all modules is Message.peer. Incoming modules will have Message.bytes
  * and Message.length when they come from the network module.
  */
+struct DHTMessage;
 struct DHTMessage {
 
     /** The node who this message is coming from or going to. */
@@ -34,30 +35,24 @@ struct DHTMessage {
     /** The message as a libbenc object. */
     bobj_t* bencoded;
 
-    /** The name of the message query type EG: "find_node" or "get_peers". */
-    const benc_bstr_t* queryType;
-
-    /** The name of the class of message EG: "q" for query or "r" for reply. */
-    const benc_bstr_t* messageClass;
-
-    /** The ID for this message, for responses this id tag must be bounced back to the asker. */
-    benc_bstr_t* transactionId;
+    Dict* asDict;
 
     /**
-     * A place for outgoing transaction Ids to be build,
-     * each module can add a byte to an outgoing message and remove that byte from the response.
+     * If this message is an outgoing reply, replyTo is the original query.
+     * For incoming replies or any queries, it is NULL.
      */
-    char transactionIdBuffer[MAX_TRANSACTION_ID_SIZE];
-};
+    struct DHTMessage* replyTo;
 
-/* Prototyped because it's included in DHTModule->free */
-struct DHTModule;
+    /** A memory allocator which will be freed after this message is sent. */
+    const struct MemAllocator* allocator;
+};
 
 /**
  * This represents a DHT module.
  * Pass one of these to DHTModule_register() and it
  * will handle dht requests and responses.
  */
+struct DHTModule;
 struct DHTModule {
     /**
      * A user friendly null terminated string which will be used to
@@ -71,33 +66,23 @@ struct DHTModule {
     void* const context;
 
     /**
-     * Free the context and anything malloc'd for it.
-     *
-     * @param context the module's state, this is freed.
-     */
-    void (* const free)(struct DHTModule* thisModule);
-
-    /**
      * Serialize the content of the context into a bencoded object.
      *
      * @param context the module's state.
      * @return a serialized form of context.
      */
-    benc_bstr_t* (* const serialize)(void* context);
+    Object* (* const serialize)(void* context);
 
     /**
      * Deserialize the context from a bencoded object.
      *
      * @param serialData the same data which was output by
-     *                   moduleContext_serialize
-     *                   this will not be freed until after
-     *                   moduleContext_free is called so it is safe to
-     *                   point to items in this.
+     *                   moduleContext_serialize.
      *
      * @param context the existing context to add content to.
      */
-    void (* const deserialize)(const benc_bstr_t serialData,
-                              void* context);
+    void (* const deserialize)(const Object* serialData,
+                               void* context);
 
     /**
      * When a node must be evicted from the table, this will allow the
@@ -159,12 +144,6 @@ struct DHTModuleRegistry {
 struct DHTModuleRegistry* DHTModules_new();
 
 /**
- * @param registry the module registry to remove.
- * @see DHTModules_new()
- */
-void DHTModules_free(struct DHTModuleRegistry* registry);
-
-/**
  * Register an event handler.
  *
  * @param module the module to register.
@@ -203,19 +182,23 @@ void DHTModules_handleOutgoing(struct DHTMessage* message,
  * Serialize the state of each member in the registry.
  *
  * @param registry the module registry to serialize.
- * @return a string sutable for passing to DHTModules_deserialize()
+ * @param writer a writer to which the output will be written.
  * @see DHTModule->serialize
  */
-benc_bstr_t* DHTModules_serialize(const struct DHTModuleRegistry* registry);
+void DHTModules_serialize(const struct DHTModuleRegistry* registry,
+                          const struct Writer* writer);
 
 /**
  * Deserialize a new registry from binary.
  * NOTE: After deserialization, the modules still need to be registered.
  *
- * @param output from a former call to DHTModules_serialize()
- * @param length how long serialized is.
+ * @param reader a reader which reads a stream of data prepared by a former call to DHTModules_serialize()
+ * @param allocator a means of acquiring memory.
+ * @return a new registry, modules will still need to be registered although they will regain their
+ *         former state afterwords.
  * @see DHTModule->deserialize
  */
-struct DHTModuleRegistry* DHTModules_deserialize(const benc_bstr_t serialData);
+struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
+                                                 const struct MemAllocator* allocator);
 
 #endif

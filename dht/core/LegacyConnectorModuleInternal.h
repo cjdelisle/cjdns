@@ -21,6 +21,9 @@ struct LegacyConnectorModule_context {
     DHTHashFunction dhtHashFunction;
 
     DHTRandomBytes dhtRandomBytes;
+
+    /** The last message which was sent to us, used to add replyTo to the response. */
+    struct DHTMessage* lastMessage;
 };
 
 /**

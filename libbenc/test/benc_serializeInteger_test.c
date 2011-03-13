@@ -1,10 +1,13 @@
-#include <libbenc/bencode.h>
-#include <memory/MemAllocator.h>
-#include <memory/BufferAllocator.h>
-#include <io/Reader.h>
-#include <io/ArrayReader.h>
-#include <io/Writer.h>
-#include <io/ArrayWriter.h>
+#include <string.h>
+#include <stdio.h>
+
+#include "libbenc/bencode.h"
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
+#include "io/Reader.h"
+#include "io/ArrayReader.h"
+#include "io/Writer.h"
+#include "io/ArrayWriter.h"
 
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {

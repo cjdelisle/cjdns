@@ -13,6 +13,6 @@
  */
 struct Reader* ArrayReader_new(const void* bufferToRead,
                                size_t length,
-                               struct MemAllocator* allocator);
+                               const struct MemAllocator* allocator);
 
 #endif

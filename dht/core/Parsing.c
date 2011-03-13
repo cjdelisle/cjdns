@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "dht/DHTConstants.h"
 #include "libbenc/benc.h"
 #include "libbenc/bencode.h"

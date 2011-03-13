@@ -251,7 +251,7 @@ extern int send_peer_announced(const struct sockaddr *sa, int salen,
                                unsigned char *tid, int tid_len);
 extern int send_error(const struct sockaddr *sa, int salen,
                       unsigned char *tid, int tid_len,
-                      int code, const char *message, const benc_bstr_t* queryType);
+                      int code, const char *message);
 
 #define ERROR 0
 #define REPLY 1
@@ -344,7 +344,7 @@ static int token_bucket_tokens;
 #ifdef DEBUG_DHT
 #define dht_debug stderr
 #else
-FILE *dht_debug = NULL;
+FILE* dht_debug = NULL;
 #endif
 
 #ifdef __GNUC__
@@ -1936,7 +1936,8 @@ dht_periodic(int available, time_t *tosleep,
                                 values, &values_len, values6, &values6_len,
                                 &want);
         */
-        message = parse_message2(packet->bencoded, tid, &tid_len, id, info_hash,
+        message = parse_message2(&(bobj_t){ .type = BENC_DICT, .as.dict = *(packet->asDict)},
+                                 tid, &tid_len, id, info_hash,
                                  target, &port, token, &token_len,
                                  nodes, &nodes_len, nodes6, &nodes6_len,
                                  values, &values_len, values6, &values6_len,
@@ -2101,7 +2102,7 @@ dht_periodic(int available, time_t *tosleep,
             if(id_cmp(info_hash, zeroes) == 0) {
                 debugf("Eek!  Got get_peers with no info_hash.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Get_peers with no info_hash", &DHTConstants_getPeers);
+                           203, "Get_peers with no info_hash");
                 break;
             } else {
                 struct storage *st = find_storage(info_hash);
@@ -2129,19 +2130,19 @@ dht_periodic(int available, time_t *tosleep,
             if(id_cmp(info_hash, zeroes) == 0) {
                 debugf("Announce_peer with no info_hash.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with no info_hash", &DHTConstants_announcePeer);
+                           203, "Announce_peer with no info_hash");
                 break;
             }
             if(!token_match(token, token_len, from)) {
                 debugf("Incorrect token for announce_peer.\n");
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with wrong token", &DHTConstants_announcePeer);
+                           203, "Announce_peer with wrong token");
                 break;
             }
             if(port == 0) {
                 debugf("Announce_peer with forbidden port %d.\n", port);
                 send_error(from, fromlen, tid, tid_len,
-                           203, "Announce_peer with forbidden port number", &DHTConstants_announcePeer);
+                           203, "Announce_peer with forbidden port number");
                 break;
             }
             storage_store(info_hash, from);

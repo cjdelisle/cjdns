@@ -1,7 +1,13 @@
+#include <assert.h>
+#include <string.h>
+#include <stdbool.h>
+
 #include "dht/core/LegacyConnectorModuleInternal.h"
 #include "dht/DHTConstants.h"
 #include "net/NetworkTools.h"
-#include <string.h>
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
+#include "libbenc/benc.h"
 
 /**
  * Get a bobj_t for a string.
@@ -48,98 +54,85 @@
  *                  one of [ping, find_node, get_peers, announce_peer]
  * @param transactionId a string to expect back if a query, return back if a
  *                      response.
- * @param argumentsKey the key to put arguments under.
- *                     DHTConstants_arguments or DHTConstants_reply.
  * @param arguments what will go under the "q" or "r" key.
  * @param wantProtocols if set then additional entries will be added for ip4
  *                      and/or ip6.
  * @return 0 if all goes well, -1 if there is an error.
  */
 static int sendMessage(struct sockaddr* address,
-                       benc_bstr_t* messageType,
                        benc_bstr_t* queryType,
                        benc_bstr_t* transactionId,
-                       benc_bstr_t* argumentsKey,
                        benc_dict_entry_t* arguments,
                        int wantProtocols,
                        int isReply)
 {
     struct DHTMessage message;
     memset(&message, 0, sizeof(struct DHTMessage));
+    Dict* messageDict = NULL;
+    const struct MemAllocator* allocator = NULL;
 
-    benc_dict_entry_t* entry = NULL;
+    /* Get the message we are replying to. */
+    if (isReply) {
+        message.replyTo = context->lastMessage;
+        assert(message.replyTo != NULL);
+        message.allocator = message.replyTo->allocator;
+        allocator = message.allocator;
+        messageDict = benc_newDictionary(allocator);
 
-    if (arguments && argumentsKey) {
-       entry = &(benc_dict_entry_t) {
-            .next = entry,
-            .key = argumentsKey,
-            .val = OBJ_PTR_FOR_DICT(arguments)
-        };
-    }
+        String* tid = benc_lookupString(message.replyTo->asDict, &DHTConstants_transactionId);
 
-    /* "t":"aa" */
-    if (transactionId) {
-        if (!isReply) {
-            if (transactionId->len > MAX_TRANSACTION_ID_SIZE) {
-                return -1;
-            }
-            memcpy(message.transactionIdBuffer, transactionId->bytes, transactionId->len);
-            transactionId->bytes = message.transactionIdBuffer;
-            message.transactionId = transactionId;
+        /* Asserts here are to try to make sure querys and replies are not mismatched. */
+        if (transactionId->len != 0) {
+            assert(tid != NULL);
+            assert(memcmp(tid->bytes, transactionId->bytes, transactionId->len) == 0);
+            benc_putString(messageDict, &DHTConstants_transactionId, tid, allocator);
+        } else {
+            assert(tid == NULL);
         }
-        entry = &(benc_dict_entry_t) {
-            .next = entry,
-            .key = &DHTConstants_transactionId,
-            .val = OBJ_PTR_FOR_STRING(transactionId)
-        };
+    } else {
+        /* TODO: Better way of allocating temp per message resources. */
+        char buffer[4096];
+        allocator = BufferAllocator_new(buffer, 4096);
+        message.allocator = allocator;
+        messageDict = benc_newDictionary(allocator);
+
+        /* Make sure the core doesn't try to send too big of a tid. */
+        assert(transactionId->len < MAX_TRANSACTION_ID_SIZE);
+        benc_putString(messageDict, &DHTConstants_transactionId, transactionId, allocator);
     }
 
     /* "y":"q" */
-    if (messageType) {
-        entry = &(benc_dict_entry_t) {
-            .next = entry,
-            .key = &DHTConstants_messageType,
-            .val = OBJ_PTR_FOR_STRING(messageType)
-        };
+    benc_putString(messageDict,
+                   &DHTConstants_messageType,
+                   (isReply ? &DHTConstants_reply : &DHTConstants_query),
+                   allocator);
+
+    /* "a" : { ...... */
+    if (arguments) {
+       benc_putDictionary(messageDict,
+                          (isReply ? &DHTConstants_reply : &DHTConstants_arguments),
+                          &arguments,
+                          allocator);
     }
 
     /* "q":"find_node" */
     if (queryType && !isReply) {
-        entry = &(benc_dict_entry_t) {
-            .next = entry,
-            .key = &DHTConstants_query,
-            .val = OBJ_PTR_FOR_STRING(queryType)
-        };
+        benc_putString(messageDict, &DHTConstants_query, queryType, allocator);
     }
 
     /* IP6 compatibility addon.
-     * Not in original specification.
+     * http://www.bittorrent.org/beps/bep_0032.html
      * "want": ["n4", "n6"]
      */
-    if (wantProtocols > 0) {
-        benc_list_entry_t* wishList = NULL;
+    if (wantProtocols & (WANT4 | WANT6)) {
+        List* wishList = NULL;
         if (wantProtocols & WANT4) {
-            wishList = &(benc_list_entry_t) {
-                .next = wishList,
-                .elem = OBJ_PTR_FOR_STRING(&DHTConstants_wantIp4)
-            };
+            wishList = benc_addString(wishList, &DHTConstants_wantIp4, allocator);
         }
         if (wantProtocols & WANT6) {
-            wishList = &(benc_list_entry_t) {
-                .next = wishList,
-                .elem = OBJ_PTR_FOR_STRING(&DHTConstants_wantIp6)
-            };
+            wishList = benc_addString(wishList, &DHTConstants_wantIp6, allocator);
         }
-        if (wishList != NULL) {
-            entry = &(benc_dict_entry_t) {
-                .next = entry,
-                .key = &DHTConstants_want,
-                .val = &(bobj_t) {
-                    .type = BENC_LIST,
-                    .as.list = wishList
-                }
-            };
-        }
+        benc_putList(messageDict, &DHTConstants_want, wishList, allocator);
     }
 
     message.addressLength =
@@ -150,11 +143,8 @@ static int sendMessage(struct sockaddr* address,
         return -1;
     }
 
-    /* The last entry in the list is considered the dictionary. */
-    message.bencoded = OBJ_PTR_FOR_DICT(entry);
-
-    message.messageClass = (isReply == true) ? &DHTConstants_reply : &DHTConstants_query;
-    message.queryType = queryType;
+    message.asDict = messageDict;
+    message.bencoded = OBJ_PTR_FOR_DICT(*messageDict);
 
     DHTModules_handleOutgoing(&message, context->registry);
 
@@ -203,10 +193,8 @@ int send_ping(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_query,
                        &DHTConstants_ping,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_arguments,
                        &arguments,
                        0,
                        false);
@@ -244,10 +232,8 @@ int send_pong(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_reply,
                        &DHTConstants_ping,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_reply,
                        &arguments,
                        0,
                        true);
@@ -315,10 +301,8 @@ int send_find_node(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_query,
                        &DHTConstants_findNode,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_arguments,
                        &arguments,
                        wantProtocols,
                        false);
@@ -387,10 +371,8 @@ int send_get_peers(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_query,
                        &DHTConstants_getPeers,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_arguments,
                        &arguments,
                        wantProtocols,
                        false);
@@ -530,10 +512,8 @@ int send_nodes_peers(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_reply,
                        (tokenLength == 0) ? &DHTConstants_findNode : &DHTConstants_getPeers,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_reply,
                        arguments,
                        0,
                        true);
@@ -595,14 +575,6 @@ int send_announce_peer(struct sockaddr *address,
 
     benc_dict_entry_t* arguments = NULL;
 
-    if (infoHash) {
-        arguments = &(benc_dict_entry_t) {
-            .next = arguments,
-            .key = &DHTConstants_infoHash,
-            .val = STRING_OBJ(20, (char*) infoHash)
-        };
-    }
-
     if(token && tokenLength > 0) {
         arguments = &(benc_dict_entry_t) {
             .next = arguments,
@@ -613,12 +585,6 @@ int send_announce_peer(struct sockaddr *address,
 
     arguments = &(benc_dict_entry_t) {
         .next = arguments,
-        .key = &DHTConstants_myId,
-        .val = OBJ_PTR_FOR_STRING(&context->myId)
-    };
-
-    arguments = &(benc_dict_entry_t) {
-        .next = arguments,
         .key = &DHTConstants_port,
         .val = &(bobj_t) {
             .type = BENC_INT,
@@ -626,11 +592,23 @@ int send_announce_peer(struct sockaddr *address,
         }
     };
 
+    if (infoHash) {
+        arguments = &(benc_dict_entry_t) {
+            .next = arguments,
+            .key = &DHTConstants_infoHash,
+            .val = STRING_OBJ(20, (char*) infoHash)
+        };
+    }
+
+    arguments = &(benc_dict_entry_t) {
+        .next = arguments,
+        .key = &DHTConstants_myId,
+        .val = OBJ_PTR_FOR_STRING(&context->myId)
+    };
+
     return sendMessage(address,
-                       &DHTConstants_query,
                        &DHTConstants_announcePeer,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_arguments,
                        arguments,
                        0,
                        false);
@@ -676,10 +654,8 @@ int send_peer_announced(struct sockaddr *address,
     };
 
     return sendMessage(address,
-                       &DHTConstants_reply,
                        &DHTConstants_announcePeer,
                        &(benc_bstr_t) {transactionIdLength, (char*) transactionId},
-                       &DHTConstants_reply,
                        arguments,
                        0,
                        true);
@@ -690,8 +666,7 @@ int send_error(struct sockaddr *address,
                unsigned char *transactionId,
                int transactionIdLength,
                int code,
-               const char *errorMessage,
-               const benc_bstr_t* queryType)
+               const char *errorMessage)
 {
     /* Unused. */
     addressLength = addressLength;
@@ -757,8 +732,8 @@ int send_error(struct sockaddr *address,
     /* The last entry in the list is considered the dictionary. */
     message.bencoded = OBJ_PTR_FOR_DICT(entry);
 
-    message.queryType = queryType;
-    message.messageClass = &DHTConstants_error;
+    message.replyTo = context->lastMessage;
+    assert(message.replyTo != NULL);
 
     DHTModules_handleOutgoing(&message, context->registry);
 

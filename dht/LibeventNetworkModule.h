@@ -11,10 +11,12 @@
  *                      6 for IPv4 and 18 for IPv6.
  * @param registry the module registry to send the incoming messages
  *                 to and send messages from.
+ * @param allocator the means of getting memory for the module.
  * @return -2 if inputs are null,
  *         -1 if memory cannot be allocated.
  */
 int LibeventNetworkModule_register(struct event_base* base,
                                    evutil_socket_t socket,
                                    int addressLength,
-                                   struct DHTModuleRegistry* registry);
+                                   struct DHTModuleRegistry* registry,
+                                   struct MemAllocator* allocator);

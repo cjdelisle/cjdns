@@ -2,7 +2,7 @@
 
 int main()
 {
-    const char* control = "d1:q4:ping1:y1:q1:t2:aa1:ad2:id20:abcdefghij0123456789ee";
+    const char* control = "d1:ad2:id20:abcdefghij0123456789e1:q4:ping1:t2:aa1:y1:qe";
 
     struct sockaddr_in ipAddr;
     NetworkTools_getPeerAddress("\x7F\x00\x00\x01\x1E\xD3", 6, (struct sockaddr_storage*) &ipAddr);

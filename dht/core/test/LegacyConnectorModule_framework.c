@@ -1,8 +1,7 @@
-#define INCLUDE_CONTEXT
 #include "dht/core/LegacyConnectorModuleInternal.h"
 #include "dht/core/juliusz/dht.h"
+#include "dht/DHTConstants.h"
 #include "libbenc/bencode.h"
-
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Writer.h"
@@ -15,6 +14,21 @@ struct LegacyConnectorModuleTest_context {
     char message[10000];
     char buffer[512];
 };
+
+void prepareFakeQuery()
+{
+    char* buffer = malloc(8192);
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 8192);
+    Dict* messageDict = benc_newDictionary(allocator);
+    benc_putString(messageDict, &DHTConstants_transactionId, benc_newString("aa", allocator), allocator);
+    benc_putString(messageDict, &DHTConstants_messageType, &DHTConstants_query, allocator);
+    benc_putString(messageDict, &DHTConstants_query, &DHTConstants_ping, allocator);
+
+    context->lastMessage = allocator->clone(sizeof(struct DHTMessage), allocator, &(struct DHTMessage) {
+        .allocator = allocator,
+        .asDict = messageDict
+    });
+}
 
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {

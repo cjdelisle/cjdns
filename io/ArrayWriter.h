@@ -13,6 +13,6 @@
  */
 struct Writer* ArrayWriter_new(void* writeTo,
                                size_t length,
-                               struct MemAllocator* allocator);
+                               const struct MemAllocator* allocator);
 
 #endif

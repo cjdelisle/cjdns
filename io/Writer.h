@@ -24,9 +24,9 @@ struct Writer {
      *           so writing a large piece of content then a small footer does not require
      *           checking if the content wrote correctly before writing the footer.
      */
-    int (* const write)(void* toWrite, size_t length, struct Writer* this);
+    int (* const write)(const void* toWrite, size_t length, const struct Writer* this);
 
-    uint64_t (* const bytesWritten)(struct Writer* writer);
+    uint64_t (* const bytesWritten)(const struct Writer* writer);
 };
 
 #endif

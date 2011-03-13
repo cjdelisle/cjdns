@@ -1,5 +1,7 @@
-#include <net/NetworkTools.h>
+#include "net/NetworkTools.h"
 #include "dht/LibeventNetworkModule.c"
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
 
 struct LibeventNetworkModuleTest_context {
     struct event_base* eventBase;
@@ -19,6 +21,10 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
 static int testOutgoing()
 {
+    #define BUFFER_SIZE 16384
+    char buffer[BUFFER_SIZE];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, BUFFER_SIZE);
+
     struct LibeventNetworkModuleTest_context* context =
         calloc(sizeof(struct LibeventNetworkModuleTest_context), 1);
 
@@ -32,7 +38,7 @@ static int testOutgoing()
     };
     memcpy(receiver, &localReceiver, sizeof(struct DHTModule));
 
-    struct DHTModuleRegistry* reg = DHTModules_new();
+    struct DHTModuleRegistry* reg = DHTModules_new(/*allocator*/);
 
     DHTModules_register(receiver, reg);
 
@@ -40,11 +46,11 @@ static int testOutgoing()
     context->eventBase = base;
 
     evutil_socket_t socket = NetworkTools_bindSocket("127.0.0.1:7891");
-    LibeventNetworkModule_register(base, socket, 6, reg);
+    LibeventNetworkModule_register(base, socket, 6, reg, allocator);
 
-    struct DHTModuleRegistry* reg2 = DHTModules_new();
+    struct DHTModuleRegistry* reg2 = DHTModules_new(/*allocator*/);
     evutil_socket_t socket2 = NetworkTools_bindSocket("127.0.0.1:7890");
-    LibeventNetworkModule_register(base, socket2, 6, reg2);
+    LibeventNetworkModule_register(base, socket2, 6, reg2, allocator);
 
     struct DHTMessage message;
     memcpy(message.peerAddress, "\x7F\x00\x00\x01\x1E\xD3", 6);
@@ -61,8 +67,7 @@ static int testOutgoing()
     event_base_dispatch(base);
 
 
-    DHTModules_free(reg);
-    DHTModules_free(reg2);
+    allocator->free(allocator);
     EVUTIL_CLOSESOCKET(socket);
     EVUTIL_CLOSESOCKET(socket2);
 

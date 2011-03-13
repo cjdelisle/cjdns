@@ -106,8 +106,8 @@ static int getPeers_reply_tester(int(*toTest)(const unsigned char *buf, int bufl
           | assertTrue((parserInput->want_return == -1), "want was not -1\n")
           | assertTrue(parserInput->parser_return == REPLY, "query type not reply for find_node");
     }
-    return generic_test("d1:rd2:id20:abcdefghij01234567895:token8:aoeusnth"
-                        "6:valuesl6:axje.u6:idhtnmee1:t2:aa1:y1:re",
+    return generic_test("d1:rd2:id20:abcdefghij01234567895:token8:aoeusnth6:valuesl6:axje.u"
+                        "6:idhtnmee1:t2:aa1:y1:re",
                         toTest, nullModifier, validateReply);
 }
 

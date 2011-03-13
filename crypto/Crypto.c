@@ -1,19 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307 USA
- */
+#include <assert.h>
+#include <stdio.h>
 
 #include "Crypto.h"
 #include "memory/MemAllocator.h"
@@ -21,8 +7,6 @@
 #include "seccure/protocol.h"
 #include "libbenc/benc.h"
 #include "libbenc/bencode.h"
-#include <assert.h>
-
 
 /**
  * Cryptographic functions.
@@ -494,10 +478,10 @@ benc_bstr_t* Crypto_sign(const benc_bstr_t message,
 }
 
 /** @see Crypto.h */
-int Crypto_isSignatureValid(const benc_bstr_t message,
-                            const benc_bstr_t signature,
-                            const benc_bstr_t publicKey,
-                            const struct curve_params *params)
+uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
+                                 const benc_bstr_t signature,
+                                 const benc_bstr_t publicKey,
+                                 const struct curve_params *params)
 {
     if (params == NULL
         || message.bytes == NULL
@@ -507,16 +491,16 @@ int Crypto_isSignatureValid(const benc_bstr_t message,
         || publicKey.bytes == NULL
         || publicKey.len == 0)
     {
-        return false;
+        return 0;
     }
 
     /* Need a memory allocator for a quick job here, "roll your own". */
-    char buffer[128];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 128);
+    char buffer[256];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 256);
     struct affine_point* Q = parsePoint(publicKey, allocator);
 
     if (Q == NULL) {
-        return false;
+        return 0;
     }
 
     /* Read the signature into a platform independent var blah blah. */
@@ -526,7 +510,7 @@ int Crypto_isSignatureValid(const benc_bstr_t message,
                   signature.bytes, params->sig_len_bin,
                   NULL);
 
-    int ret = false;
+    int ret = 0;
 
     /* ECDSA_verify() expects exactly 64 bytes so use SHA512. */
     gcry_md_hd_t hashFunction;

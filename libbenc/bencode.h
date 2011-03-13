@@ -1,37 +1,7 @@
 #ifndef BENCODE_H
 #define BENCODE_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <stdarg.h>
-
 #include "benc.h"
-
-void benc_log_exception(const char *file, int line, const char *func, const char *msg, ...);
-void benc_log_syscall(const char *file, int line, const char *func, const char *syscall_name, const char *msg, ...);
-
-#define BENC_LOG_EXCEPTION(...) (benc_log_exception(__FILE__, __LINE__, __func__, __VA_ARGS__))
-#define BENC_LOG_SYSCALL_ERROR(...) (benc_log_exception(__FILE__, __LINE__, __func__, __VA_ARGS__))
-
-bobj_t *        bobj_new(enum benc_data_type type);
-size_t          bobj_repsize(bobj_t *o);
-void            bobj_encode(bbuf_t *b, bobj_t *o);
-
-bool bbuf_inc_ptr(bbuf_t *b);
-
-size_t          benc_int_repsize(benc_int_t i);
-void            benc_int_encode(bbuf_t *b, benc_int_t i);
-bool            benc_int_decode(bbuf_t *b, benc_int_t *i_p);
-
-benc_bstr_t *   benc_bstr_new(size_t len, char *bytes);
-void            benc_bstr_free(benc_bstr_t *s);
-size_t          benc_bstr_repsize(benc_bstr_t *s);
-void            benc_bstr_encode(bbuf_t *b, benc_bstr_t *s);
-bool            benc_bstr_decode(bbuf_t *b, benc_bstr_t **s_p);
 
 /**
  * Print a bobject of unknown type in human readable format.
@@ -42,9 +12,9 @@ bool            benc_bstr_decode(bbuf_t *b, benc_bstr_t **s_p);
  * @return whatever the Writer returns when writing or -2
  *         if the type of object cannot be determined.
  */
-int benc_bobj_print(struct Writer* writer,
+int benc_bobj_print(const struct Writer* writer,
                     size_t padSpaceCount,
-                    bobj_t* obj);
+                    const bobj_t* obj);
 
 /**
  * Print a string in human readable format.
@@ -54,8 +24,8 @@ int benc_bobj_print(struct Writer* writer,
  * @param string the string to write.
  * @return whatever the Writer returns when writing.
  */
-int benc_bstr_print(struct Writer* writer,
-                    benc_bstr_t* string);
+int benc_bstr_print(const struct Writer* writer,
+                    const benc_bstr_t* string);
 
 /**
  * Serialize a string and write to a writer.
@@ -64,8 +34,8 @@ int benc_bstr_print(struct Writer* writer,
  * @param string the string to write.
  * @return whatever the Writer returns when writing.
  */
-int benc_bstr_serialize(struct Writer* writer,
-                        benc_bstr_t* string);
+int benc_bstr_serialize(const struct Writer* writer,
+                        const benc_bstr_t* string);
 
 /**
  * Parse a string, reading in with the first callback and writing to the second.
@@ -80,8 +50,8 @@ int benc_bstr_serialize(struct Writer* writer,
  *           overflow, -2 if -1 returned by the reader indicating an array underflow,
  *           -3 if content unparsable.
  */
-int benc_bstr_parse(struct Reader* reader,
-                    struct MemAllocator* allocator,
+int benc_bstr_parse(const struct Reader* reader,
+                    const struct MemAllocator* allocator,
                     benc_bstr_t** stringPointer);
 
 /**
@@ -91,8 +61,8 @@ int benc_bstr_parse(struct Reader* reader,
  * @param integer the number to write.
  * @return whatever the Writer returns when writing.
  */
-int benc_int_print(struct Writer* writer,
-                           benc_int_t integer);
+int benc_int_print(const struct Writer* writer,
+                   const benc_int_t integer);
 
 /**
  * Write an integer as decimal in bencoded format.
@@ -102,7 +72,7 @@ int benc_int_print(struct Writer* writer,
  * @param integer the number to write.
  * @return whatever the Writer returns when writing.
  */
-int benc_int_serialize(struct Writer* writer,
+int benc_int_serialize(const struct Writer* writer,
                        benc_int_t integer);
 
 /**
@@ -116,7 +86,7 @@ int benc_int_serialize(struct Writer* writer,
  * @return 0 if everything goes well, -2 if -1 returned by the reader indicating an
  *           array underflow, -3 if content unparsable.
  */
-int benc_int_parse(struct Reader* reader,
+int benc_int_parse(const struct Reader* reader,
                    benc_int_t* intPointer);
 
 /**
@@ -127,9 +97,9 @@ int benc_int_parse(struct Reader* reader,
  * @param head the top entry of the list.
  * @return whatever the Writer returns when writing.
  */
-int benc_list_print(struct Writer* writer,
+int benc_list_print(const struct Writer* writer,
                     size_t padSpaceCount,
-                    benc_list_entry_t* head);
+                    const benc_list_entry_t* head);
 
 /**
  * Serialize a list.
@@ -138,8 +108,8 @@ int benc_list_print(struct Writer* writer,
  * @param head the top entry of the list.
  * @return whatever the Writer returns when writing.
  */
-int benc_list_serialize(struct Writer* writer,
-                        benc_list_entry_t* head);
+int benc_list_serialize(const struct Writer* writer,
+                        const benc_list_entry_t* head);
 
 /**
  * Parse a list.
@@ -154,8 +124,8 @@ int benc_list_serialize(struct Writer* writer,
  *           overflow, -2 if -1 returned by the reader indicating an array underflow,
  *           -3 if content unparsable.
  */
-int benc_list_parse(struct Reader* reader,
-                    struct MemAllocator* writer,
+int benc_list_parse(const struct Reader* reader,
+                    const struct MemAllocator* writer,
                     benc_list_entry_t** listPointer);
 
 /**
@@ -166,9 +136,9 @@ int benc_list_parse(struct Reader* reader,
  * @param head the top entry of the dictionary.
  * @return whatever the Writer returns when writing.
  */
-int benc_dict_print(struct Writer* writer,
+int benc_dict_print(const struct Writer* writer,
                     size_t padSpaceCount,
-                    benc_dict_entry_t* head);
+                    const benc_dict_entry_t* head);
 
 /**
  * Serialize a dictionary.
@@ -177,8 +147,8 @@ int benc_dict_print(struct Writer* writer,
  * @param integer the number to write.
  * @return whatever the Writer returns when writing.
  */
-int benc_dict_serialize(struct Writer* writer,
-                        benc_dict_entry_t* head);
+int benc_dict_serialize(const struct Writer* writer,
+                        const benc_dict_entry_t* head);
 
 /**
  * Parse a dictionary, reading in with the first callback and writing to the second.
@@ -193,18 +163,8 @@ int benc_dict_serialize(struct Writer* writer,
  *           overflow, -2 if -1 returned by read indicating an array underflow,
  *           -3 if content unparsable.
  */
-int benc_dict_parse(struct Reader* reader,
-                    struct MemAllocator* allocator,
+int benc_dict_parse(const struct Reader* reader,
+                    const struct MemAllocator* allocator,
                     benc_dict_entry_t** headPointer);
-
-void            benc_list_free(benc_list_entry_t *head);
-size_t          benc_list_repsize(benc_list_entry_t *head);
-void            benc_list_encode(bbuf_t *b, benc_list_entry_t *head);
-bool            benc_list_decode(bbuf_t *b, benc_list_entry_t **head_p);
-
-void            benc_dict_free(benc_dict_entry_t *head);
-size_t          benc_dict_repsize(benc_dict_entry_t *head);
-void            benc_dict_encode(bbuf_t *b, benc_dict_entry_t *head);
-bool            benc_dict_decode(bbuf_t *b, benc_dict_entry_t **head_p);
 
 #endif        /* #ifndef BENCODE_H */

@@ -38,7 +38,6 @@ int testInputHandler()
     /* These should be ignored. */
     DHTModules_handleOutgoing(&theMessage, reg);
     DHTModules_compareNodes("00000000000000000000", "11111111111111111111", reg);
-    DHTModules_free(reg);
 
     if (context == -1) {
         printf("message not received");

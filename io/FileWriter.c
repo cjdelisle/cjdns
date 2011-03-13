@@ -3,20 +3,20 @@
 /* For memcpy. */
 #include <string.h>
 
-struct ArrayWriter_context {
+struct FileWriter_context {
     FILE* writeTo;
     uint64_t bytesWritten;
     struct Writer writer;
 };
 
-static int write(void* toWrite, size_t length, struct Writer* writer);
-static uint64_t bytesWritten(struct Writer* writer);
+static int write(const void* toWrite, size_t length, const struct Writer* writer);
+static uint64_t bytesWritten(const struct Writer* writer);
 
 /** @see ArrayWriter.h */
-struct Writer* FileWriter_new(FILE* writeTo, struct MemAllocator* allocator)
+struct Writer* FileWriter_new(FILE* writeTo, const struct MemAllocator* allocator)
 {
-    struct ArrayWriter_context* context =
-        allocator->calloc(sizeof(struct ArrayWriter_context), 1, allocator);
+    struct FileWriter_context* context =
+        allocator->calloc(sizeof(struct FileWriter_context), 1, allocator);
 
     if (context == NULL) {
         return NULL;
@@ -36,10 +36,10 @@ struct Writer* FileWriter_new(FILE* writeTo, struct MemAllocator* allocator)
 }
 
 /** @see Writer->write() */
-static int write(void* toWrite, size_t length, struct Writer* writer)
+static int write(const void* toWrite, size_t length, const struct Writer* writer)
 {
-    struct ArrayWriter_context* context =
-        (struct ArrayWriter_context*) writer->context;
+    struct FileWriter_context* context =
+        (struct FileWriter_context*) writer->context;
 
     size_t written = fwrite(toWrite, 1, length, context->writeTo);
 
@@ -48,10 +48,10 @@ static int write(void* toWrite, size_t length, struct Writer* writer)
     return written - length;
 }
 
-static uint64_t bytesWritten(struct Writer* writer)
+static uint64_t bytesWritten(const struct Writer* writer)
 {
-    struct ArrayWriter_context* context =
-        (struct ArrayWriter_context*) writer->context;
+    struct FileWriter_context* context =
+        (struct FileWriter_context*) writer->context;
 
     return context->bytesWritten;
 }

@@ -131,6 +131,9 @@ static int getNodeIdHex(struct DHTMessage* message, char hexOut[41])
 
 static void printPeer(struct DHTMessage* message)
 {
+    if (message->addressLength > 6) {
+        fprintf(stderr, "Unexpected address length %d", (int) message->addressLength);
+    }
     unsigned short port = message->peerAddress[5];
     port <<= 8;
     port |= message->peerAddress[4];
@@ -167,21 +170,49 @@ static void printError(struct DHTMessage* message)
     unparsable(message);
 }
 
+/* This will not scale but it should only be used for debugging. */
+static String* getQueryType(struct DHTMessage* message)
+{
+    if (message->replyTo != NULL) {
+        return benc_lookupString(message->replyTo->asDict, &DHTConstants_query);
+    }
+    String* q = benc_lookupString(message->asDict, &DHTConstants_query);
+    if (q != NULL) {
+        return q;
+    }
+    String* tid = benc_lookupString(message->asDict, &DHTConstants_transactionId);
+    if (tid != NULL) {
+        switch (tid->bytes[0]) {
+            case 'p' :;
+                return &DHTConstants_ping;
+            case 'f' :;
+                return &DHTConstants_findNode;
+            case 'g' :;
+                return &DHTConstants_getPeers;
+            case 'a' :;
+                return &DHTConstants_announcePeer;
+        };
+    }
+    return NULL;
+}
+
 static void printMessage(struct DHTMessage* message, uint64_t counter)
 {
     printPeer(message);
     fprintf(stderr, " ");
-    if (benc_bstr_compare(message->messageClass, &DHTConstants_error) == 0) {
-        fprintf(stderr, " ");
-        printError(message);
-        return;
+
+    String* msgClass = benc_lookupString(message->asDict, &DHTConstants_messageType);
+    String* queryType = getQueryType(message);
+    if (queryType == NULL) {
+        fprintf(stderr, "Unable to determine query type ");
+    } else {
+        fprintf(stderr, "%s", queryType->bytes);
     }
 
-    fprintf(stderr, "%s", message->queryType->bytes);
-    if (benc_bstr_compare(message->messageClass, &DHTConstants_reply) == 0) {
-        fprintf(stderr, "_reply");
-    } else if (benc_bstr_compare(message->messageClass, &DHTConstants_error) == 0) {
-        fprintf(stderr, "_error");
+    if (benc_stringEquals(msgClass, &DHTConstants_reply)) {
+        fprintf(stderr, " reply");
+    } else if (benc_stringEquals(msgClass, &DHTConstants_error)) {
+        fprintf(stderr, " error");
         fprintf(stderr, " ");
         printError(message);
         return;

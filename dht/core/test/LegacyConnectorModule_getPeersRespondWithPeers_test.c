@@ -4,22 +4,20 @@ int main()
 {
     /* Since the order of the values is random, we must validate both possibilities. */
     const char* control =
-        "d1:y1:r1:t2:aa1:rd2:id20:abcdefghij01234567896:valuesl6:CCCC356:AAAA33e"
-        "5:token8:aoeusnth5:nodes40:abcdefghijklmnopqrst1234567890abcdefghijee";
+        "d1:rd2:id20:abcdefghij01234567896:valuesl6:CCCC356:AAAA33e5:token8:aoeusnth"
+        "5:nodes40:abcdefghijklmnopqrst1234567890abcdefghije1:t2:aa1:y1:re";
 
     const char* controlB =
-        "d1:y1:r1:t2:aa1:rd2:id20:abcdefghij01234567896:valuesl6:AAAA336:CCCC35e"
-        "5:token8:aoeusnth5:nodes40:abcdefghijklmnopqrst1234567890abcdefghijee";
+        "d1:rd2:id20:abcdefghij01234567896:valuesl6:AAAA336:CCCC35e5:token8:aoeusnth"
+        "5:nodes40:abcdefghijklmnopqrst1234567890abcdefghije1:t2:aa1:y1:re";
 
     const char* control6 =
-        "d1:y1:r1:t2:aa1:rd2:id20:abcdefghij01234567896:valuesl18:BBBBBBBBBBBBBBBB34"
-        "18:DDDDDDDDDDDDDDDD36e5:token8:aoeusnth5:nodes"
-        "40:abcdefghijklmnopqrst1234567890abcdefghijee";
+        "d1:rd2:id20:abcdefghij01234567896:valuesl18:BBBBBBBBBBBBBBBB3418:DDDDDDDDDDDDDDDD36e"
+        "5:token8:aoeusnth5:nodes40:abcdefghijklmnopqrst1234567890abcdefghije1:t2:aa1:y1:re";
 
     const char* control6B =
-        "d1:y1:r1:t2:aa1:rd2:id20:abcdefghij01234567896:valuesl18:DDDDDDDDDDDDDDDD36"
-        "18:BBBBBBBBBBBBBBBB34e5:token8:aoeusnth5:nodes"
-        "40:abcdefghijklmnopqrst1234567890abcdefghijee";
+        "d1:rd2:id20:abcdefghij01234567896:valuesl18:DDDDDDDDDDDDDDDD3618:BBBBBBBBBBBBBBBB34e"
+        "5:token8:aoeusnth5:nodes40:abcdefghijklmnopqrst1234567890abcdefghije1:t2:aa1:y1:re";
 
 
     struct sockaddr_in ipAddr;
@@ -74,26 +72,28 @@ int main()
 
     int out = 0;
 
+    prepareFakeQuery();
     send_nodes_peers((struct sockaddr*) &ipAddr, -1,
-                                           (unsigned char*) "aa", 2,
-                                           nodes, 40,
-                                           (unsigned char*) "", 0,
-                                           AF_INET,
-                                           &store,
-                                           (unsigned char*) "aoeusnth", 8);
+                     (unsigned char*) "aa", 2,
+                     nodes, 40,
+                     (unsigned char*) "", 0,
+                     AF_INET,
+                     &store,
+                     (unsigned char*) "aoeusnth", 8);
 
     printf("\nget_peers response with peers: %s\n", testContext.message);
 
     out |= (memcmp(control, testContext.message, strlen(control))
             & memcmp(controlB, testContext.message, strlen(controlB)));
 
+    prepareFakeQuery();
     send_nodes_peers((struct sockaddr*) &ipAddr, -1,
-                                           (unsigned char*) "aa", 2,
-                                           nodes, 40,
-                                           (unsigned char*) "", 0,
-                                           AF_INET6,
-                                           &store,
-                                           (unsigned char*) "aoeusnth", 8);
+                     (unsigned char*) "aa", 2,
+                     nodes, 40,
+                     (unsigned char*) "", 0,
+                     AF_INET6,
+                     &store,
+                     (unsigned char*) "aoeusnth", 8);
 
     printf("get_peers for ip6 response with peers: %s\n\n", testContext.message);
 

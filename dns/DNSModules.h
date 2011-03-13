@@ -138,23 +138,4 @@ void DNSModules_handleIncoming(struct DNSMessage* message,
 void DNSModules_handleOutgoing(struct DNSMessage* message,
                                const struct DNSModuleRegistry* registry);
 
-/**
- * Serialize the state of each member in the registry.
- *
- * @param registry the module registry to serialize.
- * @return a string sutable for passing to DNSModules_deserialize()
- * @see DNSModule->serialize
- */
-benc_bstr_t* DNSModules_serialize(const struct DNSModuleRegistry* registry);
-
-/**
- * Deserialize a new registry from binary.
- * NOTE: After deserialization, the modules still need to be registered.
- *
- * @param output from a former call to DNSModules_serialize()
- * @param length how long serialized is.
- * @see DNSModule->deserialize
- */
-struct DNSModuleRegistry* DNSModules_deserialize(const benc_bstr_t serialData);
-
 #endif

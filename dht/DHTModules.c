@@ -1,21 +1,10 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307 USA
- */
-
 #include <assert.h>
+#include <string.h>
+
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
+#include "io/Reader.h"
+#include "io/Writer.h"
 #include "libbenc/bencode.h"
 #include "DHTModules.h"
 
@@ -43,22 +32,6 @@ struct DHTModuleRegistry* DHTModules_new()
     if (reg) { free(reg); }
     if (newMembersList) { free(newMembersList); }
     return NULL;
-}
-
-/** @see DHTModules.h */
-void DHTModules_free(struct DHTModuleRegistry *registry)
-{
-    int freeModule(struct DHTModule *module, struct DHTMessage* nothing)
-    {
-        nothing = nothing;
-        if(module->free) {
-            module->free(module);
-        }
-        return 0;
-    }
-    forEachModule(freeModule, NULL, registry);
-    free(registry->members);
-    free(registry);
 }
 
 /** @see DHTModules.h */
@@ -117,6 +90,12 @@ int DHTModules_compareNodes(const char nodeId[20],
 void DHTModules_handleIncoming(struct DHTMessage* message,
                                const struct DHTModuleRegistry* registry)
 {
+    assert(message);
+    assert(registry);
+    struct DHTModuleRegistry kkkkkkk = *registry;
+    kkkkkkk.members = kkkkkkk.members;
+    assert(registry->members);
+    assert(registry->memberCount);
     if (!(message && registry && registry->members && registry->memberCount)) {
         return;
     }
@@ -157,142 +136,42 @@ void DHTModules_handleOutgoing(struct DHTMessage* message,
 }
 
 /** @see DHTModules.h */
-benc_bstr_t* DHTModules_serialize(const struct DHTModuleRegistry* registry)
+void DHTModules_serialize(const struct DHTModuleRegistry* registry,
+                          const struct Writer* writer)
 {
-    int count = 0;
-    int countModules(struct DHTModule* module, struct DHTMessage* nothing)
-    {
-        nothing = nothing;
-        if (module && module->serialize && module->context) {
-            count++;
+    char buffer[1024];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1024);
+    Dict* dictionary = benc_newDictionary(allocator);
+
+    struct DHTModule** modulePtr = registry->members;
+    struct DHTModule* module = *modulePtr;
+    while (module) {
+        if (module->serialize != NULL) {
+            benc_putObject(dictionary,
+                           benc_newString(module->name, allocator),
+                           module->serialize(module->context),
+                           allocator);
         }
-        return 0;
+        modulePtr++;
+        module = *modulePtr;
     }
-    forEachModule(countModules, NULL, registry);
-
-    /*
-     * create a memory location which will contain:
-     * dictEntry1, dictEntry1->key, dictEntry1->value,
-     * dictEntry2, dictEntry2->key, dictEntry2->value,
-     * etc.
-     */
-    benc_dict_entry_t* dictRoot = calloc(sizeof(benc_dict_entry_t)
-                                             + sizeof(benc_bstr_t)
-                                             + sizeof(bobj_t),
-                                         count);
-
-    if (dictRoot == NULL) {
-        return NULL;
-    }
-
-    /*
-     * Because the loop needs to skip to the next entry each time,
-     * start it off on a pseudo entry.
-     */
-    benc_dict_entry_t* dictEntry = &(benc_dict_entry_t) {
-        .key = NULL,
-        .val = NULL,
-        .next = dictRoot
-    };
-
-    unsigned int outBufferRequirement = 0;
-
-    int serializeModule(struct DHTModule* module, struct DHTMessage* nothing)
-    {
-        nothing = nothing;
-        if (!(module && module->serialize && module->context)) {
-            return 0;
-        }
-        benc_bstr_t* serialized = module->serialize(module->context);
-        if (!(serialized && serialized->bytes && serialized->len > 0)) {
-            return 0;
-        }
-
-        dictEntry = dictEntry->next;
-        benc_bstr_t* key = (benc_bstr_t*) ((char*)dictEntry + sizeof(benc_dict_entry_t));
-
-        /* It is safe to drop the const here
-         * because libbenc doesn't change the input.*/
-        key->bytes = (char*) module->name;
-
-        key->len = strlen(module->name);
-        outBufferRequirement += key->len;
-        dictEntry->key = key;
-
-        bobj_t* valueObj = (bobj_t*) ((char*)key + sizeof(benc_bstr_t));
-        valueObj->type = BENC_BSTR;
-        valueObj->as.bstr = serialized;
-        outBufferRequirement += serialized->len;
-        dictEntry->val = valueObj;
-
-        dictEntry->next = (benc_dict_entry_t*) ((char*)valueObj + sizeof(bobj_t));
-        return 0;
-    }
-    forEachModule(serializeModule, NULL, registry);
-
-    /* Otherwise libbenc is unhappy. */
-    dictEntry->next = NULL;
-
-    /* libbenc has no protection so if we miss low,
-     * we get a segfault (or worse). */
-    outBufferRequirement += 500;
-
-    /* location containing bstring structure followed by it's content. */
-    benc_bstr_t* out = calloc(sizeof(benc_bstr_t)
-                                  + outBufferRequirement * sizeof(char),
-                              1);
-
-    if (out == NULL) {
-        free(dictRoot);
-        return NULL;
-    }
-
-    char* buffer = (char*) out + sizeof(benc_bstr_t);
-
-    bbuf_t outAsBuf = {
-        .len = outBufferRequirement,
-        .base = buffer,
-        .ptr = buffer
-    };
-
-    benc_dict_encode(&outAsBuf, dictRoot);
-    out->bytes = buffer;
-    out->len = outAsBuf.ptr - outAsBuf.base;
-
-    free(dictRoot);
-
-    if (out->len > 0) {
-        return out;
-    }
-
-    free(out);
-
-    return NULL;
+    bobj_serialize(writer, &(bobj_t) { .type = BENC_DICT, .as.dict = *dictionary });
 }
 
 /** @see DHTModules.h */
-struct DHTModuleRegistry* DHTModules_deserialize(const benc_bstr_t serialData)
+struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
+                                                 const struct MemAllocator* allocator)
 {
-    bobj_t* contextByName = bobj_dict_new();
-    if (contextByName == NULL) {
+    bobj_t* obj = NULL;
+    if (bobj_parse(reader, allocator, &obj) || obj == NULL || obj->type != BENC_DICT) {
         return NULL;
     }
 
-    bbuf_t dataBuf = {
-        .len = serialData.len,
-        .base = serialData.bytes,
-        .ptr = serialData.bytes
-    };
-
-    if (benc_dict_decode(&dataBuf, &contextByName->as.dict)) {
-        struct DHTModuleRegistry* reg = DHTModules_new();
-        if (reg) {
-            reg->serializedContexts = contextByName;
-            return reg;
-        }
+    struct DHTModuleRegistry* reg = DHTModules_new();
+    if (reg) {
+        reg->serializedContexts = obj;
+        return reg;
     }
-
-    if (contextByName) { bobj_free(contextByName); }
 
     return NULL;
 }
@@ -316,15 +195,9 @@ static inline void deserializeContext(struct DHTModule* module,
     if (module && registry && registry->serializedContexts) {
         bobj_t* serContext =
             bobj_dict_lookup(registry->serializedContexts,
-                             &(benc_bstr_t) { .len = strlen(name),
-                                              .bytes = name } );
-        if (module->deserialize
-            && module->context
-            && serContext
-            && serContext->as.bstr)
-        {
-            module->deserialize(*serContext->as.bstr,
-                                module->context);
+                             &(benc_bstr_t) { .len = strlen(name), .bytes = name } );
+        if (module->deserialize && module->context && serContext && serContext->as.bstr) {
+            module->deserialize(serContext, module->context);
         }
     }
 }
