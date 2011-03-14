@@ -17,7 +17,7 @@
  #endif
 #endif
 
-#include "libbenc/bencode.h"
+/*#include "libbenc/benc.h"*/
 #include "dht/DHTModules.h"
 #include "net/NetworkTools.h"
 #include "memory/MemAllocator.h"

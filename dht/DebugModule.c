@@ -75,15 +75,12 @@ static void unparsable(struct DHTMessage* message)
 }
 
 /** @return a dictionary type or NULL. */
-static bobj_t* getArguments(struct DHTMessage* message)
+static Dict* getArguments(struct DHTMessage* message)
 {
     /* If query then arguments under 'a', otherwise under 'r' */
-    bobj_t* args = bobj_dict_lookup(message->bencoded, &DHTConstants_arguments);
+    Dict* args = benc_lookupDictionary(message->asDict, &DHTConstants_arguments);
     if (args == NULL) {
-        args = bobj_dict_lookup(message->bencoded, &DHTConstants_reply);
-    }
-    if (args == NULL || args->type != BENC_DICT) {
-        return NULL;
+        args = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
     }
     return args;
 }
@@ -91,17 +88,14 @@ static bobj_t* getArguments(struct DHTMessage* message)
 /** @return 0 on success -1 on failure. */
 static int getTargetHex(struct DHTMessage* message, char hexOut[41])
 {
-    bobj_t* args = getArguments(message);
-    bobj_t* id = bobj_dict_lookup(args, &DHTConstants_targetId);
+    Dict* args = getArguments(message);
+    String* id = benc_lookupString(args, &DHTConstants_targetId);
     if (id == NULL) {
-        id = bobj_dict_lookup(args, &DHTConstants_infoHash);
+        id = benc_lookupString(args, &DHTConstants_infoHash);
     }
-    if (id != NULL
-        && id->type == BENC_BSTR
-        && id->as.bstr->len == 20)
-    {
+    if (id != NULL && id->len == 20) {
         int i;
-        unsigned char* idStr = (unsigned char*) id->as.bstr->bytes;
+        unsigned char* idStr = (unsigned char*) id->bytes;
         for (i = 0; i < 20; i++) {
             sprintf(hexOut + (2 * i), "%02X", idStr[i]);
         }
@@ -113,14 +107,11 @@ static int getTargetHex(struct DHTMessage* message, char hexOut[41])
 /** @return 0 on success -1 on failure. */
 static int getNodeIdHex(struct DHTMessage* message, char hexOut[41])
 {
-    bobj_t* args = getArguments(message);
-    bobj_t* id = bobj_dict_lookup(args, &DHTConstants_myId);
-    if (id != NULL
-        && id->type == BENC_BSTR
-        && id->as.bstr->len == 20)
-    {
+    Dict* args = getArguments(message);
+    String* id = benc_lookupString(args, &DHTConstants_myId);
+    if (id != NULL && id->len == 20) {
         int i;
-        unsigned char* idStr = (unsigned char*) id->as.bstr->bytes;
+        unsigned char* idStr = (unsigned char*) id->bytes;
         for (i = 0; i < 20; i++) {
             sprintf(hexOut + (2 * i), "%02X", idStr[i]);
         }
@@ -150,20 +141,12 @@ static void printPeer(struct DHTMessage* message)
 
 static void printError(struct DHTMessage* message)
 {
-    bobj_t* error = bobj_dict_lookup(message->bencoded, &DHTConstants_error);
-    if (error != NULL && error->type == BENC_LIST && error->as.list->next != NULL)
-    {
-        bobj_t* errorNum = error->as.list->elem;
-        bobj_t* errorMessage = error->as.list->next->elem;
-        if (errorNum != NULL
-            || errorNum->type == BENC_INT
-            || errorMessage != NULL
-            || errorMessage->type == BENC_BSTR)
-        {
-            fprintf(stderr,
-                    "Error #%d - \"%s\"\n",
-                    (int) errorNum->as.int_,
-                    errorMessage->as.bstr->bytes);
+    List* error = benc_lookupList(message->asDict, &DHTConstants_error);
+    if (error != NULL && benc_listLength(error) == 2) {
+        Integer* errorNum = benc_getInteger(error, 0);
+        String* errorMessage = benc_getString(error, 1);
+        if (errorNum != NULL && errorMessage != NULL) {
+            fprintf(stderr, "Error #%d - \"%s\"\n", (int) *errorNum, errorMessage->bytes);
             return;
         }
     }
@@ -231,16 +214,13 @@ static void printMessage(struct DHTMessage* message, uint64_t counter)
         fprintf(stderr, "Target: %s ", hex);
     }
 
-    bobj_t* version = bobj_dict_lookup(message->bencoded, &DHTConstants_version);
-    if (version == NULL
-        || version->type != BENC_BSTR
-        || version->as.bstr->len != 4) {
+    String* version = benc_lookupString(message->asDict, &DHTConstants_version);
+    if (version == NULL || version->len != 4) {
         fprintf(stderr, " NONE");
     } else {
-        benc_bstr_t* vs = version->as.bstr;
-        fprintf(stderr, "%c%c:", vs->bytes[0], vs->bytes[1]);
+        fprintf(stderr, "%c%c:", version->bytes[0], version->bytes[1]);
         /* TODO: This will fail on big endian boxes. */
-        unsigned short num = (unsigned short) *(((char*)vs->bytes) + 2);
+        unsigned short num = (unsigned short) *(((char*)version->bytes) + 2);
         fprintf(stderr, "%d", num);
     }
     fprintf(stderr, (sizeof(long int) == 8) ? " #%ld " : " #%lld ", counter);

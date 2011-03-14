@@ -1,9 +1,9 @@
 #ifndef BENC_H
 #define BENC_H
 
-#include <memory/MemAllocator.h>
-#include <io/Reader.h>
-#include <io/Writer.h>
+#include <stdint.h>
+
+#include "memory/MemAllocator.h"
 
 typedef struct bobj_s               bobj_t;
 typedef int64_t                     benc_int_t;
@@ -12,37 +12,62 @@ typedef struct benc_list_entry_s    benc_list_entry_t;
 typedef struct benc_dict_entry_s    benc_dict_entry_t;
 #define String benc_bstr_t
 /* Dictionaries and lists are pointers to the head entry so that the head can change. */
-/*#define Dict benc_dict_entry_t* */
-typedef benc_dict_entry_t* Dict;
-#define List benc_list_entry_t*
+typedef benc_dict_entry_t* benc_dict_t;
+#define Dict benc_dict_t
+typedef benc_list_entry_t* benc_list_t;
+#define List benc_list_t
 #define Object bobj_t
+#define Integer int64_t
 
-enum benc_data_type { BENC_INT, BENC_BSTR, BENC_LIST, BENC_DICT };
+enum benc_data_type { BENC_INT, BENC_BSTR, BENC_LIST, BENC_DICT, BENC_UNPARSABLE };
 
 bobj_t *        bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key);
+
+/**
+ * In order to make the names somewhat intuitive and not horribly verbose
+ * while obeying C's prohabition on function overloading, I have used some
+ * linguistic tricks to differentiate the operations which are done on lists
+ * and those done on dictionaries.
+ * When you think "put", "lookup" or "entry", think dictionary.
+ * When you think "add", "get", "set", or "item", think list.
+ * The exception is remove. If you are removing an item from a list, you want to
+ * use benc_removeItem() while removing a dictionary entry requires benc_removeEntry()
+ */
+
 
 /**
  * Remove an entry from the dictionary.
  *
  * @param dictionary the dictionary to remove the entry from.
  * @param key the key which the entry is entered under.
- * @return the value of the entry if it exists, otherwise NULL.
+ * @return 1 if there was an entry removed, 0 if there was not.
  */
-Object* benc_removeEntry(Dict* dictionary, const String* key);
+int32_t benc_removeEntry(Dict* dictionary, const String* key);
+
+/*----------------------- List General Functions -----------------------*/
 
 /**
- * Add an item to a list, if the list does not exist then it is allocated.
- * NOTE: This will not copy the given object, only add a pointer to it in the list.
+ * Get the length of a list.
  *
- * @param list the list to add an item to, if NULL then it is allocated.
- * @param item the item to add to the list.
- * @param allocator the means to get memory to store list item and possibly the newly allocated list.
- * @return the list after adding the item.
+ * @param a list
+ * @return the length of the given list or -1 if the list argument is NULL.
  */
-List* benc_addObject(List* list, Object* item, const struct MemAllocator* allocator);
+int32_t benc_listLength(List* list);
+
+/*----------------------- List Add Functions -----------------------*/
 
 /**
- * Add a String to a list, if the list does not exist then it is allocated.
+ * Add an integer to a list, if the list does not exist then it is allocated.
+ *
+ * @param list the list to add the integer item to, if NULL then it is allocated.
+ * @param toAdd the integer to add to the list. Integer is an alias for int64_t
+ * @param allocator the means of getting memory space for storing the list entry.
+ * @return the list after adding the integer.
+ */
+List* benc_addInteger(List* list, Integer toAdd, const struct MemAllocator* allocator);
+
+/**
+ * Add a string to a list, if the list does not exist then it is allocated.
  * NOTE: This will not copy the given string, only add a pointer to it in the list.
  *
  * @param list the list to add the string item to, if NULL then it is allocated.
@@ -53,26 +78,131 @@ List* benc_addObject(List* list, Object* item, const struct MemAllocator* alloca
 List* benc_addString(List* list, String* toAdd, const struct MemAllocator* allocator);
 
 /**
- * Put a key:value pair into a dictionary.
- * NOTE: This will not copy the given object,
- *       only add a pointer to it in the dictionary.
- * If dictionary is NULL then a new dictionary will be created and returned.
+ * Add a dictionary to a list, if the list does not exist then it is allocated.
+ * NOTE: This will not copy the given dictionary, only add a pointer to it in the list.
  *
- * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary is made.
- * @param key the reference key to use for putting the entry in the dictionary.
- * @param value the value to insert with the key.
- * @param allocator the means to get memory for storing the dictionary entry wrapper.
- * @return if the dictionary parameter is NULL then this will be the newly created dictionary.
- *         Otherwise: if the key already exists in the dictionary then the value which was
- *         displaced by the put, if not then NULL.
+ * @param list the list to add the string item to, if NULL then it is allocated.
+ * @param toAdd the dictionary to add to the list.
+ * @param allocator the means of getting memory space for storing the list entry.
+ * @return the list after adding the dictionary.
  */
-Object* benc_putObject(Dict* dictionary,
-                       const String* key,
-                       Object* value,
-                       const struct MemAllocator* allocator);
+List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* allocator);
 
 /**
- * Utility function which wraps value as a bencoded generic object and calls benc_putEntry()
+ * Add a list as an item to another list, if the list does not exist then it is allocated.
+ * NOTE: This will not copy the list which it is adding, only add a pointer to it in the list.
+ *
+ * @param list the list to add the item to, if NULL then it is allocated.
+ * @param toAdd the list to add as an item.
+ * @param allocator the means of getting memory space for storing the list entry.
+ * @return the list after adding the item.
+ */
+List* benc_addList(List* list, List* toAdd, const struct MemAllocator* allocator);
+
+/*----------------------- List Get Functions -----------------------*/
+
+/**
+ * Get an integer from a list.
+ *
+ * @param list the list to get the integer item from.
+ * @param index the index of the item.
+ * @return a pointer to the integer at that index or NULL if either the index
+ *         is out of range or the item at that index is not an integer.
+ */
+Integer* benc_getInteger(const List* list, uint32_t index);
+
+/**
+ * Get a string from a list.
+ *
+ * @param list the list to get the string item from.
+ * @param index the index of the item.
+ * @return a pointer to the string at that index or NULL if either the index
+ *         is out of range or the item at that index is not a string.
+ */
+String* benc_getString(const List* list, uint32_t index);
+
+/**
+ * Get a dictionary from a list.
+ *
+ * @param list the list to get the dictionary from.
+ * @param index the index of the item.
+ * @return a pointer to the string at that index or NULL if either the index
+ *         is out of range or the item at that index is not a dictionary.
+ */
+Dict* benc_getDictionary(const List* list, uint32_t index);
+
+/**
+ * Get a list from another list.
+ *
+ * @param list the list to get the item from.
+ * @param index the index of the item.
+ * @return a pointer to the string at that index or NULL if either the index
+ *         is out of range or the item at that index is not a list.
+ */
+List* benc_getList(const List* list, uint32_t index);
+
+/*----------------------- Dictionary Lookup Functions -----------------------*/
+
+/**
+ * Lookup an integer value from a dictionary, if the value is not present
+ * or is not an integer type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ * @return an integer which is in the dictionary under the given key or else NULL.
+ */
+Integer* benc_lookupInteger(const Dict* dictionary, const String* key);
+
+/**
+ * Lookup a string value from a dictionary, if the value is not present
+ * or is not a string type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ * @return a string which is in the dictionary under the given key or else NULL.
+ */
+String* benc_lookupString(const Dict* dictionary, const String* key);
+
+/**
+ * Lookup a dictionary value from another dictionary, if the value is not present
+ * or is not a dictionary type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ * @return a dictionary which is in the dictionary under the given key or else NULL.
+ */
+Dict* benc_lookupDictionary(const Dict* dictionary, const String* key);
+
+/**
+ * Lookup a list value from a dictionary, if the value is not present
+ * or is not a list type then NULL is returned.
+ *
+ * @param dictionary the dictionary to look the entry up in.
+ * @param key the key to look the entry up with.
+ * @return a list which is in the dictionary under the given key or else NULL.
+ */
+List* benc_lookupList(const Dict* dictionary, const String* key);
+
+/*----------------------- Dictionary Put Functions -----------------------*/
+
+/**
+ * Insert an integer into a dictionary.
+ *
+ * @param putIntoThis the dictionary to insert an entry into.
+ * @param key the reference key to use for putting the entry in the dictionary.
+ * @param value the integer to insert. Integer is an alias to int64_t.
+ * @param allocator the means to get memory for storing the dictionary entry wrapper.
+ * @return if the key already exists in the dictionary then the value which was
+ *         displaced by the put, otherwise NULL.
+ */
+Object* benc_putInteger(Dict* putIntoThis,
+                        const String* key,
+                        Integer value,
+                        const struct MemAllocator* allocator);
+
+/**
+ * Insert a String object into another dictionary.
+ * NOTE: This will not copy the given object, only add a pointer to it in the dictionary.
  *
  * @param putIntoThis the dictionary to insert an entry into.
  * @param key the reference key to use for putting the entry in the dictionary.
@@ -88,8 +218,7 @@ Object* benc_putString(Dict* putIntoThis,
 
 /**
  * Insert a Dictionary object into another dictionary.
- * NOTE: This will not copy the given object,
- *       only add a pointer to it in the dictionary.
+ * NOTE: This will not copy the given object, only add a pointer to it in the dictionary.
  *
  * @param putIntoThis the dictionary to insert an entry into.
  * @param key the reference key to use for putting the entry in the dictionary.
@@ -105,8 +234,7 @@ Object* benc_putDictionary(Dict* putIntoThis,
 
 /**
  * Insert a List object into a dictionary.
- * NOTE: This will not copy the given object,
- *       only add a pointer to it in the dictionary.
+ * NOTE: This will not copy the given object, only add a pointer to it in the dictionary.
  *
  * @param putIntoThis the dictionary to insert an entry into.
  * @param key the reference key to use for putting the entry in the dictionary.
@@ -120,23 +248,7 @@ Object* benc_putList(Dict* putIntoThis,
                      List* value,
                      const struct MemAllocator* allocator);
 
-/**
- * Lookup a value from a dictionary type if the value is not present or is not a bencoded
- * string type then NULL is returned.
- *
- * @param dictionary the dictionary to look the entry up in.
- * @param key the key to look the entry up with.
- */
-String* benc_lookupString(const Dict* dictionary, const String* key);
-
-/**
- * Lookup a value from a dictionary type if the value is not present or is not a bencoded
- * dictionary type then NULL is returned.
- *
- * @param dictionary the dictionary to look the entry up in.
- * @param key the key to look the entry up with.
- */
-Dict* benc_lookupDictionary(const Dict* dictionary, const String* key);
+/*----------------------- Constructors -----------------------*/
 
 /**
  * Create a new bencoded dictionary type.
@@ -144,16 +256,6 @@ Dict* benc_lookupDictionary(const Dict* dictionary, const String* key);
  * @param allocator the place to allocate the memory for storing the dictionary.
  */
 Dict* benc_newDictionary(const struct MemAllocator* allocator);
-
-/**
- * Create a new bencoded integer from an integer. This will copy the integer into
- * the allocator.
- *
- * @param number the number to create a bencoded integer from.
- * @param allocator a means of getting the memory to store the bencoded number.
- * @return a bencoded integer object.
- */
-bobj_t* benc_newInteger(int64_t number, const struct MemAllocator* allocator);
 
 /**
  * Create a new bencoded string from a C null terminated string.
@@ -175,6 +277,8 @@ String* benc_newString(const char* bytes, const struct MemAllocator* allocator);
  * @return a bencoded string.
  */
 String* benc_newBinaryString(const char* bytes, size_t length, const struct MemAllocator* allocator);
+
+/*----------------------- Comparitors -----------------------*/
 
 /**
  * Compare 2 bencoded strings.
@@ -200,45 +304,7 @@ int benc_bstr_compare(const benc_bstr_t* a, const benc_bstr_t* b);
  */
 int32_t benc_stringEquals(const benc_bstr_t* a, const benc_bstr_t* b);
 
-/**
- * Print a bobject in human readable format.
- *
- * @param writer the Writer to write to.
- * @param obj the object to print.
- * @return whatever the Writer returns when writing or -2
- *         if the type of object cannot be determined.
- */
-int bobj_print(const struct Writer* writer,
-               bobj_t* obj);
-
-/**
- * Serialize a benc object into a bencoded string.
- *
- * @param writer a Writer which to write the output to.
- * @param obj the object to serialize.
- * @return -2 if the type of object cannot be determined, otherwise
- *            whatever is returned by the Writer.
- */
-int bobj_serialize(const struct Writer* writer,
-                   bobj_t* obj);
-
-/**
- * Parse some kind of bencoded object.
- *
- * @param reader a Reader which will provide the content to parse. This is expected to
- *               have it's pointer aligned on the first character of the object and the
- *               type of object will be detected from the first character. The pointer
- *               will be left on the first char AFTER the end of the object.
- * @param allocator a memory allocator which will be used to get the memory needed to store
- *                  the parsed data.
- * @param objPointer a pointer which will be set to the object which is parsed.
- * @return 0 if everything goes well, -1 if NULL returned by write() indicating an array
- *           overflow, -2 if -1 returned by read indicating an array underflow,
- *           -3 if content unparsable.
- */
-int bobj_parse(const struct Reader* reader,
-               const struct MemAllocator* allocator,
-               bobj_t** objPointer);
+/*----------------------- Structures -----------------------*/
 
 struct bobj_s {
     enum benc_data_type          type;

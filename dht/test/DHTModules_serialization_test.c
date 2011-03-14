@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "libbenc/bencode.h"
 #include "dht/DHTModules.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -16,20 +15,17 @@
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 
-static const char* control = "d10:TestModule11:Hello Worlde";
+static const char* control = "d10:TestModuled2:hi11:Hello Worldee";
 
-static bobj_t* serialize(void* vcontext)
+static const benc_bstr_t hello = { .bytes = "Hello World!", .len = 12 };
+static const benc_bstr_t hi = { .bytes = "hi", .len = 2 };
+
+static Dict* serialize(void* vcontext)
 {
-    char* context = (char*) vcontext;
-    benc_bstr_t* str = calloc(sizeof(benc_bstr_t), 1);
-    bobj_t* out = calloc(sizeof(bobj_t), 1);
-    if (out == NULL || str == NULL) {
-        return NULL;
-    }
-    str->len = strlen(context);
-    str->bytes = context;
-    out->type = BENC_BSTR;
-    out->as.bstr = str;
+    char* buffer = calloc(2048, 1);
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 2048);
+    Dict* out = benc_newDictionary(allocator);
+    benc_putString(out, &hi, benc_newString((char*) vcontext, allocator), allocator);
     return out;
 }
 
@@ -66,10 +62,11 @@ static int testSerialization()
     return memcmp(writeBuffer, control, writer->bytesWritten(writer));
 }
 
-static void deserialize(const bobj_t* serialData, void* vcontext)
+static void deserialize(const Dict* serialData, void* vcontext)
 {
     char* context = (char*) vcontext;
-    memcpy(context, serialData->as.bstr->bytes, serialData->as.bstr->len);
+    String* out = benc_lookupString(serialData, &hi);
+    memcpy(context, out->bytes, out->len);
 }
 
 int testDeserialization()
@@ -82,8 +79,8 @@ int testDeserialization()
         .deserialize = deserialize
     };
 
-    char buffer[256];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 256);
+    char buffer[512];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 512);
     struct Reader* reader = ArrayReader_new(control, strlen(control), allocator);
 
     struct DHTModuleRegistry* reg = DHTModules_deserialize(reader, allocator);

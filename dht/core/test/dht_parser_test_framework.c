@@ -9,6 +9,10 @@
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
 #include "libbenc/benc.h"
+#include "libbenc/serialization/BencSerializer.h"
+#include "libbenc/serialization/standard/StandardBencSerializer.h"
+
+#define SERIALIZER benc_getStandardBencSerializer()
 
 #define ERROR 0
 #define REPLY 1
@@ -47,7 +51,7 @@ int parse_message1(const unsigned char *buf, int buflen,
                    int *want_return);
 
 int
-parse_message2(bobj_t* bencodedMessage,
+parse_message2(Dict* messageDictionary,
                unsigned char *tid_return, int *tid_len,
                unsigned char *id_return,
                unsigned char *info_hash_return,
@@ -190,14 +194,14 @@ parse_message1(const unsigned char *buf, int buflen,
     char buffer[1600];
     struct MemAllocator* alloc = BufferAllocator_new(buffer, 1600);
     struct Reader* reader = ArrayReader_new(buf, buflen, alloc);
-    bobj_t* message;
-    if (bobj_parse(reader, alloc, &message) != 0) {
+    Dict messageDict = NULL;
+    if (SERIALIZER->parseDictionary(reader, alloc, &messageDict) != 0) {
 printf("\n\n\nparse failed\n\n\n");
         return -1;
     }
     char testBuff[3200];
     struct Writer* writer = ArrayWriter_new(testBuff, 3200, alloc);
-    bobj_print(writer, message);
+    SERIALIZER->serializeDictionary(writer, &messageDict);
     writer->write("\0", 1, writer);
     printf("\n\n%s\n\n", testBuff);
 /*
@@ -214,7 +218,7 @@ printf("\n\n\nparse failed\n\n\n");
     bobj_t *message = bobj_new(BENC_DICT);
     message->as.dict = messageDict;
 */
-    int out = parse_message2(message,
+    int out = parse_message2(&messageDict,
                              tid_return, tid_len,
                              id_return,
                              info_hash_return,

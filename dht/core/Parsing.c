@@ -2,7 +2,6 @@
 
 #include "dht/DHTConstants.h"
 #include "libbenc/benc.h"
-#include "libbenc/bencode.h"
 
 /* Definitions taken from dht.c */
 #define ERROR 0
@@ -20,7 +19,7 @@
 #define DEBUG2(x, y) /* printf(x, y) */
 
 int
-parse_message2(bobj_t* bencodedMessage,
+parse_message2(Dict* messageDict,
                unsigned char *tid_return, int *tid_len,
                unsigned char *id_return,
                unsigned char *info_hash_return,
@@ -33,6 +32,8 @@ parse_message2(bobj_t* bencodedMessage,
                unsigned char *values6_return, int *values6_len,
                int *want_return)
 {
+    bobj_t* bencodedMessage = &(bobj_t) { .type = BENC_DICT, .as.dict = *messageDict };
+
     /* Temp storage for values returned by dictionary lookups. */
     bobj_t *value = NULL;
 

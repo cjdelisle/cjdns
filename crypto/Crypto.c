@@ -6,7 +6,6 @@
 #include "memory/BufferAllocator.h"
 #include "seccure/protocol.h"
 #include "libbenc/benc.h"
-#include "libbenc/bencode.h"
 
 /**
  * Cryptographic functions.

@@ -1,6 +1,9 @@
 #ifndef DHTMODULES_H
 #define DHTMODULES_H
 
+#include "memory/MemAllocator.h"
+#include "io/Reader.h"
+#include "io/Writer.h"
 #include "libbenc/benc.h"
 
 /**
@@ -32,9 +35,7 @@ struct DHTMessage {
     /** The length of the binary message. */
     unsigned short length;
 
-    /** The message as a libbenc object. */
-    bobj_t* bencoded;
-
+    /** The message as a bencoded dictionary. */
     Dict* asDict;
 
     /**
@@ -71,7 +72,7 @@ struct DHTModule {
      * @param context the module's state.
      * @return a serialized form of context.
      */
-    Object* (* const serialize)(void* context);
+    Dict* (* const serialize)(void* context);
 
     /**
      * Deserialize the context from a bencoded object.
@@ -81,7 +82,7 @@ struct DHTModule {
      *
      * @param context the existing context to add content to.
      */
-    void (* const deserialize)(const Object* serialData,
+    void (* const deserialize)(const Dict* serialData,
                                void* context);
 
     /**
@@ -130,10 +131,10 @@ struct DHTModuleRegistry {
     struct DHTModule** members;
 
     /**
-     * A list of serialized contexts to be
+     * A list of serialized contexts by module name to be
      * deserialized when the modules are loaded.
      */
-    bobj_t* serializedContexts;
+    Dict* serializedContexts;
 
 };
 

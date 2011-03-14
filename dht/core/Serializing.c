@@ -144,7 +144,6 @@ static int sendMessage(struct sockaddr* address,
     }
 
     message.asDict = messageDict;
-    message.bencoded = OBJ_PTR_FOR_DICT(*messageDict);
 
     DHTModules_handleOutgoing(&message, context->registry);
 
@@ -730,7 +729,7 @@ int send_error(struct sockaddr *address,
     }
 
     /* The last entry in the list is considered the dictionary. */
-    message.bencoded = OBJ_PTR_FOR_DICT(entry);
+    message.asDict = &entry;
 
     message.replyTo = context->lastMessage;
     assert(message.replyTo != NULL);

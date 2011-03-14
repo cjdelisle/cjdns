@@ -12,7 +12,7 @@ add_library(dht
     SerializationModule.c
     DebugModule.c
 )
-target_link_libraries(dht dhtcore )#dhtstore)
+target_link_libraries(dht dhtcore benc benc_StandardBencSerializer)#dhtstore)
 
 # Everything must be tested.
 enable_testing()

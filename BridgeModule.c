@@ -15,6 +15,7 @@
 #include "dht/DHTModules.h"
 #include "dht/DHTConstants.h"
 #include "dht/core/juliusz/dht.h"
+#include "libbenc/benc.h"
 
 #define MAX_CONCURRENT_REQUESTS 1024
 #define TIME_TO_LIVE 30
@@ -207,30 +208,21 @@ static int handleIncomingDHT(struct DHTMessage* message,
     struct BridgeModule_context* context =
         (struct BridgeModule_context*) vcontext;
 
-    if (message->bencoded == NULL || message->bencoded->type != BENC_DICT) {
-        /* the message must always be a dictionary. */
-        return -1;
-    }
-    bobj_t* reply = bobj_dict_lookup(message->bencoded, &DHTConstants_reply);
+    Dict* reply = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
 
     /* If it's not a reply then 99% sure we don't have the node we want. */
     if (reply == NULL) {
         return 0;
     }
 
-    if (reply->type != BENC_DICT) {
-        /* 'r' must always be a dictionary. */
-        return -1;
-    }
+    String* idObj = benc_lookupString(reply, &DHTConstants_myId);
 
-    bobj_t* idObj = bobj_dict_lookup(reply, &DHTConstants_myId);
-
-    if (idObj == NULL || idObj->type != BENC_BSTR || idObj->as.bstr->len != 20) {
+    if (idObj == NULL || idObj->len != 20) {
         /* Don't bother letting this packet get to the core, the node is broken. */
         return -1;
     }
 
-    char* id = idObj->as.bstr->bytes;
+    char* id = idObj->bytes;
     time_t now = time(NULL);
 
     /* Now look for a matching job. */

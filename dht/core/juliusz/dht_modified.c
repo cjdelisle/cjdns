@@ -279,7 +279,7 @@ static int parse_message(const unsigned char *buf, int buflen,
 */
 /* Required for in cjdns modular dht. */
 extern int
-parse_message2(bobj_t* bencodedMessage,
+parse_message2(Dict* messageDictionary,
                unsigned char *tid_return, int *tid_len,
                unsigned char *id_return,
                unsigned char *info_hash_return,
@@ -1936,8 +1936,7 @@ dht_periodic(int available, time_t *tosleep,
                                 values, &values_len, values6, &values6_len,
                                 &want);
         */
-        message = parse_message2(&(bobj_t){ .type = BENC_DICT, .as.dict = *(packet->asDict)},
-                                 tid, &tid_len, id, info_hash,
+        message = parse_message2(packet->asDict, tid, &tid_len, id, info_hash,
                                  target, &port, token, &token_len,
                                  nodes, &nodes_len, nodes6, &nodes6_len,
                                  values, &values_len, values6, &values6_len,

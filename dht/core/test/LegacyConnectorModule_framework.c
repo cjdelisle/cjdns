@@ -1,14 +1,18 @@
+#include <string.h>
+
 #include "dht/core/LegacyConnectorModuleInternal.h"
 #include "dht/core/juliusz/dht.h"
 #include "dht/DHTConstants.h"
-#include "libbenc/bencode.h"
+#include "libbenc/benc.h"
+#include "libbenc/serialization/BencSerializer.h"
+#include "libbenc/serialization/standard/StandardBencSerializer.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
 #include "net/NetworkTools.h"
 
-#include <string.h>
+#define SERIALIZER benc_getStandardBencSerializer()
 
 struct LegacyConnectorModuleTest_context {
     char message[10000];
@@ -39,7 +43,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 
     struct MemAllocator* alloc = BufferAllocator_new(testContext->buffer, 512);
     struct Writer* writer = ArrayWriter_new(testContext->message, 10000, alloc);
-    bobj_serialize(writer, message->bencoded);
+    SERIALIZER->serializeDictionary(writer, message->asDict);
 
     return 0;
 }

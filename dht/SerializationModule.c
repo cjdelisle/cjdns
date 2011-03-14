@@ -24,8 +24,12 @@
 #include <io/ArrayReader.h>
 #include <io/Writer.h>
 #include <io/ArrayWriter.h>
+#include "libbenc/serialization/BencSerializer.h"
+#include "libbenc/serialization/standard/StandardBencSerializer.h"
 
 #include <string.h>
+
+#define SERIALIZER benc_getStandardBencSerializer()
 
 struct SerializationModule_context {
     struct DHTModule module;
@@ -75,11 +79,8 @@ static int handleOutgoing(struct DHTMessage* message,
 {
     vcontext = vcontext;
     struct Writer* writer = ArrayWriter_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
-    if (writer == NULL) {
-        return -1;
-    }
 
-    bobj_serialize(writer, message->bencoded);
+    SERIALIZER->serializeDictionary(writer, message->asDict);
     message->length = writer->bytesWritten(writer);
 
     return 0;
@@ -93,16 +94,14 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
+    message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
+
     vcontext = vcontext;
     struct Reader* reader = ArrayReader_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
 
-    bobj_parse(reader, message->allocator, &message->bencoded);
-
-    /* sanity check. */
-    if (message->bencoded == NULL || message->bencoded->type != BENC_DICT) {
-        return -1;
+    if (SERIALIZER->parseDictionary(reader, message->allocator, message->asDict) != 0) {
+        return -2;
     }
-    message->asDict = &(message->bencoded->as.dict);
 
     return 0;
 }

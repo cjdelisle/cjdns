@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <string.h>
-#include "libbenc/bencode.h"
+#include "libbenc/benc.h"
 #include "DNSModules.h"
 
 /*--------------------Prototypes--------------------*/

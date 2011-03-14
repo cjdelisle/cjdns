@@ -1,8 +1,9 @@
 add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 
-add_library(benc benc_bstr.c benc_dict.c benc_int.c benc_list.c bencode.c)
+add_subdirectory(serialization)
+
+add_library(benc String.c Dict.c List.c)
 target_link_libraries(benc MemAllocator cjdio)
 
 # Everything must be tested.
 enable_testing()
-add_subdirectory(test)

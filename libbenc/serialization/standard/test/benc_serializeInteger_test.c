@@ -1,13 +1,15 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "libbenc/bencode.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
+#include "libbenc/benc.h"
+#include "libbenc/serialization/BencSerializer.h"
+#include "libbenc/serialization/standard/StandardBencSerializer.h"
 
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {
@@ -21,34 +23,18 @@ int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
     return ret;
 }
 
-int testSerializeRaw(struct Writer* writer, struct Reader* reader)
-{
-    int ret = 0;
-
-    benc_int_print(writer, 1);
-    ret = expect("1", writer, reader, ret);
-
-    benc_int_print(writer, 1000);
-    ret = expect("1000", writer, reader, ret);
-
-    benc_int_print(writer, -100);
-    ret = expect("-100", writer, reader, ret);
-
-    return ret;
-}
-
 int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 
-    benc_int_serialize(writer, 1);
-    ret = expect("i1e", writer, reader, ret);
+    ret |= StandardBencSerializer.serializeInteger(writer, 1);
+    ret |= expect("i1e", writer, reader, ret);
 
-    benc_int_serialize(writer, 1000);
-    ret = expect("i1000e", writer, reader, ret);
+    ret |= StandardBencSerializer.serializeInteger(writer, 1000);
+    ret |= expect("i1000e", writer, reader, ret);
 
-    benc_int_serialize(writer, -100);
-    ret = expect("i-100e", writer, reader, ret);
+    ret |= StandardBencSerializer.serializeInteger(writer, -100);
+    ret |= expect("i-100e", writer, reader, ret);
 
     return ret;
 }
@@ -62,6 +48,5 @@ int main()
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 
-    return   testSerializeRaw(writer, reader)
-           | testSerialize(writer, reader);
+    return testSerialize(writer, reader);
 }
