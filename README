@@ -1,7 +1,8 @@
-20110216-20110216
+20110216-20110328
 ircerr@EFNet
+irc://irc.EFNet.org/#cjdns
 
-How To compile cjdns on Debian
+How To compile cjdns on Debian 6 (Squeeze)
 
 **UNTESTED/INCOMPLETE/RFC**
 **UNTESTED/INCOMPLETE/RFC**
@@ -24,35 +25,49 @@ ii  libevent1                       1.3e-3                     An asynchronous e
 --Remove it if found
 # apt-get remove libevent-dev
 
--Note: You may need to (re)compile tor.
+-Note: You may need to (re)compile TOR if you use it.
 
 --Get newest versions of deps
 
 --Get gcrypt
 # apt-get install libgcrypt11-dev
 
+--Get some additional things
+# apt-get install build-essential cmake git
+
+--libevent2 required:
+
+***OPTION ONE - unstable branch of debian ***
+--Check http://ftp.ca.debian.org/debian/pool/main/libe/libevent/ for current
+--Fetch deb packages:
+# wget -N \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-core-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-dev_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-extra-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-openssl-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-pthreads-2.0-5_2.0.10-stable-1_i386.deb
+--Install them
+# dpkg -i libevent-*.deb
+
+*** OPTION TWO - fetch git version, compile it ***
 -Grab a copy of libevent ( http://monkey.org/~provos/libevent/ )
 # git clone git://levent.git.sourceforge.net/gitroot/levent/libevent libevent
-
 -Go there
 # cd libevent
-
 -Pre-config, detect what ya got
 # ./autogen.sh
-
 -Config
 # ./configure
-
 -Build
 # make
-
 -Install
 # make install
-
 -Go back.. DoH
 # cd ..
-
 --Libevent is now done.
+
+*** PICK ONE OF THE ABOVE ***
 
 --cjdns
 -Grab it
@@ -125,6 +140,7 @@ Now for the fun:  ** REPLACE [string].dht with YOUR DHT ^^ seen above **
 yea 71 msec
 really ;)
 
-
 --Thats IT for now.
 -Run it again on a public IP with a known dht host
+
+#EOF#
