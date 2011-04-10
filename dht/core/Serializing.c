@@ -723,6 +723,8 @@ int send_error(struct sockaddr *address,
     message.replyTo = context->lastMessage;
     assert(message.replyTo != NULL);
 
+    message.allocator = message.replyTo->allocator;
+
     DHTModules_handleOutgoing(&message, context->registry);
 
     /* TODO register an error if one occurs. */
