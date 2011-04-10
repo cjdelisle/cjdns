@@ -19,7 +19,7 @@ static benc_bstr_t* genericGCryptHash(const benc_bstr_t* hashThis,
 {
     const uint32_t length = gcry_md_get_algo_dlen(function);
     gcry_md_hd_t hash;
-    gcry_md_open(&hash, length, 0);
+    gcry_md_open(&hash, function, 0);
     gcry_md_write(hash, hashThis->bytes, hashThis->len);
     const char* buffer = (char*) gcry_md_read(hash, 0);
 

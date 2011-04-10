@@ -44,7 +44,7 @@ bobj_t *        bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key);
  */
 int32_t benc_removeEntry(Dict* dictionary, const String* key);
 
-/*----------------------- List General Functions -----------------------*/
+/*----------------------- Size Functions -----------------------*/
 
 /**
  * Get the length of a list.
@@ -52,7 +52,15 @@ int32_t benc_removeEntry(Dict* dictionary, const String* key);
  * @param a list
  * @return the length of the given list or -1 if the list argument is NULL.
  */
-int32_t benc_listLength(List* list);
+int32_t benc_itemCount(const List* list);
+
+/**
+ * Get the number of entries in a dictionary.
+ *
+ * @param a dictionary
+ * @return the number of entries in the dictionary or -1 if the dictionary argument is NULL.
+ */
+int32_t benc_entryCount(const Dict* dictionary);
 
 /*----------------------- List Add Functions -----------------------*/
 
@@ -311,8 +319,8 @@ struct bobj_s {
     union {
         benc_int_t               int_;
         benc_bstr_t              *bstr;
-        benc_list_entry_t        *list;
-        benc_dict_entry_t        *dict;
+        List* list;
+        Dict* dictionary;
     } as;
 };
 

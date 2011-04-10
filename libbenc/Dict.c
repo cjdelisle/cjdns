@@ -1,4 +1,18 @@
+#include "memory/MemAllocator.h"
 #include "benc.h"
+
+int32_t benc_entryCount(const Dict* dictionary)
+{
+    if (dictionary != NULL) {
+        benc_dict_entry_t* entry = *dictionary;
+        int32_t i;
+        for (i = 0; entry != NULL; i++) {
+            entry = entry->next;
+        }
+        return i;
+    }
+    return -1;
+}
 
 static bobj_t* lookupObject(const Dict* dictionary, const String* key)
 {
@@ -23,8 +37,7 @@ bobj_t * bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key)
     if (obj == NULL || key == NULL || obj->type != BENC_DICT) {
         return NULL;
     }
-    benc_dict_entry_t* dict = obj->as.dict;
-    return lookupObject(&dict, key);
+    return lookupObject(obj->as.dictionary, key);
 }
 
 /** @see benc.h */
@@ -54,7 +67,7 @@ Dict* benc_lookupDictionary(const Dict* dictionary, const String* key)
     if (obj == NULL || obj->type != BENC_DICT) {
         return NULL;
     }
-    return &(obj->as.dict);
+    return obj->as.dictionary;
 }
 
 /** @see benc.h */
@@ -64,7 +77,7 @@ List* benc_lookupList(const Dict* dictionary, const String* key)
     if (obj == NULL || obj->type != BENC_LIST) {
         return NULL;
     }
-    return &(obj->as.list);
+    return obj->as.list;
 }
 
 /** @see benc.h */
@@ -134,6 +147,9 @@ Object* benc_putString(Dict* dictionary,
                        String* value,
                        const struct MemAllocator* allocator)
 {
+    if (key == NULL || value == NULL) {
+        return NULL;
+    }
     Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
         .type = BENC_BSTR,
         .as.bstr = value
@@ -147,10 +163,13 @@ Object* benc_putList(Dict* dictionary,
                      List* value,
                      const struct MemAllocator* allocator)
 {
+    if (key == NULL || value == NULL) {
+        return NULL;
+    }
     Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
         .type = BENC_LIST,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
-        .as.list = *value
+        .as.list = value
     });
     return putObject(dictionary, key, v, allocator);
 }
@@ -160,10 +179,13 @@ Object* benc_putDictionary(Dict* dictionary,
                            Dict* value,
                            const struct MemAllocator* allocator)
 {
+    if (key == NULL || value == NULL) {
+        return NULL;
+    }
     Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
         .type = BENC_DICT,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
-        .as.dict = *value
+        .as.dictionary = value
     });
     return putObject(dictionary, key, v, allocator);
 }

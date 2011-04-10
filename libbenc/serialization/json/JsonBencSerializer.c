@@ -206,9 +206,9 @@ static int32_t serializeGenericWithPadding(const struct Writer* writer,
         case BENC_BSTR:
             return serializeString(writer, obj->as.bstr);
         case BENC_DICT:
-            return serializeDictionaryWithPadding(writer, padSpaceCount, &obj->as.dict);
+            return serializeDictionaryWithPadding(writer, padSpaceCount, obj->as.dictionary);
         case BENC_LIST:
-            return serializeListWithPadding(writer, padSpaceCount, &obj->as.list);
+            return serializeListWithPadding(writer, padSpaceCount, obj->as.list);
         case BENC_INT:
             return serializeInteger(writer, obj->as.int_);
         default:

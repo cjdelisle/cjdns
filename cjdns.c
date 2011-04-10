@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     }
     
     /* ------------------ DHT ------------------ */
-    struct DHTModuleRegistry* registry = DHTModules_new();
+    struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
 
     if (registry == NULL) {
         printf("Failed to allocate DHT registry.\n");
@@ -120,12 +120,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    struct DHTModule* serialization = SerializationModule_new(allocator);
-    if (serialization == NULL) {
-        printf("Failed to allocate DHT serialization module.\n");
-        return -1;
-    }
-
     /* Need 2 debug modules one for incoming and one for outgoing so that
      * the outgoing module will have access to the serialized message and the incoming
      * will have access to the fully parsed message. */
@@ -134,17 +128,15 @@ int main(int argc, char** argv)
     FILE* log = fopen("cjdns.log", "a+");
     DebugModule_setLog(log, debugIn);
 
-    int ret = DHTModules_register(legacy, registry)
-            | DHTModules_register(bridgeDHT, registry)
-            | DHTModules_register(debugIn, registry)
-            | DHTModules_register(serialization, registry)
-            | DHTModules_register(debugOut, registry)
-            | LibeventNetworkModule_register(base, dhtSocket, 6, registry, allocator);
 
-    if (ret != 0) {
-        printf("Failed to register modules\n");
-        return -1;
-    }
+    // Register the DHT modules.
+    DHTModules_register(legacy, registry);
+    DHTModules_register(bridgeDHT, registry);
+    DHTModules_register(debugIn, registry);
+    SerializationModule_register(registry, allocator);
+    DHTModules_register(debugOut, registry);
+    LibeventNetworkModule_register(base, dhtSocket, 6, registry, allocator);
+
 
     /* Send ping. */
     dht_ping_node(pingNode, addrLength);
@@ -157,11 +149,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    ret |= DNSModules_register(checkZone, dnsRegistry);
-    ret |= DNSNetworkModule_register(dnsNetwork, dnsRegistry);
-    if (ret != 0) {
-        printf("Failed to register DNS modules");
-    }
+    DNSModules_register(checkZone, dnsRegistry);
+    DNSNetworkModule_register(dnsNetwork, dnsRegistry);
 
     event_base_loop(base, 0);
 }

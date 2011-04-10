@@ -31,13 +31,6 @@ struct DNSModule {
     void* const context;
 
     /**
-     * Free the context and anything malloc'd for it.
-     *
-     * @param context the module's state, this is freed.
-     */
-    void (* const free)(struct DNSModule* module);
-
-    /**
      * Serialize the content of the context into a bencoded object.
      *
      * @param module the module's state.

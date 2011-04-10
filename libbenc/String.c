@@ -37,6 +37,8 @@ int benc_bstr_compare(const String* a, const String* b)
 
 int32_t benc_stringEquals(const String* a, const String* b)
 {
-    return (a == NULL) ? ((a == NULL) == (b == NULL)) :
-        a->len == b->len && (memcmp(a->bytes, b->bytes, a->len) == 0);
+    if (a == NULL || b == NULL) {
+        return a == NULL && b == NULL;
+    }
+    return a->len == b->len && (memcmp(a->bytes, b->bytes, a->len) == 0);
 }

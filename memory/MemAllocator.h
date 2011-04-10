@@ -76,7 +76,7 @@ struct MemAllocator
      */
     void* (* const clone)(size_t numberOfBytes,
                           const struct MemAllocator* thisAllocator,
-                          void* toClone);
+                          const void* toClone);
 
     /**
      * Get a new child of this allocator.

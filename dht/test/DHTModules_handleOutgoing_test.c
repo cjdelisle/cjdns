@@ -1,21 +1,32 @@
 #include "dht/DHTModules.h"
 #include <stdio.h>
 
+struct Context
+{
+    struct DHTMessage* theMessage;
+    int ret;
+};
+
+static int handleOutgoing(struct DHTMessage* message, void* vcontext)
+{
+    struct Context* context = (struct Context*) vcontext;
+    if (message == context->theMessage) {
+        context->ret = 0;
+    } else {
+        context->ret = -2;
+    }
+    return 0;
+}
+
 int testOutputHandler()
 {
     struct DHTMessage theMessage;
 
-    int handleOutgoing(struct DHTMessage* message, void* vcontext) {
-        int* context = (int*) vcontext;
-        if (message == &theMessage) {
-            *context = 0;
-        } else {
-            *context = -2;
-        }
-        return 0;
-    }
-
-    int context = -1;
+    struct Context context =
+    {
+        .theMessage = &theMessage,
+        .ret = -1
+    };
 
     struct DHTModule module = {
         .name = "TestModule",
@@ -30,11 +41,10 @@ int testOutputHandler()
 
     /* These should be ignored. */
     DHTModules_handleIncoming(&theMessage, reg);
-    DHTModules_compareNodes("00000000000000000000", "11111111111111111111", reg);
 
-    if (context == -1) {
+    if (context.ret == -1) {
         printf("message not received");
-    } else if (context == -2) {
+    } else if (context.ret == -2) {
         printf("wrong message received");
     } else {
         return 0;

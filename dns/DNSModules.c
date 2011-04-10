@@ -29,25 +29,6 @@ struct DNSModuleRegistry* DNSModules_new()
 }
 
 /** @see DNSModules.h */
-void DNSModules_free(struct DNSModuleRegistry* registry)
-{
-    int freeModule(struct DNSMessage* message,
-                   struct DNSModule* module,
-                   const struct DNSModuleRegistry* registry)
-    {
-        message = message;
-        registry = registry;
-        if(module->free) {
-            module->free(module);
-        }
-        return 0;
-    }
-    forEachModule(freeModule, NULL, registry);
-    free(registry->members);
-    free(registry);
-}
-
-/** @see DNSModules.h */
 int DNSModules_register(struct DNSModule* module,
                         struct DNSModuleRegistry* registry)
 {
@@ -104,19 +85,20 @@ void DNSModules_handleIncoming(struct DNSMessage* message,
     }
 }
 
+static int handleOutgoing(struct DNSMessage* message,
+                          struct DNSModule* module,
+                          const struct DNSModuleRegistry* registry)
+{
+    if (module->handleOutgoing) {
+        return module->handleOutgoing(message, module, registry);
+    }
+    return 0;
+}
+
 /** @see DNSModules.h */
 void DNSModules_handleOutgoing(struct DNSMessage* message,
                                const struct DNSModuleRegistry* registry)
 {
-    int handleOutgoing(struct DNSMessage* message,
-                       struct DNSModule* module,
-                       const struct DNSModuleRegistry* registry)
-    {
-        if (module->handleOutgoing) {
-            return module->handleOutgoing(message, module, registry);
-        }
-        return 0;
-    }
     forEachModule(handleOutgoing, message, registry);
 }
 

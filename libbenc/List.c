@@ -1,13 +1,13 @@
 #include "memory/MemAllocator.h"
 #include "benc.h"
 
-int32_t benc_listLength(List* list)
+int32_t benc_itemCount(const List* list)
 {
     if (list != NULL) {
-        benc_list_entry_t* entry = *list;
+        benc_list_entry_t* item = *list;
         int32_t i;
-        for (i = 0; entry != NULL; i++) {
-            entry = entry->next;
+        for (i = 0; item != NULL; i++) {
+            item = item->next;
         }
         return i;
     }
@@ -54,7 +54,7 @@ List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* all
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_DICT,
-        .as.dict = *toAdd
+        .as.dictionary = toAdd
     });
     return addObject(list, obj, allocator);
 }
@@ -64,7 +64,7 @@ List* benc_addList(List* list, List* toAdd, const struct MemAllocator* allocator
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_LIST,
-        .as.list = *toAdd
+        .as.list = toAdd
     });
     return addObject(list, obj, allocator);
 }
@@ -107,7 +107,7 @@ Dict* benc_getDictionary(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
     if (o != NULL && o->type == BENC_DICT) {
-        return &(o->as.dict);
+        return o->as.dictionary;
     }
     return NULL;
 }
@@ -117,7 +117,7 @@ List* benc_getList(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
     if (o != NULL && o->type == BENC_LIST) {
-        return &(o->as.list);
+        return o->as.list;
     }
     return NULL;
 }

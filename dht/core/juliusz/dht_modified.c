@@ -30,8 +30,6 @@ THE SOFTWARE.
 
 /* Needed for getting a socket address from a packet. */
 #include "net/NetworkTools.h"
-/* Needed for sending the query type with error packets. */
-#include "dht/DHTConstants.h"
 
 /* For memmem. */
 #define _GNU_SOURCE

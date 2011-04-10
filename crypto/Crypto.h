@@ -124,4 +124,12 @@ benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
 benc_bstr_t* Crypto_sha256sum(const benc_bstr_t* hashThis,
                               const struct MemAllocator* allocator);
 
+/**
+ * Overwrite a string with random bytes.
+ * The size of the string will dictate the number of random bytes written.
+ *
+ * @param toRandomize the String to scramble.
+ */
+void Crypto_randomize(String* toRandomize);
+
 #endif

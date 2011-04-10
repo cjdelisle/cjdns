@@ -1,18 +1,16 @@
-add_definitions(-Wall -Wextra -std=gnu99 -Werror)
-
 find_package(Libevent2 REQUIRED)
 
 add_subdirectory(core)
-#add_subdirectory(dhtstore)
+add_subdirectory(dhtstore)
 
 add_library(dht
-    DHTConstants.c
     DHTModules.c
     LibeventNetworkModule.c
     SerializationModule.c
     DebugModule.c
+    DHTConstants.c
 )
-target_link_libraries(dht dhtcore benc benc_StandardBencSerializer)#dhtstore)
+target_link_libraries(dht benc benc_StandardBencSerializer)#dhtstore)
 
 # Everything must be tested.
 enable_testing()

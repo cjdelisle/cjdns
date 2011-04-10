@@ -1,22 +1,38 @@
 #include "dht/DHTModules.h"
 #include <stdio.h>
 
+struct Context
+{
+    struct DHTMessage* theMessage;
+    int ret;
+};
+
+static int handleIncoming(struct DHTMessage* message, void* vcontext)
+{
+    struct Context* context = (struct Context*) vcontext;
+    if (message == context->theMessage) {
+        context->ret = 0;
+    } else {
+        context->ret = -2;
+    }
+    return 0;
+}
+
 int testInputHandler()
 {
     struct DHTMessage theMessage;
 
-    int handleIncoming(struct DHTMessage* message, void* vcontext) {
-        int* context = (int*) vcontext;
-        if (message == &theMessage) {
-            *context = 0;
-        } else {
-            *context = -2;
-        }
-        return 0;
-    }
+    struct Context context =
+    {
+        .theMessage = &theMessage,
+        .ret = -1
+    };
 
-    int context = -1;
-    int context2 = -1;
+    struct Context context2 =
+    {
+        .theMessage = &theMessage,
+        .ret = -1
+    };
 
     struct DHTModule module = {
         .name = "TestModule",
@@ -35,17 +51,16 @@ int testInputHandler()
 
     DHTModules_handleIncoming(&theMessage, reg);
 
-    /* These should be ignored. */
+    /* This should be ignored. */
     DHTModules_handleOutgoing(&theMessage, reg);
-    DHTModules_compareNodes("00000000000000000000", "11111111111111111111", reg);
 
-    if (context == -1) {
+    if (context.ret == -1) {
         printf("message not received");
-    } else if (context == -2){
+    } else if (context.ret == -2){
         printf("wrong message received");
-    } else if (context2 == -1) {
+    } else if (context2.ret == -1) {
         printf("message not received by all handlers.");
-    } else if (context2 == -2) {
+    } else if (context2.ret == -2) {
         printf("wrong message received by second handler.");
     } else {
         return 0;

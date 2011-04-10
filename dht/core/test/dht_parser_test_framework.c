@@ -204,20 +204,7 @@ printf("\n\n\nparse failed\n\n\n");
     SERIALIZER->serializeDictionary(writer, &messageDict);
     writer->write("\0", 1, writer);
     printf("\n\n%s\n\n", testBuff);
-/*
-    benc_dict_entry_t *messageDict = NULL;
-    bbuf_t *buffer = bbuf_new(buflen, NULL);
-    memcpy(buffer->base, buf, buflen);
-    benc_dict_decode(buffer, &messageDict);
-    bbuf_free(buffer);
-    buffer = NULL;
-    if (messageDict == NULL) {
-        debugf("Failed to parse message.");
-        return -1;
-    }
-    bobj_t *message = bobj_new(BENC_DICT);
-    message->as.dict = messageDict;
-*/
+
     int out = parse_message2(&messageDict,
                              tid_return, tid_len,
                              id_return,

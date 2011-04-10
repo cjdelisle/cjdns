@@ -1,10 +1,11 @@
-add_definitions(-Wall -Wextra -std=c89 -Werror)
-
 add_library(dhtstore
+    DHTStoreConstants.c
     DHTStoreModule.c
+    DHTStoreTools.c
+    SHA1Store.c
 )
 target_link_libraries(dhtstore crypto benc)
 
 # Everything must be tested.
 enable_testing()
-#add_subdirectory(test)
+add_subdirectory(test)

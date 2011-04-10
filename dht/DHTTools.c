@@ -2,20 +2,31 @@
 #include "dht/DHTTools.h"
 
 /** @see DHTTools.h */
-Dict* DHTTools_craftErrorResponse(const Dict* requestMessage,
-                                  int64_t errorCode,
-                                  const char* errorMessage,
-                                  const struct MemAllocator* messageAllocator)
+void DHTTools_craftErrorResponse(const Dict* requestMessage,
+                                 Dict* responseMessage,
+                                 int64_t errorCode,
+                                 const char* errorMessage,
+                                 const struct MemAllocator* messageAllocator)
 {
     String* transactionId = benc_lookupString(requestMessage, &DHTConstants_transactionId);
-    Dict* response = benc_newDictionary(messageAllocator);
     if (transactionId != NULL) {
-        response = benc_putString(response, &DHTConstants_transactionId, transactionId, messageAllocator);
+        benc_putString(responseMessage, &DHTConstants_transactionId, transactionId, messageAllocator);
     }
-    bobj_t* list = benc_addItem(NULL, benc_newInteger(errorCode, messageAllocator), messageAllocator);
-    benc_addItem(list, benc_newString(errorMessage, messageAllocator), messageAllocator);
-    benc_putEntry(response, &DHTConstants_error, list, messageAllocator);
-    return response;
+    List* list = benc_addInteger(NULL, errorCode, messageAllocator);
+    benc_addString(list, benc_newString(errorMessage, messageAllocator), messageAllocator);
+    benc_putList(response, &DHTConstants_error, list, messageAllocator);
+}
+
+/** @see DHTTools.h */
+void DHTTools_craftWrongTokenErrorResponse(const Dict* requestMessage,
+                                           Dict* responseMessage,
+                                           const struct MemAllocator* messageAllocator)
+{
+    DHTTools_craftErrorResponse(requestMessage,
+                                responseMessage,
+                                203,
+                                "Storage request with wrong token",
+                                messageAllocator);
 }
 
 /**

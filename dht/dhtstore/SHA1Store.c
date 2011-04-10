@@ -1,111 +1,131 @@
+#include <time.h>
+
 #include "crypto/Crypto.h"
+#include "dht/DHTConstants.h"
+#include "dht/dhtstore/DHTStoreConstants.h"
+#include "dht/dhtstore/DHTStoreModule.h"
+#include "dht/dhtstore/DHTStoreTools.h"
+#include "dht/dhtstore/SHA1Store.h"
 #include "libbenc/benc.h"
-#include "dht/dhtstore/DhtStoreTools.h"
 
 struct SHA1Store_Context {
-    struct MemAllocator* storeAllocator;
+    /** A means of aquiring memory to store the sha1 entries. */
+    const struct MemAllocator* storeAllocator;
 
     /** Secret random number used for generating tokens. */
     char secret[20];
 };
 
 /*-------------------- Prototypes --------------------*/
-static int32_t isValid(const benc_bstr_t* key, const bobj_t* argumentsDict);
-static benc_bstr_t* extractKeyFromPut(const bobj_t* argumentsDict, struct MemAllocator* allocator);
-static benc_bstr_t* extractSignatureFromPut(const bobj_t* argumentsDict);
-static int64_t extractDateFromPut(const bobj_t* argumentsDict);
+static int64_t getDate(struct DHTStoreEntry* entry);
+static String* genToken(const struct DHTMessage* requestMessage,
+                        void* vcontext,
+                        const struct MemAllocator* allocator);
+static struct DHTStoreEntry* handlePutRequest(const Dict* requestMessage,
+                                              Dict* replyMessage,
+                                              void* vcontext,
+                                              const struct MemAllocator* messageAllocator);
 
 /*-------------------- Public --------------------*/
 
-void SHA1Store_register(struct DHTStoreRegistry* registry)
+void SHA1Store_register(struct DHTStoreRegistry* registry, const struct MemAllocator* storeAllocator)
 {
-    struct DHTStoreModule module = {
+    struct SHA1Store_Context* context = storeAllocator->clone(sizeof(struct SHA1Store_Context),
+                                                              storeAllocator,
+                                                              &(struct SHA1Store_Context) {
+        .storeAllocator = storeAllocator
+    });
+
+    // Generate session secret.
+    Crypto_randomize(&(String) { .bytes = context->secret, .len = 20 });
+
+    struct DHTStoreModule module =
+    {
+        // Fields
         .name = "SHA1Store",
-        .getQuery = BSTRING("get_sha1"),
-        .putQuery = BSTRING("put_sha1"),
+        .getQuery = { .bytes = "get_sha1", .len = 8 },
+        .putQuery = { .bytes = "put_sha1", .len = 8 },
         .keySize = 20,
         .signatureSize = 0,
-        .isValid = NULL,
-        .extractKeyFromPut = extractKeyFromPut,
-        .extractSignatureFromPut = NULL,
-        .extractDateFromPut = NULL
+
+        .context = context,
+
+        // Functions
+        .getDate = getDate,
+        .genToken = genToken,
+        .handlePutRequest = handlePutRequest,
+        .getSignature = NULL
     };
-    registry->registerModule(module, registry);
+    registry->registerModule(&module, registry);
 }
 
 /*-------------------- Internal --------------------*/
 
-/**
- * Storage entry.
- */
-struct Sha1Store_Entry
+static int64_t getDate(struct DHTStoreEntry* entry)
 {
-    /** The entire lookup key. */
-    char key[20];
-
-    /** The entry value. */
-    bobj_t value;
-
-    /** An allocator which may be freed when this entry is nolonger valid. */
-    struct MemAllocator* allocator;
-};
-
-static int32_t isMatch(const char* top20Bytes,
-                       const char* additionalBytes,
-                       uint32_t providedBytes,
-                       void* ventry)
+    entry = entry;
+    return time(NULL) / 60;
+}
+#include <assert.h>
+static String* genToken(const struct DHTMessage* requestMessage,
+                        void* vcontext,
+                        const struct MemAllocator* allocator)
 {
-    return providedBytes == 20 && memcmp(top20Bytes, ((struct Sha1Store_Entry*) ventry)->key, 20) == 0;
+    const Dict* requestArgs = benc_lookupDictionary(requestMessage->asDict, &DHTConstants_arguments);
+    const String* id = benc_lookupString(requestArgs, &DHTConstants_myId);
+    const String* target = benc_lookupString(requestArgs, &DHTConstants_targetId);
+assert(target != NULL);
+assert(id != NULL);
+    struct SHA1Store_Context* context = (struct SHA1Store_Context*) vcontext;
+    String* token = DHTStoreTools_generateToken(target, id, NULL, context->secret, allocator);
+    assert(token != NULL);
+    return token;
 }
 
-static void prepareGetResponse(bobj_t* argumentsDict, void* ventry, struct MemAllocator* allocator)
+static struct DHTStoreEntry* handlePutRequest(const Dict* requestMessage,
+                                              Dict* replyMessage,
+                                              void* vcontext,
+                                              const struct MemAllocator* messageAllocator)
 {
-    struct Sha1Store_Entry* entry = (struct Sha1Store_Entry*) ventry;
-    benc_putEntry(argumentsDict, DHTStoreConstants_VALUE, &entry->value, allocator);
-}
-
-static void* handlePutRequest(const bobj_t* requestMessageDict,
-                              bobj_t* responseMessageDict,
-                              void* vcontext,
-                              struct MemAllocator* messageAllocator)
-{
-    const Dict* requestArguments = benc_lookupDictionary(requestMessageDict, &DHTConstants_query);
-    const String* value = benc_lookupString(requestArguments, DHTStoreConstants_VALUE);
+    const Dict* requestArgs = benc_lookupDictionary(requestMessage, &DHTConstants_query);
+    const String* value = benc_lookupString(requestArgs, DHTStoreConstants_VALUE);
     if (value == NULL) {
-        /* TODO: Some error reporting? */
+        // No value given.
+        // TODO: Some error reporting?
         return NULL;
     }
-    const String* hash = Crypto_sha1sum(value, messageAllocator);
 
-    const String* token = benc_lookupString(requestMessage, &DHTConstants_token);
-    const String* id = benc_lookupString(requestArguments, &DHTConstants_myId);
+    String* hash = Crypto_sha1sum(value, messageAllocator);
+    const String* token = benc_lookupString(requestMessage, &DHTConstants_authToken);
+    const String* id = benc_lookupString(requestArgs, &DHTConstants_myId);
 
     struct SHA1Store_Context* context = (struct SHA1Store_Context*) vcontext;
-    if (!DHTTools_isTokenValid(token, hash, id, NULL, context->secret)) {
-        
+
+    if (!DHTStoreTools_isTokenValid(token, hash, id, NULL, context->secret)) {
+        // Bad token, craft an error reply.
+        DHTStoreTools_craftErrorReply(requestMessage,
+                                      replyMessage,
+                                      203,
+                                      "put_sha1 request with wrong token",
+                                      messageAllocator);
         return NULL;
     }
 
-    struct MemAllocator* entryAllocator = context->allocator->child(context->allocator);
-    struct Sha1Store_Entry* entry = entryAllocator->malloc(sizeof(struct Sha1Store_Entry), entryAllocator);
-    memcpy(entry->key, hash->bytes, 20);
-    char* data = entryAllocator->malloc(valueString->len, entryAllocator);
-    entry->value.len = value->len;
-    entry->value.bytes = data;
+    // Need a persistant allocator. The messageAllocator will be freed when the message is finished with.
+    struct MemAllocator* entryAllocator = context->storeAllocator->child(context->storeAllocator);
+    struct DHTStoreEntry* entry = entryAllocator->malloc(sizeof(struct DHTStoreEntry), entryAllocator);
+    entry->key = entryAllocator->clone(20, entryAllocator, hash->bytes);
+    entry->value = entryAllocator->clone(value->len, entryAllocator, value->bytes);
+    entry->length = value->len;
     entry->allocator = entryAllocator;
-    memcpy(data, valueString->bytes, valueString->len);
 
-    benc_putString(responseArgumentsDict, DHTStoreConstants_KEY, hash);
+    // Now send the key as the reply.
+    Dict* replyArgs = benc_lookupDictionary(replyMessage, &DHTConstants_reply);
+    if (replyArgs == NULL) {
+        replyArgs = benc_newDictionary(messageAllocator);
+        benc_putDictionary(replyMessage, &DHTConstants_reply, replyArgs, messageAllocator);
+    }
+    benc_putString(replyArgs, DHTStoreConstants_KEY, hash, messageAllocator);
+
     return entry;
-}
-
-static void deleteEntry(void* ventry)
-{
-    struct MemAllocator* allocator = ((struct Sha1Store_Entry*) ventry)->allocator;
-    allocator->free(allocator);
-}
-
-static char* getKey(void* ventry)
-{
-    return ((struct Sha1Store_Entry*) ventry)->key;
 }

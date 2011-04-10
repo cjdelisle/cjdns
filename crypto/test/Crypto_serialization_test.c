@@ -13,8 +13,8 @@ static char* curveName = "cCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCc";
 int serialize0_test()
 {
     size_t length = strlen(private) + strlen(public) + strlen(curveName) + 4;
-    char outBuffer[length];
-    memset(&outBuffer, 'F', length);
+    char* outBuffer = malloc(length);
+    memset(outBuffer, 'F', length);
     serialize0(outBuffer,
                private, strlen(private),
                public, strlen(public),

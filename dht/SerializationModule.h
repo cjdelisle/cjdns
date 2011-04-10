@@ -4,11 +4,14 @@
 #include "DHTModules.h"
 
 /**
- * Get a new SerializationModule.
+ * Register a new SerializationModule.
  *
- * @return a new SerializationModule or NULL if there is no space to allocate required memory.
+ * @param registry the module registry to register with.
+ * @param allocator the means of aquiring memory for the serialization module.
  */
-struct DHTModule* SerializationModule_new(struct MemAllocator* allocator)
-    __attribute__((nonnull));
+#ifdef __GNUC__
+__attribute__((nonnull))
+#endif
+void SerializationModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator);
 
 #endif

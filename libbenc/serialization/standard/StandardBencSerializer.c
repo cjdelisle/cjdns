@@ -46,7 +46,7 @@ static int32_t serializeString(const struct Writer* writer,
 /** @see BencSerializer.h */
 static int32_t parseString(const struct Reader* reader,
                            const struct MemAllocator* allocator,
-                           benc_bstr_t** output)
+                           String** output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
     #define UNPARSABLE -3
@@ -261,7 +261,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         return UNPARSABLE;
     }
 
-    benc_bstr_t* key;
+    String* key;
     bobj_t* value;
     benc_dict_entry_t* entryPointer;
     benc_dict_entry_t* lastEntryPointer = NULL;
@@ -336,7 +336,7 @@ static int32_t parseGeneric(const struct Reader* reader,
 
     if (firstChar <= '9' && firstChar >= '0') {
         /* It's a string! */
-        benc_bstr_t* string;
+        String* string = NULL;
         ret = parseString(reader, allocator, &string);
         out->type = BENC_BSTR;
         out->as.bstr = string;
@@ -351,17 +351,17 @@ static int32_t parseGeneric(const struct Reader* reader,
                 break;
             case 'l':;
                 /* List. */
-                benc_list_entry_t* list;
-                ret = parseList(reader, allocator, &list);
+                List* list = allocator->calloc(sizeof(List), 1, allocator);
+                ret = parseList(reader, allocator, list);
                 out->type = BENC_LIST;
                 out->as.list = list;
                 break;
             case 'd':;
                 /* Dictionary. */
-                benc_dict_entry_t* dict;
-                ret = parseDictionary(reader, allocator, &dict);
+                Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+                ret = parseDictionary(reader, allocator, dict);
                 out->type = BENC_DICT;
-                out->as.dict = dict;
+                out->as.dictionary = dict;
                 break;
             default:
                 return UNPARSABLE;
@@ -398,9 +398,9 @@ static int32_t serializeGeneric(const struct Writer* writer,
         case BENC_BSTR:
             return serializeString(writer, obj->as.bstr);
         case BENC_DICT:
-            return serializeDictionary(writer, &obj->as.dict);
+            return serializeDictionary(writer, obj->as.dictionary);
         case BENC_LIST:
-            return serializeList(writer, &obj->as.list);
+            return serializeList(writer, obj->as.list);
         case BENC_INT:
             return serializeInteger(writer, obj->as.int_);
         default:

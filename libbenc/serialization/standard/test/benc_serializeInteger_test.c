@@ -27,13 +27,13 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 
-    ret |= StandardBencSerializer.serializeInteger(writer, 1);
+    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, 1);
     ret |= expect("i1e", writer, reader, ret);
 
-    ret |= StandardBencSerializer.serializeInteger(writer, 1000);
+    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, 1000);
     ret |= expect("i1000e", writer, reader, ret);
 
-    ret |= StandardBencSerializer.serializeInteger(writer, -100);
+    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, -100);
     ret |= expect("i-100e", writer, reader, ret);
 
     return ret;

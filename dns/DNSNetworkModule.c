@@ -16,7 +16,7 @@ static int handleOutgoing(struct DNSMessage* message,
                           struct DNSModule* module,
                           const struct DNSModuleRegistry* registry);
 static void handleNetworkEvent(struct evdns_server_request* request, void* module);
-static void shutdownModule(struct DNSModule* module);
+static void shutdownModule(void* vcontext);
 
 /**
  * Create a new DNS network module.
@@ -44,10 +44,11 @@ struct DNSModule* DNSNetworkModule_new(struct event_base* base,
     struct DNSModule localModule = {
         .name = "DNSNetworkModule",
         .context = context,
-        .free = shutdownModule,
         .handleOutgoing = handleOutgoing
     };
     memcpy(module, &localModule, sizeof(struct DNSModule));
+
+    allocator->onFree(shutdownModule, context, allocator);
 
     return module;
 }
@@ -75,10 +76,10 @@ int DNSNetworkModule_register(struct DNSModule* module,
 
 /*--------------------Internal--------------------*/
 
-static void shutdownModule(struct DNSModule* module)
+static void shutdownModule(void* vcontext)
 {
     struct DNSNetworkModule_context* context =
-        (struct DNSNetworkModule_context*) module->context;
+        (struct DNSNetworkModule_context*) vcontext;
 
     evdns_close_server_port(context->server);
 }

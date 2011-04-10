@@ -532,3 +532,9 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
 
     return ret;
 }
+
+/** @see Crypto.h */
+void Crypto_randomize(String* toRandomize)
+{
+    gcry_randomize(toRandomize->bytes, toRandomize->len, GCRY_STRONG_RANDOM);
+}

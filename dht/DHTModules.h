@@ -21,8 +21,8 @@
  * and Message.length when they come from the network module.
  */
 struct DHTMessage;
-struct DHTMessage {
-
+struct DHTMessage
+{
     /** The node who this message is coming from or going to. */
     char peerAddress[18];
 
@@ -152,13 +152,6 @@ struct DHTModuleRegistry* DHTModules_new();
  */
 int DHTModules_register(struct DHTModule* module,
                         struct DHTModuleRegistry* registry);
-
-/**
- * @see DHTModule->compareNodes()
- */
-int DHTModules_compareNodes(const char nodeId[20],
-                            const char otherNodeId[20],
-                            const struct DHTModuleRegistry* registry);
 
 /**
  * handleIncoming starts by running the last module registered

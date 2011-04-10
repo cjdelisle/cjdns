@@ -72,35 +72,9 @@ int DHTModules_register(struct DHTModule* module,
 }
 
 /** @see DHTModules.h */
-int DHTModules_compareNodes(const char nodeId[20],
-                            const char otherNodeId[20],
-                            const struct DHTModuleRegistry* registry)
-{
-    int score = 0;
-    int compare(struct DHTModule *module, struct DHTMessage* nothing)
-    {
-        nothing = nothing;
-        if (module->compareNodes && module->context) {
-            score += module->compareNodes(nodeId,
-                                          otherNodeId,
-                                          module->context);
-        }
-        return 0;
-    }
-    forEachModule(compare, NULL, registry);
-    return score;
-}
-
-/** @see DHTModules.h */
 void DHTModules_handleIncoming(struct DHTMessage* message,
                                const struct DHTModuleRegistry* registry)
 {
-    assert(message);
-    assert(registry);
-    struct DHTModuleRegistry kkkkkkk = *registry;
-    kkkkkkk.members = kkkkkkk.members;
-    assert(registry->members);
-    assert(registry->memberCount);
     if (!(message && registry && registry->members && registry->memberCount)) {
         return;
     }
@@ -113,7 +87,10 @@ void DHTModules_handleIncoming(struct DHTMessage* message,
         module = *modulePtr;
         if (module && module->handleIncoming) {
             DEBUG2("<< calling: %s->handleIncoming\n", module->name);
-            module->handleIncoming(message, module->context);
+            if (module->handleIncoming(message, module->context) != 0) {
+                // TODO: Call a debugger with all unhandlable messages?
+                return;
+            }
         } else {
             DEBUG2("<< skipping %s->handleIncoming\n", module->name);
         }

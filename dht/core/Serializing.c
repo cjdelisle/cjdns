@@ -22,19 +22,6 @@
         .as.bstr = string                      \
     }
 
-/**
- * Get a bobj_t for a dictionary.
- *
- * @param dictionary a benc_dict_entry_t* object to wrap.
- * @return a bobj_t* object allocated on the stack
- *         which wraps the given dictionary.
- */
-#define OBJ_PTR_FOR_DICT(dictionary)           \
-    &(bobj_t) {                                \
-        .type = BENC_DICT,                     \
-        .as.dict = dictionary                  \
-    }
-
 #define STRING_OBJ(length, chars)              \
     &(bobj_t) {                                \
         .type = BENC_BSTR,                     \
@@ -459,7 +446,7 @@ int send_nodes_peers(struct sockaddr *address,
 
     if(store && store->numpeers > 0) {
         int numPeers = store->numpeers;
-        int startingPoint = random() % numPeers;
+        int startingPoint = rand() % numPeers;
         int i = startingPoint;
         int valuesReturned = 0;
         int addrLength = (addressType == AF_INET) ? 4 : 16;
@@ -498,7 +485,7 @@ int send_nodes_peers(struct sockaddr *address,
                 .key = &DHTConstants_values,
                 .val = &(bobj_t) {
                     .type = BENC_LIST,
-                    .as.list = node->entry.next
+                    .as.list = &(node->entry.next)
                 }
             };
         }
@@ -701,19 +688,21 @@ int send_error(struct sockaddr *address,
         .val = OBJ_PTR_FOR_STRING(&DHTConstants_error)
     };
 
+    benc_list_entry_t* listHead = &(benc_list_entry_t) {
+        .elem = &(bobj_t) { .type = BENC_INT, .as.int_ = code },
+        .next = &(benc_list_entry_t) {
+            .elem = STRING_OBJ(strlen(errorMessage), (char*) errorMessage),
+            .next = NULL
+        }
+    };
+
     /* "e": [201, "A Generic Error Ocurred"] */
     entry = &(benc_dict_entry_t) {
         .next = entry,
         .key = &DHTConstants_error,
         .val = &(bobj_t) {
             .type = BENC_LIST,
-            .as.list = &(benc_list_entry_t) {
-                .elem = &(bobj_t) { .type = BENC_INT, .as.int_ = code },
-                .next = &(benc_list_entry_t) {
-                    .elem = STRING_OBJ(strlen(errorMessage), (char*) errorMessage),
-                    .next = NULL
-                }
-            }
+            .as.list = &listHead
         }
     };
 
@@ -742,5 +731,4 @@ int send_error(struct sockaddr *address,
 
 
 #undef OBJ_PTR_FOR_STRING
-#undef OBJ_PTR_FOR_DICT
 #undef STRING_OBJ

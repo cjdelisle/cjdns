@@ -43,13 +43,7 @@ static int handleIncoming(struct DHTMessage* message,
 
 /*--------------------Interface--------------------*/
 
-/**
- * Get a new SerializationModule.
- *
- * @return a new SerializationModule or NULL if there is no space to allocate required memory.
- */
-#include<assert.h>
-struct DHTModule* SerializationModule_new(struct MemAllocator* allocator)
+void SerializationModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator)
 {
     struct SerializationModule_context* context =
         allocator->malloc(sizeof(struct SerializationModule_context), allocator);
@@ -62,9 +56,7 @@ struct DHTModule* SerializationModule_new(struct MemAllocator* allocator)
         }
     }, sizeof(struct SerializationModule_context));
 
-    assert(context == context->module.context);
-
-    return &context->module;
+    DHTModules_register(&(context->module), registry);
 }
 
 /*--------------------Internals--------------------*/

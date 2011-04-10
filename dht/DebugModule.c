@@ -142,7 +142,7 @@ static void printPeer(struct DHTMessage* message)
 static void printError(struct DHTMessage* message)
 {
     List* error = benc_lookupList(message->asDict, &DHTConstants_error);
-    if (error != NULL && benc_listLength(error) == 2) {
+    if (error != NULL && benc_itemCount(error) == 2) {
         Integer* errorNum = benc_getInteger(error, 0);
         String* errorMessage = benc_getString(error, 1);
         if (errorNum != NULL && errorMessage != NULL) {

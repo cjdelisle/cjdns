@@ -27,7 +27,7 @@ struct BufferAllocator_onFreeJob {
 /* Internal Prototypes. */
 static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator);
 static void* allocatorCalloc(size_t length, size_t count, const struct MemAllocator* allocator);
-static void* allocatorClone(size_t length, const struct MemAllocator* allocator, void* toClone);
+static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone);
 static void freeAllocator(const struct MemAllocator* allocator);
 static struct MemAllocator* childAllocator(const struct MemAllocator* allocator);
 static void addOnFreeJob(void (* callback)(void* callbackContext),
@@ -153,7 +153,7 @@ static void* allocatorCalloc(size_t length, size_t count, const struct MemAlloca
 }
 
 /** @see MemAllocator->clone() */
-static void* allocatorClone(size_t length, const struct MemAllocator* allocator, void* toClone)
+static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone)
 {
     void* pointer = allocator->malloc(length, allocator);
     memcpy(pointer, toClone, length);

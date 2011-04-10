@@ -32,7 +32,7 @@ parse_message2(Dict* messageDict,
                unsigned char *values6_return, int *values6_len,
                int *want_return)
 {
-    bobj_t* bencodedMessage = &(bobj_t) { .type = BENC_DICT, .as.dict = *messageDict };
+    bobj_t* bencodedMessage = &(bobj_t) { .type = BENC_DICT, .as.dictionary = messageDict };
 
     /* Temp storage for values returned by dictionary lookups. */
     bobj_t *value = NULL;
@@ -210,7 +210,7 @@ parse_message2(Dict* messageDict,
     benc_list_entry_t *valueList = NULL;
     if (value) {
         if (value->type == BENC_LIST) {
-            valueList = value->as.list;
+            valueList = *(value->as.list);
         } else {
             DEBUG("A values list which is not a list.")
         }
@@ -258,7 +258,7 @@ parse_message2(Dict* messageDict,
             DEBUG("That's interesting, a want list which is not a list.");
             *want_return = -1;
         } else {
-            benc_list_entry_t *peerWants = value->as.list;
+            benc_list_entry_t* peerWants = *(value->as.list);
             while (peerWants) {
                 value = peerWants->elem;
                 if (value && value->type == BENC_BSTR) {

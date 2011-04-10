@@ -7,6 +7,10 @@ void DHTTools_craftErrorResponse(const bobj_t* requestMessageDict,
                                  uint64_t errorCode,
                                  const char* errorMessage);
 
+void DHTTools_craftWrongTokenErrorResponse(const Dict* requestMessage,
+                                           Dict* responseMessage,
+                                           const struct MemAllocator* messageAllocator);
+
 /**
  * Generate a token.
  * Outputs will be 8 character bencoded strings.

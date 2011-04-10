@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdio.h>
 #include "crypto/Crypto.h"
 #include "libbenc/benc.h"
@@ -51,7 +52,8 @@ int Crypto_signVerify_test()
     }
 
 
-    char *forgery = strdup(message);
+    char forgery[300];
+    strcpy(forgery, message);
     forgery[10] = 'e';
     benc_bstr_t bForgery = {strlen(forgery), forgery};
 
