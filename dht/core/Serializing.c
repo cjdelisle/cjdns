@@ -73,6 +73,9 @@ static int sendMessage(struct sockaddr* address,
             assert(tid != NULL);
             assert(memcmp(tid->bytes, transactionId->bytes, transactionId->len) == 0);
             benc_putString(messageDict, &DHTConstants_transactionId, tid, allocator);
+        } else if (tid != NULL && tid->len > 16) {
+            // jch's implementation chokes on tids longer than 16 char.
+            benc_putString(messageDict, &DHTConstants_transactionId, tid, allocator);
         } else {
             assert(tid == NULL);
         }
