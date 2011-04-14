@@ -1,8 +1,9 @@
-20110216-20110328
+20110216-20110414
 ircerr@EFNet
 irc://irc.EFNet.org/#cjdns
 
-How To compile cjdns on Debian 6 (Squeeze)
+How To compile cjdns on Debian
+-Tested on Debian 6 (Squeeze) and Debian 5 (Lenny)
 
 **UNTESTED/INCOMPLETE/RFC**
 **UNTESTED/INCOMPLETE/RFC**
@@ -10,6 +11,7 @@ How To compile cjdns on Debian 6 (Squeeze)
 
 Assumed:
 -You use debian (probally works on ubuntu)
+-You did a backup recently ;)
 
 # [command] lines are commands..
 - [comment] lines are comments (or instructions/commands.. do it!)
@@ -38,17 +40,26 @@ ii  libevent1                       1.3e-3                     An asynchronous e
 --libevent2 required:
 
 ***OPTION ONE - unstable branch of debian ***
---Check http://ftp.ca.debian.org/debian/pool/main/libe/libevent/ for current
+--Check http://ftp.debian.org/debian/pool/main/libe/libevent/ for current
+
+--Make a new dir for deps
+# mkdir .deps
+--Go There
+# cd .deps
 --Fetch deb packages:
 # wget -N \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-core-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-dev_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-extra-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-openssl-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/libe/libevent/libevent-pthreads-2.0-5_2.0.10-stable-1_i386.deb
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-core-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-dev_2.0.10-stable-1_i386.deb \
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-extra-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-openssl-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-pthreads-2.0-5_2.0.10-stable-1_i386.deb \
+http://ftp.ca.debian.org/debian/pool/main/o/openssl/libssl0.9.8_0.9.8o-4squeeze1_i386.deb
 --Install them
-# dpkg -i libevent-*.deb
+# dpkg -i libevent-*.deb libssl*.deb
+--Back to first dir
+# cd ..
+
 
 *** OPTION TWO - fetch git version, compile it ***
 -Grab a copy of libevent ( http://monkey.org/~provos/libevent/ )
