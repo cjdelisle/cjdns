@@ -78,6 +78,13 @@ http://ftp.ca.debian.org/debian/pool/main/o/openssl/libssl0.9.8_0.9.8o-4squeeze1
 # cd ..
 --Libevent is now done.
 
+*** OPTION THREE - man up and use the experimental repo! ***
+-Add the repo to your sources.
+# echo 'deb http://ftp.debian.org/debian experimental main' >> /etc/apt/sources.list
+-Install it. Everything you need will be pulled in as dependencies.
+# apt-get install libevent-dev=2.0.10-stable-1
+--Was that so hard?
+
 *** PICK ONE OF THE ABOVE ***
 
 --cjdns
