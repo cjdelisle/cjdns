@@ -461,6 +461,9 @@ static int handleOutgoing(struct DHTMessage* message,
     return 0;
 }
 
+/**
+ * The only type of requests which are handled on the incoming are put requests.
+ */
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
@@ -472,7 +475,7 @@ static int handleIncoming(struct DHTMessage* message,
 
     struct DHTStoreModule_Context* context = (struct DHTStoreModule_Context*) vcontext;
 
-    String* queryType = benc_lookupString(message->asDict, &DHTConstants_arguments);
+    String* queryType = benc_lookupString(message->asDict, &DHTConstants_query);
 
     struct DHTStoreModule* handler =
         getModule(queryType, context->storageRegistry.firstModule, ONLY_PUT_REQUESTS);

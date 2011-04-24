@@ -1,3 +1,6 @@
+#include "libbenc/benc.h"
+#include "memory/MemAllocator.h"
+
 /**
  * Create an error in response to a query message.
  * 

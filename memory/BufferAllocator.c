@@ -175,6 +175,12 @@ static void freeAllocator(const struct MemAllocator* allocator)
     context->pointer = context->basePointer;
 }
 
+/** Fake freeAllocator so that child allocators don't get freed. */
+static void doNothing(const struct MemAllocator* allocator)
+{
+    allocator = allocator;
+}
+
 /** @see MemAllocator->onFree() */
 static void addOnFreeJob(void (* callback)(void* callbackContext),
                          void* callbackContext,
@@ -202,8 +208,15 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
 /** @see MemAllocator->child() */
 static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
 {
-    allocator = allocator;
-    return NULL;
+    return allocator->clone(sizeof(struct MemAllocator), allocator, &(struct MemAllocator) {
+        .context = allocator->context,
+        .free = doNothing,
+        .malloc = allocatorMalloc,
+        .calloc = allocatorCalloc,
+        .clone = allocatorClone,
+        .child = childAllocator,
+        .onFree = addOnFreeJob
+    });
 }
 
 #undef GET_ALIGNED

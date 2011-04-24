@@ -66,7 +66,7 @@ static int64_t getDate(struct DHTStoreEntry* entry)
     entry = entry;
     return time(NULL) / 60;
 }
-#include <assert.h>
+
 static String* genToken(const struct DHTMessage* requestMessage,
                         void* vcontext,
                         const struct MemAllocator* allocator)
@@ -74,11 +74,9 @@ static String* genToken(const struct DHTMessage* requestMessage,
     const Dict* requestArgs = benc_lookupDictionary(requestMessage->asDict, &DHTConstants_arguments);
     const String* id = benc_lookupString(requestArgs, &DHTConstants_myId);
     const String* target = benc_lookupString(requestArgs, &DHTConstants_targetId);
-assert(target != NULL);
-assert(id != NULL);
+
     struct SHA1Store_Context* context = (struct SHA1Store_Context*) vcontext;
     String* token = DHTStoreTools_generateToken(target, id, NULL, context->secret, allocator);
-    assert(token != NULL);
     return token;
 }
 
@@ -87,7 +85,7 @@ static struct DHTStoreEntry* handlePutRequest(const Dict* requestMessage,
                                               void* vcontext,
                                               const struct MemAllocator* messageAllocator)
 {
-    const Dict* requestArgs = benc_lookupDictionary(requestMessage, &DHTConstants_query);
+    const Dict* requestArgs = benc_lookupDictionary(requestMessage, &DHTConstants_arguments);
     const String* value = benc_lookupString(requestArgs, DHTStoreConstants_VALUE);
     if (value == NULL) {
         // No value given.

@@ -101,7 +101,7 @@ int32_t DHTStoreTools_isTokenValid(const String* token,
     if (token == NULL
         || target == NULL
         || nodeId == NULL
-        || token->len != 20
+        || token->len != 8
         || target->len != 20
         || nodeId->len != 20)
     {
@@ -110,8 +110,8 @@ int32_t DHTStoreTools_isTokenValid(const String* token,
 
     uint32_t now = time(NULL) / 600;
 
-    char buffer[64];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 64);
+    char buffer[256];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 256);
 
     String* currentToken = genToken(target->bytes, nodeId->bytes, secret, announceAddress, now, allocator);
     if (benc_stringEquals(token, currentToken)) {

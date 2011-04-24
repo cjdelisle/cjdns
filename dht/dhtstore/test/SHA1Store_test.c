@@ -122,7 +122,45 @@ int main()
     assert(outMessage->replyTo != NULL);
 
     outMessage->bytes[outMessage->length] = '\0';
-    printf("\n\n%s\n\n", outMessage->bytes);
+    const char* expectedResponse =
+        "d1:rd1:k20:\x2E\xF7\xBD\xE6\x08\xCE\x54\x04\xE9\x7D\x5F\x04\x2F\x95\xF8\x9F\x1C\x23\x28\x71" "ee";
+
+    if (strcmp(outMessage->bytes, expectedResponse) != 0) {
+        printf("Response not as expected.\n");
+        printf("Got:\n\n%s\nIn Hex:\n", outMessage->bytes);
+        int i;
+        for (i = 0; outMessage->bytes[i] != '\0'; i++) {
+            printf("%c", (unsigned char) outMessage->bytes[i]);
+        }
+        printf("\n\n");
+        return -1;
+    }
+
+    // Now lets run the query again and hopefully we will get the original response back.
+    struct DHTMessage message3 =
+    {
+        .length = strlen(getMessage),
+        .allocator = allocator
+    };
+    memcpy(message3.bytes, getMessage, message3.length);
+
+    outMessage = NULL;
+    DHTModules_handleIncoming(&message3, registry);
+    assert(outMessage != NULL);
+    assert(outMessage->replyTo != NULL);
+
+    #define TOKEN_KEY "5:token8:"
+    char* tokenPtr = strstr(outMessage->bytes, TOKEN_KEY);
+    assert(tokenPtr != NULL);
+    // Fix the token since it will nto be printable nor predictable.
+    memset(tokenPtr + strlen(TOKEN_KEY), 'x', 8);
+
+    const char* expectedOutput = "d1:rd5:token8:xxxxxxxx1:v12:Hello World!ee";
+    if (strcmp(expectedOutput, outMessage->bytes) != 0) {
+        printf("\n\nGot the wrong output after get request.\nExpected:\n%s\nGot:\n%s\n",
+               expectedOutput,
+               outMessage->bytes);
+    }
 
     return 0;
 }
