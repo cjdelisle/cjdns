@@ -55,7 +55,7 @@ struct MemAllocator
      *
      * @param numberOfBytes how much memory to allocate.
      * @param multiplier how many times the number of bytes to allocate.
-     * @param this the memory allocator, use allocator->malloc(10, allocator) to allocate 10 bytes.
+     * @param this the memory allocator.
      * @return a pointer to the newly allocated memory.
      * @see calloc()
      */
@@ -69,7 +69,7 @@ struct MemAllocator
      * you must handle it manually.
      *
      * @param numberOfBytes how much memory to allocate.
-     * @param thisAllocator the memory allocator, use allocator->malloc(10, allocator) to allocate 10 bytes.
+     * @param thisAllocator the memory allocator.
      * @param toClone a pointer to something which will be cloned into the newly allocated memory,
      *                if this is NULL or is not as large as numberOfBytes, undefined behavior will result.
      * @return a pointer to the newly allocated memory.
@@ -77,6 +77,20 @@ struct MemAllocator
     void* (* const clone)(size_t numberOfBytes,
                           const struct MemAllocator* thisAllocator,
                           const void* toClone);
+
+    /**
+     * Re-allocate memory so that an allocation can be expanded.
+     * The allocation will be aligned on the size of a pointer, if you need further alignment then
+     * you must handle it manually.
+     *
+     * @param originalAllocation a pointer to the original memory allocation which is to be reallocated.
+     * @param numberOfBytes how much memory to allocate.
+     * @param thisAllocator the memory allocator.
+     * @return a pointer to the newly allocated memory.
+     */
+    void* (* const realloc)(const void* originalAllocation,
+                            size_t numberOfBytes,
+                            const struct MemAllocator* thisAllocator);
 
     /**
      * Get a new child of this allocator.

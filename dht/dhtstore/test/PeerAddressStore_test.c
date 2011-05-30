@@ -7,7 +7,7 @@
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "dht/dhtstore/SHA1Store.h"
+#include "dht/dhtstore/PeerAddressStore.h"
 
 #include "dht/DHTConstants.h"
 #include "dht/dhtstore/test/StoreTestFramework.c"
@@ -20,9 +20,9 @@ int main()
 
     // dummy core module, replies to everything.
     StoreTestFramework_registerBouncerModule(registry, allocator);
-    
+
     struct DHTStoreRegistry* storeRegistry = DHTStoreModule_register(20, registry, allocator);
-    SHA1Store_register(storeRegistry, allocator);
+    PeerAddressStore_register(storeRegistry, allocator);
 
     SerializationModule_register(registry, allocator);
 
@@ -30,28 +30,52 @@ int main()
     // dummy "network module" which just catches outgoing messages and makes them available.
     StoreTestFramework_registerOutputCatcher(&outMessage, registry, allocator);
 
-    // token hes to be gotten and written over since even we cannot put an entry with an invalid token.
-    #define TOKEN_OFFSET 73
+    // token has to be gotten and written over since even we cannot put an entry with an invalid token.
+    #define TOKEN_OFFSET 86
     const char* putMessage =
-        "d1:ad2:id20:abcdefghijklmnopqrst1:v12:Hello World!e1:q8:put_sha15:token8:000000001:t2:aa1:y1:qe";
+        "d"
+          "1:a" "d"
+            "2:id"        "20:abcdefghijklmnopqrst"
+            "9:info_hash" "20:uvwzyz0123456789abcd"
+            "4:port"  "i443e"
+            "5:token" "8:00000000"
+          "e"
+          "1:q" "13:announce_peer"
+          "1:t" "2:aa"
+          "1:y" "1:q"
+        "e";
 
     const char* getMessage =
-        "d1:ad2:id20:abcdefghijklmnopqrst6:target"
-        "20:\x2E\xF7\xBD\xE6\x08\xCE\x54\x04\xE9\x7D\x5F\x04\x2F\x95\xF8\x9F\x1C\x23\x28\x71"
-        "e1:q8:get_sha11:t2:aa1:y1:qe";
+        "d"
+          "1:a" "d"
+            "2:id"        "20:abcdefghijklmnopqrst"
+            "9:info_hash" "20:uvwzyz0123456789abcd"
+          "e"
+          "1:q" "9:get_peers"
+          "1:t" "2:aa"
+          "1:y" "1:q"
+        "e";
+
+    // Since it's announcing "our ip addr" we need to add it.
+    const char* peerAddress = "123456            ";
+    #define ADDRESS_LENGTH 6
 
     struct DHTMessage message =
     {
         .length = strlen(getMessage),
-        .allocator = allocator
+        .allocator = allocator,
+        .addressLength = ADDRESS_LENGTH
     };
     memcpy(message.bytes, getMessage, message.length);
+    memcpy(message.peerAddress, peerAddress, 18);
 
     // Send a get request in order to get a valid put token.
     DHTModules_handleIncoming(&message, registry);
 
     assert(outMessage != NULL);
     assert(outMessage->replyTo != NULL);
+
+    //printf("\n\n%s\n\n", outMessage->bytes);
 
     Dict* args = benc_lookupDictionary(outMessage->asDict, &DHTConstants_reply);
     String* token = benc_lookupString(args, &DHTConstants_authToken);
@@ -66,9 +90,11 @@ int main()
     struct DHTMessage message2 =
     {
         .length = strlen(putMessage),
-        .allocator = allocator
+        .allocator = allocator,
+        .addressLength = ADDRESS_LENGTH
     };
     memcpy(message2.bytes, realPutMessage, message2.length);
+    memcpy(message2.peerAddress, peerAddress, 18);
 
     outMessage = NULL;
     DHTModules_handleIncoming(&message2, registry);
@@ -77,17 +103,13 @@ int main()
     assert(outMessage->replyTo != NULL);
 
     outMessage->bytes[outMessage->length] = '\0';
-    const char* expectedResponse =
-        "d1:rd1:k20:\x2E\xF7\xBD\xE6\x08\xCE\x54\x04\xE9\x7D\x5F\x04\x2F\x95\xF8\x9F\x1C\x23\x28\x71" "ee";
+    //printf("\n\n%s\n\n", outMessage->bytes);
+
+    const char* expectedResponse = "de";
 
     if (strcmp(outMessage->bytes, expectedResponse) != 0) {
         printf("Response not as expected.\n");
-        printf("Got:\n\n%s\nIn Hex:\n", outMessage->bytes);
-        int i;
-        for (i = 0; outMessage->bytes[i] != '\0'; i++) {
-            printf("%c", (unsigned char) outMessage->bytes[i]);
-        }
-        printf("\n\n");
+        printf("Got:\n\n%s\n\n", outMessage->bytes);
         return -1;
     }
 
@@ -110,7 +132,16 @@ int main()
     // Fix the token since it will nto be printable nor predictable.
     memset(tokenPtr + strlen(TOKEN_KEY), 'x', 8);
 
-    const char* expectedOutput = "d1:rd5:token8:xxxxxxxx1:v12:Hello World!ee";
+    const char* expectedOutput =
+        "d"
+          "1:r" "d"
+            "5:token" "8:xxxxxxxx"
+            "6:values" "l"
+              "6:123456"
+            "e"
+          "e"
+        "e";
+
     if (strcmp(expectedOutput, outMessage->bytes) != 0) {
         printf("\n\nGot the wrong output after get request.\nExpected:\n%s\nGot:\n%s\n",
                expectedOutput,

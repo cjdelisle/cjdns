@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <netinet/in.h>
 #include <assert.h>
+#include <time.h>
 
 #include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
@@ -47,8 +48,7 @@ struct DHTStoreModuleWrapper
 /**
  * An entry stub which is used for fast comparison with minimal memory lookups.
  * Each entry will take 24 bytes of space on a 64 bit architecture and 20 bytes on 32 bit.
- * Which means 43,690 entries per megabyte.
- * These will hopefully be pulled to the processor cache.
+ * Which means 43,690/52,428 entries per megabyte.
  */
 struct DHTStoreEntryHeader
 {
@@ -63,16 +63,13 @@ struct DHTStoreEntryHeader
      * This will be bumped every time the entry is loaded and entries will be swapped
      * so that the most commonly used entries will end up at the beginning of the buffer.
      */
-    uint32_t hitCount;
+    uint32_t hitCount : 24;
+
+    /** The module which handles this data. */
+    uint32_t type : 8;
 
     /** The time when this entry was inserted as a number of minutes since the epoch. */
     uint32_t whenPut;
-
-    /** The module which handles this data. */
-    uint8_t type;
-
-    /** Since the compiler will pad this anyway, make it explicit so I remember it. */
-    uint8_t unused[3];
 
     /**
      * The entry data, placed in a larger buffer which unlike the header buffer
@@ -106,6 +103,22 @@ struct DHTStoreModule_Context
 
     /** The registry containing all of the storage modules. */
     struct DHTStoreRegistry storageRegistry;
+};
+
+/**
+ * Provides information required to lookup an entry
+ * so that a module can transparently use the store tool.
+ */
+struct DHTStoreToolContext
+{
+    /** The module which is using the tool, only entries of that module's type will be looked up. */
+    struct DHTStoreModule* user;
+
+    /** Pointer to the beginning of the buffer of entry headers. */
+    struct DHTStoreEntryHeader* headers;
+
+    /** Number of valid entry headers. */
+    uint32_t entryHeaderCount;
 };
 
 static const char* MODULE_NAME = "DHTStoreModule";
@@ -186,6 +199,8 @@ static void registerModule(const struct DHTStoreModule* toRegister,
  * Get the first (mandatory) 20 bytes of the key to lookup.
  *
  * @param message the message to get the lookup key from.
+ * @param keyName the name underwhich the key is placed. Usually 'target' except for PeerAnnounceStore
+ *                where it will be 'info_hash' for backward compatability
  * @param top20 a pointer which will be set to the location of the top 20 bytes of the key.
  * @param additional a pointer which will be set to the location of additional bytes of the key.
  *                   if null then only the first 20 bytes will be set and the return value will be
@@ -193,12 +208,15 @@ static void registerModule(const struct DHTStoreModule* toRegister,
  * @return the number of bytes in the key. If less than 20 bytes then the message did
  *         not have a proper target entry. If there is no key then the pointers will not be set.
  */
-static uint32_t getKeyBytes(struct DHTMessage* message, char** top20, char** additional)
+static uint32_t getKeyBytes(struct DHTMessage* message,
+                            const String* keyName,
+                            char** top20,
+                            char** additional)
 {
     const Dict* args = benc_lookupDictionary(message->asDict, &DHTConstants_arguments);
     uint32_t out = 0;
     if (args != NULL) {
-        const String* target = benc_lookupString(args, &DHTConstants_targetId);
+        const String* target = benc_lookupString(args, keyName);
         if (target != NULL && target->len == 20) {
             *top20 = target->bytes;
             out += 20;
@@ -263,7 +281,6 @@ static struct DHTStoreEntryHeader* lookup(const char* top20Bytes,
                 memcpy(headers + i, &temp, sizeof(struct DHTStoreEntryHeader));
             }
             headers[i].hitCount++;
-
             return headers + i;
         }
         if (headers[i].hitCount < leastUsed->hitCount) {
@@ -320,6 +337,16 @@ static struct DHTStoreModule* getModule(const String* queryType,
     return &(module->module);
 }
 
+static uint16_t getDate(const struct DHTStoreModule* handler,
+                        struct DHTStoreEntry* entryToInsert)
+{
+    if (handler->getDate != NULL) {
+        return handler->getDate(entryToInsert);
+    } else {
+        return time(NULL) / 60;
+    }
+}
+
 /**
  * Insert the entry into the list.
  * This will check if there is space in the list and if not it will evict the oldest entry.
@@ -358,7 +385,7 @@ static void insert(const char* top20Bytes,
              */
             current->entry->allocator->free(current->entry->allocator);
             current->entry = entryToInsert;
-            current->whenPut = handler->getDate(entryToInsert);
+            current->whenPut = getDate(handler, entryToInsert);
             return;
         }
 
@@ -378,9 +405,32 @@ static void insert(const char* top20Bytes,
 
     current->top64 = top64;
     current->hitCount = 0;
-    current->whenPut = handler->getDate(entryToInsert);
+    current->whenPut = getDate(handler, entryToInsert);
     current->type = handler->type;
     current->entry = entryToInsert;
+}
+
+/**
+ * An easy lookup implementation which is passed to the store modules for doing lookups.
+ * @see DHTStoreTool in DHTStoreModule.h
+ */
+static struct DHTStoreEntry* storeToolLookup(const String* key, const struct DHTStoreTool* storeTool)
+{
+    if (key == NULL || key->len < 20) {
+        return NULL;
+    }
+
+    struct DHTStoreToolContext* context = (struct DHTStoreToolContext*) storeTool->storeToolContext;
+
+    struct DHTStoreEntryHeader* header =
+        lookup(key->bytes,
+               (key->len > 20) ? key->bytes + 20 : NULL,
+               key->len,
+               context->user,
+               context->headers,
+               context->entryHeaderCount);
+
+    return (header != NULL) ? header->entry : NULL;
 }
 
 /**
@@ -410,11 +460,18 @@ static int handleOutgoing(struct DHTMessage* message,
         return 0;
     }
 
+    // Backward compatability hack. The lookup key must always be under the "target" key but
+    // the original bittorrent DHT specified that it should be "info_hash".
+    // It's better to make an evil exception based on the name of the module than to introduce more horrors.
+    String* keyName =
+        (strcmp(handler->name, "PeerAddressStore") == 0) ? &DHTConstants_infoHash : &DHTConstants_targetId;
+
     char* top20Bytes = NULL;
     char* additionalBytes = NULL;
-    uint32_t keyLength = getKeyBytes(message->replyTo, &top20Bytes, &additionalBytes);
+    uint32_t keyLength = getKeyBytes(message->replyTo, keyName, &top20Bytes, &additionalBytes);
 
     if (keyLength < 20 || keyLength > handler->keySize || top20Bytes == NULL) {
+        // Maybe another node knows how to handle this, let the packet be sent with node list.
         return 0;
     }
 
@@ -425,39 +482,10 @@ static int handleOutgoing(struct DHTMessage* message,
                                                 context->headers,
                                                 context->nextEmptySlot);
 
-    // Get the arguments dictionary.
-    Dict* args = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
-    if (args == NULL) {
-        args = benc_newDictionary(message->allocator);
-        benc_putDictionary(message->asDict, &DHTConstants_reply, args, message->allocator);
-    }
+    handler->handleGetRequest(message,
+                              (header != NULL) ? header->entry : NULL,
+                              handler->context);
 
-    // Generate and attach a token.
-    String* token = handler->genToken(message->replyTo, handler->context, message->allocator);
-    benc_putString(args, &DHTConstants_authToken, token, message->allocator);
-
-    if (header != NULL) {
-        // Send the value.
-        String* value = benc_newBinaryString(header->entry->value,
-                                             header->entry->length,
-                                             message->allocator);
-        benc_putString(args, DHTStoreConstants_VALUE, value, message->allocator);
-
-        // If it's a mutable entry...
-        if (handler->getSignature != NULL) {
-            // Add the signature.
-            benc_putString(args,
-                           DHTStoreConstants_SIGNATURE,
-                           handler->getSignature(header->entry),
-                           message->allocator);
-
-            // And the datestamp.
-            benc_putInteger(args,
-                            DHTStoreConstants_DATE,
-                            handler->getDate(header->entry),
-                            message->allocator);
-        }
-    }
     return 0;
 }
 
@@ -483,18 +511,28 @@ static int handleIncoming(struct DHTMessage* message,
         return 0;
     }
 
-    Dict* replyDict = benc_newDictionary(message->allocator);
+    // Store tool to pass to the handler so it can do a lookup if it wants.
+    struct DHTStoreTool storeTool = {
+        .lookup = storeToolLookup,
+        .storeToolContext = &(struct DHTStoreToolContext) {
+            .user = handler,
+            .headers = context->headers,
+            .entryHeaderCount = context->nextEmptySlot
+        }
+    };
+
+    Dict* replyDict = NULL;
 
     // Do the put operation, token will be checked in the module.
     struct DHTStoreEntry* entry =
-        handler->handlePutRequest(message->asDict, replyDict, handler->context, message->allocator);
+        handler->handlePutRequest(message, &replyDict, &storeTool, handler->context, message->allocator);
 
     if (entry != NULL) {
         insert(entry->key, entry->key + 20, entry, handler, context);
     }
 
     // If this is false then the handler had nothing to say.
-    if (benc_entryCount(replyDict) > 0) {
+    if (replyDict != NULL) {
         struct DHTMessage* reply =
             message->allocator->clone(sizeof(struct DHTMessage), message->allocator, message);
 
@@ -508,7 +546,6 @@ static int handleIncoming(struct DHTMessage* message,
     // We have sent our reply, we can kill the incoming message now.
     return -1;
 }
-
 
 #undef STORAGE_SPACE_MEGABYTES
 #undef EXPIRE_AFTER

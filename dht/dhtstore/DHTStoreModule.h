@@ -22,6 +22,26 @@ struct DHTStoreEntry
 };
 
 /**
+ * A tool which when passed to the DHT storage modules allows them to lookup entries of their type.
+ */
+struct DHTStoreTool;
+struct DHTStoreTool
+{
+    /**
+     * A function which when passed the tool and a lookup key will do a lookup.
+     *
+     * @param key the key for the entry to lookup.
+     * @param storeTool this tool.
+     * @return a store entry if one exists, otherwise NULL.
+     */
+    struct DHTStoreEntry* (* const lookup)(const String* key,
+                                           const struct DHTStoreTool* storeTool);
+
+    /** An internal context used by the lookup tool. This is a DHTStoreToolContext struct. */
+    void* storeToolContext;
+};
+
+/**
  * Each type of storage must register one of these with the DHTStorageModule.
  * This is a storage provider but not a storage client. The storage itself must
  * be used for the client.
@@ -40,39 +60,28 @@ struct DHTStoreModule
     /** The length of the key for looking up the entry. */
     const uint16_t keySize;
 
-    /** The length of a signature if mutable data. If static data then 0. */
-    const uint16_t signatureSize;
-
     void* const context;
 
+    /**
+     * If the module has a way to determine that an entry is a reannouncement of an old entry then
+     * this function should get the date when the entry was first announced. Otherwise this should be NULL.
+     */
     int64_t (* const getDate)(struct DHTStoreEntry* entry);
 
-    void (* const prepareGetReply)(const Dict* requestMessage,
-                                   Dict* responseDict,
-                                   struct DHTStoreEntry* entry,
-                                   void* vcontext,
-                                   const struct MemAllocator* allocator);
+    void (* const handleGetRequest)(struct DHTMessage* replyMessage,
+                                    const struct DHTStoreEntry* entry,
+                                    void* vcontext);
 
-    String* (* const genToken)(const struct DHTMessage* requestMessage,
-                               void* vcontext,
-                               const struct MemAllocator* allocator);
-
-    struct DHTStoreEntry* (* const handlePutRequest)(const Dict* requestMessage,
-                                                     Dict* replyMessage,
+    struct DHTStoreEntry* (* const handlePutRequest)(const struct DHTMessage* incomingMessage,
+                                                     Dict** replyMessagePointer,
+                                                     const struct DHTStoreTool* storeTool,
                                                      void* vcontext,
                                                      const struct MemAllocator* messageAllocator);
 
     /**
-     * If the entry is static and has no signature, this function pointer should be set to NULL.
-     *
-     * @param ventry the storage entry cast to a generic void pointer.
-     * @return the signature extracted from the entry.
-     */
-    String* (* const getSignature)(struct DHTStoreEntry* entry);
-
-    /**
      * This is set when loading the module so that it can be referenced by a unique number.
      * It should not be set by the module itself and will be cleared if it is.
+     * TODO: Remove this and make a wrapper with it in the DHTStoreModule.
      */
     uint8_t type;
 };

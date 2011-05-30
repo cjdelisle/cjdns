@@ -28,6 +28,7 @@ struct BufferAllocator_onFreeJob {
 static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator);
 static void* allocatorCalloc(size_t length, size_t count, const struct MemAllocator* allocator);
 static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone);
+static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator);
 static void freeAllocator(const struct MemAllocator* allocator);
 static struct MemAllocator* childAllocator(const struct MemAllocator* allocator);
 static void addOnFreeJob(void (* callback)(void* callbackContext),
@@ -73,6 +74,7 @@ struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
         .malloc = allocatorMalloc,
         .calloc = allocatorCalloc,
         .clone = allocatorClone,
+        .realloc = allocatorRealloc,
         .child = childAllocator,
         .onFree = addOnFreeJob
     };
@@ -160,6 +162,23 @@ static void* allocatorClone(size_t length, const struct MemAllocator* allocator,
     return pointer;
 }
 
+/** @see MemAllocator->clone() */
+static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator)
+{
+    // Need to pointer to make sure we dont copy too much.
+    struct BufferAllocator_context* context =
+        (struct BufferAllocator_context*) allocator->context;
+    char* pointer = context->pointer;
+    size_t amountToClone =
+        length < (size_t)(pointer - (char*)original) ? length : (size_t)(pointer - (char*)original);
+
+    // The likelyhood of nothing having been allocated since is almost 0 so we will always create a new
+    // allocation and copy into it.
+    void* newAlloc = allocator->malloc(length, allocator);
+    memcpy(newAlloc, original, amountToClone);
+    return newAlloc;
+}
+
 /** @see MemAllocator->free() */
 static void freeAllocator(const struct MemAllocator* allocator)
 {
@@ -214,6 +233,7 @@ static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
         .malloc = allocatorMalloc,
         .calloc = allocatorCalloc,
         .clone = allocatorClone,
+        .realloc = allocatorRealloc,
         .child = childAllocator,
         .onFree = addOnFreeJob
     });
