@@ -4,6 +4,8 @@
 
 #include "dht/DHTModules.h"
 #include "dht/SerializationModule.h"
+#include "dht/ReplyModule.h"
+#include "dht/RouterModule.h"
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -18,8 +20,11 @@ int main()
     struct MemAllocator* allocator = BufferAllocator_new(buffer, 10000);
     struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
 
-    // dummy core module, replies to everything.
-    StoreTestFramework_registerBouncerModule(registry, allocator);
+    // Load the core
+    ReplyModule_register(registry, allocator);
+
+    // Router stub which will put our id on everything.
+    RouterModule_register(registry, allocator, "zyxwvutsrqponmlkjihg");
 
     struct DHTStoreRegistry* storeRegistry = DHTStoreModule_register(20, registry, allocator);
     PeerAddressStore_register(storeRegistry, allocator);
@@ -105,7 +110,14 @@ int main()
     outMessage->bytes[outMessage->length] = '\0';
     //printf("\n\n%s\n\n", outMessage->bytes);
 
-    const char* expectedResponse = "de";
+    const char* expectedResponse =
+        "d"
+          "1:r" "d"
+            "2:id" "20:zyxwvutsrqponmlkjihg"
+          "e"
+          "1:t" "2:aa"
+          "1:y" "1:r"
+        "e";
 
     if (strcmp(outMessage->bytes, expectedResponse) != 0) {
         printf("Response not as expected.\n");
@@ -135,11 +147,14 @@ int main()
     const char* expectedOutput =
         "d"
           "1:r" "d"
+            "2:id" "20:zyxwvutsrqponmlkjihg"
             "5:token" "8:xxxxxxxx"
             "6:values" "l"
               "6:123456"
             "e"
           "e"
+          "1:t" "2:aa"
+          "1:y" "1:r"
         "e";
 
     if (strcmp(expectedOutput, outMessage->bytes) != 0) {

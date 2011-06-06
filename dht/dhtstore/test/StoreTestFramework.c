@@ -6,6 +6,10 @@ static int bounceMessage(struct DHTMessage* message, void* vcontext);
 
 static void StoreTestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
                                                      const struct MemAllocator* allocator)
+__attribute__((unused));
+
+static void StoreTestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
+                                                     const struct MemAllocator* allocator)
 {
     struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .context = registry,

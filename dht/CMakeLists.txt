@@ -9,6 +9,10 @@ add_library(dht
     SerializationModule.c
     DebugModule.c
     DHTConstants.c
+    ReplyModule.c
+    RouterModule.c
+    SanityModule.c
+    RateLimitModule.c
 )
 target_link_libraries(dht benc benc_StandardBencSerializer)#dhtstore)
 

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
@@ -11,28 +13,40 @@
  */
 
 /*--------------------Prototypes--------------------*/
-static int handleOutgoing(struct DHTMessage* message,
-                          void* vcontext);
+static int handleIncoming(struct DHTMessage* message, void* vcontext);
+static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 
 /*--------------------Interface--------------------*/
 
-static struct DHTModule {
-    .name = "ReplyModule",
-    .handleOutgoing = handleOutgoing
-} MODULE;
-
 /**
+ * Register a new ReplyModule.
+ *
+ * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  */
 void ReplyModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator)
 {
-    return MODULE;
+    DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+        .name = "ReplyModule",
+        // We use the registry itself as the context
+        .context = registry,
+        .handleIncoming = handleIncoming,
+        .handleOutgoing = handleOutgoing
+    }), registry);
 }
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
-    // unused
-    vcontext = vcontext;
+    struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
+
+    struct DHTMessage reply = {
+        .replyTo = message,
+        .allocator = message->allocator
+    };
+
+    DHTModules_handleOutgoing(&reply, registry);
+
+    return 0;
 }
 
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
@@ -41,12 +55,22 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
     vcontext = vcontext;
 
     if (message->replyTo != NULL) {
+        if (message->asDict == NULL) {
+            message->asDict = benc_newDictionary(message->allocator);
+        }
+
         // Put the transaction ID
         String* tid = benc_lookupString(message->replyTo->asDict, &DHTConstants_transactionId);
-        benc_putString(message->asDict, &DHTConstants_transactionId, tid, message->allocator);
+        if (tid != NULL) {
+            benc_putString(message->asDict, &DHTConstants_transactionId, tid, message->allocator);
+        }
 
         // Put "y":"r"
         benc_putString(message->asDict, &DHTConstants_messageType, &DHTConstants_reply, message->allocator);
+
+        // Set the peer address
+        memcpy(message->peerAddress, message->replyTo->peerAddress, 18);
+        message->addressLength = message->replyTo->addressLength;
     }
     return 0;
 }
