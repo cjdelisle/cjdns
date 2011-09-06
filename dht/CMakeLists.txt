@@ -14,7 +14,7 @@ add_library(dht
     SanityModule.c
     RateLimitModule.c
 )
-target_link_libraries(dht benc benc_StandardBencSerializer)#dhtstore)
+target_link_libraries(dht benc benc_StandardBencSerializer util)#dhtstore)
 
 # Everything must be tested.
 enable_testing()

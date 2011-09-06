@@ -12,7 +12,9 @@ String* benc_newString(const char* bytes, const struct MemAllocator* allocator)
 /** @see benc.h */
 String* benc_newBinaryString(const char* bytes, size_t length, const struct MemAllocator* allocator)
 {
-    char* copy = allocator->malloc(length, allocator);
+    char* copy = allocator->malloc(length + 1, allocator);
+    // Make the string null terminated so it will print nicely.
+    copy[length] = '\0';
     memcpy(copy, bytes, length);
     benc_bstr_t* string = allocator->malloc(sizeof(benc_bstr_t), allocator);
     string->len = length;

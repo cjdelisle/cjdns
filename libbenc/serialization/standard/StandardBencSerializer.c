@@ -198,7 +198,7 @@ static int32_t parseList(const struct Reader* reader,
     }
 
     bobj_t* element;
-    benc_list_entry_t* thisEntry;
+    benc_list_entry_t* thisEntry = NULL;
     benc_list_entry_t** lastEntryPointer = output;
     int ret;
 

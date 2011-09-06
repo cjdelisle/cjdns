@@ -29,6 +29,9 @@ add_definitions(
 # debugging
 add_definitions(-g)
 
+# TODO: Fix warnings which appear when using -O3
+#add_definitions(-O3)
+
 
 include_directories(${CMAKE_SOURCE_DIR})
 
