@@ -343,9 +343,9 @@ struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search
 struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_Node* end,
                                                        const struct SearchStore* store)
 {
-    struct MemAllocator* allocator = store->searches[searchIndex].allocator;
     uint16_t searchIndex = end->searchIndex;
     uint16_t nodeIndex = end->nodeIndex;
+    struct MemAllocator* allocator = store->searches[searchIndex]->allocator;
     struct SearchNode* searchNode = &store->searches[searchIndex]->nodes[nodeIndex];
     struct SearchStore_TraceElement* element =
         allocator->malloc(sizeof(struct SearchStore_TraceElement), allocator);

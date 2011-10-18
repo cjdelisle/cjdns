@@ -6,6 +6,7 @@
     #include <assert.h>
 #endif
 
+#include "dht/dhtcore/AddrPrefix.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
@@ -223,11 +224,11 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *         mean then the number returned is half of UINT32_MAX and if the response time is 0
  *         then 0 is returned.
  */
-static uint32_t calculateResponseTimeRatio(void* gmrtRoller, const uint32_t responseTime)
+/*static uint32_t calculateResponseTimeRatio(void* gmrtRoller, const uint32_t responseTime)
 {
     const uint32_t gmrt = AverageRoller_update(gmrtRoller, responseTime);
     return (responseTime > 2 * gmrt) ? UINT32_MAX : ((UINT32_MAX / 2) / gmrt) * responseTime;
-}
+}*/
 
 /**
  * Calculate "how far this node got us" in our quest for a given record.
@@ -278,6 +279,19 @@ static inline uint32_t calculateDistance(const uint32_t nodeIdPrefix,
     return ab;
 }
 
+/**
+ * Get the time where any unreplied requests older than that should be timed out.
+ * This implementation times out after twice the global mean response time.
+ *
+ * @param module this module.
+ * @return the timeout time.
+ */
+static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
+{
+    return
+        Time_currentTimeMilliseconds() - (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2);
+}
+
 static inline void cleanup(struct SearchStore* store,
                            struct SearchStore_Node* lastNode,
                            uint8_t targetAddress[20],
@@ -302,32 +316,14 @@ static inline void cleanup(struct SearchStore* store,
         struct Node* parentNode = NodeStore_getNode(module->nodeStore, parent->address);
         if (parentNode != NULL) {
             // If parentNode is NULL then it must have been replaced in the node store.
-            milliseconds
-            parentNode->reach += targetPrefix ^ AddrPrefix_get(child->address) / milliseconds;
-            uint32_t time = 
-calculateDistance(AddrPrefix_get(parent->address),
-                                                  targetPrefix,
-                                                  AddrPrefix_get(child->address));
-            uint32_t time = calculateResponseTimeRatio(module->gmrtRoller, parent->delayUntilReply);
-            parentNode->reach += 
+            milliseconds += parent->delayUntilReply;
+            uint8_t* childAddress = child->address;
+            parentNode->reach += (targetPrefix ^ AddrPrefix_get(childAddress)) / milliseconds;
         }
 
         child = parent;
         parent = parent->next;
     }
-}
-
-/**
- * Get the time where any unreplied requests older than that should be timed out.
- * This implementation times out after twice the global mean response time.
- *
- * @param module this module.
- * @return the timeout time.
- */
-static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
-{
-    return
-        Time_currentTimeMilliseconds() - (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2);
 }
 
 /**
