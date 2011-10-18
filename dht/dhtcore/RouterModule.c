@@ -213,73 +213,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 }
 
 /**
- * Calculate the response time ratio for a given response time.
- * This function also updates the global mean response time.
- *
- * @param gmrtRoller the AverageRoller for the global mean response time.
- * @param responseTime the response time from the node.
- * @return an integer between 0 and UINT32_MAX which represents the distance be node's response
- *         time and the global mean response time. If the node takes twice the global mean or
- *         longer, the number returned is UINT32_MAX. If the response time is equal to the global
- *         mean then the number returned is half of UINT32_MAX and if the response time is 0
- *         then 0 is returned.
- */
-/*static uint32_t calculateResponseTimeRatio(void* gmrtRoller, const uint32_t responseTime)
-{
-    const uint32_t gmrt = AverageRoller_update(gmrtRoller, responseTime);
-    return (responseTime > 2 * gmrt) ? UINT32_MAX : ((UINT32_MAX / 2) / gmrt) * responseTime;
-}*/
-
-/**
- * Calculate "how far this node got us" in our quest for a given record.
- *
- * When we ask node Alice a search query to find a record,
- * if she replies with a node which is further from the target than her, we are backpeddling,
- * Alice is not compliant and we will return 0 distance because her reach should become zero asap.
- *
- * If Alice responds with a node which is further from her than she is from the target, then she
- * has "overshot the target" so to speak, we return the distance between her and the node minus
- * the distance between the node and the target.
- *
- * If alice returns a node which is between her and the target, we just return the distance between
- * her and the node.
- *
- * @param nodeIdPrefix the first 4 bytes of Alice's node id in host order.
- * @param targetPrefix the first 4 bytes of the target id in host order.
- * @param firstResponseIdPrefix the first 4 bytes of the id of
- *                              the first node to respond in host order.
- * @return a number between 0 and UINT32_MAX representing the distance in keyspace which this
- *         node has helped us along.
- */
-static inline uint32_t calculateDistance(const uint32_t nodeIdPrefix,
-                                         const uint32_t targetPrefix,
-                                         const uint32_t firstResponseIdPrefix)
-{
-    // Distance between Alice and the target.
-    uint32_t at = nodeIdPrefix ^ targetPrefix;
-
-    // Distance between Bob and the target.
-    uint32_t bt = firstResponseIdPrefix ^ targetPrefix;
-
-    if (bt > at) {
-        // Alice is giving us nodes which are further from the target than her :(
-        return 0;
-    }
-
-    // Distance between Alice and Bob.
-    uint32_t ab = nodeIdPrefix ^ firstResponseIdPrefix;
-
-    if (at < ab) {
-        // Alice gave us a node which is beyond the target,
-        // this is fine but should not be unjustly rewarded.
-        return ab - bt;
-    }
-
-    // Alice gave us a node which is between her and the target.
-    return ab;
-}
-
-/**
  * Get the time where any unreplied requests older than that should be timed out.
  * This implementation times out after twice the global mean response time.
  *
@@ -324,6 +257,8 @@ static inline void cleanup(struct SearchStore* store,
         child = parent;
         parent = parent->next;
     }
+
+    SearchStore_freeSearch(search);
 }
 
 /**
