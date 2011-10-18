@@ -1,11 +1,12 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <event2/event.h>
 
 #include "dht/DHTModules.h"
 #include "dht/SerializationModule.h"
 #include "dht/ReplyModule.h"
-#include "dht/RouterModule.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -16,15 +17,15 @@
 
 int main()
 {
-    char buffer[10000];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 10000);
+    char buffer[700000];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 700000);
     struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
 
     // Load the core
     ReplyModule_register(registry, allocator);
 
     // Router stub which will put our id on everything.
-    RouterModule_register(registry, allocator, "zyxwvutsrqponmlkjihg");
+    RouterModule_register(registry, allocator, (uint8_t*) "zyxwvutsrqponmlkjihg", event_base_new());
 
     struct DHTStoreRegistry* storeRegistry = DHTStoreModule_register(20, registry, allocator);
     PeerAddressStore_register(storeRegistry, allocator);

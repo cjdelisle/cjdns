@@ -234,7 +234,8 @@ static void writeMessage(struct DHTMessage* message,
     if (context->log != NULL) {
         fprintf(context->log, (sizeof(long int) == 8) ? "\n%d %ld " : "\n%d %lld ",
                 message->length, context->messageCounter);
-        fwrite(message->bytes, 1, message->length, context->log);
+        uint32_t discard = fwrite(message->bytes, 1, message->length, context->log);
+        discard = discard;
     }
 }
 

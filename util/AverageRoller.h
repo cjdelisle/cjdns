@@ -5,20 +5,23 @@
 
 #include "memory/MemAllocator.h"
 
+struct AverageRoller;
+
 /**
  * Create a new AverageRoller.
  *
  * @param windowSeconds the number of seconds the average should run over.
+ * @return a new roller.
  */
-void* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator);
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator);
 
 /**
  * Get the average.
  *
- * @param vcontext the roller context created by AverageRoller_new()
+ * @param roller the roller context created by AverageRoller_new()
  * @return the average over the last windowSeconds active seconds.
  */
-uint32_t AverageRoller_getAverage(void* vcontext);
+uint32_t AverageRoller_getAverage(struct AverageRoller* roller);
 
 /**
  * Update the roller with a new entry and get the average.
@@ -27,10 +30,10 @@ uint32_t AverageRoller_getAverage(void* vcontext);
  * provides some forgiveness to the average since it will not drop to 0 if windowSeconds
  * seconds elapse with no update.
  *
- * @param vcontext the roller context created by AverageRoller_new()
+ * @param roller the roller context created by AverageRoller_new()
  * @param newEntry the a new number to be factored into the average.
  * @return the average over the last windowSeconds active seconds.
  */
-uint32_t AverageRoller_update(void* vcontext, const uint32_t newEntry);
+uint32_t AverageRoller_update(struct AverageRoller* roller, const uint32_t newEntry);
 
 #endif

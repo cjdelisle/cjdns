@@ -397,12 +397,16 @@ static int32_t serializeGeneric(const struct Writer* writer,
     {
         case BENC_BSTR:
             return serializeString(writer, obj->as.bstr);
+            break;
         case BENC_DICT:
             return serializeDictionary(writer, obj->as.dictionary);
+            break;
         case BENC_LIST:
             return serializeList(writer, obj->as.list);
+            break;
         case BENC_INT:
             return serializeInteger(writer, obj->as.int_);
+            break;
         default:
             return -2;
     }

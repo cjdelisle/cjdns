@@ -45,10 +45,8 @@ struct AverageRoller
     struct SumAndEntryCount seconds[1];
 };
 
-/**
- * @see AverageRoller.h
- */
-void* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator)
+/** @see AverageRoller.h */
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator)
 {
     struct AverageRoller* roller = allocator->calloc(
         sizeof(struct AverageRoller) + (sizeof(struct SumAndEntryCount) * (windowSeconds - 1)),
@@ -64,12 +62,10 @@ void* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator*
     return roller;
 }
 
-/**
- * @see AverageRoller.h
- */
-uint32_t AverageRoller_getAverage(void* vcontext)
+/** @see AverageRoller.h */
+uint32_t AverageRoller_getAverage(struct AverageRoller* roller)
 {
-    return ((struct AverageRoller*) vcontext)->average;
+    return roller->average;
 }
 
 /**
@@ -80,7 +76,7 @@ uint32_t AverageRoller_getAverage(void* vcontext)
  * @param newEntry the a new number to be factored into the average.
  * @return the average over the last windowSeconds seconds.
  */
-static uint32_t update(struct AverageRoller* roller, const time_t now, const uint32_t newEntry)
+static inline uint32_t update(struct AverageRoller* roller, const time_t now, const uint32_t newEntry)
 {
     uint32_t index =
         (now - roller->lastUpdateTime + roller->lastUpdateIndex) % roller->windowSeconds;
@@ -103,10 +99,8 @@ static uint32_t update(struct AverageRoller* roller, const time_t now, const uin
     return roller->average;
 }
 
-/**
- * @see AverageRoller.h
- */
-uint32_t AverageRoller_update(void* vcontext, const uint32_t newEntry)
+/** @see AverageRoller.h */
+uint32_t AverageRoller_update(struct AverageRoller* roller, const uint32_t newEntry)
 {
-    return update((struct AverageRoller*) vcontext, time(NULL), newEntry);
+    return update(roller, time(NULL), newEntry);
 }

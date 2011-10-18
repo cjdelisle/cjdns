@@ -1,5 +1,6 @@
 add_definitions(-std=gnu99)
+remove_definitions(-O3)
 
 add_library(juliusz dht_modified.c)
 #to prevent linker errors this lib must link the dhtcore library which links it.
-target_link_libraries(juliusz net dhtcore)
+target_link_libraries(juliusz net dhtoldcore)

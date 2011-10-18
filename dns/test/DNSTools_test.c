@@ -8,7 +8,7 @@ int testGetDomainLabel()
     const char* labels[11] =
         {"tld", "irc", "on", "see", "might", "you", "which", "domain", "a", "is", "this"};
     int i = 0;
-    int ret;
+    int ret = 0;
     char buffer[256];
     while (ret != -1) {
         ret = DNSTools_getDomainLabel(domain, i, buffer, 256);

@@ -37,14 +37,20 @@ void ReplyModule_register(struct DHTModuleRegistry* registry, const struct MemAl
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
+    String* messageType = benc_lookupString(message->asDict, &DHTConstants_messageType);
+    if (!benc_stringEquals(messageType, &DHTConstants_query)) {
+        return 0;
+    }
+
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
 
-    struct DHTMessage reply = {
-        .replyTo = message,
-        .allocator = message->allocator
-    };
+    struct DHTMessage* reply =
+        message->allocator->clone(sizeof(struct DHTMessage), message->allocator, &(struct DHTMessage) {
+            .replyTo = message,
+            .allocator = message->allocator
+        });
 
-    DHTModules_handleOutgoing(&reply, registry);
+    DHTModules_handleOutgoing(reply, registry);
 
     return 0;
 }

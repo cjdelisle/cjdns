@@ -1,7 +1,13 @@
 project(util C)
 cmake_minimum_required(VERSION 2.4)
 
-add_library(util AverageRoller.c)
+find_package(Libevent2 REQUIRED)
+
+add_library(util
+    AverageRoller.c
+    Timeout.c
+)
+target_link_libraries(util MemAllocator ${LIBEVENT2_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()

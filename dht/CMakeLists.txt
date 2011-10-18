@@ -2,6 +2,7 @@ find_package(Libevent2 REQUIRED)
 
 add_subdirectory(core)
 add_subdirectory(dhtstore)
+add_subdirectory(dhtcore)
 
 add_library(dht
     DHTModules.c
@@ -10,7 +11,6 @@ add_library(dht
     DebugModule.c
     DHTConstants.c
     ReplyModule.c
-    RouterModule.c
     SanityModule.c
     RateLimitModule.c
 )
