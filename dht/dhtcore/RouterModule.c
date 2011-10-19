@@ -2,10 +2,6 @@
 #include <stdint.h>
 #include <event2/event.h>
 
-#ifdef IS_TESTING
-    #include <assert.h>
-#endif
-
 #include "dht/dhtcore/AddrPrefix.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/Node.h"
@@ -22,25 +18,18 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 
-/**
+/*
  * The router module is the central part of the DHT engine.
  * It's job is to maintain a routing table which is updated by all incoming packets.
- * When it gets an incoming find_node or get_* request, it's job is to add nodes to the reply
- * so that the asking node can find other nodes which are closer to it's target than us.
+ * When it gets an incoming query, it's job is to add nodes to the reply so that the asking node
+ * can find other nodes which are closer to it's target than us.
  *
  * This implementation does not split nodes explicitly into buckets not does it explicitly try to
  * distinguish between "good" and "bad" nodes. Instead it tries to determine which node will help
  * get to the requested record the fastest. Instead of periodicly pinging a random node in each
  * "bucket", this implementation periodically searches for a random[1] hash. When a node is sent a
- * find_node request, the response time ratio is subtracted from the distance[2] between it and the
- * first node in it's response making a number which represents the node's "reach".
- *
- * The response time ratio is a number ranging between 0 and UINT32_MAX which is a function of the
- * amount of time it takes for a node to respond and the global mean response time.
- * See: calculateResponseTimeRatio() for more information about how it is derived.
- *
- * The global mean response time is the average amount of time it takes a node to respond to a
- * find_node request. It is a rolling average over the past 256 seconds.
+ * query, the the distance[2] between it and the first node is divided by the amount of time it takes
+ * the node to respond making a number which represents the node's "reach".
  *
  * Visually representing a node as an area whose location is defined by the node id and it's size is
  * defined by the node reach, you can see that there is a possibility for a record to be closer in
@@ -51,7 +40,6 @@
  *                      |<--- Node 2 ---->|
  *                         ^----- Desired record location.
  *
- * Nodes who time out will have a reach set to 0 so bad/dead nodes are ignored but not removed.
  * New nodes are inserted into the table but with a reach of 0. It is up to the search client to
  * send search requests to them so they can prove their validity and have their reach number
  * updated.
@@ -65,6 +53,7 @@
  * periodically by a configuration parameter reachDecreasePerSecond times the number of seconds in
  * the last period. Reach numbers which are already equal to 0 are left there.
  *
+ * TODO
  * In order to have the nodes with least distance:reach ratio ready to handle any incoming search,
  * we precompute the borders where the "best next node" changes. This computation is best understood
  * by graphing the nodes with their location in keyspace on the X axis and their reach on the Y
@@ -89,38 +78,33 @@
  * only to limit clutter, they are the same nodeA and nodeB.
  *
  * When resolving a search, this implementation will lookup the location of the searched for record
- * and return the nodes which belong to the insides of the nearest 8 borders, this guarantees return
+ * and return the nodes which belong to the insides of the nearest K borders, this guarantees return
  * of the nodes whose distance:reach ratio is the lowest for that location.
  *
  * This implementation must never respond to a search by sending any node who's id is not closer
  * to the target than it's own. Such an event would lead to the possibility of "routing loops" and
- * must be prevented. This node's "opinion of it's own reach" is defined as equal to the reach of
- * the longest reaching node which it knows. Searches forwhich this node has the lowest
- * distance:reach ratio will be replied to with nodes which have 0 reach but are closer than this
- * node or, if there are no such nodes, no nodes at all.
+ * must be prevented. Searches forwhich this node has the lowest distance:reach ratio will be replied
+ * to with nodes which have 0 reach but are closer than this node or, if there are no such nodes,
+ * no nodes at all.
  *
  * The search consumer in this routing module tries to minimize the amount of traffic sent when
- * doing a lookup. To achieve this, it sends a request only to the first node in the search response
+ * doing a lookup. To achieve this, it sends a request only to the last node in the search response
  * packet, after the global mean response time has passed without it getting a response, it sends
- * requests to the second third and forth nodes. If after the global mean response time has passed
- * again and it still has not gotten any responses, it will finally send requests to the fifth,
- * sixth, seventh, and eighth nodes.
+ * requests to the second to last and so forth, working backward.
+ *
+ * The global mean response time is the average amount of time it takes a node to respond to a
+ * find_node request. It is a rolling average over the past 256 seconds.
  *
  * In order to minimize the number of searches which must be replied to with 0 reach nodes because
  * this node is the closest non 0 reach node to the record, this implementation runs periodic
- * searches for random locations where it is the node with the lowest distance:reach ratio.
- * These searches are run periodicly every number of seconds given by the configuration parameter
+ * searches for random locations where it is the closest node (in keyspace). These searches are run
+ * every number of seconds given by the configuration parameter
  * localMaintainenceSearchPeriod.
  *
  * To maximize the quality of service offered by this node and to give other nodes who have 0 reach
  * a chance to prove that they can handle searches, this implementation will repeat searches which
- * it handles every number of seconds given by the configuration parameter
+ * it handles every number of seconds given by the configuration parameter:
  * globalMaintainenceSearchPeriod.
- *
- * A node which has not responded to a search request in a number of seconds given by the
- * configuration parameter searchTimeoutSeconds will have it's reach set to 0. If a node does this
- * a number of times in a row given by the configuration parameter maxTimeouts, it will be removed
- * from the routing table entirely.
  *
  * [1] The implementation runs periodic searches for random hashes but unless the search target
  *     falls within it's own reach footprint (where this node has the lowest distance:reach ratio)
