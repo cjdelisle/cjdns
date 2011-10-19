@@ -451,7 +451,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return handleReply(message, (struct RouterModule*) vcontext);
     } else {
         return 0;
-    }    
+    }
 }
 
 static inline int handleQuery(struct DHTMessage* message,
@@ -582,7 +582,7 @@ int32_t RouterModule_beginSearch(String* requestType,
                 searchTargetString,
                 &DHTConstants_infoHash,
                 module);
-    
+
     SearchStore_requestSent(firstSearchNode, module->searchStore);
 
     struct SearchCallbackContext* scc =
