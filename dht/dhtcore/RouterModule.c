@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "dht/dhtcore/AddrPrefix.h"
+#include "dht/dhtcore/LocalMaintenanceSearcher.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModuleInternal.h"
 #include "dht/dhtcore/Node.h"
@@ -134,6 +135,12 @@
 /** The number of nodes which we will keep track of. */
 #define NODE_STORE_SIZE 16384
 
+/**
+ * The number of milliseconds between attempting local maintenance searches.
+ * These searches will only happen if this is the closest node so the number only has
+ * any effect on cold start.
+ */
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 750
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
@@ -170,6 +177,12 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->nodeStore = NodeStore_new(myAddress, NODE_STORE_SIZE, allocator);
     out->registry = registry;
     out->eventBase = eventBase;
+
+    LocalMaintenanceSearcher_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                                 out,
+                                 out->nodeStore,
+                                 allocator,
+                                 eventBase);
     return out;
 }
 

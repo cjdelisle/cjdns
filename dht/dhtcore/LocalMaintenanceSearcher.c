@@ -5,6 +5,7 @@
 #include "crypto/Crypto.h"
 #include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
+#include "dht/dhtcore/LocalMaintenanceSearcher.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -21,7 +22,7 @@
  * searches early on but as the number of known nodes increases, it begins to taper off.
  */
 
-struct LocalMaintainenceSearcher
+struct LocalMaintenanceSearcher
 {
     struct RouterModule* routerModule;
 
@@ -41,7 +42,7 @@ static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
 
 static void runSearch(void* vcontext)
 {
-    struct LocalMaintainenceSearcher* searcher = (struct LocalMaintainenceSearcher*) vcontext;
+    struct LocalMaintenanceSearcher* searcher = (struct LocalMaintenanceSearcher*) vcontext;
 
     uint8_t searchTarget[20];
     Crypto_randomize(&(String) { .len = 20, .bytes = (char*) &searchTarget });
@@ -62,14 +63,14 @@ static void runSearch(void* vcontext)
      }
 }
 
-struct LocalMaintainenceSearcher* LocalMaintainenceSearcher_new(uint64_t milliseconds,
-                                                                struct RouterModule* routerModule,
-                                                                struct NodeStore* nodeStore,
-                                                                struct MemAllocator* allocator,
-                                                                struct event_base* eventBase)
+struct LocalMaintenanceSearcher* LocalMaintenanceSearcher_new(uint64_t milliseconds,
+                                                              struct RouterModule* routerModule,
+                                                              struct NodeStore* nodeStore,
+                                                              struct MemAllocator* allocator,
+                                                              struct event_base* eventBase)
 {
-    struct LocalMaintainenceSearcher* searcher =
-        allocator->malloc(sizeof(struct LocalMaintainenceSearcher), allocator);
+    struct LocalMaintenanceSearcher* searcher =
+        allocator->malloc(sizeof(struct LocalMaintenanceSearcher), allocator);
 
     searcher->routerModule = routerModule;
     searcher->nodeStore = nodeStore;

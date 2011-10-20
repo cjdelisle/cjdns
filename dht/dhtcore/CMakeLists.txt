@@ -4,10 +4,10 @@ add_library(dhtcore
     NodeStore.c
     RouterModule.c
     SearchStore.c
-    LocalMaintainenceSearcher.c
+    LocalMaintenanceSearcher.c
 )
 
-target_link_libraries(dhtcore benc util ${LIBEVENT2_LIBRARIES})#dhtstore)
+target_link_libraries(dhtcore benc util crypto ${LIBEVENT2_LIBRARIES})#dhtstore)
 
 # Everything must be tested.
 enable_testing()
