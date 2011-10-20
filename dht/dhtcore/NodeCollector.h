@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdbool.h>
 
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/AddrPrefix.h"
@@ -12,12 +13,19 @@ struct NodeCollector_Element
 /** Collects the nodes with the lowest distance:reach from the target. */
 struct NodeCollector
 {
+    /** Maximum size which the collector can grow to. */
     uint32_t capacity;
 
+    /** The prefix of the address we are looking for. */
     uint32_t targetPrefix;
 
+    /**
+     * The distance between this node and the address we are looking for
+     * set to UINT32_MAX if allowNodesFartherThanUs is true.
+     */
     uint32_t thisNodeDistance;
 
+    /** The array of collected nodes, capacity long. */
     struct NodeCollector_Element* nodes;
 };
 
@@ -30,12 +38,15 @@ struct NodeCollector
  * @param capacity the number of nodes to collect, if less than this number are added, some of the nodes
  *                 will remain NULL pointers.
  * @param thisNodeAddressPrefix the first 4 bytes in host order of this node's address.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
+ *                                this is required for searches but unallowable for answering queries.
  * @param allocator the means of getting memory to store the collector.
  * @return a new collector.
  */
 static struct NodeCollector* NodeCollector_new(const uint8_t targetAddress[20],
                                                const uint32_t capacity,
                                                const uint32_t thisNodeAddressPrefix,
+                                               const bool allowNodesFartherThanUs,
                                                const struct MemAllocator* allocator)
 {
     struct NodeCollector* out = allocator->malloc(sizeof(struct NodeCollector), allocator);
@@ -48,7 +59,11 @@ static struct NodeCollector* NodeCollector_new(const uint8_t targetAddress[20],
 
     out->capacity = capacity;
     out->targetPrefix = AddrPrefix_get(targetAddress);
-    out->thisNodeDistance = thisNodeAddressPrefix ^ out->targetPrefix;
+    if (allowNodesFartherThanUs) {
+        out->thisNodeDistance = UINT32_MAX;
+    } else {
+        out->thisNodeDistance = thisNodeAddressPrefix ^ out->targetPrefix;
+    }
     return out;
 }
 

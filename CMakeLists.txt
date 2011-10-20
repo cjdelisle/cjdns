@@ -29,7 +29,7 @@ add_definitions(
 # debugging
 add_definitions(-g)
 
-add_definitions(-O3)
+#add_definitions(-O3)
 
 
 include_directories(${CMAKE_SOURCE_DIR})

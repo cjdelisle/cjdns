@@ -1,9 +1,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <event2/event.h>
+#include <stdbool.h>
 
 #include "dht/dhtcore/AddrPrefix.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/RouterModuleInternal.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -29,7 +31,8 @@
  * get to the requested record the fastest. Instead of periodicly pinging a random node in each
  * "bucket", this implementation periodically searches for a random[1] hash. When a node is sent a
  * query, the the distance[2] between it and the first node is divided by the amount of time it takes
- * the node to respond making a number which represents the node's "reach".
+ * the node to respond, for each successful search, this number is added to an attribute of the node
+ * called "reach".
  *
  * Visually representing a node as an area whose location is defined by the node id and it's size is
  * defined by the node reach, you can see that there is a possibility for a record to be closer in
@@ -44,7 +47,7 @@
  * send search requests to them so they can prove their validity and have their reach number
  * updated.
  *
- * When a search is carried out, the next k returned nodes are not necessarily the closest known
+ * When a search is carried out, the next K returned nodes are not necessarily the closest known
  * nodes to the id of the record. The nodes returned will be the nodes with the lowest
  * distance:reach ratio. The distance:reach ratio is calculated by dividing the distance between
  * the node and the record by the node's reach number.
@@ -93,13 +96,11 @@
  * requests to the second to last and so forth, working backward.
  *
  * The global mean response time is the average amount of time it takes a node to respond to a
- * find_node request. It is a rolling average over the past 256 seconds.
+ * search query. It is a rolling average over the past 256 seconds.
  *
  * In order to minimize the number of searches which must be replied to with 0 reach nodes because
  * this node is the closest non 0 reach node to the record, this implementation runs periodic
- * searches for random locations where it is the closest node (in keyspace). These searches are run
- * every number of seconds given by the configuration parameter
- * localMaintainenceSearchPeriod.
+ * searches for random locations where it is the closest node (in keyspace).
  *
  * To maximize the quality of service offered by this node and to give other nodes who have 0 reach
  * a chance to prove that they can handle searches, this implementation will repeat searches which
@@ -110,7 +111,8 @@
  *     falls within it's own reach footprint (where this node has the lowest distance:reach ratio)
  *     the search is not preformed. This means that the node will send out lots of searches early
  *     on when it is training in the network but as it begins to know other nodes with reach,
- *     the contrived searches taper off.
+ *     the contrived searches taper off. These searches are run every number of milliseconds given
+ *     by the configuration parameter localMaintainenceSearchPeriod.
  *
  * [2] If a response "overshoots" the record requested then it is calculated as if it had undershot
  *     by the same amount so as not to provide arbitrage advantage to nodes who return results which
@@ -132,31 +134,6 @@
 /** The number of nodes which we will keep track of. */
 #define NODE_STORE_SIZE 16384
 
-/** The number of nodes to return in a search query. */
-#define RETURN_SIZE 8
-
-
-/*--------------------Structures--------------------*/
-
-/** The context for this module. */
-struct RouterModule
-{
-    /** A bencoded string with this node's address tag. */
-    String* myAddress;
-
-    /** An AverageRoller for calculating the global mean response time. */
-    void* gmrtRoller;
-
-    struct SearchStore* searchStore;
-
-    struct NodeStore* nodeStore;
-
-    /** The registry which is needed so that we can send messages. */
-    struct DHTModuleRegistry* registry;
-
-    /** The libevent event base for handling timeouts. */
-    struct event_base* eventBase;
-};
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
@@ -365,7 +342,7 @@ struct SearchCallbackContext
 {
     struct RouterModule* const routerModule;
 
-    int32_t (* const resultCallback)(void* callbackContext, struct DHTMessage* result);
+    bool (* const resultCallback)(void* callbackContext, struct DHTMessage* result);
 
     void* const resultCallbackContext;
 
@@ -482,6 +459,7 @@ static inline int handleQuery(struct DHTMessage* message,
     struct NodeList* nodeList = NodeStore_getClosestNodes(module->nodeStore,
                                                           (uint8_t*) target->bytes,
                                                           RouterModule_K,
+                                                          false,
                                                           message->allocator);
 
     String* nodes = message->allocator->malloc(sizeof(String), message->allocator);
@@ -540,23 +518,25 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
  * @param requestType the type of request to send EG: "find_node" or "get_peers".
  * @param searchTarget the address to look for.
  * @param callback the function to call when results come in for this search.
- * @param callbackContext a pointer which will be passed back to the RouterModule_SearchCallback
- *                        when it is called.
+ * @param callbackContext a pointer which will be passed back to the callback when it is called.
  * @param module the router module which should perform the search.
  * @return 0 if all goes well, -1 if the search could not be completed because there are no nodes
  *         closer to the destination than us.
  */
 int32_t RouterModule_beginSearch(String* requestType,
                                  const uint8_t searchTarget[20],
-                                 int32_t (* const callback)(void* callbackContext,
-                                                            struct DHTMessage* result),
+                                 bool (* const callback)(void* callbackContext,
+                                                         struct DHTMessage* result),
                                  void* callbackContext,
                                  struct RouterModule* module)
 {
     struct SearchStore_Search* search = SearchStore_newSearch(searchTarget, module->searchStore);
     struct MemAllocator* searchAllocator = SearchStore_getAllocator(search);
-    struct NodeList* nodes =
-        NodeStore_getClosestNodes(module->nodeStore, searchTarget, RETURN_SIZE, searchAllocator);
+    struct NodeList* nodes = NodeStore_getClosestNodes(module->nodeStore,
+                                                       searchTarget,
+                                                       RouterModule_K,
+                                                       true,
+                                                       searchAllocator);
 
     if (nodes->size == 0) {
         // no nodes found!

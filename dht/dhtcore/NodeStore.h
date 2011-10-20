@@ -2,6 +2,7 @@
 #define NODE_STORE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "memory/MemAllocator.h"
 
@@ -45,10 +46,13 @@ void NodeStore_addNode(struct NodeStore* store,
  * @param store the store to get the nodes from.
  * @param targetAddress the address to get the bast nodes for.
  * @param count the number of nodes to return.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
+ *                                this is required for searches but unallowable for answering queries.
  * @param allocator the memory allocator to use for getting the memory to store the output.
  */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const uint8_t targetAddress[20],
                                            const uint32_t count,
+                                           const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator);
 #endif

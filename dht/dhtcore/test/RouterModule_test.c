@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -6,7 +7,10 @@
 #include "dht/DHTModules.h"
 #include "dht/SerializationModule.h"
 #include "dht/ReplyModule.h"
+#include "dht/dhtcore/Node.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/RouterModuleInternal.h"
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -73,10 +77,10 @@ void testQuery(struct DHTMessage** outMessagePtr,
     assert(memcmp(outMessage->bytes, expectedResponse, strlen(expectedResponse)) == 0);
 }
 
-int32_t testSearch_callback(void* context, struct DHTMessage* message)
+bool testSearch_callback(void* context, struct DHTMessage* message)
 {
     *((struct DHTMessage**) context) = message;
-    return -1;
+    return true;
 }
 
 void testSearch(struct DHTMessage** outMessagePtr,
@@ -111,17 +115,17 @@ void testSearch(struct DHTMessage** outMessagePtr,
           "1:y" "1:q"                           \
         "e"
 
+    for (uint32_t i = 0; i < (uint32_t) outMessage->length; i++) {
+      //printf("%.2X", (unsigned int) outMessage->bytes[i] & 0xFF);
+    }
+    //printf("\n%s\n", outMessage->bytes);
+    //printf("\n%s\n",outMessage->peerAddress);
+
     assert(outMessage->length == strlen(EXPECTED_OUTPUT("xx")));
-    assert(memcmp(outMessage->bytes, EXPECTED_OUTPUT("\x00\x06"), outMessage->length) == 0);
+    assert(memcmp(outMessage->bytes, EXPECTED_OUTPUT("\x00\x07"), outMessage->length) == 0);
     assert(strcmp(outMessage->peerAddress, "000014") == 0);
 
     #undef EXPECTED_OUTPUT
-
-    //for (uint32_t i = 0; i < (uint32_t) outMessage->length; i++) {
-    //  printf("%.2X", (unsigned int) outMessage->bytes[i] & 0xFF);
-    //}
-    //printf("\n%s\n", outMessage->bytes);
-    //printf("\n%s\n",outMessage->peerAddress);
 
     #define CRAFTED_REPLY(tid) \
         "d"                                     \
@@ -145,7 +149,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
         .allocator = allocator,
         .addressLength = 6
     };
-    memcpy(message.bytes, CRAFTED_REPLY("\x00\x06"), message.length);
+    memcpy(message.bytes, CRAFTED_REPLY("\x00\x07"), message.length);
     memcpy(message.peerAddress, peerAddress, 18);
 
     *outMessagePtr = NULL;
@@ -154,6 +158,11 @@ void testSearch(struct DHTMessage** outMessagePtr,
 
     // Make sure the callback was called.
     assert(callbackMessage != NULL);
+
+    struct Node* node1 = NodeStore_getNode(routerModule->nodeStore, (uint8_t*) "onmlkjihgzyxwvutsrqp");
+    int32_t reach = node1->reach;
+    printf("\n%d\n", reach);
+    // TODO: why is the reach not being updated?
 
  /*   outMessage = *outMessagePtr;
     assert(outMessage != NULL);

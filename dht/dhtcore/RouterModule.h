@@ -2,6 +2,7 @@
 #define ROUTER_MODULE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <event2/event.h>
 
 #include "dht/DHTModules.h"
@@ -15,6 +16,7 @@
  */
 struct RouterModule;
 
+/** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
 /**
@@ -38,7 +40,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *                 This function will be called for every message
  *                 which is sent back to us as a result of this search.
  *                 It is the function's job to determine if the message has meaningful results.
- *                 if it returns anything but zero then the search is assumed to be complete.
+ *                 if it returns true then the search is assumed to be complete.
  * @param callbackContext a pointer which will be passed back to the callback when it is called.
  * @param module the router module which should perform the search.
  * @return 0 if all goes well, -1 if the search could not be completed because there are no nodes
@@ -46,8 +48,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 int32_t RouterModule_beginSearch(String* requestType,
                                  const uint8_t target[20],
-                                 int32_t (* const callback)(void* callbackContext,
-                                                            struct DHTMessage* result),
+                                 bool (* const callback)(void* callbackContext,
+                                                         struct DHTMessage* result),
                                  void* callbackContext,
                                  struct RouterModule* module);
 

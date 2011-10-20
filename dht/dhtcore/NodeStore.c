@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -53,7 +55,7 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, const uint8_t addr
     uint32_t bestReach = 0;
     for (int32_t i = 0; i < (int32_t) store->size; i++) {
         if (pfx == store->headers[i].addressPrefix
-            && store->headers[i].reach > bestReach
+            && store->headers[i].reach >= bestReach
             && memcmp(address, store->nodes[i].address, 20) == 0)
         {
             bestIndex = i;
@@ -149,11 +151,15 @@ void NodeStore_addNode(struct NodeStore* store,
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const uint8_t targetAddress[20],
                                            const uint32_t count,
+                                           const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator)
 {
     struct MemAllocator* tempAllocator = allocator->child(allocator);
-    struct NodeCollector* collector =
-        NodeCollector_new(targetAddress, count, store->thisNodePrefix, tempAllocator);
+    struct NodeCollector* collector = NodeCollector_new(targetAddress,
+                                                        count,
+                                                        store->thisNodePrefix,
+                                                        allowNodesFartherThanUs,
+                                                        tempAllocator);
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
