@@ -31,9 +31,9 @@
  * distinguish between "good" and "bad" nodes. Instead it tries to determine which node will help
  * get to the requested record the fastest. Instead of periodicly pinging a random node in each
  * "bucket", this implementation periodically searches for a random[1] hash. When a node is sent a
- * query, the the distance[2] between it and the first node is divided by the amount of time it takes
- * the node to respond, for each successful search, this number is added to an attribute of the node
- * called "reach".
+ * query, the the distance[2] between it and the first node is divided by the amount of time it
+ * takes the node to respond, for each successful search, this number is added to an attribute of
+ * the node called "reach".
  *
  * Visually representing a node as an area whose location is defined by the node id and it's size is
  * defined by the node reach, you can see that there is a possibility for a record to be closer in
@@ -53,6 +53,7 @@
  * distance:reach ratio. The distance:reach ratio is calculated by dividing the distance between
  * the node and the record by the node's reach number.
  *
+ * TODO
  * Since information about a node becomes stale over time, all reach numbers are decreased
  * periodically by a configuration parameter reachDecreasePerSecond times the number of seconds in
  * the last period. Reach numbers which are already equal to 0 are left there.
@@ -87,9 +88,9 @@
  *
  * This implementation must never respond to a search by sending any node who's id is not closer
  * to the target than it's own. Such an event would lead to the possibility of "routing loops" and
- * must be prevented. Searches forwhich this node has the lowest distance:reach ratio will be replied
- * to with nodes which have 0 reach but are closer than this node or, if there are no such nodes,
- * no nodes at all.
+ * must be prevented. Searches for which this node has the lowest distance:reach ratio will be
+ * replied to with nodes which have 0 reach but are closer than this node or, if there are no such
+ * nodes, no nodes at all.
  *
  * The search consumer in this routing module tries to minimize the amount of traffic sent when
  * doing a lookup. To achieve this, it sends a request only to the last node in the search response
@@ -99,13 +100,9 @@
  * The global mean response time is the average amount of time it takes a node to respond to a
  * search query. It is a rolling average over the past 256 seconds.
  *
- * In order to minimize the number of searches which must be replied to with 0 reach nodes because
- * this node is the closest non 0 reach node to the record, this implementation runs periodic
- * searches for random locations where it is the closest node (in keyspace).
- *
- * To maximize the quality of service offered by this node and to give other nodes who have 0 reach
- * a chance to prove that they can handle searches, this implementation will repeat searches which
- * it handles every number of seconds given by the configuration parameter:
+ * TODO
+ * To maximize the quality of service offered by this node this implementation will repeat
+ * searches which it handles every number of seconds given by the configuration parameter:
  * globalMaintainenceSearchPeriod.
  *
  * [1] The implementation runs periodic searches for random hashes but unless the search target
@@ -119,6 +116,11 @@
  *     by the same amount so as not to provide arbitrage advantage to nodes who return results which
  *     are very far away yet very inaccurate. If it overshoots by more than the distance between the
  *     node and the searched for location (this should never happen), it is considered to be 0.
+ */
+
+/*
+ * NOTES:
+ * TODO what happens if there is a search and the result is not found, ever?
  */
 
 /*--------------------Constants--------------------*/
@@ -195,8 +197,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
 {
-    return
-        Time_currentTimeMilliseconds() - (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2);
+    return Time_currentTimeMilliseconds()
+        - (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2);
 }
 
 /**
@@ -248,6 +250,15 @@ static inline uint32_t calculateDistance(const uint32_t nodeIdPrefix,
     return ab;
 }
 
+/**
+ * Called when a search has completed.
+ * Frees the memory that was used in the search and adjusts the reach of the participating nodes.
+ *
+ * @param store the SearchStore which carried out the search.
+ * @param lastNode the last node to respond (presumably with results.)
+ * @param targetAddress the address of the thing we're looking for.
+ * @param module this router module.
+ */
 static inline void cleanup(struct SearchStore* store,
                            struct SearchStore_Node* lastNode,
                            uint8_t targetAddress[20],
@@ -278,8 +289,10 @@ static inline void cleanup(struct SearchStore* store,
         if (parentNode != NULL) {
             // anti-divide-by-0 hack
             milliseconds += parent->delayUntilReply | 1;
-            // ORing the reach is a possible solution to avoid number rollover. TODO: is this a good idea?
-            parentNode->reach |= calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            // ORing the reach is a possible solution to avoid number rollover.
+            // TODO: is this a good idea?
+            parentNode->reach |=
+                calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
             NodeStore_updateReach(parentNode, module->nodeStore);
         }
 
@@ -355,30 +368,50 @@ static void sendRequest(uint8_t networkAddress[6],
     DHTModules_handleOutgoing(&message, module->registry);
 }
 
-
+/**
+ * A context for the internals of a search.
+ */
 struct SearchCallbackContext
 {
+    /** The router module carrying out the search. */
     struct RouterModule* const routerModule;
 
+    /** The callback to call with results. */
     bool (* const resultCallback)(void* callbackContext, struct DHTMessage* result);
 
+    /** A context to pass when calling the results callback. */
     void* const resultCallbackContext;
 
+    /** The address which we are searching for. */
     String* const target;
 
+    /** The timeout event for this search. */
     struct Timeout* const timeout;
 
+    /**
+     * The SearchStore_Search structure for this search,
+     * used to keep track of which nodes are participating.
+     */
     struct SearchStore_Search* search;
 
+    /** The type of query which we send in this search IE: find_node or get_peers. */
     String* const requestType;
 };
 
+/**
+ * Send a search request to the next node in this search.
+ * This is called whenever a response comes in or after the global mean response time passes.
+ *
+ * @param vcontext the SearchCallbackContext for this search.
+ */
 static void searchStep(void* vcontext)
 {
     struct SearchCallbackContext* context = (struct SearchCallbackContext*) vcontext;
     struct RouterModule* module = context->routerModule;
     struct MemAllocator* searchAllocator = SearchStore_getAllocator(context->search);
-    struct SearchStore_Node* nextSearchNode = SearchStore_getNextNode(context->search, searchAllocator);
+
+    struct SearchStore_Node* nextSearchNode =
+        SearchStore_getNextNode(context->search, searchAllocator);
 
     sendRequest(nextSearchNode->networkAddress,
                 context->requestType,
@@ -391,6 +424,15 @@ static void searchStep(void* vcontext)
     Timeout_resetTimeout(context->timeout, tryNextNodeAfter(module));
 }
 
+/**
+ * Handle an incoming reply to one of our queries.
+ * This will handle the reply on the incoming direction.
+ *
+ * @param message the incoming reply message.
+ * @param module the router module context.
+ * @return 0 if the reply should be allowed to run through the rest of the modules,
+ *         -1 if it is blatently invalid and should be stopped.
+ */
 static inline int handleReply(struct DHTMessage* message, struct RouterModule* module)
 {
     Dict* arguments = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
@@ -401,7 +443,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     if (nodes == NULL || nodes->len % 26 != 0) {
         // this implementation only pings to get the address of a node, so lets add the node.
         String* address = benc_lookupString(arguments, &DHTConstants_myId);
-        NodeStore_addNode(module->nodeStore, (uint8_t*) address->bytes, (uint8_t*) message->peerAddress);
+        NodeStore_addNode(module->nodeStore,
+                          (uint8_t*) address->bytes,
+                          (uint8_t*) message->peerAddress);
         return -1;
     }
 
@@ -438,6 +482,10 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     return 0;
 }
 
+/**
+ * The only type of message we handle on the incoming side is
+ * a response to one of our queries.
+ */
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
     String* messageType = benc_lookupString(message->asDict, &DHTConstants_messageType);
@@ -451,7 +499,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
 /**
  * Handle an incoming search query.
- * This is setup to handle the *response* to the query, it should
+ * This is setup to handle the outgoing *response* to the query, it should
  * be called from handleOutgoing() and populate the response with nodes.
  *
  * @param message the empty response message to populate.
@@ -540,17 +588,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
     return 0;
 }
 
-/**
- * Start a search.
- *
- * @param requestType the type of request to send EG: "find_node" or "get_peers".
- * @param searchTarget the address to look for.
- * @param callback the function to call when results come in for this search.
- * @param callbackContext a pointer which will be passed back to the callback when it is called.
- * @param module the router module which should perform the search.
- * @return 0 if all goes well, -1 if the search could not be completed because there are no nodes
- *         closer to the destination than us.
- */
+/** See: RouterModule.h */
 int32_t RouterModule_beginSearch(String* requestType,
                                  const uint8_t searchTarget[20],
                                  bool (* const callback)(void* callbackContext,
