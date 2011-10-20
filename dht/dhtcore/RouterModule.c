@@ -250,8 +250,10 @@ static inline void cleanup(struct SearchStore* store,
                                 (uint8_t*) "Unused",
                                 evictUnrepliedIfOlderThan(module),
                                 search);
+    struct SearchStore_Node* fakeNode =
+        SearchStore_getNextNode(search, SearchStore_getAllocator(search));
 
-    struct SearchStore_TraceElement* child = SearchStore_backTrace(lastNode, store);
+    struct SearchStore_TraceElement* child = SearchStore_backTrace(fakeNode, store);
     struct SearchStore_TraceElement* parent = child->next;
     const uint32_t targetPrefix = AddrPrefix_get(targetAddress);
     uint32_t milliseconds = 0;
@@ -259,10 +261,13 @@ static inline void cleanup(struct SearchStore* store,
     while (parent != NULL) {
         uint32_t parentPrefix = AddrPrefix_get(parent->address);
         struct Node* parentNode = NodeStore_getNode(module->nodeStore, parent->address);
+        // If parentNode is NULL then it must have been replaced in the node store.
         if (parentNode != NULL) {
-            // If parentNode is NULL then it must have been replaced in the node store.
-            milliseconds += parent->delayUntilReply;
-            parentNode->reach += calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            // anti-divide-by-0 hack
+            milliseconds += parent->delayUntilReply | 1;
+            // ORing the reach is a possible solution to avoid number rollover. TODO: is this a good idea?
+            parentNode->reach |= calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            NodeStore_updateReach(parentNode, module->nodeStore);
         }
 
         child = parent;
@@ -431,6 +436,16 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     }
 }
 
+/**
+ * Handle an incoming search query.
+ * This is setup to handle the *response* to the query, it should
+ * be called from handleOutgoing() and populate the response with nodes.
+ *
+ * @param message the empty response message to populate.
+ * @param replyArgs the arguments dictionary in the response (to be populated).
+ * @param module the routing module context.
+ * @return 0 as long as the packet should not be stopped (at this point always 0).
+ */
 static inline int handleQuery(struct DHTMessage* message,
                               Dict* replyArgs,
                               struct RouterModule* module)

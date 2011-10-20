@@ -90,7 +90,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
 {
     *outMessagePtr = NULL;
 
-    #define REQUEST_HASH "onmlkjihgzyxwvutsrqZ"
+    #define REQUEST_HASH "on0lkjihgzyxwvutsrqZ"
 
     struct DHTMessage* callbackMessage = NULL;
 
@@ -159,10 +159,9 @@ void testSearch(struct DHTMessage** outMessagePtr,
     // Make sure the callback was called.
     assert(callbackMessage != NULL);
 
+    // Make sure the node was promoted for it's fine service :P
     struct Node* node1 = NodeStore_getNode(routerModule->nodeStore, (uint8_t*) "onmlkjihgzyxwvutsrqp");
-    int32_t reach = node1->reach;
-    printf("\n%d\n", reach);
-    // TODO: why is the reach not being updated?
+    assert(node1->reach == 23808);
 
  /*   outMessage = *outMessagePtr;
     assert(outMessage != NULL);

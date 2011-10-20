@@ -55,4 +55,15 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const uint32_t count,
                                            const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator);
+
+/**
+ * Change the reach of a node in the NodeStore.
+ * Just changing the reach number will have no effect unless it is "committed"
+ * by calling NodeStore_updateReach().
+ *
+ * @param node the node to update.
+ * @param store the store where that node is contained.
+ */
+void NodeStore_updateReach(struct Node* const node,
+                           struct NodeStore* const store);
 #endif

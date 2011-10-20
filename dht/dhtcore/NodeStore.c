@@ -182,3 +182,10 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
     tempAllocator->free(tempAllocator);
     return out;
 }
+
+/** See: NodeStore.h */
+void NodeStore_updateReach(struct Node* const node,
+                           struct NodeStore* const store)
+{
+    store->headers[node - store->nodes].reach = node->reach;
+}
