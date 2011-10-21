@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #include "dht/dhtcore/AddrPrefix.h"
-#include "dht/dhtcore/LocalMaintenanceSearcher.h"
+#include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModuleInternal.h"
 #include "dht/dhtcore/Node.h"
@@ -53,10 +53,9 @@
  * distance:reach ratio. The distance:reach ratio is calculated by dividing the distance between
  * the node and the record by the node's reach number.
  *
- * TODO
  * Since information about a node becomes stale over time, all reach numbers are decreased
- * periodically by a configuration parameter reachDecreasePerSecond times the number of seconds in
- * the last period. Reach numbers which are already equal to 0 are left there.
+ * periodically by 1/8 the average reach. Reach numbers which are already equal to 0 are left there.
+ * See: Janitor.c amountToDecreaseReach() for more information.
  *
  * TODO
  * In order to have the nodes with least distance:reach ratio ready to handle any incoming search,
@@ -180,11 +179,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->registry = registry;
     out->eventBase = eventBase;
 
-    LocalMaintenanceSearcher_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                                 out,
-                                 out->nodeStore,
-                                 allocator,
-                                 eventBase);
+    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS, out, out->nodeStore, allocator, eventBase);
     return out;
 }
 
@@ -289,10 +284,13 @@ static inline void cleanup(struct SearchStore* store,
         if (parentNode != NULL) {
             // anti-divide-by-0 hack
             milliseconds += parent->delayUntilReply | 1;
+            uint32_t oldReach = parentNode->reach;
             // ORing the reach is a possible solution to avoid number rollover.
             // TODO: is this a good idea?
-            parentNode->reach |=
-                calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            uint32_t newReach =
+                oldReach | calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            parentNode->reach = newReach;
+            module->totalReach += newReach - oldReach;
             NodeStore_updateReach(parentNode, module->nodeStore);
         }
 

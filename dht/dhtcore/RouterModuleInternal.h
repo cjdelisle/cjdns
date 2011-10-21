@@ -11,9 +11,14 @@ struct RouterModule
     /** An AverageRoller for calculating the global mean response time. */
     void* gmrtRoller;
 
+    /** The storage for the searches which are in progress. */
     struct SearchStore* searchStore;
 
+    /** The storage for the nodes. */
     struct NodeStore* nodeStore;
+
+    /** The sum of reach of all nodes. */
+    uint64_t totalReach;
 
     /** The registry which is needed so that we can send messages. */
     struct DHTModuleRegistry* registry;

@@ -184,8 +184,30 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
 }
 
 /** See: NodeStore.h */
-void NodeStore_updateReach(struct Node* const node,
-                           struct NodeStore* const store)
+void NodeStore_updateReach(const struct Node* const node,
+                           const struct NodeStore* const store)
 {
     store->headers[node - store->nodes].reach = node->reach;
+}
+
+uint32_t NodeStore_size(const struct NodeStore* const store)
+{
+    return store->size;
+}
+
+uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
+                                 const struct NodeStore* const store)
+{
+    uint64_t out = 0;
+    for (uint32_t i = 0; i < store->size; i++) {
+        struct NodeHeader* header = &store->headers[i];
+        if (header->reach > decreaseReachBy) {
+            header->reach -= decreaseReachBy;
+            out += decreaseReachBy;
+        } else {
+            out += header->reach;
+            header->reach = 0;
+        }
+    }
+    return out;
 }

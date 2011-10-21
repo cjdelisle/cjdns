@@ -64,6 +64,11 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
  * @param node the node to update.
  * @param store the store where that node is contained.
  */
-void NodeStore_updateReach(struct Node* const node,
-                           struct NodeStore* const store);
+void NodeStore_updateReach(const struct Node* const node,
+                           const struct NodeStore* const store);
+
+uint32_t NodeStore_size(const struct NodeStore* const store);
+
+uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
+                                 const struct NodeStore* const store);
 #endif

@@ -5,10 +5,11 @@
 #include "crypto/Crypto.h"
 #include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
-#include "dht/dhtcore/LocalMaintenanceSearcher.h"
+#include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/RouterModuleInternal.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -22,7 +23,7 @@
  * searches early on but as the number of known nodes increases, it begins to taper off.
  */
 
-struct LocalMaintenanceSearcher
+struct Janitor
 {
     struct RouterModule* routerModule;
 
@@ -33,6 +34,16 @@ struct LocalMaintenanceSearcher
     struct MemAllocator* allocator;
 };
 
+/**
+ * Decrease reach for each node by the total reach divided by eight times the number of nodes.
+ * This will allow the reach to dearease slowly over time.
+ * the "or 1" is used to prevent division by zero.
+ */
+static inline uint32_t amountToDecreaseReach(struct Janitor* janitor)
+{
+    return janitor->routerModule->totalReach / ((NodeStore_size(janitor->nodeStore) * 8) | 1);
+}
+
 static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
 {
     callbackContext = callbackContext;
@@ -42,7 +53,7 @@ static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
 
 static void runSearch(void* vcontext)
 {
-    struct LocalMaintenanceSearcher* searcher = (struct LocalMaintenanceSearcher*) vcontext;
+    struct Janitor* const janitor = (struct Janitor*) vcontext;
 
     uint8_t searchTarget[20];
     Crypto_randomize(&(String) { .len = 20, .bytes = (char*) &searchTarget });
@@ -50,31 +61,37 @@ static void runSearch(void* vcontext)
     uint8_t tempBuffer[128];
     struct MemAllocator* tempAllocator = BufferAllocator_new(tempBuffer, sizeof(tempBuffer));
 
+    const uint32_t decreaseReachBy = amountToDecreaseReach(janitor);
+    janitor->routerModule->totalReach -= NodeStore_decreaseReach(decreaseReachBy, janitor->nodeStore);
+
     struct NodeList* nodes =
-        NodeStore_getClosestNodes(searcher->nodeStore, searchTarget, 1, false, tempAllocator);
+        NodeStore_getClosestNodes(janitor->nodeStore,
+                                  searchTarget,
+                                  1,
+                                  false,
+                                  tempAllocator);
 
      if (nodes->size == 0) {
          // We are the closest node, run a search.
          RouterModule_beginSearch(&DHTConstants_findNode,
                                   searchTarget,
                                   searchStepCallback,
-                                  searcher,
-                                  searcher->routerModule);
+                                  janitor,
+                                  janitor->routerModule);
      }
 }
 
-struct LocalMaintenanceSearcher* LocalMaintenanceSearcher_new(uint64_t milliseconds,
-                                                              struct RouterModule* routerModule,
-                                                              struct NodeStore* nodeStore,
-                                                              struct MemAllocator* allocator,
-                                                              struct event_base* eventBase)
+struct Janitor* Janitor_new(uint64_t milliseconds,
+                            struct RouterModule* routerModule,
+                            struct NodeStore* nodeStore,
+                            struct MemAllocator* allocator,
+                            struct event_base* eventBase)
 {
-    struct LocalMaintenanceSearcher* searcher =
-        allocator->malloc(sizeof(struct LocalMaintenanceSearcher), allocator);
+    struct Janitor* janitor = allocator->malloc(sizeof(struct Janitor), allocator);
 
-    searcher->routerModule = routerModule;
-    searcher->nodeStore = nodeStore;
-    searcher->timeout = Timeout_setInterval(runSearch, searcher, milliseconds, eventBase, allocator);
-    searcher->allocator = allocator;
-    return searcher;
+    janitor->routerModule = routerModule;
+    janitor->nodeStore = nodeStore;
+    janitor->timeout = Timeout_setInterval(runSearch, janitor, milliseconds, eventBase, allocator);
+    janitor->allocator = allocator;
+    return janitor;
 }
