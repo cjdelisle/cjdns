@@ -125,9 +125,7 @@ int Crypto_keySerializeParse_test()
 
     printf("\n\n\n\nThis is the key: ");
     size_t i;
-    unsigned int chr;
     for (i = 0; i < (size_t) length; i++) {
-        chr = (unsigned int) ser[i] & 0xFF;
         printf("\\x%.2X", (unsigned int) ser[i] & 0xFF);
     }
     printf("\n\n\n\n");

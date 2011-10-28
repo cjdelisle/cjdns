@@ -2,6 +2,7 @@
 #define BENC_H
 
 #include <stdint.h>
+#include <string.h>
 
 #include "memory/MemAllocator.h"
 
@@ -266,6 +267,12 @@ Object* benc_putList(Dict* putIntoThis,
 Dict* benc_newDictionary(const struct MemAllocator* allocator);
 
 /**
+ * Create a bencoded string from a null terminated string.
+ */
+#define benc_String(string) \
+    (&(benc_bstr_t) {strlen(string), string})
+
+/**
  * Create a new bencoded string from a C null terminated string.
  * This implementation will make a copy of the string into the memory provided by the allocator.
  *
@@ -280,6 +287,7 @@ String* benc_newString(const char* bytes, const struct MemAllocator* allocator);
  * This implementation will make a copy of the string into the memory provided by the allocator.
  *
  * @param bytes the beginning of a memory location containing thre string to use.
+                if NULL then this will make a new string of null characters.
  * @param length the number of bytes to use from the location.
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.

@@ -1,5 +1,4 @@
 add_library(dhtstore
-    DHTStoreConstants.c
     DHTStoreModule.c
     DHTStoreTools.c
     SHA1Store.c
