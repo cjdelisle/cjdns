@@ -3,10 +3,12 @@
 
 #include "libbenc/benc.h"
 
-#define DHTStoreConstants_VALUE      benc_String("v")
-#define DHTStoreConstants_KEY        benc_String("k")
-#define DHTStoreConstants_DATE       benc_String("date")
-#define DHTStoreConstants_SIGNATURE  benc_String("sig")
+// TODO: add header to check for unused first.
+#define __unused __attribute__((unused))
 
+static const __unused String* DHTStoreConstants_VALUE     = &(String) {1, "v"};
+static const __unused String* DHTStoreConstants_KEY       = &(String) {1, "k"};
+static const __unused String* DHTStoreConstants_DATE      = &(String) {4, "date"};
+static const __unused String* DHTStoreConstants_SIGNATURE = &(String) {3, "sig"};
 
 #endif
