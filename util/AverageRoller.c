@@ -81,7 +81,7 @@ static inline uint32_t update(struct AverageRoller* roller, const time_t now, co
     uint32_t index =
         (now - roller->lastUpdateTime + roller->lastUpdateIndex) % roller->windowSeconds;
 
-    if (now > roller->lastUpdateTime) {
+    if ((uint32_t) now > roller->lastUpdateTime) {
         roller->sum -= roller->seconds[index].sum;
         roller->entryCount -= roller->seconds[index].entryCount;
         roller->seconds[index].sum = newEntry;

@@ -2,7 +2,6 @@
 #define BENC_H
 
 #include <stdint.h>
-#include <string.h>
 
 #include "memory/MemAllocator.h"
 
@@ -265,12 +264,6 @@ Object* benc_putList(Dict* putIntoThis,
  * @param allocator the place to allocate the memory for storing the dictionary.
  */
 Dict* benc_newDictionary(const struct MemAllocator* allocator);
-
-/**
- * Create a bencoded string from a null terminated string.
- */
-#define benc_String(string) \
-    (&(benc_bstr_t) {strlen(string), string})
 
 /**
  * Create a new bencoded string from a C null terminated string.

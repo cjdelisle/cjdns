@@ -94,7 +94,8 @@ struct SearchStore_Search* SearchStore_newSearch(const uint8_t searchTarget[20],
     }
 
     struct MemAllocator* allocator = store->allocator->child(store->allocator);
-    struct SearchStore_Search* search = allocator->malloc(sizeof(struct SearchStore_Search), allocator);
+    struct SearchStore_Search* search =
+        allocator->malloc(sizeof(struct SearchStore_Search), allocator);
     search->searchIndex = i;
     search->nodeCount = 0;
     memcpy(search->searchTarget, searchTarget, 20);
@@ -278,8 +279,20 @@ int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
             if (search->nodes[i].delayUntilReply == 0
                 && search->nodes[i].timeOfRequest < evictUnrepliedIfOlderThan)
             {
+                if (parent->nodeIndex == i) {
+                    continue;
+                }
                 node = &search->nodes[i];
                 search->indexOfLastInsertedNode = i;
+                // Find the node which points to this node as it's parent
+                // Set that to NULL to prevent looping.
+                for (i++; i != search->indexOfLastInsertedNode; i++) {
+                    if (i == SearchStore_SEARCH_NODES) {
+                        i = -1;
+                    } else if (search->nodes[i].parent == node) {
+                        search->nodes[i].parent = NULL;
+                    }
+                }
                 break;
             }
         }
@@ -343,21 +356,22 @@ struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search
 struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_Node* end,
                                                        const struct SearchStore* store)
 {
-    uint16_t searchIndex = end->searchIndex;
-    uint16_t nodeIndex = end->nodeIndex;
-    struct MemAllocator* allocator = store->searches[searchIndex]->allocator;
-    struct SearchNode* searchNode = &store->searches[searchIndex]->nodes[nodeIndex];
+    const uint16_t searchIndex = end->searchIndex;
+    const uint16_t nodeIndex = end->nodeIndex;
+    struct MemAllocator* const allocator = store->searches[searchIndex]->allocator;
+    struct SearchNode* const lastSearchNode = &store->searches[searchIndex]->nodes[nodeIndex];
+    struct SearchNode* searchNode = lastSearchNode;
     struct SearchStore_TraceElement* element =
         allocator->malloc(sizeof(struct SearchStore_TraceElement), allocator);
-    struct SearchStore_TraceElement* out = element;
+    struct SearchStore_TraceElement* const out = element;
 
     for (;;) {
         element->delayUntilReply = searchNode->delayUntilReply;
         memcpy(element->address, searchNode->address, 20);
         memcpy(element->networkAddress, searchNode->networkAddress, 6);
-
         searchNode = searchNode->parent;
         if (searchNode == NULL) {
+            element->next = NULL;
             break;
         }
 

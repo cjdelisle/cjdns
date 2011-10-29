@@ -197,7 +197,7 @@ static int handleKeyLookup(const struct evdns_server_question* question,
     DEBUG3("Adding question. %p for domain: %s\n", request, question->name);
     memcpy(waitingRequestPtr, &waitingRequest, sizeof(struct BridgeModule_waitingDnsRequest));
 
-    dht_search((unsigned char*) waitingRequestPtr->key, 0, AF_INET, NULL, NULL);
+    //dht_search((unsigned char*) waitingRequestPtr->key, 0, AF_INET, NULL, NULL);
 
     return -1;
 }

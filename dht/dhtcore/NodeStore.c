@@ -174,6 +174,8 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
         if (collector->nodes[i].node != NULL) {
             // Use pointer arithmatic to determine index locations.
             out->nodes[outIndex] = &store->nodes[collector->nodes[i].node - store->headers];
+            // Sync nodes and node headers.
+            out->nodes[outIndex]->reach = collector->nodes[i].node->reach;
             outIndex++;
         }
     }

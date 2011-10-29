@@ -47,6 +47,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *         closer to the destination than us.
  */
 int32_t RouterModule_beginSearch(String* requestType,
+                                 String* targetKey,
                                  const uint8_t target[20],
                                  bool (* const callback)(void* callbackContext,
                                                          struct DHTMessage* result),
@@ -65,5 +66,8 @@ int32_t RouterModule_beginSearch(String* requestType,
 void RouterModule_addNode(const uint8_t address[20],
                           const uint8_t networkAddress[6],
                           struct RouterModule* module);
+
+void RouterModule_pingNode(const uint8_t networkAddress[6],
+                           struct RouterModule* module);
 
 #endif

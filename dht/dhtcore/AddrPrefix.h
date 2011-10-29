@@ -11,9 +11,7 @@
  */
 static inline uint32_t AddrPrefix_get(const uint8_t address[20])
 {
-    uint32_t first32;
-    memcpy(&first32, address, 4);
-    return ntohl(first32);
+    return ntohl(((uint32_t*) address)[0]);
 }
 
 #endif

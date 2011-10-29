@@ -25,4 +25,6 @@ struct RouterModule
 
     /** The libevent event base for handling timeouts. */
     struct event_base* eventBase;
+
+    struct Janitor* janitor;
 };

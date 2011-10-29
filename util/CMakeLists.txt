@@ -6,6 +6,7 @@ find_package(Libevent2 REQUIRED)
 add_library(util
     AverageRoller.c
     Timeout.c
+    Hex.c
 )
 target_link_libraries(util MemAllocator ${LIBEVENT2_LIBRARIES})
 

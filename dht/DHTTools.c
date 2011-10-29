@@ -1,124 +1,61 @@
-#include "libbenc/benc.h"
+#include <stdint.h>
+#include <string.h>
+
+#include "dht/DHTConstants.h"
+#include "dht/DHTModules.h"
 #include "dht/DHTTools.h"
-
-/** @see DHTTools.h */
-void DHTTools_craftErrorResponse(const Dict* requestMessage,
-                                 Dict* responseMessage,
-                                 int64_t errorCode,
-                                 const char* errorMessage,
-                                 const struct MemAllocator* messageAllocator)
-{
-    String* transactionId = benc_lookupString(requestMessage, &DHTConstants_transactionId);
-    if (transactionId != NULL) {
-        benc_putString(responseMessage, &DHTConstants_transactionId, transactionId, messageAllocator);
-    }
-    List* list = benc_addInteger(NULL, errorCode, messageAllocator);
-    benc_addString(list, benc_newString(errorMessage, messageAllocator), messageAllocator);
-    benc_putList(response, &DHTConstants_error, list, messageAllocator);
-}
-
-/** @see DHTTools.h */
-void DHTTools_craftWrongTokenErrorResponse(const Dict* requestMessage,
-                                           Dict* responseMessage,
-                                           const struct MemAllocator* messageAllocator)
-{
-    DHTTools_craftErrorResponse(requestMessage,
-                                responseMessage,
-                                203,
-                                "Storage request with wrong token",
-                                messageAllocator);
-}
+#include "libbenc/benc.h"
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
 
 /**
- * Generate a token.
- * Outputs will be 8 character bencoded strings but more than 32 bytes will be allocated
- * since it is truncated SHA-256.
+ * Send off a query to another node.
  *
- * @param target an input which defines the token output.
- * @param nodeId an input which defines the token output.
- * @param announceAddress an input which defines the token output.
- * @param secret an input which defines the token output.
- * @param counter a number which can be used to make tokens expire after a time limit or other means.
- * @param allocator the means to acquire memory for storing the token.
- * @return a token which will always be the same for the same inputs.
+ * @param networkAddress the address to send the query to.
+ * @param queryType what type of query eg: find_node or get_peers.
+ * @param transactionId the tid to send with the query.
+ * @param searchTarget the thing which we are looking for or null if it's a ping.
+ * @param targetKey the key underwhich to send the target eg: target or info_hash
+ * @param registry the DHT module registry to use for sending the message.
  */
-static genToken(const char target[20],
-                const char nodeId[20],
-                const char secret[20],
-                const char announceAddress[18],
-                uint32_t counter,
-                const struct MemAllocator* allocator)
+void DHTTools_sendRequest(uint8_t networkAddress[6],
+                          String* queryType,
+                          String* transactionId,
+                          String* searchTarget,
+                          String* targetKey,
+                          struct DHTModuleRegistry* registry)
 {
-    char inBuffer[82];
-    char* buffPtr = inBuffer;
+    struct DHTMessage message;
+    memset(&message, 0, sizeof(struct DHTMessage));
 
-    memcpy(buffPtr, target, 20);
-    buffPtr += 20;
+    char buffer[4096];
+    const struct MemAllocator* allocator = BufferAllocator_new(buffer, 4096);
 
-    memcpy(buffPtr, nodeId, 20);
-    buffPtr += 20;
+    message.allocator = allocator;
+    message.asDict = benc_newDictionary(allocator);
 
-    memcpy(buffPtr, secret, 20);
-    buffPtr += 20;
+    // "t":"1234"
+    benc_putString(message.asDict, &DHTConstants_transactionId, transactionId, allocator);
 
-    memcpy(buffPtr, &counter, 4);
-    buffPtr += 4;
+    // "y":"q"
+    benc_putString(message.asDict,
+                   &DHTConstants_messageType,
+                   &DHTConstants_query,
+                   allocator);
 
-    if (announceAddress != NULL) {
-        memcpy(buffPtr, announceAddress, 18);
-    } else {
-        memset(buffPtr, 0, 18);
-    }
-    buffPtr += 18;
-
-    benc_bstr_t string = { .len = 82, .bytes = inBuffer };
-    benc_bstr_t* hash = Crypto_sha256sum(&string, allocator);
-
-    /* Truncate the hash. */
-    hash->len = 8;
-    return hash;
-}
-
-/** @see DHTTools.h */
-bobj_t* DHTTools_generateToken(const String* target,
-                               const String* nodeId,
-                               const char announceAddress[18],
-                               const char secret[20],
-                               const struct MemAllocator* allocator)
-{
-    if ((target & nodeId) == NULL || target->len != 20 || nodeId->len != 20) {
-        return false;
+    /* "a" : { ...... */
+    if (searchTarget != NULL) {
+        // Otherwise we're sending a ping.
+        Dict* args = benc_newDictionary(allocator);
+        benc_putString(args, targetKey, searchTarget, allocator);
+        benc_putDictionary(message.asDict, &DHTConstants_arguments, args, allocator);
     }
 
-    /* Get the current / 600 (number of 10 minute units since the epoch) */
-    uint32_t now = time(NULL) / 600;
+    /* "q":"find_node" */
+    benc_putString(message.asDict, &DHTConstants_query, queryType, allocator);
 
-    return genToken(target->bytes, nodeId->bytes, secret, announceAddress, now, allocator);
-}
+    memcpy(message.peerAddress, networkAddress, 6);
+    message.addressLength = 6;
 
-/** @see DHTTools.h */
-int32_t DHTTools_isTokenValid(const String* token,
-                              const String* target,
-                              const String* nodeId,
-                              const char announceAddress[18],
-                              const char secret[20])
-{
-    if ((token & target & nodeId) == NULL || token->len != 20 || target->len != 20 || nodeId->len != 20) {
-        return false;
-    }
-
-    uint32_t now = time(NULL) / 600;
-
-    char buffer[64];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 64);
-
-    String* currentToken = genToken(target->bytes, nodeId->bytes, secret, announceAddress, now, allocator);
-    if (benc_stringEquals(token, currentToken)) {
-        return true;
-    }
-
-    /* Perhaps the clock rolled over before this was sent. Better check. */
-    allocator->free(allocator);
-    String* lastToken = genToken(target->bytes, nodeId->bytes, secret, announceAddress, now - 1, allocator);
-    return benc_stringEquals(token, lastToken);
+    DHTModules_handleOutgoing(&message, registry);
 }

@@ -1,26 +1,31 @@
-#include "memory/MemAllocator.h"
-#include "memory/BufferAllocator.h"
-#include "net/NetworkTools.h"
+#include "BridgeModule.h"
 #include "crypto/Crypto.h"
-#include "dht/core/LegacyConnectorModule.h"
-#include "dht/LibeventNetworkModule.h"
-#include "dht/SerializationModule.h"
+//#include "dht/core/LegacyConnectorModule.h"
 #include "dht/DebugModule.h"
+#include "dht/DHTConstants.h"
+#include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtstore/DHTStoreModule.h"
+#include "dht/LibeventNetworkModule.h"
+#include "dht/ReplyModule.h"
+#include "dht/SerializationModule.h"
+#include "dns/DNSCheckZoneModule.h"
 #include "dns/DNSModules.h"
 #include "dns/DNSNetworkModule.h"
-#include "dns/DNSCheckZoneModule.h"
-#include "BridgeModule.h"
+#include "memory/MemAllocator.h"
+#include "memory/MallocAllocator.h"
+#include "memory/BufferAllocator.h"
+#include "net/NetworkTools.h"
 
 /*#include "event2/util.h"*/
-#include "dht/core/juliusz/dht.h"
-
+//#include "dht/core/juliusz/dht.h"
+/*
 static int dht_random(void *buf, size_t size);
 
 static void dht_hash_impl(void *hash_return, int hash_size,
                           const void *v1, int len1,
                           const void *v2, int len2,
                           const void *v3, int len3);
-
+*/
 static void print_hex(const unsigned char *buf, int buflen);
 static int hexDecode(char* hex, size_t length, char* output, size_t* outLength);
 
@@ -60,16 +65,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    char* buffer = malloc(1000000);
-    if (buffer == NULL) {
-        printf("Failed to allocate memory\n");
-        return -1;
-    }
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1000000);
-    if (allocator == NULL) {
-        printf("Failed to build a memory allocator\n");
-        return -1;
-    }
+    #define BUFFER_SIZE (20 * 1000 * 1000)
+    struct MemAllocator* allocator = MallocAllocator_new(BUFFER_SIZE);
 
     /* Ohhhh jeeee: operation is not possible without initialized secure memory */
     Crypto_init();
@@ -113,12 +110,18 @@ int main(int argc, char** argv)
     print_hex((unsigned char*) id, 20);
     printf(".dht\nThis is your domain address.\n\n\n\n");
 
-    struct DHTModule* legacy =
+    /*struct DHTModule* legacy =
         LegacyConnectorModule_new(base, id, registry, dht_random, dht_hash_impl);
     if (legacy == NULL) {
         printf("Failed to allocate DHT legacy connector module.\n");
         return -1;
-    }
+    }*/
+
+    ReplyModule_register(registry, allocator);
+    struct RouterModule* router =
+        RouterModule_register(registry, allocator, (uint8_t*) id, base);
+    DHTStoreModule_register(10000, registry, allocator);
+
 
     /* Need 2 debug modules one for incoming and one for outgoing so that
      * the outgoing module will have access to the serialized message and the incoming
@@ -130,8 +133,9 @@ int main(int argc, char** argv)
 
 
     // Register the DHT modules.
-    DHTModules_register(legacy, registry);
-    DHTModules_register(bridgeDHT, registry);
+    //DHTModules_register(legacy, registry);
+    
+    //DHTModules_register(bridgeDHT, registry);
     DHTModules_register(debugIn, registry);
     SerializationModule_register(registry, allocator);
     DHTModules_register(debugOut, registry);
@@ -139,7 +143,10 @@ int main(int argc, char** argv)
 
 
     /* Send ping. */
-    dht_ping_node(pingNode, addrLength);
+    uint8_t nodeToPing[18];
+    NetworkTools_addressFromSockaddr(&pingNodeStore, (char*) nodeToPing);
+    RouterModule_pingNode(nodeToPing, router);
+    //dht_ping_node(pingNode, addrLength);
 
     /* DNS */
     struct DNSModule* checkZone = DNSCheckZoneModule_new(allocator);
@@ -154,7 +161,7 @@ int main(int argc, char** argv)
 
     event_base_loop(base, 0);
 }
-
+/*
 static int dht_random(void *buf, size_t size)
 {
     gcry_randomize(buf, size, GCRY_STRONG_RANDOM);
@@ -179,7 +186,7 @@ static void dht_hash_impl(void *hashReturn, int hashSize,
     memcpy(hashReturn, md, hashSize > 20 ? 20 : hashSize);
     gcry_md_close(mh);
 }
-
+*/
 static void print_hex(const unsigned char *buf, int buflen)
 {
     int i;

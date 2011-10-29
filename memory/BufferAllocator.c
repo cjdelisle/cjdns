@@ -1,12 +1,12 @@
-#include "BufferAllocator.h"
 #include <string.h>
 #include <stdint.h>
-
 #include <stdio.h>
 
-#ifndef WIN32
-#include <execinfo.h>
-#endif
+#include "memory/AllocatorTools.h"
+#include "memory/BufferAllocator.h"
+
+/* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */
+#define ALIGNMENT sizeof(char*)
 
 struct BufferAllocator_onFreeJob;
 
@@ -35,23 +35,14 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
                          void* callbackContext,
                          const struct MemAllocator* this);
 
-/**
- * Get a pointer which is aligned on memory boundries.
- *
- * @param pointer the location where the pointer should be.
- * @param alignedOn how big the word is that the boundry should be aligned on.
- */
-#define GET_ALIGNED(pointer, alignedOn) \
-    (char*) (((uintptr_t)pointer + alignedOn - 1) & ~ (alignedOn - 1))
-
 /** @see BufferAllocator.h */
 struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
 {
     /* Write itself into it's own buffer :) */
     struct BufferAllocator_context context = {
         /* Align the pointer to do the first write manually. */
-        .pointer = GET_ALIGNED(buffer, sizeof(char*)),
-        .basePointer = GET_ALIGNED(buffer, sizeof(char*)),
+        .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
+        .basePointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
         .endPointer = ((char*)buffer) + length
     };
 
@@ -103,33 +94,16 @@ struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
 static void failure(const char* message)
 {
     fprintf(stderr, "Fatel error: %s\n", message);
-    #ifndef WIN32
-    void* array[20];
-    size_t size;
-    char **strings;
-    size_t i;
-     
-    size = backtrace(array, 20);
-    strings = backtrace_symbols(array, size);
-     
-    for (i = 0; i < size; i++) {
-       printf ("%s\n", strings[i]);
-    }
-
-    #endif
     abort();
 }
 
 /** @see MemAllocator->malloc() */
 static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator)
 {
-    /* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */
-    #define ALIGNMENT sizeof(char*)
-
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;
 
-    char* pointer = GET_ALIGNED(context->pointer, ALIGNMENT);
+    char* pointer = AllocatorTools_getAligned(context->pointer, ALIGNMENT);
     char* endOfAlloc = pointer + length;
 
     if (endOfAlloc >= context->endPointer) {
@@ -238,5 +212,3 @@ static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
         .onFree = addOnFreeJob
     });
 }
-
-#undef GET_ALIGNED

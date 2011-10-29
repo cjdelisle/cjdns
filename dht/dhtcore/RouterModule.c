@@ -119,7 +119,7 @@
 
 /*
  * NOTES:
- * TODO what happens if there is a search and the result is not found, ever?
+ * TODO every time the search backtracks, it runs over the same group of dead nodes again.
  */
 
 /*--------------------Constants--------------------*/
@@ -131,7 +131,7 @@
  * The number to initialize the global mean response time averager with so that it will
  * return sane results
  */
-#define GMRT_INITAL_MILLISECONDS 100
+#define GMRT_INITAL_MILLISECONDS 1000
 
 /** The number of nodes which we will keep track of. */
 #define NODE_STORE_SIZE 16384
@@ -141,7 +141,35 @@
  * These searches will only happen if this is the closest node so the number only has
  * any effect on cold start.
  */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 750
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 3000
+
+/**
+ * The number of milliseconds to pass between global maintainence searches.
+ * These are searches for random targets which are used to discover new nodes.
+ */
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
+
+/**
+ * Global maintainence searches will be stopped when total reach is greater than or equal
+ * to this number times the total number of known nodes.
+ */
+#define TARGET_REACH_PER_NODE 1
+
+/**
+ * Reach of every node will be decreased by 1 at this interval.
+ */
+#define MILLISECONDS_PER_REACH_DECREASE 500
+
+/**
+ * The amount to decrease the reach of *every* node per second.
+ * This guarantees that no matter how high the reach is, it will never
+ * allow a node to be used if it has not replied to a search within
+ * an hour. Most nodes will be forced to reply much sooner.
+ */
+#define REACH_DECREASE_PER_SECOND (UINT32_MAX / (60 * 60))
+
+/** The maximum number of requests to make before calling a search failed. */
+#define MAX_REQUESTS_PER_SEARCH 100
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
@@ -178,8 +206,14 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->nodeStore = NodeStore_new(myAddress, NODE_STORE_SIZE, allocator);
     out->registry = registry;
     out->eventBase = eventBase;
+    out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                               GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                               REACH_DECREASE_PER_SECOND,
+                               out,
+                               out->nodeStore,
+                               allocator,
+                               eventBase);
 
-    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS, out, out->nodeStore, allocator, eventBase);
     return out;
 }
 
@@ -246,74 +280,6 @@ static inline uint32_t calculateDistance(const uint32_t nodeIdPrefix,
 }
 
 /**
- * Called when a search has completed.
- * Frees the memory that was used in the search and adjusts the reach of the participating nodes.
- *
- * @param store the SearchStore which carried out the search.
- * @param lastNode the last node to respond (presumably with results.)
- * @param targetAddress the address of the thing we're looking for.
- * @param module this router module.
- */
-static inline void cleanup(struct SearchStore* store,
-                           struct SearchStore_Node* lastNode,
-                           uint8_t targetAddress[20],
-                           struct RouterModule* module)
-{
-    struct SearchStore_Search* search = SearchStore_getSearchForNode(lastNode, store);
-
-    // Add a fake node to the search for the target,
-    // this allows us to track the amount of time it took for the last node to get us
-    // the result and adjust it's reach accordingly.
-    SearchStore_addNodeToSearch(lastNode,
-                                targetAddress,
-                                (uint8_t*) "Unused",
-                                evictUnrepliedIfOlderThan(module),
-                                search);
-    struct SearchStore_Node* fakeNode =
-        SearchStore_getNextNode(search, SearchStore_getAllocator(search));
-
-    struct SearchStore_TraceElement* child = SearchStore_backTrace(fakeNode, store);
-    struct SearchStore_TraceElement* parent = child->next;
-    const uint32_t targetPrefix = AddrPrefix_get(targetAddress);
-    uint32_t milliseconds = 0;
-    uint32_t childPrefix = AddrPrefix_get(child->address);
-    while (parent != NULL) {
-        uint32_t parentPrefix = AddrPrefix_get(parent->address);
-        struct Node* parentNode = NodeStore_getNode(module->nodeStore, parent->address);
-        // If parentNode is NULL then it must have been replaced in the node store.
-        if (parentNode != NULL) {
-            // anti-divide-by-0 hack
-            milliseconds += parent->delayUntilReply | 1;
-            uint32_t oldReach = parentNode->reach;
-            // ORing the reach is a possible solution to avoid number rollover.
-            // TODO: is this a good idea?
-            uint32_t newReach =
-                oldReach | calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
-            parentNode->reach = newReach;
-            module->totalReach += newReach - oldReach;
-            NodeStore_updateReach(parentNode, module->nodeStore);
-        }
-
-        child = parent;
-        childPrefix = parentPrefix;
-        parent = parent->next;
-    }
-
-    SearchStore_freeSearch(search);
-}
-
-/**
- * The amount of time to wait before skipping over the first node and trying another in a search.
- *
- * @param module this module.
- * @return the timeout time.
- */
-static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
-{
-    return ((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2;
-}
-
-/**
  * Send off a query to another node.
  *
  * @param networkAddress the address to send the query to.
@@ -321,14 +287,14 @@ static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
  * @param transactionId the tid to send with the query.
  * @param searchTarget the thing which we are looking for or null if it's a ping.
  * @param targetKey the key underwhich to send the target eg: target or info_hash
- * @param module the router module to send the search with.
+ * @param registry the DHT module registry to use for sending the message.
  */
-static void sendRequest(uint8_t networkAddress[6],
-                        String* queryType,
-                        String* transactionId,
-                        String* searchTarget,
-                        String* targetKey,
-                        struct RouterModule* module)
+static inline void sendRequest(const uint8_t networkAddress[6],
+                               String* queryType,
+                               String* transactionId,
+                               String* searchTarget,
+                               String* targetKey,
+                               struct DHTModuleRegistry* registry)
 {
     struct DHTMessage message;
     memset(&message, 0, sizeof(struct DHTMessage));
@@ -349,13 +315,12 @@ static void sendRequest(uint8_t networkAddress[6],
                    allocator);
 
     /* "a" : { ...... */
-    Dict* args = benc_newDictionary(allocator);
-    benc_putString(args, &DHTConstants_myId, module->myAddress, allocator);
     if (searchTarget != NULL) {
         // Otherwise we're sending a ping.
+        Dict* args = benc_newDictionary(allocator);
         benc_putString(args, targetKey, searchTarget, allocator);
+        benc_putDictionary(message.asDict, &DHTConstants_arguments, args, allocator);
     }
-    benc_putDictionary(message.asDict, &DHTConstants_arguments, args, allocator);
 
     /* "q":"find_node" */
     benc_putString(message.asDict, &DHTConstants_query, queryType, allocator);
@@ -363,7 +328,18 @@ static void sendRequest(uint8_t networkAddress[6],
     memcpy(message.peerAddress, networkAddress, 6);
     message.addressLength = 6;
 
-    DHTModules_handleOutgoing(&message, module->registry);
+    DHTModules_handleOutgoing(&message, registry);
+}
+
+/**
+ * The amount of time to wait before skipping over the first node and trying another in a search.
+ *
+ * @param module this module.
+ * @return the timeout time.
+ */
+static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
+{
+    return ((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2;
 }
 
 /**
@@ -376,6 +352,9 @@ struct SearchCallbackContext
 
     /** The callback to call with results. */
     bool (* const resultCallback)(void* callbackContext, struct DHTMessage* result);
+
+    /** The number of requests which have been sent out so far for this search. */
+    uint32_t totalRequests;
 
     /** A context to pass when calling the results callback. */
     void* const resultCallbackContext;
@@ -390,11 +369,90 @@ struct SearchCallbackContext
      * The SearchStore_Search structure for this search,
      * used to keep track of which nodes are participating.
      */
-    struct SearchStore_Search* search;
+    struct SearchStore_Search* const search;
 
     /** The type of query which we send in this search IE: find_node or get_peers. */
     String* const requestType;
+
+    String* const targetKey;
+
+    struct SearchStore_Node* lastNodeCalled;
 };
+
+/**
+ * Called when a search has completed.
+ * Frees the memory that was used in the search and adjusts the reach of the participating nodes.
+ *
+ * @param store the SearchStore which carried out the search.
+ * @param lastNode the last node to respond (presumably with results.)
+ * @param targetAddress the address of the thing we're looking for.
+ * @param module this router module.
+ * @param searchSuccessful true if the search found the desired content, otherwise false.
+ */
+#include <stdio.h>
+#include "util/Hex.h"
+static inline void cleanup(struct SearchStore* store,
+                           struct SearchStore_Node* lastNode,
+                           uint8_t targetAddress[20],
+                           struct RouterModule* module,
+                           bool searchSuccessful)
+{
+    struct SearchStore_Search* search = SearchStore_getSearchForNode(lastNode, store);
+
+    // Add a fake node to the search for the target,
+    // this allows us to track the amount of time it took for the last node to get us
+    // the result and adjust it's reach accordingly.
+    int32_t ret = SearchStore_addNodeToSearch(lastNode,
+                                              targetAddress,
+                                              (uint8_t*) "Unused",
+                                              UINT64_MAX,
+                                              search);
+
+    // if addNode fails because the search is full, don't bother with the last node.
+    struct SearchStore_Node* fakeNode =
+        (ret == -1) ? lastNode : SearchStore_getNextNode(search, SearchStore_getAllocator(search));
+
+    struct SearchStore_TraceElement* child = SearchStore_backTrace(fakeNode, store);
+    struct SearchStore_TraceElement* parent = child->next;
+    const uint32_t targetPrefix = AddrPrefix_get(targetAddress);
+    uint32_t milliseconds = 0;
+    uint32_t childPrefix = AddrPrefix_get(child->address);
+    while (parent != NULL) {
+        uint32_t parentPrefix = AddrPrefix_get(parent->address);
+        struct Node* parentNode = NodeStore_getNode(module->nodeStore, parent->address);
+        // If parentNode is NULL then it must have been replaced in the node store.
+        if (parentNode != NULL) {
+            // anti-divide-by-0 hack
+            milliseconds += parent->delayUntilReply | 1;
+            uint32_t oldReach = parentNode->reach;
+            uint32_t distanceOverTime =
+                calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
+            // If satisfactory result was not returned then the max value is 65535
+            // low 16 bits represent effort, high 16 represent results.
+            if (!searchSuccessful) {
+            //    distanceOverTime >>= 16;
+            }
+
+            // ORing the reach is a possible solution to avoid number rollover.
+            // TODO: is this a good idea?
+            uint32_t newReach = oldReach | distanceOverTime;
+
+            parentNode->reach = newReach;
+            module->totalReach += newReach - oldReach;
+            NodeStore_updateReach(parentNode, module->nodeStore);
+        }
+
+        child = parent;
+        childPrefix = parentPrefix;
+        parent = parent->next;
+    }
+
+    // This is a hack around a problem with the allocator not executing onfree's correctly!!!
+    // TODO fix this at it's source
+    Timeout_clearTimeout(((struct SearchCallbackContext*)SearchStore_getContext(search))->timeout);
+
+    SearchStore_freeSearch(search);
+}
 
 /**
  * Send a search request to the next node in this search.
@@ -404,22 +462,65 @@ struct SearchCallbackContext
  */
 static void searchStep(void* vcontext)
 {
-    struct SearchCallbackContext* context = (struct SearchCallbackContext*) vcontext;
-    struct RouterModule* module = context->routerModule;
-    struct MemAllocator* searchAllocator = SearchStore_getAllocator(context->search);
+    struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
+    struct RouterModule* module = scc->routerModule;
+    struct MemAllocator* searchAllocator = SearchStore_getAllocator(scc->search);
 
     struct SearchStore_Node* nextSearchNode =
-        SearchStore_getNextNode(context->search, searchAllocator);
+        SearchStore_getNextNode(scc->search, searchAllocator);
+
+    // If the number of requests sent has exceeded the max search requests, let's stop there.
+    if (scc->totalRequests >= MAX_REQUESTS_PER_SEARCH || nextSearchNode == NULL) {
+printf("terminating search.\n");
+        scc->resultCallback(scc->resultCallbackContext, NULL);
+        cleanup(module->searchStore,
+                (nextSearchNode == NULL) ? scc->lastNodeCalled : nextSearchNode,
+                (uint8_t*) scc->target->bytes,
+                module,
+                false);
+        return;
+    }
 
     sendRequest(nextSearchNode->networkAddress,
-                context->requestType,
+                scc->requestType,
                 SearchStore_tidForNode(nextSearchNode, searchAllocator),
-                context->target,
-                &DHTConstants_infoHash,
-                context->routerModule);
+                scc->target,
+                scc->targetKey,
+                scc->routerModule->registry);
 
+    scc->totalRequests++;
+    scc->lastNodeCalled = nextSearchNode;
     SearchStore_requestSent(nextSearchNode, module->searchStore);
-    Timeout_resetTimeout(context->timeout, tryNextNodeAfter(module));
+    Timeout_resetTimeout(scc->timeout, tryNextNodeAfter(module));
+}
+
+/**
+ * Return which node is closer to the target.
+ *
+ * @param target the address to test distance against.
+ * @param negativeIfCloser one address to check distance.
+ * @param positiveIfCloser another address to check distance.
+ * @return -1 if negativeIfCloser is closer to target, 1 if positiveIfCloser is closer
+ *         0 if they are both the same.
+ */
+static inline int32_t xorCompare(const uint8_t target[20],
+                                 const uint8_t negativeIfCloser[20],
+                                 const uint8_t positiveIfCloser[20])
+{
+    for (uint32_t i = 0; i < 5; i++) {
+        uint32_t nic = ((uint32_t*) negativeIfCloser)[i];
+        uint32_t pic = ((uint32_t*) positiveIfCloser)[i];
+        if (nic == pic) {
+            continue;
+        }
+        uint32_t ref = ntohl(((uint32_t*) target)[i]);
+        if ((ntohl(nic) ^ ref) < (ntohl(pic) ^ ref)) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /**
@@ -437,13 +538,15 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     if (arguments == NULL) {
         return 0;
     }
+
+    // this implementation only pings to get the address of a node, so lets add the node.
+    String* address = benc_lookupString(arguments, &DHTConstants_myId);
+    NodeStore_addNode(module->nodeStore,
+                      (uint8_t*) address->bytes,
+                      (uint8_t*) message->peerAddress);
+
     String* nodes = benc_lookupString(arguments, &DHTConstants_nodes);
     if (nodes == NULL || nodes->len % 26 != 0) {
-        // this implementation only pings to get the address of a node, so lets add the node.
-        String* address = benc_lookupString(arguments, &DHTConstants_myId);
-        NodeStore_addNode(module->nodeStore,
-                          (uint8_t*) address->bytes,
-                          (uint8_t*) message->peerAddress);
         return -1;
     }
 
@@ -457,25 +560,42 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     }
 
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
-    uint64_t evictTime = evictUnrepliedIfOlderThan(module);
+    struct SearchCallbackContext* scc = SearchStore_getContext(search);
 
+    // If this node has sent us any entries which are further from the target than it is,
+    // garbage the whole response.
+    uint32_t targetPrefix = AddrPrefix_get((uint8_t*) scc->target->bytes);
+    uint32_t parentDistance = AddrPrefix_get(parent->address) ^ targetPrefix;
+
+
+    uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += 26) {
+//printf("adding node %s\n", Hex_encode(&(String) {20, &nodes->bytes[i]}, message->allocator)->bytes);
         NodeStore_addNode(module->nodeStore,
                           (uint8_t*) &nodes->bytes[i],
                           (uint8_t*) &nodes->bytes[i + 20]);
-        SearchStore_addNodeToSearch(parent,
-                                    (uint8_t*) &nodes->bytes[i],
-                                    (uint8_t*) &nodes->bytes[i + 20],
-                                    evictTime,
-                                    search);
+
+        uint32_t thisNodePrefix = AddrPrefix_get((uint8_t*) &nodes->bytes[i]);
+        uint32_t thisNodeDistance = thisNodePrefix ^ targetPrefix;
+        if (thisNodeDistance >= parentDistance && xorCompare((uint8_t*) scc->target->bytes,
+                                                             (uint8_t*) &nodes->bytes[i],
+                                                             parent->address) >= 0)
+        {
+//printf("dropping reply because it contains nodes further from us.\n");
+        } else {
+            SearchStore_addNodeToSearch(parent,
+                                        (uint8_t*) &nodes->bytes[i],
+                                        (uint8_t*) &nodes->bytes[i + 20],
+                                        evictTime,
+                                        search);
+        }
     }
 
     // Ask the callback if we should continue.
-    struct SearchCallbackContext* scc = SearchStore_getContext(search);
     if (!scc->resultCallback(scc->resultCallbackContext, message)) {
         searchStep(SearchStore_getContext(search));
     } else {
-        cleanup(module->searchStore, parent, (uint8_t*) scc->target->bytes, module);
+        cleanup(module->searchStore, parent, (uint8_t*) scc->target->bytes, module, true);
     }
     return 0;
 }
@@ -524,8 +644,11 @@ static inline int handleQuery(struct DHTMessage* message,
     String* target = benc_lookupString(queryArgs, &DHTConstants_targetId);
     if (target == NULL) {
         target = benc_lookupString(queryArgs, &DHTConstants_infoHash);
-    }
-    if (target == NULL || target->len != 20) {
+        if (target == NULL || target->len != 20) {
+            return 0;
+        }
+        Janitor_informOfRecentSearch((uint8_t*) target->bytes, module->janitor);
+    } else if (target == NULL || target->len != 20) {
         return 0;
     }
 
@@ -548,7 +671,6 @@ static inline int handleQuery(struct DHTMessage* message,
     if (i > 0) {
         benc_putString(replyArgs, &DHTConstants_nodes, nodes, message->allocator);
     }
-
     return 0;
 }
 
@@ -588,6 +710,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 
 /** See: RouterModule.h */
 int32_t RouterModule_beginSearch(String* requestType,
+                                 String* targetKey,
                                  const uint8_t searchTarget[20],
                                  bool (* const callback)(void* callbackContext,
                                                          struct DHTMessage* result),
@@ -624,8 +747,8 @@ int32_t RouterModule_beginSearch(String* requestType,
                 requestType,
                 SearchStore_tidForNode(firstSearchNode, searchAllocator),
                 searchTargetString,
-                &DHTConstants_infoHash,
-                module);
+                targetKey,
+                module->registry);
 
     SearchStore_requestSent(firstSearchNode, module->searchStore);
 
@@ -645,7 +768,9 @@ int32_t RouterModule_beginSearch(String* requestType,
         .target = searchTargetString,
         .timeout = timeout,
         .search = search,
-        .requestType = benc_newBinaryString(requestType->bytes, requestType->len, searchAllocator)
+        .requestType = benc_newBinaryString(requestType->bytes, requestType->len, searchAllocator),
+        .targetKey = benc_newBinaryString(targetKey->bytes, targetKey->len, searchAllocator),
+        .lastNodeCalled = firstSearchNode,
     };
     memcpy(scc, &sccLocal, sizeof(struct SearchCallbackContext));
 
@@ -660,4 +785,17 @@ void RouterModule_addNode(const uint8_t address[20],
                           struct RouterModule* module)
 {
     NodeStore_addNode(module->nodeStore, address, networkAddress);
+}
+
+void RouterModule_pingNode(const uint8_t networkAddress[6],
+                           struct RouterModule* module)
+{
+    // using &DHTConstants_version as the tid is just convienent.
+    // it could be anything.
+    sendRequest(networkAddress,
+                &DHTConstants_ping,
+                &DHTConstants_version,
+                NULL,
+                NULL,
+                module->registry);
 }

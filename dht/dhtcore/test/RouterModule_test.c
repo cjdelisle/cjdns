@@ -95,6 +95,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
     struct DHTMessage* callbackMessage = NULL;
 
     RouterModule_beginSearch(&DHTConstants_getPeers,
+                             &DHTConstants_infoHash,
                              (uint8_t*) REQUEST_HASH,
                              testSearch_callback,
                              &callbackMessage,

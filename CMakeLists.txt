@@ -49,8 +49,8 @@ add_executable(cjdns cjdns.c BridgeModule.c)
 target_link_libraries(cjdns
     crypto
     dht
+    dhtstore
     dhtcore
-    dhtoldcore
     dns
     net
     MemAllocator

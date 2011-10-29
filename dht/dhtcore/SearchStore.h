@@ -15,7 +15,7 @@
  * nodes which helped in get to those results have their reach number recalculated and if
  * they are prematurely evicted, they will not have their number recalculated.
  */
-#define SearchStore_SEARCH_NODES 32
+#define SearchStore_SEARCH_NODES 256
 
 /** Maximum number of concurrent searches. */
 #define SearchStore_MAX_SEARCHES 256
