@@ -34,10 +34,16 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, const uint8_t addr
  * @param store a node store to insert into.
  * @param address the address of the new node.
  * @param networkAddress the network address to get to the new node.
+ * @param reachDiff how much to adjust the reach in a new node, if the node already exists,
+ *                  this will alter the reach by this amount, if changing the reach by this
+ *                  amount causes the reach to become negative or nolonger fit in a uint32
+ *                  type, it will be set to 0 or UINT32_MAX, respectively.
+ *                  Undefined behavior will result if this input exceeds UINT32_MAX.
  */
 void NodeStore_addNode(struct NodeStore* store,
                        const uint8_t address[20],
-                       const uint8_t networkAddress[6]);
+                       const uint8_t networkAddress[6],
+                       const int64_t reachDiff);
 
 /**
  * Get the best nodes for servicing a lookup.

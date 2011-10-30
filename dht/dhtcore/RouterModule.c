@@ -48,16 +48,23 @@
  * send search requests to them so they can prove their validity and have their reach number
  * updated.
  *
+ * Reach of a node is incremented by 2 every time the node responds to a query and incremented by 1
+ * every time a node sends a query of it's own. This has almost no effect except that it means a
+ * node which has recently sent data will be preferred over one which has not.
+ *
  * When a search is carried out, the next K returned nodes are not necessarily the closest known
  * nodes to the id of the record. The nodes returned will be the nodes with the lowest
  * distance:reach ratio. The distance:reach ratio is calculated by dividing the distance between
- * the node and the record by the node's reach number.
+ * the node and the record by the node's reach number. Actually it is done by multiplying
+ * UINT32_MAX minus the distance by the reach so that it does not need to use slower divison.
+ * See: NodeCollector.h
  *
- * Since information about a node becomes stale over time, all reach numbers are decreased
- * periodically by 1/8 the average reach. Reach numbers which are already equal to 0 are left there.
- * See: Janitor.c amountToDecreaseReach() for more information.
+ * Since information about a node becomes stale over time, all reach numbers are decreased by
+ * the constant REACH_DECREASE_PER_SECOND times the number of seconds since the last cycle,
+ * this operation is performed periodicly every LOCAL_MAINTENANCE_SEARCH_MILLISECONDS unless
+ * a local maintainence search is being run which is not often once the network is stable.
  *
- * TODO
+ * TODO ---
  * In order to have the nodes with least distance:reach ratio ready to handle any incoming search,
  * we precompute the borders where the "best next node" changes. This computation is best understood
  * by graphing the nodes with their location in keyspace on the X axis and their reach on the Y
@@ -84,6 +91,7 @@
  * When resolving a search, this implementation will lookup the location of the searched for record
  * and return the nodes which belong to the insides of the nearest K borders, this guarantees return
  * of the nodes whose distance:reach ratio is the lowest for that location.
+ * ---
  *
  * This implementation must never respond to a search by sending any node who's id is not closer
  * to the target than it's own. Such an event would lead to the possibility of "routing loops" and
@@ -94,22 +102,23 @@
  * The search consumer in this routing module tries to minimize the amount of traffic sent when
  * doing a lookup. To achieve this, it sends a request only to the last node in the search response
  * packet, after the global mean response time has passed without it getting a response, it sends
- * requests to the second to last and so forth, working backward.
+ * requests to the second to last and so forth, working backward. Nodes which fail to respond in
+ * time have their reach immedietly set to zero.
  *
  * The global mean response time is the average amount of time it takes a node to respond to a
  * search query. It is a rolling average over the past 256 seconds.
  *
- * TODO
  * To maximize the quality of service offered by this node this implementation will repeat
- * searches which it handles every number of seconds given by the configuration parameter:
- * globalMaintainenceSearchPeriod.
+ * searches which it handles every number of seconds given by the constant:
+ * GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS.
+ * Any incoming search with a get_peers request is eligable to be repeated.
  *
  * [1] The implementation runs periodic searches for random hashes but unless the search target
- *     falls within it's own reach footprint (where this node has the lowest distance:reach ratio)
- *     the search is not preformed. This means that the node will send out lots of searches early
- *     on when it is training in the network but as it begins to know other nodes with reach,
- *     the contrived searches taper off. These searches are run every number of milliseconds given
- *     by the configuration parameter localMaintainenceSearchPeriod.
+ *     is closer in keyspace to this node than it is to any node with non-zero reach, the search
+ *     is not performed. This means that the node will send out lots of searches when it doesn't
+ *     know nmany reliable nodes but it will taper off like a governer as it becomes more
+ *     integrated in the network. These searches are run every number of milliseconds given
+ *     by the constant LOCAL_MAINTENANCE_SEARCH_MILLISECONDS.
  *
  * [2] If a response "overshoots" the record requested then it is calculated as if it had undershot
  *     by the same amount so as not to provide arbitrage advantage to nodes who return results which
@@ -129,18 +138,14 @@
 
 /**
  * The number to initialize the global mean response time averager with so that it will
- * return sane results
+ * return sane results early on, this number can be much higher than the expected average.
  */
 #define GMRT_INITAL_MILLISECONDS 1000
 
 /** The number of nodes which we will keep track of. */
 #define NODE_STORE_SIZE 16384
 
-/**
- * The number of milliseconds between attempting local maintenance searches.
- * These searches will only happen if this is the closest node so the number only has
- * any effect on cold start.
- */
+/** The number of milliseconds between attempting local maintenance searches. */
 #define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
 
 /**
@@ -161,6 +166,9 @@
 #define MAX_REQUESTS_PER_SEARCH 100
 
 /*--------------------Structures--------------------*/
+/**
+ * A structure to give the user when performing a search so they can cancel it.
+ */
 struct RouterModule_Search
 {
     struct SearchStore_Search* search;
@@ -453,11 +461,10 @@ static inline void cleanup(struct SearchStore* store,
  * Send a search request to the next node in this search.
  * This is called whenever a response comes in or after the global mean response time passes.
  *
- * @param vcontext the SearchCallbackContext for this search.
+ * @param scc the SearchCallbackContext for this search.
  */
-static void searchStep(void* vcontext)
+static void searchStep(struct SearchCallbackContext* scc)
 {
-    struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
     struct RouterModule* module = scc->routerModule;
     struct MemAllocator* searchAllocator = SearchStore_getAllocator(scc->search);
 
@@ -489,6 +496,27 @@ printf("terminating search.\n");
     scc->lastNodeCalled = nextSearchNode;
     SearchStore_requestSent(nextSearchNode, module->searchStore);
     Timeout_resetTimeout(scc->timeout, tryNextNodeAfter(module));
+}
+
+static void searchRequestTimeout(void* vcontext)
+{
+    struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
+    // Go directly to 0 reach, do not pass go, do not collect 200$
+    NodeStore_addNode(scc->routerModule->nodeStore,
+                      scc->lastNodeCalled->address,
+                      scc->lastNodeCalled->networkAddress,
+                      INT64_MIN);
+
+    struct Node* node =
+        NodeStore_getNode(scc->routerModule->nodeStore, scc->lastNodeCalled->address);
+
+    // Go directly to 0 reach, do not pass go, do not collect 200$
+    if (node != NULL) {
+        node->reach = 0;
+        NodeStore_updateReach(node, scc->routerModule->nodeStore);
+    }
+
+    searchStep(scc);
 }
 
 /**
@@ -538,9 +566,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     // this implementation only pings to get the address of a node, so lets add the node.
     String* address = benc_lookupString(arguments, &DHTConstants_myId);
+    // A reply causes the reach to be bumped by 2
     NodeStore_addNode(module->nodeStore,
                       (uint8_t*) address->bytes,
-                      (uint8_t*) message->peerAddress);
+                      (uint8_t*) message->peerAddress,
+                      2);
 
     String* nodes = benc_lookupString(arguments, &DHTConstants_nodes);
     if (nodes == NULL || nodes->len % 26 != 0) {
@@ -567,9 +597,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += 26) {
 //printf("adding node %s\n", Hex_encode(&(String) {20, &nodes->bytes[i]}, message->allocator)->bytes);
+        // Nodes we are told about are inserted with 0 reach.
         NodeStore_addNode(module->nodeStore,
                           (uint8_t*) &nodes->bytes[i],
-                          (uint8_t*) &nodes->bytes[i + 20]);
+                          (uint8_t*) &nodes->bytes[i + 20],
+                          0);
 
         uint32_t thisNodePrefix = AddrPrefix_get((uint8_t*) &nodes->bytes[i]);
         uint32_t thisNodeDistance = thisNodePrefix ^ targetPrefix;
@@ -591,7 +623,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     if (scc->resultCallback == NULL
         || scc->resultCallback(scc->resultCallbackContext, message) == false)
     {
-        searchStep(SearchStore_getContext(search));
+        searchStep(scc);
     } else {
         cleanup(module->searchStore, parent, (uint8_t*) scc->target->bytes, module, true);
     }
@@ -636,7 +668,11 @@ static inline int handleQuery(struct DHTMessage* message,
     if (address == NULL || address->len != 20) {
         return 0;
     }
-    NodeStore_addNode(module->nodeStore, (uint8_t*) address->bytes, (uint8_t*) query->peerAddress);
+    // We got a query, the reach should be set to 1 in the new node.
+    NodeStore_addNode(module->nodeStore,
+                      (uint8_t*) address->bytes,
+                      (uint8_t*) query->peerAddress,
+                      1);
 
     // get the target
     String* target = benc_lookupString(queryArgs, &DHTConstants_targetId);
@@ -754,7 +790,7 @@ struct RouterModule_Search*
     struct SearchCallbackContext* scc =
         searchAllocator->malloc(sizeof(struct SearchCallbackContext), searchAllocator);
 
-    struct Timeout* timeout = Timeout_setTimeout(searchStep,
+    struct Timeout* timeout = Timeout_setTimeout(searchRequestTimeout,
                                                  scc,
                                                  tryNextNodeAfter(module),
                                                  module->eventBase,
@@ -792,7 +828,7 @@ void RouterModule_addNode(const uint8_t address[20],
                           const uint8_t networkAddress[6],
                           struct RouterModule* module)
 {
-    NodeStore_addNode(module->nodeStore, address, networkAddress);
+    NodeStore_addNode(module->nodeStore, address, networkAddress, 0);
 }
 
 void RouterModule_pingNode(const uint8_t networkAddress[6],

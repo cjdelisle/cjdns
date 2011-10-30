@@ -92,9 +92,26 @@ static inline void replaceNode(struct Node* const nodeToReplace,
     memcpy(nodeToReplace->networkAddress, networkAddress, 6);
 }
 
+static inline void adjustReach(struct NodeHeader* header,
+                               const int64_t reachDiff)
+{
+    if (reachDiff == 0) {
+        return;
+    }
+    int64_t newReach = reachDiff + header->reach;
+    if (newReach < 0) {
+        header->reach = 0;
+    } else if (newReach > INT32_MAX) {
+        header->reach = INT32_MAX;
+    } else {
+        header->reach = (uint32_t) newReach;
+    }
+}
+
 void NodeStore_addNode(struct NodeStore* store,
                        const uint8_t address[20],
-                       const uint8_t networkAddress[6])
+                       const uint8_t networkAddress[6],
+                       const int64_t reachDifference)
 {
     // TODO: maintain a sorted list.
 
@@ -106,6 +123,7 @@ void NodeStore_addNode(struct NodeStore* store,
                 && isSameNode(&store->nodes[i], address, networkAddress))
             {
                 // Node already exists
+                adjustReach(&store->headers[i], reachDifference);
                 return;
             }
         }
@@ -115,6 +133,7 @@ void NodeStore_addNode(struct NodeStore* store,
                     pfx,
                     address,
                     networkAddress);
+        adjustReach(&store->headers[store->size], reachDifference);
         store->size++;
         return;
     }
@@ -129,6 +148,7 @@ void NodeStore_addNode(struct NodeStore* store,
 
         if (distance == 0 && isSameNode(&store->nodes[i], address, networkAddress)) {
             // Node already exists
+            adjustReach(&store->headers[store->size], reachDifference);
             return;
         }
 
@@ -145,6 +165,8 @@ void NodeStore_addNode(struct NodeStore* store,
                 pfx,
                 address,
                 networkAddress);
+
+    adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
 }
 
 /** See: NodeStore.h */

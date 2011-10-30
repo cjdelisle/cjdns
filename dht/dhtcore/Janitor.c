@@ -62,6 +62,7 @@ static bool repeatRecentSearchCallback(void* callbackContext, struct DHTMessage*
     callbackContext = callbackContext;
     if (result == NULL) {
 printf("\nRepeated Search Failed!\n\n");
+        return false;
     }
 
     Dict* arguments = benc_lookupDictionary(result->asDict, &DHTConstants_reply);
