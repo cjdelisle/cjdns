@@ -1,6 +1,5 @@
 #include "BridgeModule.h"
 #include "crypto/Crypto.h"
-//#include "dht/core/LegacyConnectorModule.h"
 #include "dht/DebugModule.h"
 #include "dht/DHTConstants.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -16,17 +15,6 @@
 #include "memory/BufferAllocator.h"
 #include "net/NetworkTools.h"
 
-/*#include "event2/util.h"*/
-//#include "dht/core/juliusz/dht.h"
-/*
-static int dht_random(void *buf, size_t size);
-
-static void dht_hash_impl(void *hash_return, int hash_size,
-                          const void *v1, int len1,
-                          const void *v2, int len2,
-                          const void *v3, int len3);
-*/
-static void print_hex(const unsigned char *buf, int buflen);
 static int hexDecode(char* hex, size_t length, char* output, size_t* outLength);
 
 int main(int argc, char** argv)
@@ -81,22 +69,7 @@ int main(int argc, char** argv)
         id = kp->publicKey.as.bstr->bytes;
     }
 
-    struct event_base* base = event_base_new();
-
-    /* ------------------ DNS ------------------ */
-    struct DNSModuleRegistry* dnsRegistry = DNSModules_new();
-    struct DNSModule* bridgeDNS = BridgeModule_registerNew(dnsRegistry, allocator);
-    struct DHTModule* bridgeDHT = BridgeModule_asDhtModule(bridgeDNS);
-
-    if (bridgeDNS == NULL) {
-        printf("Failed to create DNS bridge module.\n");
-        return -1;
-    }
-
-    if (bridgeDHT == NULL) {
-        printf("Failed to create DHT bridge module.\n");
-        return -1;
-    }
+    struct event_base* eventBase = event_base_new();
     
     /* ------------------ DHT ------------------ */
     struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
@@ -106,20 +79,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    printf("\n\nANNOUNCING: ");
-    print_hex((unsigned char*) id, 20);
-    printf(".dht\nThis is your domain address.\n\n\n\n");
-
-    /*struct DHTModule* legacy =
-        LegacyConnectorModule_new(base, id, registry, dht_random, dht_hash_impl);
-    if (legacy == NULL) {
-        printf("Failed to allocate DHT legacy connector module.\n");
-        return -1;
-    }*/
-
     ReplyModule_register(registry, allocator);
     struct RouterModule* router =
-        RouterModule_register(registry, allocator, (uint8_t*) id, base);
+        RouterModule_register(registry, allocator, (uint8_t*) id, eventBase);
     DHTStoreModule_register(10000, registry, allocator);
 
 
@@ -131,68 +93,29 @@ int main(int argc, char** argv)
     FILE* log = fopen("cjdns.log", "a+");
     DebugModule_setLog(log, debugIn);
 
-
-    // Register the DHT modules.
-    //DHTModules_register(legacy, registry);
-    
-    //DHTModules_register(bridgeDHT, registry);
     DHTModules_register(debugIn, registry);
     SerializationModule_register(registry, allocator);
     DHTModules_register(debugOut, registry);
-    LibeventNetworkModule_register(base, dhtSocket, 6, registry, allocator);
-
+    LibeventNetworkModule_register(eventBase, dhtSocket, 6, registry, allocator);
 
     /* Send ping. */
     uint8_t nodeToPing[18];
     NetworkTools_addressFromSockaddr(&pingNodeStore, (char*) nodeToPing);
     RouterModule_pingNode(nodeToPing, router);
-    //dht_ping_node(pingNode, addrLength);
 
     /* DNS */
+    struct DNSModuleRegistry* dnsRegistry = DNSModules_new();
+    BridgeModule_registerNew(dnsRegistry, allocator, router, eventBase);
     struct DNSModule* checkZone = DNSCheckZoneModule_new(allocator);
-    struct DNSModule* dnsNetwork = DNSNetworkModule_new(base, dnsSocket, allocator);
+    struct DNSModule* dnsNetwork = DNSNetworkModule_new(eventBase, dnsSocket, allocator);
     if (dnsRegistry == NULL || checkZone == NULL || dnsNetwork == NULL) {
         printf("Failed to allocate dns modules");
         return -1;
     }
-
     DNSModules_register(checkZone, dnsRegistry);
     DNSNetworkModule_register(dnsNetwork, dnsRegistry);
 
-    event_base_loop(base, 0);
-}
-/*
-static int dht_random(void *buf, size_t size)
-{
-    gcry_randomize(buf, size, GCRY_STRONG_RANDOM);
-    return 0;
-}
-
-static void dht_hash_impl(void *hashReturn, int hashSize,
-                          const void *v1, int len1,
-                          const void *v2, int len2,
-                          const void *v3, int len3)
-{
-    gcry_md_hd_t mh;
-    char *md;
-
-    gcry_md_open(&mh, GCRY_MD_SHA1, GCRY_MD_FLAG_SECURE);
-
-    gcry_md_write(mh, v1, len1);
-    gcry_md_write(mh, v2, len2);
-    gcry_md_write(mh, v3, len3);
-
-    md = (char*) gcry_md_read(mh, 0);
-    memcpy(hashReturn, md, hashSize > 20 ? 20 : hashSize);
-    gcry_md_close(mh);
-}
-*/
-static void print_hex(const unsigned char *buf, int buflen)
-{
-    int i;
-    for(i = 0; i < buflen; i++) {
-        printf("%02x", buf[i]);
-    }
+    event_base_loop(eventBase, 0);
 }
 
 /**

@@ -141,7 +141,7 @@
  * These searches will only happen if this is the closest node so the number only has
  * any effect on cold start.
  */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 3000
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
 
 /**
  * The number of milliseconds to pass between global maintainence searches.
@@ -150,26 +150,21 @@
 #define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
 
 /**
- * Global maintainence searches will be stopped when total reach is greater than or equal
- * to this number times the total number of known nodes.
- */
-#define TARGET_REACH_PER_NODE 1
-
-/**
- * Reach of every node will be decreased by 1 at this interval.
- */
-#define MILLISECONDS_PER_REACH_DECREASE 500
-
-/**
  * The amount to decrease the reach of *every* node per second.
  * This guarantees that no matter how high the reach is, it will never
  * allow a node to be used if it has not replied to a search within
  * an hour. Most nodes will be forced to reply much sooner.
  */
-#define REACH_DECREASE_PER_SECOND (UINT32_MAX / (60 * 60))
+#define REACH_DECREASE_PER_SECOND (UINT32_MAX / (60 * 30))
 
 /** The maximum number of requests to make before calling a search failed. */
 #define MAX_REQUESTS_PER_SEARCH 100
+
+/*--------------------Structures--------------------*/
+struct RouterModule_Search
+{
+    struct SearchStore_Search* search;
+};
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
@@ -472,7 +467,9 @@ static void searchStep(void* vcontext)
     // If the number of requests sent has exceeded the max search requests, let's stop there.
     if (scc->totalRequests >= MAX_REQUESTS_PER_SEARCH || nextSearchNode == NULL) {
 printf("terminating search.\n");
-        scc->resultCallback(scc->resultCallbackContext, NULL);
+        if (scc->resultCallback != NULL) {
+            scc->resultCallback(scc->resultCallbackContext, NULL);
+        }
         cleanup(module->searchStore,
                 (nextSearchNode == NULL) ? scc->lastNodeCalled : nextSearchNode,
                 (uint8_t*) scc->target->bytes,
@@ -567,7 +564,6 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     uint32_t targetPrefix = AddrPrefix_get((uint8_t*) scc->target->bytes);
     uint32_t parentDistance = AddrPrefix_get(parent->address) ^ targetPrefix;
 
-
     uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += 26) {
 //printf("adding node %s\n", Hex_encode(&(String) {20, &nodes->bytes[i]}, message->allocator)->bytes);
@@ -592,7 +588,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     }
 
     // Ask the callback if we should continue.
-    if (!scc->resultCallback(scc->resultCallbackContext, message)) {
+    if (scc->resultCallback == NULL
+        || scc->resultCallback(scc->resultCallbackContext, message) == false)
+    {
         searchStep(SearchStore_getContext(search));
     } else {
         cleanup(module->searchStore, parent, (uint8_t*) scc->target->bytes, module, true);
@@ -709,13 +707,14 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 }
 
 /** See: RouterModule.h */
-int32_t RouterModule_beginSearch(String* requestType,
-                                 String* targetKey,
-                                 const uint8_t searchTarget[20],
-                                 bool (* const callback)(void* callbackContext,
-                                                         struct DHTMessage* result),
-                                 void* callbackContext,
-                                 struct RouterModule* module)
+struct RouterModule_Search*
+    RouterModule_beginSearch(String* requestType,
+                             String* targetKey,
+                             const uint8_t searchTarget[20],
+                             bool (* const callback)(void* callbackContext,
+                                                     struct DHTMessage* result),
+                             void* callbackContext,
+                             struct RouterModule* module)
 {
     struct SearchStore_Search* search = SearchStore_newSearch(searchTarget, module->searchStore);
     struct MemAllocator* searchAllocator = SearchStore_getAllocator(search);
@@ -727,7 +726,7 @@ int32_t RouterModule_beginSearch(String* requestType,
 
     if (nodes->size == 0) {
         // no nodes found!
-        return -1;
+        return NULL;
     }
 
     for (uint32_t i = 0; i < nodes->size; i++) {
@@ -776,7 +775,16 @@ int32_t RouterModule_beginSearch(String* requestType,
 
     SearchStore_setContext(scc, search);
 
-    return 0;
+    struct RouterModule_Search* out =
+        searchAllocator->malloc(sizeof(struct RouterModule_Search), searchAllocator);
+    out->search = search;
+
+    return out;
+}
+
+void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
+{
+    SearchStore_freeSearch(toCancel->search);
 }
 
 /** See: RouterModule.h */

@@ -89,8 +89,8 @@ int LibeventNetworkModule_register(struct event_base* base,
         return -1;
     }
 
-    char* messageBuffer = allocator->malloc(4096, allocator);
-    struct MemAllocator* perMessageAllocator = BufferAllocator_new(messageBuffer, 4096);
+    char* messageBuffer = allocator->malloc(8192, allocator);
+    struct MemAllocator* perMessageAllocator = BufferAllocator_new(messageBuffer, 8192);
 
     struct LibeventNetworkModule_Context* context =
         allocator->malloc(sizeof(struct LibeventNetworkModule_Context), allocator);

@@ -3,7 +3,7 @@
 #include <time.h>
 
 #include <event2/dns.h>
-#include <event2/dns_struct.h>
+//#include <event2/dns_struct.h>
 #include <event2/util.h>
 /*#include <event2/event.h>*/
 
@@ -12,27 +12,31 @@
 #include "BridgeModule.h"
 #include "dns/DNSTools.h"
 #include "dns/DNSReturnCodes.h"
-#include "dht/DHTModules.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/DHTConstants.h"
 #include "dht/core/juliusz/dht.h"
 #include "libbenc/benc.h"
+#include "util/Timeout.h"
 
-#define MAX_CONCURRENT_REQUESTS 1024
 #define TIME_TO_LIVE 30
+#define TIMEOUT_MILLISECONDS 5000
 
-struct BridgeModule_waitingDnsRequest {
-    char key[20];
-    time_t timeout;
-    struct evdns_server_request* request;
-    const struct evdns_server_question* question;
-};
-
-struct BridgeModule_context {
-    unsigned int nextRequestSlot;
-    struct BridgeModule_waitingDnsRequest waitingRequests[MAX_CONCURRENT_REQUESTS];
-    struct DHTModule asDHT;
+struct Context {
     struct DNSModule asDNS;
     struct DNSModuleRegistry* dnsRegistry;
+    struct RouterModule* routerModule;
+    struct event_base* eventBase;
+    struct MemAllocator* allocator;
+};
+
+struct WaitingRequest
+{
+    struct evdns_server_request* request;
+    const struct evdns_server_question* question;
+    struct Timeout* timeout;
+    struct MemAllocator* allocator;
+    struct Context* context;
+    struct RouterModule_Search* search;
 };
 
 static int handleIncoming(struct DNSMessage* message,
@@ -41,26 +45,10 @@ static int handleIncoming(struct DNSMessage* message,
 static int hexDecode(char* hex, size_t length, char* output, size_t* outLength);
 static int handleQuestion(const struct evdns_server_question* question,
                           struct evdns_server_request* request,
-                          struct BridgeModule_context* context);
+                          struct Context* context);
 static int handleKeyLookup(const struct evdns_server_question* question,
                            struct evdns_server_request* request,
-                           struct BridgeModule_context* context);
-static int removeRequest(unsigned int requestNumber,
-                         struct BridgeModule_context* context);
-static int handleIncomingDHT(struct DHTMessage* message,
-                             void* vcontext);
-
-#define WARN(x) fprintf(stderr, x)
-
-#ifdef DEBUG_DNS
-#define DEBUG(x) fprintf(stderr, x)
-#define DEBUG2(x, y) fprintf(stderr, x, y)
-#define DEBUG3(x, y, z) fprintf(stderr, x, y, z)
-#else
-#define DEBUG(x)
-#define DEBUG2(x, y)
-#define DEBUG3(x, y, z)
-#endif
+                           struct Context* context);
 
 /**
  * Create a new DNS module for failing any requests which are not in the .key zone.
@@ -69,16 +57,17 @@ static int handleIncomingDHT(struct DHTMessage* message,
  * @param allocator the memory allocator to use for getting memory.
  */
 struct DNSModule* BridgeModule_registerNew(struct DNSModuleRegistry* registry,
-                                           struct MemAllocator* allocator)
+                                           struct MemAllocator* allocator,
+                                           struct RouterModule* routerModule,
+                                           struct event_base* eventBase)
 {
-    struct BridgeModule_context* context =
-        allocator->malloc(sizeof(struct BridgeModule_context), allocator);
+    struct Context* context =
+        allocator->malloc(sizeof(struct Context), allocator);
 
-    if (context == NULL) {
-        return NULL;
-    }
-    context->nextRequestSlot = 0;
     context->dnsRegistry = registry;
+    context->routerModule = routerModule;
+    context->eventBase = eventBase;
+    context->allocator = allocator;
 
     struct DNSModule localModule = {
         .name = "BridgeModule",
@@ -92,33 +81,14 @@ struct DNSModule* BridgeModule_registerNew(struct DNSModuleRegistry* registry,
     return &context->asDNS;
 }
 
-struct DHTModule* BridgeModule_asDhtModule(struct DNSModule* module)
-{
-    if (module == NULL || strcmp(module->name, "BridgeModule") != 0) {
-        return 0;
-    }
-
-    struct BridgeModule_context* context =
-        (struct BridgeModule_context*) module->context;
-
-    struct DHTModule localModule = {
-        .name = "BridgeModule",
-        .context = module->context,
-        .handleIncoming = handleIncomingDHT
-    };
-    memcpy(&context->asDHT, &localModule, sizeof(struct DHTModule));
-
-    return &context->asDHT;
-}
-
 /*--------------------Internal--------------------*/
 
 static int handleIncoming(struct DNSMessage* message,
                           struct DNSModule* module,
                           const struct DNSModuleRegistry* registry)
 {
-    struct BridgeModule_context* context =
-        (struct BridgeModule_context*) module->context;
+    struct Context* context =
+        (struct Context*) module->context;
 
     int i;
     int ret;
@@ -140,7 +110,7 @@ static int handleIncoming(struct DNSMessage* message,
 
 static int handleQuestion(const struct evdns_server_question* question,
                           struct evdns_server_request* request,
-                          struct BridgeModule_context* context)
+                          struct Context* context)
 {
     const char* domain = question->name;
     char buffer[12];
@@ -148,21 +118,65 @@ static int handleQuestion(const struct evdns_server_question* question,
     if (ret != 0) {
         return DNS_RETURN_FORMAT_ERROR;
     }
-    if (evutil_ascii_strcasecmp(buffer, "dht") == 0) {
+    if (evutil_ascii_strcasecmp(buffer, "torrent") == 0) {
         return handleKeyLookup(question, request, context);
     }
 
     return 0;
 }
 
+static bool routerCallback(void* callbackContext, struct DHTMessage* message)
+{
+    struct WaitingRequest* waitingRequest = (struct WaitingRequest*) callbackContext;
+
+    Dict* arguments = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
+    List* values = benc_lookupList(arguments, &DHTConstants_values);
+    if (values != NULL) {
+        for (int32_t i = 0; i < benc_itemCount(values); i++) {
+            String* val = benc_getString(values, i);
+            if (val != NULL && val->len == 6) {
+                char* cname = waitingRequest->allocator->malloc(32, waitingRequest->allocator);
+                sprintf(cname, "%d.%d.%d.%d:%d", (uint32_t) val->bytes[1] & 0xFF,
+                                                 (uint32_t) val->bytes[2] & 0xFF,
+                                                 (uint32_t) val->bytes[3] & 0xFF,
+                                                 (uint32_t) val->bytes[4] & 0xFF,
+                                                 (uint32_t) ntohs((uint16_t)val->bytes[5]) & 0xFFFF);
+                evdns_server_request_add_cname_reply(waitingRequest->request,
+                                                     waitingRequest->question->name,
+                                                     cname,
+                                                     TIME_TO_LIVE);
+            } else if (val == NULL) {
+                printf("Got an entry that wasn't a string!?\n");
+            } else {
+                printf("got entry of length %d\n", (uint32_t) val->len);
+            }
+        }
+        struct DNSMessage response = {
+            .request = waitingRequest->request,
+            .returnCode = 0
+        };
+        DNSModules_handleOutgoing(&response, waitingRequest->context->dnsRegistry);
+        waitingRequest->allocator->free(waitingRequest->allocator);
+        return true;
+    }
+    return false;
+}
+
+static void timeoutCallback(void* callbackContext)
+{
+    struct WaitingRequest* waitingRequest = (struct WaitingRequest*) callbackContext;
+    RouterModule_cancelSearch(waitingRequest->search);
+    evdns_server_request_drop(waitingRequest->request);
+    waitingRequest->allocator->free(waitingRequest->allocator);
+}
+
 /**
  * @return -1 if the operation is in progress and a response will be sent later.
  *          0 if no error but no domain.
- *            DNS_RETURN_FORMAT_ERROR if the label is too long for a key.
  */
 static int handleKeyLookup(const struct evdns_server_question* question,
                            struct evdns_server_request* request,
-                           struct BridgeModule_context* context)
+                           struct Context* context)
 {
     char buffer[40];
     int ret = DNSTools_getDomainLabel(question->name, 1, buffer, 40);
@@ -171,105 +185,37 @@ static int handleKeyLookup(const struct evdns_server_question* question,
         return 0;
     }
 
-    struct BridgeModule_waitingDnsRequest waitingRequest = {
-        .timeout = time(NULL) + 5,
-        .request = request,
-        .question = question
-    };
-
+    char infoHash[20];
     size_t outLen = 20;
-    ret = hexDecode(buffer, strlen(buffer), waitingRequest.key, &outLen);
+    ret = hexDecode(buffer, strlen(buffer), infoHash, &outLen);
     if (ret != 0) {
         /* No matter what, it's a "valid domain" but we can't handle it so it doesn't exist. */
         return 0;
     }
 
-    if (context->nextRequestSlot == MAX_CONCURRENT_REQUESTS) {
-        WARN("Maximum requests reached, discarding request! "
-             "Consider increasing MAX_CONCURRENT_REQUESTS in BridgeModule.c");
-        return -1;
-    }
+    struct MemAllocator* requestAllocator = context->allocator->child(context->allocator);
+    struct WaitingRequest* waitingRequest =
+        requestAllocator->malloc(sizeof(struct WaitingRequest), requestAllocator);
 
-    struct BridgeModule_waitingDnsRequest* waitingRequestPtr =
-        context->waitingRequests + context->nextRequestSlot;
-    context->nextRequestSlot++;
-
-    DEBUG3("Adding question. %p for domain: %s\n", request, question->name);
-    memcpy(waitingRequestPtr, &waitingRequest, sizeof(struct BridgeModule_waitingDnsRequest));
-
-    //dht_search((unsigned char*) waitingRequestPtr->key, 0, AF_INET, NULL, NULL);
+    waitingRequest->request = request;
+    waitingRequest->question = question;
+    waitingRequest->timeout =
+        Timeout_setTimeout(timeoutCallback,
+                           waitingRequest,
+                           TIMEOUT_MILLISECONDS,
+                           context->eventBase,
+                           requestAllocator);
+    waitingRequest->allocator = requestAllocator;
+    waitingRequest->context = context;
+    waitingRequest->search =
+        RouterModule_beginSearch(&DHTConstants_getPeers,
+                                 &DHTConstants_infoHash,
+                                 (uint8_t*)infoHash,
+                                 routerCallback,
+                                 waitingRequest,
+                                 context->routerModule);
 
     return -1;
-}
-
-static int handleIncomingDHT(struct DHTMessage* message,
-                             void* vcontext)
-{
-    struct BridgeModule_context* context =
-        (struct BridgeModule_context*) vcontext;
-
-    Dict* reply = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
-
-    /* If it's not a reply then 99% sure we don't have the node we want. */
-    if (reply == NULL) {
-        return 0;
-    }
-
-    String* idObj = benc_lookupString(reply, &DHTConstants_myId);
-
-    if (idObj == NULL || idObj->len != 20) {
-        /* Don't bother letting this packet get to the core, the node is broken. */
-        return -1;
-    }
-
-    char* id = idObj->bytes;
-    time_t now = time(NULL);
-
-    /* Now look for a matching job. */
-    size_t i;
-    struct BridgeModule_waitingDnsRequest* waitingRequest;
-
-    for (i = 0; i < context->nextRequestSlot; i++) {
-        waitingRequest = context->waitingRequests + i;
-        if (memcmp(id, waitingRequest->key, 20) == 0) {
-            DEBUG("MATCH!!\n");
-            /* Send a response. */
-            evdns_server_request_add_a_reply(waitingRequest->request,
-                                             waitingRequest->question->name,
-                                             1,
-                                             message->peerAddress,
-                                             TIME_TO_LIVE);
-            struct DNSMessage response = {
-                .request = waitingRequest->request,
-                .returnCode = 0
-            };
-            DNSModules_handleOutgoing(&response, context->dnsRegistry);
-            removeRequest(i, context);
-
-        } else if (waitingRequest->timeout < now) {
-            DEBUG2("NO MATCH! Removing entry %p\n", waitingRequest->request);
-            evdns_server_request_drop(waitingRequest->request);
-            removeRequest(i, context);
-
-        } else {
-            DEBUG("NO MATCH!\n");
-        }
-    }
-    return 0;
-}
-
-static int removeRequest(unsigned int requestNumber,
-                         struct BridgeModule_context* context)
-{
-    if (context->nextRequestSlot > 1
-        && requestNumber + 1 < context->nextRequestSlot)
-    {
-        memcpy(context->waitingRequests + requestNumber,
-               context->waitingRequests + context->nextRequestSlot - 1,
-               sizeof(struct BridgeModule_waitingDnsRequest));
-    }
-    context->nextRequestSlot--;
-    return 0;
 }
 
 /**

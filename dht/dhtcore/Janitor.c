@@ -134,6 +134,7 @@ printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach
         // Decrease reach at the same time..
         uint64_t secondsInLastCycle = (now - janitor->timeOfLastGlobalMaintainence) / 1024;
         uint64_t amountPerNode = janitor->reachDecreasePerSecond * secondsInLastCycle;
+printf("\nRunning Global search node count: %d total reach: %ld decreasing reach per node by: %ld\n", NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach, amountPerNode);
         janitor->routerModule->totalReach -=
             NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
 

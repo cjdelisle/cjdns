@@ -10,7 +10,7 @@
 #include <string.h>
 
 /** A NULL terminated list of zones which thei dns server is permistted to serve. */
-static const char* ALLOWED_TLDS[2] = {"dht", NULL};
+static const char* ALLOWED_TLDS[2] = {"torrent", NULL};
 
 static int handleIncoming(struct DNSMessage* message,
                           struct DNSModule* module,

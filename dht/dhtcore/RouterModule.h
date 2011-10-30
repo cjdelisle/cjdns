@@ -16,6 +16,8 @@
  */
 struct RouterModule;
 
+struct RouterModule_Search;
+
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
@@ -43,16 +45,19 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *                 if it returns true then the search is assumed to be complete.
  * @param callbackContext a pointer which will be passed back to the callback when it is called.
  * @param module the router module which should perform the search.
- * @return 0 if all goes well, -1 if the search could not be completed because there are no nodes
- *         closer to the destination than us.
+ * @return a search if all goes well, NULL if the search could not be completed because there are
+ *         no nodes closer to the destination than us.
  */
-int32_t RouterModule_beginSearch(String* requestType,
-                                 String* targetKey,
-                                 const uint8_t target[20],
-                                 bool (* const callback)(void* callbackContext,
-                                                         struct DHTMessage* result),
-                                 void* callbackContext,
-                                 struct RouterModule* module);
+struct RouterModule_Search*
+    RouterModule_beginSearch(String* requestType,
+                             String* targetKey,
+                             const uint8_t target[20],
+                             bool (* const callback)(void* callbackContext,
+                                                     struct DHTMessage* result),
+                             void* callbackContext,
+                             struct RouterModule* module);
+
+void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
 
 /**
  * Manually add a node to the routing table.
