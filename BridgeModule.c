@@ -150,6 +150,11 @@ static bool routerCallback(void* callbackContext, struct DHTMessage* message)
             } else {
                 printf("got entry of length %d\n", (uint32_t) val->len);
             }
+
+            if (i > 7) {
+                // Too many entries will make it not fit in a udp packet.
+                break;
+            }
         }
         struct DNSMessage response = {
             .request = waitingRequest->request,

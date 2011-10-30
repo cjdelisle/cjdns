@@ -41,6 +41,8 @@ struct Janitor
 
     uint64_t reachDecreasePerSecond;
 
+    uint64_t timeOfLastReachDecrease;
+
     struct MemAllocator* allocator;
 
     uint8_t recentSearchTarget[20];
@@ -115,9 +117,16 @@ printf("\nRunning search for %s, node count: %d total reach: %ld\n\n", hex->byte
         return;
     }
 
-
-    // Not time to do a global search yet.
     uint64_t now = Time_currentTimeMilliseconds();
+
+    // Decrease reach at the same time..
+    uint64_t millisecondsInLastCycle = now - janitor->timeOfLastReachDecrease;
+    uint64_t amountPerNode = (janitor->reachDecreasePerSecond * millisecondsInLastCycle) / 1024;
+printf("\nTotal reach: %ld, Decreasing reach per node by: %ld\n", janitor->routerModule->totalReach, amountPerNode);
+    janitor->routerModule->totalReach -=
+        NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
+    janitor->timeOfLastReachDecrease = now;
+
     if (now < janitor->timeOfLastGlobalMaintainence + janitor->globalMaintainenceMilliseconds) {
 printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach: %ld\n", now, janitor->timeOfLastGlobalMaintainence, NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach);
         return;
@@ -130,13 +139,6 @@ printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach
                                  repeatRecentSearchCallback,
                                  janitor,
                                  janitor->routerModule);
-
-        // Decrease reach at the same time..
-        uint64_t secondsInLastCycle = (now - janitor->timeOfLastGlobalMaintainence) / 1024;
-        uint64_t amountPerNode = janitor->reachDecreasePerSecond * secondsInLastCycle;
-printf("\nRunning Global search node count: %d total reach: %ld decreasing reach per node by: %ld\n", NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach, amountPerNode);
-        janitor->routerModule->totalReach -=
-            NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
 
         janitor->timeOfLastGlobalMaintainence = now;
         janitor->hasRecentSearchTarget = false;
@@ -165,6 +167,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     janitor->globalMaintainenceMilliseconds = globalMaintainenceMilliseconds;
     janitor->timeOfLastGlobalMaintainence = 0;
     janitor->reachDecreasePerSecond = reachDecreasePerSecond;
+    janitor->timeOfLastReachDecrease = Time_currentTimeMilliseconds();
     janitor->allocator = allocator;
     janitor->hasRecentSearchTarget = false;
     return janitor;
