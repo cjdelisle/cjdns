@@ -57,6 +57,11 @@ struct RouterModule_Search*
                              void* callbackContext,
                              struct RouterModule* module);
 
+/**
+ * Cancel a search before it is complete.
+ *
+ * @param toCancel the result of calling RouterModule_beginSearch() for this search.
+ */
 void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
 
 /**
@@ -72,6 +77,13 @@ void RouterModule_addNode(const uint8_t address[20],
                           const uint8_t networkAddress[6],
                           struct RouterModule* module);
 
+/**
+ * Send a ping to a node, when it responds it will be added to the routing table.
+ * This is the best way to introduce nodes manually.
+ *
+ * @param networkAddress the network address of the node.
+ * @param module the router module.
+ */
 void RouterModule_pingNode(const uint8_t networkAddress[6],
                            struct RouterModule* module);
 

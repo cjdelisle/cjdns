@@ -128,6 +128,13 @@ void* SearchStore_getContext(struct SearchStore_Search* search);
  */
 void SearchStore_freeSearch(struct SearchStore_Search* search);
 
+/**
+ * Get the search which a perticular node belongs to.
+ *
+ * @param node the search node.
+ * @param store the search store where the search is being carried out.
+ * @return the search.
+ */
 struct SearchStore_Search* SearchStore_getSearchForNode(const struct SearchStore_Node* node,
                                                         const struct SearchStore* store);
 

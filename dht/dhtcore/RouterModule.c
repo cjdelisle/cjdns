@@ -116,7 +116,7 @@
  * [1] The implementation runs periodic searches for random hashes but unless the search target
  *     is closer in keyspace to this node than it is to any node with non-zero reach, the search
  *     is not performed. This means that the node will send out lots of searches when it doesn't
- *     know nmany reliable nodes but it will taper off like a governer as it becomes more
+ *     know many reliable nodes but it will taper off like a governer as it becomes more
  *     integrated in the network. These searches are run every number of milliseconds given
  *     by the constant LOCAL_MAINTENANCE_SEARCH_MILLISECONDS.
  *
@@ -450,10 +450,6 @@ static inline void cleanup(struct SearchStore* store,
         parent = parent->next;
     }
 
-    // This is a hack around a problem with the allocator not executing onfree's correctly!!!
-    // TODO fix this at it's source
-    Timeout_clearTimeout(((struct SearchCallbackContext*)SearchStore_getContext(search))->timeout);
-
     SearchStore_freeSearch(search);
 }
 
@@ -498,6 +494,11 @@ printf("terminating search.\n");
     Timeout_resetTimeout(scc->timeout, tryNextNodeAfter(module));
 }
 
+/**
+ * Callback for when a search has timed out.
+ *
+ * @param vcontext the SearchCallbackContext, cast to void.
+ */
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
@@ -506,16 +507,6 @@ static void searchRequestTimeout(void* vcontext)
                       scc->lastNodeCalled->address,
                       scc->lastNodeCalled->networkAddress,
                       INT64_MIN);
-
-    struct Node* node =
-        NodeStore_getNode(scc->routerModule->nodeStore, scc->lastNodeCalled->address);
-
-    // Go directly to 0 reach, do not pass go, do not collect 200$
-    if (node != NULL) {
-        node->reach = 0;
-        NodeStore_updateReach(node, scc->routerModule->nodeStore);
-    }
-
     searchStep(scc);
 }
 
@@ -583,6 +574,14 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     if (parent == NULL) {
         // Couldn't find the node, perhaps we were sent a malformed packet.
+        return -1;
+    }
+
+    // If the search has already replaced the node's location or it has already finished
+    // and another search is taking place in the same slot, drop this reply because it is late.
+    if (memcmp(parent->address, address->bytes, 20) != 0
+        || memcmp(parent->networkAddress, message->networkAddress, 6) != 0)
+    {
         return -1;
     }
 
@@ -818,6 +817,7 @@ struct RouterModule_Search*
     return out;
 }
 
+/** See: RouterModule.h */
 void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
 {
     SearchStore_freeSearch(toCancel->search);
@@ -831,6 +831,7 @@ void RouterModule_addNode(const uint8_t address[20],
     NodeStore_addNode(module->nodeStore, address, networkAddress, 0);
 }
 
+/** See: RouterModule.h */
 void RouterModule_pingNode(const uint8_t networkAddress[6],
                            struct RouterModule* module)
 {

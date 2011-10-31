@@ -133,6 +133,7 @@ void SearchStore_freeSearch(struct SearchStore_Search* search)
     search->allocator->free(search->allocator);
 }
 
+/** See: SearchStore.h */
 struct SearchStore_Search* SearchStore_getSearchForNode(const struct SearchStore_Node* node,
                                                         const struct SearchStore* store)
 {
