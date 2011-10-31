@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
@@ -230,6 +231,14 @@ uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
             out += decreaseReachBy;
         } else {
             out += header->reach;
+// I don't care about 1 or 2 reach nodes coming in and out all the time.
+if (header->reach > 20) {
+printf("Node (%d.%d.%d.%d) reset reach to to 0\n",
+       ((int) store->nodes[i].networkAddress[0] & 0xff),
+       ((int) store->nodes[i].networkAddress[1] & 0xff),
+       ((int) store->nodes[i].networkAddress[2] & 0xff),
+       ((int) store->nodes[i].networkAddress[3] & 0xff));
+}
             header->reach = 0;
         }
     }

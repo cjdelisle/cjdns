@@ -142,7 +142,7 @@ static void* allocatorClone(size_t length, const struct MemAllocator* allocator,
     return pointer;
 }
 
-/** @see MemAllocator->clone() */
+/** @see MemAllocator->realloc() */
 static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator)
 {
     // Need to pointer to make sure we dont copy too much.

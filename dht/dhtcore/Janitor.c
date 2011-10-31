@@ -72,15 +72,15 @@ printf("Found Values!\n");
         for (int32_t i = 0; i < benc_itemCount(values); i++) {
             String* val = benc_getString(values, i);
             if (val != NULL && val->len == 6) {
-                printf("%d.%d.%d.%d:%d\n", (uint32_t) val->bytes[1] & 0xFF,
-                                           (uint32_t) val->bytes[2] & 0xFF,
-                                           (uint32_t) val->bytes[3] & 0xFF,
-                                           (uint32_t) val->bytes[4] & 0xFF,
-                                           (uint32_t) val->bytes[5] & 0xFFFF);
+                printf("%d.%d.%d.%d:%d\n", (int) val->bytes[1] & 0xFF,
+                                           (int) val->bytes[2] & 0xFF,
+                                           (int) val->bytes[3] & 0xFF,
+                                           (int) val->bytes[4] & 0xFF,
+                                           (int) val->bytes[5] & 0xFFFF);
             } else if (val == NULL) {
                 printf("Got an entry that wasn't a string!?\n");
             } else {
-                printf("got entry of length %d\n", (uint32_t) val->len);
+                printf("got entry of length %d\n", (int) val->len);
             }
         }
         return true;
@@ -108,7 +108,7 @@ static void runSearch(void* vcontext)
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (nodes->size == 0 || nodes->nodes[0]->reach == 0) {
 String* hex = Hex_encode(&(String) { .len = 20, .bytes = (char*) &searchTarget }, tempAllocator);
-printf("\nRunning search for %s, node count: %d total reach: %ld\n\n", hex->bytes, NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach);
+printf("\nRunning search for %s, node count: %d total reach: %ld\n\n", hex->bytes, NodeStore_size(janitor->nodeStore), (long int)janitor->routerModule->totalReach);
         RouterModule_beginSearch(&DHTConstants_findNode,
                                  &DHTConstants_targetId,
                                  searchTarget,
@@ -123,13 +123,13 @@ printf("\nRunning search for %s, node count: %d total reach: %ld\n\n", hex->byte
     // Decrease reach at the same time..
     uint64_t millisecondsInLastCycle = now - janitor->timeOfLastReachDecrease;
     uint64_t amountPerNode = (janitor->reachDecreasePerSecond * millisecondsInLastCycle) / 1024;
-printf("\nTotal reach: %ld, Decreasing reach per node by: %ld\n", janitor->routerModule->totalReach, amountPerNode);
+printf("\nTotal reach: %ld, Decreasing reach per node by: %d\n", (long int)janitor->routerModule->totalReach, (int)amountPerNode);
     janitor->routerModule->totalReach -=
         NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
     janitor->timeOfLastReachDecrease = now;
 
     if (now < janitor->timeOfLastGlobalMaintainence + janitor->globalMaintainenceMilliseconds) {
-printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach: %ld\n", now, janitor->timeOfLastGlobalMaintainence, NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach);
+printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach: %ld\n", (long int)now, (long int)janitor->timeOfLastGlobalMaintainence, NodeStore_size(janitor->nodeStore), (long int)janitor->routerModule->totalReach);
         return;
     }
 
@@ -144,7 +144,7 @@ printf("\nskipping because now = %ld, last run = %ld, node count: %d total reach
         janitor->timeOfLastGlobalMaintainence = now;
         janitor->hasRecentSearchTarget = false;
     } else {
-printf("\nskipping because we have no search to repeat, node count: %d total reach: %ld\n", NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach);
+printf("\nskipping because we have no search to repeat, node count: %d total reach: %ld\n", NodeStore_size(janitor->nodeStore), (long int)janitor->routerModule->totalReach);
     }
 }
 

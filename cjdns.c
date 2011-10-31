@@ -87,15 +87,15 @@ int main(int argc, char** argv)
 
     /* Need 2 debug modules one for incoming and one for outgoing so that
      * the outgoing module will have access to the serialized message and the incoming
-     * will have access to the fully parsed message. */
+     * will have access to the fully parsed message. *
     struct DHTModule* debugIn = DebugModule_new(allocator);
     struct DHTModule* debugOut = DebugModule_forOutput(debugIn);
     FILE* log = fopen("cjdns.log", "a+");
-    DebugModule_setLog(log, debugIn);
+    DebugModule_setLog(log, debugIn);*/
 
-    DHTModules_register(debugIn, registry);
+    //DHTModules_register(debugIn, registry);
     SerializationModule_register(registry, allocator);
-    DHTModules_register(debugOut, registry);
+    //DHTModules_register(debugOut, registry);
     LibeventNetworkModule_register(eventBase, dhtSocket, 6, registry, allocator);
 
     /* Send ping. */

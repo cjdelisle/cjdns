@@ -126,11 +126,6 @@
  *     node and the searched for location (this should never happen), it is considered to be 0.
  */
 
-/*
- * NOTES:
- * TODO every time the search backtracks, it runs over the same group of dead nodes again.
- */
-
 /*--------------------Constants--------------------*/
 
 /** The number of seconds of time overwhich to calculate the global mean response time. */
@@ -442,6 +437,13 @@ static inline void cleanup(struct SearchStore* store,
 
             parentNode->reach = newReach;
             module->totalReach += newReach - oldReach;
+printf("increasing reach for node (%d.%d.%d.%d) by %d",
+       ((int) parentNode->networkAddress[0] & 0xff),
+       ((int) parentNode->networkAddress[1] & 0xff),
+       ((int) parentNode->networkAddress[2] & 0xff),
+       ((int) parentNode->networkAddress[3] & 0xff),
+       ((int) (newReach - oldReach)));
+
             NodeStore_updateReach(parentNode, module->nodeStore);
         }
 
@@ -507,6 +509,11 @@ static void searchRequestTimeout(void* vcontext)
                       scc->lastNodeCalled->address,
                       scc->lastNodeCalled->networkAddress,
                       INT64_MIN);
+printf("Search Timeout (%d.%d.%d.%d) setting reach to 0\n",
+       ((int) scc->lastNodeCalled->networkAddress[0] & 0xff),
+       ((int) scc->lastNodeCalled->networkAddress[1] & 0xff),
+       ((int) scc->lastNodeCalled->networkAddress[2] & 0xff),
+       ((int) scc->lastNodeCalled->networkAddress[3] & 0xff));
     searchStep(scc);
 }
 
@@ -580,7 +587,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     // If the search has already replaced the node's location or it has already finished
     // and another search is taking place in the same slot, drop this reply because it is late.
     if (memcmp(parent->address, address->bytes, 20) != 0
-        || memcmp(parent->networkAddress, message->networkAddress, 6) != 0)
+        || memcmp(parent->networkAddress, message->peerAddress, 6) != 0)
     {
         return -1;
     }
@@ -608,7 +615,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                                                              (uint8_t*) &nodes->bytes[i],
                                                              parent->address) >= 0)
         {
-//printf("dropping reply because it contains nodes further from us.\n");
+//printf("dropped answer because it is further from us\n");
         } else {
             SearchStore_addNodeToSearch(parent,
                                         (uint8_t*) &nodes->bytes[i],
