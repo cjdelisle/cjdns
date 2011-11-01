@@ -5,6 +5,7 @@
 
 #include "memory/MemAllocator.h"
 #include "libbenc/benc.h"
+#include "util/AverageRoller.h"
 
 
 /*--------------------Constants--------------------*/
@@ -43,6 +44,9 @@ struct SearchStore
      * When a search completes, it will be freed and it's pointer will be set to NULL.
      */
     struct SearchStore_Search* searches[SearchStore_MAX_SEARCHES];
+
+    /** Averager for milliseconds wait for request turnaround. */
+    struct AverageRoller* gmrtRoller;
 };
 
 struct SearchStore_Node;
@@ -83,8 +87,10 @@ struct SearchStore_TraceElement
  * Create a new SearchStore.
  *
  * @param allocator the means of aquiring memory for the new store.
+ * @param gmrtRoller averager of the mean response time for all nodes.
  */
-struct SearchStore* SearchStore_new(struct MemAllocator* allocator);
+struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
+                                    struct AverageRoller* gmrtRoller);
 
 /**
  * Create a new search.

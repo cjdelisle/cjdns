@@ -47,7 +47,8 @@ int main()
         if (average != testData[i][2]) {
             printf("For average #%d, expected %d, got %d,  float: %f,  entryCount: %d\n",
                    (int) i, (int) testData[i][2], (int) average,
-                   ((float) roller->sum) / roller->entryCount, roller->entryCount);
+                   ((float) roller->sum) / roller->entryCount,
+                   (int) roller->entryCount);
             ret = 1;
         }
     }

@@ -135,19 +135,21 @@
  * The number to initialize the global mean response time averager with so that it will
  * return sane results early on, this number can be much higher than the expected average.
  */
-#define GMRT_INITAL_MILLISECONDS 1000
+#define GMRT_INITAL_MILLISECONDS 5000
 
 /** The number of nodes which we will keep track of. */
-#define NODE_STORE_SIZE 16384
+#define NODE_STORE_SIZE 8192
 
 /** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 750
 
 /**
  * The number of milliseconds to pass between global maintainence searches.
  * These are searches for random targets which are used to discover new nodes.
  */
-#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 20000
+
+#define SEARCH_REPEAT_MILLISECONDS 7500
 
 /**
  * The amount to decrease the reach of *every* node per second.
@@ -155,7 +157,7 @@
  * allow a node to be used if it has not replied to a search within
  * an hour. Most nodes will be forced to reply much sooner.
  */
-#define REACH_DECREASE_PER_SECOND (UINT32_MAX / (60 * 30))
+#define REACH_DECREASE_PER_SECOND 20 //(UINT32_MAX / (60 * 30))
 
 /** The maximum number of requests to make before calling a search failed. */
 #define MAX_REQUESTS_PER_SEARCH 100
@@ -200,19 +202,32 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->myAddress = benc_newBinaryString((const char*) myAddress, 20, allocator);
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->searchStore = SearchStore_new(allocator);
+    out->searchStore = SearchStore_new(allocator, out->gmrtRoller);
     out->nodeStore = NodeStore_new(myAddress, NODE_STORE_SIZE, allocator);
     out->registry = registry;
     out->eventBase = eventBase;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                REACH_DECREASE_PER_SECOND,
+                               SEARCH_REPEAT_MILLISECONDS,
                                out,
                                out->nodeStore,
                                allocator,
                                eventBase);
 
     return out;
+}
+
+/**
+ * The amount of time to wait before skipping over the first node and trying another in a search.
+ * Any node which can't beat this time will have it's reach set to 0.
+ *
+ * @param module this module.
+ * @return the timeout time.
+ */
+static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
+{
+    return (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3) / 2;
 }
 
 /**
@@ -224,8 +239,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
 {
-    return Time_currentTimeMilliseconds()
-        - (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2);
+    return Time_currentTimeMilliseconds() - tryNextNodeAfter(module);
 }
 
 /**
@@ -330,17 +344,6 @@ static inline void sendRequest(const uint8_t networkAddress[6],
 }
 
 /**
- * The amount of time to wait before skipping over the first node and trying another in a search.
- *
- * @param module this module.
- * @return the timeout time.
- */
-static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
-{
-    return ((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 2;
-}
-
-/**
  * A context for the internals of a search.
  */
 struct SearchCallbackContext
@@ -437,7 +440,7 @@ static inline void cleanup(struct SearchStore* store,
 
             parentNode->reach = newReach;
             module->totalReach += newReach - oldReach;
-printf("increasing reach for node (%d.%d.%d.%d) by %d",
+printf("increasing reach for node (%d.%d.%d.%d) by %d\n",
        ((int) parentNode->networkAddress[0] & 0xff),
        ((int) parentNode->networkAddress[1] & 0xff),
        ((int) parentNode->networkAddress[2] & 0xff),
@@ -592,6 +595,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return -1;
     }
 
+    SearchStore_replyReceived(parent, module->searchStore);
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
     struct SearchCallbackContext* scc = SearchStore_getContext(search);
 
@@ -703,14 +707,21 @@ static inline int handleQuery(struct DHTMessage* message,
     nodes->len = nodeList->size * 26;
     nodes->bytes = message->allocator->malloc(nodeList->size * 26, message->allocator);
 
+    bool hasNonZeroReach = false;
     uint32_t i;
     for (i = 0; i < nodeList->size; i++) {
         memcpy(&nodes->bytes[i * 26], &nodeList->nodes[i]->address, 20);
         memcpy(&nodes->bytes[i * 26 + 20], &nodeList->nodes[i]->networkAddress, 6);
+        hasNonZeroReach |= nodeList->nodes[i]->reach;
     }
     if (i > 0) {
         benc_putString(replyArgs, &DHTConstants_nodes, nodes, message->allocator);
     }
+
+    if (!hasNonZeroReach) {
+        Janitor_informOfRecentLocalSearch((uint8_t*) target, module->janitor);
+    }
+
     return 0;
 }
 

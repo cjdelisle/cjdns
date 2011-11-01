@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "dht/dhtcore/SearchStore.h"
+#include "util/AverageRoller.h"
 #include "util/Endian.h"
 #include "util/Time.h"
 
@@ -75,10 +76,12 @@ struct SearchNodeIndex
 /*--------------------Functions--------------------*/
 
 /** See: SearchStore.h */
-struct SearchStore* SearchStore_new(struct MemAllocator* allocator)
+struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
+                                    struct AverageRoller* gmrtRoller)
 {
     struct SearchStore* out = allocator->calloc(sizeof(struct SearchStore), 1, allocator);
     out->allocator = allocator;
+    out->gmrtRoller = gmrtRoller;
     return out;
 }
 
@@ -206,7 +209,7 @@ static struct SearchNodeIndex searchNodeIndexForTid(const String* tid)
 
     uint32_t number = 0;
 
-    memcpy((char*) &number, tid->bytes, tid->len);
+    memcpy((char*) &number, tid->bytes, (tid->len > 4) ? 4 : tid->len);
 
     if (Endian_isBigEndian()) {
         number >>= (64 - maxNodesBits + maxSearchBits);
@@ -324,8 +327,12 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
                                const struct SearchStore* store)
 {
     struct SearchNode* searchNode = &store->searches[node->searchIndex]->nodes[node->nodeIndex];
-    searchNode->delayUntilReply =
-        (uint32_t) (Time_currentTimeMilliseconds() - searchNode->timeOfRequest);
+    uint32_t delay = Time_currentTimeMilliseconds() - searchNode->timeOfRequest;
+    // If it's an old stray reply then don't put it in the GMRT
+    if (delay <  AverageRoller_getAverage(store->gmrtRoller) * 2) {
+        AverageRoller_update(store->gmrtRoller, delay);
+    }
+    searchNode->delayUntilReply = delay;
 }
 
 /** See: SearchStore.h */
