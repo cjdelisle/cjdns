@@ -115,7 +115,7 @@ static void runSearch(void* vcontext)
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (nodes->size == 0 || nodes->nodes[0]->reach == 0) {
 String* hex = Hex_encode(&(String) { .len = 20, .bytes = (char*) &searchTarget }, tempAllocator);
-printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, NodeStore_size(janitor->nodeStore), janitor->routerModule->totalReach);
+printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, NodeStore_size(janitor->nodeStore), (long) janitor->routerModule->totalReach);
         RouterModule_beginSearch(&DHTConstants_findNode,
                                  &DHTConstants_targetId,
                                  searchTarget,
