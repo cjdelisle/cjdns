@@ -129,6 +129,13 @@ static bool routerCallback(void* callbackContext, struct DHTMessage* message)
 {
     struct WaitingRequest* waitingRequest = (struct WaitingRequest*) callbackContext;
 
+    if (message == NULL) {
+        // Couldn't find anything :(
+        evdns_server_request_drop(waitingRequest->request);
+        waitingRequest->allocator->free(waitingRequest->allocator);
+        return false;
+    }
+
     Dict* arguments = benc_lookupDictionary(message->asDict, &DHTConstants_reply);
     List* values = benc_lookupList(arguments, &DHTConstants_values);
     if (values != NULL) {

@@ -64,7 +64,7 @@ struct FirstContext
 
 static void failure(const char* message)
 {
-    fprintf(stderr, "Fatel error: %s\n", message);
+    fprintf(stderr, "Fatal error: %s\n", message);
     abort();
 }
 
