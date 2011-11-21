@@ -42,6 +42,7 @@ add_subdirectory(crypto)
 add_subdirectory(dht)
 add_subdirectory(dns)
 add_subdirectory(util)
+add_subdirectory(switch)
 
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
