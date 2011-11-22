@@ -1,3 +1,76 @@
+Dear Reader,
+    I suppose you are here because you are interested in alternative networks,
+perhaps for censorship resistance, perhaps network security and I have no doubt you are wondering what
+the hell this thing is supposed to do.
+We can all find common ground in the statement that The Internet is painfully insecure. Free speech
+and privacy advocates find it insecure against government listening and blocking, governments find
+it insecure against hackers taking systems over and leaking secrets, and internet service providers
+find it insecure against DDoS kiddies who use large swarms of zombie machines to send enough traffic
+to overload a network link. These are, however, all different views of the same problem.
+
+We have a number of somewhat competing offerings to solve this problem from ISPs and government.
+We have IPSEC, DNSSEC, numerous proposals from the mundane to the wild and whacky such as "internet
+drivers licenses".
+The people who have developed these proposals are unfortunately limited in their thinking. ISPs are
+unable to see past the now almost 30 year old routing protocols which glue together the internet of
+today. Government actors are conditioned to think of something as secure when they have control over
+it. A quick look at x509 (the authentication system behind SSL) shows us that central points of
+failure inevitably live up to their name. In order to have a central authority, the people must not
+only be able to trust his motives but they must be able to trust his system's integrity as well.
+Recently people's email was compromised when DigiNotar certificate authority was hacked and used to
+forge gmail certificates.
+
+It is worthy of note that the vulnerability in DNS which ICE exploited to take down websites
+they deemed "dedicated to copyright infringement" was also used by Anonymous to replace a movie
+industry website with a manifesto.
+
+
+
+--------------------   A System Is Only Secure When Nobody Has Total Control   --------------------
+
+
+
+What is cjdns?
+It is a routing engine designed for security, scalability, speed and ease of use.
+The dream: You type ./cjdns and give it an interface which connects another node and it gives you an
+ipv6 address generated from a public encryption key and a virtual network card (TUN device) which
+you can use to send packets to anyone in the cjdns network to which you are connected.
+
+How does it work?
+In order to understand how cjdns works, it is important to understand how the existing internet works
+when you send a packet, at each "intersection in the road" the router reads the address on the packet
+and decides which turn it should take. In the cjdns net, a packet goes to a router and the router
+labels the packet with directions to a router which will be able to best handle it. That is, a router
+which is near by in physical space and has an address which is numerically close to the destination
+address of the packet. The directions which are added to the packet allow it to go through a number
+of routers without much handling, they just read the label and bounce the packet wherever the next
+bits in the label tell them to. Routers have a responsibility to "keep in touch" with other routers
+that are numerically close to their address and also routers which are physically close to them.
+The router engine is a modified implementation of the Kademlia DHT design.
+
+How close is it to complete?
+If we're lucky, we'll have a live test network for Christmas.
+
+What about DNS?
+DNS is a complex system to implement and highly complex to implement without central authority, if
+you would like to offer help with this part, I invite you to come join.
+
+If you are still interested in this project and want to follow it, get in the channel on IRC:
+http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
+
+
+
+Thank you for your time and interest,
+
+Caleb James DeLisle  ==  cjdelisle  ==  cjd
+
+
+
+
+
+
+
+
 20110216-20110414
 ircerr@EFNet
 irc://irc.EFNet.org/#cjdns
