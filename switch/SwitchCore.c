@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "memory/MemAllocator.h"
+#include "switch/Interface.h"
 #include "switch/SwitchCore.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -9,7 +10,7 @@
 
 struct SwitchCore
 {
-    struct SwitchCore_Interface interfaces[256];
+    struct Interface interfaces[256];
 
     struct MemAllocator* allocator;
 
@@ -25,15 +26,15 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
     return core;
 }
 
-struct SwitchCore_Interface* SwitchCore_addInterface(
-    uint8_t (* sendMessage)(struct Message* toSend, void* callbackContext),
-    void* callbackContext,
-    struct SwitchCore* core)
+struct Interface* SwitchCore_addInterface(uint8_t (* sendMessage)(struct Message* toSend,
+                                                                  void* callbackContext),
+                                          void* callbackContext,
+                                          struct SwitchCore* core)
 {
     if (core->interfaceCount == 256) {
         return NULL;
     }
-    struct SwitchCore_Interface* out = &core->interfaces[core->interfaceCount];
+    struct Interface* out = &core->interfaces[core->interfaceCount];
     out->core = core;
     out->sendMessage = sendMessage;
     out->callbackContext = callbackContext;
@@ -122,13 +123,13 @@ static inline uint32_t getDecompressed(const uint32_t label, const uint32_t bits
 #undef SCHEME_TWO_BITS
 #undef SCHEME_THREE_BITS
 
-static inline uint8_t sendMessage(const struct SwitchCore_Interface* interface,
+static inline uint8_t sendMessage(const struct Interface* interface,
                                   struct Message* toSend)
 {
     return interface->sendMessage(toSend, interface->callbackContext);
 }
 
-static inline void sendError(struct SwitchCore_Interface* interface,
+static inline void sendError(struct Interface* interface,
                              struct Message* cause,
                              uint16_t code)
 {
@@ -152,18 +153,18 @@ static inline void sendError(struct SwitchCore_Interface* interface,
     // Just swap the error into the message used for the cause.
     cause->bytes = (uint8_t*) err;
     cause->length = sizeof(struct MessageType_Error) - (255 - err->error.length);
-    sendMessage(interface, cause);
+    interface->sendMessage(cause, interface->callbackContext);
 }
 
 
-void SwitchCore_receivedPacket(struct SwitchCore_Interface* sourceIf, struct Message* message)
+void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* message)
 {
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
         // runt packet, don't bother trying to respond, there's no readable header anyway.
         return;
     }
 
-    const struct SwitchCore* core = sourceIf->core;
+    struct SwitchCore* core = sourceIf->core;
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
     const uint32_t label = ntohl(header->label_be);
     const uint32_t bits = bitsUsedForLabel(label);
@@ -186,7 +187,8 @@ void SwitchCore_receivedPacket(struct SwitchCore_Interface* sourceIf, struct Mes
 
     header->label_be = ntohl((label >> bits) | bitReverse(getCompressed(sourceIfIndex, bits)));
 
-    const uint8_t err = sendMessage(&core->interfaces[destIndex], message);
+    struct Interface* destIf = &core->interfaces[destIndex];
+    const uint8_t err = destIf->sendMessage(message, destIf->callbackContext);
     if (err) {
         header->label_be = ntohl(label);
         sendError(sourceIf, message, Error_INTERFACE_ERROR | err);
