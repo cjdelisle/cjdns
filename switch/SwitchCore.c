@@ -7,15 +7,6 @@
 #include "wire/Message.h"
 #include "wire/MessageType.h"
 
-struct SwitchCore_Interface
-{
-    struct SwitchCore* core;
-
-    uint8_t (* sendMessage)(struct Message* toSend, void* callbackContext);
-
-    void* callbackContext;
-};
-
 struct SwitchCore
 {
     struct SwitchCore_Interface interfaces[256];
@@ -150,10 +141,10 @@ static inline void sendError(struct SwitchCore_Interface* interface,
         cause->allocator->malloc(sizeof(struct MessageType_Error), cause->allocator);
 
     err->switchHeader.label_be = bitReverse(header->label_be);
-    Headers_setPaymentFragmentNumAndMessageType(&err->switchHeader,
-                                                Headers_getPayment(header),
-                                                0,
-                                                MessageType_ERROR);
+    Headers_setPriorityFragmentNumAndMessageType(&err->switchHeader,
+                                                 Headers_getPriority(header),
+                                                 0,
+                                                 MessageType_ERROR);
     err->error.errorType_be = ntohs(code);
     err->error.length = ((cause->length > 255) ? cause->length : 255);
     memcpy(err->error.cause.bytes, cause->bytes, err->error.length);

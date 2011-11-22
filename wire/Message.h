@@ -1,3 +1,6 @@
+#ifndef MESSAGE_H
+#define MESSAGE_H
+
 struct Message
 {
     /** The length of the message. */
@@ -8,3 +11,5 @@ struct Message
 
     struct MemAllocator* allocator;
 };
+
+#endif

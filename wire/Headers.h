@@ -24,7 +24,7 @@ struct Headers_SwitchHeader
      * encryption nonces must be in the first fragment, if not, the router
      * may drop the packet.
      *
-     * Bottom 24 bits: payment
+     * Bottom 24 bits: priority
      * Anti-flooding, this is a big endian uint32_t with the high 8 bits cut off.
      *
      * This entire number is in big endian encoding.
@@ -42,15 +42,15 @@ static inline uint32_t Headers_getFragmentNumber(const struct Headers_SwitchHead
     return (ntohl(header->lowBits_be) >> 24) & ((1 << 4) - 1);
 }
 
-static inline uint32_t Headers_getPayment(const struct Headers_SwitchHeader* header)
+static inline uint32_t Headers_getPriority(const struct Headers_SwitchHeader* header)
 {
     return ntohl(header->lowBits_be) & ((1 << 24) - 1);
 }
 
-static inline void Headers_setPaymentFragmentNumAndMessageType(struct Headers_SwitchHeader* header,
-                                                               const uint32_t payment,
-                                                               const uint32_t fragmentNum,
-                                                               const uint32_t messageType)
+static inline void Headers_setPriorityFragmentNumAndMessageType(struct Headers_SwitchHeader* header,
+                                                                const uint32_t payment,
+                                                                const uint32_t fragmentNum,
+                                                                const uint32_t messageType)
 {
     header->lowBits_be = htonl(
         (payment & ((1 << 24) - 1))
