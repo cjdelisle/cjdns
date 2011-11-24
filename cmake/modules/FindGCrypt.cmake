@@ -16,7 +16,6 @@ if (NOT GCRYPT_FOUND)
     endif (CONFIG_EXEC)
 endif (NOT GCRYPT_FOUND)
 
-
 if (GCRYPT_FOUND)
     message(STATUS "Found libgcrypt: includes ${GCRYPT_INCLUDE_DIRS} libs ${GCRYPT_LIBRARIES}")
 else (GCRYPT_FOUND)

@@ -56,8 +56,6 @@ int main(int argc, char** argv)
     #define BUFFER_SIZE (20 * 1000 * 1000)
     struct MemAllocator* allocator = MallocAllocator_new(BUFFER_SIZE);
 
-    /* Ohhhh jeeee: operation is not possible without initialized secure memory */
-    Crypto_init();
 
     char idBuff[20];
     char* id = idBuff;
@@ -65,8 +63,7 @@ int main(int argc, char** argv)
     if (argc > 4) {
         hexDecode(argv[4], strlen(argv[4]), id, &idLen);
     } else {
-        KeyPair* kp = Crypto_newKeyPair("p160", allocator);
-        id = kp->publicKey.as.bstr->bytes;
+        Crypto_randomize( &(String){ .bytes = idBuff, .len = 20 } );
     }
 
     struct event_base* eventBase = event_base_new();

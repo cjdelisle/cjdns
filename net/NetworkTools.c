@@ -38,23 +38,16 @@ evutil_socket_t NetworkTools_bindSocket(const char* addressAndPort)
     evutil_socket_t socketNum = socket(addr.ss_family, SOCK_DGRAM, 0);
 
     if(socketNum == -1) {
-        /*perror("Cannot p2p dht socket()");
-        ctx->errno = F4_ERR_CANT_OPEN_SOCKET_P2P;*/
         return -1;
     }
 
     if(listen(socketNum, 10) == 0) {
-        /*perror("Cannot listen() p2p dht");
-        //ctx->errno = F4_ERR_CANT_OPEN_SOCKET_P2P;*/
         return -1;
     }
 
-    evutil_make_listen_socket_reuseable(socketNum);
     evutil_make_socket_nonblocking(socketNum);
 
     if(bind(socketNum, (struct sockaddr *)&addr, addrLength)) {
-        /*perror("Cannot bind() p2p dht");
-        ctx->errno = F4_ERR_CANT_OPEN_SOCKET_P2P;*/
         return -1;
     }
 

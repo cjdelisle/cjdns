@@ -1,10 +1,12 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "randombytes.h"
+
 #include "Crypto.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "seccure/protocol.h"
+//#include "seccure/protocol.h"
 #include "libbenc/benc.h"
 
 /**
@@ -18,7 +20,7 @@
  */
 
 
-/** @see Crypto.h */
+/** @see Crypto.h *
 int Crypto_init()
 {
     gcry_error_t err = gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
@@ -36,7 +38,7 @@ int Crypto_init()
     }
 
     return 0;
-}
+}*/
 
 /**
  * Serialize a point.
@@ -51,7 +53,7 @@ int Crypto_init()
  * @param allocator the memory allocator to use for allocating the memory.
  * @return a bencoded object representing a point or NULL if serialization fails.
  * @see parsePoint()
- */
+ *
 static bobj_t* serializePoint(const struct affine_point* point,
                               const struct MemAllocator* allocator)
 {
@@ -79,7 +81,7 @@ static bobj_t* serializePoint(const struct affine_point* point,
         return NULL;
     }
 
-    /* Make sure X took as much space as it said it would. */
+    // Make sure X took as much space as it said it would.
     assert(actualLength == xLength);
 
     err = gcry_mpi_print(GCRYMPI_FMT_USG,
@@ -92,22 +94,22 @@ static bobj_t* serializePoint(const struct affine_point* point,
         return NULL;
     }
 
-    /* Make sure Y took as much space as it said it would. */
+    // Make sure Y took as much space as it said it would.
     assert(actualLength == length - xLength);
 
     string->len = length;
 
     return serial;
-}
+}*/
 
 /**
  * A wrapper around point_release() which accepts void so it can be
  * released when the memory allocator is freed.
- */
+ *
 static void freePoint(void* affinePoint)
 {
     point_release((struct affine_point*) affinePoint);
-}
+}*/
 
 /**
  * Parse a point.
@@ -118,7 +120,7 @@ static void freePoint(void* affinePoint)
  *                  the allocator is freed.
  * @return an affine_point as represented by the serialized point.
  * @see serializePoint()
- */
+ *
 static struct affine_point* parsePoint(const benc_bstr_t serialPoint,
                                        const struct MemAllocator* allocator)
 {
@@ -154,9 +156,9 @@ static void freeKeyPair(void* keyPair)
     KeyPair* kp = (KeyPair*) keyPair;
     gcry_mpi_release(kp->privateKey);
     curve_release((struct curve_params*) kp->params);
-}
+}*/
 
-/** @see Crypto.h */
+/** @see Crypto.h *
 KeyPair* Crypto_newKeyPair(const char* curveName,
                            const struct MemAllocator* allocator)
 {
@@ -181,7 +183,7 @@ KeyPair* Crypto_newKeyPair(const char* curveName,
     allocator->onFree(freeKeyPair, out, allocator);
 
     return out;
-}
+}*/
 
 /**
  * Parse a buffer and break into 3.
@@ -195,7 +197,7 @@ KeyPair* Crypto_newKeyPair(const char* curveName,
  * @param publicSize the size of the public key.
  * @param curveName the name of the curve.
  * @param curveNameSize the size of the curve name.
- */
+ *
 static inline void serialize0(char* outBuffer,
                               const char* private, size_t privateSize,
                               const char* public, size_t publicSize,
@@ -213,9 +215,9 @@ static inline void serialize0(char* outBuffer,
            curveName,
            curveNameSize);
     outBuffer[privateSize + publicSize + curveNameSize + 3] = 0x00;
-}
+}*/
 
-/** @see Crypto.h */
+/** @see Crypto.h *
 int Crypto_serializeKeyPair(const KeyPair* toSerialize,
                               char** pointToOutput)
 {
@@ -223,7 +225,7 @@ int Crypto_serializeKeyPair(const KeyPair* toSerialize,
         return -3;
     }
 
-    /* This will be in secure memory. */
+    // This will be in secure memory.
     unsigned char* privateBuf = NULL;
 
     size_t privateSize = 0;
@@ -238,12 +240,12 @@ int Crypto_serializeKeyPair(const KeyPair* toSerialize,
 
     size_t publicSize = toSerialize->publicKey.as.bstr->len;
 
-    /* "+ 1" to keep the null at the end of the string. */
+    // "+ 1" to keep the null at the end of the string.
     size_t curveNameSize = strlen(toSerialize->params->name) + 1;
 
     if (publicSize > 0xFE || curveNameSize > 0xFE || privateSize > 0xFE)
     {
-        /* limitation of the serialization technique. 0xFF is reserved. */
+        // limitation of the serialization technique. 0xFF is reserved.
         return -1;
     }
 
@@ -264,7 +266,7 @@ int Crypto_serializeKeyPair(const KeyPair* toSerialize,
     *pointToOutput = outBuf;
 
     return outLength;
-}
+}*/
 
 /**
  * Parse a buffer and break into 3.
@@ -284,7 +286,7 @@ int Crypto_serializeKeyPair(const KeyPair* toSerialize,
  * @return -1 if the buffer does not contain a null where expected.
  *         -2 if memory cannot be allocated.
  *         0 if all goes well.
- */
+ *
 static inline int parse0(const char* inBuffer, size_t inBufferLength,
                          char** private, size_t* privateSize,
                          char** public, size_t* publicSize,
@@ -331,9 +333,9 @@ static inline int parse0(const char* inBuffer, size_t inBufferLength,
     *curveNameSize = nameSize;
 
     return 0;
-}
+}*/
 
-/** @see Crypto.h */
+/** @see Crypto.h *
 KeyPair* Crypto_parseKeyPair(const char* serialized, size_t bufferLength)
 {
     char* private = NULL;
@@ -357,7 +359,7 @@ if (parseError) {
     printf("psrser error %d\n", (int) parseError);
 }
     struct curve_params* params = NULL;
-    /* Make sure curveName is null terminated. */
+    // Make sure curveName is null terminated.
     if (!parseError && curveName[curveNameSize - 1] == '\0') {
         params = curve_by_name(curveName, DF_BIN);
     }
@@ -391,7 +393,7 @@ if (parseError) {
 
         memcpy(kp, &localKp, sizeof(KeyPair));
 
-        /* paranoia. */
+        // paranoia.
         memset(&localKp, 0, sizeof(KeyPair));
 
         return kp;
@@ -405,7 +407,7 @@ if (parseError) {
     if (kp) { gcry_free(kp); }
 
     return NULL;
-}
+}*/
 
 /**
  * Sign a message, implementation 0.
@@ -416,6 +418,7 @@ if (parseError) {
  * @param outputBuffer write the signature to this buffer.
  * @param params constants about the crypto algorithm.
  */
+/*
 static inline int sign0(const char* message, size_t messageLength,
                         const gcry_mpi_t privateKey,
                         char* outputBuffer, size_t outBufferLength,
@@ -430,16 +433,16 @@ static inline int sign0(const char* message, size_t messageLength,
         return -1;
     }
 
-    /* ECDSA_sign() expects exactly 64 bytes so use SHA512. */
+    // ECDSA_sign() expects exactly 64 bytes so use SHA512.
     gcry_md_hd_t hashFunction;
     gcry_error_t err = gcry_md_open(&hashFunction, GCRY_MD_SHA512, 0);
     if (gcry_err_code(err)) {
-        /* Failed to setup SHA512 */
+        // Failed to setup SHA512
     } else {
         gcry_md_write(hashFunction, message, messageLength);
         char* hashReturn = (char*) gcry_md_read(hashFunction, 0);
         if (hashReturn == NULL) {
-            /* Failed to do hash. */
+            // Failed to do hash.
         } else {
             gcry_mpi_t sig = ECDSA_sign(hashReturn, privateKey, params);
             serialize_mpi(outputBuffer, outBufferLength, DF_BIN, sig);
@@ -449,9 +452,10 @@ static inline int sign0(const char* message, size_t messageLength,
         gcry_md_close(hashFunction);
     }
     return -1;
-}
+}*/
 
 /** @see Crypto.h */
+/*
 benc_bstr_t* Crypto_sign(const benc_bstr_t message,
                          const KeyPair* const keyPair,
                          const struct MemAllocator* allocator)
@@ -474,9 +478,10 @@ benc_bstr_t* Crypto_sign(const benc_bstr_t message,
         return NULL;
     }
     return sig;
-}
+}*/
 
 /** @see Crypto.h */
+/*
 uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
                                  const benc_bstr_t signature,
                                  const benc_bstr_t publicKey,
@@ -493,7 +498,7 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
         return 0;
     }
 
-    /* Need a memory allocator for a quick job here, "roll your own". */
+    // Need a memory allocator for a quick job here, "roll your own".
     char buffer[256];
     struct MemAllocator* allocator = BufferAllocator_new(buffer, 256);
     struct affine_point* Q = parsePoint(publicKey, allocator);
@@ -502,7 +507,7 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
         return 0;
     }
 
-    /* Read the signature into a platform independent var blah blah. */
+    // Read the signature into a platform independent var blah blah.
     gcry_mpi_t mpi_signature;
     gcry_mpi_scan(&mpi_signature,
                   GCRYMPI_FMT_USG,
@@ -511,30 +516,33 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
 
     int ret = 0;
 
-    /* ECDSA_verify() expects exactly 64 bytes so use SHA512. */
+    // ECDSA_verify() expects exactly 64 bytes so use SHA512.
     gcry_md_hd_t hashFunction;
     gcry_error_t err = gcry_md_open(&hashFunction, GCRY_MD_SHA512, 0);
     if (gcry_err_code(err)) {
-        /* Failed to setup SHA512 */
+        // Failed to setup SHA512
     } else {
         gcry_md_write(hashFunction, message.bytes, message.len);
         char* hashReturn = (char*) gcry_md_read(hashFunction, 0);
         if (hashReturn == NULL) {
-            /* Failed to do hash. */
+            // Failed to do hash.
         } else {
             ret = ECDSA_verify(hashReturn, Q, mpi_signature, params);
         }
         gcry_md_close(hashFunction);
     }
 
-    /* This free's hashReturn. */
+    // This free's hashReturn.
     gcry_mpi_release(mpi_signature);
 
     return ret;
-}
+}*/
 
 /** @see Crypto.h */
 void Crypto_randomize(String* toRandomize)
 {
-    gcry_randomize(toRandomize->bytes, toRandomize->len, GCRY_STRONG_RANDOM);
+    toRandomize=toRandomize;
+    //randombytes((uint8_t*)toRandomize->bytes, toRandomize->len);
+    //gcry_randomize(toRandomize->bytes, toRandomize->len, GCRY_STRONG_RANDOM);
+    
 }

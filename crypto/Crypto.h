@@ -26,8 +26,9 @@ typedef struct KeyPair_s KeyPair;
  * This must be called before doing anything else.
  * @return 0 if initialization went well, -1 if it failed.
  */
+/*
 int Crypto_init();
-
+*/
 /**
  * Generate a new KeyPair.
  *
@@ -40,9 +41,10 @@ int Crypto_init();
  *                  key will be freed when this allocator is freed.
  * @return a new KeyPair suitable for signing.
  */
+/*
 KeyPair* Crypto_newKeyPair(const char *curveName,
                            const struct MemAllocator* allocator);
-
+*/
 /**
  * Serialize a keyPair.
  *
@@ -55,9 +57,10 @@ KeyPair* Crypto_newKeyPair(const char *curveName,
  *         -2 if something failed in gcrypt, -1 if the key
  *         size was over 2032 bits.
  */
+/*
 int Crypto_serializeKeyPair(const KeyPair* toSerialize,
                             char** pointToOutput);
-
+*/
 /**
  * Parse a serialized KeyPair.
  *
@@ -66,7 +69,7 @@ int Crypto_serializeKeyPair(const KeyPair* toSerialize,
  *                     if detected length exceeds this number.
  * @return a new Keypair made from the serialized data.
  */
-KeyPair* Crypto_parseKeyPair(const char* serialized, size_t bufferLength);
+//KeyPair* Crypto_parseKeyPair(const char* serialized, size_t bufferLength);
 
 /**
  * Sign a message.
@@ -77,10 +80,11 @@ KeyPair* Crypto_parseKeyPair(const char* serialized, size_t bufferLength);
  * @return a string representing a signature
  *         or null if the memory cannot be allocated.
  */
+/*
 benc_bstr_t* Crypto_sign(const benc_bstr_t message,
                          const KeyPair* const keyPair,
                          const struct MemAllocator* allocator);
-
+*/
 /**
  * Verify a signature.
  *
@@ -95,11 +99,12 @@ benc_bstr_t* Crypto_sign(const benc_bstr_t message,
  *       and signature is expected to be params->sig_len_bin long.
  *       If these do not match then 0 will return.
  */
+/*
 uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
                                  const benc_bstr_t signature,
                                  const benc_bstr_t publicKey,
                                  const struct curve_params *params);
-
+*/
 /**
  * Generate a SHA-1 hash of a message.
  * This function will produce a benc_bstr_t object of length 20
@@ -109,8 +114,8 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
  * @param allocator a means of getting memory for storing the output.
  * @return a bencoded string containing the hash output in binary.
  */
-benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
-                            const struct MemAllocator* allocator);
+//benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
+//                            const struct MemAllocator* allocator);
 
 /**
  * Generate a SHA-256 hash of a message.

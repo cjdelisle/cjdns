@@ -10,7 +10,7 @@
 
 struct SwitchCore
 {
-    struct Interface interfaces[256];
+    struct Interface interfaces[SwitchCore_MAX_INTERFACES];
 
     struct MemAllocator* allocator;
 
@@ -31,7 +31,7 @@ struct Interface* SwitchCore_addInterface(uint8_t (* sendMessage)(struct Message
                                           void* callbackContext,
                                           struct SwitchCore* core)
 {
-    if (core->interfaceCount == 256) {
+    if (core->interfaceCount == SwitchCore_MAX_INTERFACES) {
         return NULL;
     }
     struct Interface* out = &core->interfaces[core->interfaceCount];
@@ -123,10 +123,19 @@ static inline uint32_t getDecompressed(const uint32_t label, const uint32_t bits
 #undef SCHEME_TWO_BITS
 #undef SCHEME_THREE_BITS
 
-static inline uint8_t sendMessage(const struct Interface* interface,
-                                  struct Message* toSend)
+static inline uint16_t sendMessage(const struct Interface* interface,
+                                   struct Message* toSend)
 {
-    return interface->sendMessage(toSend, interface->callbackContext);
+    uint16_t priority = Headers_getPriority((struct Headers_SwitchHeader*) toSend->bytes);
+    if (interface->buffer + priority > interface->bufferMax) {
+        return Error_LINK_LIMIT_EXCEEDED;
+    }
+
+    uint8_t err = interface->sendMessage(toSend, interface->callbackContext);
+    if (err) {
+        return Error_INTERFACE_ERROR | err;
+    }
+    return Error_NONE;
 }
 
 static inline void sendError(struct Interface* interface,
@@ -147,18 +156,26 @@ static inline void sendError(struct Interface* interface,
                                                  0,
                                                  MessageType_ERROR);
     err->error.errorType_be = ntohs(code);
-    err->error.length = ((cause->length > 255) ? cause->length : 255);
+    err->error.length =
+        ((cause->length >= SwitchCore_MAX_INTERFACES)
+            ? cause->length : SwitchCore_MAX_INTERFACES - 1);
     memcpy(err->error.cause.bytes, cause->bytes, err->error.length);
 
     // Just swap the error into the message used for the cause.
     cause->bytes = (uint8_t*) err;
-    cause->length = sizeof(struct MessageType_Error) - (255 - err->error.length);
-    interface->sendMessage(cause, interface->callbackContext);
+    cause->length =
+        sizeof(struct MessageType_Error) - ((SwitchCore_MAX_INTERFACES - 1) - err->error.length);
+    sendMessage(interface, cause);
 }
 
 
 void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* message)
 {
+    if (sourceIf->buffer > sourceIf->bufferMax) {
+        // Fl00d -- probably an edge node which is not adhering to the protocol..
+        return;
+    }
+
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
         // runt packet, don't bother trying to respond, there's no readable header anyway.
         return;
@@ -170,7 +187,6 @@ void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* messa
     const uint32_t bits = bitsUsedForLabel(label);
     const uint32_t sourceIfIndex = sourceIf - core->interfaces;
 
-    //const int32_t sourceLabel = labelForInterface(sourceIf, destBits);
     if (bitsUsedForNumber(sourceIfIndex) > bits) {
         // Source address bigger than destination address, fail.
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
@@ -178,19 +194,45 @@ void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* messa
     }
 
     const uint32_t destIndex = getDecompressed(label, bits);
-
     if (destIndex >= core->interfaceCount) {
         // No such interface
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
         return;
     }
+    struct Interface* destIf = &core->interfaces[destIndex];
+
+    // If this happens to be an Error_FLOOD packet, we will react by
+    // increasing the congestion for the source interface to make flooding harder.
+    if (Headers_getMessageType(header) == MessageType_ERROR
+        && ((struct MessageType_Error*) header)->error.errorType_be == ntohs(Error_FLOOD))
+    {
+        sourceIf->congestion += Headers_getPriority(header);
+    }
+
+    // Calculate antiflood.
+    uint16_t priority = Headers_getPriority(header);
+    sourceIf->buffer += priority;
+    if (destIf->congestion > priority) {
+        // Flood condition, the packets with least priority are dropped
+        // and flood errors are sent upstream.
+        sendError(sourceIf, message, Error_FLOOD);
+        return;
+    } else if (destIf->buffer - priority < 0 - destIf->bufferMax) {
+        // Buffer decreases are metered out,
+        // If there is too much traffic it can't be sent.
+        sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED);
+        return;
+    }
+
 
     header->label_be = ntohl((label >> bits) | bitReverse(getCompressed(sourceIfIndex, bits)));
 
-    struct Interface* destIf = &core->interfaces[destIndex];
-    const uint8_t err = destIf->sendMessage(message, destIf->callbackContext);
+    const uint16_t err = sendMessage(&core->interfaces[destIndex], message);
     if (err) {
         header->label_be = ntohl(label);
-        sendError(sourceIf, message, Error_INTERFACE_ERROR | err);
+        sendError(sourceIf, message, err);
+        return;
     }
+
+    destIf->buffer -= priority;
 }

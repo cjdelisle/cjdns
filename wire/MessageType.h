@@ -11,10 +11,10 @@
  *
  * Typical handshake between routers:
  *   RouterHandshake1
- *   [SwitchHeader][Handshake][Auth]{ [bencoded information for dht router] }
+ *   [SwitchHeader][Handshake]{ [bencoded information for dht router] }
  *
  *   RouterHandshake2
- *   [SwitchHeader][Handshake][Time]{ [bencoded information for dht router] }
+ *   [SwitchHeader][Handshake]{ [bencoded information for dht router] }
  *
  *   RouterTraffic
  *   [SwitchHeader][Encrypted]{ [bencoded information for dht router] }
@@ -24,7 +24,7 @@
  *   [SwitchHeader][Encrypted]{ [IP6Header][Handshake][end user data] }
  *
  *   UserHandshake2
- *   [SwitchHeader][Encrypted]{ [IP6Header][Handshake][Time] } { [end user data] }
+ *   [SwitchHeader][Encrypted]{ [IP6Header][Handshake] } { [end user data] }
  *
  *   UserTraffic
  *   [SwitchHeader][Encrypted]{ [IP6Header][Encrypted] } { [end user data] }
@@ -69,7 +69,6 @@
 struct MessageType_RouterHandshake1 {
     struct Headers_SwitchHeader switchHeader;
     struct Headers_Handshake handshake;
-    struct Headers_Auth auth;
 
     /** Encrypted from router to router. */
     uint8_t routerData[1];
@@ -80,7 +79,6 @@ struct MessageType_RouterHandshake1 {
 struct MessageType_RouterHandshake2 {
     struct Headers_SwitchHeader switchHeader;
     struct Headers_Handshake handshake;
-    struct Headers_Time time;
 
     /** Encrypted from router to router. */
     uint8_t routerData[1];
@@ -127,11 +125,9 @@ struct MessageType_UserHandshake2 {
         struct {
             struct Headers_IP6Header ip6Header;
             struct Headers_Handshake handshake;
-            struct Headers_Time time;
         } headers;
         uint8_t bytes[sizeof(struct Headers_IP6Header)
-                    + sizeof(struct Headers_Handshake)
-                    + sizeof(struct Headers_Time)];
+                    + sizeof(struct Headers_Handshake)];
     } routerData;
 
     /** Encrypted from endpoint to endpoint, must be at least 16 bytes. */
@@ -183,8 +179,7 @@ static inline uint32_t MessageType_getUserDataSize(struct Message* message, uint
                  - sizeof(struct Headers_SwitchHeader)
                  - sizeof(struct Headers_Encrypted)
                  - sizeof(struct Headers_IP6Header)
-                 - sizeof(struct Headers_Handshake)
-                 - sizeof(struct Headers_Time);
+                 - sizeof(struct Headers_Handshake);
 
         case MessageType_USER_TRAFFIC:
             return message->length 
@@ -204,14 +199,12 @@ static inline uint32_t MessageType_getRouterDataSize(struct Message* message, ui
         case MessageType_ROUTER_HANDSHAKE_1:
             return message->length
                  - sizeof(struct Headers_SwitchHeader)
-                 - sizeof(struct Headers_Handshake)
-                 - sizeof(struct Headers_Auth);
+                 - sizeof(struct Headers_Handshake);
 
         case MessageType_ROUTER_HANDSHAKE_2:
             return message->length
                  - sizeof(struct Headers_SwitchHeader)
-                 - sizeof(struct Headers_Handshake)
-                 - sizeof(struct Headers_Time);
+                 - sizeof(struct Headers_Handshake);
 
         case MessageType_ROUTER_TRAFFIC:
             return message->length
@@ -225,8 +218,7 @@ static inline uint32_t MessageType_getRouterDataSize(struct Message* message, ui
 
         case MessageType_USER_HANDSHAKE_2:
             return sizeof(struct Headers_IP6Header)
-                 + sizeof(struct Headers_Handshake)
-                 + sizeof(struct Headers_Time);
+                 + sizeof(struct Headers_Handshake);
 
         case MessageType_USER_TRAFFIC:
             return sizeof(struct Headers_IP6Header)

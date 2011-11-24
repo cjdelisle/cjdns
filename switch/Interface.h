@@ -37,7 +37,12 @@ struct Interface
      */
     int64_t buffer;
 
-    /** How high the buffer is allowed to get before beginning to drop packets. */
+    /**
+     * How high the buffer is allowed to get before beginning to drop packets.
+     * For nodes in the core, this number should be large because a buffer
+     * limit of a core link will cause route flapping.
+     * For edge nodes it is a measure of how much the ISP trusts the end user not to flood.
+     */
     int64_t bufferMax;
 
     /**

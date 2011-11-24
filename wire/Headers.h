@@ -80,6 +80,16 @@ struct Headers_Error
     } cause;
 };
 
+union Headers_AuthChallenge
+{
+    struct {
+        uint8_t type;
+        uint8_t lookup[14];
+        uint8_t derivations;
+    } challenge;
+    uint8_t bytes[16];
+};
+
 /**
  * This is a handshake header packet, there are 2 required to begin an encrypted connection.
  * the only difference between handshake1 and handshake2 is in handshake2, the content
@@ -87,51 +97,30 @@ struct Headers_Error
  */
 struct Headers_Handshake
 {
-    /** Used as a nonce for the handshake. */
-    uint8_t nonce[8];
+    /** Random nonce for the handshake. */
+    uint8_t nonce[24];
 
-    /** The public key to send for completing the handshake. */
-    uint8_t myPublicKey[32];
-};
-
-/** Used for routers authenticating with one another. */
-struct Headers_Auth
-{
-    uint8_t bytes[16];
-};
-
-/**
- * Used for synchronizing time.
- */
-struct Headers_Time
-{
     /**
-     * The current time according to the node which was contacted,
-     * the node who made the initial request must keep a time offset.
-     * Big Endian.
+     * The permenant public key.
+     * In the second cycle, this is zeros encrypted with the final shared secret,
+     * used as a sanity check.
      */
-    uint64_t currentTimeMilliseconds_be;
+    uint8_t publicKey[32];
+
+    /** The public key to use for this session, encrypted with the private key. */
+    uint8_t encryptedTempKey[48];
+
+    /** Used for authenticating routers to one another. */
+    union Headers_AuthChallenge auth;
 };
 
 /**
  * A header for encrypted data, this may be for router data or end user data.
- * This header cannot be used unless the Time header has already been used.
- * After 65535 milliseconds with no data, an encrypted session must be dropped.
  */
 struct Headers_Encrypted
 {
-    /**
-     * The number of packet sent in a 2 second window,
-     * this only allows for sending 32k packets per second between endpoints.
-     * Big Endian.
-     */
-    uint16_t nonce_be;
-
-    /**
-     * The number of milliseconds since the epoch mod 65535.
-     * Big Endian.
-     */
-    uint16_t timeSync_be;
+    /** Simple counter, if this ever rolls over, the session is renegotiated. */
+    uint32_t nonce;
 };
 
 struct Headers_IP6Header
