@@ -21,8 +21,8 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
 static int testIncoming()
 {
-    char buffer[8192];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 8192);
+    char buffer[32768];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 32768);
 
     struct LibeventNetworkModuleTest_context* context =
         calloc(sizeof(struct LibeventNetworkModuleTest_context), 1);

@@ -3,11 +3,13 @@
 #include "dht/dhtstore/DHTStoreConstants.h"
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "dht/dhtstore/DHTStoreTools.h"
-#include "dht/dhtstore/SHA256Store.h"
+#include "dht/dhtstore/SHA1Store.h"
 #include "libbenc/benc.h"
 
+#define KEY_SIZE 20
+
 struct Context {
-    /** A means of aquiring memory to store the sha256 entries. */
+    /** A means of aquiring memory to store the sha1 entries. */
     const struct MemAllocator* storeAllocator;
 
     /** Secret random number used for generating tokens. */
@@ -26,7 +28,7 @@ static struct DHTStoreEntry* handlePutRequest(const struct DHTMessage* incomingM
 
 /*-------------------- Public --------------------*/
 
-void SHA256Store_register(struct DHTStoreRegistry* registry, const struct MemAllocator* storeAllocator)
+void SHA1Store_register(struct DHTStoreRegistry* registry, const struct MemAllocator* storeAllocator)
 {
     struct Context* context =
         storeAllocator->clone(sizeof(struct Context), storeAllocator, &(struct Context) {
@@ -39,10 +41,10 @@ void SHA256Store_register(struct DHTStoreRegistry* registry, const struct MemAll
     struct DHTStoreModule module =
     {
         // Fields
-        .name = "SHA256Store",
-        .getQuery = { .bytes = "get_sha256", .len = 8 },
-        .putQuery = { .bytes = "put_sha256", .len = 8 },
-        .keySize = 32,
+        .name = "SHA1Store",
+        .getQuery = { .bytes = "get_sha1", .len = 8 },
+        .putQuery = { .bytes = "put_sha1", .len = 8 },
+        .keySize = KEY_SIZE,
 
         .context = context,
 
@@ -113,7 +115,7 @@ static struct DHTStoreEntry* handlePutRequest(const struct DHTMessage* incomingM
     // After this, we promise to send _some_ reply.
     *replyMessagePtr = benc_newDictionary(messageAllocator);
 
-    String* hash = Crypto_sha256sum(value, messageAllocator);
+    String* hash = Crypto_sha1sum(value, messageAllocator);
     const String* token = benc_lookupString(requestMessage, &DHTConstants_authToken);
     const String* id = benc_lookupString(requestArgs, &DHTConstants_myId);
 
@@ -124,7 +126,7 @@ static struct DHTStoreEntry* handlePutRequest(const struct DHTMessage* incomingM
         DHTStoreTools_craftErrorReply(requestMessage,
                                       *replyMessagePtr,
                                       203,
-                                      "put_sha256 request with wrong token",
+                                      "put_sha1 request with wrong token",
                                       messageAllocator);
         return NULL;
     }
@@ -132,7 +134,7 @@ static struct DHTStoreEntry* handlePutRequest(const struct DHTMessage* incomingM
     // Need a persistant allocator. The messageAllocator will be freed when the message is finished with.
     struct MemAllocator* entryAllocator = context->storeAllocator->child(context->storeAllocator);
     struct DHTStoreEntry* entry = entryAllocator->malloc(sizeof(struct DHTStoreEntry), entryAllocator);
-    entry->key = entryAllocator->clone(32, entryAllocator, hash->bytes);
+    entry->key = entryAllocator->clone(KEY_SIZE, entryAllocator, hash->bytes);
     entry->value = entryAllocator->clone(value->len, entryAllocator, value->bytes);
     entry->length = value->len;
     entry->allocator = entryAllocator;

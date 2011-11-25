@@ -21,7 +21,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
 static int testOutgoing()
 {
-    #define BUFFER_SIZE 16384
+    #define BUFFER_SIZE 65536
     char buffer[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buffer, BUFFER_SIZE);
 

@@ -7,7 +7,7 @@
 #include "dht/dhtstore/DHTStoreModule.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "dht/dhtstore/SHA256Store.h"
+#include "dht/dhtstore/SHA1Store.h"
 
 #include "dht/DHTConstants.h"
 #include "dht/dhtstore/test/StoreTestFramework.c"
@@ -22,7 +22,7 @@ int main()
     StoreTestFramework_registerBouncerModule(registry, allocator);
     
     struct DHTStoreRegistry* storeRegistry = DHTStoreModule_register(20, registry, allocator);
-    SHA256Store_register(storeRegistry, allocator);
+    SHA1Store_register(storeRegistry, allocator);
 
     SerializationModule_register(registry, allocator);
 

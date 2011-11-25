@@ -1,7 +1,7 @@
 add_library(dhtstore
     DHTStoreModule.c
     DHTStoreTools.c
-    SHA256Store.c
+    SHA1Store.c
     PeerAddressStore.c
 )
 target_link_libraries(dhtstore crypto benc)
