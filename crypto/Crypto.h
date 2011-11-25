@@ -8,27 +8,25 @@
 
 /**
  * Representation of a KeyPair.
- */
+ *
 struct KeyPair_s {
-    /** The private key. */
+    ** The private key. *
     const gcry_mpi_t privateKey;
 
-    /** The public key. */
+    ** The public key. *
     bobj_t publicKey;
 
-    /** Constants about the crypto algorithm being used. */
+    ** Constants about the crypto algorithm being used. *
     const struct curve_params * const params;
 };
-typedef struct KeyPair_s KeyPair;
+typedef struct KeyPair_s KeyPair;*/
 
 /**
- * Initialize the crypto engine.
+ * Initialize the random number generator.
  * This must be called before doing anything else.
- * @return 0 if initialization went well, -1 if it failed.
  */
-/*
-int Crypto_init();
-*/
+void Crypto_init();
+
 /**
  * Generate a new KeyPair.
  *
@@ -114,8 +112,8 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
  * @param allocator a means of getting memory for storing the output.
  * @return a bencoded string containing the hash output in binary.
  */
-//benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
-//                            const struct MemAllocator* allocator);
+benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
+                            const struct MemAllocator* allocator);
 
 /**
  * Generate a SHA-256 hash of a message.
@@ -127,19 +125,6 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
  * @return a bencoded string containing the hash output in binary.
  */
 benc_bstr_t* Crypto_sha256sum(const benc_bstr_t* hashThis,
-                            const struct MemAllocator* allocator);
-
-/**
- * Generate a SHA-1 hash of a message.
- * This function will produce a String struct of length 20
- * allocated in the provided allocator.
- *
- * @param hashThis a bencoded string to be hashed.
- * @param allocator a means of getting memory for storing the output.
- * @return a bencoded string containing the hash output in binary.
- * @deprecated don't use SHA1
- */
-benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
                             const struct MemAllocator* allocator);
 
 /**

@@ -1,44 +1,21 @@
 #include <assert.h>
 #include <stdio.h>
+#include <event2/util.h>
 
-#include "randombytes.h"
-
-#include "Crypto.h"
+#include "crypto/Crypto.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
-//#include "seccure/protocol.h"
 #include "libbenc/benc.h"
 
-/**
- * Cryptographic functions.
- * Private keys are always stored in secure memory.
- * Pointers to private keys are also stored in secure memory.
- * A pointer to a private key sits on the stack temporarily in
- * Crypto_keyGen() but it is zeroed before the function ends.
- *
- * Please send patches and bug reports to calebdelisle(a)lavabitD0Tcom
- */
 
-
-/** @see Crypto.h *
-int Crypto_init()
+/** @see Crypto.h */
+void Crypto_init()
 {
-    gcry_error_t err = gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
-    if (gcry_err_code(err)) {
-        fprintf(stderr,
-                "Cannot enable gcrypt's secure memory management\n");
-        return -1;
+    if (evutil_secure_rng_init() != 0) {
+        fprintf(stderr, "Unable to initialize secure random number generator, bailing out.");
+        abort();
     }
-
-    err = gcry_control(GCRYCTL_USE_SECURE_RNDPOOL, 0);
-    if (gcry_err_code(err)) {
-        fprintf(stderr,
-                "Cannot enable gcrypt's random number generator\n");
-        return -1;
-    }
-
-    return 0;
-}*/
+}
 
 /**
  * Serialize a point.
@@ -541,8 +518,5 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
 /** @see Crypto.h */
 void Crypto_randomize(String* toRandomize)
 {
-    toRandomize=toRandomize;
-    //randombytes((uint8_t*)toRandomize->bytes, toRandomize->len);
-    //gcry_randomize(toRandomize->bytes, toRandomize->len, GCRY_STRONG_RANDOM);
-    
+    evutil_secure_rng_get_bytes(toRandomize->bytes, toRandomize->len);   
 }
