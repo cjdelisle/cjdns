@@ -11,11 +11,12 @@
 #include "crypto_stream_xsalsa20.h"
 
 #include "crypto/Crypto.h"
-#include "memory/MemAllocator.h"
+#include "interface/Interface.h"
 #include "libbenc/benc.h"
+#include "memory/MemAllocator.h"
+#include "util/Endian.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
-#include "interface/Interface.h"
 
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
@@ -69,7 +70,10 @@ struct Wrapper
     uint32_t nextNonce;
 
     /** True if this node began the conversation. */
-    bool isInitiator;
+    bool isInitiator : 1;
+
+    /** If true then the packets sent through this interface must be authenticated. */
+    bool authenticate : 1;
 
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth* context;
@@ -175,42 +179,6 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
     return NULL;
 }
 
-static inline int32_t decryptKey(union Headers_CryptoAuth* cauth,
-                                 uint8_t sharedSecret[32],
-                                 uint8_t output[32])
-{
-    uint8_t key[crypto_box_curve25519xsalsa20poly1305_ZEROBYTES + 32];
-    uint8_t boxedKey[crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES + 48];
-    memcpy(&boxedKey[crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES],
-           cauth->handshake.encryptedTempKey, 48);
-    uint64_t cipherLength = crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES + 48;
-    if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
-        key, boxedKey, cipherLength, cauth->handshake.nonce, sharedSecret) != 0)
-    {
-        return -1;
-    }
-    memcpy(output, &key[crypto_box_curve25519xsalsa20poly1305_ZEROBYTES], 32);
-    return 0;
-}
-
-static inline int32_t encryptKey(union Headers_CryptoAuth* cauth,
-                                 uint8_t sharedSecret[32],
-                                 uint8_t toEncrypt[32])
-{
-    uint8_t key[crypto_box_curve25519xsalsa20poly1305_ZEROBYTES + 32];
-    uint8_t boxedKey[crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES + 48];
-    memcpy(&key[crypto_box_curve25519xsalsa20poly1305_ZEROBYTES], toEncrypt, 32);
-    uint64_t cipherLength = crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES + 48;
-    if (crypto_box_curve25519xsalsa20poly1305_afternm(
-        key, boxedKey, cipherLength, cauth->handshake.nonce, sharedSecret) != 0)
-    {
-        return -1;
-    }
-    memcpy(cauth->handshake.encryptedTempKey,
-           &boxedKey[crypto_box_curve25519xsalsa20poly1305_BOXZEROBYTES], 48);
-    return 0;
-}
-
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
                            void* user,
@@ -230,53 +198,123 @@ int32_t CryptoAuth_addUser(String* password,
 }
 
 /**
- * Works for both encryption and decryption.
- * only for the content of handshake messages.
+ * Decrypt and authenticate.
  *
- * @param message the message to (de)crypt.
- * @param nonce a random number.
+ * @param nonce a 24 byte number, may be random, cannot repeat.
+ * @param msg a message to encipher and authenticate.
  * @param secret a shared secret.
  */
-static inline int cryptHandshakeMessage(struct Message* message,
-                                        uint8_t nonce[24],
-                                        uint8_t secret[32])
+static inline int decryptRndNonce(uint8_t nonce[24],
+                                  struct Message* msg,
+                                  uint8_t secret[32])
 {
-    return crypto_stream_xsalsa20_xor(message->bytes,
-                                      message->bytes,
-                                      message->length,
-                                      nonce,
-                                      secret);
+    assert(msg->padding >= 16 && msg->length >= 16);
+    memset(msg->bytes - 16, 0, 16);
+    if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
+            msg->bytes - 16, msg->bytes - 16, msg->length + 16, nonce, secret) != 0)
+    {
+        return -1;
+    }
+
+    Message_shift(msg, -16);
+    return 0;
 }
 
 /**
- * @param cauth the cryptoAuth header.
- * @param content the content of the message to (de)cipher.
- * @param secret the shared secret.
- * @param isInitiatorOrRecipient true if we are the initiator of the connection and encrypting
- *                               or if we are the recipient of the connection and decrypting.
- *                               Otherwise false.
+ * Encrypt and authenticate.
+ *
+ * @param nonce a 24 byte number, may be random, cannot repeat.
+ * @param msg a message to encipher and authenticate.
+ * @param secret a shared secret.
  */
-static inline void cipher(union Headers_CryptoAuth* cauth,
-                          struct Message* content,
-                          uint8_t secret[20],
-                          bool isInitiatorOrRecipient)
+static inline void encryptRndNonce(uint8_t nonce[24],
+                                   struct Message* msg,
+                                   uint8_t secret[32])
+{
+    assert(msg->padding >= 32);
+    memset(msg->bytes - 32, 0, 32);
+    crypto_box_curve25519xsalsa20poly1305_afternm(
+        msg->bytes - 32, msg->bytes - 32, msg->length + 32, nonce, secret);
+
+    Message_shift(msg, 16);
+}
+
+/**
+ * Encipher the content without any authentication.
+ * Encryption is the same function as decryption.
+ *
+ * @param nonce a number which is used only once.
+ * @param msg a message to encipher.
+ * @param secret a shared secret.
+ */
+static inline int cipher(uint8_t nonce[8],
+                          struct Message* msg,
+                          uint8_t secret[20])
+{
+    return crypto_stream_salsa20_xor(msg->bytes, msg->bytes, msg->length, nonce, secret);
+}
+
+/**
+ * Decrypt a packet.
+ *
+ * @param nonce a counter.
+ * @param msg the message to decrypt, decrypted in place.
+ * @param secret the shared secret.
+ * @param isInitiator true if we started the connection.
+ * @param authenticate if true then the packet will be authenticated as well at a 16 byte cost.
+ *                     The packet must have been encrypted using authenticate.
+ */
+static inline int decrypt(uint32_t nonce,
+                          struct Message* msg,
+                          uint8_t secret[32],
+                          bool isInitiator,
+                          bool authenticate)
 {
     union {
         uint32_t ints[2];
-        uint8_t bytes[8];
-    } nonce = { .ints = {0, 0} };
-    nonce.ints[!isInitiatorOrRecipient] = cauth->nonce;
+        uint8_t bytes[24];
+    } nonceAs = { .ints = {0, 0} };
+    nonceAs.ints[!isInitiator] = nonce;
 
-    crypto_stream_salsa20_xor(content->bytes,
-                              content->bytes,
-                              content->length,
-                              nonce.bytes,
-                              secret);
+    if (authenticate) {
+        return decryptRndNonce(nonceAs.bytes, msg, secret);
+    } else {
+        return cipher(nonceAs.bytes, msg, secret);
+    }
+}
+
+/**
+ * Encrypt a packet.
+ *
+ * @param nonce a counter.
+ * @param msg the message to decrypt, decrypted in place.
+ * @param secret the shared secret.
+ * @param isInitiator true if we started the connection.
+ * @param authenticate if true then the packet will be authenticated as well at a 16 byte cost.
+ *                     The packet must have been encrypted using authenticate.
+ */
+static inline void encrypt(uint32_t nonce,
+                           struct Message* msg,
+                           uint8_t secret[32],
+                           bool isInitiator,
+                           bool authenticate)
+{
+    union {
+        uint32_t ints[2];
+        uint8_t bytes[24];
+    } nonceAs = { .ints = {0, 0} };
+    nonceAs.ints[isInitiator] = nonce;
+
+    if (authenticate) {
+        encryptRndNonce(nonceAs.bytes, msg, secret);
+    } else {
+        cipher(nonceAs.bytes, msg, secret);
+    }
 }
 
 static inline void setRequiredPadding(struct Wrapper* wrapper)
 {
-    uint32_t padding = (wrapper->nextNonce < 4) ? 4 : sizeof(union Headers_CryptoAuth);
+    uint32_t padding = (wrapper->nextNonce < 4) ? 36 : sizeof(union Headers_CryptoAuth) + 32;
     wrapper->externalInterface.requiredPadding =
         wrapper->wrappedInterface->requiredPadding + padding;
     wrapper->externalInterface.maxMessageLength =
@@ -289,9 +327,12 @@ static bool knowHerKey(struct Wrapper* wrapper)
     return (herKey[0] | herKey[1] | herKey[2] | herKey[3]) != 0;
 }
 
-static uint16_t sendMessage(struct Interface* interface, struct Message* message)
+static uint8_t sendMessage(struct Interface* interface, struct Message* message)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
+
+    uint32_t nonce_be = Endian_hostToBigEndian32(wrapper->nextNonce);
+
 
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
@@ -299,7 +340,7 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
     // nextNonce 3: sending key again, no data packet recieved yet.
     // nextNonce >3: handshake complete
     //
-    // if it's a blind handshake, every message will be plaintext and nextNonce will remain
+    // if it's a blind handshake, every message will be empty and nextNonce will remain
     // zero until the first message is received back.
 
     if (wrapper->nextNonce < 4) {
@@ -307,18 +348,17 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
 
         union Headers_CryptoAuth* header =
             (union Headers_CryptoAuth*) message->bytes - sizeof(union Headers_CryptoAuth);
+        header->nonce = nonce_be;
+
         struct Message toSend = {
             .bytes = (uint8_t*)header,
             .length = message->length + sizeof(union Headers_CryptoAuth),
             .padding = message->length - sizeof(union Headers_CryptoAuth)
         };
 
-        // It's handshake 1 or 2.
-        memcpy(header->handshake.publicKey, wrapper->context->publicKey, 32);
-
         // If the nonce is 1 it should become 0 because hellos all need to
         // have a nonce equal to her perm key.
-        // NOTE: this nonce field is NOT used for these types of packets, only data packets.
+        // NOTE: this nonce field is only used as a flag in these types of packet.
         header->nonce = (wrapper->nextNonce >> 1) ^ *((uint32_t*)wrapper->herPerminentPubKey);
 
         // If we don't know her key, the handshake has to be done backwards.
@@ -336,7 +376,7 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
             }
 
             message->length = sizeof(union Headers_CryptoAuth);
-            return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
+            return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, message);
         }
 
         Crypto_randomize(&(String) { .bytes = (char*)header->handshake.nonce, .len = 24 });
@@ -360,12 +400,9 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
             crypto_box_curve25519xsalsa20poly1305_keypair(myTempPubKey, wrapper->secret);
         } else if (wrapper->nextNonce == 3) {
             // If nextNonce is 1 then we have our pubkey stored in wrapper->tempKey,
-            // otherwise we need to recalculate it each time.
+            // If nextNonce is 3 we need to recalculate it each time because tempKey is her's.
             crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
         }
-
-//    permA permB [tempA]
-//    permB tempA [tempB]
 
         uint8_t sharedSecret[32];
         if (wrapper->nextNonce < 2) {
@@ -382,7 +419,7 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
             // 2 or 3
             // sending key
             // Handshake2 wrapper->tempKey holds her public temp key.
-            // it was put there by recieveMessage()
+            // it was put there by receiveMessage()
             getSharedSecret(sharedSecret,
                             wrapper->context->privateKey,
                             wrapper->tempKey,
@@ -390,174 +427,202 @@ static uint16_t sendMessage(struct Interface* interface, struct Message* message
             wrapper->nextNonce = 3;
         }
 
-        assert(encryptKey(header, sharedSecret, myTempPubKey) == 0);
-        cryptHandshakeMessage(content, header->handshake.nonce, wrapper->secret);
+        // Shift toSend over the encryptedTempKey field.
+        Message_shift(&toSend, 48 - (int32_t) sizeof(union Headers_CryptoAuth));
 
-        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface);
+        // This zeros the publicKey field
+        encryptRndNonce(header->handshake.nonce, &toSend, sharedSecret);
+
+        memcpy(header->handshake.publicKey, wrapper->context->publicKey, 32);
+
+        // Shift it back
+        Message_shift(&toSend, sizeof(union Headers_CryptoAuth) - 48);
+
+
+        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, &toSend);
 
     } else {
+        assert(message->padding >= 36 || !"not enough padding");
+
         // send traffic
-        cipher(header, &wrapper->externalMessage, wrapper->secret, wrapper->isInitiator);
-        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface);
+
+        struct Message toSend = {
+            .bytes = message->bytes - 4,
+            .length = message->length + 4,
+            .padding = message->padding - 4
+        };
+
+        ((union Headers_CryptoAuth*) toSend.bytes)->nonce = nonce_be;
+
+        encrypt(nonce_be,
+                message,
+                wrapper->secret,
+                wrapper->isInitiator,
+                wrapper->authenticate);
+
+        wrapper->nextNonce++;
+
+        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, &toSend);
     }
 }
 
 /** Call the external interface and tell it that a message has been received. */
-static void callReceivedMessage(struct Wrapper* wrapper)
+static void callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
 {
     if (wrapper->externalInterface.receiveMessage != NULL) {
-        wrapper->externalInterface.receiveMessage(&wrapper->externalMessage,
-                                                  &wrapper->externalInterface);
+        wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
     }
 }
-/*
-0   hello>  0
-1   hello>  2
-3  <key     2
-3  <key     3
-*/
+
+static inline bool checkNonce(uint32_t nonce, struct Wrapper* wrapper)
+{
+    nonce = nonce; wrapper = wrapper;
+    // TODO
+    return true;
+}
 
 static void receiveMessage(struct Message* received, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
-    if (header->nonce == *((uint32_t*)wrapper->context->publicKey) || wrapper->nextNonce < 4)
-    {
-        if (received->length < sizeof(union Headers_CryptoAuth)) {
-            // runt
-            return;
-        }
-
-        // handshake
-        // nextNonce 0: recieving hello.
-        // nextNonce 1: recieving key, we sent hello.
-        // nextNonce 2: recieving first data packet or duplicate hello.
-        // nextNonce 3: recieving first data packet.
-        // nextNonce >3: handshake complete
-
-        if (wrapper->nextNonce < 2 && header->nonce == 0) {
-            // Reset without knowing key is allowed until state reaches 2.
-            // this is because we don't know that the other end knows our key until we
-            // have received a valid packet from them.
-            // We can't allow the upper layer to see this message because it's not authenticated.
-            if (!knowHerKey(wrapper)) {
-                memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
-            }
-            received->length = sizeof(union Headers_CryptoAuth);
-            sendMessage(received, &wrapper->externalInterface);
-            return;
-        }
-
-        uint8_t* passwordHash = NULL;
-        uint8_t passwordHashStore[32];
-        tryAuth(header, passwordHashStore, wrapper);
-
-        struct Message content = {
-            .bytes = ((uint8_t*)header) + sizeof(union Headers_CryptoAuth),
-            .length = wrapper->wrappedMessage->length - sizeof(union Headers_CryptoAuth)
-        };
-
-        // What the nextNonce will become if this packet is valid.
-        uint32_t nextNonce;
-
-        // This will become wrapper->secret if this packet is valid.
-        uint8_t sharedSecret[32];
-
-        if (wrapper->nextNonce == 0
-            || header->nonce == *((uint32_t*)wrapper->context->publicKey)) {
-            // They sent a hello (this might be a reset connection hello)
-            // Decrypt message with perminent keys.
-            uint8_t* herPermKey =
-                knowHerKey(wrapper) ? wrapper->herPerminentPubKey : header->handshake.publicKey;
-            getSharedSecret(sharedSecret,
-                            wrapper->context->privateKey,
-                            herPermKey,
-                            passwordHash);
-            nextNonce = 2;
-        } else if (wrapper->nextNonce == 1) {
-            // We sent the hello, this is a key
-            getSharedSecret(sharedSecret,
-                            wrapper->tempKey,
-                            wrapper->herPerminentPubKey,
-                            passwordHash);
-            nextNonce = 3;
-        }
-
-        cryptHandshakeMessage(&content, header->handshake.nonce, wrapper->secret);
-
-        // Decrypt her temp public key and store it in session->tempKey.
-        if (decryptKey(header, wrapper->secret, wrapper->tempKey) != 0) {
-            // invalid
-            return;
-        }
-
-        wrapper->nextNonce = nextNonce;
-        memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
-
-        // If this is a handshake which was initiated in reverse because we
-        // didn't know the other node's key, now send what we were going to send.
-        if (wrapper->bufferedMessage.bytes != NULL && content.length == 0) {
-            memcpy(wrapper->wrappedMessage->bytes,
-                   wrapper->bufferedMessage.bytes,
-                   wrapper->bufferedMessage.length);
-            wrapper->wrappedMessage->length = wrapper->bufferedMessage.length;
-            sendMessage(&wrapper->externalInterface);
-            return;
-        }
-
-        setRequiredPadding(wrapper);
-        callReceivedMessage(wrapper);
-
+    if (received->length < 4) {
         return;
+    }
+    assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
 
+    setRequiredPadding(wrapper);
 
+    struct Message content = {
+        .bytes = received->bytes + 4,
+        .length = received->length - 4,
+        .padding = received->padding + 4
+    };
 
-
-    } else {
-        if (received->length < 4) {
-            // RUNT!!!
+    if (decrypt(header->nonce,
+                &content,
+                wrapper->secret,
+                wrapper->isInitiator,
+                wrapper->authenticate) == 0)
+    {
+        if (checkNonce(Endian_bigEndianToHost32(header->nonce), wrapper)) {
+            callReceivedMessage(wrapper, &content);
             return;
         }
-        setRequiredPadding(wrapper);
-
-        struct Message content = {
-            .bytes = received->bytes + 4,
-            .length = received->length - 4
-        };
-        cipher(header, content, wrapper->secret, !wrapper->isInitiator);
-
-        callReceivedMessage(wrapper);
     }
+
+    // If that didn't validate then we can try it as a handshake..
+
+    if (received->length < sizeof(union Headers_CryptoAuth)) {
+        // runt
+        return;
+    }
+
+    // handshake
+    // nextNonce 0: recieving hello.
+    // nextNonce 1: recieving key, we sent hello.
+    // nextNonce 2: recieving first data packet or duplicate hello.
+    // nextNonce 3: recieving first data packet.
+    // nextNonce >3: handshake complete
+
+    if (wrapper->nextNonce < 2 && header->nonce == 0) {
+        // Reset without knowing key is allowed until state reaches 2.
+        // this is because we don't know that the other end knows our key until we
+        // have received a valid packet from them.
+        // We can't allow the upper layer to see this message because it's not authenticated.
+        if (!knowHerKey(wrapper)) {
+            memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
+        }
+        received->length = sizeof(union Headers_CryptoAuth);
+        sendMessage(&wrapper->externalInterface, received);
+        return;
+    }
+
+    uint8_t* passwordHash = NULL;
+    uint8_t passwordHashStore[32];
+    tryAuth(header, passwordHashStore, wrapper);
+
+    // What the nextNonce will become if this packet is valid.
+    uint32_t nextNonce;
+
+    // This will become wrapper->secret if this packet is valid.
+    uint8_t sharedSecret[32];
+
+    if (wrapper->nextNonce == 0
+        || header->nonce == *((uint32_t*)wrapper->context->publicKey)) {
+        // They sent a hello (this might be a reset connection hello)
+        // TODO: Prevent this from happening on connections which are active to prevent RST attacks.
+
+        // Decrypt message with perminent keys.
+        uint8_t* herPermKey =
+            knowHerKey(wrapper) ? wrapper->herPerminentPubKey : header->handshake.publicKey;
+        getSharedSecret(sharedSecret,
+                        wrapper->context->privateKey,
+                        herPermKey,
+                        passwordHash);
+        nextNonce = 2;
+    } else if (wrapper->nextNonce == 1) {
+        // We sent the hello, this is a key
+        getSharedSecret(sharedSecret,
+                        wrapper->tempKey,
+                        wrapper->herPerminentPubKey,
+                        passwordHash);
+        nextNonce = 3;
+    }
+
+    // Shift it on top of the encrypted public key, it was already shifted over 4 bytes
+    assert(Message_shift(&content, 48 + 4 - (int32_t)sizeof(union Headers_CryptoAuth)));
+
+    // Need to store this because decryptRndNonce() trashes the memory in the buffer.
+    uint8_t herPubKey[32];
+    memcpy(herPubKey, header->handshake.publicKey, 32);
+
+    // Decrypt her temp public key and the message.
+    if (decryptRndNonce(header->handshake.nonce, &content, wrapper->secret) != 0) {
+        // just in case
+        memset(header, 0, sizeof(union Headers_CryptoAuth));
+        return;
+    }
+
+    memcpy(wrapper->tempKey, content.bytes, 32);
+    Message_shift(&content, -32);
+    wrapper->nextNonce = nextNonce;
+    memcpy(wrapper->herPerminentPubKey, herPubKey, 32);
+
+    // If this is a handshake which was initiated in reverse because we
+    // didn't know the other node's key, now send what we were going to send.
+    if (wrapper->bufferedMessage != NULL) {
+        sendMessage(&wrapper->externalInterface, wrapper->bufferedMessage);
+        return;
+    }
+
+    setRequiredPadding(wrapper);
+    callReceivedMessage(wrapper, &content);
+    return;
 }
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            uint8_t herPublicKey[32],
                                            String* password,
+                                           bool authenticate,
                                            struct CryptoAuth* context)
 {
     struct Wrapper* wrapper =
-        toWrap->allocator->clone(sizeof(struct Wrapper), 1, toWrap->allocator &(struct Wrapper) {
+        toWrap->allocator->clone(sizeof(struct Wrapper), toWrap->allocator, &(struct Wrapper) {
             .user = NULL,
             .nextNonce = 0,
             .context = context,
             .wrappedInterface = toWrap,
-            .
+            .password = (password != NULL)
+                ? benc_newBinaryString(password->bytes, password->len, toWrap->allocator) : NULL,
+            .authenticate = authenticate
         });
-    wrapper->user = NULL;
-    wrapper->nextNonce = 0;
-    wrapper->context = context;
-    wrapper->wrappedInterface = toWrap;
-    wrapper->wrappedMessage = toWrap->getEmptyMessage(toWrap);
-    wrapper->password = (password != NULL)
-        ? benc_newBinaryString(password->bytes, password->len, toWrap->allocator)
-        : NULL;
+
     toWrap->receiverContext = wrapper;
     toWrap->receiveMessage = receiveMessage;
 
     struct Interface iface = {
         .senderContext = wrapper,
-        .getEmptyMessage = getEmptyMessage,
         .receiveMessage = receiveMessage,
         .sendMessage = sendMessage,
         .allocator = toWrap->allocator

@@ -1,6 +1,8 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+#include <stdbool.h>
+
 struct Message
 {
     /** The length of the message. */
@@ -37,6 +39,21 @@ static inline void Message_copyOver(struct Message* output,
     }
     memcpy(allocation, input->bytes - input->padding, inTotalLength);
     output->bytes = allocation + input->padding;
+}
+
+/**
+ * Pretend to shift the content forward by amount.
+ * Really it shifts the bytes value backward.
+ */
+static inline bool Message_shift(struct Message* toShift, int32_t amount)
+{
+    if (toShift->padding < amount) {
+        return false;
+    }
+    toShift->length += amount;
+    toShift->bytes -= amount;
+    toShift->padding -= amount;
+    return true;
 }
 
 #endif
