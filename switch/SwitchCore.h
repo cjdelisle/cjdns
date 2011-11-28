@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "switch/Interface.h"
+#include "interface/Interface.h"
 #include "wire/Message.h"
 
 /**
@@ -21,23 +21,13 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator);
 
 /**
  * Register a new interface.
- * All interfaces are point to point so messages sent down an interface
- * need no additional addressing and are expected to fire a SwitchCore_receivedPacket() in
- * another switch.
+ * All interfaces are point to point so messages sent down an interface.
  *
- * @param sendMessage a callback which will be called when a message
- *                    is to be sent down this interface.
- * @return an Interface structure for this interface.
+ * @param iface the interface to add.
+ * @param trust the amount that you trust the connected node.
+ * @param core the switchcore.
+ * @return 0 on success, -1 on failure.
  */
-struct Interface* SwitchCore_addInterface(uint8_t (* sendMessage)(struct Message* toSend,
-                                                                  void* callbackContext),
-                                          void* callbackContext,
-                                          struct SwitchCore* core);
-
-/**
- * Called by the interface which receives a message.
- *
- * @param sourcIf the interface which received the message.
- * @message the packet.
- */
-void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* message);
+int32_t SwitchCore_addInterface(struct Interface* iface,
+                                const uint64_t trust,
+                                struct SwitchCore* core);

@@ -12,7 +12,7 @@
 struct Headers_SwitchHeader
 {
     /** The label, this is how the switch decides where to send the packet. Big Endian. */
-    uint32_t label_be;
+    uint64_t label_be;
 
     /**
      * Top 4 bits: messageType
@@ -80,14 +80,15 @@ struct Headers_Error
     } cause;
 };
 
+#define Headers_AuthChallenge_SIZE 12
 union Headers_AuthChallenge
 {
     struct {
         uint8_t type;
-        uint8_t lookup[14];
+        uint8_t lookup[10];
         uint8_t derivations;
     } challenge;
-    uint8_t bytes[16];
+    uint8_t bytes[12];
 };
 
 /**
@@ -95,32 +96,38 @@ union Headers_AuthChallenge
  * the only difference between handshake1 and handshake2 is in handshake2, the content
  * in the next level is encrypted.
  */
-struct Headers_Handshake
+
+union Headers_CryptoAuth
 {
-    /** Random nonce for the handshake. */
-    uint8_t nonce[24];
-
-    /**
-     * The permenant public key.
-     * In the second cycle, this is zeros encrypted with the final shared secret,
-     * used as a sanity check.
-     */
-    uint8_t publicKey[32];
-
-    /** The public key to use for this session, encrypted with the private key. */
-    uint8_t encryptedTempKey[48];
-
-    /** Used for authenticating routers to one another. */
-    union Headers_AuthChallenge auth;
-};
-
-/**
- * A header for encrypted data, this may be for router data or end user data.
- */
-struct Headers_Encrypted
-{
-    /** Simple counter, if this ever rolls over, the session is renegotiated. */
     uint32_t nonce;
+
+    struct {
+        /**
+         * This will be zero for the first handshake and one for the second.
+         * any higher number is interpreted to mean that this is not a handshake.
+         */
+        uint32_t handshakeStage;
+
+        /** Used for authenticating routers to one another. */
+        union Headers_AuthChallenge auth;
+
+        /** Random nonce for the handshake. */
+        uint8_t nonce[24];
+
+        /**
+         * The perminent public key.
+         * In the second cycle, this is zeros encrypted with the final shared secret,
+         * used as a sanity check.
+         */
+        uint8_t publicKey[32];
+
+        /**
+         * The public key to use for this session, encrypted with the private key.
+         * If this is zeroed, the message is taken as a solicitation for the
+         * other end to begin a handshake.
+         */
+        uint8_t encryptedTempKey[48];
+    } handshake;
 };
 
 struct Headers_IP6Header

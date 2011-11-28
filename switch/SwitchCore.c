@@ -1,22 +1,55 @@
 #include <string.h>
 
 #include "memory/MemAllocator.h"
-#include "switch/Interface.h"
+#include "interface/Interface.h"
 #include "switch/SwitchCore.h"
+#include "util/Endian.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/MessageType.h"
 
-struct SwitchCore
+struct SwitchInterface
 {
-    struct Interface interfaces[SwitchCore_MAX_INTERFACES];
+    struct Interface* iface;
 
-    struct MemAllocator* allocator;
+    struct SwitchCore* core;
 
-    uint32_t interfaceCount;
+    /**
+     * How much traffic has flowed down an interface as the sum of all packet priority.
+     * If this number reaches bufferMax, further incoming traffic is dropped to prevent flooding.
+     * Users should periodically adjust the buffer toward zero to fairly meter out priority in
+     * congestion situations.
+     */
+    int64_t buffer;
+
+    /**
+     * How high the buffer is allowed to get before beginning to drop packets.
+     * For nodes in the core, this number should be large because a buffer
+     * limit of a core link will cause route flapping.
+     * For edge nodes it is a measure of how much the ISP trusts the end user not to flood.
+     */
+    int64_t bufferMax;
+
+    /**
+     * How congested an interface is.
+     * this number is subtraced from packet priority when the packet is sent down this interface.
+     */
+    uint32_t congestion;
 };
 
+struct SwitchCore
+{
+    struct SwitchInterface interfaces[SwitchCore_MAX_INTERFACES];
+    uint32_t interfaceCount;
+
+    struct MemAllocator* allocator;
+};
+
+struct ErrorPacket {
+    struct Headers_SwitchHeader switchHeader;
+    struct Headers_Error error;
+};
 
 struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
 {
@@ -26,29 +59,13 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
     return core;
 }
 
-struct Interface* SwitchCore_addInterface(uint8_t (* sendMessage)(struct Message* toSend,
-                                                                  void* callbackContext),
-                                          void* callbackContext,
-                                          struct SwitchCore* core)
-{
-    if (core->interfaceCount == SwitchCore_MAX_INTERFACES) {
-        return NULL;
-    }
-    struct Interface* out = &core->interfaces[core->interfaceCount];
-    out->core = core;
-    out->sendMessage = sendMessage;
-    out->callbackContext = callbackContext;
-    core->interfaceCount++;
-    return out;
-}
-
 /**
  * Bitwise reversal of the a number.
  */
 static inline uint64_t bitReverse(uint64_t toReverse)
 {
     uint64_t out = 0;
-    for (uint32_t i = 0; i < Headers_SWITCH_LABEL_BITS; i++) {
+    for (uint32_t i = 0; i < 64; i++) {
         out |= toReverse & 1;
         out <<= 1;
         toReverse >>= 1;
@@ -70,7 +87,7 @@ static inline uint64_t bitReverse(uint64_t toReverse)
 #define SCHEME_ONE_BITS    7
 #define SCHEME_TWO_BITS   10
 #define SCHEME_THREE_BITS 13
-static inline uint32_t bitsUsedForLabel(const uint32_t label)
+static inline uint32_t bitsUsedForLabel(const uint64_t label)
 {
     if ((label & GET_MAX(3)) == GET_MAX(3)) {
         if ((label & GET_MAX(4)) == GET_MAX(4)) {
@@ -96,7 +113,7 @@ static inline uint32_t bitsUsedForNumber(const uint32_t number)
     }
 }
 
-static inline uint32_t getCompressed(const uint32_t number, const uint32_t bitsUsed)
+static inline uint32_t getCompressed(const uint64_t number, const uint32_t bitsUsed)
 {
     switch (bitsUsed) {
         case SCHEME_ZERO_BITS:  return number;
@@ -107,7 +124,7 @@ static inline uint32_t getCompressed(const uint32_t number, const uint32_t bitsU
     };
 }
 
-static inline uint32_t getDecompressed(const uint32_t label, const uint32_t bitsUsed)
+static inline uint32_t getDecompressed(const uint64_t label, const uint32_t bitsUsed)
 {
     switch (bitsUsed) {
         case SCHEME_ZERO_BITS:  return  label       & GET_MAX(2);
@@ -123,22 +140,22 @@ static inline uint32_t getDecompressed(const uint32_t label, const uint32_t bits
 #undef SCHEME_TWO_BITS
 #undef SCHEME_THREE_BITS
 
-static inline uint16_t sendMessage(const struct Interface* interface,
+static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
                                    struct Message* toSend)
 {
     uint16_t priority = Headers_getPriority((struct Headers_SwitchHeader*) toSend->bytes);
-    if (interface->buffer + priority > interface->bufferMax) {
+    if (switchIf->buffer + priority > switchIf->bufferMax) {
         return Error_LINK_LIMIT_EXCEEDED;
     }
 
-    uint8_t err = interface->sendMessage(toSend, interface->callbackContext);
+    uint16_t err = switchIf->iface->sendMessage(switchIf->iface, toSend);
     if (err) {
-        return Error_INTERFACE_ERROR | err;
+        return err;
     }
     return Error_NONE;
 }
 
-static inline void sendError(struct Interface* interface,
+static inline void sendError(struct SwitchInterface* interface,
                              struct Message* cause,
                              uint16_t code)
 {
@@ -147,30 +164,30 @@ static inline void sendError(struct Interface* interface,
         // Errors never cause other errors to be sent.
         return;
     }
-    struct MessageType_Error* err =
-        cause->allocator->malloc(sizeof(struct MessageType_Error), cause->allocator);
+    struct ErrorPacket err;
 
-    err->switchHeader.label_be = bitReverse(header->label_be);
-    Headers_setPriorityFragmentNumAndMessageType(&err->switchHeader,
+    err.switchHeader.label_be = bitReverse(header->label_be);
+    Headers_setPriorityFragmentNumAndMessageType(&err.switchHeader,
                                                  Headers_getPriority(header),
                                                  0,
                                                  MessageType_ERROR);
-    err->error.errorType_be = ntohs(code);
-    err->error.length =
+    err.error.errorType_be = Endian_hostToBigEndian16(code);
+    err.error.length =
         ((cause->length >= SwitchCore_MAX_INTERFACES)
             ? cause->length : SwitchCore_MAX_INTERFACES - 1);
-    memcpy(err->error.cause.bytes, cause->bytes, err->error.length);
+    memcpy(err.error.cause.bytes, cause->bytes, err.error.length);
 
     // Just swap the error into the message used for the cause.
-    cause->bytes = (uint8_t*) err;
+    cause->bytes = (uint8_t*) &err;
     cause->length =
-        sizeof(struct MessageType_Error) - ((SwitchCore_MAX_INTERFACES - 1) - err->error.length);
+        sizeof(err) - ((SwitchCore_MAX_INTERFACES - 1) - err.error.length);
     sendMessage(interface, cause);
 }
 
 
-void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* message)
+void receiveMessage(struct Message* message, struct Interface* iface)
 {
+    struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
         // Fl00d -- probably an edge node which is not adhering to the protocol..
         return;
@@ -183,7 +200,7 @@ void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* messa
 
     struct SwitchCore* core = sourceIf->core;
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
-    const uint32_t label = ntohl(header->label_be);
+    const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     const uint32_t bits = bitsUsedForLabel(label);
     const uint32_t sourceIfIndex = sourceIf - core->interfaces;
 
@@ -199,12 +216,12 @@ void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* messa
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
         return;
     }
-    struct Interface* destIf = &core->interfaces[destIndex];
+    struct SwitchInterface* destIf = &core->interfaces[destIndex];
 
     // If this happens to be an Error_FLOOD packet, we will react by
     // increasing the congestion for the source interface to make flooding harder.
     if (Headers_getMessageType(header) == MessageType_ERROR
-        && ((struct MessageType_Error*) header)->error.errorType_be == ntohs(Error_FLOOD))
+        && ((struct ErrorPacket*) header)->error.errorType_be == ntohs(Error_FLOOD))
     {
         sourceIf->congestion += Headers_getPriority(header);
     }
@@ -225,14 +242,55 @@ void SwitchCore_receivedPacket(struct Interface* sourceIf, struct Message* messa
     }
 
 
-    header->label_be = ntohl((label >> bits) | bitReverse(getCompressed(sourceIfIndex, bits)));
+    header->label_be =
+        Endian_hostToBigEndian64((label >> bits) | bitReverse(getCompressed(sourceIfIndex, bits)));
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message);
     if (err) {
-        header->label_be = ntohl(label);
+        header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err);
         return;
     }
 
     destIf->buffer -= priority;
+}
+
+static void removeInterface(void* vcontext)
+{
+    struct SwitchInterface* si =
+        (struct SwitchInterface*) ((struct Interface*)vcontext)->receiverContext;
+    struct SwitchCore* core = si->core;
+    core->interfaceCount--;
+    memcpy(si, &core->interfaces[core->interfaceCount], sizeof(struct SwitchInterface));
+    si->iface->receiverContext = si;
+}
+
+/**
+ * @param trust a positive integer representing how much you trust the
+ *              connected node not to send a flood.
+ * @return 0 if all goes well, -1 if the list is full.
+ */
+int32_t SwitchCore_addInterface(struct Interface* iface,
+                                const uint64_t trust,
+                                struct SwitchCore* core)
+{
+    if (core->interfaceCount == SwitchCore_MAX_INTERFACES) {
+        return -1;
+    }
+    memcpy(&core->interfaces[core->interfaceCount], &(struct SwitchInterface) {
+        .iface = iface,
+        .core = core,
+        .buffer = 0,
+        .bufferMax = trust,
+        .congestion = 0
+    }, sizeof(struct SwitchInterface));
+
+    iface->allocator->onFree(removeInterface,
+                             &core->interfaces[core->interfaceCount],
+                             iface->allocator);
+
+    iface->receiverContext = &core->interfaces[core->interfaceCount];
+    iface->receiveMessage = receiveMessage;
+    core->interfaceCount++;
+    return 0;
 }

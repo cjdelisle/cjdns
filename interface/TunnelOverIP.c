@@ -1,9 +1,3 @@
-#include "switch/SwitchCore.h"
-
-
-
-
-
 #include <assert.h>
 #include <string.h>
 #include <event2/event.h>
@@ -29,11 +23,10 @@
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 
-#define MESSAGE_BUFFER_SIZE 16384
+// 1426 + 8 (udp) + 20 (ip) + 2 (ppp) + 6 (pppoe) + 18 (eth) = 1480 (optimum adsl/pppoe mtu)
+#define MAX_MESSAGE_SIZE 1426
 
-#define MESSAGE_ALLOCATOR_BUFFER_SIZE 8192
-
-#define SwitchCore_MAX_INTERFACES 256
+#define MAX_INTERFACES 256
 
 
 /*--------------------Prototypes--------------------*/
@@ -47,71 +40,84 @@ struct TunnelOverIP
 {
     evutil_socket_t socket;
 
+    /**
+     * The event registered with libevent.
+     * Needed only so it can be freed.
+     */
+    struct event* incomingMessageEvent;
+
     /** Used to tell what address type is being used. */
     int addrLen;
 
+    /** The ip address / interface mapping. */
+    uint32_t addresses[MAX_INTERFACES];
+    struct Interface* interfaces[MAX_INTERFACES];
     uint32_t endpointCount;
-
-    uint32_t addresses[SwitchCore_MAX_INTERFACES];
-
-    void* callbackContexts[SwitchCore_MAX_INTERFACES];
 
     struct MemAllocator* allocator;
 
     struct Message message;
 
-    uint8_t messageBuffer[MESSAGE_BUFFER_SIZE];
+    /** Only one interface can have access to the message buffer at a time. */
+    struct Interface* currentInterface;
 
-    uint8_t messageAllocatorBuffer[MESSAGE_ALLOCATOR_BUFFER_SIZE];
+    /** The interface which will get all traffic for which there is no endpoint. */
+    struct Interface defaultInterface;
 
-    struct SwitchCore* switchCore;
+    uint8_t messageBuffer[MAX_MESSAGE_SIZE];
 };
 
-/**
- * @param base the LibEvent context.
- * @param bindAddr a string representation of the address to bind to such as "0.0.0.0:12345".
- * @param allocator the memory allocator for this message.
- */
+struct Endpoint
+{
+    /** The ip address where messages to this endpoint should go. */
+    struct sockaddr_storage addr;
+
+    /** the public api. */
+    struct Interface interface;
+};
+
 struct TunnelOverIP* TunnelOverIP_new(struct event_base* base,
                                       const char* bindAddr,
-                                      struct SwitchCore* switchCore,
                                       struct MemAllocator* allocator)
 {
-    struct TunnelOverIP* out = allocator->calloc(sizeof(struct TunnelOverIP), allocator);
-    out->allocator = allocator;
-    out->message.allocator =
-        BufferAllocator_new(out->messageAllocatorBuffer, MESSAGE_ALLOCATOR_BUFFER_SIZE);
-    out->switchCore = switchCore;
+    struct TunnelOverIP* context = allocator->calloc(sizeof(struct TunnelOverIP), allocator);
+    context->allocator = allocator;
 
     struct sockaddr_storage addr;
-    out->addrLen = sizeof(struct sockaddr_storage);
-    if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) addr, out->addrLen)) {
+    context->addrLen = sizeof(struct sockaddr_storage);
+    if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) addr, context->addrLen)) {
         return NULL;
     }
 
     assert(addr.ss_family == AS_INET || NULL == "Scanning to map interface to address doesn't "
                                                 "support ip6, feel free to provide a patch");
 
-    out->socket = socket(addr.ss_family, SOCK_DGRAM, 0);
-    if (out->socket == -1) {
+    context->socket = socket(addr.ss_family, SOCK_DGRAM, 0);
+    if (context->socket == -1) {
         return NULL;
     }
 
-    evutil_make_socket_nonblocking(out->socket);
-    toi->message.bytes = toi->messageBuffer;
+    evutil_make_socket_nonblocking(context->socket);
+    context->message.bytes = context->messageBuffer;
+
+    context->incomingMessageEvent =
+        event_new(base, socket, EV_READ | EV_PERSIST, handleEvent, context);
+
+    if (context->incomingMessageEvent == NULL) {
+        return NULL;
+    }
+
+    event_add(context->incomingMessageEvent, NULL);
+
+    allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
+
+    return context;
 }
 
-/**
- * Add an endpoint.
- *
- * @param tunnel the tunnel context.
- * @param endpointSockAddr a string representation of the endpoint address EG: 1.2.3.4:56789
- * @return the interface object or null if error.
- */
-struct Interface* TunnelOverIP_addEndpoint(struct TunnelOverIP* tunnel, const char* endpointSockAddr)
+struct Interface* TunnelOverIP_addEndpoint(struct TunnelOverIP* context, const char* endpointSockAddr)
 {
-    if (tunnel->endpointCount >= SwitchCore_MAX_INTERFACES) {
-        // Too many interfaces.
+    if (context->endpointCount >= MAX_INTERFACES) {
+        // TODO: Allow number of interfaces to grow
         return NULL;
     }
 
@@ -121,34 +127,88 @@ struct Interface* TunnelOverIP_addEndpoint(struct TunnelOverIP* tunnel, const ch
         // Unparsable addr
         return NULL;
     }
-    if (addrLen != tunnel->addrLen) {
+    if (addrLen != context->addrLen) {
         // Wrong addr type
         return NULL;
     }
 
-    struct Endpoint ep = tunnel->allocator->malloc(sizeof(struct Endpoint), tunnel->allocator);
-    ep->socket = tunnel->socket;
-    ep->addrLen = addrLen;
+    struct MemAllocator* epAllocator = context->allocator->child(context->allocator);
+    struct Endpoint* ep = epAllocator->calloc(sizeof(struct Endpoint), epAllocator);
     memcpy(ep->addr, addr, sizeof(struct sockaddr_storage));
 
-    struct Interface* iface =
-        SwitchCore_addInterface(SwitchCore_addInterface, ep, tunnel->switchCore);
-    if (iface = NULL) {
-        // Too many interfaces.
-        return NULL;
-    }
+    struct Interface iface = {
+        .senderContext = context,
+        .getEmptyMessage = getEmptyMessage,
+        .sendMessage = sendMessage,
+        .allocator = epAllocator
+    };
+    memcpy(ep->interface, &iface, sizeof(struct Interface));
 
-    return iface;
+    epAllocator->onFree(closeInterface, ep->interface, epAllocator);
+
+    context->addresses[context->endpointCount] = ((struct sockaddr_in) addrStore).sin_addr.s_addr;
+    context->interfaces[context->endpointCount] = ep->interface;
+    context->endpointCount++;
+
+    return ep->interface;
 }
 
-struct Endpoint
+struct Interface* TunnelOverIP_getDefaultEndpoint(struct TunnelOverIP* context)
 {
-    evutil_socket_t socket;
+    return &context->defaultInterface;
+}
 
-    struct sockaddr_storage addr;
+static struct Message* getEmptyMessage(struct Interface* iface)
+{
+    struct TunnelOverIP* context = (struct TunnelOverIP*) iface->senderContext;
+    context->currentInterface = iface;
+    context->message.length = MAX_MESSAGE_SIZE;
+    return &context->message;
+}
 
-    int addrLen;
-};
+static void closeInterface(void* vcontext)
+{
+    struct Interface* toClose = (struct Interface*) vcontext;
+    for (uint32_t i = 0; i < context->endpointCount; i++) {
+        if (context->interfaces[i] == toClose) {
+            context->addresses[i] = context->addresses[context->endpointCount - 1];
+            context->interfaces[i] = context->interfaces[context->endpointCount - 1];
+            context->endpointCount--;
+            return;
+        }
+    }
+    assert("Tried to close an interface which wasn't found." == NULL);
+}
+
+static uint16_t sendMessage(struct Interface* iface)
+{
+    struct TunnelOverIP* context = (struct TunnelOverIP*) iface->senderContext;
+    struct Endpoint* ep =
+        (struct Endpoint*) (((char*)interface) - offsetof(struct EndPoint, interface));
+
+    if (context->currentInterface != iface) {
+        return Interface_ERROR_WRONG_STATE;
+    }
+
+    if (sendto(context->socket,
+               context->messageBuffer,
+               context->message.length,
+               0,
+               (struct sockaddr*) &ep->addr,
+               context->addrLen) < 0)
+    {
+        switch (errno) {
+            case EMSGSIZE:
+                return Error_OVERSIZE_MESSAGE;
+
+            case ENOBUFS:
+            case EAGAIN:
+            case EWOULDBLOCK:
+                return Error_LINK_LIMIT_EXCEEDED;
+        };
+    }
+    return 0;
+}
 
 /*--------------------Internals--------------------*/
 
@@ -163,65 +223,44 @@ static void freeEvent(void* vevent)
     event_free((struct event*) vevent);
 }
 
-uint8_t SwitchCore_sendMessage(struct Message* toSend, void* vcontext)
-{
-    struct Endpoint* ep = (struct Endpoint*) vcontext;
-
-    if (sendto(ep->socket, message->bytes, message->length, 0, ep->addr, ep->addrLength) < 0) {
-        switch (errno) {
-            case EMSGSIZE:
-                return Error_OVERSIZE_MESSAGE;
-
-            case ENOBUFS:
-            case EAGAIN:
-            case EWOULDBLOCK:
-                return Error_LINK_LIMIT_EXCEEDED;
-        };
-    }
-    return 0;
-}
-
 static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    struct TunnelOverIP* toi = (struct TunnelOverIP*) vcontext;
+    struct TunnelOverIP* context = (struct TunnelOverIP*) vcontext;
 
     struct sockaddr_storage addrStore;
     int addrLen = sizeof(struct sockaddr_storage);
-
-    int rc = recvfrom(toi->socket,
-                      toi->messageBuffer,
+    int rc = recvfrom(context->socket,
+                      context->messageBuffer,
                       MESSAGE_BUFFER_SIZE,
                       0,
                       (struct sockaddr*) &addrStore,
                       &addrLen);
 
-    if (addrLen != toi->addrLen) {
+    if (addrLen != context->addrLen) {
         return;
     }
     if (rc < 0) {
         return;
     }
-    toi->message.length = rc;
+    context->message.length = rc;
 
     // This is dirty but fast..
     uint32_t addr = ((struct sockaddr_in) addrStore).sin_addr.s_addr;
-    for (uint32_t i = 0; i < toi->endpointCount; i++) {
-        if (addr = toi->addresses[i]) {
-            // TODO: make this a function pointer
-            SwitchCore_receivedPacket(toi->callbackContexts[i], toi->message);
-            // Cleanup
-            toi->message.bytes = toi->messageBuffer;
-            toi->message.allocator->free(toi->message.allocator);
+    for (uint32_t i = 0; i < context->endpointCount; i++) {
+        if (addr = context->addresses[i]) {
+
+            struct Interface* iface = context->interfaces[i];
+            context->currentInterface = iface;
+            if (iface->receiveMessage != NULL) {
+                iface->receiveMessage(&context->message, iface);
+            }
             return;
         }
     }
 
-    // Unrecognized ip addr.. probably wants to start a connection.
-    SwitchCore_addInterface(TunnelOverIP_sendMessage, 
-                                          void* callbackContext,
-                                          struct SwitchCore* core)
-
-    // Cleanup
-    toi->message.bytes = toi->messageBuffer;
-    toi->message.allocator->free(toi->message.allocator);
+    // Otherwise just send it to the default interface.
+    if (context->defaultInterface.receiveMessage != NULL) {
+        context->currentInterface = &context->defaultInterface;
+        context->defaultInterface(&context->message, &context->defaultInterface);
+    }
 }
