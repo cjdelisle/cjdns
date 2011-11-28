@@ -3,9 +3,7 @@
 #include <time.h>
 
 #include <event2/dns.h>
-//#include <event2/dns_struct.h>
 #include <event2/util.h>
-/*#include <event2/event.h>*/
 
 #include "memory/MemAllocator.h"
 
@@ -14,7 +12,6 @@
 #include "dns/DNSReturnCodes.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/DHTConstants.h"
-#include "dht/core/juliusz/dht.h"
 #include "libbenc/benc.h"
 #include "util/Timeout.h"
 

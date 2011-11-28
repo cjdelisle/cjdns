@@ -1,6 +1,5 @@
 find_package(Libevent2 REQUIRED)
 
-add_subdirectory(core)
 add_subdirectory(dhtstore)
 add_subdirectory(dhtcore)
 

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "BridgeModule.h"
 #include "crypto/Crypto.h"
 #include "dht/DebugModule.h"
