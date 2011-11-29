@@ -148,7 +148,7 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
         return Error_LINK_LIMIT_EXCEEDED;
     }
 
-    uint16_t err = switchIf->iface->sendMessage(switchIf->iface, toSend);
+    uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
     if (err) {
         return err;
     }

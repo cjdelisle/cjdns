@@ -518,5 +518,10 @@ uint32_t Crypto_isSignatureValid(const benc_bstr_t message,
 /** @see Crypto.h */
 void Crypto_randomize(String* toRandomize)
 {
-    evutil_secure_rng_get_bytes(toRandomize->bytes, toRandomize->len);   
+    evutil_secure_rng_get_bytes(toRandomize->bytes, toRandomize->len);
+}
+
+void randombytes(unsigned char* buffer,unsigned long long size)
+{
+    evutil_secure_rng_get_bytes(buffer, size);
 }

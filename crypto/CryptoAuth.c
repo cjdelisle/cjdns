@@ -55,7 +55,7 @@ struct Wrapper
     void* user;
 
     /** A password to use for authing with the other party. */
-    String* password;
+    String* const password;
 
     /** The shared secret. */
     uint8_t secret[32];
@@ -73,30 +73,17 @@ struct Wrapper
     bool isInitiator : 1;
 
     /** If true then the packets sent through this interface must be authenticated. */
-    bool authenticate : 1;
+    const bool authenticate : 1;
 
     /** A pointer back to the main cryptoauth context. */
-    struct CryptoAuth* context;
+    struct CryptoAuth* const context;
 
     /** The internal interface which we are wrapping. */
-    struct Interface* wrappedInterface;
+    struct Interface* const wrappedInterface;
 
     /** The interface which this wrapper provides. */
     struct Interface externalInterface;
 };
-
-struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator)
-{
-    struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
-    ca->allocator = allocator;
-
-    ca->passwords = allocator->calloc(sizeof(struct Auth), 256, allocator);
-    ca->passwordCount = 0;
-    ca->passwordCapacity = 256;
-
-    crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
-    return ca;
-}
 
 /**
  * Get a shared secret.
@@ -177,24 +164,6 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
         return hashOutput;
     }
     return NULL;
-}
-
-int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           void* user,
-                           struct CryptoAuth* context)
-{
-    if (authType != 1) {
-        return -1;
-    }
-    if (context->passwordCount == context->passwordCapacity) {
-        // TODO: realloc password space and increase buffer.
-        return -2;
-    }
-    hashPassword_sha256(&context->passwords[context->passwordCount], password);
-    context->passwords[context->passwordCount].user = user;
-    context->passwordCount++;
-    return 0;
 }
 
 /**
@@ -321,13 +290,14 @@ static inline void setRequiredPadding(struct Wrapper* wrapper)
         wrapper->wrappedInterface->maxMessageLength - padding;
 }
 
-static bool knowHerKey(struct Wrapper* wrapper)
+static inline bool knowHerKey(struct Wrapper* wrapper)
 {
     uint64_t* herKey = (uint64_t*) wrapper->herPerminentPubKey;
     return (herKey[0] | herKey[1] | herKey[2] | herKey[3]) != 0;
 }
-
-static uint8_t sendMessage(struct Interface* interface, struct Message* message)
+#include "util/Hex.h"
+#include <stdio.h>
+static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
 
@@ -346,24 +316,19 @@ static uint8_t sendMessage(struct Interface* interface, struct Message* message)
     if (wrapper->nextNonce < 4) {
         assert(message->padding >= sizeof(union Headers_CryptoAuth) || !"not enough padding");
 
-        union Headers_CryptoAuth* header =
-            (union Headers_CryptoAuth*) message->bytes - sizeof(union Headers_CryptoAuth);
-        header->nonce = nonce_be;
+        Message_shift(message, sizeof(union Headers_CryptoAuth));
 
-        struct Message toSend = {
-            .bytes = (uint8_t*)header,
-            .length = message->length + sizeof(union Headers_CryptoAuth),
-            .padding = message->length - sizeof(union Headers_CryptoAuth)
-        };
+        union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
 
         // If the nonce is 1 it should become 0 because hellos all need to
         // have a nonce equal to her perm key.
         // NOTE: this nonce field is only used as a flag in these types of packet.
-        header->nonce = (wrapper->nextNonce >> 1) ^ *((uint32_t*)wrapper->herPerminentPubKey);
+        header->nonce = (nonce_be >> 1) ^ *((uint32_t*)wrapper->herPerminentPubKey);
 
         // If we don't know her key, the handshake has to be done backwards.
         if (!knowHerKey(wrapper)) {
             wrapper->nextNonce = 0;
+            Message_shift(message, (int32_t)sizeof(union Headers_CryptoAuth) * -1);
 
             // Buffer the packet so it can be sent ASAP
             if (wrapper->bufferedMessage == NULL) {
@@ -375,8 +340,15 @@ static uint8_t sendMessage(struct Interface* interface, struct Message* message)
                                  wrapper->externalInterface.allocator);
             }
 
-            message->length = sizeof(union Headers_CryptoAuth);
-            return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, message);
+            Message_shift(message, -message->length + sizeof(union Headers_CryptoAuth));
+           // toSend.length = sizeof(union Headers_CryptoAuth);
+            header = (union Headers_CryptoAuth*) message->bytes;
+            memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
+String* str = Hex_encode(&(String){.bytes= (char*)wrapper->context->publicKey, .len=32}, wrapper->externalInterface.allocator);
+printf("%s\n\n",str->bytes);
+printf("%p\n\n", header->handshake.publicKey);
+
+            return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
         }
 
         Crypto_randomize(&(String) { .bytes = (char*)header->handshake.nonce, .len = 24 });
@@ -427,19 +399,19 @@ static uint8_t sendMessage(struct Interface* interface, struct Message* message)
             wrapper->nextNonce = 3;
         }
 
-        // Shift toSend over the encryptedTempKey field.
-        Message_shift(&toSend, 48 - (int32_t) sizeof(union Headers_CryptoAuth));
+        // Shift message over the encryptedTempKey field.
+        Message_shift(message, 48 - (int32_t) sizeof(union Headers_CryptoAuth));
 
         // This zeros the publicKey field
-        encryptRndNonce(header->handshake.nonce, &toSend, sharedSecret);
+        encryptRndNonce(header->handshake.nonce, message, sharedSecret);
 
         memcpy(header->handshake.publicKey, wrapper->context->publicKey, 32);
 
         // Shift it back
-        Message_shift(&toSend, sizeof(union Headers_CryptoAuth) - 48);
+        Message_shift(message, sizeof(union Headers_CryptoAuth) - 48);
 
 
-        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, &toSend);
+        return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 
     } else {
         assert(message->padding >= 36 || !"not enough padding");
@@ -462,12 +434,12 @@ static uint8_t sendMessage(struct Interface* interface, struct Message* message)
 
         wrapper->nextNonce++;
 
-        return wrapper->wrappedInterface->sendMessage(wrapper->wrappedInterface, &toSend);
+        return wrapper->wrappedInterface->sendMessage(&toSend, wrapper->wrappedInterface);
     }
 }
 
 /** Call the external interface and tell it that a message has been received. */
-static void callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
+static inline void callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
 {
     if (wrapper->externalInterface.receiveMessage != NULL) {
         wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
@@ -483,7 +455,7 @@ static inline bool checkNonce(uint32_t nonce, struct Wrapper* wrapper)
 
 static void receiveMessage(struct Message* received, struct Interface* interface)
 {
-    struct Wrapper* wrapper = (struct Wrapper*) interface;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < 4) {
@@ -499,15 +471,19 @@ static void receiveMessage(struct Message* received, struct Interface* interface
         .padding = received->padding + 4
     };
 
-    if (decrypt(header->nonce,
-                &content,
-                wrapper->secret,
-                wrapper->isInitiator,
-                wrapper->authenticate) == 0)
-    {
-        if (checkNonce(Endian_bigEndianToHost32(header->nonce), wrapper)) {
-            callReceivedMessage(wrapper, &content);
-            return;
+    uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
+
+    if (wrapper->authenticate || nonce > 4) {
+        if (decrypt(header->nonce,
+                    &content,
+                    wrapper->secret,
+                    wrapper->isInitiator,
+                    wrapper->authenticate) == 0)
+        {
+            if (checkNonce(nonce, wrapper)) {
+                callReceivedMessage(wrapper, &content);
+                return;
+            }
         }
     }
 
@@ -534,7 +510,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
             memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
         }
         received->length = sizeof(union Headers_CryptoAuth);
-        sendMessage(&wrapper->externalInterface, received);
+        sendMessage(received, &wrapper->externalInterface);
         return;
     }
 
@@ -592,13 +568,46 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
     if (wrapper->bufferedMessage != NULL) {
-        sendMessage(&wrapper->externalInterface, wrapper->bufferedMessage);
+        sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     }
 
     setRequiredPadding(wrapper);
     callReceivedMessage(wrapper, &content);
     return;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32_t CryptoAuth_addUser(String* password,
+                           uint8_t authType,
+                           void* user,
+                           struct CryptoAuth* context)
+{
+    if (authType != 1) {
+        return -1;
+    }
+    if (context->passwordCount == context->passwordCapacity) {
+        // TODO: realloc password space and increase buffer.
+        return -2;
+    }
+    hashPassword_sha256(&context->passwords[context->passwordCount], password);
+    context->passwords[context->passwordCount].user = user;
+    context->passwordCount++;
+    return 0;
+}
+
+struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator)
+{
+    struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
+    ca->allocator = allocator;
+
+    ca->passwords = allocator->calloc(sizeof(struct Auth), 256, allocator);
+    ca->passwordCount = 0;
+    ca->passwordCapacity = 256;
+
+    crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
+    return ca;
 }
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
@@ -623,12 +632,14 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
 
     struct Interface iface = {
         .senderContext = wrapper,
-        .receiveMessage = receiveMessage,
         .sendMessage = sendMessage,
         .allocator = toWrap->allocator
     };
     memcpy(&wrapper->externalInterface, &iface, sizeof(struct Interface));
-    memcpy(wrapper->herPerminentPubKey, herPublicKey, 32);
+
+    if (herPublicKey != NULL) {
+        memcpy(wrapper->herPerminentPubKey, herPublicKey, 32);
+    }
 
     return &wrapper->externalInterface;
 }

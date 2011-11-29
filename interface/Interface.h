@@ -34,7 +34,7 @@ struct Interface
      * @return 0 If all goes well, non-zero in case of an error.
      *           See Error.h for more information about interface error codes.
      */
-    uint8_t (* const sendMessage)(struct Interface* thisInterface, struct Message* message);
+    uint8_t (* const sendMessage)(struct Message* message, struct Interface* thisInterface);
 
     /** Used to allocate this interface, the interface will close when this allocator is freed. */
     struct MemAllocator* const allocator;

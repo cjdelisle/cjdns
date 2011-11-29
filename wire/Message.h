@@ -2,6 +2,10 @@
 #define MESSAGE_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "memory/MemAllocator.h"
 
 struct Message
 {
