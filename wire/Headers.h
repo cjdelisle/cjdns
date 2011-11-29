@@ -121,12 +121,13 @@ union Headers_CryptoAuth
          */
         uint8_t publicKey[32];
 
+        /** This is filled in when the tempKey is encrypted. */
+        uint8_t authenticator[16];
+
         /**
          * The public key to use for this session, encrypted with the private key.
-         * If this is zeroed, the message is taken as a solicitation for the
-         * other end to begin a handshake.
          */
-        uint8_t encryptedTempKey[48];
+        uint8_t encryptedTempKey[32];
     } handshake;
 };
 

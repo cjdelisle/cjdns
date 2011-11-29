@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include "libbenc/benc.h"
+#include "wire/Message.h"
+
 /**
  * Initialize the random number generator.
  * This must be called before doing anything else.
@@ -40,5 +42,7 @@ benc_bstr_t* Crypto_sha256sum(const benc_bstr_t* hashThis,
  * @param toRandomize the String to scramble.
  */
 void Crypto_randomize(String* toRandomize);
+
+void randombytes(unsigned char* buffer, unsigned long long size);
 
 #endif
