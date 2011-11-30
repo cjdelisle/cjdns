@@ -45,7 +45,7 @@ struct CryptoAuth
 
 struct Wrapper
 {
-    /** How we tell sessions apart. */
+    /** The public key of the other node. */
     uint8_t herPerminentPubKey[32];
 
     /**
@@ -53,9 +53,6 @@ struct Wrapper
      * with the password this will be the object, otherwise it will be null.
      */
     void* user;
-
-    /** A password to use for authing with the other party. */
-    String* const password;
 
     /** The shared secret. */
     uint8_t secret[32];
@@ -66,14 +63,20 @@ struct Wrapper
     /** An outgoing message which is buffered in the event that a reverse handshake is required. */
     struct Message* bufferedMessage;
 
+    /** A password to use for authing with the other party. */
+    String* const password;
+
     /** The next nonce to use. */
     uint32_t nextNonce;
+
+    /** The method to use for trying to auth with the server. */
+    uint8_t authType;
 
     /** True if this node began the conversation. */
     bool isInitiator : 1;
 
     /** If true then the packets sent through this interface must be authenticated. */
-    const bool authenticate : 1;
+    const bool authenticatePackets : 1;
 
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
     const bool requireAuth : 1;
@@ -114,14 +117,25 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
     }
 }
 
-static inline void hashPassword_sha256(struct Auth* auth, String* password)
+static inline void hashPassword_sha256(struct Auth* auth, const String* password)
 {
     uint8_t tempBuff[32];
     crypto_hash_sha256(auth->secret, (uint8_t*) password->bytes, password->len);
     crypto_hash_sha256(tempBuff, auth->secret, 32);
     memcpy(auth->challenge.bytes, tempBuff, Headers_AuthChallenge_SIZE);
-    auth->challenge.challenge.derivations = 0;
+    Headers_setAuthChallengeDerivations(&auth->challenge, 0);
     auth->challenge.challenge.type = 1;
+}
+
+static inline uint8_t* hashPassword(struct Auth* auth,
+                                    const String* password,
+                                    const uint8_t authType)
+{
+    switch (authType) {
+        case 1:
+            hashPassword_sha256(auth, password);
+    };
+    return auth->secret;
 }
 
 /**
@@ -161,8 +175,9 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
 {
     struct Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
     if (auth != NULL) {
-        getPasswordHash(hashOutput, cauth->handshake.auth.challenge.derivations, auth);
-        if (cauth->handshake.auth.challenge.derivations == 0) {
+        uint16_t deriv = Headers_getAuthChallengeDerivations(&cauth->handshake.auth);
+        getPasswordHash(hashOutput, deriv, auth);
+        if (deriv == 0) {
             *userPtr = auth->user;
         }
         return hashOutput;
@@ -365,15 +380,10 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     uint8_t* passwordHash = NULL;
     if (wrapper->password != NULL) {
         struct Auth auth;
-        hashPassword_sha256(&auth, wrapper->password);
-        passwordHash = auth.secret;
-        memcpy(header->handshake.auth.bytes,
-               &auth.challenge,
-               sizeof(union Headers_AuthChallenge));
-    } else {
-        // no auth.
-        header->handshake.auth.challenge.type = 0;
+        passwordHash = hashPassword(&auth, wrapper->password, wrapper->authType);
+        memcpy(header->handshake.auth.bytes, &auth.challenge, sizeof(union Headers_AuthChallenge));
     }
+    header->handshake.auth.challenge.type = wrapper->authType;
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
@@ -441,7 +451,7 @@ static inline uint8_t encryptMessage(struct Message* message,
             message,
             wrapper->secret,
             wrapper->isInitiator,
-            wrapper->authenticate);
+            wrapper->authenticatePackets);
 
     Message_shift(message, 4);
 
@@ -498,7 +508,7 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
                                   struct Message* content,
                                   uint8_t secret[32])
 {
-    if (wrapper->authenticate) {
+    if (wrapper->authenticatePackets) {
         // Decrypt with authentication and replay prevention.
         if (decrypt(nonce, content, secret, wrapper->isInitiator, true) == 0
             && checkNonce(nonce, wrapper))
@@ -575,9 +585,14 @@ static void decryptHandshake(struct Wrapper* wrapper,
         // TODO: Prevent this from happening on connections which are active to prevent RST attacks.
 
         // Decrypt message with perminent keys.
-        herPermKey = knowHerKey(wrapper)
-            ? wrapper->herPerminentPubKey
-            : header->handshake.publicKey;
+        if (!knowHerKey(wrapper)) {
+            // We need to store this on the stack because it gets clobbered by decryption.
+            uint8_t herPermKeyStorage[32];
+            memcpy(herPermKeyStorage, header->handshake.publicKey, 32);
+            herPermKey = herPermKeyStorage;
+        } else {
+            herPermKey = wrapper->herPerminentPubKey;
+        }
 
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
@@ -665,24 +680,6 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-int32_t CryptoAuth_addUser(String* password,
-                           uint8_t authType,
-                           void* user,
-                           struct CryptoAuth* context)
-{
-    if (authType != 1) {
-        return -1;
-    }
-    if (context->passwordCount == context->passwordCapacity) {
-        // TODO: realloc password space and increase buffer.
-        return -2;
-    }
-    hashPassword_sha256(&context->passwords[context->passwordCount], password);
-    context->passwords[context->passwordCount].user = user;
-    context->passwordCount++;
-    return 0;
-}
-
 struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
                                   const uint8_t* privateKey)
 {
@@ -703,10 +700,34 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
     return ca;
 }
 
+int32_t CryptoAuth_addUser(String* password,
+                           uint8_t authType,
+                           void* user,
+                           struct CryptoAuth* context)
+{
+    if (authType != 1) {
+        return -1;
+    }
+    if (context->passwordCount == context->passwordCapacity) {
+        // TODO: realloc password space and increase buffer.
+        return -2;
+    }
+    hashPassword_sha256(&context->passwords[context->passwordCount], password);
+    context->passwords[context->passwordCount].user = user;
+    context->passwordCount++;
+    return 0;
+}
+
+void* CryptoAuth_getUser(struct Interface* interface)
+{
+    return ((struct Wrapper*) interface->senderContext)->user;
+}
+
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            uint8_t herPublicKey[32],
                                            String* password,
-                                           bool authenticate,
+                                           uint8_t authType,
+                                           bool authenticatePackets,
                                            struct CryptoAuth* context)
 {
     struct Wrapper* wrapper =
@@ -717,7 +738,8 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
             .wrappedInterface = toWrap,
             .password = (password != NULL)
                 ? benc_newBinaryString(password->bytes, password->len, toWrap->allocator) : NULL,
-            .authenticate = authenticate
+            .authType = (password != NULL) ? authType : 0,
+            .authenticatePackets = authenticatePackets
         });
 
     toWrap->receiverContext = wrapper;

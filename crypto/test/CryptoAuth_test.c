@@ -16,9 +16,11 @@ static const uint8_t* publicKey = (uint8_t*)
     "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0"
     "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34";
 
+static struct CryptoAuth* ca1;
 static struct Interface* if1;
 static struct Interface* cif1;
 
+static struct CryptoAuth* ca2;
 static struct Interface* if2;
 static struct Interface* cif2;
 
@@ -34,6 +36,8 @@ static uint8_t* textBuff;
 
 static uint8_t* if1Msg;
 static uint8_t* if2Msg;
+
+static char* userObj = "This represents a user";
 
 
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
@@ -70,31 +74,48 @@ static void recvMessageOnIf2(struct Message* message, struct Interface* iface)
     if2Msg = message->bytes;
 }
 
-int init(const uint8_t* privateKey, const uint8_t* publicKey)
+int init(const uint8_t* privateKey,
+         const uint8_t* publicKey,
+         const uint8_t* password,
+         bool authenticatePackets)
 {
     printf("\nSetting up:\n");
     struct MemAllocator* allocator = MallocAllocator_new(1048576);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
 
-    struct CryptoAuth* ca1 = CryptoAuth_new(allocator, NULL);
+    String* passStr = NULL;
+    if (password) {
+        String passStrStorage = {.bytes=(char*)password,.len=strlen((char*)password)};
+        passStr = &passStrStorage;
+    }
+
+    ca1 = CryptoAuth_new(allocator, NULL);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     });
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, NULL, false, ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, passStr, 1, false, ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    struct CryptoAuth* ca2 = CryptoAuth_new(allocator, privateKey);
+    ca2 = CryptoAuth_new(allocator, privateKey);
+    if (password) {
+        CryptoAuth_addUser(passStr, 1, userObj, ca2);
+    }
     if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     });
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, false, ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, 0, authenticatePackets, ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;
+}
+
+static int simpleInit()
+{
+    return init(NULL, NULL, NULL, false);
 }
 
 static int sendToIf1(const char* x)
@@ -121,7 +142,7 @@ static int sendToIf2(const char* x)
 
 int normal()
 {
-    init(NULL,NULL);
+    simpleInit();
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -131,7 +152,7 @@ int normal()
 
 int repeatKey()
 {
-    init(NULL,NULL);
+    simpleInit();
     return
         sendToIf2("hello world")
       | sendToIf2("r u thar?")
@@ -142,7 +163,7 @@ int repeatKey()
 
 int repeatHello()
 {
-    init(privateKey, publicKey);
+    init(privateKey, publicKey, NULL, false);
     return
         sendToIf2("hello world")
       | sendToIf2("r u thar?")
@@ -153,7 +174,7 @@ int repeatHello()
 
 int chatter()
 {
-    init(NULL,NULL);
+    simpleInit();
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")

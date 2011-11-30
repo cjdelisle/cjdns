@@ -1,4 +1,5 @@
 #define CryptoAuth_addUser Export_CryptoAuth_addUser
+#define CryptoAuth_getUser Export_CryptoAuth_getUser
 #define CryptoAuth_new Export_CryptoAuth_new
 #define CryptoAuth_wrapInterface Export_CryptoAuth_wrapInterface
 

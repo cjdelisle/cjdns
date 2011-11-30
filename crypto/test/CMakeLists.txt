@@ -6,7 +6,7 @@ message("-- Tests to run for " ${this_dir})
 
 #allow us to test internal CryptoAuth.c functions.
 add_library(exports Exports.c)
-target_link_libraries(exports crypto)
+target_link_libraries(exports crypto util)
 
 # Anything in this dir which ends with "test.c" is considered a test.
 file(GLOB tests "*test.c")
