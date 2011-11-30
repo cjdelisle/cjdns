@@ -652,6 +652,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
                             NULL);
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 wrapper->nextNonce += 2;
+                memcpy(wrapper->secret, secret, 32);
                 return;
             }
         }
@@ -682,7 +683,8 @@ int32_t CryptoAuth_addUser(String* password,
     return 0;
 }
 
-struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator)
+struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
+                                  const uint8_t* privateKey)
 {
     struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
     ca->allocator = allocator;
@@ -691,7 +693,13 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator)
     ca->passwordCount = 0;
     ca->passwordCapacity = 256;
 
-    crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
+    if (privateKey != NULL) {
+        memcpy(ca->privateKey, privateKey, 32);
+        crypto_scalarmult_curve25519_base(ca->publicKey, ca->privateKey);
+    } else {
+        crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
+    }
+
     return ca;
 }
 

@@ -16,10 +16,10 @@ int32_t CryptoAuth_addUser(String* password,
                            void* user,
                            struct CryptoAuth* context);
 
-struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator);
+struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator, const uint8_t privateKey[32]);
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
-                                           uint8_t herPublicKey[32],
+                                           const uint8_t herPublicKey[32],
                                            String* password,
                                            bool authenticate,
                                            struct CryptoAuth* context);

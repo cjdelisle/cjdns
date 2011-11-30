@@ -2,30 +2,56 @@
 #include <stdio.h>
 
 #include "crypto/CryptoAuth.h"
+#include "crypto/test/Exports.h"
 #include "libbenc/benc.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
 
+static const uint8_t* privateKey = (uint8_t*)
+    "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
+    "\x4e\xff\xbe\x7d\x39\xd8\x4d\x8e\x14\x2b\x9d\x21\x89\x5b\x38\x09";
+
+static const uint8_t* publicKey = (uint8_t*)
+    "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0"
+    "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34";
+
 static struct Interface* if1;
+static struct Interface* cif1;
 
 static struct Interface* if2;
+static struct Interface* cif2;
+
+static struct Message msg;
+
+#define BUFFER_SIZE 400
+static uint8_t* textBuff;
+#define MK_MSG(x) \
+    memcpy(&textBuff[BUFFER_SIZE - strlen(x)], x, strlen(x));   \
+    msg.length = strlen(x);                                     \
+    msg.bytes = textBuff + BUFFER_SIZE - strlen(x);             \
+    msg.padding = BUFFER_SIZE - strlen(x)
+
+static uint8_t* if1Msg;
+static uint8_t* if2Msg;
 
 
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
-printf("sent message -->  nonce=%d\n", Endian_bigEndianToHost32(*((uint32_t*)message->bytes)));
-assert(message->length + message->padding == 400);
+    uint32_t nonce_be =
+        Exports_obfuscateNonce(*((uint32_t*)message->bytes), iface->receiverContext);
+    printf("sent message -->  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
+    assert(message->length + message->padding == 400);
     if2->receiveMessage(message, if2);
     return 0;
 }
 
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
-printf("sent message <--  nonce=%d\n", Endian_bigEndianToHost32(*((uint32_t*)message->bytes)));
-assert(message->length + message->padding == 400);
+    uint32_t nonce_be =
+        Exports_obfuscateNonce(*((uint32_t*)message->bytes), iface->receiverContext);
+    printf("sent message <--  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
+    assert(message->length + message->padding == 400);
     if1->receiveMessage(message, if1);
     return 0;
 }
@@ -34,53 +60,120 @@ static void recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
     iface = iface;
     printf("if1 got message! %s\n", message->bytes);
+    if1Msg = message->bytes;
 }
 
 static void recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
     iface = iface;
     printf("if2 got message! %s\n", message->bytes);
+    if2Msg = message->bytes;
+}
+
+int init(const uint8_t* privateKey, const uint8_t* publicKey)
+{
+    printf("\nSetting up:\n");
+    struct MemAllocator* allocator = MallocAllocator_new(1048576);
+    textBuff = allocator->malloc(BUFFER_SIZE, allocator);
+
+    struct CryptoAuth* ca1 = CryptoAuth_new(allocator, NULL);
+    if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+        .sendMessage = sendMessageToIf2,
+        .receiveMessage = recvMessageOnIf2,
+        .allocator = allocator
+    });
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, NULL, false, ca1);
+    cif1->receiveMessage = recvMessageOnIf1;
+
+
+    struct CryptoAuth* ca2 = CryptoAuth_new(allocator, privateKey);
+    if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+        .sendMessage = sendMessageToIf1,
+        .allocator = allocator
+    });
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, false, ca2);
+    cif2->receiveMessage = recvMessageOnIf2;
+
+    return 0;
+}
+
+static int sendToIf1(const char* x)
+{
+    MK_MSG(x);
+    cif2->sendMessage(&msg, cif2);
+    if (strcmp((char*)if1Msg, x) != 0) {
+        printf("expected %s, got %s\n", x, (char*)if1Msg);
+        return -1;
+    }
+    return 0;
+}
+
+static int sendToIf2(const char* x)
+{
+    MK_MSG(x);
+    cif1->sendMessage(&msg, cif1);
+    if (strcmp((char*)if2Msg, x) != 0) {
+        printf("expected %s, got %s\n", x, (char*)if2Msg);
+        return -1;
+    }
+    return 0;
+}
+
+int normal()
+{
+    init(NULL,NULL);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int repeatKey()
+{
+    init(NULL,NULL);
+    return
+        sendToIf2("hello world")
+      | sendToIf2("r u thar?")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int repeatHello()
+{
+    init(privateKey, publicKey);
+    return
+        sendToIf2("hello world")
+      | sendToIf2("r u thar?")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int chatter()
+{
+    init(NULL,NULL);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
 }
 
 int main()
 {
-    #define BUFFER_SIZE 1048576
-    uint8_t buffer[BUFFER_SIZE];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, BUFFER_SIZE);
-
-    struct CryptoAuth* ca1 = CryptoAuth_new(allocator);
-    if1 = &(struct Interface) {
-        .sendMessage = sendMessageToIf2,
-        .receiveMessage = recvMessageOnIf2,
-        .allocator = allocator
-    };
-    struct Interface* cif1 = CryptoAuth_wrapInterface(if1, NULL, NULL, false, ca1);
-    cif1->receiveMessage = recvMessageOnIf1;
-
-
-    struct CryptoAuth* ca2 = CryptoAuth_new(allocator);
-    if2 = &(struct Interface) {
-        .sendMessage = sendMessageToIf1,
-        .allocator = allocator
-    };
-    struct Interface* cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, false, ca2);
-    cif2->receiveMessage = recvMessageOnIf2;
-
-
-    uint8_t buff2[400];
-    memset(buff2, 0, 400);
-
-    memcpy(&buff2[400-12], "hello world", 12);
-    struct Message m = { .bytes = &buff2[400-12], .length = 12, .padding = 400-12 };
-    cif1->sendMessage(&m, cif1);
-
-    memcpy(&buff2[400-12], "hello cjdns", 12);
-    m.bytes = &buff2[400-12]; m.length = 12; m.padding = 400-12;
-    cif1->sendMessage(&m, cif1);
-
-    memcpy(&buff2[400-4], "hai", 4);
-    m.bytes = &buff2[400-4]; m.length = 4; m.padding = 400-4;
-    cif2->sendMessage(&m, cif2);
-
-    return 0;
+    return normal()
+        | repeatKey()
+        | repeatHello()
+        | chatter();
 }
