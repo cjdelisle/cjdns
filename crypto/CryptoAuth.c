@@ -11,6 +11,7 @@
 #include "crypto_stream_xsalsa20.h"
 
 #include "crypto/Crypto.h"
+#include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
@@ -65,6 +66,9 @@ struct Wrapper
 
     /** A password to use for authing with the other party. */
     String* const password;
+
+    /** Used for preventing replay attacks. */
+    struct ReplayProtector replayProtector;
 
     /** The next nonce to use. */
     uint32_t nextNonce;
@@ -500,13 +504,6 @@ static inline void callReceivedMessage(struct Wrapper* wrapper, struct Message* 
     }
 }
 
-static inline bool checkNonce(uint32_t nonce, struct Wrapper* wrapper)
-{
-    nonce = nonce; wrapper = wrapper;
-    // TODO
-    return true;
-}
-
 static inline bool decryptMessage(struct Wrapper* wrapper,
                                   uint32_t nonce,
                                   struct Message* content,
@@ -515,7 +512,7 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
     if (wrapper->authenticatePackets) {
         // Decrypt with authentication and replay prevention.
         if (decrypt(nonce, content, secret, wrapper->isInitiator, true) == 0
-            && checkNonce(nonce, wrapper))
+            && ReplayProtector_checkNonce(nonce, &wrapper->replayProtector))
         {
             if (nonce == 4) {
                 wrapper->nextNonce += 3;
