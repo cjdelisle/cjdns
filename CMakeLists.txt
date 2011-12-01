@@ -43,6 +43,7 @@ add_subdirectory(dht)
 add_subdirectory(dns)
 add_subdirectory(util)
 add_subdirectory(switch)
+add_subdirectory(interface)
 
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
@@ -56,6 +57,12 @@ target_link_libraries(cjdns
     net
     MemAllocator
     ${LIBEVENT2_LIBRARIES}
+)
+
+add_executable(cjdvpn cjdvpn.c)
+target_link_libraries(cjdvpn
+    crypto
+    interface
 )
 
 # Everything must be tested.

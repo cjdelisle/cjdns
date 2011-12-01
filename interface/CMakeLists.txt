@@ -1,7 +1,8 @@
 find_package(Libevent2 REQUIRED)
 
 add_library(interface
-    TunnelOverIP.c
+    UDPInterface.c
+    TUNInterface.c
 )
 ##target_link_libraries(interface benc benc_StandardBencSerializer util)#dhtstore)
 
