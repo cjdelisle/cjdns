@@ -76,7 +76,7 @@ struct Wrapper
     bool isInitiator : 1;
 
     /** If true then the packets sent through this interface must be authenticated. */
-    const bool authenticatePackets : 1;
+    bool authenticatePackets : 1;
 
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
     const bool requireAuth : 1;
@@ -151,7 +151,7 @@ static inline struct Auth* getAuth(union Headers_AuthChallenge auth, struct Cryp
         return NULL;
     }
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (memcmp(auth.bytes, &context->passwords[i], Headers_AuthChallenge_SIZE - 1) == 0) {
+        if (memcmp(auth.bytes, &context->passwords[i], Headers_AuthChallenge_KEYSIZE) == 0) {
             return &context->passwords[i];
         }
     }
@@ -182,6 +182,8 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
         }
         return hashOutput;
     }
+    wrapper->authenticatePackets |= Headers_isPacketAuthRequired(&cauth->handshake.auth);
+
     return NULL;
 }
 
@@ -384,6 +386,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         memcpy(header->handshake.auth.bytes, &auth.challenge, sizeof(union Headers_AuthChallenge));
     }
     header->handshake.auth.challenge.type = wrapper->authType;
+
+    Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
@@ -670,7 +674,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
                 return;
             }
         }
-    } else if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
+    } else if (!decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         return;
     }
     Message_shift(received, 4);

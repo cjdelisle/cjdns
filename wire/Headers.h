@@ -121,23 +121,34 @@ ASSERT(sizeof(struct Headers_Error) == Headers_Error_SIZE);
  *    0 |   Auth Type   |                                               |
  *      +-+-+-+-+-+-+-+-+           Hash Code                           +
  *    4 |                                                               |
- *      +                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    8 |                               |A|        Derivations          |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    8 |A|        Derivations          |           Additional          |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * If the 'A' bit is set, the packets in the connection are to be authenticated with Poly1305.
+ * The Auth Type and Hash Code combined make a lookup key which can be used to scan a hashtable
+ * to see if the given password is known. It can be thought of as the "username" although it is
+ * a derivative of the password.
+ * The number of derivations represents how many times the hash of the password has been hashed
+ * again. Assuming Alice and Bob have a secure shared secret and Bob and Charlie have a secure
+ * shared secret, Bob can provide Charlie with a hash of his password with Alice which will allow
+ * Charlie to then establish a secure connection with Alice, without relying exclusively on
+ * asymmetrical cryptography.
+ * 
  */
 union Headers_AuthChallenge
 {
     struct {
         uint8_t type;
-        uint8_t lookup[9];
+        uint8_t lookup[7];
 
         /**
          * High 1 bit is whether to require poly1305 packet authentication.
          * low 15 bits is number of derivations.
          */
         uint16_t requirePacketAuthAndDerivationCount;
+
+        uint16_t additional;
     } challenge;
     uint8_t bytes[12];
 };
@@ -146,14 +157,14 @@ union Headers_AuthChallenge
 ASSERT(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_SIZE);
 
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
-#define Headers_AuthChallenge_KEYSIZE 10
+#define Headers_AuthChallenge_KEYSIZE 8
 
-static inline bool Headers_getRequirePacketAuth(union Headers_AuthChallenge* ac)
+static inline bool Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
 {
     return ac->challenge.requirePacketAuthAndDerivationCount & Endian_hostToBigEndian16(1<<15);
 }
 
-static inline void Headers_setRequirePacketAuth(union Headers_AuthChallenge* ac,
+static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac,
                                                 bool require)
 {
     ac->challenge.requirePacketAuthAndDerivationCount &=

@@ -201,11 +201,66 @@ int auth()
       | sendToIf1("goodbye");
 }
 
+int authWithoutKey()
+{
+    init(NULL, NULL, (uint8_t*)"password", false);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int poly1305()
+{
+    init(privateKey, publicKey, NULL, true);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int poly1305UnknownKey()
+{
+    init(NULL, NULL, NULL, true);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int poly1305AndPassword()
+{
+    init(privateKey, publicKey, (uint8_t*)"aPassword", true);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
+int poly1305UnknownKeyAndPassword()
+{
+    init(NULL, NULL, (uint8_t*)"anotherPassword", true);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
 int main()
 {
     return normal()
         | repeatKey()
         | repeatHello()
         | chatter()
-        | auth();
+        | auth()
+        | authWithoutKey()
+        | poly1305()
+        | poly1305UnknownKey()
+        | poly1305AndPassword()
+        | poly1305UnknownKeyAndPassword();
 }
