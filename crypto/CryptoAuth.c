@@ -566,9 +566,8 @@ static void decryptHandshake(struct Wrapper* wrapper,
     }
 
     void* user = NULL;
-    uint8_t* passwordHash = NULL;
     uint8_t passwordHashStore[32];
-    tryAuth(header, passwordHashStore, wrapper, &user);
+    uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
     if (wrapper->requireAuth && !user) {
         return;
     }

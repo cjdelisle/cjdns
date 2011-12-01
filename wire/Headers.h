@@ -156,21 +156,26 @@ static inline bool Headers_getRequirePacketAuth(union Headers_AuthChallenge* ac)
 static inline void Headers_setRequirePacketAuth(union Headers_AuthChallenge* ac,
                                                 bool require)
 {
-    ac->challenge.requirePacketAuthAndDerivationCount |= Endian_hostToBigEndian16(require<<15);
+    ac->challenge.requirePacketAuthAndDerivationCount &=
+        Endian_hostToBigEndian16((uint16_t)~(1<<15));
+    ac->challenge.requirePacketAuthAndDerivationCount |=
+        Endian_hostToBigEndian16(require<<15);
 }
 
 static inline uint16_t Headers_getAuthChallengeDerivations(union Headers_AuthChallenge* ac)
 {
-    return ac->challenge.requirePacketAuthAndDerivationCount
-        & Endian_hostToBigEndian16(~(((uint16_t)~0)>>1));
+    return Endian_hostToBigEndian16(ac->challenge.requirePacketAuthAndDerivationCount)
+        & (((uint16_t)~0)>>1);
  
 }
 
 static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallenge* ac,
                                                        uint16_t derivations)
 {
-    ac->challenge.requirePacketAuthAndDerivationCount
-        |= Endian_hostToBigEndian16(derivations & ~(1<<15));
+    ac->challenge.requirePacketAuthAndDerivationCount &=
+        Endian_hostToBigEndian16(1<<15);
+    ac->challenge.requirePacketAuthAndDerivationCount |=
+        Endian_hostToBigEndian16(derivations & ~(1<<15));
 }
 
 /**

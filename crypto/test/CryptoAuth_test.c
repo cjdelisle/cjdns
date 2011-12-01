@@ -191,10 +191,21 @@ int chatter()
       | sendToIf1("goodbye");
 }
 
+int auth()
+{
+    init(privateKey, publicKey, (uint8_t*)"password", false);
+    return
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
 int main()
 {
     return normal()
         | repeatKey()
         | repeatHello()
-        | chatter();
+        | chatter()
+        | auth();
 }
