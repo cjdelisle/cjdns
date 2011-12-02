@@ -136,27 +136,31 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       struct MemAllocator* allocator)
 {
     struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
+    
     context->allocator = allocator;
 
-    struct sockaddr_storage addr;
-    context->addrLen = sizeof(struct sockaddr_storage);
-    if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, &context->addrLen)) {
-        return NULL;
+    sa_family_t addrFam = AF_INET;
+    if (bindAddr != NULL) {
+        struct sockaddr_storage addr;
+        context->addrLen = sizeof(struct sockaddr_storage);
+        if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, &context->addrLen)) {
+            return NULL;
+        }
+        if(bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
+            return NULL;
+        }
+        addrFam = addr.ss_family;
+    } else {
+        context->addrLen = sizeof(struct sockaddr);
     }
 
-    assert(addr.ss_family == AF_INET || NULL == "Scanning to map interface to address doesn't "
-                                                "support ip6, feel free to provide a patch");
-
-    context->socket = socket(addr.ss_family, SOCK_DGRAM, 0);
-    if (context->socket == -1) {
-        return NULL;
-    }
+    context->socket = socket(addrFam, SOCK_DGRAM, 0);
+        if (context->socket == -1) {
+            return NULL;
+        }
 
     evutil_make_socket_nonblocking(context->socket);
 
-    if(bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
-        return NULL;
-    }
 
     context->incomingMessageEvent =
         event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);

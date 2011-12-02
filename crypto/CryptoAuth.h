@@ -20,6 +20,7 @@ struct CryptoAuth;
  * @param authType The method of authenticating the user, only option currently is 1 for sha256
  *                 based authentication.
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
+ *             If this is NULL and requireAuthentication is enabled, authentication will fail.
  * @param context The CryptoAuth context.
  * @return 0 if all goes well, -1 if the authentication method is not supported and -2 if there is
  *         not enough space to store the user.
@@ -54,18 +55,33 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator, const uint8_t 
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
- * @param password the password to use for authenticating, this must match the password given to
- *                 CryptoAuth_addUser() at the other end of the connection.
- * @param authType this must match CryptoAuth_addUser() at the other end of the connection.
+ * @param requireAuthentication if the remote end of this interface begins the connection, require
+ *                              them to present valid authentication credentials to connect.
+ *                              If this end begins the connection, this parameter has no effect.
  * @param authenticatePackets if true, all packets will be protected against forgery and replay
  *                            attacks, this is a seperate system from password and authType.
  * @param context the CryptoAuth context.
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
-                                           String* password,
-                                           uint8_t authType,
+                                           bool requireAuthentication,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context);
+
+/**
+ * Choose the authentication credentials to use.
+ * WARNING: Even if the remote end begins the connection, these credentials will be presented which
+ *          will cause the connection initiation to fail if the remote end does not know of them.
+ *
+ * @param password the password to use for authenticating, this must match the password given to
+ *                 CryptoAuth_addUser() at the other end of the connection.
+ * @param authType this must match CryptoAuth_addUser() at the other end of the connection.
+ * @param wrappedInterface this MUST be the output from CryptoAuth_wrapInterface().
+ */
+void CryptoAuth_setAuth(const String* password,
+                        const uint8_t authType,
+                        struct Interface* wrappedInterface);
+
+void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
 #endif

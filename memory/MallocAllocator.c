@@ -154,6 +154,10 @@ static void* allocatorRealloc(const void* original,
                               size_t size,
                               const struct MemAllocator* allocator)
 {
+    if (original == NULL) {
+        return allocatorMalloc(size, allocator);
+    }
+
     struct Context* context = allocator->context;
     struct Allocation** locPtr = &context->allocations;
     struct Allocation* origLoc = ((struct Allocation*) original) - 1;

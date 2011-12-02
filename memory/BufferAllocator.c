@@ -145,6 +145,10 @@ static void* allocatorClone(size_t length, const struct MemAllocator* allocator,
 /** @see MemAllocator->realloc() */
 static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator)
 {
+    if (original == NULL) {
+        return allocatorMalloc(length, allocator);
+    }
+
     // Need to pointer to make sure we dont copy too much.
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;

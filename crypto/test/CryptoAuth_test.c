@@ -95,19 +95,20 @@ int init(const uint8_t* privateKey,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     });
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, passStr, 1, false, ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
     ca2 = CryptoAuth_new(allocator, privateKey);
     if (password) {
+        CryptoAuth_setAuth(passStr, 1, cif1);
         CryptoAuth_addUser(passStr, 1, userObj, ca2);
     }
     if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     });
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, 0, authenticatePackets, ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;

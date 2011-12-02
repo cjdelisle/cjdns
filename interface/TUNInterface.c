@@ -76,7 +76,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         return;
     }
     message.length = length;
- 
+
     struct Interface* iface = &((struct Tunnel*) vcontext)->interface;
     if (iface->receiveMessage) {
         iface->receiveMessage(&message, iface);

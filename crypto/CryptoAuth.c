@@ -65,7 +65,7 @@ struct Wrapper
     struct Message* bufferedMessage;
 
     /** A password to use for authing with the other party. */
-    String* const password;
+    String* password;
 
     /** Used for preventing replay attacks. */
     struct ReplayProtector replayProtector;
@@ -83,7 +83,7 @@ struct Wrapper
     bool authenticatePackets : 1;
 
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
-    const bool requireAuth : 1;
+    bool requireAuth : 1;
 
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth* const context;
@@ -725,8 +725,7 @@ void* CryptoAuth_getUser(struct Interface* interface)
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            uint8_t herPublicKey[32],
-                                           String* password,
-                                           uint8_t authType,
+                                           const bool requireAuth,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context)
 {
@@ -736,9 +735,7 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
             .nextNonce = 0,
             .context = context,
             .wrappedInterface = toWrap,
-            .password = (password != NULL)
-                ? benc_newBinaryString(password->bytes, password->len, toWrap->allocator) : NULL,
-            .authType = (password != NULL) ? authType : 0,
+            .requireAuth = requireAuth,
             .authenticatePackets = authenticatePackets
         });
 
@@ -757,4 +754,20 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
     }
 
     return &wrapper->externalInterface;
+}
+
+void CryptoAuth_setAuth(const String* password,
+                        const uint8_t authType,
+                        struct Interface* wrappedInterface)
+{
+    struct Wrapper* wrapper = (struct Wrapper*) wrappedInterface->senderContext;
+    wrapper->password = (password != NULL)
+        ? benc_newBinaryString(password->bytes, password->len, wrappedInterface->allocator)
+        : NULL;
+    wrapper->authType = (password != NULL) ? authType : 0;
+}
+
+void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
+{
+    memcpy(output, context->publicKey, 32);
 }
