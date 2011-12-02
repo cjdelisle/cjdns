@@ -69,7 +69,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         .length = MAX_PACKET_SIZE
     };
 
-    ssize_t length = read(socket, messageBuffer, MAX_PACKET_SIZE);
+    ssize_t length = read(socket, messageBuffer + PADDING_SPACE, MAX_PACKET_SIZE);
 
     if (length < 0) {
         printf("Error reading from TUN device %d\n", (int) length);
