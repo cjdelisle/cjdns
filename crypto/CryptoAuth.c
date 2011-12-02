@@ -643,7 +643,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     struct Wrapper* wrapper = (struct Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
-    if (received->length < 4) {
+    if (received->length < wrapper->requireAuth ? 20 : 4) {
         return;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
