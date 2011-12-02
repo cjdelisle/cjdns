@@ -127,7 +127,7 @@ int Base32_encode(uint8_t *output,
     }
 
     if (outIndex < outputLength) {
-        output[outIndex + 1] = '\0';
+        output[outIndex] = '\0';
     }
     return outIndex;
 }

@@ -1,4 +1,6 @@
 #include "crypto/CryptoAuth.h"
+#include "exception/AbortHandler.h"
+#include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceConnector.h"
 #include "interface/TUNInterface.h"
@@ -39,7 +41,8 @@ int startServer(char* bindToAddress,
                 struct CryptoAuth* ca)
 {
     CryptoAuth_addUser(&(String){.bytes=passwd, .len=strlen(passwd)}, 1, (void*)1, ca);
-    struct UDPInterface* udpContext = UDPInterface_new(base, bindToAddress, allocator);
+    struct UDPInterface* udpContext =
+        UDPInterface_new(base, bindToAddress, allocator, AbortHandler_INSTANCE);
     struct Interface* udpDefault = UDPInterface_getDefaultInterface(udpContext);
     struct Interface* authedUdp = CryptoAuth_wrapInterface(udpDefault, NULL, true, true, ca);
     struct Interface* tun = TunInterface_new(NULL, base, allocator);
@@ -49,7 +52,7 @@ int startServer(char* bindToAddress,
     uint8_t base32PubKey[53];
     assert(52 == Base32_encode(base32PubKey, 53, pubKey, 32));
     fprintf(stderr,
-            "To connect to this server, use:  cjdvpn c <ip addr> %s:%s",
+            "To connect to this server, use:\ncjdvpn c <ip addr> %s:%s\n",
             base32PubKey, passwd);
 
     struct Interface* interfaces[3] = {udpDefault, authedUdp, tun};
@@ -79,8 +82,10 @@ int startClient(char* connectToAddress,
         return usage();
     }
 
-    struct UDPInterface* udpContext = UDPInterface_new(base, NULL, allocator);
-    struct Interface* udp = UDPInterface_addEndpoint(udpContext, connectToAddress);
+    struct UDPInterface* udpContext =
+        UDPInterface_new(base, NULL, allocator, AbortHandler_INSTANCE);
+    struct Interface* udp =
+        UDPInterface_addEndpoint(udpContext, connectToAddress, AbortHandler_INSTANCE);
     struct Interface* authedUdp = CryptoAuth_wrapInterface(udp, srvrKey, true, true, ca);
     CryptoAuth_setAuth(&(String) {.bytes=passwd, .len=strlen(passwd)}, 1, authedUdp);
     struct Interface* tun = TunInterface_new(NULL, base, allocator);

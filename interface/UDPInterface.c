@@ -1,3 +1,12 @@
+#include "exception/ExceptionHandler.h"
+#include "interface/Interface.h"
+#include "interface/UDPInterface.h"
+#include "net/NetworkTools.h"
+#include "memory/MemAllocator.h"
+#include "memory/BufferAllocator.h"
+#include "wire/Message.h"
+#include "wire/Error.h"
+
 #include <assert.h>
 #include <string.h>
 #include <event2/event.h>
@@ -17,14 +26,6 @@
  #endif
 #endif
 #include <errno.h>
-
-#include "interface/Interface.h"
-#include "interface/UDPInterface.h"
-#include "net/NetworkTools.h"
-#include "memory/MemAllocator.h"
-#include "memory/BufferAllocator.h"
-#include "wire/Message.h"
-#include "wire/Error.h"
 
 // 1426 + 8 (udp) + 20 (ip) + 2 (ppp) + 6 (pppoe) + 18 (eth) = 1480 (optimum adsl/pppoe mtu)
 #define MAX_PACKET_SIZE 1426
@@ -133,31 +134,43 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
-                                      struct MemAllocator* allocator)
+                                      struct MemAllocator* allocator,
+                                      struct ExceptionHandler* exHandler)
 {
     struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
     
     context->allocator = allocator;
 
-    sa_family_t addrFam = AF_INET;
+    sa_family_t addrFam;
+    struct sockaddr_storage addr;
     if (bindAddr != NULL) {
-        struct sockaddr_storage addr;
         context->addrLen = sizeof(struct sockaddr_storage);
         if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, &context->addrLen)) {
-            return NULL;
-        }
-        if(bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
+            exHandler->exception(__FILE__ " UDPInterface_new() Failed to parse address.",
+                                 -1, exHandler);
             return NULL;
         }
         addrFam = addr.ss_family;
     } else {
+        addrFam = AF_INET;
         context->addrLen = sizeof(struct sockaddr);
     }
 
     context->socket = socket(addrFam, SOCK_DGRAM, 0);
-        if (context->socket == -1) {
+    if (context->socket == -1) {
+        exHandler->exception(__FILE__ " UDPInterface_new() call to socket() failed.", -3, exHandler);
+        return NULL;
+    }
+
+    if (bindAddr != NULL) {
+        if(bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
+            exHandler->exception(__FILE__ " UDPInterface_new() Failed to bind socket.",
+                                 errno, exHandler);
             return NULL;
         }
+    }
+
+
 
     evutil_make_socket_nonblocking(context->socket);
 
@@ -166,6 +179,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);
 
     if (context->incomingMessageEvent == NULL) {
+        exHandler->exception(__FILE__ " UDPInterface_new() failed to create UDPInterface event.",
+                             -4, exHandler);
         return NULL;
     }
 
@@ -213,16 +228,20 @@ struct Interface* insertEndpoint(struct sockaddr_storage* addr,
 }
 
 struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
-                                           const char* endpointSockAddr)
+                                           const char* endpointSockAddr,
+                                           struct ExceptionHandler* exHandler)
 {
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
     if (0 != evutil_parse_sockaddr_port(endpointSockAddr, (struct sockaddr*) &addr, &addrLen)) {
-        // Unparsable addr
+        exHandler->exception(__FILE__ " UDPInterface_addEndpoint() failed to parse address.",
+                             -1, exHandler);
         return NULL;
     }
     if (addrLen != context->addrLen) {
-        // Wrong addr type
+        // You can't just bind to an ip4 address then start sending ip6 traffic
+        exHandler->exception(__FILE__ " UDPInterface_addEndpoint() address of different type "
+                             "then interface.", -1, exHandler);
         return NULL;
     }
 

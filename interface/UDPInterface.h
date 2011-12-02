@@ -12,19 +12,25 @@ struct UDPInterface;
  * @param base the LibEvent context.
  * @param bindAddr a string representation of the address to bind to such as "0.0.0.0:12345".
  * @param allocator the memory allocator for this message.
+ * @param exHandler the handler to deal with whatever exception arises.
+ * @return a new UDPInterface.
  */
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
-                                      struct MemAllocator* allocator);
+                                      struct MemAllocator* allocator,
+                                      struct ExceptionHandler* exHandler);
 
 /**
  * Add an endpoint.
  *
  * @param context the tunnel context.
  * @param endpointSockAddr a string representation of the endpoint address EG: 1.2.3.4:56789
+ * @param exHandler the handler to handle whatever exception may arise.
  * @return the interface object or null if error.
  */
-struct Interface* UDPInterface_addEndpoint(struct UDPInterface* tunnel, const char* endpointSockAddr);
+struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
+                                           const char* endpointSockAddr,
+                                           struct ExceptionHandler* exHandler);
 
 /**
  * Get an interface which will return all packets for which there is no interface.
