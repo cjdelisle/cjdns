@@ -272,6 +272,7 @@ int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface)
             struct Endpoint* ep = &context->endpoints[i];
             memcpy(&ep->addr, context->defaultInterfaceSender, sizeof(struct sockaddr_storage));
             context->addresses[i] = ((struct sockaddr_in*) &ep->addr)->sin_addr.s_addr;
+            context->defaultInterface = NULL;
             return 0;
         }
     }
@@ -298,15 +299,15 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
-    uint8_t messageBuff[MAX_PACKET_SIZE];
+    uint8_t messageBuff[MAX_PACKET_SIZE + 16];
     struct Message message =
-        { .bytes = messageBuff, .padding = 0, .length = MAX_PACKET_SIZE };
+        { .bytes = messageBuff + 16, .padding = 16, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
     int rc = recvfrom(socket,
-                      messageBuff,
+                      message.bytes,
                       MAX_PACKET_SIZE,
                       0,
                       (struct sockaddr*) &addrStore,

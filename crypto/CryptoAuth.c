@@ -203,7 +203,10 @@ static inline int decryptRndNonce(uint8_t nonce[24],
                                   struct Message* msg,
                                   uint8_t secret[32])
 {
-    assert(msg->padding >= 16 && msg->length >= 16);
+    if (msg->length < 16) {
+        return -1;
+    }
+    assert(msg->padding >= 16);
     uint8_t* startAt = msg->bytes - 16;
     memset(startAt, 0, 16);
     if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
@@ -643,7 +646,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     struct Wrapper* wrapper = (struct Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
-    if (received->length < wrapper->requireAuth ? 20 : 4) {
+    if (received->length < (wrapper->requireAuth ? 20 : 4)) {
         return;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
