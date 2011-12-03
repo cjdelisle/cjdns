@@ -74,6 +74,20 @@ Supposing Dave cannot forward the packet and needs to send an error, he does not
 
 Dave can then send the packet back to Charlie who need not know what it is in order to forward it correctly on to Bob and then to Alice.
 
+When Alice's router asks Bob's for the route to Charlie's router, Bob MUST give a route (routeBC) which, when shifted left by one less than the position of the most significant set bit in the route from Alice to Bob (routeAB) and XORd against routeAB, will yield a route which leads from Alice to Charlie via Bob.
+
+Given:
+routeAB =      0000000000000000000000000000000000000000000001011101110101011001
+routeBC =      0000000000000000000000000000000000000000000000000000110101010101
+
+SHIFT  routeBC 0000000000000000000000000000000000110101010101000000000000000000
+XOR    routeAB 0000000000000000000000000000000000000000000001011101110101011001
+equals routeBC 0000000000000000000000000000000000110101010100011101110101011001
+                                                            ^-- Overlap bit
+
+cjdns nodes SHOULD use a 01 to reference themselves, therefor Bob's switch parses 01 and sends the message to his own router. Then crafting a valid answer to Alice's request for routeBC is a simple matter of taking Bob's route to Charlie and flipping the least significant bit (the "overlap bit"). When Alice gets the request, shifts and XORs, she will have a valid route.
+
+
 Packet priority part of an anti-flooding scheme which is based on the observation that innocent traffic is generally balanced while attack traffic is largely biased in one direction. Each switch SHOULD keep a running tab of the total priority which has passed through each interface, increasing it when packets come in and decreasing it when packets go out. If the total priority exceeds a configured amount, switches SHOULD close the offending interface as the other party is likely participating in a DDoS attack.
 
 
