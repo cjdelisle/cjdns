@@ -191,6 +191,17 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     return context;
 }
 
+/**
+ * This is a trick to speed up lookup of addresses.
+ * For ipv4 addresses it will match the whole address
+ * For ipv6 and other addresses, it will be a match but the user must check that the whole
+ * sockaddr matches before using it.
+ */
+static inline uint32_t getAddr(struct sockaddr_storage* addr)
+{
+    return ((struct sockaddr_in*) addr)->sin_addr.s_addr;
+}
+
 struct Interface* insertEndpoint(struct sockaddr_storage* addr,
                                  struct UDPInterface* context)
 {
@@ -221,7 +232,7 @@ struct Interface* insertEndpoint(struct sockaddr_storage* addr,
 
     epAllocator->onFree(closeInterface, &ep->interface, epAllocator);
 
-    context->addresses[context->endpointCount] = ((struct sockaddr_in*) &addr)->sin_addr.s_addr;
+    context->addresses[context->endpointCount] = getAddr(addr);
     context->endpointCount++;
 
     return &ep->interface;
@@ -271,7 +282,7 @@ int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface)
         if (defaultInterface == &context->endpoints[i].interface) {
             struct Endpoint* ep = &context->endpoints[i];
             memcpy(&ep->addr, context->defaultInterfaceSender, sizeof(struct sockaddr_storage));
-            context->addresses[i] = ((struct sockaddr_in*) &ep->addr)->sin_addr.s_addr;
+            context->addresses[i] = getAddr(&ep->addr);
             context->defaultInterface = NULL;
             return 0;
         }
@@ -321,8 +332,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
     message.length = rc;
 
-    // This is dirty but fast..
-    uint32_t addr = ((struct sockaddr_in*) &addrStore)->sin_addr.s_addr;
+    uint32_t addr = getAddr(&addrStore);
     for (uint32_t i = 0; i < context->endpointCount; i++) {
         if (addr == context->addresses[i]
               && memcmp(&context->endpoints[i].addr,
@@ -338,7 +348,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
 
     // Otherwise just send it to the default interface.
-    if (context->defaultInterface->receiveMessage != NULL) {
+    if (context->defaultInterface != NULL && context->defaultInterface->receiveMessage != NULL) {
         context->defaultInterfaceSender = &addrStore;
         context->defaultInterface->receiveMessage(&message, context->defaultInterface);
         context->defaultInterfaceSender = NULL;
