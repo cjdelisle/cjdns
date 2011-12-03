@@ -37,6 +37,33 @@ cjdns is designed to be a "principle of least authority" protocol, on the intern
 
 Each cjdns "node" is a router and a switch. Switches are the cjdns engine's analog of the OSI level 2. They are very dumb and only know how to read a label, parse the lowest bits in that label and forward the packet down the interface given by those bits. The lack of any memory look ups makes switches very fast as well. Switches use an internal numeric compression scheme to compress the interface index into a few bits of the 64 bit label. How they compress the number is an implementation detail as long as they can read a label number and know how many of the low bits belong to them. After determining the correct destination interface, the switch will bit shift the label and add bits to the now empty high side of the label such that if the label were reversed, the switch would send the packet back to the interface where it came from. In the event of an error, the switch does a bitwise reversal of the label and sends the packet to the source interface. By doing a full bitwise reversal, the switches need not care how other switches encode the numbers or be able to reverse the order since they can reverse the order of the entire label.
 
+If Alice wants to send a packet to Fred via Bob Charlie, Dave and Elinor she will send a message to Bob's switch which has a label which causes the packet to be routed to Charlie then on to Dave.
+
+NOTE: Spaces between bits are for illustration only, switches do not know how many bits of a label are used by any other switch than themselves.
+
+Alice's original label:
+0000000000000000000000000000000000000 0101011 011010 100101101 10111
+^^^^^^^^^-- unused space --^^^^^^^^^^                          ^^^^^-- Bob uses to route to Charlie.
+
+Bob shifts off his bits and applies the reversed bits which reference the Bob->Alice interface.
+11001 0000000000000000000000000000000000000 0101011 011010 100101101
+^^^^^-- Bob's address for Alice, bit-reversed.             ^^^^^^^^^-- Charlie's address for Dave.
+
+Charlie removes his bits and applies the reverse bits for sending to Bob.
+100101101 11001 00000000000000000000000000000000000000 101011 011010
+^^^^^^^^^ ^^^^^-- Bob's address for Charlie (reversed).       ^^^^^^-- Dave's address for Elinor.
+        ^-- Charlie's address Bob (reversed).
+
+Supposing Dave cannot forward the packet and needs to send an error, he does not know which bits belong to Charlie and which to Bob but because they are bit reversed, he can reverse the order by bit reversing the entire label.
+
+010110 110101 00000000000000000000000000000000000000 10011 101101001
+                                                     ^^^^^ ^^^^^^^^^-- Charlie's address for Bob.
+                                                         ^-- Bob's address for Alice.
+
+Dave can then send the packet back to Charlie who need not know what it is in order to forward it correctly on to Bob and then to Alice.
+
+
+
                     1               2               3
     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -47,7 +74,7 @@ Each cjdns "node" is a router and a switch. Switches are the cjdns engine's anal
  8 |  Type |  Frag |                  Priority                     |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-Switch headers are designed to be small and efficient. The fields include the label of which some unknown number of bits belong to each switch along the forwarding path, the Type field indicating the type of packet. Reserved packet types are 0 for opaque data and 1 for error condition. The Frag field which tells the recipient what number fragment is being carried under this switch header if fragmentation is supported. The Frag field are only of concern to the sender and recipient and switches MUST NOT alter this field and SHOULD NOT make decisions based on it's value. The Priority field contains a number which represents how important the delivery of a packet is. When a link becomes saturated, the switch sending packets over that link SHOULD drop packets of least priority and MAY decrease the priority of all packets passing through it. When packets are dropped, switches SHOULD emit an error packet with the inverse label to be sent to the sender.
+Switch headers are designed to be small and efficient. The fields include the label of which some unknown number of bits belong to each switch along the forwarding path, the Type field indicating the type of packet. Reserved packet types are 0 for opaque data and 1 for control messages. The Frag field which tells the recipient what number fragment is being carried under this switch header if fragmentation is supported. The Frag field are only of concern to the sender and recipient. The Priority field contains a number which represents how important the delivery of a packet is. When a link becomes saturated, the switch sending packets over that link SHOULD drop packets of least priority and MAY decrease the priority of all packets passing through it. When packets are dropped, switches SHOULD emit an error packet with the inverse label to be sent to the sender.
 
 Packet priority part of an anti-flooding scheme which is based on the observation that innocent traffic is generally balanced while attack traffic is largely biased in one direction. Each switch SHOULD keep a running tab of the total priority which has passed through each interface, increasing it when packets come in and decreasing it when packets go out. If the total priority exceeds a configured amount, switches SHOULD close the offending interface as the other party is likely participating in a DDoS attack.
 
