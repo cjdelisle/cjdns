@@ -84,4 +84,6 @@ void CryptoAuth_setAuth(const String* password,
 
 void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
+uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
+
 #endif

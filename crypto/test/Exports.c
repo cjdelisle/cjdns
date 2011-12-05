@@ -4,6 +4,7 @@
 #define CryptoAuth_wrapInterface Export_CryptoAuth_wrapInterface
 #define CryptoAuth_setAuth Export_CryptoAuth_setAuth
 #define CryptoAuth_getPublicKey Export_CryptoAuth_getPublicKey
+#define CryptoAuth_getHerPublicKey Export_CryptoAuth_getHerPublicKey
 
 #include "crypto/CryptoAuth.c"
 

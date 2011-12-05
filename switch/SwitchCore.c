@@ -53,7 +53,7 @@ struct ErrorPacket {
 
 struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
 {
-    struct SwitchCore* core = allocator->malloc(sizeof(struct SwitchCore), allocator);
+    struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1 allocator);
     core->allocator = allocator;
     core->interfaceCount = 0;
     return core;
@@ -270,10 +270,14 @@ static void removeInterface(void* vcontext)
  *              connected node not to send a flood.
  * @return 0 if all goes well, -1 if the list is full.
  */
-int32_t SwitchCore_addInterface(struct Interface* iface,
-                                const uint64_t trust,
-                                struct SwitchCore* core)
+int SwitchCore_addInterface(struct Interface* iface,
+                            const uint64_t trust,
+                            struct SwitchCore* core)
 {
+    if (core->interfaceCount == 1) {
+        // This is necessary because the router interface must always be at index 1.
+        core->interfaceCount++;
+    }
     if (core->interfaceCount == SwitchCore_MAX_INTERFACES) {
         return -1;
     }
@@ -292,5 +296,21 @@ int32_t SwitchCore_addInterface(struct Interface* iface,
     iface->receiverContext = &core->interfaces[core->interfaceCount];
     iface->receiveMessage = receiveMessage;
     core->interfaceCount++;
+    return 0;
+}
+
+int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
+{
+    memcpy(&core->interfaces[1], &(struct SwitchInterface) {
+        .iface = iface,
+        .core = core,
+        .buffer = 0,
+        .bufferMax = INT64_MAX,
+        .congestion = 0
+    }, sizeof(struct SwitchInterface));
+
+    iface->receiverContext = &core->interfaces[1];
+    iface->receiveMessage = receiveMessage;
+
     return 0;
 }

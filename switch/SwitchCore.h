@@ -26,8 +26,19 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator);
  * @param iface the interface to add.
  * @param trust the amount that you trust the connected node.
  * @param core the switchcore.
- * @return 0 on success, -1 on failure.
+ * @return 0 on success, -1 if there are no more interface slots.
  */
-int32_t SwitchCore_addInterface(struct Interface* iface,
-                                const uint64_t trust,
-                                struct SwitchCore* core);
+int SwitchCore_addInterface(struct Interface* iface,
+                            const uint64_t trust,
+                            struct SwitchCore* core);
+
+/**
+ * Set the router interface.
+ * This interface is needed by all switches because a switch cannot function without a router.
+ * Do not send messages before registering this interface and at least one other.
+ *
+ * @param iface the router interface.
+ * @param core the switchcore.
+ * @return 0
+ */
+int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core);
