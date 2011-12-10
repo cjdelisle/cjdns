@@ -777,5 +777,5 @@ void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 {
-    return ((struct Wrapper*) wrappedInterface->senderContext)->herPublicKey;
+    return ((struct Wrapper*) interface->senderContext)->herPerminentPubKey;
 }

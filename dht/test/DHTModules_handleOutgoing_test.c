@@ -1,4 +1,7 @@
 #include "dht/DHTModules.h"
+#include "memory/MemAllocator.h"
+#include "memory/MallocAllocator.h"
+
 #include <stdio.h>
 
 struct Context
@@ -34,7 +37,9 @@ int testOutputHandler()
         .handleOutgoing = handleOutgoing
     };
 
-    struct DHTModuleRegistry* reg = DHTModules_new();
+    struct MemAllocator* allocator = MallocAllocator_new(2048);
+
+    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
     DHTModules_register(&module, reg);
 
     DHTModules_handleOutgoing(&theMessage, reg);

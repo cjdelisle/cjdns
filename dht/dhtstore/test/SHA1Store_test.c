@@ -16,7 +16,7 @@ int main()
 {
     char buffer[10000];
     struct MemAllocator* allocator = BufferAllocator_new(buffer, 10000);
-    struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* registry = DHTModules_new(allocator);
 
     // dummy core module, replies to everything.
     StoreTestFramework_registerBouncerModule(registry, allocator);

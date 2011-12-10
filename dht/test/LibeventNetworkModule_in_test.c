@@ -37,7 +37,7 @@ static int testIncoming()
     };
     memcpy(receiver, &localReceiver, sizeof(struct DHTModule));
 
-    struct DHTModuleRegistry* reg = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
 
     DHTModules_register(receiver, reg);
 

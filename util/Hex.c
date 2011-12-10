@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "exception/ExceptionHandler.h"
 #include "libbenc/benc.h"
@@ -17,9 +18,29 @@ String* Hex_encode(const String* input, const struct MemAllocator* allocator)
 
 String* Hex_decode(const String* input,
                    const struct MemAllocator* allocator,
-                   const struct ExceptionHandler* eHandler)
+                   struct ExceptionHandler* eHandler)
 {
-    char* hex = input->bytes;
+    static const uint8_t numForAscii[] =
+    {
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,99,99,99,99,99,99,
+        99,10,11,12,13,14,15,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,10,11,12,13,14,15,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+        99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
+    };
+
+    uint8_t* hex = (uint8_t*) input->bytes;
     size_t length = input->len;
     if ((size_t)(length &~ 2) != length) {
         eHandler->exception(__FILE__ " Hex_decode(): Input is not an even number of characters.",
@@ -29,34 +50,16 @@ String* Hex_decode(const String* input,
 
     String* out = benc_newBinaryString(NULL, length / 2, allocator);
 
-    const static char* allChars = "0123456789abcdefABCDEF";
-    char* ptr;
-
-    size_t i;
-    int outIndex = 0;
-    int thisByte = 0;
-    for (i = 0; i < length; i++) {
-        ptr = strchr(allChars, hex[i]);
-        if (ptr == NULL) {
+    for (uint32_t i = 0; i < length; i += 2) {
+        int high = numForAscii[hex[i]];
+        int low = numForAscii[hex[i + 1]];
+        if (high + low > 30) {
             eHandler->exception(__FILE__ " Hex_decode(): Input contains a character which is not "
                                 "0-9 a-f or A-F", -2, eHandler);
-            return -3;
+            return NULL;
         }
-        if (ptr - allChars > 15) {
-            ptr -= 6;
-        }
-
-        thisByte += ptr - allChars;
-
-        if (i & 1) {
-            out->bytes[outIndex] = (char) thisByte;
-            outIndex++;
-            thisByte = 0;
-        } else {
-            thisByte = thisByte << 4;
-        }
+        out->bytes[i / 2] = (high << 4) | low;
     }
-    *outLength = outIndex;
 
     return out;
 }

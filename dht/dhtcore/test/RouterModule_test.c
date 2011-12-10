@@ -179,7 +179,7 @@ int main()
 {
     char buffer[700000];
     struct MemAllocator* allocator = BufferAllocator_new(buffer, 700000);
-    struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* registry = DHTModules_new(allocator);
 
     ReplyModule_register(registry, allocator);
     struct RouterModule* routerModule =

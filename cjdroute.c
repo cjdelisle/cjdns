@@ -110,7 +110,11 @@ static void udpConnectTo(const char* connectToAddress,
 
 static int start(struct Context* ctx)
 {
-
+    struct DHTModuleRegistry* registry = DHTModules_new(ctx->allocator);
+    ReplyModule_register(registry, ctx->allocator);
+    struct RouterModule* router =
+        RouterModule_register(registry, ctx->allocator, (uint8_t*) id, eventBase);
+    SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
 }
 
 

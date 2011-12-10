@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     struct event_base* eventBase = event_base_new();
     
     /* ------------------ DHT ------------------ */
-    struct DHTModuleRegistry* registry = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* registry = DHTModules_new(allocator);
 
     if (registry == NULL) {
         printf("Failed to allocate DHT registry.\n");

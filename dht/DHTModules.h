@@ -136,13 +136,17 @@ struct DHTModuleRegistry {
      */
     Dict* serializedContexts;
 
+    /** Means of getting memory for the registry. */
+    struct MemAllocator* allocator;
 };
 
 /**
+ * Create a new registry.
+ *
+ * @param allocator the means of getting memory to store the registry.
  * @return a new (empty) registry.
- * @see DHTModules_free()
  */
-struct DHTModuleRegistry* DHTModules_new();
+struct DHTModuleRegistry* DHTModules_new(struct MemAllocator* allocator);
 
 /**
  * Register an event handler.
@@ -193,6 +197,6 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
  * @see DHTModule->deserialize
  */
 struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
-                                                 const struct MemAllocator* allocator);
+                                                 struct MemAllocator* allocator);
 
 #endif

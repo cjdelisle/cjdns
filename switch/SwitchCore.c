@@ -53,7 +53,7 @@ struct ErrorPacket {
 
 struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
 {
-    struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1 allocator);
+    struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1, allocator);
     core->allocator = allocator;
     core->interfaceCount = 0;
     return core;

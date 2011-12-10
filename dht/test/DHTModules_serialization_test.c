@@ -45,7 +45,7 @@ static int testSerialization()
     memset(writeBuffer, 0, 64);
     struct Writer* writer = ArrayWriter_new(writeBuffer, 64, allocator);
 
-    struct DHTModuleRegistry* reg = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
     DHTModules_register(&module, reg);
 
     DHTModules_serialize(reg, writer);

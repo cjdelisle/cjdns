@@ -38,7 +38,7 @@ static int testOutgoing()
     };
     memcpy(receiver, &localReceiver, sizeof(struct DHTModule));
 
-    struct DHTModuleRegistry* reg = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
 
     DHTModules_register(receiver, reg);
 
@@ -48,7 +48,7 @@ static int testOutgoing()
     evutil_socket_t socket = NetworkTools_bindSocket("127.0.0.1:7891");
     LibeventNetworkModule_register(base, socket, 6, reg, allocator);
 
-    struct DHTModuleRegistry* reg2 = DHTModules_new(/*allocator*/);
+    struct DHTModuleRegistry* reg2 = DHTModules_new(allocator);
     evutil_socket_t socket2 = NetworkTools_bindSocket("127.0.0.1:7890");
     LibeventNetworkModule_register(base, socket2, 6, reg2, allocator);
 

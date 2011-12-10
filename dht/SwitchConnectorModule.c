@@ -72,8 +72,6 @@ int SwitchConnectorModule_register(uint8_t privateKey[32],
             .cryptoAuth = CryptoAuth_new(privateKey, allocator)
         });
 
-    
-
     return DHTModules_register(context->module, dhtRegistry)
         | SwitchCore_setRouterInterface(context->switchInterface, switchCore);
 }

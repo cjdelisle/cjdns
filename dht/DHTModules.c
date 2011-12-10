@@ -26,10 +26,12 @@ static inline void deserializeContext(struct DHTModule* module,
 /*--------------------Interface--------------------*/
 
 /** @see DHTModules.h */
-struct DHTModuleRegistry* DHTModules_new()
+struct DHTModuleRegistry* DHTModules_new(struct MemAllocator* allocator)
 {
-    struct DHTModuleRegistry *reg = calloc(sizeof(struct DHTModuleRegistry), 1);
-    struct DHTModule **newMembersList = calloc(sizeof(void*), 1);
+    struct DHTModuleRegistry* reg =
+        allocator->calloc(sizeof(struct DHTModuleRegistry), 1, allocator);
+    reg->allocator = allocator;
+    struct DHTModule** newMembersList = allocator->calloc(sizeof(void*), 1, allocator);
     if (reg && newMembersList) {
         reg->members = newMembersList;
         return reg;
@@ -43,30 +45,15 @@ struct DHTModuleRegistry* DHTModules_new()
 int DHTModules_register(struct DHTModule* module,
                         struct DHTModuleRegistry* registry)
 {
-    if (module == NULL || registry == NULL) {
-        return -2;
-    }
-
     deserializeContext(module, registry);
 
-    int memberCount = registry->memberCount;
-    struct DHTModule** newMembersList = calloc(sizeof(void*), memberCount + 2);
-    if (newMembersList == NULL) {
-        return -1;
-    }
-    memcpy(newMembersList, registry->members, (sizeof(void*) * (memberCount + 1)));
-    assert(newMembersList[memberCount] == NULL);
-    newMembersList[memberCount] = module;
+    registry->members = registry->allocator->realloc(registry->members,
+                                                     sizeof(char*) * (registry->memberCount + 2),
+                                                     registry->allocator);
 
-    memberCount++;
-
-    /* Must be null terminated. */
-    assert(newMembersList[memberCount] == NULL);
-
-    struct DHTModule** oldMembersList = registry->members;
-    registry->members = newMembersList;
-    registry->memberCount = memberCount;
-    free(oldMembersList);
+    registry->members[registry->memberCount] = module;
+    registry->memberCount++;
+    registry->members[registry->memberCount] = NULL;
 
     return 0;
 }
@@ -142,18 +129,16 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
 
 /** @see DHTModules.h */
 struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
-                                                 const struct MemAllocator* allocator)
+                                                 struct MemAllocator* allocator)
 {
     Dict* dictionary = benc_newDictionary(allocator);
     if (SERIALIZER->parseDictionary(reader, allocator, dictionary) != 0) {
         return NULL;
     }
 
-    struct DHTModuleRegistry* reg = DHTModules_new();
-    if (reg) {
-        reg->serializedContexts = dictionary;
-        return reg;
-    }
+    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
+    reg->serializedContexts = dictionary;
+    return reg;
 
     return NULL;
 }
