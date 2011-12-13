@@ -47,22 +47,27 @@ add_subdirectory(interface)
 
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
-add_executable(cjdns cjdns.c BridgeModule.c)
-target_link_libraries(cjdns
-    crypto
-    dht
-    dhtstore
-    dhtcore
-    dns
-    net
-    MemAllocator
-    ${LIBEVENT2_LIBRARIES}
-)
-
 add_executable(cjdvpn cjdvpn.c)
 target_link_libraries(cjdvpn
     crypto
     interface
+)
+
+##add_executable(cjdroute cjdroute.c)
+##target_link_libraries(cjdroute
+##    crypto
+##    interface
+##    switch
+##    MemAllocator
+##    ${LIBEVENT_LIBRARIES}
+##)
+
+find_package(NACL REQUIRED)
+include_directories(${NACL_INCLUDE_DIRS})
+add_executable(addressgen addressgen.c)
+target_link_libraries(addressgen
+    crypto
+    util
 )
 
 # Everything must be tested.

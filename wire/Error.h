@@ -6,6 +6,7 @@
 #define Error_FLOOD                2
 #define Error_LINK_LIMIT_EXCEEDED  3
 #define Error_OVERSIZE_MESSAGE     4
+#define Error_UNDERSIZE_MESSAGE    5
 
 #define Error_INTERFACE_ERROR      (1<<16)
 

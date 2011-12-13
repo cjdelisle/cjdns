@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "dht/Address.h"
 #include "memory/MemAllocator.h"
 #include "libbenc/benc.h"
 #include "util/AverageRoller.h"
@@ -58,11 +59,7 @@ struct SearchStore_Node
     /** This node's location in the search buffer for the search. */
     uint16_t nodeIndex;
 
-    /** The address of the node */
-    uint8_t address[20];
-
-    /** The network address for the node. */
-    uint8_t networkAddress[6];
+    struct Address* address;
 };
 
 struct SearchStore_TraceElement;
@@ -74,11 +71,7 @@ struct SearchStore_TraceElement
     /** The next TraceElement or NULL if this is the end of the trace. */
     struct SearchStore_TraceElement* next;
 
-    /** The address of the node */
-    uint8_t address[20];
-
-    /** The network address for the node. */
-    uint8_t networkAddress[6];
+    struct Address* address;
 };
 
 /*--------------------Prototypes--------------------*/
@@ -99,8 +92,9 @@ struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
  * @param store the SearchStore to allocate the search in.
  * @return the new search or NULL if MAX_SEARCHES are already running.
  */
-struct SearchStore_Search* SearchStore_newSearch(const uint8_t searchTarget[20],
-                                                 struct SearchStore* store);
+struct SearchStore_Search* SearchStore_newSearch(
+    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
+    struct SearchStore* store);
 
 /**
  * Get the memory allocator for this search.
@@ -178,8 +172,7 @@ struct SearchStore_Node* SearchStore_getNode(const String* tid,
  * @return 0 if the node was added successfully or -1 if there is no more space to add a node.
  */
 int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
-                                    const uint8_t address[20],
-                                    const uint8_t networkAddress[6],
+                                    struct Address* address,
                                     const uint64_t evictUnrepliedIfOlderThan,
                                     struct SearchStore_Search* search);
 
@@ -204,7 +197,7 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
 
 /**
  * Get the next node to ask in this search.
- * This will get the last node to be added to the search which has not been sent arequest yet.
+ * This will get the last node to be added to the search which has not been sent a request yet.
  *
  * @param search the search to get the node for.
  * @param allocator the allocator to use for allocating the memory to store the output.

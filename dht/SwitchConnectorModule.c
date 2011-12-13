@@ -30,8 +30,15 @@ struct Context
     /** The allocator for this module. */
     const struct MemAllocator* const allocator;
 
+    uint8_t myAddress[16];
 
-    struct Interface* sessionManager;
+    /** This is set by incomingFromSwitch. */
+    struct Headers_SwitchHeader* switchHeader;
+
+    /** This is set in decryptedIncoming() and expected by incomingForMe(). */
+    struct Headers_Ip6Header* ip6Header;
+
+    struct Interface* contentSm;
 };
 
 /*--------------------Prototypes--------------------*/
@@ -89,22 +96,9 @@ static inline void incomingIP6(struct Message* message,
 
 }
 
-static int handleIncomingPostDeserialization(struct DHTMessage* message, void* vcontext)
-{
-}
-
-static int handleOutgoingPreSerialization(struct DHTMessage* message, void* vcontext)
-{
-    String* argumentsKey =
-        (message->replyTo == NULL) ? &DHTConstants_arguments : &DHTConstants_reply;
-    Dict* args = benc_lookupDictionary(message->asDict, &DHTConstants_arguments);
-    benc_removeEntry(args, &DHTConstants_myId);
-}
-
 static inline void incomingDHT(struct Message* message,
-                               struct Interface* interface,
-                               struct Headers_SwitchHeader* header,
-                               struct Context context)
+                               struct Address* addr,
+                               struct Context* context)
 {
     struct DHTMessage dht;
     memset(&dht, 0, sizeof(struct DHTMessage));
@@ -123,6 +117,43 @@ static inline void incomingDHT(struct Message* message,
     DHTModules_handleIncoming(&dht, context->registry);
 }
 
+// Aligned on the beginning of the content.
+static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6Header* ip6)
+{
+    if (ip6->nextHeader != 17) {
+        return false;
+    }
+    // TODO: validate the checksum
+    struct UDPHeader {
+        uint32_t sourceAndDestPorts;
+        uint16_t length;
+        uint16_t checksum;
+    };
+    ASSERT(sizeof(struct UDPHeader) == 8);
+
+    struct UDPHeader* uh = (struct UDPHeader*) (ip6 + 1);
+    return uh->sourceAndDestPorts == 0
+        && uh->length == (message->length - sizeof(struct UDPHeader));
+}
+
+/**
+ * Message which is for us, message is aligned on the beginning of the content.
+ * this is called from decryptedIncoming() which calls through an interfaceMap.
+ */
+static void incomingForMe(struct Message* message, struct Interface* iface)
+{
+    struct Context* context = (struct Context*) iface->receiverContext;
+
+    if (isRouterTraffic(message, context->ip6Header)) {
+        struct Address addr;
+        memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
+        memcpy(addr.networkAddress, context->switchHeader->label_be, 8);
+        incomingDHT(message, &addr, context);
+        return;
+    }
+    printf("Dropped a message which should have been sent to the TUN device...");
+}
+
 static inline bool validIP6(struct Message* message)
 {
     struct Headers_IP6Header* header = message->bytes;
@@ -132,75 +163,131 @@ static inline bool validIP6(struct Message* message)
         && length == message->length - Headers_IP6Header_SIZE;
 }
 
-/**
- * the bottom of incomingFromSwitch() calls an interface which goes through
- * CryptoAuth and then calls this. At this point there is a different interface for each
- * router which we are communicating with.
- */
-static void authedIncomingFromSwitch(struct Message* message, struct Interface* iface)
+static inline bool isForMe(struct Message* message, struct Context* context)
 {
-    struct Context* context = defaultInterface->receiverContext;
+    struct Headers_IP6Header* header = message->bytes;
+    return (memcmp(header->destinationAddr, context->myAddress, 16) == 0);
+}
+
+/** Message must not be encrypted and must be aligned on the beginning of the ipv6 header. */
+static inline uint8_t sendToRouter(struct Message* message, struct Context* context)
+{
+}
+
+/**
+ * after being decrypted, message is sent here.
+ * Message is aligned on the beginning of the ipv6 header.
+ */
+static inline uint8_t decryptedIncoming(struct Message* message, struct Context* context)
+{
+    context->ip6Header = (struct Headers_IP6Header*) message->bytes
 
     if (!validIP6(message)) {
+        DEBUG("Dropping message because of invalid ipv6 header.");
         return;
     }
 
     if (isForMe(message)) {
-        
+        Message_shift(message, -Headers_ip6Header_SIZE);
+        // This call goes to incomingForMe()
+        context->contentSm->receiveMessage(message, context->contentSm);
+        return;
     }
 
-    uint8_t route[8];
-    memcpy(route, header, 8);
-
-    uint32_t messageType = Headers_getMessageType(header);
-    switch (messageType) {
-        case 0:;
-            incomingIP6(message, interface, header, context);
-            return;
-
-        case 1:;
-            incomingDHT(message, interface, header, context);
-            return;
-
-        default:
-            return;
-    };
+    struct Node* nextBest = RouterModule_getNextBest(addr, context->routerModule);
+    memcpy(switchHeader->label, nextBest->address.networkAddress, 8);
     
+
+    return;
 }
 
-/**
- * Get the first message from a newly discovered router, this will add a crypto session
- * for the router to the InterfaceMap.
- */
-static void receiveFirstMessage(struct Message* message, struct Interface* defaultInterface)
+static inline int encrypt(uint32_t nonce,
+                          struct Message* msg,
+                          uint8_t secret[32],
+                          bool isInitiator)
 {
-    struct Context* context = defaultInterface->receiverContext;
+    union {
+        uint32_t ints[2];
+        uint8_t bytes[24];
+    } nonceAs = { .ints = {0, 0} };
+    nonceAs.ints[isInitiator] = nonce;
 
-    struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes
-        - sizeof(struct Headers_SwitchHeader)
-        - sizeof(struct Headers_CryptoAuth);
+    return crypto_stream_salsa20_xor(msg->bytes, msg->bytes, msg->length, nonceAs.bytes, secret);
+}
+#define decrypt(nonce msg secret isInitiator) encrypt(nonce, msg, secret, !isInitiator)
 
-    // insert this interface into the map and make it not the default interface.
-    InterfaceMap_put((uint8_t*) &header->label_be, defaultInterface, context->cryptoSessionMap);
-    context->defaultInterface == NULL;
+// for responses coming back from the CryptoAuth session.
+// Will cause receiveMessage() to be called on the switch if.
+static uint8_t sendToSwitch(struct Message* message, struct Interface* iface)
+{
+    struct Context* context = iface->senderContext;
+    if (context->switchHeader != (message->bytes - sizeof(Headers_SwitchHeader))) {
+        assert(message->padding >= sizeof(Headers_SwitchHeader));
+        memmove(message->bytes - sizeof(Headers_SwitchHeader),
+                context->switchHeader,
+                sizeof(Headers_SwitchHeader));
+    }
+    Message_shift(message, sizeof(Headers_SwitchHeader));
 
-    // Set the receiver to be authedIncomingFromSwitch which will do the routing or DHT.
-    defaultInterface->receiveMessage = authedIncomingFromSwitch;
+    context->switchInterface.receiveMessage(message, &context->switchInterface);
 
-    // Now send the message on so the first message isn't lost.
-    authedIncomingFromSwitch(message, defaultInterface
+    return 0;
+}
+
+static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
+{
+    struct Context* context = iface->receiverContext;
+    context->messageFromCryptoAuth = message;
+}
+
+static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header,
+                                             struct Context* context)
+{
+    int index = InterfaceMap_indexOf(header, context->ifMap);
+    if (index > -1) {
+        return context->ifMap.interfaces[index];
+    }
+
+    struct Interface* iface;
+    // TODO: this can be done faster.
+    // This is just a dirty way of giving CryptoAuth what it wants, a pair of interfaces.
+    // All we really want is a way to pipe messages through a given CryptoAuth session.
+    struct MemAllocator* child = context->allocator->child(context->allocator);
+    struct Interface* outerIf =
+        child->clone(sizeof(struct Interface), child, &(struct Interface) {
+            .sendMessage = sendToSwitch,
+            .senderContext = context
+            .allocator = child,
+        });
+    struct Interface* innerIf =
+        CryptoAuth_wrapInterface(outerIf, NULL, false, false, context->cryptoAuth);
+    innerIf->receiveMessage = receivedFromCryptoAuth;
+    innerIf->receiverContext = context;
+    iface = child->clone(sizeof(struct Interface), child, &(struct Interface) {
+        .sendMessage = innerIf->sendMessage,
+        .senderContext = innerIf->senderContext,
+        .receiveMessage = outerIf->receiveMessage,
+        .receiverContext = outerIf->receiverContext,
+        .allocator = child,
+    });
+
+    struct timeval now;
+    event_base_gettimeofday_cached(context->eventBase, &now);
+    InterfaceMap_put(header, iface, now.tv_sec, context->ifMap);
+
+    return iface;
 }
 
 /**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
+ * message is aligned on the end of the switch header.
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-    struct Headers_SwitchHeader* header =
-        (struct Headers_SwitchHeader*) message->bytes - sizeof(struct Headers_SwitchHeader);
-
     struct Context* context = switchIf->senderContext;
+    struct Headers_SwitchHeader* switchHeader =
+        (struct Headers_SwitchHeader*) message->bytes - sizeof(struct Headers_SwitchHeader);
 
     uint32_t messageType = Headers_getMessageType(header);
     if (messageType != 0) {
@@ -211,263 +298,40 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return 0;
     }
 
-    
-
-
-    // Get the CryptoAuth to send this to by it's label.
-    struct Interface* iface =
-        InterfaceMap_get((uint8_t*) &header->label_be, context->cryptoSessionMap);
-
-    if (iface == NULL) {
-        if (context->defaultInterface == NULL) {
-            // We create an interface which authenticates incoming connections
-            // after their message is authenticated, receiveFirstMessage() forks the interface
-            // off into a position in the interface map so we can communicate with this node.
-            struct MemAllocator* ifAllocator = context->allocator->child(context->allocator);
-            struct Interface* defaultIf =
-                ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
-                    // Make this inteface send directly to the switch.
-                    .sendMessage = switchIf->sendMessage,
-                    .senderContext = switchIf->senderContext,
-                    .allocator = ifAllocator
-                });
-            context->defaultInterface =
-                CryptoAuth_wrapInterface(defaultIf, NULL, false, false, context->cryptoAuth);
-            context->defaultInterface->receiveMessage = receiveFirstMessage;
-            context->defaultInterface->receiverContext = context;
+    uint32_t nonce = *((uint32_t*)message->bytes);
+    if (nonce != 0) {
+        struct Node* node = RouterModule_getNode(switchHeader->label_be,
+                                                 context->routerModule);
+        if (node->session.exists) {
+            Message_shift(message, -4);
+            decrypt(nonce, message, &node->session.sharedSecret, node->session.isInitiator);
+            return decryptedIncoming(message, node, context);
         }
-        iface = context->defaultInterface;
-    }
-
-    // This goes into a CryptoAuth and then to authedIncomingFromSwitch
-    iface->receiveMessage(message, iface);
-}
-
-
-
-
-
-
-    switch (messageType) {
-        case 0: return incomingIp6(message, route, )
-    };
-    
-
-
-
-    struct DHTMessage message;
-    memset(&message, 0, sizeof(struct DHTMessage));
-
-    memcpy(message->peerAddress, message - sizeof(struct Headers_SwitchHeader), 8);
-    message->addressLength = 0;
-
-    
-
-
-    int rc = recvfrom(socket,
-                      message.bytes,
-                      MAX_MESSAGE_SIZE,
-                      0,
-                      (struct sockaddr*) &addrStore,
-                      &addrLength);
-
-    assert(addrLength <= sizeof(struct sockaddr_storage));
-    assert(rc <= MAX_MESSAGE_SIZE);
-
-    if (rc < 0) {
-        return;
-    }
-
-    message.length = rc;
-
-    struct LibeventNetworkModule_Context* context = (struct LibeventNetworkModule_Context*) vcontext;
-
-    context->perMessageAllocator->free(context->perMessageAllocator);
-    message.allocator = context->perMessageAllocator;
-
-    int32_t length = NetworkTools_addressFromSockaddr(&addrStore, message.peerAddress);
-    if (length > -1) {
-        message.addressLength = length;
-        DHTModules_handleIncoming(&message, ((struct LibeventNetworkModule_Context*) vcontext)->registry);
-    }
-}
-
-
-
-
-/**
- * @param base the libevent context.
- * @param socket an open bound nonblocking reusable socket.
- * @param addressLength since DHT only knows IPv4 from IPv6 by the number of
- *                      bytes for address and port, this module will handle
- *                      only packets which match the given address length.
- *                      6 for IPv4 and 18 for IPv6.
- * @param registry the module registry to send the incoming messages
- *                 to and send messages from.
- * @param allocator the means of getting memory for the module.
- * @return -1 if inputs are null. -2 if registering the event handler fails.
- */
-int LibeventNetworkModule_register(struct event_base* base,
-                                   evutil_socket_t socket,
-                                   int addressLength,
-                                   struct DHTModuleRegistry* registry,
-                                   struct MemAllocator* allocator)
-{
-    if (registry == NULL || base == NULL || allocator == NULL) {
-        return -1;
-    }
-
-    char* messageBuffer = allocator->malloc(16384, allocator);
-    struct MemAllocator* perMessageAllocator = BufferAllocator_new(messageBuffer, 16384);
-
-    struct LibeventNetworkModule_Context* context =
-        allocator->malloc(sizeof(struct LibeventNetworkModule_Context), allocator);
-    memcpy(context, &(struct LibeventNetworkModule_Context) {
-        .module = {
-            .name = "LibeventNetworkModule",
-            .context = context,
-            .handleOutgoing = handleOutgoing
-        },
-        .socket = socket,
-        .addressLength = addressLength,
-        .registry = registry,
-        .perMessageAllocator = perMessageAllocator
-    }, sizeof(struct LibeventNetworkModule_Context));
-
-    context->incomingMessageEvent = event_new(base, socket, EV_READ | EV_PERSIST, handleEvent, context);
-
-    if (context->incomingMessageEvent == NULL) {
-        return -2;
-    }
-
-    event_add(context->incomingMessageEvent, NULL);
-
-    allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
-
-    return DHTModules_register(&(context->module), registry);
-}
-
-/*--------------------Internals--------------------*/
-
-/**
- * Release the event used by this module.
- *
- * @param vevent a void pointer cast of the event structure.
- */
-static void freeEvent(void* vevent)
-{
-    event_del((struct event*) vevent);
-    event_free((struct event*) vevent);
-}
-
-/**
- * If MSG_CONFIRM is defined and this node has sent us a message recently
- * (within the last MESSAGE_RECENT_FOR seconds) then return the value of
- * MSG_CONFIRM. Otherwise return 0.
- *
- * @param addressAndPort the ip address in binary concatinated to port number.
- * @param addressAndPortLength how much of the buffer to read.
- * @param context the state of this module.
- * @return the value of MSG_CONFIRM or 0.
- */
-static inline int confirmIfRecent(char* addressAndPort,
-                                  int addressAndPortLength,
-                                  struct LibeventNetworkModule_Context* context)
-{
-#ifndef MSG_CONFIRM
-    return 0;
-#endif
-    // TODO implement me.
-    addressAndPort = addressAndPort;
-    addressAndPortLength = addressAndPortLength;
-    context = context;
-    return 0;
-}
-
-/**
- * Take an outgoing message and write it to the socket.
- *
- * @see DHTModule->handleOutgoing in DHTModules.h
- */
-static int handleOutgoing(struct DHTMessage* message,
-                          void* vcontext)
-{
-    struct LibeventNetworkModule_Context* context =
-        (struct LibeventNetworkModule_Context*) vcontext;
-
-    if (message->addressLength != context->addressLength) {
-        /* This message is intended for another interface. */
+        // Got a message which we can't handle, drop it and ping,
+        // causing a session to be negotiated.
+        RouterModule_pingNode(switchHeader->label_be, context->routerModule)
         return 0;
     }
 
-    struct sockaddr_storage addr;
-    socklen_t length = NetworkTools_getPeerAddress(message->peerAddress, message->addressLength, &addr);
+    // Nonce is 0, this is a crypto negotiation.
+    struct Interface* iface = getCaSession(context);
 
-    if (length) {
+    // Null the message in the context then call cryptoAuth and if
+    // it's nolonger null then the message is valid :/
+    context->messageFromCryptoAuth = NULL;
 
-        int flags = confirmIfRecent(message->peerAddress,
-                                    message->addressLength,
-                                    context);
-        sendto(context->socket,
-               message->bytes,
-               message->length,
-               flags,
-               (struct sockaddr*) &addr,
-               length);
+    // If the message causes CryptoAuth to want to send a response, it will call sendToSwitch
+    // and sendToSwitch (as well as a bunch of other stuff) relies on the switchHeader being in
+    // the context.
+    context->switchHeader = switchHeader;
+
+    iface->receiveMessage(message, iface);
+
+    if (context->messageFromCryptoAuth) {
+        return decryptedIncoming(context->messageFromCryptoAuth, context);
     } else {
-        /* Address of unknown length. TODO: error reporting. */
+        printf("invalid (?) message was eaten by the cryptoAuth");
     }
 
     return 0;
-}
-
-/**
- * Handle input from Libevent.
- * This is a callback whihc is passed to libevent.
- *
- * @param socket the socket on which the input came.
- * @param eventType this should equal EV_READ
- * @param vcontext the LibeventNetworkModule_Context cast to
- *                 void* which libevent understands.
- */
-static void handleEvent(evutil_socket_t socket,
-                        short eventType,
-                        void* vcontext)
-{
-    /* Only event which was registered. */
-    assert(eventType == EV_READ);
-
-    struct DHTMessage message;
-    /* messageType MUST be set to 0. */
-    memset(&message, 0, sizeof(struct DHTMessage));
-
-    struct sockaddr_storage addrStore;
-    socklen_t addrLength = sizeof(struct sockaddr_storage);
-
-    int rc = recvfrom(socket,
-                      message.bytes,
-                      MAX_MESSAGE_SIZE,
-                      0,
-                      (struct sockaddr*) &addrStore,
-                      &addrLength);
-
-    assert(addrLength <= sizeof(struct sockaddr_storage));
-    assert(rc <= MAX_MESSAGE_SIZE);
-
-    if (rc < 0) {
-        return;
-    }
-
-    message.length = rc;
-
-    struct LibeventNetworkModule_Context* context = (struct LibeventNetworkModule_Context*) vcontext;
-
-    context->perMessageAllocator->free(context->perMessageAllocator);
-    message.allocator = context->perMessageAllocator;
-
-    int32_t length = NetworkTools_addressFromSockaddr(&addrStore, message.peerAddress);
-    if (length > -1) {
-        message.addressLength = length;
-        DHTModules_handleIncoming(&message, ((struct LibeventNetworkModule_Context*) vcontext)->registry);
-    }
 }

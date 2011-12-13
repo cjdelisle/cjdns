@@ -19,6 +19,7 @@
  *                  padding, this may be negative and the padding will be searched.
  * @param toWrap the interface to wrap.
  * @param eventBase the libevent event base.
+ * @param cryptoAuth the cryptoauthenticator for the sessions.
  * @param allocator means of getting memory.
  * @return a wrapper interface.
  */
@@ -26,6 +27,7 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
                                                int32_t keyOffset,
                                                struct Interface* toWrap,
                                                struct event_base* eventBase,
+                                               struct CryptoAuth* cryptoAuth,
                                                struct MemAllocator* allocator);
 
 #endif

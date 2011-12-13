@@ -6,8 +6,8 @@
 /** A list of DHT nodes. */
 struct NodeStore
 {
-    /** The address prefix of the address of "our" node. */
-    uint32_t thisNodePrefix;
+    /** The address of "our" node. */
+    struct Address* thisNodeAddress;
 
     /** A pointer to the first of an array of node headers. */
     struct NodeHeader* headers;

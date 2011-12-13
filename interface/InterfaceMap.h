@@ -30,9 +30,9 @@ static inline int InterfaceMap_indexOf(uint8_t* key, struct InterfaceMap* map)
 {
     uint32_t keyPrefix;
     memcpy(&keyPrefix, key, 4);
-    for (int i = 0; i < map->count; i++) {
+    for (uint32_t i = 0; i < map->count; i++) {
         if (map->keyPrefixes[i] == keyPrefix
-            && memcmp(key, map->keys[map->keySize * i], map->keySize) == 0)
+            && memcmp(key, &map->keys[map->keySize * i], map->keySize) == 0)
         {
             return i;
         }
@@ -47,15 +47,15 @@ static inline int InterfaceMap_indexOf(uint8_t* key, struct InterfaceMap* map)
  */
 static inline int InterfaceMap_remove(int index, struct InterfaceMap* map)
 {
-    if (index >= 0 && index < map->count) {
+    if (index >= 0 && index < (int) map->count) {
         map->count--;
-        if (index < map->count) {
-            map->keyPrefixes[index] = map->keyPrefixes[count];
+        if (index < (int) map->count) {
+            map->keyPrefixes[index] = map->keyPrefixes[map->count];
             memcpy(&map->keys[map->keySize * index],
                    &map->keys[map->keySize * map->count],
                    map->keySize);
-            map->interfaces[index] = map->interfaces[count];
-            map->lastMessageTimes[index] = map->lastMessageTimes[count];
+            map->interfaces[index] = map->interfaces[map->count];
+            map->lastMessageTimes[index] = map->lastMessageTimes[map->count];
         }
         return 0;
     }
@@ -64,6 +64,7 @@ static inline int InterfaceMap_remove(int index, struct InterfaceMap* map)
 
 static inline int InterfaceMap_put(uint8_t* key,
                                    struct Interface* interface,
+                                   uint32_t timeOfLastMessage,
                                    struct InterfaceMap* map)
 {
     if (map->count == map->capacity) {

@@ -1,13 +1,13 @@
 find_package(Libevent2 REQUIRED)
 
-add_subdirectory(dhtstore)
 add_subdirectory(dhtcore)
 
 add_library(dht
+    CJDHTConstants.c
     DHTModules.c
-    LibeventNetworkModule.c
+    #LibeventNetworkModule.c
     SerializationModule.c
-    DebugModule.c
+    #DebugModule.c
     DHTConstants.c
     ReplyModule.c
     SanityModule.c

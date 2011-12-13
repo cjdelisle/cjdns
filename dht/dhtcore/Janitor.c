@@ -5,6 +5,7 @@
 #include <event2/event.h>
 
 #include "crypto/Crypto.h"
+#include "dht/Address.h"
 #include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Janitor.h"
@@ -46,12 +47,12 @@ struct Janitor
 
     struct MemAllocator* allocator;
 
-    uint8_t recentSearchTarget[20];
+    uint8_t recentSearchTarget[Address_SEARCH_TARGET_SIZE];
     bool hasRecentSearchTarget;
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
-    uint8_t recentLocalSearchTarget[20];
+    uint8_t recentLocalSearchTarget[Address_SEARCH_TARGET_SIZE];
     bool hasRecentLocalSearchTarget;
 };
 
@@ -97,28 +98,26 @@ static void runSearch(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
 
-    uint8_t searchTarget[20];
+    struct Address targetAddr;
 
     if (janitor->hasRecentLocalSearchTarget) {
-        memcpy(&searchTarget, janitor->recentLocalSearchTarget, 20);
+        memcpy(&targetAddr.ip6.bytes, janitor->recentLocalSearchTarget, Address_SEARCH_TARGET_SIZE);
         janitor->hasRecentLocalSearchTarget = false;
     } else {
-        Crypto_randomize(&(String) { .len = 20, .bytes = (char*) &searchTarget });
+        randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
     uint8_t tempBuffer[512];
     struct MemAllocator* tempAllocator = BufferAllocator_new(tempBuffer, sizeof(tempBuffer));
 
     struct NodeList* nodes =
-        NodeStore_getClosestNodes(janitor->nodeStore, searchTarget, 1, false, tempAllocator);
+        NodeStore_getClosestNodes(janitor->nodeStore, &targetAddr, 1, false, tempAllocator);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
-    if (nodes->size == 0 || nodes->nodes[0]->reach == 0) {
-String* hex = Hex_encode(&(String) { .len = 20, .bytes = (char*) &searchTarget }, tempAllocator);
+    if (nodes->size == 0 || nodes->nodes[nodes->size - 1]->reach == 0) {
+String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &targetAddr.ip6.bytes }, tempAllocator);
 printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, NodeStore_size(janitor->nodeStore), (long) janitor->routerModule->totalReach);
-        RouterModule_beginSearch(&DHTConstants_findNode,
-                                 &DHTConstants_targetId,
-                                 searchTarget,
+        RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
                                  janitor->routerModule);
@@ -145,9 +144,7 @@ printf("gmrt %d  non-zero nodes %d\n",
 
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        RouterModule_beginSearch(&DHTConstants_findNode,
-                                 &DHTConstants_targetId,
-                                 searchTarget,
+        RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
                                  janitor->routerModule);
@@ -155,11 +152,9 @@ printf("gmrt %d  non-zero nodes %d\n",
     }
 
     if (now > janitor->timeOfNextSearchRepeat && janitor->hasRecentSearchTarget) {
-String* hex = Hex_encode(&(String) { .len = 20, .bytes = (char*) &janitor->recentSearchTarget }, tempAllocator);
+String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &janitor->recentSearchTarget }, tempAllocator);
 printf("Running global search for %s\n", hex->bytes);
-        RouterModule_beginSearch(&DHTConstants_getPeers,
-                                 &DHTConstants_infoHash,
-                                 janitor->recentSearchTarget,
+        RouterModule_beginSearch(janitor->recentSearchTarget,
                                  repeatRecentSearchCallback,
                                  janitor,
                                  janitor->routerModule);
@@ -203,16 +198,16 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     return janitor;
 }
 
-void Janitor_informOfRecentSearch(const uint8_t searchTarget[20],
+void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                   struct Janitor* janitor)
 {
-    memcpy(janitor->recentSearchTarget, searchTarget, 20);
+    memcpy(janitor->recentSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
     janitor->hasRecentSearchTarget = true;
 }
 
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[20],
+void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor)
 {
-    memcpy(janitor->recentLocalSearchTarget, searchTarget, 20);
+    memcpy(janitor->recentLocalSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
     janitor->hasRecentLocalSearchTarget = true;
 }

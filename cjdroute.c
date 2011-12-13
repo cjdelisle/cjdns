@@ -1,5 +1,19 @@
+#include "crypto/AddressCalc.h"
+#include "crypto/Crypto.h"
+#include "crypto/CryptoAuth.h"
+#include "exception/ExceptionHandler.h"
+#include "exception/AbortHandler.h"
+#include "interface/Interface.h"
+#include "interface/TUNInterface.h"
+#include "interface/UDPInterface.h"
+#include "memory/MallocAllocator.h"
+#include "memory/MemAllocator.h"
+#include "switch/SwitchCore.h"
+#include "util/Base32.h"
 
 
+#include <stdint.h>
+#include <assert.h>
 
 
 struct Context
@@ -17,6 +31,8 @@ struct Context
     struct Interface* tun;
 
     struct UDPInterface* udpContext;
+
+    struct SwitchCore* switchCore;
 };
 
 struct User
@@ -35,12 +51,12 @@ static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
     struct User* u = CryptoAuth_getUser(iface);
     assert(u);
     // Add it to the switch.
-    SwitchCore_addInterface(ctx->switchCore, u, iface);
+    SwitchCore_addInterface(iface, u->trust, ctx->switchCore);
 
     // Prepare for the next connection.
     struct Interface* newUdpDefault = UDPInterface_getDefaultInterface(ctx->udpContext);
     struct Interface* newAuthedUdpDefault =
-        CryptoAuth_wrapInterface(newUdpDefault, NULL, true, true, ca);
+        CryptoAuth_wrapInterface(newUdpDefault, NULL, true, true, ctx->ca);
     newAuthedUdpDefault->receiveMessage = serverFirstIncoming;
     newAuthedUdpDefault->receiverContext = ctx;
 
@@ -50,7 +66,7 @@ static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
 
 static void udpBindTo(const char* bindAddress, struct Context* ctx)
 {
-    if (context->udpContext != NULL) {
+    if (ctx->udpContext != NULL) {
         assert(!"udpBindTo() can only be used once "
                 "and must be used before any other udp functions.");
     }
@@ -71,50 +87,88 @@ static void checkUdp(struct Context* ctx)
     }
 }
 
-static void checkSwitch()
+static void checkSwitch(struct Context* ctx)
 {
-    if (ctx.switchCore == NULL) {
-        ctx.switchCore = SwitchCore_new(ctx.allocator);
+    if (ctx->switchCore == NULL) {
+        ctx->switchCore = SwitchCore_new(ctx->allocator);
     }
 }
 
-static void checkCa(struct Context* context)
+static void checkCa(struct Context* ctx)
 {
-    if (context->ca == NULL) {
-        context->ca = CryptoAuth_new(context->allocator, contrext->privateKey);
+    if (ctx->ca == NULL) {
+        ctx->ca = CryptoAuth_new(ctx->allocator, (uint8_t*)ctx->privateKey);
     }
 }
 
-static void authorizedPassword(const char* password, uint64_t trust, struct Context* ctx)
+static void authorizedPassword(char* passwd, uint64_t trust, struct Context* ctx)
 {
-    checkCa(context);
-    struct User* u = ctx->allocator->malloc(sizeof(User), ctx->allocator);
+    checkCa(ctx);
+    struct User* u = ctx->allocator->malloc(sizeof(struct User), ctx->allocator);
     u->trust = trust;
     CryptoAuth_addUser(&(String){.bytes=passwd, .len=strlen(passwd)}, 1, u, ctx->ca);
 }
 
 static void udpConnectTo(const char* connectToAddress,
                          const char* key,
-                         const char* password,
+                         char* password,
                          const uint64_t trust,
                          struct Context* ctx)
 {
     checkUdp(ctx);
     struct Interface* udp =
         UDPInterface_addEndpoint(ctx->udpContext, connectToAddress, ctx->exceptionHandler);
-    struct Interface* authedUdp = CryptoAuth_wrapInterface(udp, key, false, true, ctx->ca);
+    struct Interface* authedUdp =
+        CryptoAuth_wrapInterface(udp, (uint8_t*)key, false, true, ctx->ca);
     CryptoAuth_setAuth(&(String) {.bytes=password, .len=strlen(password)}, 1, authedUdp);
     checkSwitch(ctx);
     SwitchCore_addInterface(authedUdp, trust, ctx->switchCore);
 }
 
+static void printIp(FILE* printTo, uint8_t addr[16])
+{
+    for (int i = 0; i < 16; i += 2) {
+        if (i < 14) {
+            fprintf(printTo, "%02x%02x:", addr[i], addr[i + 1]);
+        } else {
+            fprintf(printTo, "%02x%02x", addr[i], addr[i + 1]);
+        }
+    }
+}
+
+static void printDomain(FILE* printTo, uint8_t myPublicKey[32])
+{
+    uint8_t domain[53];
+    Base32_encode(domain, 53, myPublicKey, 32);
+    fprintf(printTo, "%s.k", domain);
+}
+
 static int start(struct Context* ctx)
 {
+    // Seed the random generator or abort.
+    Crypto_init();
+
+    uint8_t myPubKey[32];
+    CryptoAuth_getPublicKey(myPubKey, ctx->ca);
+    uint8_t myIpAddr[16];
+    AddressCalc_addressForPublicKey(myIpAddr, myPubKey);
+
+    printf("Your ip address is: ");
+    printIp(stdout, myIpAddr);
+    printf("\n");
+
+    printf("Your domain address is: ");
+    printDomain(stdout, myPubKey);
+    printf("\n");
+
     struct DHTModuleRegistry* registry = DHTModules_new(ctx->allocator);
     ReplyModule_register(registry, ctx->allocator);
     struct RouterModule* router =
-        RouterModule_register(registry, ctx->allocator, (uint8_t*) id, eventBase);
+        RouterModule_register(registry, ctx->allocator, myPubKey, ctx->base);
+
     SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
+
+    return 0;
 }
 
 
@@ -125,7 +179,8 @@ static int start(struct Context* ctx)
 
 int main()
 {
-    struct Context ctx = {NULL};
+    struct Context ctx;
+    memset(&ctx, 0, sizeof(struct Context));
     ctx.base = event_base_new();
 
     // ExceptionHandler which simply aborts the program.
@@ -156,7 +211,7 @@ int main()
                  9000,
                  &ctx);
 
-    ctx.tun = TunInterface_new(NULL, ctx.base, ctx.allocator);
+    //ctx.tun = TunInterface_new(NULL, ctx.base, ctx.allocator);
 
 
     return start(&ctx);

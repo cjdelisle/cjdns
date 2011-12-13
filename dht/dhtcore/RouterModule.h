@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <event2/event.h>
 
+#include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
 
@@ -30,14 +31,12 @@ struct RouterModule_Search;
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct MemAllocator* allocator,
-                                           const uint8_t id[20],
+                                           const uint8_t id[Address_KEY_SIZE],
                                            struct event_base* eventBase);
 
 /**
  * Start a search.
  *
- * @param requestType the type of request to send EG: "find_node" or "get_peers".
- * @param target the address to look for.
  * @param callback the function to call when results come in for this search.
  *                 This function will be called for every message
  *                 which is sent back to us as a result of this search.
@@ -49,9 +48,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *         no nodes closer to the destination than us.
  */
 struct RouterModule_Search*
-    RouterModule_beginSearch(String* requestType,
-                             String* targetKey,
-                             const uint8_t target[20],
+    RouterModule_beginSearch(const uint8_t target[Address_SEARCH_TARGET_SIZE],
                              bool (* const callback)(void* callbackContext,
                                                      struct DHTMessage* result),
                              void* callbackContext,
@@ -73,8 +70,8 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
  * @param networkAddress the network address to get to the node.
  * @param module the router module to add the node to.
  */
-void RouterModule_addNode(const uint8_t address[20],
-                          const uint8_t networkAddress[6],
+void RouterModule_addNode(const uint8_t address[Address_KEY_SIZE],
+                          const uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
                           struct RouterModule* module);
 
 /**
@@ -84,7 +81,10 @@ void RouterModule_addNode(const uint8_t address[20],
  * @param networkAddress the network address of the node.
  * @param module the router module.
  */
-void RouterModule_pingNode(const uint8_t networkAddress[6],
+void RouterModule_pingNode(const uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
                            struct RouterModule* module);
+
+struct Node* RouterModule_getNode(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
+                                  struct RouterModule* module);
 
 #endif

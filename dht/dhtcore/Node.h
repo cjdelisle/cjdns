@@ -1,6 +1,9 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include "crypto/Session.h"
+#include "dht/Address.h"
+
 #include <stdint.h>
 
 /** A network address for reaching a peer, in the format which is sent over the wire. */
@@ -13,10 +16,9 @@ struct Node
     uint32_t reach;
 
     /** The address of the node. */
-    uint8_t address[20];
+    struct Address address;
 
-    /** The network address followed by the port, in network order. */
-    uint8_t networkAddress[6];
+    struct Session session;
 };
 
 #endif

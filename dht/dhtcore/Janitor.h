@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <event2/event.h>
 
+#include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/MemAllocator.h"
@@ -16,8 +17,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct MemAllocator* allocator,
                             struct event_base* eventBase);
 
-void Janitor_informOfRecentSearch(const uint8_t searchTarget[20],
+void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                   struct Janitor* janitor);
 
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[20],
+void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor);

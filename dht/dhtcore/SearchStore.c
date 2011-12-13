@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
@@ -24,10 +25,7 @@ struct SearchNode
     uint32_t delayUntilReply;
 
     /** The address of this node. */
-    uint8_t address[20];
-
-    /** The network address of, or route to, the node. */
-    uint8_t networkAddress[6];
+    struct Address* address;
 };
 
 /** An outstanding search for a target. */
@@ -43,7 +41,7 @@ struct SearchStore_Search
     uint16_t indexOfLastInsertedNode;
 
     /** The ID of what we are looking for. */
-    uint8_t searchTarget[20];
+    uint8_t searchTarget[Address_SEARCH_TARGET_SIZE];
 
     /** Number of milliseconds since the epoch when the last request was sent for this search. */
     uint32_t timeOfLastRequest;
@@ -86,8 +84,9 @@ struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
 }
 
 /** See: SearchStore.h */
-struct SearchStore_Search* SearchStore_newSearch(const uint8_t searchTarget[20],
-                                                 struct SearchStore* store)
+struct SearchStore_Search* SearchStore_newSearch(
+    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
+    struct SearchStore* store)
 {
     uint32_t i;
     for (i = 0; i < SearchStore_MAX_SEARCHES && store->searches[i] != NULL; i++) ;
@@ -101,7 +100,7 @@ struct SearchStore_Search* SearchStore_newSearch(const uint8_t searchTarget[20],
         allocator->malloc(sizeof(struct SearchStore_Search), allocator);
     search->searchIndex = i;
     search->nodeCount = 0;
-    memcpy(search->searchTarget, searchTarget, 20);
+    memcpy(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
     search->timeOfLastRequest = 0;
     search->externalContext = NULL;
     search->store = store;
@@ -255,8 +254,7 @@ struct SearchStore_Node* SearchStore_getNode(const String* tid,
 
     struct SearchNode* node = &search->nodes[index.node];
 
-    memcpy(out->address, node->address, 20);
-    memcpy(out->networkAddress, node->networkAddress, 6);
+    out->address = node->address;
     out->searchIndex = index.search;
     out->nodeIndex = index.node;
 
@@ -265,8 +263,7 @@ struct SearchStore_Node* SearchStore_getNode(const String* tid,
 
 /** See: SearchStore.h */
 int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
-                                    const uint8_t address[20],
-                                    const uint8_t networkAddress[6],
+                                    struct Address* addr,
                                     const uint64_t evictUnrepliedIfOlderThan,
                                     struct SearchStore_Search* search)
 {
@@ -308,8 +305,7 @@ int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
     node->parent = (parent != NULL) ? &search->nodes[parent->nodeIndex] : NULL;
     node->timeOfRequest = 0;
     node->delayUntilReply = 0;
-    memcpy(node->address, address, 20);
-    memcpy(node->networkAddress, networkAddress, 6);
+    node->address = addr;
 
     return 0;
 }
@@ -345,8 +341,7 @@ struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search
             // Found the next node.
             struct SearchStore_Node* out =
                 allocator->malloc(sizeof(struct SearchStore_Node), allocator);
-            memcpy(out->address, search->nodes[index].address, 20);
-            memcpy(out->networkAddress, search->nodes[index].networkAddress, 6);
+            out->address = search->nodes[index].address;
             out->searchIndex = search->searchIndex;
             out->nodeIndex = index;
             return out;
@@ -375,8 +370,7 @@ struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_
 
     for (;;) {
         element->delayUntilReply = searchNode->delayUntilReply;
-        memcpy(element->address, searchNode->address, 20);
-        memcpy(element->networkAddress, searchNode->networkAddress, 6);
+        element->address = searchNode->address;
         searchNode = searchNode->parent;
         if (searchNode == NULL) {
             element->next = NULL;

@@ -1,11 +1,21 @@
+#include "crypto/CryptoAuth.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "memory/MemAllocator.h"
 #include "util/Timeout.h"
+#include "wire/Error.h"
+#include "wire/Headers.h"
 #include "wire/Message.h"
 
 #include <stdint.h>
 #include <event2/event.h>
+
+#ifdef DEBUG
+    #include <stdio.h>
+    #define DEBUG(x) printf(x);
+#else
+    #define DEBUG(x)
+#endif
 
 /** The number of seconds of inactivity before a session should expire. */
 #define SESSION_TIMEOUT_SECONDS 120
@@ -34,6 +44,8 @@ struct SessionManager
     struct MemAllocator* const allocator;
 
     struct Timeout* cleanupInterval;
+
+    struct CryptoAuth* cryptoAuth;
 };
 
 /**
@@ -44,16 +56,18 @@ static void receiveMessageTwo(struct Message* message, struct Interface* iface)
 {
     struct SessionManager* sm = (struct SessionManager*) iface->receiverContext;
     if (sm->outgoing.receiveMessage != NULL) {
-        sm->outgoing.receiveMessage(message, sm->outgoing);
+        sm->outgoing.receiveMessage(message, &sm->outgoing);
     }
 }
 
 static inline struct Interface* getSession(struct Message* message, struct SessionManager* sm)
 {
+    struct timeval now;
+    event_base_gettimeofday_cached(sm->eventBase, &now);
 
     int ifaceIndex = InterfaceMap_indexOf(&message->bytes[sm->keyOffset], &sm->ifaceMap);
     if (ifaceIndex == -1) {
-        struct MemAllocator* ifAllocator = sm->allocator->child(context->allocator);
+        struct MemAllocator* ifAllocator = sm->allocator->child(sm->allocator);
         struct Interface* outsideIf =
             ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
                 .sendMessage = sm->incoming->sendMessage,
@@ -61,7 +75,7 @@ static inline struct Interface* getSession(struct Message* message, struct Sessi
                 .allocator = ifAllocator
             });
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(iface, NULL, false, false, sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, NULL, false, false, sm->cryptoAuth);
         insideIf->receiveMessage = receiveMessageTwo;
         insideIf->receiverContext = sm;
 
@@ -75,20 +89,19 @@ static inline struct Interface* getSession(struct Message* message, struct Sessi
                 .allocator = ifAllocator
             });
 
-        InterfaceMap_put(&message->bytes[sm->keyOffset], combinedIf, &sm->ifaceMap);
+        InterfaceMap_put(&message->bytes[sm->keyOffset], combinedIf, now.tv_sec, &sm->ifaceMap);
         return combinedIf;
+    } else {
+        // Interface already exists, set the time of last message to "now".
+        sm->ifaceMap.lastMessageTimes[ifaceIndex] = now.tv_sec;
     }
-    // Set the time of last message to "now".
-    struct timeval now;
-    event_base_gettimeofday_cached(sm->eventBase, &now);
-    sm->ifaceMap.lastMessageTimes[ifaceIndex] = now.tv_sec;
 
     return sm->ifaceMap.interfaces[ifaceIndex];
 }
 
 static bool runt(struct Message* message, struct SessionManager* sm)
 {
-    if (sm->keyOffset > 0)
+    if (sm->keyOffset > 0) {
         return sm->keyOffset + sm->keySize > message->length;
     } else {
         return (sm->keyOffset * -1) < message->padding;
@@ -100,21 +113,22 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct SessionManager* sm = (struct SessionManager*) iface->senderContext;
     if (runt(message, sm)) {
-        return;
+        return Error_UNDERSIZE_MESSAGE;
     }
-    struct Interface* iface = getSession(message, sm);
-    return iface->sendMessage(message, iface);
+    struct Interface* outIface = getSession(message, sm);
+    return outIface->sendMessage(message, outIface);
 }
 
 // This is messages coming in from the big bad world.
-static void receiveMessage(struct Message* received, struct Interface* iface)
+static void receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SessionManager* sm = (struct SessionManager*) iface->receiverContext;
     if (runt(message, sm)) {
+        DEBUG("dropped incoming runt message");
         return;
     }
-    struct Interface* iface = getSession(message, sm);
-    iface->receiveMessage(message, iface);
+    struct Interface* inIface = getSession(message, sm);
+    inIface->receiveMessage(message, inIface);
 }
 
 static void cleanup(void* vsm)
@@ -123,11 +137,11 @@ static void cleanup(void* vsm)
     struct timeval now;
     event_base_gettimeofday_cached(sm->eventBase, &now);
     uint32_t nowSeconds = now.tv_sec;
-    for (int i = 0; i < sm->ifaceMap.count; i++) {
+    for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
         if (sm->ifaceMap.lastMessageTimes[i] < (nowSeconds - SESSION_TIMEOUT_SECONDS)) {
             struct MemAllocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
             ifAllocator->free(ifAllocator);
-            InterfaceMap_remove(i, sm->ifaceMap);
+            InterfaceMap_remove(i, &sm->ifaceMap);
             i--;
         }
     }
@@ -137,6 +151,7 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
                                                int32_t keyOffset,
                                                struct Interface* toWrap,
                                                struct event_base* eventBase,
+                                               struct CryptoAuth* cryptoAuth,
                                                struct MemAllocator* allocator)
 {
     struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
@@ -154,6 +169,7 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
         .ifaceMap = {
             .keySize = keySize
         },
+        .cryptoAuth = cryptoAuth,
         .allocator = allocator,
         .cleanupInterval =
             Timeout_setInterval(cleanup, sm, 1000 * CLEANUP_CYCLE_SECONDS, eventBase, allocator)

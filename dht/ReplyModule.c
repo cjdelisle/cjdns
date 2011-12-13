@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "dht/DHTConstants.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
 
@@ -37,8 +37,7 @@ void ReplyModule_register(struct DHTModuleRegistry* registry, const struct MemAl
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
-    String* messageType = benc_lookupString(message->asDict, &DHTConstants_messageType);
-    if (!benc_stringEquals(messageType, &DHTConstants_query)) {
+    if (benc_lookupString(message->asDict, CJDHTConstants_QUERY) == NULL) {
         return 0;
     }
 
@@ -47,6 +46,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     struct DHTMessage* reply =
         message->allocator->clone(sizeof(struct DHTMessage), message->allocator, &(struct DHTMessage) {
             .replyTo = message,
+            .address = message->address,
             .allocator = message->allocator
         });
 
@@ -66,17 +66,10 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
         }
 
         // Put the transaction ID
-        String* tid = benc_lookupString(message->replyTo->asDict, &DHTConstants_transactionId);
+        String* tid = benc_lookupString(message->replyTo->asDict, CJDHTConstants_TXID);
         if (tid != NULL) {
-            benc_putString(message->asDict, &DHTConstants_transactionId, tid, message->allocator);
+            benc_putString(message->asDict, CJDHTConstants_TXID, tid, message->allocator);
         }
-
-        // Put "y":"r"
-        benc_putString(message->asDict, &DHTConstants_messageType, &DHTConstants_reply, message->allocator);
-
-        // Set the peer address
-        memcpy(message->peerAddress, message->replyTo->peerAddress, 18);
-        message->addressLength = message->replyTo->addressLength;
     }
     return 0;
 }

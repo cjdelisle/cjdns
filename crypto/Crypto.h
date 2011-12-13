@@ -33,7 +33,7 @@ benc_bstr_t* Crypto_sha1sum(const benc_bstr_t* hashThis,
  * @return a bencoded string containing the hash output in binary.
  */
 benc_bstr_t* Crypto_sha256sum(const benc_bstr_t* hashThis,
-                            const struct MemAllocator* allocator);
+                              const struct MemAllocator* allocator);
 
 /**
  * Overwrite a string with random bytes.

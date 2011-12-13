@@ -1,15 +1,16 @@
 #include "memory/MemAllocator.h"
 #include "dht/DHTModules.h"
+#include "dht/DHTConstants.h"
 
 static int catchOutgoing(struct DHTMessage* message, void* vcontext);
 static int bounceMessage(struct DHTMessage* message, void* vcontext);
 
-static void StoreTestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                     const struct MemAllocator* allocator)
+static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
+                                                const struct MemAllocator* allocator)
 __attribute__((unused));
 
-static void StoreTestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                     const struct MemAllocator* allocator)
+static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
+                                                const struct MemAllocator* allocator)
 {
     struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .context = registry,
@@ -18,9 +19,9 @@ static void StoreTestFramework_registerBouncerModule(struct DHTModuleRegistry* r
     DHTModules_register(module, registry);
 }
 
-static void StoreTestFramework_registerOutputCatcher(struct DHTMessage** messagePointer,
-                                                     struct DHTModuleRegistry* registry,
-                                                     const struct MemAllocator* allocator)
+static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePointer,
+                                                struct DHTModuleRegistry* registry,
+                                                const struct MemAllocator* allocator)
 {
     struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .context = messagePointer,

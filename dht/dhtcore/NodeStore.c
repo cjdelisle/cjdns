@@ -1,21 +1,21 @@
-#include <stdbool.h>
-#include <stdio.h>
-
+#include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
-#include "dht/dhtcore/AddrPrefix.h"
+
+#include <stdbool.h>
+#include <stdio.h>
 
 /** See: NodeStore.h */
-struct NodeStore* NodeStore_new(const uint8_t myAddress[20],
+struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 const struct MemAllocator* allocator)
 {
     struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
-    out->thisNodePrefix = AddrPrefix_get(myAddress);
+    out->thisNodeAddress = myAddress;
     out->headers = allocator->malloc(sizeof(struct NodeHeader) * capacity, allocator);
     out->nodes = allocator->malloc(sizeof(struct Node) * capacity, allocator);
     out->capacity = capacity;
@@ -24,19 +24,17 @@ struct NodeStore* NodeStore_new(const uint8_t myAddress[20],
 }
 
 /** See: NodeStore.h */
-struct Node* NodeStore_getNode(const struct NodeStore* store, const uint8_t address[20])
+struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* addr)
 {
-    // TODO: maintain a sorted list.
-
-    uint32_t pfx = AddrPrefix_get(address);
+    uint32_t pfx = Address_getPrefix(addr);
 
     // If multiple nodes with the same address, get the one with the best reach.
     int32_t bestIndex = -1;
     uint32_t bestReach = 0;
     for (int32_t i = 0; i < (int32_t) store->size; i++) {
         if (pfx == store->headers[i].addressPrefix
-            && store->headers[i].reach >= bestReach
-            && memcmp(address, store->nodes[i].address, 20) == 0)
+            && memcmp(addr->key, store->nodes[i].address.key, Address_KEY_SIZE) == 0
+            && store->headers[i].reach >= bestReach)
         {
             bestIndex = i;
             bestReach = store->headers[i].reach;
@@ -52,24 +50,13 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, const uint8_t addr
     return &store->nodes[bestIndex];
 }
 
-static inline uint32_t isSameNode(const struct Node* const node,
-                                  const uint8_t address[20],
-                                  const uint8_t networkAddress[6])
-{
-    return memcmp(node->address, address, 20) == 0
-        && memcmp(node->address, networkAddress, 6) == 0;
-}
-
 static inline void replaceNode(struct Node* const nodeToReplace,
                                struct NodeHeader* const headerToReplace,
-                               const uint32_t addressPrefix,
-                               const uint8_t address[20],
-                               const uint8_t networkAddress[6])
+                               struct Address* addr)
 {
-    headerToReplace->addressPrefix = addressPrefix;
+    headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
-    memcpy(nodeToReplace->address, address, 20);
-    memcpy(nodeToReplace->networkAddress, networkAddress, 6);
+    memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
 static inline void adjustReach(struct NodeHeader* header,
@@ -89,18 +76,16 @@ static inline void adjustReach(struct NodeHeader* header,
 }
 
 void NodeStore_addNode(struct NodeStore* store,
-                       const uint8_t address[20],
-                       const uint8_t networkAddress[6],
+                       struct Address* addr,
                        const int64_t reachDifference)
 {
     // TODO: maintain a sorted list.
 
-    uint32_t pfx = AddrPrefix_get(address);
-
+    uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
         for (uint32_t i = 0; i < store->size; i++) {
-            if ((store->headers[i].addressPrefix ^ pfx) == 0
-                && isSameNode(&store->nodes[i], address, networkAddress))
+            if (store->headers[i].addressPrefix == pfx
+                && Address_isSame(&store->nodes[i].address, addr))
             {
                 // Node already exists
                 adjustReach(&store->headers[i], reachDifference);
@@ -108,11 +93,7 @@ void NodeStore_addNode(struct NodeStore* store,
             }
         }
         // Free space, regular insert.
-        replaceNode(&store->nodes[store->size],
-                    &store->headers[store->size],
-                    pfx,
-                    address,
-                    networkAddress);
+        replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
         adjustReach(&store->headers[store->size], reachDifference);
         store->size++;
         return;
@@ -126,7 +107,7 @@ void NodeStore_addNode(struct NodeStore* store,
 
         uint32_t distance = store->headers[i].addressPrefix ^ pfx;
 
-        if (distance == 0 && isSameNode(&store->nodes[i], address, networkAddress)) {
+        if (distance == 0 && Address_isSame(&store->nodes[i].address, addr)) {
             // Node already exists
             adjustReach(&store->headers[store->size], reachDifference);
             return;
@@ -142,16 +123,14 @@ void NodeStore_addNode(struct NodeStore* store,
 
     replaceNode(&store->nodes[indexOfNodeToReplace],
                 &store->headers[indexOfNodeToReplace],
-                pfx,
-                address,
-                networkAddress);
+                addr);
 
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
 }
 
 /** See: NodeStore.h */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
-                                           const uint8_t targetAddress[20],
+                                           struct Address* targetAddress,
                                            const uint32_t count,
                                            const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator)
@@ -159,13 +138,13 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
     struct MemAllocator* tempAllocator = allocator->child(allocator);
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
-                                                        store->thisNodePrefix,
+                                                        store->thisNodeAddress,
                                                         allowNodesFartherThanUs,
                                                         tempAllocator);
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
-        NodeCollector_addNode(&store->headers[i], collector);
+        NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
     struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
@@ -212,14 +191,32 @@ uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
             out += header->reach;
 // I don't care about 1 or 2 reach nodes coming in and out all the time.
 if (header->reach > 20) {
-printf("Node (%d.%d.%d.%d) reset reach to to 0\n",
-       ((int) store->nodes[i].networkAddress[0] & 0xff),
-       ((int) store->nodes[i].networkAddress[1] & 0xff),
-       ((int) store->nodes[i].networkAddress[2] & 0xff),
-       ((int) store->nodes[i].networkAddress[3] & 0xff));
+printf("Node (%d.%d.%d.%d.%d.%d.%d.%d) reset reach to to 0\n",
+       ((int) store->nodes[i].address.networkAddress[0] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[1] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[2] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[3] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[4] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[5] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[6] & 0xff),
+       ((int) store->nodes[i].address.networkAddress[7] & 0xff));
 }
             header->reach = 0;
         }
     }
     return out;
+}
+
+struct Node* NodeStore_getNodeByNetworkAddr(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
+                                            struct NodeStore* store)
+{
+    for (uint32_t i = 0; i < store->size; i++) {
+        if (memcmp(networkAddress,
+                   store->nodes[i].networkAddress,
+                   Address_NETWORK_ADDR_SIZE) == 0)
+        {
+            return store->nodes[i];
+        }
+    }
+    return NULL;
 }

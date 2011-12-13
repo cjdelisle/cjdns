@@ -5,8 +5,8 @@
 /** The context for this module. */
 struct RouterModule
 {
-    /** A bencoded string with this node's address tag. */
-    String* myAddress;
+    /** This node's address, doesn't contain networkAddress component. */
+    struct Address address;
 
     /** An AverageRoller for calculating the global mean response time. */
     void* gmrtRoller;

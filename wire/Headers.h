@@ -1,14 +1,11 @@
 #ifndef HEADERS_H
 #define HEADERS_H
 
+#include "util/Assert.h"
+#include "util/Endian.h"
+
 #include <stdint.h>
 #include <arpa/inet.h>
-
-/** Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html for this dirty little hack :) */
-#define UNIQUE_NAME MAKE_NAME(__LINE__)
-#define MAKE_NAME(line) MAKE_NAME2(line)
-#define MAKE_NAME2(line) Headers_testStruct_ ## line
-#define ASSERT(isTrue) struct UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
 
 /**
  * The header which switches use to decide where to route traffic.
@@ -47,7 +44,7 @@ struct Headers_SwitchHeader
     uint32_t lowBits_be;
 };
 #define Headers_SwitchHeader_SIZE 12
-ASSERT(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
+Assert_assertTrue(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
 
 
 static inline uint32_t Headers_getMessageType(const struct Headers_SwitchHeader* header)
@@ -110,7 +107,7 @@ struct Headers_Error
     } cause;
 };
 #define Headers_Error_SIZE 260
-ASSERT(sizeof(struct Headers_Error) == Headers_Error_SIZE);
+Assert_assertTrue(sizeof(struct Headers_Error) == Headers_Error_SIZE);
 
 /**
  * Header for nodes authenticating to one another.
@@ -154,7 +151,7 @@ union Headers_AuthChallenge
 };
 /** Total size of the auth structure. */
 #define Headers_AuthChallenge_SIZE 12
-ASSERT(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_SIZE);
+Assert_assertTrue(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_SIZE);
 
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define Headers_AuthChallenge_KEYSIZE 8
@@ -308,7 +305,7 @@ union Headers_CryptoAuth
     } handshake;
 };
 #define Headers_CryptoAuth_SIZE 120
-ASSERT(sizeof(union Headers_CryptoAuth) == Headers_CryptoAuth_SIZE);
+Assert_assertTrue(sizeof(union Headers_CryptoAuth) == Headers_CryptoAuth_SIZE);
 
 struct Headers_IP6Header
 {
@@ -326,12 +323,12 @@ struct Headers_IP6Header
     uint8_t destinationAddr[16];    
 };
 #define Headers_IP6Header_SIZE 40
-ASSERT(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
+Assert_assertTrue(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
 
 // Clean up this horrible mess.
 #undef UNIQUE_NAME
 #undef MAKE_NAME
 #undef MAKE_NAME2
-#undef ASSERT
+#undef Assert_assertTrue
 
 #endif
