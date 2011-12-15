@@ -332,7 +332,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
 }
 
 /**
- * When we send a message it goes into the SessionManager
+ * When we send a message it goes into the SessionManager.
  * for the content level crypto then it comes here.
  * Message is aligned on the beginning of the crypto header, ip6 header must be reapplied.
  */

@@ -15,7 +15,7 @@ add_library(dht
     #RateLimitModule.c
     SwitchConnectorModule.c
 )
-target_link_libraries(dht benc benc_StandardBencSerializer util interface ${NACL_LIBRARIES})#dhtstore)
+target_link_libraries(dht benc benc_StandardBencSerializer util interface ${NACL_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()
