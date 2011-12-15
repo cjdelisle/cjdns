@@ -1,6 +1,8 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
+#include "dht/ReplyModule.h"
+#include "dht/SwitchConnectorModule.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
 #include "interface/Interface.h"
@@ -166,7 +168,13 @@ static int start(struct Context* ctx)
     struct RouterModule* router =
         RouterModule_register(registry, ctx->allocator, myPubKey, ctx->base);
 
-    SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
+    checkSwitch(ctx);
+    SwitchConnectorModule_register((uint8_t*)ctx->privateKey,
+                                   registry,
+                                   router,
+                                   ctx->switchCore,
+                                   ctx->base,
+                                   ctx->allocator);
 
     return 0;
 }

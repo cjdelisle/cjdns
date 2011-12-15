@@ -212,10 +212,10 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint8_t networkAddress[Address_NETWO
 {
     for (uint32_t i = 0; i < store->size; i++) {
         if (memcmp(networkAddress,
-                   store->nodes[i].networkAddress,
+                   store->nodes[i].address.networkAddress,
                    Address_NETWORK_ADDR_SIZE) == 0)
         {
-            return store->nodes[i];
+            return &store->nodes[i];
         }
     }
     return NULL;

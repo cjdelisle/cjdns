@@ -1,6 +1,6 @@
 #include "memory/MemAllocator.h"
 #include "dht/DHTModules.h"
-#include "dht/DHTConstants.h"
+#include "dht/CJDHTConstants.h"
 
 static int catchOutgoing(struct DHTMessage* message, void* vcontext);
 static int bounceMessage(struct DHTMessage* message, void* vcontext);
@@ -40,7 +40,7 @@ static int bounceMessage(struct DHTMessage* message, void* vcontext)
     reply->allocator = message->allocator;
     reply->asDict = benc_newDictionary(reply->allocator);
 
-String* queryType = benc_lookupString(message->asDict, &DHTConstants_query);
+String* queryType = benc_lookupString(message->asDict, CJDHTConstants_QUERY);
 printf("bouncing message %s", queryType->bytes);
 
     DHTModules_handleOutgoing(reply, registry);

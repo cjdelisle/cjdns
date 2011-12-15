@@ -15,8 +15,6 @@
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 
-#include "dht/DHTConstants.h"
-
 #define MY_ADDRESS "hgzyxwvutsrqponmlkji           3"
 // This key converts to address: fc39:c3ba:c711:00aa:666d:90b0:1ab6:e8c3
 //                 this is the most significant byte ^^
@@ -181,8 +179,8 @@ void testSearch(struct DHTMessage** outMessagePtr,
 
 int main()
 {
-    char buffer[700000];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 700000);
+    char buffer[1<<20];
+    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1<<20);
     struct DHTModuleRegistry* registry = DHTModules_new(allocator);
 
     ReplyModule_register(registry, allocator);

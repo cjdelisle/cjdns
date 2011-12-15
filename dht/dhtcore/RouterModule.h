@@ -87,4 +87,7 @@ void RouterModule_pingNode(const uint8_t networkAddress[Address_NETWORK_ADDR_SIZ
 struct Node* RouterModule_getNode(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
                                   struct RouterModule* module);
 
+struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                      struct RouterModule* module);
+
 #endif

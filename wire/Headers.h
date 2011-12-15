@@ -325,10 +325,4 @@ struct Headers_IP6Header
 #define Headers_IP6Header_SIZE 40
 Assert_assertTrue(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
 
-// Clean up this horrible mess.
-#undef UNIQUE_NAME
-#undef MAKE_NAME
-#undef MAKE_NAME2
-#undef Assert_assertTrue
-
 #endif

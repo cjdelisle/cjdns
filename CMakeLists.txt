@@ -53,14 +53,16 @@ target_link_libraries(cjdvpn
     interface
 )
 
-##add_executable(cjdroute cjdroute.c)
-##target_link_libraries(cjdroute
-##    crypto
-##    interface
-##    switch
-##    MemAllocator
-##    ${LIBEVENT_LIBRARIES}
-##)
+add_executable(cjdroute cjdroute.c)
+target_link_libraries(cjdroute
+    crypto
+    interface
+    switch
+    dht
+    dhtcore
+    MemAllocator
+    ${LIBEVENT_LIBRARIES}
+)
 
 find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})

@@ -860,13 +860,18 @@ void RouterModule_pingNode(const uint8_t networkAddress[Address_NETWORK_ADDR_SIZ
                 module->registry);
 }
 
-struct Node* RouterModule_getNextBest(struct Address* target, struct RouterModule* module)
+struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                      struct RouterModule* module)
 {
     #define NUMBER_TO_GET 8
+
+    struct Address addr;
+    memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+
     uint8_t buffer[256];
     struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 256);
     struct NodeList* nodes =
-        NodeStore_getClosestNodes(module->nodeStore, target, NUMBER_TO_GET, false, tmpAlloc);
+        NodeStore_getClosestNodes(module->nodeStore, &addr, NUMBER_TO_GET, false, tmpAlloc);
 
     if (nodes->size == 0) {
         return NULL;
@@ -874,11 +879,11 @@ struct Node* RouterModule_getNextBest(struct Address* target, struct RouterModul
 
     for (int i = nodes->size - 1; i >= 0; i--) {
         if (nodes->nodes[i]->session.exists) {
-            &nodes->nodes[i];
+            return nodes->nodes[i];
         }
     }
 
-    return &nodes->nodes[nodes->size - 1];
+    return nodes->nodes[nodes->size - 1];
 
     #undef NUMBER_TO_GET
 }

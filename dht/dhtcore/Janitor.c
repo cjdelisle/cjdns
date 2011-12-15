@@ -1,28 +1,26 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <event2/event.h>
-
 #include "crypto/Crypto.h"
 #include "dht/Address.h"
-#include "dht/DHTConstants.h"
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/NodeList.h"
+#include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModuleInternal.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/AverageRoller.h"
+#include "util/Hex.h"
 #include "util/Timeout.h"
 #include "util/Time.h"
 
-#include "util/AverageRoller.h"
-#include "util/Hex.h"
-#include "dht/dhtcore/NodeStore_struct.h"
-#include "dht/dhtcore/NodeHeader.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <event2/event.h>
 
 /**
  * The goal of this is to run searches in the local area of this node.
@@ -62,7 +60,7 @@ static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
     result = result;
     return false;
 }
-
+/*
 static bool repeatRecentSearchCallback(void* callbackContext, struct DHTMessage* result)
 {
     callbackContext = callbackContext;
@@ -92,7 +90,7 @@ printf("Found Values!\n");
         return true;
     }
     return false;
-}
+}*/
 
 static void runSearch(void* vcontext)
 {
@@ -151,7 +149,7 @@ printf("gmrt %d  non-zero nodes %d\n",
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 
-    if (now > janitor->timeOfNextSearchRepeat && janitor->hasRecentSearchTarget) {
+    /*if (now > janitor->timeOfNextSearchRepeat && janitor->hasRecentSearchTarget) {
 String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &janitor->recentSearchTarget }, tempAllocator);
 printf("Running global search for %s\n", hex->bytes);
         RouterModule_beginSearch(janitor->recentSearchTarget,
@@ -161,7 +159,7 @@ printf("Running global search for %s\n", hex->bytes);
 
         janitor->timeOfNextSearchRepeat += janitor->searchRepeatMilliseconds;
         janitor->hasRecentSearchTarget = false;
-    }
+    }*/
 }
 
 struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
@@ -198,12 +196,12 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     return janitor;
 }
 
-void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
+/*void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                   struct Janitor* janitor)
 {
     memcpy(janitor->recentSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
     janitor->hasRecentSearchTarget = true;
-}
+}*/
 
 void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor)
