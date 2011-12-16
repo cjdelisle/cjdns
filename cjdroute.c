@@ -2,6 +2,7 @@
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
+#include "dht/SerializationModule.h"
 #include "dht/SwitchConnectorModule.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
@@ -35,6 +36,10 @@ struct Context
     struct UDPInterface* udpContext;
 
     struct SwitchCore* switchCore;
+
+    struct DHTModuleRegistry* registry;
+
+    struct RouterModule* routerModule;
 };
 
 struct User
@@ -53,7 +58,8 @@ static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
     struct User* u = CryptoAuth_getUser(iface);
     assert(u);
     // Add it to the switch.
-    SwitchCore_addInterface(iface, u->trust, ctx->switchCore);
+    uint64_t discard;
+    SwitchCore_addInterface(iface, u->trust, &discard, ctx->switchCore);
 
     // Prepare for the next connection.
     struct Interface* newUdpDefault = UDPInterface_getDefaultInterface(ctx->udpContext);
@@ -81,107 +87,29 @@ static void udpBindTo(const char* bindAddress, struct Context* ctx)
     authedUdpDefault->receiverContext = ctx;
 }
 
-static void checkUdp(struct Context* ctx)
-{
-    if (ctx->udpContext == NULL) {
-        ctx->udpContext =
-            UDPInterface_new(ctx->base, NULL, ctx->allocator, ctx->exceptionHandler);
-    }
-}
-
-static void checkSwitch(struct Context* ctx)
-{
-    if (ctx->switchCore == NULL) {
-        ctx->switchCore = SwitchCore_new(ctx->allocator);
-    }
-}
-
-static void checkCa(struct Context* ctx)
-{
-    if (ctx->ca == NULL) {
-        ctx->ca = CryptoAuth_new(ctx->allocator, (uint8_t*)ctx->privateKey);
-    }
-}
-
 static void authorizedPassword(char* passwd, uint64_t trust, struct Context* ctx)
 {
-    checkCa(ctx);
     struct User* u = ctx->allocator->malloc(sizeof(struct User), ctx->allocator);
     u->trust = trust;
     CryptoAuth_addUser(&(String){.bytes=passwd, .len=strlen(passwd)}, 1, u, ctx->ca);
 }
-
+/*
 static void udpConnectTo(const char* connectToAddress,
                          const char* key,
                          char* password,
                          const uint64_t trust,
                          struct Context* ctx)
 {
-    checkUdp(ctx);
     struct Interface* udp =
         UDPInterface_addEndpoint(ctx->udpContext, connectToAddress, ctx->exceptionHandler);
     struct Interface* authedUdp =
         CryptoAuth_wrapInterface(udp, (uint8_t*)key, false, true, ctx->ca);
     CryptoAuth_setAuth(&(String) {.bytes=password, .len=strlen(password)}, 1, authedUdp);
-    checkSwitch(ctx);
-    SwitchCore_addInterface(authedUdp, trust, ctx->switchCore);
-}
 
-static void printIp(FILE* printTo, uint8_t addr[16])
-{
-    for (int i = 0; i < 16; i += 2) {
-        if (i < 14) {
-            fprintf(printTo, "%02x%02x:", addr[i], addr[i + 1]);
-        } else {
-            fprintf(printTo, "%02x%02x", addr[i], addr[i + 1]);
-        }
-    }
-}
-
-static void printDomain(FILE* printTo, uint8_t myPublicKey[32])
-{
-    uint8_t domain[53];
-    Base32_encode(domain, 53, myPublicKey, 32);
-    fprintf(printTo, "%s.k", domain);
-}
-
-static int start(struct Context* ctx)
-{
-    // Seed the random generator or abort.
-    Crypto_init();
-
-    uint8_t myPubKey[32];
-    CryptoAuth_getPublicKey(myPubKey, ctx->ca);
-    uint8_t myIpAddr[16];
-    AddressCalc_addressForPublicKey(myIpAddr, myPubKey);
-
-    printf("Your ip address is: ");
-    printIp(stdout, myIpAddr);
-    printf("\n");
-
-    printf("Your domain address is: ");
-    printDomain(stdout, myPubKey);
-    printf("\n");
-
-    struct DHTModuleRegistry* registry = DHTModules_new(ctx->allocator);
-    ReplyModule_register(registry, ctx->allocator);
-    struct RouterModule* router =
-        RouterModule_register(registry, ctx->allocator, myPubKey, ctx->base);
-
-    checkSwitch(ctx);
-    SwitchConnectorModule_register((uint8_t*)ctx->privateKey,
-                                   registry,
-                                   router,
-                                   ctx->switchCore,
-                                   ctx->base,
-                                   ctx->allocator);
-
-    return 0;
-}
-
-
-
-
+    uint64_t switchAddr_be;
+    SwitchCore_addInterface(authedUdp, trust, &switchAddr_be, ctx->switchCore);
+    RouterModule_addNode((uint8_t*)key, (uint8_t*)&switchAddr_be, ctx->routerModule);
+}*/
 
 
 
@@ -200,27 +128,47 @@ int main()
     // Set this to the router's private key.
     ctx.privateKey = 
         "\xc9\x86\xfa\x43\xf9\xc3\x5f\x83\x12\x5a\x23\xbe\x0c\xef\x71\x06"
-        "\xf3\x81\xe2\x64\xe6\xca\xe3\x10\x49\x96\x99\x6b\x2f\x01\x04\xca";
+        "\xf3\x81\xe2\x64\xe6\xca\xe3\x10\x49\x96\x99\x6b\x2f\x01\x04\xcb";
+
+    Crypto_init();
+    ctx.switchCore = SwitchCore_new(ctx.allocator);
+    ctx.ca = CryptoAuth_new(ctx.allocator, (uint8_t*)ctx.privateKey);
+    ctx.registry = DHTModules_new(ctx.allocator);
+    ReplyModule_register(ctx.registry, ctx.allocator);
+    uint8_t myPubKey[32];
+    CryptoAuth_getPublicKey(myPubKey, ctx.ca);
+    ctx.routerModule = RouterModule_register(ctx.registry, ctx.allocator, myPubKey, ctx.base);
+    SerializationModule_register(ctx.registry, ctx.allocator);
 
     // Which ip and port to bind to, comment out to avoid listening.
     // This line must be before the first udpConnectTo(), it can also only appear once.
-    udpBindTo("192.168.0.1:10000", &ctx);
+    udpBindTo("127.0.0.1:10001", &ctx);
 
     // Only nodes connecting with passwords added by this function
     // will be able to connect to the bound port.
     // This may be used any number of times.
-    authorizedPassword("reallyreallysecret", 5000, &ctx);
+    authorizedPassword("password1", 5000, &ctx);
 
     // You can connect to as many of these as you want.
     // udpConnectTo(<ip:port>, <key>, <passwordToAuthWith>, <trustLevel>, &ctx);
-    udpConnectTo("192.168.0.2:3300",
-                 "fssswyd31rgrugvppm1l7l5532bzhm4kfccgdj26zhpyxk29dnm0.k",
+    /*udpConnectTo("127.0.0.1:10001",
+                 "yjcbnudh3n5wwrl6vuj8lnl4kfx9xfl9zs5znkpjtgfv0f5pqds0.k",
                  "password1",
                  9000,
-                 &ctx);
+                 &ctx);*/
 
     //ctx.tun = TunInterface_new(NULL, ctx.base, ctx.allocator);
 
+    SwitchConnectorModule_register((uint8_t*)ctx.privateKey,
+                                   ctx.registry,
+                                   ctx.routerModule,
+                                   ctx.switchCore,
+                                   ctx.base,
+                                   ctx.allocator);
 
-    return start(&ctx);
+    uint8_t address[53];
+    Base32_encode(address, 53, myPubKey, 32);
+    printf("Your address is: %s.k\n", address);
+
+    event_base_loop(ctx.base, 0);
 }

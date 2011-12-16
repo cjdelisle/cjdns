@@ -30,4 +30,8 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
                                                struct CryptoAuth* cryptoAuth,
                                                struct MemAllocator* allocator);
 
+void SessionManager_setKey(struct Message* message,
+                           uint8_t key[32],
+                           struct Interface* sessionManagerIface);
+
 #endif

@@ -23,13 +23,9 @@
 struct DHTMessage;
 struct DHTMessage
 {
-    /** The node who this message is coming from or going to. */
-    //char peerAddress[18];
-
-    /** Length of the peer's address. 6 for ip4, 18 for ip6. */
-    //unsigned char addressLength;
-
     struct Address* address;
+
+    char padding[512];
 
     /** The message in binary format. */
     char bytes[MAX_MESSAGE_SIZE];

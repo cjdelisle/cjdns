@@ -93,7 +93,7 @@ static inline void incomingDHT(struct Message* message,
                                struct Context* context)
 {
 
-printf("yay we got a dht message!!11");
+printf("yay we got a dht message!!11\n");
 message = message;
 addr = addr;
 context = context;
@@ -116,13 +116,54 @@ context = context;
     DHTModules_handleIncoming(&dht, context->registry);*/
 }
 
-static int handleOutgoing(struct DHTMessage* message,
+struct UDPHeader {
+    uint32_t sourceAndDestPorts;
+    uint16_t length;
+    uint16_t checksum;
+};
+Assert_assertTrue(sizeof(struct UDPHeader) == 8);
+
+static int handleOutgoing(struct DHTMessage* dmessage,
                           void* vcontext)
 {
     struct Context* context = (struct Context*) vcontext;
-    printf("Yay, the router tried to send something!");
-    message=message;
-    context=context;
+
+    printf("Yay, the router tried to send something!\n");
+
+    struct Message message =
+        { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
+assert(message.length == 43);
+    Message_shift(&message, sizeof(struct UDPHeader));
+    struct UDPHeader* uh = (struct UDPHeader*) message.bytes;
+    uh->sourceAndDestPorts = 0;
+    uh->length = Endian_hostToBigEndian16(dmessage->length);
+    uh->checksum = 0;
+
+    struct Headers_IP6Header header =
+    {
+        // Length will be set after the crypto.
+        //.payloadLength_be = Endian_hostToBigEndian16(dmessage->length + sizeof(struct UDPHeader)),
+        .nextHeader = 17,
+        .hopLimit = 255
+    };
+
+    memcpy(&header.destinationAddr,
+           dmessage->address->ip6.bytes,
+           Address_SEARCH_TARGET_SIZE);
+
+    memcpy(&header.sourceAddr,
+           context->myAddress,
+           Address_SEARCH_TARGET_SIZE);
+
+    context->ip6Header = &header;
+
+    struct Headers_SwitchHeader switchHeader;
+    memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
+    context->switchHeader = &switchHeader;
+assert(message.length == 51);
+
+    SessionManager_setKey(&message, dmessage->address->key, context->contentSmInside);
+    assert(!context->contentSmInside->sendMessage(&message, context->contentSmInside));
     return 0;
 }
 
@@ -133,13 +174,6 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
         return false;
     }
     // TODO: validate the checksum
-    struct UDPHeader {
-        uint32_t sourceAndDestPorts;
-        uint16_t length;
-        uint16_t checksum;
-    };
-    Assert_assertTrue(sizeof(struct UDPHeader) == 8);
-
     struct UDPHeader* uh = (struct UDPHeader*) (ip6 + 1);
     return uh->sourceAndDestPorts == 0
         && uh->length == (message->length - sizeof(struct UDPHeader));
@@ -163,7 +197,7 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         incomingDHT(message, &addr, context);
         return;
     }
-    printf("Dropped a message which should have been sent to the TUN device...");
+    printf("Dropped a message which should have been sent to the TUN device...\n");
 }
 
 /**
@@ -183,7 +217,8 @@ static inline uint8_t sendToSwitch(struct Message* message,
                 sizeof(struct Headers_SwitchHeader));
     }
     Message_shift(message, Headers_SwitchHeader_SIZE);
-
+printf("Sending message to switch\n");
+assert(message->length == 51+120+40+120+12);
     context->switchInterface.receiveMessage(message, &context->switchInterface);
 
     return 0;
@@ -193,6 +228,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 // Will cause receiveMessage() to be called on the switch interface.
 static uint8_t sendToSwitchFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
+assert(message->length == 51+120+40+120);
     struct Context* context = (struct Context*) iface->senderContext;
     return sendToSwitch(message, context->switchHeader, context);
 }
@@ -204,6 +240,7 @@ static void receivedFromCryptoAuth(struct Message* message, struct Interface* if
 }
 
 static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header,
+                                             uint8_t key[32],
                                              struct Context* context)
 {
     int index = InterfaceMap_indexOf((uint8_t*) &header->label_be, context->ifMap);
@@ -223,7 +260,7 @@ static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header
             .allocator = child,
         });
     struct Interface* innerIf =
-        CryptoAuth_wrapInterface(outerIf, NULL, false, false, context->cryptoAuth);
+        CryptoAuth_wrapInterface(outerIf, key, false, false, context->cryptoAuth);
     innerIf->receiveMessage = receivedFromCryptoAuth;
     innerIf->receiverContext = context;
     iface = child->clone(sizeof(struct Interface), child, &(struct Interface) {
@@ -282,7 +319,8 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
     memcpy(&header, context->switchHeader, sizeof(struct Headers_SwitchHeader));
     memcpy(&header.label_be, sendTo->address.networkAddress, Address_NETWORK_ADDR_SIZE);
     context->switchHeader = &header;
-    struct Interface* session = getCaSession(&header, context);
+    struct Interface* session = getCaSession(&header, sendTo->address.key, context);
+assert(message->length == 51+120+40);
     return session->sendMessage(message, session);
 }
 
@@ -325,7 +363,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         context->contentSmOutside.receiveMessage(message, &context->contentSmOutside);
         return 0;
     }
-
+assert(message->length == 51+120+40);
     struct Node* nextBest = RouterModule_getNextBest(context->ip6Header->destinationAddr,
                                                      context->routerModule);
     return sendToRouter(nextBest, message, context);
@@ -339,6 +377,11 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
 static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
 {
     struct Context* context = (struct Context*) iface->senderContext;
+assert(message->length == 51+120);
+    // Need to set the length field to take into account
+    // the crypto headers which are hidden under the ipv6 packet.
+    context->ip6Header->payloadLength_be = Endian_hostToBigEndian16(message->length);
+
     Message_shift(message, Headers_IP6Header_SIZE);
     memcpy(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     // Forward this call to decryptedIncoming() which will check it's validity
@@ -382,7 +425,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     // Nonce is 0, this is a crypto negotiation.
-    struct Interface* iface = getCaSession(switchHeader, context);
+    struct Interface* iface = getCaSession(switchHeader, NULL, context);
 
     // Null the message in the context then call cryptoAuth and if
     // it's nolonger null then the message is valid :/
@@ -418,6 +461,9 @@ int SwitchConnectorModule_register(uint8_t privateKey[32],
     context->switchCore = switchCore;
     context->allocator = allocator;
     context->cryptoAuth = CryptoAuth_new(allocator, privateKey);
+    uint8_t myPubKey[32];
+    CryptoAuth_getPublicKey(myPubKey, context->cryptoAuth);
+    AddressCalc_addressForPublicKey(context->myAddress, myPubKey);
 
     #define PER_MESSAGE_BUF_SZ 16384
     uint8_t* messageBuffer = allocator->malloc(PER_MESSAGE_BUF_SZ, allocator);

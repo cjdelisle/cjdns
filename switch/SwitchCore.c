@@ -3,6 +3,8 @@
 #include "memory/MemAllocator.h"
 #include "interface/Interface.h"
 #include "switch/SwitchCore.h"
+#include "switch/NumberCompress.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -59,87 +61,6 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
     return core;
 }
 
-/**
- * Bitwise reversal of the a number.
- */
-static inline uint64_t bitReverse(uint64_t toReverse)
-{
-    uint64_t out = 0;
-    for (uint32_t i = 0; i < 64; i++) {
-        out |= toReverse & 1;
-        out <<= 1;
-        toReverse >>= 1;
-    }
-    return out;
-}
-
-/*
- * Number compression scheme:
- *
- * scheme   data             suffix         range    bits used
- *   0   00-10                              (0-2)        2
- *   1   0000-1111             011          (0-15)       7
- *   2   000000-111111        0111          (0-63)      10
- *   3   00000000-11111111   01111          (0-255)     13
- */
-#define GET_MAX(bits) ((1 << bits) - 1)
-#define SCHEME_ZERO_BITS   2
-#define SCHEME_ONE_BITS    7
-#define SCHEME_TWO_BITS   10
-#define SCHEME_THREE_BITS 13
-static inline uint32_t bitsUsedForLabel(const uint64_t label)
-{
-    if ((label & GET_MAX(3)) == GET_MAX(3)) {
-        if ((label & GET_MAX(4)) == GET_MAX(4)) {
-            return SCHEME_THREE_BITS;
-        } else {
-            return SCHEME_TWO_BITS;
-        }
-    } else {
-        if ((label & GET_MAX(2)) == GET_MAX(2)) {
-            return SCHEME_ONE_BITS;
-        } else {
-            return SCHEME_ZERO_BITS;
-        }
-    }
-}
-
-static inline uint32_t bitsUsedForNumber(const uint32_t number)
-{
-    if (number > 15) {
-        return (number > 15) ? SCHEME_THREE_BITS : SCHEME_TWO_BITS;
-    } else {
-        return (number >  2) ? SCHEME_ONE_BITS : SCHEME_ZERO_BITS;
-    }
-}
-
-static inline uint32_t getCompressed(const uint64_t number, const uint32_t bitsUsed)
-{
-    switch (bitsUsed) {
-        case SCHEME_ZERO_BITS:  return number;
-        case SCHEME_ONE_BITS:   return (number << 3) | GET_MAX(2);
-        case SCHEME_TWO_BITS:   return (number << 4) | GET_MAX(3);
-        case SCHEME_THREE_BITS: return (number << 5) | GET_MAX(4);
-        default: return 0;
-    };
-}
-
-static inline uint32_t getDecompressed(const uint64_t label, const uint32_t bitsUsed)
-{
-    switch (bitsUsed) {
-        case SCHEME_ZERO_BITS:  return  label       & GET_MAX(2);
-        case SCHEME_ONE_BITS:   return (label >> 3) & GET_MAX(4);
-        case SCHEME_TWO_BITS:   return (label >> 4) & GET_MAX(6);
-        case SCHEME_THREE_BITS: return (label >> 5) & GET_MAX(8);
-        default: return 0;
-    };
-}
-#undef GET_MAX
-#undef SCHEME_ZERO_BITS
-#undef SCHEME_ONE_BITS
-#undef SCHEME_TWO_BITS
-#undef SCHEME_THREE_BITS
-
 static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
                                    struct Message* toSend)
 {
@@ -166,7 +87,7 @@ static inline void sendError(struct SwitchInterface* interface,
     }
     struct ErrorPacket err;
 
-    err.switchHeader.label_be = bitReverse(header->label_be);
+    err.switchHeader.label_be = Bits_bitReverse64(header->label_be);
     Headers_setPriorityFragmentNumAndMessageType(&err.switchHeader,
                                                  Headers_getPriority(header),
                                                  0,
@@ -201,16 +122,16 @@ void receiveMessage(struct Message* message, struct Interface* iface)
     struct SwitchCore* core = sourceIf->core;
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
-    const uint32_t bits = bitsUsedForLabel(label);
+    const uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIfIndex = sourceIf - core->interfaces;
 
-    if (bitsUsedForNumber(sourceIfIndex) > bits) {
+    if (NumberCompress_bitsUsedForNumber(sourceIfIndex) > bits) {
         // Source address bigger than destination address, fail.
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
         return;
     }
 
-    const uint32_t destIndex = getDecompressed(label, bits);
+    const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
     if (destIndex >= core->interfaceCount) {
         // No such interface
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
@@ -243,7 +164,8 @@ void receiveMessage(struct Message* message, struct Interface* iface)
 
 
     header->label_be =
-        Endian_hostToBigEndian64((label >> bits) | bitReverse(getCompressed(sourceIfIndex, bits)));
+        Endian_hostToBigEndian64(
+            (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIfIndex, bits)));
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message);
     if (err) {
@@ -268,10 +190,13 @@ static void removeInterface(void* vcontext)
 /**
  * @param trust a positive integer representing how much you trust the
  *              connected node not to send a flood.
+ * @param labelOut_be a buffer which will be filled with the label part for getting
+ *                    to the newly added node. It will be set to the big endian value.
  * @return 0 if all goes well, -1 if the list is full.
  */
 int SwitchCore_addInterface(struct Interface* iface,
                             const uint64_t trust,
+                            uint64_t* labelOut_be,
                             struct SwitchCore* core)
 {
     if (core->interfaceCount == 1) {
@@ -295,6 +220,11 @@ int SwitchCore_addInterface(struct Interface* iface,
 
     iface->receiverContext = &core->interfaces[core->interfaceCount];
     iface->receiveMessage = receiveMessage;
+
+    uint32_t bits = NumberCompress_bitsUsedForNumber(core->interfaceCount);
+    uint64_t label = NumberCompress_getCompressed(core->interfaceCount, bits) | (1 << bits);
+    *labelOut_be = Endian_hostToBigEndian64(label);
+
     core->interfaceCount++;
     return 0;
 }

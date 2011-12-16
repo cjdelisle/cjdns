@@ -201,13 +201,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     Address_forKey(&out->address, myAddress);
 
-printf("My address:   ");
-for (int i = 0; i < 16; i++) {
-    printf("\\x%02x", out->address.ip6.bytes[i]);
-}
-printf("\n");
-
-
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
     out->searchStore = SearchStore_new(allocator, out->gmrtRoller);
@@ -837,7 +830,7 @@ void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
 Address_getPrefix(&address);
 printf("Adding node:  ");
 for (int i = 0; i < 16; i++) {
-    printf("\\x%02x", address.ip6.bytes[i]);
+    printf("%02x", address.ip6.bytes[i]);
 }
 printf("\n");
 
@@ -868,8 +861,8 @@ struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_S
     struct Address addr;
     memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
 
-    uint8_t buffer[256];
-    struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 256);
+    uint8_t buffer[1024];
+    struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 1024);
     struct NodeList* nodes =
         NodeStore_getClosestNodes(module->nodeStore, &addr, NUMBER_TO_GET, false, tmpAlloc);
 

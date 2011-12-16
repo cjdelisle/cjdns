@@ -60,7 +60,9 @@ static void receiveMessageTwo(struct Message* message, struct Interface* iface)
     }
 }
 
-static inline struct Interface* getSession(struct Message* message, struct SessionManager* sm)
+static inline struct Interface* getSession(struct Message* message,
+                                           uint8_t key[32],
+                                           struct SessionManager* sm)
 {
     struct timeval now;
     event_base_gettimeofday_cached(sm->eventBase, &now);
@@ -75,7 +77,7 @@ static inline struct Interface* getSession(struct Message* message, struct Sessi
                 .allocator = ifAllocator
             });
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, NULL, false, false, sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, key, false, false, sm->cryptoAuth);
         insideIf->receiveMessage = receiveMessageTwo;
         insideIf->receiverContext = sm;
 
@@ -104,7 +106,7 @@ static bool runt(struct Message* message, struct SessionManager* sm)
     if (sm->keyOffset > 0) {
         return sm->keyOffset + sm->keySize > message->length;
     } else {
-        return (sm->keyOffset * -1) < message->padding;
+        return (sm->keyOffset * -1) >= message->padding;
     }
 }
 
@@ -115,7 +117,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     if (runt(message, sm)) {
         return Error_UNDERSIZE_MESSAGE;
     }
-    struct Interface* outIface = getSession(message, sm);
+    struct Interface* outIface = getSession(message, NULL, sm);
     return outIface->sendMessage(message, outIface);
 }
 
@@ -127,7 +129,7 @@ static void receiveMessage(struct Message* message, struct Interface* iface)
         DEBUG("dropped incoming runt message");
         return;
     }
-    struct Interface* inIface = getSession(message, sm);
+    struct Interface* inIface = getSession(message, NULL, sm);
     inIface->receiveMessage(message, inIface);
 }
 
@@ -167,7 +169,8 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
         .keyOffset = keyOffset,
         .eventBase = eventBase,
         .ifaceMap = {
-            .keySize = keySize
+            .keySize = keySize,
+            .allocator = allocator,
         },
         .cryptoAuth = cryptoAuth,
         .allocator = allocator,
@@ -178,4 +181,12 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
     toWrap->receiverContext = sm;
 
     return &sm->outgoing;
+}
+
+void SessionManager_setKey(struct Message* message,
+                           uint8_t key[32],
+                           struct Interface* sessionManagerIface)
+{
+    struct SessionManager* sm = (struct SessionManager*) sessionManagerIface->senderContext;
+    getSession(message, key, sm);
 }

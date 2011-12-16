@@ -18,7 +18,8 @@ static inline struct InterfaceMap* InterfaceMap_new(size_t keySize,
                                                     struct MemAllocator* allocator)
 {
     return allocator->clone(sizeof(struct InterfaceMap), allocator, &(struct InterfaceMap) {
-        .keySize = keySize
+        .keySize = keySize,
+        .allocator = allocator
     });
 }
 

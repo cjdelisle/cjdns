@@ -25,11 +25,14 @@ struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator);
  *
  * @param iface the interface to add.
  * @param trust the amount that you trust the connected node.
+ * @param labelOut_be a buffer which will be filled with the label part for getting
+ *                    to the newly added node. It will be set to the big endian value.
  * @param core the switchcore.
  * @return 0 on success, -1 if there are no more interface slots.
  */
 int SwitchCore_addInterface(struct Interface* iface,
                             const uint64_t trust,
+                            uint64_t* labelOut_be,
                             struct SwitchCore* core);
 
 /**

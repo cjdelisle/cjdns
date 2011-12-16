@@ -99,6 +99,7 @@ static inline void Address_printNetworkAddress(uint8_t output[20], struct Addres
 
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)
 {
+    Address_getPrefix(addr);
     sprintf((char*)output, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
             addr->ip6.bytes[ 0],
             addr->ip6.bytes[ 1],
