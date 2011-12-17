@@ -146,11 +146,13 @@ static int32_t parseInteger(const struct Reader* reader,
             return UNPARSABLE;
         }
     }
+    errno = 0;
+
     /* buffer + 1, skip the 'i' */
     benc_int_t out = strtol(buffer + 1, NULL, 10);
 
     /* Failed parse causes 0 to be set. */
-    if (out == 0 && buffer[1] != '0' && buffer[1] != '-' && buffer[2] != '0') {
+    if (out == 0 && buffer[1] != '0' && (buffer[1] != '-' || buffer[2] != '0')) {
         return UNPARSABLE;
     }
     if ((out == LONG_MAX || out == LONG_MIN) && errno == ERANGE) {

@@ -1,12 +1,19 @@
-#include <stdio.h>
-#include <string.h>
-
 #include "memory/MemAllocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "libbenc/benc.h"
 #include "libbenc/serialization/BencSerializer.h"
+#include "util/Hex.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+static int32_t parseGeneric(const struct Reader* reader,
+                            const struct MemAllocator* allocator,
+                            bobj_t** output);
 static int32_t serializeGenericWithPadding(const struct Writer* writer,
                                            size_t padSpaceCount,
                                            const bobj_t* obj);
@@ -29,6 +36,19 @@ static const char* thirtyTwoSpaces = "                                ";
     }                                                                   \
     writer->write(thirtyTwoSpaces, padSpaces - padCounter, writer)
 
+static inline int outOfContent()
+{
+    printf("ran out of content to read");
+    return -2;
+}
+#define OUT_OF_CONTENT_TO_READ outOfContent()
+
+static inline int unparsable()
+{
+    printf("failed to parse data");
+    return -3;
+}
+#define UNPARSABLE unparsable()
 
 /** @see BencSerializer.h */
 static int32_t serializeString(const struct Writer* writer,
@@ -36,38 +56,75 @@ static int32_t serializeString(const struct Writer* writer,
 {
     writer->write("\"", 1, writer);
     size_t i;
-    unsigned int chr;
+    uint8_t chr;
     char buffer[4];
     for (i = 0; i < string->len; i++) {
-        chr = (unsigned int) string->bytes[i] & 0xFF;
-        /* Nonprinting chars, and \ and " are hex'd */
-        if (chr < 0x7f && chr > 0x20 && chr != 0x5c && chr != 0x22) {
-            sprintf(buffer, "%c", string->bytes[i]);
+        chr = (uint8_t) string->bytes[i] & 0xFF;
+        /* Nonprinting chars, \ and " are hex'd */
+        if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
+            sprintf(buffer, "%c", chr);
             writer->write(buffer, 1, writer);
         } else {
-            sprintf(buffer, "\\x%.2X", (unsigned int) string->bytes[i] & 0xFF);
+            sprintf(buffer, "\\x%.2X", chr);
             writer->write(buffer, 4, writer);
         }
     }
     return writer->write("\"", 1, writer);
 }
 
-static int32_t notImplemented()
+/**
+ * Read until 1 char after the target character.
+ */
+static inline int readUntil(uint8_t target, const struct Reader* reader)
 {
-    fprintf(stderr, "Oops, parsing is (still) not implemented in the JsonBencSerializer\n"
-                    "Be an hero and write it, won't you? For the children?");
-    abort();
+    uint8_t nextChar;
+    if (reader->read((char*)&nextChar, 0, reader)) {
+        return OUT_OF_CONTENT_TO_READ;
+    }    
+    while (nextChar != target) {
+        if (reader->read((char*)&nextChar, 1, reader)) {
+            return OUT_OF_CONTENT_TO_READ;
+        }
+    }
+    reader->skip(1, reader);
+    return 0;
 }
 
-/** @see BencSerializer.h */
-static int32_t parseString(const struct Reader* reader,
-                           const struct MemAllocator* allocator,
-                           benc_bstr_t** output)
+static inline int parseString(const struct Reader* reader,
+                              const struct MemAllocator* allocator,
+                              String** output)
 {
-    reader = reader;
-    allocator = allocator;
-    output = output;
-    return notImplemented();
+    #define BUFF_SZ (1<<20)
+
+    uint8_t buffer[BUFF_SZ];
+    if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
+        return OUT_OF_CONTENT_TO_READ;
+    }
+    for (int i = 0; i < BUFF_SZ; i++) {
+        if (buffer[i] == '\\') {
+            // \x01 (skip the x)
+            reader->skip(1, reader);
+            uint8_t hex[2];
+            if (reader->read((char*)hex, 2, reader)) {
+                return OUT_OF_CONTENT_TO_READ;
+            }
+            int byte = Hex_decodeByte(hex[0], hex[1]);
+            if (byte == -1) {
+                return UNPARSABLE;
+            }
+            buffer[i] = (uint8_t) byte;
+        } else if (buffer[i] == '"') {
+            *output = benc_newBinaryString((char*)buffer, i, allocator);
+            return 0;
+        }
+        if (reader->read(buffer + i + 1, 1, reader)) {
+            return OUT_OF_CONTENT_TO_READ;
+        }
+    }
+
+    return UNPARSABLE;
+
+    #undef BUFF_SZ
 }
 
 /** @see BencSerializer.h */
@@ -87,9 +144,35 @@ static int32_t serializeInteger(const struct Writer* writer,
 static int32_t parseInteger(const struct Reader* reader,
                             Integer* output)
 {
-    reader = reader;
-    output = output;
-    return notImplemented();
+    uint8_t buffer[32];
+
+    for (int i = 0; i < 21; i++) {
+        if (reader->read(buffer + i, 0, reader) != 0) {
+            return OUT_OF_CONTENT_TO_READ;
+        }
+        if (i == 0 && buffer[i] == '-') {
+            // It's just a negative number, no need to fail it.
+            continue;
+        }
+        if (buffer[i] < '0' || buffer[i] > '9') {
+            buffer[i] = '\0';
+            errno = 0;
+            Integer out = strtol((char*)buffer, NULL, 10);
+            // Failed parse causes 0 to be set.
+            if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {
+                return UNPARSABLE;
+            }
+            if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
+                return UNPARSABLE;
+            }
+            *output = out;
+            return 0;
+        }
+        reader->skip(1, reader);
+    }
+
+    // Larger than the max possible int64.
+    return UNPARSABLE;
 }
 
 /**
@@ -134,10 +217,37 @@ static int32_t parseList(const struct Reader* reader,
                          const struct MemAllocator* allocator,
                          List* output)
 {
-    reader = reader;
-    allocator = allocator;
-    output = output;
-    return notImplemented();
+    char nextChar;
+    readUntil('[', reader);
+
+    bobj_t* element;
+    benc_list_entry_t* thisEntry = NULL;
+    benc_list_entry_t** lastEntryPointer = output;
+    int ret;
+
+    for (;;) {
+        if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
+            return ret;
+        }
+        thisEntry = allocator->malloc(sizeof(benc_list_entry_t), allocator);
+        thisEntry->elem = element;
+
+        // Read backwards so that the list reads out forward.
+        *lastEntryPointer = thisEntry;
+        lastEntryPointer = &(thisEntry->next);
+
+        for (;;) {
+            if (reader->read(&nextChar, 1, reader) != 0) {
+                return OUT_OF_CONTENT_TO_READ;
+            }
+            if (nextChar == ']') {
+                thisEntry->next = NULL;
+                return 0;
+            } else if (nextChar == ',') {
+                break;
+            }
+        }
+    }
 }
 
 /**
@@ -182,10 +292,151 @@ static int32_t parseDictionary(const struct Reader* reader,
                                const struct MemAllocator* allocator,
                                Dict* output)
 {
-    reader = reader;
-    allocator = allocator;
-    output = output;
-    return notImplemented();
+    uint8_t nextChar;
+    readUntil('{', reader);
+
+    String* key;
+    bobj_t* value;
+    benc_dict_entry_t* entryPointer;
+    benc_dict_entry_t* lastEntryPointer = NULL;
+    int ret = 0;
+
+    for (;;) {
+        while (!ret) {
+            ret = reader->read(&nextChar, 0, reader);
+            switch (nextChar) {
+                case '"':
+                    break;
+
+                case '}':
+                    reader->skip(1, reader);
+                    *output = lastEntryPointer;
+                    return 0;
+
+                default:
+                    reader->skip(1, reader);
+                    continue;
+            }
+            break;
+        }
+        if (ret) {
+            return OUT_OF_CONTENT_TO_READ;
+        }
+
+        // Get key and value.
+        if ((ret = parseString(reader, allocator, &key)) != 0) {
+            return ret;
+        }
+
+        // Get the :
+        readUntil(':', reader);
+
+        if ((ret = parseGeneric(reader, allocator, &value)) != 0) {
+            return ret;
+        }
+
+        /* Allocate the entry. */
+        entryPointer = allocator->malloc(sizeof(benc_dict_entry_t), allocator);
+
+        entryPointer->next = lastEntryPointer;
+        entryPointer->key = key;
+        entryPointer->val = value;
+        lastEntryPointer = entryPointer;
+    }
+}
+
+static inline int parseComment(const struct Reader* reader)
+{
+    char c;
+    int ret = reader->read(&c, 0, reader);
+    ret = ret;
+    return UNPARSABLE;
+}
+
+static int32_t parseGeneric(const struct Reader* reader,
+                            const struct MemAllocator* allocator,
+                            bobj_t** output)
+{
+    int ret = 0;
+    char firstChar;
+
+    for (;;) {
+        ret = reader->read(&firstChar, 0, reader);
+        switch (firstChar) {
+            case ' ':
+            case '\r':
+            case '\n':
+            case '\t':
+                reader->skip(1, reader);
+                continue;
+
+            default:
+                break;
+        }
+        if (ret) {
+            return OUT_OF_CONTENT_TO_READ;
+        }
+        break;
+    }
+
+    bobj_t* out = allocator->malloc(sizeof(bobj_t), allocator);
+
+    switch (firstChar) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':;
+            // Integer. Int is special because it is not a pointer but a int64_t.
+            benc_int_t bint;
+            ret = parseInteger(reader, &bint);
+            out->type = BENC_INT;
+            out->as.int_ = bint;
+            break;
+
+        case '[':;
+            // List.
+            List* list = allocator->calloc(sizeof(List), 1, allocator);
+            ret = parseList(reader, allocator, list);
+            out->type = BENC_LIST;
+            out->as.list = list;
+            break;
+
+        case '{':;
+            // Dictionary
+            Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+            ret = parseDictionary(reader, allocator, dict);
+            out->type = BENC_DICT;
+            out->as.dictionary = dict;
+            break;
+
+        case '"':;
+            // String
+            String* string = NULL;
+            ret = parseString(reader, allocator, &string);
+            out->type = BENC_BSTR;
+            out->as.bstr = string;
+            break;
+
+        case '/':;
+            return parseComment(reader);
+
+        default:
+            return UNPARSABLE;
+    }
+
+    if (ret != 0) {
+        // Something went wrong while parsing.
+        return ret;
+    }
+
+    *output = out;
+    return 0;
 }
 
 /**

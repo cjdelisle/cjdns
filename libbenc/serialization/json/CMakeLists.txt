@@ -1,7 +1,5 @@
-add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
-
-add_library(benc_JsonSerializer JsonBencSerializer.c)
-target_link_libraries(benc_JsonSerializer MemAllocator cjdio)
+add_library(benc_JsonBencSerializer JsonBencSerializer.c)
+target_link_libraries(benc_JsonBencSerializer MemAllocator cjdio util benc)
 
 # Everything must be tested.
 enable_testing()

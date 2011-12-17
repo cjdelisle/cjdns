@@ -64,6 +64,15 @@ target_link_libraries(cjdroute
     ${LIBEVENT_LIBRARIES}
 )
 
+add_executable(benc2json benc2json.c)
+target_link_libraries(benc2json
+    benc
+    benc_StandardBencSerializer
+    benc_JsonBencSerializer
+    MemAllocator
+    cjdio
+)
+
 find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})
 add_executable(addressgen addressgen.c)
