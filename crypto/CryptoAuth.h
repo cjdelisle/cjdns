@@ -7,6 +7,7 @@
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
+#include "util/Endian.h"
 
 struct CryptoAuth;
 
@@ -55,16 +56,16 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator, const uint8_t 
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
- * @param requireAuthentication if the remote end of this interface begins the connection, require
- *                              them to present valid authentication credentials to connect.
- *                              If this end begins the connection, this parameter has no effect.
+ * @param requireAuth if the remote end of this interface begins the connection, require
+ *                    them to present valid authentication credentials to connect.
+ *                    If this end begins the connection, this parameter has no effect.
  * @param authenticatePackets if true, all packets will be protected against forgery and replay
  *                            attacks, this is a seperate system from password and authType.
  * @param context the CryptoAuth context.
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
-                                           const uint8_t herPublicKey[32],
-                                           bool requireAuthentication,
+                                           uint8_t herPublicKey[32],
+                                           const bool requireAuth,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context);
 
@@ -85,5 +86,70 @@ void CryptoAuth_setAuth(const String* password,
 void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
+
+/**
+ * Obfuscate the nonce so traffic type cannot easily be detected statelessly.
+ * This does not guarantee that traffic type cannot be detected if packets are compared
+ * to older packets.
+ *
+ * This function takes the nonce and a piece of salt data which is available at both ends, the
+ * salt is used to extract information from the public keys of each node and that information,
+ * as well as the salt itself, is XORd against the nonce to frustrate protocol analysis.
+ *
+ * The salt is read as a big endian number as follows.
+ *
+ *                       1               2               3
+ *       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *    0 |             unused            |  okRot  |  tkRot  | OKI | TKI |
+ *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * TKI: Their key index, the offset from the beginning of their key,
+ *      measured in 4 byte increments.
+ * OKI: Our key index, the offset from the beginning of our permanent public key,
+ *      measured in 4 byte increments.
+ * tkRot: How many bits to rotate the 4 bytes which were sampled from their key.
+ * okRot: How many bits to rotate the 4 bytes which were sampled from our key.
+ *
+ * tks: "their key sample", 4 bytes sampled from their permanent public key at offset TKI * 4,
+ *      and rotated TKROT bits.
+ * oks: "their key sample", 4 bytes sampled from their permanent public key at offset OKI * 4,
+ *      and rotated OKROT bits.
+ *
+ * NOTE: rotate() means rotate right on little endian architectures and rotate left on big endian.
+ *       this allows for interoperability without needing to byte swap tks and oks for rotating,
+ *       only to byte swap them back after.
+ *
+ * @param nonceAndSalt an array containing two 32 bit integers, the nonce to obfuscate
+ *                     and a piece of unpredictable data for the salt.
+ * @param theirKey the other node's public permanent key as an array of 32 bit integers.
+ * @param ourKey this node's public permanent key as an array of 32 bit integers.
+ * @return nonce ^ rotate(tks, tkRot) ^ rotate(oks, okRot) ^ salt;
+ */
+static inline uint32_t CryptoAuth_obfuscateNonce(uint32_t nonceAndSalt[2],
+                                                 uint32_t theirKey[8],
+                                                 uint32_t ourKey[8])
+{
+    #define rotate(number, bits) \
+        (Endian_isBigEndian()                                    \
+            ? ((number << (bits)) | (number >> (32 - (bits))))   \
+            : ((number >> (bits)) | (number << (32 - (bits)))))
+
+    uint32_t salt = Endian_bigEndianToHost32(nonceAndSalt[1]);
+
+    #define TKI salt % 8
+    #define OKI (salt >> 3) % 8
+    uint32_t tkRot = (salt >> 6) % 32;
+    uint32_t okRot = (salt >> 11) % 32;
+
+    uint32_t tks = theirKey[TKI];
+    uint32_t oks = ourKey[OKI];
+
+    return nonceAndSalt[0] ^ rotate(tks, tkRot) ^ rotate(oks, okRot) ^ nonceAndSalt[1];
+
+    #undef rotate
+}
+#define CryptoAuth_deobfuscateNonce(nonceAndData, theirKey, ourKey) \
+    CryptoAuth_obfuscateNonce(nonceAndData, ourKey, theirKey)
 
 #endif

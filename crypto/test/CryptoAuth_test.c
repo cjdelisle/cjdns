@@ -8,11 +8,11 @@
 #include "util/Hex.h"
 #include "util/Endian.h"
 
-static const uint8_t* privateKey = (uint8_t*)
+static uint8_t* privateKey = (uint8_t*)
     "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
     "\x4e\xff\xbe\x7d\x39\xd8\x4d\x8e\x14\x2b\x9d\x21\x89\x5b\x38\x09";
 
-static const uint8_t* publicKey = (uint8_t*)
+static uint8_t* publicKey = (uint8_t*)
     "\x51\xaf\x8d\xd9\x35\xe8\x61\x86\x3e\x94\x2b\x1b\x6d\x21\x22\xe0"
     "\x2f\xb2\xd0\x88\x20\xbb\xf3\xf0\x6f\xcd\xe5\x85\x30\xe0\x08\x34";
 
@@ -43,7 +43,7 @@ static char* userObj = "This represents a user";
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
 {
     uint32_t nonce_be =
-        Exports_obfuscateNonce(*((uint32_t*)message->bytes), iface->receiverContext);
+        Exports_obfuscateNonce(((uint32_t*)message->bytes), iface->receiverContext);
     printf("sent message -->  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
     assert(message->length + message->padding == 400);
     if2->receiveMessage(message, if2);
@@ -53,7 +53,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
 {
     uint32_t nonce_be =
-        Exports_obfuscateNonce(*((uint32_t*)message->bytes), iface->receiverContext);
+        Exports_obfuscateNonce(((uint32_t*)message->bytes), iface->receiverContext);
     printf("sent message <--  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
     assert(message->length + message->padding == 400);
     if1->receiveMessage(message, if1);
@@ -75,7 +75,7 @@ static void recvMessageOnIf2(struct Message* message, struct Interface* iface)
 }
 
 int init(const uint8_t* privateKey,
-         const uint8_t* publicKey,
+         uint8_t* publicKey,
          const uint8_t* password,
          bool authenticatePackets)
 {

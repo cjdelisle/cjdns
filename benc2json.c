@@ -11,9 +11,17 @@
 #include "memory/BufferAllocator.h"
 
 #include <assert.h>
+#include <unistd.h>
+#include <stdio.h>
 
 int main(int argc, char** argv)
 {
+    if (isatty(STDIN_FILENO)) {
+        printf("Usage: %s < data.benc > data.json\n       %s r < data.json > data.benc\n",
+               argv[0], argv[0]);
+        return 0;
+    }
+
     uint8_t buffer[1<<20];
     struct MemAllocator* allocator = BufferAllocator_new(buffer, 1<<20);
 

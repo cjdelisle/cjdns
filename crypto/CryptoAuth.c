@@ -11,6 +11,7 @@
 #include "crypto_stream_xsalsa20.h"
 
 #include "crypto/Crypto.h"
+#include "crypto/CryptoAuth.h"
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
@@ -328,11 +329,18 @@ static inline bool knowHerKey(struct Wrapper* wrapper)
     return (herKey[0] | herKey[1] | herKey[2] | herKey[3]) != 0;
 }
 
-static inline uint32_t obfuscateNonce(uint32_t nonce_be, struct Wrapper* wrapper)
+static inline uint32_t obfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrapper)
 {
-    return nonce_be
-        ^ *((uint32_t*)wrapper->herPerminentPubKey)
-        ^ *((uint32_t*)wrapper->context->publicKey);
+    return CryptoAuth_obfuscateNonce(nonce_be,
+                                     ((uint32_t*)wrapper->herPerminentPubKey),
+                                     ((uint32_t*)wrapper->context->publicKey));
+}
+
+static inline uint32_t deobfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrapper)
+{
+    return CryptoAuth_deobfuscateNonce(nonce_be,
+                                       ((uint32_t*)wrapper->herPerminentPubKey),
+                                       ((uint32_t*)wrapper->context->publicKey));
 }
 
 /**
@@ -376,9 +384,7 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
 
-    header->nonce = obfuscateNonce(Endian_hostToBigEndian32(wrapper->nextNonce), wrapper);
-
-    // garbage the auth field to frustrate DPI and set the nonce.
+    // garbage the auth field to frustrate DPI and set the nonce (next 24 bytes after the auth)
     randombytes((uint8_t*) &header->handshake.auth, sizeof(union Headers_AuthChallenge) + 24);
 
     if (!knowHerKey(wrapper)) {
@@ -395,6 +401,10 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     header->handshake.auth.challenge.type = wrapper->authType;
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
+
+    // set and obfuscate the session state
+    header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
+    header->nonce = obfuscateNonce((uint32_t*)&header->nonce, wrapper);
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
@@ -466,8 +476,9 @@ static inline uint8_t encryptMessage(struct Message* message,
 
     Message_shift(message, 4);
 
-    ((union Headers_CryptoAuth*) message->bytes)->nonce =
-        obfuscateNonce(Endian_hostToBigEndian32(wrapper->nextNonce), wrapper);
+    uint32_t* noncePtr = &((union Headers_CryptoAuth*) message->bytes)->nonce;
+    *noncePtr = Endian_hostToBigEndian32(wrapper->nextNonce);
+    *noncePtr = obfuscateNonce(noncePtr, wrapper);
 
     wrapper->nextNonce++;
 
@@ -654,12 +665,12 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 
     Message_shift(received, -4);
 
-    uint32_t nonce = Endian_bigEndianToHost32(obfuscateNonce(header->nonce, wrapper));
+    uint32_t nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce, wrapper));
 
     if (wrapper->nextNonce < 5) {
         if (!knowHerKey(wrapper) && received->length >= sizeof(union Headers_CryptoAuth) - 4) {
             memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
-            nonce = Endian_bigEndianToHost32(obfuscateNonce(header->nonce, wrapper));
+            nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce, wrapper));
             memset(wrapper->herPerminentPubKey, 0, 32);
         }
         if (nonce > 3 && header->nonce != 0) {

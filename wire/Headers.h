@@ -107,6 +107,7 @@ struct Headers_Error
     } cause;
 };
 #define Headers_Error_SIZE 260
+#define Headers_Error_MAX_LENGTH 255
 Assert_assertTrue(sizeof(struct Headers_Error) == Headers_Error_SIZE);
 
 /**
@@ -289,7 +290,7 @@ union Headers_CryptoAuth
         uint8_t nonce[24];
 
         /**
-         * The perminent public key.
+         * The permanent public key.
          * In the second cycle, this is zeros encrypted with the final shared secret,
          * used as a sanity check.
          */

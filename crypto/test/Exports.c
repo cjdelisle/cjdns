@@ -13,7 +13,7 @@
  * while still allowing them to be inlined in larger functions.
  */
 
-uint32_t Exports_obfuscateNonce(uint32_t nonce_be, void* vWrapper)
+uint32_t Exports_obfuscateNonce(uint32_t* nonce_be, void* vWrapper)
 {
     return obfuscateNonce(nonce_be, (struct Wrapper*) vWrapper);
 }

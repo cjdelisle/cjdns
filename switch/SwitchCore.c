@@ -85,23 +85,22 @@ static inline void sendError(struct SwitchInterface* interface,
         // Errors never cause other errors to be sent.
         return;
     }
-    struct ErrorPacket err;
+    // Just swap the error into the message used for the cause.
+    struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
+    uint8_t errLength =
+        (cause->length >= Headers_Error_MAX_LENGTH) ? cause->length : Headers_Error_MAX_LENGTH;
 
-    err.switchHeader.label_be = Bits_bitReverse64(header->label_be);
-    Headers_setPriorityFragmentNumAndMessageType(&err.switchHeader,
+    memcpy(err->error.cause.bytes, cause->bytes, errLength);
+
+    err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
+    Headers_setPriorityFragmentNumAndMessageType(&err->switchHeader,
                                                  Headers_getPriority(header),
                                                  0,
                                                  MessageType_ERROR);
-    err.error.errorType_be = Endian_hostToBigEndian16(code);
-    err.error.length =
-        ((cause->length >= SwitchCore_MAX_INTERFACES)
-            ? cause->length : SwitchCore_MAX_INTERFACES - 1);
-    memcpy(err.error.cause.bytes, cause->bytes, err.error.length);
+    err->error.errorType_be = Endian_hostToBigEndian16(code);
+    err->error.length = errLength;
 
-    // Just swap the error into the message used for the cause.
-    cause->bytes = (uint8_t*) &err;
-    cause->length =
-        sizeof(err) - ((SwitchCore_MAX_INTERFACES - 1) - err.error.length);
+    cause->length = sizeof(struct ErrorPacket) - (255 - errLength);
     sendMessage(interface, cause);
 }
 
@@ -115,7 +114,7 @@ void receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
-        // runt packet, don't bother trying to respond, there's no readable header anyway.
+        // runt packet, don't bother trying to respond.
         return;
     }
 
@@ -132,6 +131,7 @@ void receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
+
     if (destIndex >= core->interfaceCount) {
         // No such interface
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
@@ -241,6 +241,7 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
 
     iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
+    core->interfaceCount++;
 
     return 0;
 }

@@ -38,14 +38,14 @@ static const char* thirtyTwoSpaces = "                                ";
 
 static inline int outOfContent()
 {
-    printf("ran out of content to read");
+    printf("ran out of content to read.\n");
     return -2;
 }
 #define OUT_OF_CONTENT_TO_READ outOfContent()
 
 static inline int unparsable()
 {
-    printf("failed to parse data");
+    printf("failed to parse data.\n");
     return -3;
 }
 #define UNPARSABLE unparsable()
@@ -78,15 +78,11 @@ static int32_t serializeString(const struct Writer* writer,
 static inline int readUntil(uint8_t target, const struct Reader* reader)
 {
     uint8_t nextChar;
-    if (reader->read((char*)&nextChar, 0, reader)) {
-        return OUT_OF_CONTENT_TO_READ;
-    }    
-    while (nextChar != target) {
+    do {
         if (reader->read((char*)&nextChar, 1, reader)) {
             return OUT_OF_CONTENT_TO_READ;
         }
-    }
-    reader->skip(1, reader);
+    } while (nextChar != target);
     return 0;
 }
 
@@ -212,6 +208,37 @@ static int32_t serializeList(const struct Writer* writer,
     return serializeListWithPadding(writer, 0, list);
 }
 
+/**
+ * Parse a comment in with "slash splat" or double slash notation,
+ * leave the reader on the first character after the last end of comment mark.
+ */
+static inline int parseComment(const struct Reader* reader)
+{
+    char chars[2];
+    int ret = reader->read(&chars, 2, reader);
+    if (ret) {
+        return OUT_OF_CONTENT_TO_READ;
+    }
+    if (chars[0] != '/') {
+        return UNPARSABLE;
+    }
+    switch (chars[1]) {
+        case '*':;
+            do {
+                readUntil('*', reader);
+            } while (!(ret = reader->read(&chars, 1, reader)) && chars[0] != '/');
+            if (ret) {
+                return OUT_OF_CONTENT_TO_READ;
+            }
+
+        case '/':;
+            return readUntil('\n', reader);
+            
+    }
+
+    return UNPARSABLE;
+}
+
 /** @see BencSerializer.h */
 static int32_t parseList(const struct Reader* reader,
                          const struct MemAllocator* allocator,
@@ -237,15 +264,41 @@ static int32_t parseList(const struct Reader* reader,
         lastEntryPointer = &(thisEntry->next);
 
         for (;;) {
-            if (reader->read(&nextChar, 1, reader) != 0) {
+            if (reader->read(&nextChar, 0, reader) != 0) {
                 return OUT_OF_CONTENT_TO_READ;
             }
-            if (nextChar == ']') {
-                thisEntry->next = NULL;
-                return 0;
-            } else if (nextChar == ',') {
-                break;
+            if (nextChar == '/') {
+                if ((ret = parseComment(reader)) != 0) {
+                    return ret;
+                }
+                continue;
             }
+            reader->skip(1, reader);
+
+            switch (nextChar) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case '[':
+                case '{':
+                case '"':
+                    break;
+
+                case ']':
+                    thisEntry->next = NULL;
+                    return 0;
+
+                default:
+                    continue;
+            }
+            break;
         }
     }
 }
@@ -313,6 +366,10 @@ static int32_t parseDictionary(const struct Reader* reader,
                     *output = lastEntryPointer;
                     return 0;
 
+                case '/':
+                    parseComment(reader);
+                    continue;
+
                 default:
                     reader->skip(1, reader);
                     continue;
@@ -328,7 +385,6 @@ static int32_t parseDictionary(const struct Reader* reader,
             return ret;
         }
 
-        // Get the :
         readUntil(':', reader);
 
         if ((ret = parseGeneric(reader, allocator, &value)) != 0) {
@@ -343,14 +399,6 @@ static int32_t parseDictionary(const struct Reader* reader,
         entryPointer->val = value;
         lastEntryPointer = entryPointer;
     }
-}
-
-static inline int parseComment(const struct Reader* reader)
-{
-    char c;
-    int ret = reader->read(&c, 0, reader);
-    ret = ret;
-    return UNPARSABLE;
 }
 
 static int32_t parseGeneric(const struct Reader* reader,
@@ -368,6 +416,12 @@ static int32_t parseGeneric(const struct Reader* reader,
             case '\n':
             case '\t':
                 reader->skip(1, reader);
+                continue;
+
+            case '/':;
+                if ((ret = parseComment(reader)) != 0) {
+                    return ret;
+                }
                 continue;
 
             default:
@@ -422,9 +476,6 @@ static int32_t parseGeneric(const struct Reader* reader,
             out->type = BENC_BSTR;
             out->as.bstr = string;
             break;
-
-        case '/':;
-            return parseComment(reader);
 
         default:
             return UNPARSABLE;

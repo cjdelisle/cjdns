@@ -113,8 +113,10 @@ static void runSearch(void* vcontext)
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (nodes->size == 0 || nodes->nodes[nodes->size - 1]->reach == 0) {
+/*
 String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &targetAddr.ip6.bytes }, tempAllocator);
 printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, NodeStore_size(janitor->nodeStore), (long) janitor->routerModule->totalReach);
+*/
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,

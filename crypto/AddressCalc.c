@@ -9,5 +9,4 @@ void AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[3
     crypto_hash_sha512(hash, key, 32);
     crypto_hash_sha512(hash, hash, crypto_hash_sha512_BYTES);
     memcpy(addressOut, hash, 16);
-    addressOut[0] = 0xFC;
 }

@@ -1,12 +1,6 @@
-#include <stdio.h>
-#include <string.h>
-
-#include "exception/ExceptionHandler.h"
-#include "libbenc/benc.h"
-#include "memory/MemAllocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/Hex.h"
 
+#include <stdint.h>
 #include <stdbool.h>
 
 static const uint8_t numForAscii[] =
@@ -19,60 +13,64 @@ static const uint8_t numForAscii[] =
     99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
     99,10,11,12,13,14,15,99,99,99,99,99,99,99,99,99,
     99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
-    99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,
 };
 
-String* Hex_encode(const String* input, const struct MemAllocator* allocator)
+int Hex_encode(uint8_t* output,
+               const uint32_t outputLength,
+               const uint8_t* in,
+               const uint32_t inputLength)
 {
-    String* out = benc_newBinaryString(NULL, input->len * 2, allocator);
-    for(uint32_t i = 0; i < input->len; i++) {
-        sprintf(&out->bytes[2 * i], "%02x", input->bytes[i] & 0xFF);
+    if (outputLength < inputLength * 2) {
+        return Hex_TOO_BIG;
+    } else if (outputLength > inputLength * 2) {
+        output[inputLength * 2] = '\0';
     }
-    return out;
+
+    static const char* hexEntities = "0123456789abcdef";
+
+    for (uint32_t i = 0; i < inputLength; i++) {
+        output[i * 2] = hexEntities[in[i] >> 4];
+        output[i * 2 + 1] = hexEntities[in[i] & 15];
+    }
+
+    return inputLength * 2;
 }
 
 int Hex_decodeByte(const uint8_t highNibble, const uint8_t lowNibble)
 {
+    if ((highNibble & 0x80) | (lowNibble & 0x80)) {
+        return -1;
+    }
     int high = numForAscii[highNibble];
     int low = numForAscii[lowNibble];
     return (high + low < 31) ? (high << 4) | low : -1;
 }
 
-String* Hex_decode(const String* input,
-                   const struct MemAllocator* allocator,
-                   struct ExceptionHandler* eHandler)
+bool Hex_isHexEntity(const uint8_t character)
 {
-    uint8_t* hex = (uint8_t*) input->bytes;
-    size_t length = input->len;
-    if ((size_t)(length &~ 2) != length) {
-        eHandler->exception(__FILE__ " Hex_decode(): Input is not an even number of characters.",
-                            -1, eHandler);
-        return NULL;
-    }
+    return !(character & 0x80) && (numForAscii[character] < 99);
+}
 
-    String* out = benc_newBinaryString(NULL, length / 2, allocator);
+int Hex_decode(uint8_t* output,
+               const uint32_t outLength,
+               const uint8_t* hex,
+               const uint32_t length)
+{
+    if (length % 1) {
+        return Hex_BAD_INPUT;
+    } else if (outLength < (length / 2)) {
+        return Hex_TOO_BIG;
+    } else if (outLength > (length / 2)) {
+        output[length / 2] = '\0';
+    }
 
     for (uint32_t i = 0; i < length; i += 2) {
         int byte = Hex_decodeByte(hex[i], hex[i + 1]);
         if (byte == -1) {
-            eHandler->exception(__FILE__ " Hex_decode(): Input contains a character which is not "
-                                "0-9 a-f or A-F", -2, eHandler);
-            return NULL;
+            return Hex_BAD_INPUT;
         }
-        out->bytes[i / 2] = (uint8_t) byte;
+        output[i / 2] = (uint8_t) byte;
     }
 
-    return out;
-}
-
-bool Hex_isHexEntity(const uint8_t character)
-{
-    return numForAscii[character] < 99;
+    return length / 2;
 }

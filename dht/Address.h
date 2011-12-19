@@ -86,7 +86,7 @@ static inline void Address_forKey(struct Address* out, const uint8_t key[Address
 
 static inline void Address_printNetworkAddress(uint8_t output[20], struct Address* input)
 {
-    sprintf((char*)output, "%01x%01x.%01x%01x.%01x%01x.%01x%01x",
+    sprintf((char*)output, "%.2x%.2x.%.2x%.2x.%.2x%.2x.%.2x%.2x",
             input->networkAddress[0],
             input->networkAddress[1],
             input->networkAddress[2],
@@ -100,7 +100,7 @@ static inline void Address_printNetworkAddress(uint8_t output[20], struct Addres
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)
 {
     Address_getPrefix(addr);
-    sprintf((char*)output, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+    sprintf((char*)output, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
             addr->ip6.bytes[ 0],
             addr->ip6.bytes[ 1],
             addr->ip6.bytes[ 2],

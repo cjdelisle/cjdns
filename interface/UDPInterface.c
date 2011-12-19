@@ -72,6 +72,8 @@ struct UDPInterface
      * It is used by UDPInterface_bindToCurrentEndpoint(), the rest of the time it is NULL.
      */
     struct sockaddr_storage* defaultInterfaceSender;
+
+    uint8_t* messageBuff;
 };
 
 struct Endpoint
@@ -138,6 +140,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       struct ExceptionHandler* exHandler)
 {
     struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
+
+    context->messageBuff = allocator->calloc(MAX_PACKET_SIZE + 16, 1, allocator);
     
     context->allocator = allocator;
 
@@ -262,9 +266,9 @@ struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
 struct Interface* UDPInterface_getDefaultInterface(struct UDPInterface* context)
 {
     if (context->defaultInterface == NULL) {
-        struct sockaddr_storage zeroStore;
-        memset(&zeroStore, 0, sizeof(struct sockaddr_storage));
-        context->defaultInterface = insertEndpoint(&zeroStore, context);
+        struct sockaddr_storage sockaddrZero;
+        memset(&sockaddrZero, 0, sizeof(struct sockaddr_storage));
+        context->defaultInterface = insertEndpoint(&sockaddrZero, context);
     }
     return context->defaultInterface;
 }
@@ -310,9 +314,8 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
-    uint8_t messageBuff[MAX_PACKET_SIZE + 16];
     struct Message message =
-        { .bytes = messageBuff + 16, .padding = 16, .length = MAX_PACKET_SIZE };
+        { .bytes = context->messageBuff + 16, .padding = 16, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));

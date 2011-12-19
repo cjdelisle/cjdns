@@ -60,6 +60,8 @@ target_link_libraries(cjdroute
     switch
     dht
     dhtcore
+    benc
+    benc_JsonBencSerializer
     MemAllocator
     ${LIBEVENT_LIBRARIES}
 )
