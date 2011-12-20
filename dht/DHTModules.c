@@ -31,14 +31,8 @@ struct DHTModuleRegistry* DHTModules_new(struct MemAllocator* allocator)
     struct DHTModuleRegistry* reg =
         allocator->calloc(sizeof(struct DHTModuleRegistry), 1, allocator);
     reg->allocator = allocator;
-    struct DHTModule** newMembersList = allocator->calloc(sizeof(void*), 1, allocator);
-    if (reg && newMembersList) {
-        reg->members = newMembersList;
-        return reg;
-    }
-    if (reg) { free(reg); }
-    if (newMembersList) { free(newMembersList); }
-    return NULL;
+    reg->members = allocator->calloc(sizeof(char*), 1, allocator);
+    return reg;
 }
 
 /** @see DHTModules.h */

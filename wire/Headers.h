@@ -149,6 +149,7 @@ union Headers_AuthChallenge
         uint16_t additional;
     } challenge;
     uint8_t bytes[12];
+    uint32_t ints[3];
 };
 /** Total size of the auth structure. */
 #define Headers_AuthChallenge_SIZE 12
@@ -195,11 +196,11 @@ static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallen
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    0 |                          System State                         |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    4 |   Auth Type   |                                               |
- *      +-+-+-+-+-+-+-+-+      Authentication Hash Code                 +
- *    8 |                                                               |
- *      +                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *   12 |                               |A|      Auth Derivations       |
+ *    4 |                                                               |
+ *      +                                                               +
+ *    8 |                   Obfuscated Auth Challenge                   |
+ *      +                                                               +
+ *   12 |                                                               |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *   16 |                                                               |
  *      +                                                               +
@@ -267,10 +268,25 @@ static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallen
  * If there is already a connection over the interface, the recipient SHOULD NOT respond
  * but MAY allow the connection to time out faster.
  *
- * If the "System State" field is equal to the obfuscated value of zero, the packet is a
- * "hello" packet. If no connection is present, one should be established and the recipient
- * MAY send a "key" packet in response but it is RECOMMENDED that he wait until he has data
- * to send first. 
+ * If the "System State" field is equal to the obfuscated value of zero or one, the packet
+ * is a "hello" packet. If no connection is present, one should be established and the
+ * recipient MAY send a "key" packet in response but it is RECOMMENDED that he wait until
+ * he has data to send first. A node who has sent a hello packet and gotten no response and
+ * now wishes to send more data MUST send that data as more hello packets.
+ *
+ * If the "System State" field is equal to the obfuscated value of two or three, the packet
+ * is a "key" packet. Key packets are responses to hello packets. Once a node receives a key
+ * packet it may begin sending data packets. A node who has received a hello packet, sent a
+ * key packet and gotten no further response who now wishes to send more data MUST send that
+ * data as more key packets.
+ *
+ * All hello and key packets have an obfuscated auth challenge, this is obfuscated using the
+ * same method as the nonce obfuscation, 4 bytes at a time. The last 4 bytes of the auth
+ * challenge is obfuscated first using the first 4 bytes of the 24 byte random nonce, then
+ * the second 4 bytes, the first 4 bytes, and finally the session state, each are obfuscated
+ * using the last as a salt.
+ * Deobfuscation is the reverse process, starting with the session state and proceeding through
+ * to the last 4 bytes of the auth challenge.
  */
 union Headers_CryptoAuth
 {
@@ -280,10 +296,11 @@ union Headers_CryptoAuth
         /**
          * This will be zero for the first handshake and one for the second.
          * any higher number is interpreted to mean that this is not a handshake.
+         * obfuscated when on the wire.
          */
         uint32_t handshakeStage;
 
-        /** Used for authenticating routers to one another. */
+        /** Used for authenticating routers to one another, obfuscated when on the wire. */
         union Headers_AuthChallenge auth;
 
         /** Random nonce for the handshake. */
@@ -325,5 +342,13 @@ struct Headers_IP6Header
 };
 #define Headers_IP6Header_SIZE 40
 Assert_assertTrue(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
+
+struct Headers_UDPHeader {
+    uint32_t sourceAndDestPorts;
+    uint16_t length_be;
+    uint16_t checksum_be;
+};
+#define Headers_UDPHeader_SIZE 8
+Assert_assertTrue(sizeof(struct Headers_UDPHeader) == Headers_UDPHeader_SIZE);
 
 #endif

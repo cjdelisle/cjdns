@@ -17,13 +17,19 @@ static inline int Bits_log264(uint64_t number)
  */
 static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
 {
-    uint64_t out = 0;
-    for (uint32_t i = 0; i < 64; i++) {
-        out |= toReverse & 1;
-        out <<= 1;
-        toReverse >>= 1;
-    }
-    return out;
+    #define Bits_rotateAndMask(mask, rotateBits) \
+        toReverse = ((toReverse >> rotateBits) & mask) | ((toReverse & mask) << rotateBits)
+
+    Bits_rotateAndMask(0x5555555555555555ull,  1);
+    Bits_rotateAndMask(0x3333333333333333ull,  2);
+    Bits_rotateAndMask(0x0F0F0F0F0F0F0F0Full,  4);
+    Bits_rotateAndMask(0x00FF00FF00FF00FFull,  8);
+    Bits_rotateAndMask(0x0000FFFF0000FFFFull, 16);
+    Bits_rotateAndMask(0x00000000FFFFFFFFull, 32);
+
+    return toReverse;
+
+    #undef Bits_rotateAndMask
 }
 
 #endif

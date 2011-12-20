@@ -44,6 +44,7 @@ struct SwitchCore
 {
     struct SwitchInterface interfaces[SwitchCore_MAX_INTERFACES];
     uint32_t interfaceCount;
+    bool routerAdded;
 
     struct MemAllocator* allocator;
 };
@@ -162,7 +163,6 @@ void receiveMessage(struct Message* message, struct Interface* iface)
         return;
     }
 
-
     header->label_be =
         Endian_hostToBigEndian64(
             (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIfIndex, bits)));
@@ -199,14 +199,19 @@ int SwitchCore_addInterface(struct Interface* iface,
                             uint64_t* labelOut_be,
                             struct SwitchCore* core)
 {
-    if (core->interfaceCount == 1) {
-        // This is necessary because the router interface must always be at index 1.
-        core->interfaceCount++;
+    uint32_t ifIndex;
+
+    // This is some hackery to make sure the router interface is always index 1.
+    if (core->interfaceCount == 1 && core->routerAdded) {
+        ifIndex = 0;
+    } else {
+        ifIndex = core->interfaceCount;
     }
-    if (core->interfaceCount == SwitchCore_MAX_INTERFACES) {
+
+    if (ifIndex == SwitchCore_MAX_INTERFACES) {
         return -1;
     }
-    memcpy(&core->interfaces[core->interfaceCount], &(struct SwitchInterface) {
+    memcpy(&core->interfaces[ifIndex], &(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
@@ -215,17 +220,18 @@ int SwitchCore_addInterface(struct Interface* iface,
     }, sizeof(struct SwitchInterface));
 
     iface->allocator->onFree(removeInterface,
-                             &core->interfaces[core->interfaceCount],
+                             &core->interfaces[ifIndex],
                              iface->allocator);
 
-    iface->receiverContext = &core->interfaces[core->interfaceCount];
+    iface->receiverContext = &core->interfaces[ifIndex];
     iface->receiveMessage = receiveMessage;
 
-    uint32_t bits = NumberCompress_bitsUsedForNumber(core->interfaceCount);
-    uint64_t label = NumberCompress_getCompressed(core->interfaceCount, bits) | (1 << bits);
+    uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
+    uint64_t label = NumberCompress_getCompressed(ifIndex, bits) | (1 << bits);
     *labelOut_be = Endian_hostToBigEndian64(label);
 
     core->interfaceCount++;
+
     return 0;
 }
 
@@ -242,6 +248,7 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
     iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
     core->interfaceCount++;
+    core->routerAdded = true;
 
     return 0;
 }

@@ -343,6 +343,23 @@ static inline uint32_t deobfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrap
                                        ((uint32_t*)wrapper->context->publicKey));
 }
 
+static inline void obfuscateAuth(union Headers_AuthChallenge* auth, struct Wrapper* wrapper)
+{
+    auth->ints[2] = obfuscateNonce(auth->ints + 2, wrapper);
+    auth->ints[1] = obfuscateNonce(auth->ints + 1, wrapper);
+    auth->ints[0] = obfuscateNonce(auth->ints, wrapper);
+}
+
+static inline void deobfuscateAuth(union Headers_AuthChallenge* auth,
+                                   uint32_t herPublicKey[8],
+                                   struct Wrapper* wrapper)
+{
+    uint32_t* myPubKey = (uint32_t*) wrapper->context->publicKey;
+    auth->ints[0] = CryptoAuth_deobfuscateNonce(auth->ints, herPublicKey, myPubKey);
+    auth->ints[1] = CryptoAuth_deobfuscateNonce(auth->ints + 1, herPublicKey, myPubKey);
+    auth->ints[2] = CryptoAuth_deobfuscateNonce(auth->ints + 2, herPublicKey, myPubKey);
+}
+
 /**
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
@@ -369,8 +386,8 @@ static uint8_t genReverseHandshake(struct Message* message,
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
 
-    // We don't want the beginning of our message
-    // being shifted in to the encryptedTempKey field
+    // sessionState must be 0, auth and 24 byte nonce are garbaged and public key is set
+    // now garbage the authenticator and the encrypted key which are not used.
     randombytes((uint8_t*) &header->handshake.authenticator, 48);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
@@ -401,6 +418,9 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     header->handshake.auth.challenge.type = wrapper->authType;
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
+
+    // Obfuscate the authentication header.
+    obfuscateAuth(&header->handshake.auth, wrapper);
 
     // set and obfuscate the session state
     header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
@@ -579,6 +599,9 @@ static void decryptHandshake(struct Wrapper* wrapper,
         sendMessage(message, &wrapper->externalInterface);
         return;
     }
+
+    // Deobfuscate the auth header.
+    deobfuscateAuth(&header->handshake.auth, (uint32_t*) header->handshake.publicKey, wrapper);
 
     void* user = NULL;
     uint8_t passwordHashStore[32];

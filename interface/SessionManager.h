@@ -24,7 +24,8 @@
  * @return a wrapper interface.
  */
 struct Interface* SessionManager_wrapInterface(uint16_t keySize,
-                                               int32_t keyOffset,
+                                               int32_t incomingKeyOffset,
+                                               int32_t outgoingKeyOffset,
                                                struct Interface* toWrap,
                                                struct event_base* eventBase,
                                                struct CryptoAuth* cryptoAuth,
@@ -32,6 +33,11 @@ struct Interface* SessionManager_wrapInterface(uint16_t keySize,
 
 void SessionManager_setKey(struct Message* message,
                            uint8_t key[32],
+                           bool isOutgoingMessage,
                            struct Interface* sessionManagerIface);
+
+struct Interface* SessionManager_getSession(struct Message* message,
+                                            bool isOutgoingMessage,
+                                            struct Interface* sessionManagerIface);
 
 #endif

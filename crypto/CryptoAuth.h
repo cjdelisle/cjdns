@@ -88,9 +88,9 @@ void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
 
 /**
- * Obfuscate the nonce so traffic type cannot easily be detected statelessly.
+ * Obfuscate the nonce so traffic type cannot be detected statelessly.
  * This does not guarantee that traffic type cannot be detected if packets are compared
- * to older packets.
+ * to older packets or the intercepting box knows the public keys of the nodes.
  *
  * This function takes the nonce and a piece of salt data which is available at both ends, the
  * salt is used to extract information from the public keys of each node and that information,
@@ -111,10 +111,8 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
  * tkRot: How many bits to rotate the 4 bytes which were sampled from their key.
  * okRot: How many bits to rotate the 4 bytes which were sampled from our key.
  *
- * tks: "their key sample", 4 bytes sampled from their permanent public key at offset TKI * 4,
- *      and rotated TKROT bits.
- * oks: "their key sample", 4 bytes sampled from their permanent public key at offset OKI * 4,
- *      and rotated OKROT bits.
+ * tks: "their key sample", 4 bytes sampled from their permanent public key at offset TKI * 4.
+ * oks: "our key sample", 4 bytes sampled from our permanent public key at offset OKI * 4.
  *
  * NOTE: rotate() means rotate right on little endian architectures and rotate left on big endian.
  *       this allows for interoperability without needing to byte swap tks and oks for rotating,
@@ -130,24 +128,23 @@ static inline uint32_t CryptoAuth_obfuscateNonce(uint32_t nonceAndSalt[2],
                                                  uint32_t theirKey[8],
                                                  uint32_t ourKey[8])
 {
-    #define rotate(number, bits) \
+    #define CryptoAuth_rotate(number, bits) \
         (Endian_isBigEndian()                                    \
             ? ((number << (bits)) | (number >> (32 - (bits))))   \
             : ((number >> (bits)) | (number << (32 - (bits)))))
 
     uint32_t salt = Endian_bigEndianToHost32(nonceAndSalt[1]);
-
-    #define TKI salt % 8
-    #define OKI (salt >> 3) % 8
     uint32_t tkRot = (salt >> 6) % 32;
     uint32_t okRot = (salt >> 11) % 32;
+    uint32_t tks = theirKey[salt % 8];
+    uint32_t oks = ourKey[(salt >> 3) % 8];
 
-    uint32_t tks = theirKey[TKI];
-    uint32_t oks = ourKey[OKI];
+    return nonceAndSalt[0]
+        ^ CryptoAuth_rotate(tks, tkRot)
+        ^ CryptoAuth_rotate(oks, okRot)
+        ^ nonceAndSalt[1];
 
-    return nonceAndSalt[0] ^ rotate(tks, tkRot) ^ rotate(oks, okRot) ^ nonceAndSalt[1];
-
-    #undef rotate
+    #undef CryptoAuth_rotate
 }
 #define CryptoAuth_deobfuscateNonce(nonceAndData, theirKey, ourKey) \
     CryptoAuth_obfuscateNonce(nonceAndData, ourKey, theirKey)
