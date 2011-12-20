@@ -174,10 +174,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         }
     }
 
-
-
     evutil_make_socket_nonblocking(context->socket);
-
 
     context->incomingMessageEvent =
         event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);

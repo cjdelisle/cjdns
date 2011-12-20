@@ -336,11 +336,13 @@ static inline uint32_t obfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrappe
                                      ((uint32_t*)wrapper->context->publicKey));
 }
 
-static inline uint32_t deobfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrapper)
+static inline uint32_t deobfuscateNonce(uint32_t* nonce_be,
+                                        uint8_t herPublicKey[32],
+                                        struct Wrapper* wrapper)
 {
     return CryptoAuth_deobfuscateNonce(nonce_be,
-                                       ((uint32_t*)wrapper->herPerminentPubKey),
-                                       ((uint32_t*)wrapper->context->publicKey));
+                                       (uint32_t*) herPublicKey,
+                                       (uint32_t*)wrapper->context->publicKey);
 }
 
 static inline void obfuscateAuth(union Headers_AuthChallenge* auth, struct Wrapper* wrapper)
@@ -688,14 +690,18 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 
     Message_shift(received, -4);
 
-    uint32_t nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce, wrapper));
+    uint32_t nonce;
+    if (!knowHerKey(wrapper) && received->length >= Headers_CryptoAuth_SIZE - 4) {
+        nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce,
+                                                          header->handshake.publicKey,
+                                                          wrapper));
+    } else {
+        nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce,
+                                                          wrapper->herPerminentPubKey,
+                                                          wrapper));
+    }
 
     if (wrapper->nextNonce < 5) {
-        if (!knowHerKey(wrapper) && received->length >= sizeof(union Headers_CryptoAuth) - 4) {
-            memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
-            nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce, wrapper));
-            memset(wrapper->herPerminentPubKey, 0, 32);
-        }
         if (nonce > 3 && header->nonce != 0) {
             uint8_t secret[32];
             getSharedSecret(secret,
@@ -812,4 +818,14 @@ void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 {
     return ((struct Wrapper*) interface->senderContext)->herPerminentPubKey;
+}
+
+void CryptoAuth_getSession(struct Session* output, struct Interface* interface)
+{
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
+    output->isInitiator = wrapper->isInitiator;
+    output->nextNonce = wrapper->nextNonce;
+    memcpy(output->sharedSecret, wrapper->secret, 32);
+assert(!wrapper->authenticatePackets);
+    output->exists = true;
 }

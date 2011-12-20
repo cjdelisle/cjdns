@@ -4,13 +4,14 @@
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/SwitchConnectorModule.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"
-#include "util/Assert.h"
+#include "util/Bits.h"
 #include "util/Hex.h"//debugging
 #include "wire/Headers.h"
 
@@ -52,6 +53,9 @@ struct Context
 
     struct RouterModule* routerModule;
 
+    /** The interface which is used by the operator of the node to communicate in the network. */
+    struct Interface* routerIf;
+
     /**
      * A map of interfaces by switch label.
      * Used for CryptoAuth sessions which are in the process of being setup.
@@ -81,15 +85,6 @@ static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
 
 /*--------------------Interface--------------------*/
-
-/*
-static inline void incomingIP6(struct Message* message,
-                               struct Interface* interface,
-                               struct Headers_SwitchHeader* header,
-                               struct Context context)
-{
-
-}*/
 
 static inline void incomingDHT(struct Message* message,
                                struct Address* addr,
@@ -153,6 +148,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     context->switchHeader = &switchHeader;
 
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
+    // This comes out at outgoingFromMe()
     assert(!context->contentSmInside->sendMessage(&message, context->contentSmInside));
     return 0;
 }
@@ -290,7 +286,14 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
                 sendTo->session.sharedSecret,
                 sendTo->session.isInitiator);
         Message_shift(message, 4);
-        memcpy(message->bytes, &sendTo->session.nextNonce, 4);
+
+        uint32_t nonce_be = Endian_hostToBigEndian32(sendTo->session.nextNonce);
+        memcpy(message->bytes, &nonce_be, 4);
+        uint32_t obfuscatedNonce =
+            CryptoAuth_obfuscateNonce((uint32_t*) message->bytes,
+                                      (uint32_t*) sendTo->address.key,
+                                      (uint32_t*) context->myAddr.key);
+        memcpy(message->bytes, &obfuscatedNonce, 4);
         sendTo->session.nextNonce++;
 
         memcpy(&context->switchHeader->label_be,
@@ -327,6 +330,36 @@ static inline bool isForMe(struct Message* message, struct Context* context)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     return (memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
+}
+
+// Called by the TUN device.
+static inline void ip6FromTun(struct Message* message,
+                              struct Interface* interface)
+{
+    if (!validIP6(message)) {
+        fprintf(stderr, "dropped message from TUN because it was not valid IPv6.\n");
+        return;
+    }
+
+    struct Context* context = (struct Context*) interface->receiverContext;
+
+    struct Headers_IP6Header header;
+    memcpy(&header, message->bytes, Headers_IP6Header_SIZE);
+
+    if (memcmp(&header.sourceAddr, context->myAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
+        fprintf(stderr, "dropped message because only one address is allowed to be used "
+                        "and the source address was different.\n");
+        return;
+    }
+
+    context->ip6Header = &header;
+
+    struct Headers_SwitchHeader switchHeader;
+    memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
+    context->switchHeader = &switchHeader;
+
+    // This comes out at outgoingFromMe()
+    assert(!context->contentSmInside->sendMessage(message, context->contentSmInside));
 }
 
 /**
@@ -406,6 +439,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 messageType);
         return 0;
     }
+
+    // The label comes in reversed from the switch because the switch doesn't know that we aren't
+    // another switch ready to parse more bits, bit reversing the label yields the source address.
+    switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
+
 printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switchHeader->label_be));
     struct Node* node = RouterModule_getNode((uint8_t*) &switchHeader->label_be,
                                              context->routerModule);
@@ -426,21 +464,18 @@ printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switch
                                         (uint32_t*) herKey,
                                         (uint32_t*) context->myAddr.key));
 printf("nonce %u\n", nonce);
-    if (nonce > 3) {
-
-        if (node && node->session.exists) {
+    if (nonce > 4 && node && node->session.exists) {
             Message_shift(message, -4);
             decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);
             return decryptedIncoming(message, context);
-        }
-        // Got a message which we can't handle, drop it and ping,
-        // causing a session to be negotiated.
-        RouterModule_pingNode((uint8_t*) &switchHeader->label_be, context->routerModule);
-        return 0;
     }
 
     // Nonce is <4, this is a crypto negotiation.
     struct Interface* iface = getCaSession(switchHeader, NULL, context);
+
+    if (nonce > 4 && node) {
+        CryptoAuth_getSession(&node->session, iface);
+    }
 
     // Null the message in the context then call cryptoAuth and if
     // it's nolonger null then the message is valid :/
@@ -465,6 +500,7 @@ printf("nonce %u\n", nonce);
 int SwitchConnectorModule_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
+                                   struct Interface* routerIf,
                                    struct SwitchCore* switchCore,
                                    struct event_base* eventBase,
                                    struct MemAllocator* allocator)
@@ -478,6 +514,12 @@ int SwitchConnectorModule_register(uint8_t privateKey[32],
     context->cryptoAuth = CryptoAuth_new(allocator, privateKey);
     CryptoAuth_getPublicKey(context->myAddr.key, context->cryptoAuth);
     Address_getPrefix(&context->myAddr);
+
+    if (routerIf) {
+        context->routerIf = routerIf;
+        routerIf->receiveMessage = ip6FromTun;
+        routerIf->receiverContext = context;
+    }
 
     #define PER_MESSAGE_BUF_SZ 16384
     uint8_t* messageBuffer = allocator->malloc(PER_MESSAGE_BUF_SZ, allocator);

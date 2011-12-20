@@ -9,6 +9,7 @@
 
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
+#include "libbenc/benc.h"
 
 #define MAX_PACKET_SIZE 1500
 #define PADDING_SPACE (1792 - MAX_PACKET_SIZE)
@@ -91,11 +92,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-struct Interface* TunInterface_new(const char* interfaceName,
+struct Interface* TunInterface_new(String* interfaceName,
                                    struct event_base* base,
                                    struct MemAllocator* allocator)
 {
-    int tunFileDesc = openTunnel(interfaceName);
+    int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL);
     if (tunFileDesc < 0) {
         if (errno == EPERM) {
             fprintf(stderr, "You don't have permission to open tunnel. "
@@ -103,7 +104,7 @@ struct Interface* TunInterface_new(const char* interfaceName,
         } else {
             fprintf(stderr, "Failed to open tunnel, error: %d", errno);
         }
-        abort();
+        return NULL;
     }
 
     evutil_make_socket_nonblocking(tunFileDesc);

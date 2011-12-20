@@ -11,6 +11,7 @@
 int SwitchConnectorModule_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
+                                   struct Interface* routerIf,
                                    struct SwitchCore* switchCore,
                                    struct event_base* eventBase,
                                    struct MemAllocator* allocator);

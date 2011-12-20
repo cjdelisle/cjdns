@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "crypto/Session.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
@@ -148,5 +149,7 @@ static inline uint32_t CryptoAuth_obfuscateNonce(uint32_t nonceAndSalt[2],
 }
 #define CryptoAuth_deobfuscateNonce(nonceAndData, theirKey, ourKey) \
     CryptoAuth_obfuscateNonce(nonceAndData, ourKey, theirKey)
+
+void CryptoAuth_getSession(struct Session* output, struct Interface* interface);
 
 #endif

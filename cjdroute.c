@@ -37,9 +37,7 @@ struct Context
 
     struct CryptoAuth* ca;
 
-//    struct Interface* tun;
-
-//    struct UDPInterface* udpContext;
+    struct Interface* routerIf;
 
     struct SwitchCore* switchCore;
 
@@ -100,35 +98,31 @@ static int genconf()
     printf
     (
         "{\n"
-        "    /**\n"
-        "     * Private key:\n"
-        "     * This key corrisponds to the public key: %s.k\n" /* publicKeyBase32 */
-        "     * And the ipv6 address: %s\n" /* address */
-        "     * Your confidentiality and data integrity depend on this key, keep it secret!\n"
-        "     */\n"
+        "     // Private key:\n"
+        "     // This key corrisponds to the public key: %s.k\n" /* publicKeyBase32 */
+        "     // And the ipv6 address: %s\n" /* address */
+        "     // Your confidentiality and data integrity depend on this key, keep it secret!\n"
+        "     //\n"
         "    \"privateKey\": \"%s\",\n" /* privateKeyHex */
         "\n"
-        "    /**\n"
-        "     * Anyone connecting and offering these passwords on connection will be allowed in.\n"
-        "     *\n"
-        "     * WARNING: Currently there is no key derivation done on the password field,\n"
-        "     *          DO NOT USE A PASSWORD HERE use something which is truely random and\n"
-        "     *          cannot be guessed.\n"
-        "     * Including a username in the beginning of the password string is encouraged\n"
-        "     * to aid in remembering which users are who.\n"
-        "     */\n"
+        "     // Anyone connecting and offering these passwords on connection will be allowed in.\n"
+        "     //\n"
+        "     // WARNING: Currently there is no key derivation done on the password field,\n"
+        "     //          DO NOT USE A PASSWORD HERE use something which is truely random and\n"
+        "     //          cannot be guessed.\n"
+        "     // Including a username in the beginning of the password string is encouraged\n"
+        "     // to aid in remembering which users are who.\n"
+        "     //\n"
         "    \"authorizedPasswords\": [\n"
         "        {\n"
-        "            /** A unique string which is known to the client and server. */\n"
+        "            // A unique string which is known to the client and server.\n"
         "            \"password\": \"Bob - 2Q4qAPGemxgrydSSetSmOWlE2YO8wYMSG2H1aBPolS3n\",\n"
         "\n"
-        "            /** the authentication type, currently only 1 is supported. */\n"
+        "            // the authentication type, currently only 1 is supported.\n"
         "            \"authType\": 1,\n"
         "\n"
-        "            /**\n"
-        "             * How much anti-flood trust to give a client\n"
-        "             * who connects with this password.\n"
-        "             */\n"
+        "            // How much anti-flood trust to give a client\n"
+        "            // who connects with this password.\n"
         "            \"trust\": 5000\n"
         "        },\n"
         "\n"
@@ -140,31 +134,31 @@ static int genconf()
         "        },*/\n"
         "    ],\n"
         "\n"
-        "    /** Interfaces to connect to the switch core. */\n"
+        "    // Interfaces to connect to the switch core.\n"
         "    \"interfaces\":\n"
         "    {\n"
-        "        /** The interface which connects over UDP/IP based VPN tunnel. */\n"
+        "        // The interface which connects over UDP/IP based VPN tunnel.\n"
         "        \"UDPInterface\":\n"
         "        {\n"
-        "            /** Bind to this port. */\n"
+        "            // Bind to this port.\n"
         "            \"bind\": \"127.0.0.1:10001\",\n"
         "\n"
-        "            /** Nodes to connect to. */\n"
+        "            // Nodes to connect to.\n"
         "            \"connectTo\":\n"
         "            {\n"
         "                \"127.0.0.1:10000\":\n"
         "                {\n"
-        "                    /** Password to present when connecting. */\n"
+        "                    // Password to present when connecting.\n"
         "                    \"password\": \"secret\",\n"
         "\n"
-        "                    /** The method of authenticating, only 1 is supported for now. */\n"
+        "                    // The method of authenticating, only 1 is supported for now.\n"
         "                    \"authType\": 1,\n"
         "\n"
-        "                    /** The public key of the node to connect to. */\n"
+        "                    // The public key of the node to connect to.\n"
         "                    \"publicKey\": "
         "\"y39gwfy5259s8fj4khntfy95bx6wxu5lbm2m132yx0ucrk0ruyx0.k\",\n"
         "\n"
-        "                    /** Anti-flood trust level. */\n"
+        "                    // Anti-flood trust level.\n"
         "                    \"trust\": 9000\n"
         "                },\n"
         "                /* You may connect to as many other nodes as you want.\n"
@@ -178,7 +172,26 @@ static int genconf()
         "                */\n"
         "            }\n"
         "        }\n"
+        "    },\n"
+        "\n"
+        "    // Configuration for the router.\n"
+        "    \"router\":\n"
+        "    {\n"
+        "        // The interface which is used for connecting to the cjdns network.\n"
+        "        \"interface\":\n"
+        "        {\n"
+        "            // The type of interface (only TUNInterface is supported for now)\n"
+        "            \"type\": \"TUNInterface\",\n"
+        "\n"
+        "            // The path to the TUN device of a specific device should be used,\n"
+        "            // this allows you to create a persistent TUN device with permissions set\n"
+        "            // so that cjdns does not need to run as root.\n"
+        "            //\"tunDevicePath\": \"/dev/net/tun0\"\n"
+        "        }\n"
         "    }\n"
+        "\n"
+        "    // Version of the config file, used internally for migration.\n"
+        "    \"version\": 0\n"
         "}\n",
         publicKeyBase32,
         address,
@@ -389,6 +402,17 @@ static void configureUDP(Dict* config, struct Context* ctx)
     }
 }
 
+static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* context)
+{
+    Dict* iface = benc_lookupDictionary(config, BSTR("interface"));
+    if (benc_stringEquals(benc_lookupString(iface, BSTR("type")), BSTR("TUNInterface"))) {
+        String* tunPath = benc_lookupString(iface, BSTR("tunDevicePath"));
+        context->routerIf = TunInterface_new(tunPath, context->base, context->allocator);
+    }
+    context->routerModule =
+        RouterModule_register(context->registry, context->allocator, myPubKey, context->base);
+}
+
 int main(int argc, char** argv)
 {
     Crypto_init();
@@ -423,8 +447,10 @@ int main(int argc, char** argv)
     context.registry = DHTModules_new(context.allocator);
     ReplyModule_register(context.registry, context.allocator);
 
-    context.routerModule =
-        RouterModule_register(context.registry, context.allocator, myPubKey, context.base);
+    // Router
+    Dict* routerConf = benc_lookupDictionary(&config, BSTR("router"));
+    registerRouter(routerConf, myPubKey, &context);
+
     SerializationModule_register(context.registry, context.allocator);
 
     // Authed passwords.
@@ -446,11 +472,10 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    //context.tun = TunInterface_new(NULL, context.base, context.allocator);
-
     SwitchConnectorModule_register(privateKey,
                                    context.registry,
                                    context.routerModule,
+                                   context.routerIf,
                                    context.switchCore,
                                    context.base,
                                    context.allocator);
