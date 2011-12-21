@@ -243,7 +243,12 @@ static int usage(char* appName)
            "\n"
            "Step 5:\n"
            "  Fire it up!\n"
-           "    sudo cjdns %s < cjdroute.conf\n",
+           "    sudo cjdns %s < cjdroute.conf\n"
+           "\n"
+           "Notes:\n"
+           "  To delete a tunnel, use this command:\n"
+           "    /sbin/ip tuntap del mode tun <name of tunnel>\n"
+           "\n",
            appName, appName, appName);
 
     return 0;
