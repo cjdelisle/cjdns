@@ -1,5 +1,6 @@
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 
 #include <stdint.h>
 

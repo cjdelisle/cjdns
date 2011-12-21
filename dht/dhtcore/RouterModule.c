@@ -11,6 +11,7 @@
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
+#include "switch/LabelSplicer.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
 #include "util/Time.h"
@@ -597,6 +598,13 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     for (uint32_t i = 0; i < nodes->len; i += Address_SERIALIZED_SIZE) {
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
+
+        // We need to splice the given address on to the end of the
+        // address of the node which gave it to us.
+        uint64_t label = LabelSplicer_splice(*((uint64_t*) addr.networkAddress),
+                                             *((uint64_t*) message->address->networkAddress));
+        memcpy(addr.networkAddress, &label, 8);
+
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
 
         // Nodes we are told about are inserted with 0 reach.
@@ -681,8 +689,18 @@ static inline int handleQuery(struct DHTMessage* message,
     bool hasNonZeroReach = false;
     uint32_t i;
     for (i = 0; i < nodeList->size; i++) {
-        Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE],
-                          &nodeList->nodes[i]->address);
+
+        // We have to modify the reply in case this node uses a longer label discriminator
+        // in our switch than it's target address, the target address *must* have the same
+        // length or longer.
+        struct Address addr;
+        memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
+        uint64_t label = LabelSplicer_getLabelFor(*((uint64_t*) addr.networkAddress),
+                                                  *((uint64_t*) query->address->networkAddress));
+        memcpy(&addr.networkAddress, &label, 8);
+
+
+        Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
         hasNonZeroReach |= nodeList->nodes[i]->reach;
     }
     if (i > 0) {

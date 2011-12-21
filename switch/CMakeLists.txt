@@ -1,4 +1,4 @@
-add_library(switch SwitchCore.c)
+add_library(switch SwitchCore.c LabelSplicer.c)
 
 # Everything must be tested.
 #enable_testing()
