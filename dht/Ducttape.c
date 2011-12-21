@@ -4,7 +4,7 @@
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "dht/SwitchConnectorModule.h"
+#include "dht/Ducttape.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
@@ -539,13 +539,13 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     return 0;
 }
 
-int SwitchConnectorModule_register(uint8_t privateKey[32],
-                                   struct DHTModuleRegistry* registry,
-                                   struct RouterModule* routerModule,
-                                   struct Interface* routerIf,
-                                   struct SwitchCore* switchCore,
-                                   struct event_base* eventBase,
-                                   struct MemAllocator* allocator)
+int Ducttape_register(uint8_t privateKey[32],
+                      struct DHTModuleRegistry* registry,
+                      struct RouterModule* routerModule,
+                      struct Interface* routerIf,
+                      struct SwitchCore* switchCore,
+                      struct event_base* eventBase,
+                      struct MemAllocator* allocator)
 {
     struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
     context->ifMap = InterfaceMap_new(8, allocator);
@@ -588,7 +588,7 @@ int SwitchConnectorModule_register(uint8_t privateKey[32],
     context->contentSmInside->receiverContext = context;
 
     memcpy(&context->module, &(struct DHTModule) {
-        .name = "SwitchConnectorModule",
+        .name = "Ducttape",
         .context = context,
         .handleOutgoing = handleOutgoing
     }, sizeof(struct DHTModule));

@@ -3,7 +3,7 @@
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
-#include "dht/SwitchConnectorModule.h"
+#include "dht/Ducttape.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
 #include "interface/Interface.h"
@@ -537,13 +537,13 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    SwitchConnectorModule_register(privateKey,
-                                   context.registry,
-                                   context.routerModule,
-                                   context.routerIf,
-                                   context.switchCore,
-                                   context.base,
-                                   context.allocator);
+    Ducttape_register(privateKey,
+                      context.registry,
+                      context.routerModule,
+                      context.routerIf,
+                      context.switchCore,
+                      context.base,
+                      context.allocator);
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

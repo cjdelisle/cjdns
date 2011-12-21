@@ -13,7 +13,7 @@ add_library(dht
     ReplyModule.c
     #SanityModule.c
     #RateLimitModule.c
-    SwitchConnectorModule.c
+    Ducttape.c
 )
 target_link_libraries(dht benc benc_StandardBencSerializer util interface ${NACL_LIBRARIES})
 
