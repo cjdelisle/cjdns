@@ -209,7 +209,8 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         Message_shift(message, Headers_IP6Header_SIZE);
         uint16_t sizeDiff = (uint8_t*)message->bytes - (uint8_t*)context->ip6Header;
         context->ip6Header->payloadLength_be =
-            Endian_hostToBigEndian16(context->ip6Header->payloadLength_be) - sizeDiff;
+            Endian_hostToBigEndian16(
+                Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
         memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
         context->routerIf->sendMessage(message, context->routerIf);
     } else {
