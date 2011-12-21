@@ -165,6 +165,12 @@ printf("\n");
     memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
     context->switchHeader = &switchHeader;
 
+    // Create a pseudoheader behind the message header.
+    memcpy(message.bytes - 16,
+           dmessage->address->ip6.bytes,
+           Address_SEARCH_TARGET_SIZE);
+
+printf("sending router message.");
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
     // This comes out at outgoingFromMe()
     assert(!context->contentSmInside->sendMessage(&message, context->contentSmInside));
