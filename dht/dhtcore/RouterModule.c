@@ -386,7 +386,6 @@ struct SearchCallbackContext
  * @param searchSuccessful true if the search found the desired content, otherwise false.
  */
 #include <stdio.h>
-#include "util/Hex.h"
 static inline void cleanup(struct SearchStore* store,
                            struct SearchStore_Node* lastNode,
                            struct Address* targetAddress,
@@ -463,7 +462,6 @@ static void searchStep(struct SearchCallbackContext* scc)
 
     // If the number of requests sent has exceeded the max search requests, let's stop there.
     if (scc->totalRequests >= MAX_REQUESTS_PER_SEARCH || nextSearchNode == NULL) {
-printf("terminating search.\n");
         if (scc->resultCallback != NULL) {
             scc->resultCallback(scc->resultCallbackContext, NULL);
         }
@@ -500,17 +498,6 @@ static void searchRequestTimeout(void* vcontext)
     NodeStore_addNode(scc->routerModule->nodeStore,
                       scc->lastNodeCalled->address,
                       INT64_MIN);
-
-printf("Search Timeout (%01x%01x.%01x%01x.%01x%01x.%01x%01x) setting reach to 0\n",
-       scc->lastNodeCalled->address->networkAddress[0],
-       scc->lastNodeCalled->address->networkAddress[1],
-       scc->lastNodeCalled->address->networkAddress[2],
-       scc->lastNodeCalled->address->networkAddress[3],
-       scc->lastNodeCalled->address->networkAddress[4],
-       scc->lastNodeCalled->address->networkAddress[5],
-       scc->lastNodeCalled->address->networkAddress[6],
-       scc->lastNodeCalled->address->networkAddress[7]);
-
     searchStep(scc);
 }
 
@@ -608,8 +595,6 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += Address_SERIALIZED_SIZE) {
-//printf("adding node %s\n", Hex_encode(&(String) {20, &nodes->bytes[i]}, message->allocator)->bytes);
-
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
@@ -620,12 +605,10 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         if ((thisNodePrefix ^ targetPrefix) >= parentDistance
             && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
         {
-printf("dropped answer because it is further from the target "
-       "than the node who gave it to us\n");
+            // Answer was further from the target than us.
         } else if (thisNodePrefix == ourAddressPrefix
             && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
         {
-//printf("Dropping answer because it is our own node.\n");
             // They just told us about ourselves.
         } else {
             SearchStore_addNodeToSearch(parent, &addr, evictTime, search);

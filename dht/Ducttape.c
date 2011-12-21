@@ -170,7 +170,6 @@ printf("\n");
            dmessage->address->ip6.bytes,
            Address_SEARCH_TARGET_SIZE);
 
-printf("sending router message.");
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
     // This comes out at outgoingFromMe()
     assert(!context->contentSmInside->sendMessage(&message, context->contentSmInside));
@@ -196,7 +195,6 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 static void incomingForMe(struct Message* message, struct Interface* iface)
 {
     struct Context* context = (struct Context*) iface->receiverContext;
-printf("got packet4\n");
     if (isRouterTraffic(message, context->ip6Header)) {
         struct Address addr;
         memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
@@ -215,11 +213,6 @@ printf("got packet4\n");
         // between the ipv6 header and the content which just got eaten.
         Message_shift(message, Headers_IP6Header_SIZE);
         uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
-char* magic = " !\"#$%&'()*+,-./01234567";
-char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
-if (ptr) {
-    printf("Incoming packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
-}
         context->ip6Header->payloadLength_be =
             Endian_hostToBigEndian16(
                 Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
@@ -349,10 +342,6 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
         return sendToSwitch(message, context->switchHeader, context);
     }
 
-//printf("\nsending message to node: %lu  messageType=%u\n",
-//       (unsigned long) Endian_bigEndianToHost64(*((uint64_t*)sendTo->address.networkAddress)),
-//       Headers_getMessageType(context->switchHeader));
-
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
@@ -387,12 +376,6 @@ static inline void ip6FromTun(struct Message* message,
         fprintf(stderr, "dropped message from TUN because it was not valid IPv6.\n");
         return;
     }
-
-char* magic = " !\"#$%&'()*+,-./01234567";
-char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
-if (ptr) {
-    printf("Outgoing packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
-}
 
     struct Context* context = (struct Context*) interface->receiverContext;
 
@@ -431,9 +414,6 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (isForMe(message, context)) {
-if (message->length == 120 + Headers_IP6Header_SIZE) {
-    printf("got empty message-->\n");
-}
         Message_shift(message, -Headers_IP6Header_SIZE);
         // This call goes to incomingForMe()
         context->contentSession =
@@ -442,10 +422,6 @@ if (message->length == 120 + Headers_IP6Header_SIZE) {
         //context->contentSmOutside.receiveMessage(message, &context->contentSmOutside);
         return 0;
     }
-
-if (message->length == 120 + Headers_IP6Header_SIZE) {
-    printf("<--sent empty message\n");
-}
 
     if (context->ip6Header->hopLimit == 0) {
         printf("dropped message because hop limit has been exceeded.");
@@ -515,7 +491,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-//printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switchHeader->label_be));
     struct Node* node = RouterModule_getNode((uint8_t*) &switchHeader->label_be,
                                              context->routerModule);
 
@@ -534,7 +509,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             CryptoAuth_deobfuscateNonce((uint32_t*) message->bytes,
                                         (uint32_t*) herKey,
                                         (uint32_t*) context->myAddr.key));
-//printf("nonce %u\n", nonce);
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
