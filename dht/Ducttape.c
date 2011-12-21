@@ -213,7 +213,7 @@ printf("got packet4\n");
         // Now write a message to the TUN device.
         // Need to move the ipv6 header forward up to the content because there's a crypto header
         // between the ipv6 header and the content which just got eaten.
-//Message_shift(message, Headers_IP6Header_SIZE);
+        Message_shift(message, Headers_IP6Header_SIZE);
         uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
 char* magic = " !\"#$%&'()*+,-./01234567";
 char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
@@ -410,6 +410,8 @@ if (ptr) {
     struct Headers_SwitchHeader switchHeader;
     memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
     context->switchHeader = &switchHeader;
+
+    Message_shift(message, -Headers_IP6Header_SIZE);
 
     // This comes out at outgoingFromMe()
     assert(!context->contentSmInside->sendMessage(message, context->contentSmInside));
