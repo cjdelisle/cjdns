@@ -57,17 +57,6 @@ struct User
     uint64_t trust;
 };
 
-static int usage(char* appName)
-{
-    printf("Usage:\n"
-           "%s --genconf > /path/to/cjdroute.conf\n"
-           "Generate a new configuration file.\n"
-           "%s < /path/to/cjdroute.conf\n"
-           "Startup with configuration.\n",
-           appName, appName);
-    return 0;
-}
-
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
                       uint8_t publicKeyBase32Out[53])
@@ -88,6 +77,7 @@ static int genAddress(uint8_t addressOut[40],
         }
     }
 }
+
 static int genconf()
 {
     uint8_t publicKeyBase32[53];
@@ -181,13 +171,13 @@ static int genconf()
            "            // The type of interface (only TUNInterface is supported for now)\n"
            "            \"type\": \"TUNInterface\",\n"
            "\n"
-           "            // The name of the TUN device to use.
+           "            // The name of the TUN device to use.\n"
            "            // This allows you to create a persistent TUN device with the cjdns user\n"
            "            // authorized to use it so that cjdns does not need to run as root.\n"
-           "            // If not specified cjdns will try to allocate a tun device on startup.\n"
+           "            // If this is commented out, cjdns will try to allocate a TUN on startup.\n"
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
-           "            //\"tunDevice\": \"tun0\"\n"
+           "            \"tunDevice\": \"tun0\"\n"
            "        }\n"
            "    }\n"
            "\n"
@@ -221,6 +211,44 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
     exit(-1);
 }
 
+static int usage(char* appName)
+{
+    printf("Step 1:\n"
+           "  Generate a new configuration file.\n"
+           "    %s --genconf > cjdroute.conf\n"
+           "\n"
+           "Step 2:\n"
+           "  From a root shell or using sudo, run use these commands:\n"
+           "\n"
+           "  Create a cjdns user so it can run unprivileged.\n"
+           "    useradd cjdns\n"
+           "\n"
+           "  Create a new TUN device and give the cjdns user authority to access it:\n"
+           "    /sbin/ip tuntap add mode tun user cjdns\n"
+           "    /sbin/ip tuntap list | grep `id -u cjdns`\n"
+           "  The output of the last command will tell you the name of the new device.\n"
+           "  This is needed to edit the configuration file.\n"
+           "\n"
+           "Step 3:\n"
+           "  Edit the configuration file, fill in the key from the node to connect to and your\n"
+           "  password as well as the bind address to listen for UDP packets on and the\n"
+           "  passwords of other nodes who are allowed to connect to this node.\n"
+           "  Also replace \"tunDevice\": \"tun0\" with the name of the TUN device gotten\n"
+           "  in step 2\n"
+           "\n"
+           "Step 4:\n"
+           "  Get the commands to run in order to prepare your TUN device by running:\n"
+           "    %s --getcmds < cjdroute.conf\n"
+           "  These commands should be executed as root now every time the system restarts.\n"
+           "\n"
+           "Step 5:\n"
+           "  Fire it up!\n"
+           "    sudo cjdns %s < cjdroute.conf\n",
+           appName, appName, appName);
+
+    return 0;
+}
+
 static int getcmds(Dict* config)
 {
     uint8_t privateKey[32];
@@ -243,13 +271,11 @@ static int getcmds(Dict* config)
         tunDev = strrchr(tunDev, '/') + 1;
     }
 
-    
     printf("#!/bin/bash\n"
            "# Run these commands as root to get the interfaces setup properly.\n\n");
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
-    printf("/sbin/ip -6 route add fc00::/8 via %s\n", myIp);
-    // ip tuntap add dev tun1 mode tun user user
-    // ip tuntap del dev tun1 mode tun
+    printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
+
     return 0;
 }
 
