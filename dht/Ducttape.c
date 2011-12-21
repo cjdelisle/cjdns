@@ -190,7 +190,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 static void incomingForMe(struct Message* message, struct Interface* iface)
 {
     struct Context* context = (struct Context*) iface->receiverContext;
-
+printf("got packet4\n");
     if (isRouterTraffic(message, context->ip6Header)) {
         struct Address addr;
         memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
@@ -423,6 +423,9 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (isForMe(message, context)) {
+if (message->length == 120 + Headers_IP6Header_SIZE) {
+    printf("got empty message-->\n");
+}
         Message_shift(message, -Headers_IP6Header_SIZE);
         // This call goes to incomingForMe()
         context->contentSession =
@@ -431,6 +434,10 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         //context->contentSmOutside.receiveMessage(message, &context->contentSmOutside);
         return 0;
     }
+
+if (message->length == 120 + Headers_IP6Header_SIZE) {
+    printf("<--sent empty message\n");
+}
 
     if (context->ip6Header->hopLimit == 0) {
         printf("dropped message because hop limit has been exceeded.");
@@ -463,12 +470,12 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
     memcpy(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
 
     // If this message is addressed to us, it means the cryptoauth kicked back a response
-    // message when we asked it to decrypt a message for us and the ipv6 headers have not
-    // been reversed.
+    // message when we asked it to decrypt a message for us and the ipv6 addresses need to
+    // be flipped to send it back to the other node.
     if (isForMe(message, context)) {
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
-        memcpy(ip6->sourceAddr, &context->myAddr.ip6, 16);
+        memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
     }
 
     // Forward this call to decryptedIncoming() which will check it's validity

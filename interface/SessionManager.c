@@ -96,6 +96,7 @@ static inline struct Interface* getSession(struct Message* message,
         InterfaceMap_put(&message->bytes[offset], combinedIf, now.tv_sec, &sm->ifaceMap);
         return combinedIf;
     } else {
+printf("Getting session: %u offset=%d byte2=%.2x\n", ifaceIndex, offset, message->bytes[offset + 1]);
         // Interface already exists, set the time of last message to "now".
         sm->ifaceMap.lastMessageTimes[ifaceIndex] = now.tv_sec;
     }
@@ -119,7 +120,7 @@ struct Interface* SessionManager_getSession(struct Message* message,
     struct SessionManager* sm = (struct SessionManager*) sessionManagerIface->senderContext;
     return getSession(message,
                       NULL,
-                      isOutgoingMessage ? sm->incomingKeyOffset : sm->incomingKeyOffset,
+                      isOutgoingMessage ? sm->incomingKeyOffset : sm->outgoingKeyOffset,
                       sm);
 }
 

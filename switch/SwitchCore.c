@@ -103,8 +103,7 @@ static inline void sendError(struct SwitchInterface* interface,
     cause->length = sizeof(struct ErrorPacket) - (255 - errLength);
     sendMessage(interface, cause);
 }
-#include <stdio.h>
-#include "dht/Address.h"
+
 void receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
