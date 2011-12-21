@@ -86,12 +86,27 @@ static int handleOutgoing(struct DHTMessage* message,
 
 /*--------------------Interface--------------------*/
 
+static void printMessage(struct Message* message)
+{
+    uint8_t chr;
+    for (uint32_t i = 0; i < message->length; i++) {
+        chr = (uint8_t) message->bytes[i] & 0xFF;
+        if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
+            printf("%c", chr);
+        } else {
+            printf("\\x%.2X", chr);
+        }
+    }
+}
+
 static inline void incomingDHT(struct Message* message,
                                struct Address* addr,
                                struct Context* context)
 {
 
-printf(">>> %s\n", message->bytes);
+printf(">>> ");
+//printMessage(message);
+printf("\n");
 
     struct DHTMessage dht;
     memset(&dht, 0, sizeof(struct DHTMessage));
@@ -114,10 +129,12 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 {
     struct Context* context = (struct Context*) vcontext;
 
-    printf("<<< %s\n", dmessage->bytes);
-
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
+
+printf("<<< ");
+//printMessage(&message);
+printf("\n");
 
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
@@ -184,7 +201,23 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         incomingDHT(message, &addr, context);
         return;
     }
-    printf("Dropped a message which should have been sent to the TUN device...\n");
+
+    if (context->routerIf) {
+        // Now write a message to the TUN device.
+        // Need to move the ipv6 header forward up to the content because there's a crypto header
+        // between the ipv6 header and the content which just got eaten.
+        Message_shift(message, Headers_IP6Header_SIZE);
+        uint16_t sizeDiff = (uint8_t*)message->bytes - (uint8_t*)context->ip6Header;
+        context->ip6Header->payloadLength_be =
+            Endian_hostToBigEndian16(context->ip6Header->payloadLength_be) - sizeDiff;
+        memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+        context->routerIf->sendMessage(message, context->routerIf);
+    } else {
+        printf("Dropping message because there is no router interface configured.\n"
+               "message content: ");
+        printMessage(message);
+        printf("\n");
+    }
 }
 
 /**
@@ -302,9 +335,9 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
         return sendToSwitch(message, context->switchHeader, context);
     }
 
-printf("\nsending message to node: %lu  messageType=%u\n",
-       (unsigned long) Endian_bigEndianToHost64(*((uint64_t*)sendTo->address.networkAddress)),
-       Headers_getMessageType(context->switchHeader));
+//printf("\nsending message to node: %lu  messageType=%u\n",
+//       (unsigned long) Endian_bigEndianToHost64(*((uint64_t*)sendTo->address.networkAddress)),
+//       Headers_getMessageType(context->switchHeader));
 
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
@@ -385,9 +418,18 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         return 0;
     }
 
+    if (context->ip6Header->hopLimit == 0) {
+        printf("dropped message because hop limit has been exceeded.");
+    }
+    context->ip6Header->hopLimit--;
+
     struct Node* nextBest = RouterModule_getNextBest(context->ip6Header->destinationAddr,
                                                      context->routerModule);
-    return sendToRouter(nextBest, message, context);
+    if (nextBest) {
+        return sendToRouter(nextBest, message, context);
+    }
+    printf("Dropped message because this node is the closest known node to the destination.\n");
+    return 0;
 }
 
 /**
@@ -444,7 +486,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switchHeader->label_be));
+//printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switchHeader->label_be));
     struct Node* node = RouterModule_getNode((uint8_t*) &switchHeader->label_be,
                                              context->routerModule);
 
@@ -463,7 +505,7 @@ printf("Incoming from switch with label: %lu\n", Endian_bigEndianToHost64(switch
             CryptoAuth_deobfuscateNonce((uint32_t*) message->bytes,
                                         (uint32_t*) herKey,
                                         (uint32_t*) context->myAddr.key));
-printf("nonce %u\n", nonce);
+//printf("nonce %u\n", nonce);
     if (nonce > 4 && node && node->session.exists) {
             Message_shift(message, -4);
             decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);

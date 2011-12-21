@@ -141,13 +141,13 @@
 #define NODE_STORE_SIZE 8192
 
 /** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 750
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 7500
 
 /**
  * The number of milliseconds to pass between global maintainence searches.
  * These are searches for random targets which are used to discover new nodes.
  */
-#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 20000
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
 
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
@@ -627,7 +627,7 @@ printf("dropped answer pointing to %s because it is further from the target "
         } else if (thisNodePrefix == ourAddressPrefix
             && memcmp(module->address.key, addr.key, Address_NETWORK_ADDR_SIZE) == 0)
         {
-printf("Dropping answer because it is our own node.");
+//printf("Dropping answer because it is our own node.\n");
             // They just told us about ourselves :/
         } else {
             SearchStore_addNodeToSearch(parent, &addr, evictTime, search);
@@ -699,10 +699,7 @@ static inline int handleQuery(struct DHTMessage* message,
 
     bool hasNonZeroReach = false;
     uint32_t i;
-printf("%04x ^ %04x = %u <-- my addr\n", Address_getPrefix(&module->address), Address_prefixForSearchTarget((uint8_t*) target->bytes), Address_getPrefix(&module->address) ^ Address_prefixForSearchTarget((uint8_t*) target->bytes));
     for (i = 0; i < nodeList->size; i++) {
-printf("%04x ^ %04x = %u", Address_getPrefix(&nodeList->nodes[i]->address), Address_prefixForSearchTarget((uint8_t*) target->bytes), (uint32_t)Address_getPrefix(&nodeList->nodes[i]->address) ^ Address_prefixForSearchTarget((uint8_t*) target->bytes));
-printf("  %u\n", nodeList->nodes[i]->reach);
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE],
                           &nodeList->nodes[i]->address);
         hasNonZeroReach |= nodeList->nodes[i]->reach;
@@ -863,6 +860,9 @@ struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_S
 
     uint8_t buffer[1024];
     struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 1024);
+    // Allow the message to be sent on to nodes which are further from the target than us!
+    // This means packets sent to nonexistant nodes will loop around the network until they expire
+    // or their priority is decreased to 0.
     struct NodeList* nodes =
         NodeStore_getClosestNodes(module->nodeStore, &addr, NUMBER_TO_GET, false, tmpAlloc);
 

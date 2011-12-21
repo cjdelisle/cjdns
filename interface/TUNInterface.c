@@ -12,7 +12,7 @@
 #include "libbenc/benc.h"
 
 #define MAX_PACKET_SIZE 1500
-#define PADDING_SPACE (1792 - MAX_PACKET_SIZE)
+#define PADDING_SPACE (2048 - MAX_PACKET_SIZE)
 
 struct Tunnel
 {
@@ -23,7 +23,11 @@ struct Tunnel
 
 static int openTunnel(const char* interfaceName)
 {
-    fprintf(stderr, "Initializing tun/tap device...\n");
+    fprintf(stderr, "Initializing tun device: ");
+    if (interfaceName) {
+        fprintf(stderr, "%s", interfaceName);
+    }
+    fprintf(stderr, "\n");
 
     int tunFileDescriptor;
 
@@ -31,19 +35,18 @@ static int openTunnel(const char* interfaceName)
     memset(&ifRequest, 0, sizeof(struct ifreq));
     ifRequest.ifr_flags = IFF_TUN | IFF_NO_PI;
     if (interfaceName) {
-        strcpy(ifRequest.ifr_name, interfaceName);
+        strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     }
-
     tunFileDescriptor = open("/dev/net/tun", O_RDWR);
 
     if (tunFileDescriptor < 0) {
         return tunFileDescriptor;
     }
 
-    int err = ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest);
-    if (err < 0) {
+    int out = ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest);
+    if (out < 0) {
         close(tunFileDescriptor);
-        return err;
+        return -1;
     }
 
     return tunFileDescriptor;
@@ -96,13 +99,14 @@ struct Interface* TunInterface_new(String* interfaceName,
                                    struct event_base* base,
                                    struct MemAllocator* allocator)
 {
+    errno = 0;
     int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL);
     if (tunFileDesc < 0) {
         if (errno == EPERM) {
             fprintf(stderr, "You don't have permission to open tunnel. "
                             "This probably needs to be run as root.\n");
         } else {
-            fprintf(stderr, "Failed to open tunnel, error: %d", errno);
+            fprintf(stderr, "Failed to open tunnel, error: %d\n", errno);
         }
         return NULL;
     }

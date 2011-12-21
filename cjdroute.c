@@ -202,7 +202,7 @@ static int genconf()
 }
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
-static void parsePrivateKey(Dict* config, uint8_t myPubKey[32], uint8_t privateKey[32])
+static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateKey[32])
 {
     String* privateKeyStr = benc_lookupString(config, BSTR("privateKey"));
     if (privateKeyStr == NULL) {
@@ -212,17 +212,48 @@ static void parsePrivateKey(Dict* config, uint8_t myPubKey[32], uint8_t privateK
     } else if (Hex_decode(privateKey, 32, (uint8_t*)privateKeyStr->bytes, 64) != 32) {
         fprintf(stderr, "Failed to parse private key.\n");
     } else {
-        uint8_t ip6Addr[16];
-        crypto_scalarmult_curve25519_base(myPubKey, privateKey);
-        AddressCalc_addressForPublicKey(ip6Addr, myPubKey);
-        if (ip6Addr[0] != 0xFC) {
-            fprintf(stderr, "Ip address is out of the legal range, "
-                            "please generate new private key.\n");
+        crypto_scalarmult_curve25519_base(addr->key, privateKey);
+        AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
+        if (addr->ip6.bytes[0] != 0xFC) {
+            fprintf(stderr, "Ip address is outside of the FC00/8 range, "
+                            "invalid private key.\n");
         } else {
             return;
         }
     }
     exit(-1);
+}
+
+static int getcmds(Dict* config)
+{
+    uint8_t privateKey[32];
+    struct Address addr;
+    parsePrivateKey(config, &addr, privateKey);
+
+    uint8_t myIp[40];
+    Address_printIp(myIp, &addr);
+
+    Dict* router = benc_lookupDictionary(config, BSTR("router"));
+    Dict* iface = benc_lookupDictionary(router, BSTR("interface"));
+    String* type = benc_lookupString(iface, BSTR("type"));
+    String* tunDevicePath = benc_lookupString(iface, BSTR("tunDevicePath"));
+    if (!benc_stringEquals(type, BSTR("TUNInterface"))) {
+        fprintf(stderr, "router.interface.type is not recognized.\n");
+        return -1;
+    }
+    char* tunDev = tunDevicePath ? tunDevicePath->bytes : "tun0";
+    if (strrchr(tunDev, '/') != NULL) {
+        tunDev = strrchr(tunDev, '/') + 1;
+    }
+
+    
+    printf("#!/bin/bash\n"
+           "# Run these commands as root to get the interfaces setup properly.\n\n");
+    printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
+    printf("/sbin/ip -6 route add fc00::/8 via %s\n", myIp);
+    // ip tuntap add dev tun1 mode tun user user
+    // ip tuntap del dev tun1 mode tun
+    return 0;
 }
 
 static void authorizedPassword(String* passwd,
@@ -418,10 +449,12 @@ int main(int argc, char** argv)
     Crypto_init();
     assert(argc > 0);
     if (isatty(STDIN_FILENO)) {
-        if (argc == 2 && strcmp(argv[1], "--genconf") == 0) {
+        if (argc < 2) {
+            return usage(argv[0]);
+        }
+        if (strcmp(argv[1], "--genconf") == 0) {
             return genconf();
         }
-        return usage(argv[0]);
     }
 
     struct Context context;
@@ -436,9 +469,13 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    uint8_t myPubKey[32];
+    if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
+        return getcmds(&config);
+    }
+
+    struct Address myAddr;
     uint8_t privateKey[32];
-    parsePrivateKey(&config, myPubKey, privateKey);
+    parsePrivateKey(&config, &myAddr, privateKey);
 
     context.eHandler = AbortHandler_INSTANCE;
     context.base = event_base_new();
@@ -449,7 +486,7 @@ int main(int argc, char** argv)
 
     // Router
     Dict* routerConf = benc_lookupDictionary(&config, BSTR("router"));
-    registerRouter(routerConf, myPubKey, &context);
+    registerRouter(routerConf, myAddr.key, &context);
 
     SerializationModule_register(context.registry, context.allocator);
 
@@ -481,7 +518,7 @@ int main(int argc, char** argv)
                                    context.allocator);
 
     uint8_t address[53];
-    Base32_encode(address, 53, myPubKey, 32);
+    Base32_encode(address, 53, myAddr.key, 32);
     printf("Your address is: %s.k\n", address);
 
     event_base_loop(context.base, 0);
