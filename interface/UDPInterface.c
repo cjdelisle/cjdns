@@ -30,6 +30,8 @@
 // 1426 + 8 (udp) + 20 (ip) + 2 (ppp) + 6 (pppoe) + 18 (eth) = 1480 (optimum adsl/pppoe mtu)
 #define MAX_PACKET_SIZE 1426
 
+#define PADDING 128
+
 #define MAX_INTERFACES 256
 
 
@@ -141,7 +143,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 {
     struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
 
-    context->messageBuff = allocator->calloc(MAX_PACKET_SIZE + 16, 1, allocator);
+    context->messageBuff = allocator->calloc(MAX_PACKET_SIZE + PADDING, 1, allocator);
     
     context->allocator = allocator;
 
@@ -312,7 +314,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
     struct Message message =
-        { .bytes = context->messageBuff + 16, .padding = 16, .length = MAX_PACKET_SIZE };
+        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
