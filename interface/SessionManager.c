@@ -120,7 +120,7 @@ struct Interface* SessionManager_getSession(struct Message* message,
     struct SessionManager* sm = (struct SessionManager*) sessionManagerIface->senderContext;
     return getSession(message,
                       NULL,
-                      isOutgoingMessage ? sm->incomingKeyOffset : sm->outgoingKeyOffset,
+                      isOutgoingMessage ? sm->outgoingKeyOffset : sm->incomingKeyOffset,
                       sm);
 }
 
