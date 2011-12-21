@@ -79,6 +79,20 @@ void NodeStore_addNode(struct NodeStore* store,
                        struct Address* addr,
                        const int64_t reachDifference)
 {
+Address_getPrefix(addr);
+if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
+    printf("got introduced to ourselves\n");
+    return;
+}
+
+uint8_t nodeAddr[40];
+Address_printIp(nodeAddr, addr);
+uint8_t netAddr[20];
+Address_printNetworkAddress(netAddr, addr);
+if (netAddr[0] != '0') {
+    printf("This address is probably bogus!\n");
+}
+
     // TODO: maintain a sorted list.
 
     uint32_t pfx = Address_getPrefix(addr);
@@ -92,6 +106,9 @@ void NodeStore_addNode(struct NodeStore* store,
                 return;
             }
         }
+
+printf("Discovered node: %s at addr %s\n", nodeAddr, netAddr);
+
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
         adjustReach(&store->headers[store->size], reachDifference);

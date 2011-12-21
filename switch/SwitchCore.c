@@ -82,7 +82,7 @@ static inline void sendError(struct SwitchInterface* interface,
                              uint16_t code)
 {
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
-    if (Headers_getMessageType(header) == MessageType_ERROR) {
+    if (Headers_getMessageType(header) == MessageType_CONTROL) {
         // Errors never cause other errors to be sent.
         return;
     }
@@ -94,18 +94,17 @@ static inline void sendError(struct SwitchInterface* interface,
     memcpy(err->error.cause.bytes, cause->bytes, errLength);
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
-    Headers_setPriorityFragmentNumAndMessageType(&err->switchHeader,
+    Headers_setPriorityAndMessageType(&err->switchHeader,
                                                  Headers_getPriority(header),
-                                                 0,
-                                                 MessageType_ERROR);
+                                                 MessageType_CONTROL);
     err->error.errorType_be = Endian_hostToBigEndian16(code);
     err->error.length = errLength;
 
     cause->length = sizeof(struct ErrorPacket) - (255 - errLength);
     sendMessage(interface, cause);
 }
-
-
+#include <stdio.h>
+#include "dht/Address.h"
 void receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
@@ -142,7 +141,7 @@ void receiveMessage(struct Message* message, struct Interface* iface)
 
     // If this happens to be an Error_FLOOD packet, we will react by
     // increasing the congestion for the source interface to make flooding harder.
-    if (Headers_getMessageType(header) == MessageType_ERROR
+    if (Headers_getMessageType(header) == MessageType_CONTROL
         && ((struct ErrorPacket*) header)->error.errorType_be == ntohs(Error_FLOOD))
     {
         sourceIf->congestion += Headers_getPriority(header);

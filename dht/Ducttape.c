@@ -105,7 +105,7 @@ static inline void incomingDHT(struct Message* message,
                                struct Context* context)
 {
 
-printf(">>> ");
+printf(">.> ");
 //printMessage(message);
 printf("\n");
 
@@ -133,7 +133,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
 
-printf("<<< ");
+printf("<.< ");
 //printMessage(&message);
 printf("\n");
 
@@ -212,7 +212,7 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
 char* magic = " !\"#$%&'()*+,-./01234567";
 char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
 if (ptr) {
-    printf("It looks like this packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
+    printf("Incoming packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
 }
         context->ip6Header->payloadLength_be =
             Endian_hostToBigEndian16(
@@ -242,6 +242,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
     if (destinationSwitchHeader != switchHeaderLocation) {
         memmove(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
     }
+
     context->switchInterface.receiveMessage(message, &context->switchInterface);
 
     return 0;
@@ -384,7 +385,7 @@ static inline void ip6FromTun(struct Message* message,
 char* magic = " !\"#$%&'()*+,-./01234567";
 char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
 if (ptr) {
-    printf("It looks like this packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
+    printf("Outgoing packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
 }
 
     struct Context* context = (struct Context*) interface->receiverContext;
@@ -519,6 +520,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                                         (uint32_t*) herKey,
                                         (uint32_t*) context->myAddr.key));
 //printf("nonce %u\n", nonce);
+
+    // The address is extracted from the switch header later.
+    context->switchHeader = switchHeader;
+
     if (nonce > 4 && node && node->session.exists) {
             Message_shift(message, -4);
             decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);
@@ -535,11 +540,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // Null the message in the context then call cryptoAuth and if
     // it's nolonger null then the message is valid :/
     context->messageFromCryptoAuth = NULL;
-
-    // If the message causes CryptoAuth to want to send a response, it will call sendToSwitch
-    // and sendToSwitch (as well as a bunch of other stuff) relies on the switchHeader being in
-    // the context.
-    context->switchHeader = switchHeader;
 
     iface->receiveMessage(message, iface);
 

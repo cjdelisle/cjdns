@@ -620,15 +620,13 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         if ((thisNodePrefix ^ targetPrefix) >= parentDistance
             && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
         {
-uint8_t nodeAddr[40];
-Address_printIp(nodeAddr, parent->address);
-printf("dropped answer pointing to %s because it is further from the target "
-       "than the node who gave it to us\n", nodeAddr);
+printf("dropped answer because it is further from the target "
+       "than the node who gave it to us\n");
         } else if (thisNodePrefix == ourAddressPrefix
-            && memcmp(module->address.key, addr.key, Address_NETWORK_ADDR_SIZE) == 0)
+            && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
         {
 //printf("Dropping answer because it is our own node.\n");
-            // They just told us about ourselves :/
+            // They just told us about ourselves.
         } else {
             SearchStore_addNodeToSearch(parent, &addr, evictTime, search);
         }
@@ -674,7 +672,7 @@ static inline int handleQuery(struct DHTMessage* message,
     struct DHTMessage* query = message->replyTo;
 
     // We got a query, the reach should be set to 1 in the new node.
-    NodeStore_addNode(module->nodeStore, message->address, 1);
+    NodeStore_addNode(module->nodeStore, query->address, 1);
 
     // get the target
     String* target = benc_lookupString(query->asDict, CJDHTConstants_TARGET);

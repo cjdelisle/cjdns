@@ -338,7 +338,7 @@ static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
 
     struct User* u = CryptoAuth_getUser(iface);
     assert(u);
-    // Add it to the switch.
+    // Add it to the switch, this will change the receiveMessage for this interface.
     uint64_t discard;
     SwitchCore_addInterface(iface, u->trust, &discard, uictx->context->switchCore);
 
