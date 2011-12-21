@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*#include "libbenc/benc.h"*/
 #include "crypto/CryptoAuth.h"
 #include "dht/Address.h"
@@ -207,7 +208,12 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         // Need to move the ipv6 header forward up to the content because there's a crypto header
         // between the ipv6 header and the content which just got eaten.
         Message_shift(message, Headers_IP6Header_SIZE);
-        uint16_t sizeDiff = (uint8_t*)message->bytes - (uint8_t*)context->ip6Header;
+        uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
+char* magic = " !\"#$%&'()*+,-./01234567";
+char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
+if (ptr) {
+    printf("It looks like this packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
+}
         context->ip6Header->payloadLength_be =
             Endian_hostToBigEndian16(
                 Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
