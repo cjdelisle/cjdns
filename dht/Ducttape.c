@@ -207,7 +207,7 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         // Now write a message to the TUN device.
         // Need to move the ipv6 header forward up to the content because there's a crypto header
         // between the ipv6 header and the content which just got eaten.
-        Message_shift(message, Headers_IP6Header_SIZE);
+//Message_shift(message, Headers_IP6Header_SIZE);
         uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
 char* magic = " !\"#$%&'()*+,-./01234567";
 char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
@@ -380,6 +380,12 @@ static inline void ip6FromTun(struct Message* message,
         fprintf(stderr, "dropped message from TUN because it was not valid IPv6.\n");
         return;
     }
+
+char* magic = " !\"#$%&'()*+,-./01234567";
+char* ptr = memmem(message->bytes, message->length, magic, strlen(magic));
+if (ptr) {
+    printf("It looks like this packet contains a ping! offset=%u\n", (uint32_t)(ptr - (char*)message->bytes));
+}
 
     struct Context* context = (struct Context*) interface->receiverContext;
 
