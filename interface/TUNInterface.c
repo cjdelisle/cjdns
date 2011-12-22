@@ -12,7 +12,7 @@
 #include "libbenc/benc.h"
 
 #define MAX_PACKET_SIZE 1500
-#define PADDING_SPACE (2048 - MAX_PACKET_SIZE)
+#define PADDING_SPACE (4096 - MAX_PACKET_SIZE)
 
 struct Tunnel
 {

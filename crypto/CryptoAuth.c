@@ -372,24 +372,29 @@ static inline void deobfuscateAuth(union Headers_AuthChallenge* auth,
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
  */
+#include <stdio.h>
 static uint8_t genReverseHandshake(struct Message* message,
                                    struct Wrapper* wrapper,
                                    union Headers_CryptoAuth* header)
 {
     wrapper->nextNonce = 0;
-    Message_shift(message, (int32_t)sizeof(union Headers_CryptoAuth) * -1);
+    Message_shift(message, -Headers_CryptoAuth_SIZE);
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage == NULL) {
+if (message->length < 120) {
+    printf("This message will not be able to be sent\n");
+}
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
     } else {
+printf("Expelled a message because a session has not yet been setup.\n");
         Message_copyOver(wrapper->bufferedMessage,
                          message,
                          wrapper->externalInterface.allocator);
     }
 
-    Message_shift(message, -message->length + sizeof(union Headers_CryptoAuth));
+    Message_shift(message, -message->length + Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
@@ -673,7 +678,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
 
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->bufferedMessage != NULL) {
+    if (wrapper->bufferedMessage != NULL && message->length == 0) {
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     }
