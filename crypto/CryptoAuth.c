@@ -194,7 +194,6 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
 
 /**
  * Decrypt and authenticate.
- * Trashes the highest 16 bytes of buffer space.
  *
  * @param nonce a 24 byte number, may be random, cannot repeat.
  * @param msg a message to encipher and authenticate.
@@ -209,6 +208,8 @@ static inline int decryptRndNonce(uint8_t nonce[24],
     }
     assert(msg->padding >= 16);
     uint8_t* startAt = msg->bytes - 16;
+    uint8_t paddingSpace[16];
+    memcpy(paddingSpace, startAt, 16);
     memset(startAt, 0, 16);
     if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
             startAt, startAt, msg->length + 16, nonce, secret) != 0)
@@ -216,14 +217,14 @@ static inline int decryptRndNonce(uint8_t nonce[24],
         return -1;
     }
 
+    memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, -16);
     return 0;
 }
 
 /**
  * Encrypt and authenticate.
- * WARNING: This trashes 32 bytes of the padding before the message
- * and shifts the message up 16.
+ * Shifts the message by 16 bytes.
  *
  * @param nonce a 24 byte number, may be random, cannot repeat.
  * @param msg a message to encipher and authenticate.
@@ -234,10 +235,15 @@ static inline void encryptRndNonce(uint8_t nonce[24],
                                    uint8_t secret[32])
 {
     assert(msg->padding >= 32);
+
+    // This function trashes 16 bytes of the padding so we will put it back
+    uint8_t paddingSpace[16];
+    memcpy(paddingSpace, msg->bytes - 32, 16);
     memset(msg->bytes - 32, 0, 32);
     crypto_box_curve25519xsalsa20poly1305_afternm(
         msg->bytes - 32, msg->bytes - 32, msg->length + 32, nonce, secret);
 
+    memcpy(msg->bytes - 32, paddingSpace, 16);
     Message_shift(msg, 16);
 }
 
