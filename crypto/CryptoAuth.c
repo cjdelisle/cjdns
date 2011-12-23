@@ -380,15 +380,11 @@ static uint8_t genReverseHandshake(struct Message* message,
                                    union Headers_CryptoAuth* header)
 {
     wrapper->nextNonce = 0;
-    //Message_shift(message, -Headers_CryptoAuth_SIZE);
+    Message_shift(message, -Headers_CryptoAuth_SIZE);
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage == NULL) {
-        #ifdef DEBUGGING
-            if (message->length < 120) {
-                DEBUG("This message will not be able to be sent\n");
-            }
-        #endif
+        DEBUG("Buffered a message.\n");
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
         assert(wrapper->nextNonce == 0);
@@ -400,6 +396,7 @@ static uint8_t genReverseHandshake(struct Message* message,
         assert(wrapper->nextNonce == 0);
     }
 
+    Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
@@ -629,6 +626,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
     uint8_t passwordHashStore[32];
     uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
     if (wrapper->requireAuth && !user) {
+        DEBUG("Dropping message because auth was not given and is required.\n");
         return;
     }
 
@@ -668,12 +666,13 @@ static void decryptHandshake(struct Wrapper* wrapper,
     }
 
     // Shift it on top of the encrypted public key
-    assert(Message_shift(message, 48 - (int32_t) sizeof(union Headers_CryptoAuth)));
+    Message_shift(message, 48 - Headers_CryptoAuth_SIZE);
 
     // Decrypt her temp public key and the message.
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
-        memset(header, 0, sizeof(union Headers_CryptoAuth));
+        memset(header, 0, Headers_CryptoAuth_SIZE);
+        DEBUG("Dropped message because authenticated decryption failed.\n");
         return;
     }
 
@@ -741,6 +740,8 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     } else if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         // If decryptMessage returns false then we will try the packet as a handshake.
         return;
+    } else {
+        DEBUG("Decryption failed, trying message as a handshake.\n");
     }
     Message_shift(received, 4);
     decryptHandshake(wrapper, nonce, received, header);
