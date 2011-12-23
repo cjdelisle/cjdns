@@ -44,6 +44,8 @@ static inline void Message_copyOver(struct Message* output,
     }
     memcpy(allocation, input->bytes - input->padding, inTotalLength);
     output->bytes = allocation + input->padding;
+    output->length = input->length;
+    output->padding = input->padding;
 }
 
 /**

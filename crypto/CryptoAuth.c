@@ -387,14 +387,16 @@ if (message->length < 120) {
 }
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
+        assert(wrapper->nextNonce == 0);
     } else {
 printf("Expelled a message because a session has not yet been setup.\n");
         Message_copyOver(wrapper->bufferedMessage,
                          message,
                          wrapper->externalInterface.allocator);
+        assert(wrapper->nextNonce == 0);
     }
 
-    Message_shift(message, -message->length + Headers_CryptoAuth_SIZE);
+//    Message_shift(message, -message->length + Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
@@ -681,6 +683,8 @@ static void decryptHandshake(struct Wrapper* wrapper,
     if (wrapper->bufferedMessage != NULL && message->length == 0) {
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
+    } else if (wrapper->bufferedMessage) {
+        printf("There is a buffered message!\n");
     }
 
     setRequiredPadding(wrapper);
