@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-/*#include "libbenc/benc.h"*/
 #include "crypto/CryptoAuth.h"
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
@@ -106,11 +104,6 @@ static inline void incomingDHT(struct Message* message,
                                struct Address* addr,
                                struct Context* context)
 {
-
-printf(".> ");
-//printMessage(message);
-printf("\n");
-
     struct DHTMessage dht;
     memset(&dht, 0, sizeof(struct DHTMessage));
 
@@ -135,10 +128,6 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
 
-printf("<.");
-//printMessage(&message);
-//printf("\n");
-
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
     uh->sourceAndDestPorts = 0;
@@ -148,7 +137,6 @@ printf("<.");
     struct Headers_IP6Header header =
     {
         // Length will be set after the crypto.
-        //.payloadLength_be = Endian_hostToBigEndian16(dmessage->length + sizeof(struct UDPHeader)),
         .nextHeader = 17,
         .hopLimit = 255
     };
@@ -407,7 +395,6 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (isForMe(message, context)) {
-        printf("m");
         Message_shift(message, -Headers_IP6Header_SIZE);
         // This call goes to incomingForMe()
         context->contentSession =
@@ -504,7 +491,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         herKey = node->address.key;
     } else if (message->length < Headers_CryptoAuth_SIZE) {
         DEBUG("Dropped runt packet.\n");
-        // runt
         return 0;
     } else {
         herKey = caHeader->handshake.publicKey;

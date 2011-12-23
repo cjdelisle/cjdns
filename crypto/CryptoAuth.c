@@ -635,7 +635,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
             }
             DEBUG("Final handshake step failed.\n");
         }
-    } else if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
+    } else if (nonce > 2 && decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         // If decryptMessage returns false then we will try the packet as a handshake.
         return;
     } else {
@@ -750,6 +750,6 @@ void CryptoAuth_getSession(struct Session* output, struct Interface* interface)
     output->isInitiator = wrapper->isInitiator;
     output->nextNonce = wrapper->nextNonce;
     memcpy(output->sharedSecret, wrapper->secret, 32);
-assert(!wrapper->authenticatePackets);
+    assert(!wrapper->authenticatePackets);
     output->exists = true;
 }
