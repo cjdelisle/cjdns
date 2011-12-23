@@ -255,11 +255,7 @@ static uint8_t sendToSwitchFromCryptoAuth(struct Message* message, struct Interf
     return sendToSwitch(message, context->switchHeader, context);
 }
 
-static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
-{
-    struct Context* context = iface->receiverContext;
-    context->messageFromCryptoAuth = message;
-}
+static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface);
 
 static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header,
                                              uint8_t key[32],
@@ -467,6 +463,13 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
     return decryptedIncoming(message, context);
 }
 
+static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
+{
+    struct Context* context = iface->receiverContext;
+    context->messageFromCryptoAuth = message;
+    decryptedIncoming(message, context);
+}
+
 /**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
@@ -522,6 +525,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // Nonce is <4, this is a crypto negotiation.
     struct Interface* iface = getCaSession(switchHeader, NULL, context);
 
+    // If it's past negotiation then copy the session into the node
+    // then the ca session can be freed.
     if (nonce > 4 && node) {
         CryptoAuth_getSession(&node->session, iface);
     }
@@ -532,9 +537,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     iface->receiveMessage(message, iface);
 
-    if (context->messageFromCryptoAuth) {
-        return decryptedIncoming(context->messageFromCryptoAuth, context);
-    } else {
+    if (!context->messageFromCryptoAuth) {
         printf("invalid (?) message was eaten by the cryptoAuth\n");
     }
 

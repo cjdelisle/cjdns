@@ -396,7 +396,6 @@ printf("Expelled a message because a session has not yet been setup.\n");
         assert(wrapper->nextNonce == 0);
     }
 
-//    Message_shift(message, -message->length + Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
@@ -680,11 +679,11 @@ static void decryptHandshake(struct Wrapper* wrapper,
 
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->bufferedMessage != NULL && message->length == 0) {
+    if (wrapper->bufferedMessage && message->length == 0) {
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     } else if (wrapper->bufferedMessage) {
-        printf("There is a buffered message!\n");
+        printf("There is a buffered message! - the length of this message is %u\n", message->length);
     }
 
     setRequiredPadding(wrapper);
