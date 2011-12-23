@@ -12,23 +12,6 @@ uint8_t* privateKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
 uint8_t* publicKey = (uint8_t*) "\x3f\x5b\x96\x62\x11\x11\xd8\x9c\x7d\x3f\x51\x71\x68\x78\xfa\xb4"
                                 "\xc3\xcf\xd9\x7e\x32\x04\x12\xb4\xaf\x7e\x22\x92\xa5\xdf\x31\x71";
 
-int obfuscateNonceTest()
-{
-    uint32_t nonceAndData[2];
-    randombytes((uint8_t*)nonceAndData, sizeof(nonceAndData));
-    uint32_t originalNonce = nonceAndData[0];
-
-    uint32_t theirKey[8];
-    randombytes((uint8_t*)theirKey, sizeof(theirKey));
-
-    uint32_t ourKey[8];
-    randombytes((uint8_t*)ourKey, sizeof(ourKey));
-
-    nonceAndData[0] = CryptoAuth_obfuscateNonce(nonceAndData, theirKey, ourKey);
-    assert(originalNonce == CryptoAuth_deobfuscateNonce(nonceAndData, ourKey, theirKey));
-    return 0;
-}
-
 int encryptRndNonceTest()
 {
     uint8_t buff[44] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0"
@@ -117,5 +100,5 @@ int handshake1()
 
 int main()
 {
-    return obfuscateNonceTest() | encryptRndNonceTest() | createNew() | handshake1();
+    return encryptRndNonceTest() | createNew() | handshake1();
 }

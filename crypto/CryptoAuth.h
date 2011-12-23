@@ -125,30 +125,35 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
  * @param ourKey this node's public permanent key as an array of 32 bit integers.
  * @return nonce ^ rotate(tks, tkRot) ^ rotate(oks, okRot) ^ salt;
  */
-static inline uint32_t CryptoAuth_obfuscateNonce(uint32_t nonceAndSalt[2],
-                                                 uint32_t theirKey[8],
-                                                 uint32_t ourKey[8])
+#include <stdio.h>
+static inline uint32_t CryptoAuth_obfuscateNonce(uint32_t nonce_be,
+                                                 uint32_t salt_be,
+                                                 uint8_t theirKey[32],
+                                                 uint8_t ourKey[32])
 {
     #define CryptoAuth_rotate(number, bits) \
         (Endian_isBigEndian()                                    \
             ? ((number << (bits)) | (number >> (32 - (bits))))   \
             : ((number >> (bits)) | (number << (32 - (bits)))))
 
-    uint32_t salt = Endian_bigEndianToHost32(nonceAndSalt[1]);
+    uint32_t salt = Endian_bigEndianToHost32(salt_be);
     uint32_t tkRot = (salt >> 6) % 32;
     uint32_t okRot = (salt >> 11) % 32;
     uint32_t tks = theirKey[salt % 8];
     uint32_t oks = ourKey[(salt >> 3) % 8];
-
-    return nonceAndSalt[0]
+    //memcpy(&tks, theirKey + ((salt % 8) * 4), 4);
+    //uint32_t oks;
+    //memcpy(&oks, ourKey + (((salt >> 3) % 8) * 4), 4);
+printf("tks=%u, oks=%u salt=%u\n", ((uint32_t*)theirKey)[0], ((uint32_t*)ourKey)[0], salt);
+    return nonce_be
         ^ CryptoAuth_rotate(tks, tkRot)
         ^ CryptoAuth_rotate(oks, okRot)
-        ^ nonceAndSalt[1];
+        ^ salt_be;
 
     #undef CryptoAuth_rotate
 }
-#define CryptoAuth_deobfuscateNonce(nonceAndData, theirKey, ourKey) \
-    CryptoAuth_obfuscateNonce(nonceAndData, ourKey, theirKey)
+#define CryptoAuth_deobfuscateNonce(nonce_be, salt_be, theirKey, ourKey) \
+    CryptoAuth_obfuscateNonce(nonce_be, salt_be, ourKey, theirKey)
 
 void CryptoAuth_getSession(struct Session* output, struct Interface* interface);
 

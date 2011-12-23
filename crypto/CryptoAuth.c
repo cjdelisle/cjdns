@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #define DEBUG(x) printf(__FILE__ ":%u " x, __LINE__)
+#define DEBUG1(x, y) printf(__FILE__ ":%u " x, __LINE__, y)
 
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
@@ -267,39 +268,6 @@ static inline bool knowHerKey(struct Wrapper* wrapper)
     return (herKey[0] | herKey[1] | herKey[2] | herKey[3]) != 0;
 }
 
-static inline uint32_t obfuscateNonce(uint32_t* nonce_be, struct Wrapper* wrapper)
-{
-    return CryptoAuth_obfuscateNonce(nonce_be,
-                                     ((uint32_t*)wrapper->herPerminentPubKey),
-                                     ((uint32_t*)wrapper->context->publicKey));
-}
-
-static inline uint32_t deobfuscateNonce(uint32_t* nonce_be,
-                                        uint8_t herPublicKey[32],
-                                        struct Wrapper* wrapper)
-{
-    return CryptoAuth_deobfuscateNonce(nonce_be,
-                                       (uint32_t*) herPublicKey,
-                                       (uint32_t*)wrapper->context->publicKey);
-}
-
-static inline void obfuscateAuth(union Headers_AuthChallenge* auth, struct Wrapper* wrapper)
-{
-    auth->ints[2] = obfuscateNonce(auth->ints + 2, wrapper);
-    auth->ints[1] = obfuscateNonce(auth->ints + 1, wrapper);
-    auth->ints[0] = obfuscateNonce(auth->ints, wrapper);
-}
-
-static inline void deobfuscateAuth(union Headers_AuthChallenge* auth,
-                                   uint32_t herPublicKey[8],
-                                   struct Wrapper* wrapper)
-{
-    uint32_t* myPubKey = (uint32_t*) wrapper->context->publicKey;
-    auth->ints[0] = CryptoAuth_deobfuscateNonce(auth->ints, herPublicKey, myPubKey);
-    auth->ints[1] = CryptoAuth_deobfuscateNonce(auth->ints + 1, herPublicKey, myPubKey);
-    auth->ints[2] = CryptoAuth_deobfuscateNonce(auth->ints + 2, herPublicKey, myPubKey);
-}
-
 /**
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
@@ -327,7 +295,7 @@ static uint8_t genReverseHandshake(struct Message* message,
 
     Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
-    header->nonce = 0;
+    header->nonce = UINT32_MAX;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
 
     message->length = Headers_CryptoAuth_SIZE;
@@ -365,12 +333,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
 
-    // Obfuscate the authentication header.
-    obfuscateAuth(&header->handshake.auth, wrapper);
-
-    // set and obfuscate the session state
+    // set the session state
     header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
-    header->nonce = obfuscateNonce((uint32_t*)&header->nonce, wrapper);
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
@@ -392,7 +356,11 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
 
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
-        // Sending hello
+        if (wrapper->nextNonce == 0) {
+            DEBUG("Sending hello packet\n");
+        } else {
+            DEBUG("Sending repeat hello packet\n");
+        }
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->herPerminentPubKey,
@@ -402,8 +370,11 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         // just generated this, copy it into tempKey so it is available for handshake2.
         memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
     } else {
-        // 2 or 3
-        // sending key
+        if (wrapper->nextNonce == 2) {
+            DEBUG("Sending key packet\n");
+        } else {
+            DEBUG("Sending repeat key packet\n");
+        }
         // Handshake2 wrapper->tempKey holds her public temp key.
         // it was put there by receiveMessage()
         getSharedSecret(sharedSecret,
@@ -442,10 +413,8 @@ static inline uint8_t encryptMessage(struct Message* message,
 
     Message_shift(message, 4);
 
-    uint32_t* noncePtr = &((union Headers_CryptoAuth*) message->bytes)->nonce;
-    *noncePtr = Endian_hostToBigEndian32(wrapper->nextNonce);
-    *noncePtr = obfuscateNonce(noncePtr, wrapper);
-
+    union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
+    header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
     wrapper->nextNonce++;
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
@@ -531,7 +500,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
     // nextNonce 3: recieving first data packet.
     // nextNonce >3: handshake complete
 
-    if (wrapper->nextNonce < 2 && header->nonce == 0 && !wrapper->requireAuth) {
+    if (wrapper->nextNonce < 2 && nonce == UINT32_MAX && !wrapper->requireAuth) {
         // Reset without knowing key is allowed until state reaches 2.
         // this is because we don't know that the other end knows our key until we
         // have received a valid packet from them.
@@ -547,9 +516,6 @@ static void decryptHandshake(struct Wrapper* wrapper,
         encryptHandshake(message, wrapper);
         return;
     }
-
-    // Deobfuscate the auth header.
-    deobfuscateAuth(&header->handshake.auth, (uint32_t*) header->handshake.publicKey, wrapper);
 
     void* user = NULL;
     uint8_t passwordHashStore[32];
@@ -567,15 +533,17 @@ static void decryptHandshake(struct Wrapper* wrapper,
 
     uint8_t* herPermKey = NULL;
     if (nonce < 2) {
-        // They sent a hello (this might be a reset connection hello)
+        if (nonce == 0) {
+            DEBUG("Received a hello packet\n");
+        } else {
+            DEBUG("Received a repeat hello packet\n");
+        }
+
         // TODO: Prevent this from happening on connections which are active to prevent RST attacks.
 
         // Decrypt message with perminent keys.
         if (!knowHerKey(wrapper)) {
-            // We need to store this on the stack because it gets clobbered by decryption.
-            uint8_t herPermKeyStorage[32];
-            memcpy(herPermKeyStorage, header->handshake.publicKey, 32);
-            herPermKey = herPermKeyStorage;
+            herPermKey = header->handshake.publicKey;
         } else {
             herPermKey = wrapper->herPerminentPubKey;
         }
@@ -586,6 +554,13 @@ static void decryptHandshake(struct Wrapper* wrapper,
                         passwordHash);
         nextNonce = 2;
     } else {
+        if (nonce == 2) {
+            DEBUG("Received a key packet\n");
+        } else if (nonce == 3) {
+            DEBUG("Received a repeat key packet\n");
+        } else {
+            DEBUG1("Received a packet of unknown type! nonce=%u\n", nonce);
+        }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
                         wrapper->secret,
@@ -609,7 +584,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
     memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
     Message_shift(message, -32);
     wrapper->nextNonce = nextNonce;
-    if (herPermKey) {
+    if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
         memcpy(wrapper->herPerminentPubKey, herPermKey, 32);
     }
 
@@ -642,19 +617,12 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 
     Message_shift(received, -4);
 
-    uint32_t nonce;
-    if (!knowHerKey(wrapper) && received->length >= Headers_CryptoAuth_SIZE - 4) {
-        nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce,
-                                                          header->handshake.publicKey,
-                                                          wrapper));
-    } else {
-        nonce = Endian_bigEndianToHost32(deobfuscateNonce(&header->nonce,
-                                                          wrapper->herPerminentPubKey,
-                                                          wrapper));
-    }
+    uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (wrapper->nextNonce < 5) {
-        if (nonce > 3 && header->nonce != 0) {
+        DEBUG("Got handshake.\n");
+        if (nonce > 3 && nonce != UINT32_MAX) {
+            DEBUG1("Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
             getSharedSecret(secret,
                             wrapper->secret,
@@ -665,6 +633,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
                 memcpy(wrapper->secret, secret, 32);
                 return;
             }
+            DEBUG("Final handshake step failed.\n");
         }
     } else if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         // If decryptMessage returns false then we will try the packet as a handshake.

@@ -326,12 +326,11 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
         Message_shift(message, 4);
 
         uint32_t nonce_be = Endian_hostToBigEndian32(sendTo->session.nextNonce);
-        memcpy(message->bytes, &nonce_be, 4);
-        uint32_t obfuscatedNonce =
-            CryptoAuth_obfuscateNonce((uint32_t*) message->bytes,
-                                      (uint32_t*) sendTo->address.key,
-                                      (uint32_t*) context->myAddr.key);
-        memcpy(message->bytes, &obfuscatedNonce, 4);
+        union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
+        caHeader->nonce = CryptoAuth_obfuscateNonce(nonce_be,
+                                                    caHeader->handshake.auth.ints[0],
+                                                    sendTo->address.key,
+                                                    context->myAddr.key);
         sendTo->session.nextNonce++;
 
         context->switchHeader->label_be = sendTo->address.networkAddress_be;
@@ -501,22 +500,25 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
 
+    union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
+
     uint8_t* herKey;
     if (node) {
         herKey = node->address.key;
-    } else if (message->length < sizeof(union Headers_CryptoAuth)) {
+    } else if (message->length < Headers_CryptoAuth_SIZE) {
         DEBUG("Dropped runt packet.\n");
         // runt
         return 0;
     } else {
-        herKey = ((union Headers_CryptoAuth*) message->bytes)->handshake.publicKey;
+        herKey = caHeader->handshake.publicKey;
     }
 
     uint32_t nonce =
         Endian_bigEndianToHost32(
-            CryptoAuth_deobfuscateNonce((uint32_t*) message->bytes,
-                                        (uint32_t*) herKey,
-                                        (uint32_t*) context->myAddr.key));
+            CryptoAuth_deobfuscateNonce(caHeader->nonce,
+                                        caHeader->handshake.auth.ints[0],
+                                        herKey,
+                                        context->myAddr.key));
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
