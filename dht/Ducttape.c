@@ -22,6 +22,8 @@
 #include <stdint.h>
 #include <event2/event.h>
 
+#define DEBUG(x) printf(__FILE__ ":%u " x, __LINE__)
+
 /**
  * A network module which connects the DHT router to the SwitchCore.
  * This module's job is to grab messages off of the switch,
@@ -72,6 +74,7 @@ struct Context
 
     /** Catch an incoming message after it runs through the crypto authenticator. */
     struct Message* messageFromCryptoAuth;
+    uint8_t* herPublicKey;
 
     struct Interface contentSmOutside;
     struct Interface* contentSmInside;
@@ -372,7 +375,7 @@ static inline void ip6FromTun(struct Message* message,
                               struct Interface* interface)
 {
     if (!validIP6(message)) {
-        fprintf(stderr, "dropped message from TUN because it was not valid IPv6.\n");
+        DEBUG("dropped message from TUN because it was not valid IPv6.\n");
         return;
     }
 
@@ -408,7 +411,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
     if (!validIP6(message)) {
-        printf("Dropping message because of invalid ipv6 header.\n");
+        DEBUG("Dropping message because of invalid ipv6 header.\n");
         return 0;
     }
 
@@ -424,7 +427,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (context->ip6Header->hopLimit == 0) {
-        printf("dropped message because hop limit has been exceeded.\n");
+        DEBUG("dropped message because hop limit has been exceeded.\n");
     }
     context->ip6Header->hopLimit--;
 
@@ -433,7 +436,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     if (nextBest) {
         return sendToRouter(nextBest, message, context);
     }
-    printf("Dropped message because this node is the closest known node to the destination.\n");
+    DEBUG("Dropped message because this node is the closest known node to the destination.\n");
     return 0;
 }
 
@@ -473,6 +476,9 @@ static void receivedFromCryptoAuth(struct Message* message, struct Interface* if
 printf(">");
     struct Context* context = iface->receiverContext;
     context->messageFromCryptoAuth = message;
+    RouterModule_addNode(context->herPublicKey, 
+                         (uint8_t*) &context->switchHeader->label_be,
+                         context->routerModule);
     decryptedIncoming(message, context);
 }
 
@@ -508,6 +514,7 @@ printf(">");
     if (node) {
         herKey = node->address.key;
     } else if (message->length < sizeof(union Headers_CryptoAuth)) {
+        DEBUG("Dropped runt packet.\n");
         // runt
         return 0;
     } else {
@@ -524,9 +531,9 @@ printf(">");
     context->switchHeader = switchHeader;
 
     if (nonce > 4 && node && node->session.exists) {
-            Message_shift(message, -4);
-            decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);
-            return decryptedIncoming(message, context);
+        Message_shift(message, -4);
+        decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);
+        return decryptedIncoming(message, context);
     }
 
     // Nonce is <4, this is a crypto negotiation.
@@ -541,11 +548,14 @@ printf(">");
     // Null the message in the context then call cryptoAuth and if
     // it's nolonger null then the message is valid :/
     context->messageFromCryptoAuth = NULL;
+    context->herPublicKey = herKey;
 
+    // This goes to receivedFromCryptoAuth()
+    // then decryptedIncoming()
     iface->receiveMessage(message, iface);
 
     if (!context->messageFromCryptoAuth) {
-        printf("invalid (?) message was eaten by the cryptoAuth\n");
+        DEBUG("invalid (?) message was eaten by the cryptoAuth\n");
     }
 printf("\n");
 fflush(stdout);

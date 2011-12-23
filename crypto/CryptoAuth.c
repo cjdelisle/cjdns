@@ -20,6 +20,8 @@
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
+#define DEBUG(x) printf(__FILE__ ":%u " x, __LINE__)
+
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
 static const uint8_t keyHashNonce[16] = {0};
@@ -378,18 +380,20 @@ static uint8_t genReverseHandshake(struct Message* message,
                                    union Headers_CryptoAuth* header)
 {
     wrapper->nextNonce = 0;
-    Message_shift(message, -Headers_CryptoAuth_SIZE);
+    //Message_shift(message, -Headers_CryptoAuth_SIZE);
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage == NULL) {
-if (message->length < 120) {
-    printf("This message will not be able to be sent\n");
-}
+        #ifdef DEBUGGING
+            if (message->length < 120) {
+                DEBUG("This message will not be able to be sent\n");
+            }
+        #endif
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
         assert(wrapper->nextNonce == 0);
     } else {
-printf("Expelled a message because a session has not yet been setup.\n");
+        DEBUG("Expelled a message because a session has not yet been setup.\n");
         Message_copyOver(wrapper->bufferedMessage,
                          message,
                          wrapper->externalInterface.allocator);
@@ -590,8 +594,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
                              union Headers_CryptoAuth* header)
 {
     if (message->length < sizeof(union Headers_CryptoAuth)) {
-        printf("%u Dropped runt\n", __LINE__);
-        // runt
+        DEBUG("Dropped runt packet\n");
         return;
     }
 
@@ -685,11 +688,11 @@ static void decryptHandshake(struct Wrapper* wrapper,
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
     if (wrapper->bufferedMessage && message->length == 0) {
-        printf("Sending buffered message.\n");
+        DEBUG("Sending buffered message.\n");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     } else if (wrapper->bufferedMessage) {
-        printf("There is a buffered message! - the length of this message is %u\n", message->length);
+        DEBUG("There is a buffered message");
     }
 
     setRequiredPadding(wrapper);
@@ -703,7 +706,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->requireAuth ? 20 : 4)) {
-        printf("%u Dropped runt\n", __LINE__);
+        DEBUG("Dropped runt");
         return;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
@@ -735,8 +738,8 @@ static void receiveMessage(struct Message* received, struct Interface* interface
                 return;
             }
         }
-    } else if (!decryptMessage(wrapper, nonce, received, wrapper->secret)) {
-        printf("%u Dropped authenticated message which failed to decrypt\n", __LINE__);
+    } else if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
+        // If decryptMessage returns false then we will try the packet as a handshake.
         return;
     }
     Message_shift(received, 4);

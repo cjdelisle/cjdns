@@ -45,7 +45,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
     uint32_t nonce_be =
         Exports_obfuscateNonce(((uint32_t*)message->bytes), iface->receiverContext);
     printf("sent message -->  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
-    assert(message->length + message->padding == 400);
+    assert(message->length + message->padding <= BUFFER_SIZE);
     if2->receiveMessage(message, if2);
     return 0;
 }
@@ -55,7 +55,7 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
     uint32_t nonce_be =
         Exports_obfuscateNonce(((uint32_t*)message->bytes), iface->receiverContext);
     printf("sent message <--  nonce=%d\n", Endian_bigEndianToHost32(nonce_be));
-    assert(message->length + message->padding == 400);
+    assert(message->length + message->padding <= BUFFER_SIZE);
     if1->receiveMessage(message, if1);
     return 0;
 }
