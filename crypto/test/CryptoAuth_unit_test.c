@@ -110,7 +110,7 @@ int handshake1()
     Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
 
     assert(finalOut->length == 13);
-    assert(memcmp(hello, finalOut->bytes, 13) == 0)
+    assert(memcmp(hello, finalOut->bytes, 13) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
     return 0;
 }

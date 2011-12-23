@@ -17,7 +17,13 @@ add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 add_definitions(
     -pie
     -fPIE
+
+    # Broken GCC patch makes -fstack-protector-all not work
+    # workaround is to give -fno-stack-protector first.
+    # see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
+    -fno-stack-protector
     -fstack-protector-all
+
     -Wstack-protector
     -D_FORTIFY_SOURCE=2
     -Wa,--noexecstack
