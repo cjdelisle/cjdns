@@ -63,7 +63,7 @@ target_link_libraries(cjdroute
     benc
     benc_JsonBencSerializer
     MemAllocator
-    ${LIBEVENT_LIBRARIES}
+    ${LIBEVENT2_LIBRARIES}
 )
 
 add_executable(benc2json benc2json.c)

@@ -400,6 +400,8 @@ printf("Expelled a message because a session has not yet been setup.\n");
     header->nonce = 0;
     memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
 
+    message->length = Headers_CryptoAuth_SIZE;
+
     // sessionState must be 0, auth and 24 byte nonce are garbaged and public key is set
     // now garbage the authenticator and the encrypted key which are not used.
     randombytes((uint8_t*) &header->handshake.authenticator, 48);
@@ -588,6 +590,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
                              union Headers_CryptoAuth* header)
 {
     if (message->length < sizeof(union Headers_CryptoAuth)) {
+        printf("%u Dropped runt\n", __LINE__);
         // runt
         return;
     }
@@ -607,10 +610,11 @@ static void decryptHandshake(struct Wrapper* wrapper,
         if (!knowHerKey(wrapper)) {
             memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
         }
-        Message_shift(message, -message->length);
+        message->length = 0;
         wrapper->nextNonce = 0;
         wrapper->user = NULL;
-        sendMessage(message, &wrapper->externalInterface);
+        // Send an empty response (to initiate the connection).
+        encryptHandshake(message, wrapper);
         return;
     }
 
@@ -680,6 +684,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
     if (wrapper->bufferedMessage && message->length == 0) {
+        printf("Sending buffered message.\n");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     } else if (wrapper->bufferedMessage) {
@@ -697,6 +702,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->requireAuth ? 20 : 4)) {
+        printf("%u Dropped runt\n", __LINE__);
         return;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
@@ -729,6 +735,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
             }
         }
     } else if (!decryptMessage(wrapper, nonce, received, wrapper->secret)) {
+        printf("%u Dropped authenticated message which failed to decrypt\n", __LINE__);
         return;
     }
     Message_shift(received, 4);

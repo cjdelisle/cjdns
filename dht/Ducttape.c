@@ -105,7 +105,7 @@ static inline void incomingDHT(struct Message* message,
                                struct Context* context)
 {
 
-printf(">.> ");
+printf(".> ");
 //printMessage(message);
 printf("\n");
 
@@ -133,9 +133,9 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
 
-printf("<.< ");
+printf("<.");
 //printMessage(&message);
-printf("\n");
+//printf("\n");
 
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
@@ -194,6 +194,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  */
 static void incomingForMe(struct Message* message, struct Interface* iface)
 {
+printf(">");
     struct Context* context = (struct Context*) iface->receiverContext;
     if (isRouterTraffic(message, context->ip6Header)) {
         struct Address addr;
@@ -234,6 +235,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
                                    struct Context* context)
 {
+printf("<\n");
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
         (struct Headers_SwitchHeader*) message->bytes;
@@ -316,6 +318,7 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
                                    struct Message* message,
                                    struct Context* context)
 {
+printf("<");
     if (sendTo->session.exists) {
         encrypt(sendTo->session.nextNonce,
                 message,
@@ -410,6 +413,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (isForMe(message, context)) {
+printf("m");
         Message_shift(message, -Headers_IP6Header_SIZE);
         // This call goes to incomingForMe()
         context->contentSession =
@@ -440,6 +444,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
  */
 static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
 {
+printf("<");
     struct Context* context = (struct Context*) iface->senderContext;
 
     // Need to set the length field to take into account
@@ -456,6 +461,9 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
         memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
+        // Also the length field is going to be wrong since the length of the message to send
+        // is almost certainly not the same as the length of the response fromt he CryptoAuth.
+        ip6->payloadLength_be = Endian_hostToBigEndian16(message->length);
     }
 
     // Forward this call to decryptedIncoming() which will check it's validity
@@ -465,6 +473,7 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
 
 static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
+printf(">");
     struct Context* context = iface->receiverContext;
     context->messageFromCryptoAuth = message;
     decryptedIncoming(message, context);
@@ -477,6 +486,7 @@ static void receivedFromCryptoAuth(struct Message* message, struct Interface* if
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
+printf(">");
     struct Context* context = switchIf->senderContext;
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
@@ -540,7 +550,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (!context->messageFromCryptoAuth) {
         printf("invalid (?) message was eaten by the cryptoAuth\n");
     }
-
+printf("\n");
+fflush(stdout);
     return 0;
 }
 

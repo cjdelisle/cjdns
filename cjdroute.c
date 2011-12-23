@@ -330,6 +330,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 
 static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
 {
+    printf("serverFirstIncoming");
     struct UDPInterfaceContext* uictx = (struct UDPInterfaceContext*) iface->receiverContext;
 
     struct Interface* udpDefault = UDPInterface_getDefaultInterface(uictx->udpContext);
