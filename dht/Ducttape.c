@@ -325,12 +325,9 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
                 sendTo->session.isInitiator);
         Message_shift(message, 4);
 
-        uint32_t nonce_be = Endian_hostToBigEndian32(sendTo->session.nextNonce);
-        union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
-        caHeader->nonce = CryptoAuth_obfuscateNonce(nonce_be,
-                                                    caHeader->handshake.auth.ints[0],
-                                                    sendTo->address.key,
-                                                    context->myAddr.key);
+        ((union Headers_CryptoAuth*) message->bytes)->nonce =
+            Endian_hostToBigEndian32(sendTo->session.nextNonce);
+
         sendTo->session.nextNonce++;
 
         context->switchHeader->label_be = sendTo->address.networkAddress_be;
@@ -513,12 +510,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         herKey = caHeader->handshake.publicKey;
     }
 
-    uint32_t nonce =
-        Endian_bigEndianToHost32(
-            CryptoAuth_deobfuscateNonce(caHeader->nonce,
-                                        caHeader->handshake.auth.ints[0],
-                                        herKey,
-                                        context->myAddr.key));
+    uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
