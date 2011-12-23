@@ -13,7 +13,6 @@
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
-#include "util/Hex.h"//debugging
 #include "wire/Headers.h"
 
 #include "crypto_stream_salsa20.h"
@@ -197,12 +196,11 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  */
 static void incomingForMe(struct Message* message, struct Interface* iface)
 {
-printf(">");
     struct Context* context = (struct Context*) iface->receiverContext;
     if (isRouterTraffic(message, context->ip6Header)) {
         struct Address addr;
         memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
-        memcpy(addr.networkAddress, &context->switchHeader->label_be, 8);
+        addr.networkAddress_be = context->switchHeader->label_be;
         uint8_t* key = CryptoAuth_getHerPublicKey(context->contentSession);
         memcpy(addr.key, key, 32);
         // Shift off the UDP header.
@@ -238,7 +236,6 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
                                    struct Context* context)
 {
-printf("<\n");
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
         (struct Headers_SwitchHeader*) message->bytes;
@@ -321,7 +318,6 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
                                    struct Message* message,
                                    struct Context* context)
 {
-printf("<");
     if (sendTo->session.exists) {
         encrypt(sendTo->session.nextNonce,
                 message,
@@ -338,9 +334,8 @@ printf("<");
         memcpy(message->bytes, &obfuscatedNonce, 4);
         sendTo->session.nextNonce++;
 
-        memcpy(&context->switchHeader->label_be,
-               sendTo->address.networkAddress,
-               Address_NETWORK_ADDR_SIZE);
+        context->switchHeader->label_be = sendTo->address.networkAddress_be;
+
         return sendToSwitch(message, context->switchHeader, context);
     }
 
@@ -348,7 +343,7 @@ printf("<");
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
     memcpy(&header, context->switchHeader, sizeof(struct Headers_SwitchHeader));
-    memcpy(&header.label_be, sendTo->address.networkAddress, Address_NETWORK_ADDR_SIZE);
+    header.label_be = sendTo->address.networkAddress_be;
     context->switchHeader = &header;
     struct Interface* session = getCaSession(&header, sendTo->address.key, context);
     // This comes out in sendToSwitchFromCryptoAuth()
@@ -447,7 +442,6 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
  */
 static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
 {
-printf("<");
     struct Context* context = (struct Context*) iface->senderContext;
 
     // Need to set the length field to take into account
@@ -473,11 +467,10 @@ printf("<");
 
 static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-printf(">");
     struct Context* context = iface->receiverContext;
     context->messageFromCryptoAuth = message;
     RouterModule_addNode(context->herPublicKey, 
-                         (uint8_t*) &context->switchHeader->label_be,
+                         context->switchHeader->label_be,
                          context->routerModule);
     decryptedIncoming(message, context);
 }
@@ -489,7 +482,6 @@ printf(">");
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-printf(">");
     struct Context* context = switchIf->senderContext;
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
@@ -507,8 +499,7 @@ printf(">");
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-    struct Node* node = RouterModule_getNode((uint8_t*) &switchHeader->label_be,
-                                             context->routerModule);
+    struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
 
     uint8_t* herKey;
     if (node) {
@@ -557,8 +548,7 @@ printf(">");
     if (!context->messageFromCryptoAuth) {
         DEBUG("invalid (?) message was eaten by the cryptoAuth\n");
     }
-printf("\n");
-fflush(stdout);
+
     return 0;
 }
 

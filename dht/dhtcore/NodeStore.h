@@ -78,6 +78,5 @@ uint32_t NodeStore_size(const struct NodeStore* const store);
 uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
                                  const struct NodeStore* const store);
 
-struct Node* NodeStore_getNodeByNetworkAddr(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
-                                            struct NodeStore* store);
+struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store);
 #endif

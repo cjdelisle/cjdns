@@ -601,9 +601,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
-        uint64_t label = LabelSplicer_splice(*((uint64_t*) addr.networkAddress),
-                                             *((uint64_t*) message->address->networkAddress));
-        memcpy(addr.networkAddress, &label, 8);
+        addr.networkAddress_be = LabelSplicer_splice(addr.networkAddress_be,
+                                                     message->address->networkAddress_be);
 
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
 
@@ -695,10 +694,9 @@ static inline int handleQuery(struct DHTMessage* message,
         // length or longer.
         struct Address addr;
         memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
-        uint64_t label = LabelSplicer_getLabelFor(*((uint64_t*) addr.networkAddress),
-                                                  *((uint64_t*) query->address->networkAddress));
-        memcpy(&addr.networkAddress, &label, 8);
 
+        addr.networkAddress_be = LabelSplicer_getLabelFor(addr.networkAddress_be,
+                                                          query->address->networkAddress_be);
 
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
         hasNonZeroReach |= nodeList->nodes[i]->reach;
@@ -815,31 +813,33 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
 
 /** See: RouterModule.h */
 void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
-                          const uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
+                          const uint64_t networkAddress_be,
                           struct RouterModule* module)
 {
     struct Address address;
     memset(&address, 0, sizeof(struct Address));
     memcpy(&address.key, key, Address_KEY_SIZE);
-    memcpy(&address.networkAddress, networkAddress, Address_NETWORK_ADDR_SIZE);
+    address.networkAddress_be = networkAddress_be;
 
-Address_getPrefix(&address);
-printf("Adding node:  ");
-for (int i = 0; i < 16; i++) {
-    printf("%02x", address.ip6.bytes[i]);
-}
-printf("\n");
+    #ifdef DEBUGGING
+        Address_getPrefix(&address);
+        printf("Adding node:  ");
+        for (int i = 0; i < 16; i++) {
+            printf("%02x", address.ip6.bytes[i]);
+        }
+        printf("\n");
+    #endif
 
     NodeStore_addNode(module->nodeStore, &address, 0);
 }
 
 /** See: RouterModule.h */
-void RouterModule_pingNode(const uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
+void RouterModule_pingNode(const uint64_t networkAddress_be,
                            struct RouterModule* module)
 {
     struct Address addr;
     memset(&addr, 0, sizeof(struct Address));
-    memcpy(&addr.networkAddress, networkAddress, Address_NETWORK_ADDR_SIZE);
+    addr.networkAddress_be = networkAddress_be;
     // using "xx" as the tid is just convienent, it could be anything.
     sendRequest(&addr,
                 CJDHTConstants_QUERY_PING,
@@ -880,8 +880,7 @@ struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_S
     #undef NUMBER_TO_GET
 }
 
-struct Node* RouterModule_getNode(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
-                                  struct RouterModule* module)
+struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module)
 {
-    return NodeStore_getNodeByNetworkAddr(networkAddress, module->nodeStore);
+    return NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
 }

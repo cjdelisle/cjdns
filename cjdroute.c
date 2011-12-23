@@ -418,7 +418,7 @@ static void udpConnectTo(String* connectToAddress,
 
     uint64_t switchAddr_be;
     SwitchCore_addInterface(authedUdp, *trust, &switchAddr_be, ctx->switchCore);
-    RouterModule_addNode(pkBytes, (uint8_t*)&switchAddr_be, ctx->routerModule);
+    RouterModule_addNode(pkBytes, switchAddr_be, ctx->routerModule);
 }
 
 static void configureUDP(Dict* config, struct Context* ctx)

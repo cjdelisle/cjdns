@@ -206,32 +206,16 @@ uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
             out += decreaseReachBy;
         } else {
             out += header->reach;
-// I don't care about 1 or 2 reach nodes coming in and out all the time.
-if (header->reach > 20) {
-printf("Node (%d.%d.%d.%d.%d.%d.%d.%d) reset reach to to 0\n",
-       ((int) store->nodes[i].address.networkAddress[0] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[1] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[2] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[3] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[4] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[5] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[6] & 0xff),
-       ((int) store->nodes[i].address.networkAddress[7] & 0xff));
-}
             header->reach = 0;
         }
     }
     return out;
 }
 
-struct Node* NodeStore_getNodeByNetworkAddr(uint8_t networkAddress[Address_NETWORK_ADDR_SIZE],
-                                            struct NodeStore* store)
+struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store)
 {
     for (uint32_t i = 0; i < store->size; i++) {
-        if (memcmp(networkAddress,
-                   store->nodes[i].address.networkAddress,
-                   Address_NETWORK_ADDR_SIZE) == 0)
-        {
+        if (networkAddress_be == store->nodes[i].address.networkAddress_be) {
             return &store->nodes[i];
         }
     }

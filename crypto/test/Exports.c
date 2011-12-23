@@ -28,3 +28,13 @@ int Exports_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secr
 {
     return decryptRndNonce(nonce, msg, secret);
 }
+
+uint8_t Exports_encryptHandshake(struct Message* message, struct Wrapper* wrapper)
+{
+    return encryptHandshake(message, wrapper);
+}
+
+void Exports_receiveMessage(struct Message* received, struct Interface* interface)
+{
+    receiveMessage(received, interface);
+}

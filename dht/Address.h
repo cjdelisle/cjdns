@@ -30,7 +30,7 @@ struct Address
 
     uint8_t key[Address_KEY_SIZE];
 
-    uint8_t networkAddress[Address_NETWORK_ADDR_SIZE];
+    uint64_t networkAddress_be;
 };
 
 static inline uint32_t Address_getPrefix(struct Address* addr)
@@ -86,15 +86,17 @@ static inline void Address_forKey(struct Address* out, const uint8_t key[Address
 
 static inline void Address_printNetworkAddress(uint8_t output[20], struct Address* input)
 {
+    uint8_t addr[8];
+    memcpy(addr, &input->networkAddress_be, 8);
     sprintf((char*)output, "%.2x%.2x.%.2x%.2x.%.2x%.2x.%.2x%.2x",
-            input->networkAddress[0],
-            input->networkAddress[1],
-            input->networkAddress[2],
-            input->networkAddress[3],
-            input->networkAddress[4],
-            input->networkAddress[5],
-            input->networkAddress[6],
-            input->networkAddress[7]);
+            addr[0],
+            addr[1],
+            addr[2],
+            addr[3],
+            addr[4],
+            addr[5],
+            addr[6],
+            addr[7]);
 }
 
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)

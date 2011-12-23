@@ -55,7 +55,10 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
             read(readInto, firstRead, reader);
         }
         if (length - firstRead >= BUFFER_SIZE) {
-            fread((char*)readInto + firstRead, 1, length - firstRead, context->toRead);
+            size_t r = fread((char*)readInto + firstRead, 1, length - firstRead, context->toRead);
+            if (r < length - firstRead) {
+                return -1;
+            }
         }
         context->pointer = context->buffer;
         context->endPointer =

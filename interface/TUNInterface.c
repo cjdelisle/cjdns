@@ -90,7 +90,10 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
-    write(tun->fileDescriptor, message->bytes, message->length);
+    ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
+    if (ret < 0) {
+        printf("Error writing to TUN device %d\n", errno);
+    }
     // TODO: report errors
     return 0;
 }
