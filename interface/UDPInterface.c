@@ -202,7 +202,9 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
  */
 static inline uint32_t getAddr(struct sockaddr_storage* addr)
 {
-    return ((struct sockaddr_in*) addr)->sin_addr.s_addr;
+    uint32_t out;
+    memcpy(&out, ((uint8_t*)addr) + 4, 4);
+    return out;
 }
 
 struct Interface* insertEndpoint(struct sockaddr_storage* addr,
