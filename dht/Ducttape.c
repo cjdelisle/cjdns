@@ -358,7 +358,7 @@ static inline bool validIP6(struct Message* message)
     uint16_t length = Endian_bigEndianToHost16(header->payloadLength_be);
     return header->sourceAddr[0] == 0xFC
         && header->destinationAddr[0] == 0xFC
-        && length == message->length;
+        && length == message->length - Headers_IP6Header_SIZE;
 }
 
 static inline bool isForMe(struct Message* message, struct Context* context)
@@ -413,7 +413,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (isForMe(message, context)) {
-printf("m");
+        printf("m");
         Message_shift(message, -Headers_IP6Header_SIZE);
         // This call goes to incomingForMe()
         context->contentSession =
@@ -461,6 +461,7 @@ printf("<");
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
         memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
+        context->ip6Header = ip6;
     }
 
     // Forward this call to decryptedIncoming() which will check it's validity
