@@ -358,7 +358,7 @@ static inline bool validIP6(struct Message* message)
     uint16_t length = Endian_bigEndianToHost16(header->payloadLength_be);
     return header->sourceAddr[0] == 0xFC
         && header->destinationAddr[0] == 0xFC
-        && length == message->length - Headers_IP6Header_SIZE;
+        && length == message->length;
 }
 
 static inline bool isForMe(struct Message* message, struct Context* context)
@@ -461,9 +461,6 @@ printf("<");
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
         memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
-        // Also the length field is going to be wrong since the length of the message to send
-        // is almost certainly not the same as the length of the response fromt he CryptoAuth.
-        ip6->payloadLength_be = Endian_hostToBigEndian16(message->length);
     }
 
     // Forward this call to decryptedIncoming() which will check it's validity
