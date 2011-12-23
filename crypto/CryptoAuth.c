@@ -610,6 +610,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
         if (!knowHerKey(wrapper)) {
             memcpy(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
         }
+        Message_shift(message, -Headers_CryptoAuth_SIZE);
         message->length = 0;
         wrapper->nextNonce = 0;
         wrapper->user = NULL;

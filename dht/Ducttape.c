@@ -424,7 +424,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (context->ip6Header->hopLimit == 0) {
-        printf("dropped message because hop limit has been exceeded.");
+        printf("dropped message because hop limit has been exceeded.\n");
     }
     context->ip6Header->hopLimit--;
 
@@ -461,7 +461,6 @@ printf("<");
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
         memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
-        context->ip6Header = ip6;
     }
 
     // Forward this call to decryptedIncoming() which will check it's validity
