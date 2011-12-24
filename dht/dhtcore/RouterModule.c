@@ -746,6 +746,9 @@ struct RouterModule_Search* RouterModule_beginSearch(
     struct RouterModule* module)
 {
     struct SearchStore_Search* search = SearchStore_newSearch(searchTarget, module->searchStore);
+    if (!search) {
+        return NULL;
+    }
     struct MemAllocator* searchAllocator = SearchStore_getAllocator(search);
 
     struct Address targetAddr;

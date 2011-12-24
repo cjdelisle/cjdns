@@ -79,7 +79,7 @@ static inline struct Interface* getSession(struct Message* message,
                 .allocator = ifAllocator
             });
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, key, false, false, sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, key, false, true, sm->cryptoAuth);
         insideIf->receiveMessage = receiveMessageTwo;
         insideIf->receiverContext = sm;
 

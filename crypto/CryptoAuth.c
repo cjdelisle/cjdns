@@ -423,16 +423,6 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
 
-    // If there has been no incoming traffic for a while, reset the connection to state 0.
-    // This will prevent "connection in bad state" situations from lasting forever.
-    struct timeval now;
-    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
-    int64_t whenToReset =
-        (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
-    if (now.tv_sec > whenToReset) {
-        wrapper->nextNonce = 0;
-    }
-
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
     // nextNonce 2: sending key, hello received.
@@ -449,6 +439,17 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
             getSharedSecret(wrapper->secret,
                             wrapper->secret,
                             wrapper->tempKey, NULL);
+        }
+    } else {
+        // If there has been no incoming traffic for a while, reset the connection to state 0.
+        // This will prevent "connection in bad state" situations from lasting forever.
+        struct timeval now;
+        event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
+        int64_t whenToReset =
+            (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
+        if (now.tv_sec > whenToReset) {
+            Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
+            wrapper->nextNonce = 0;
         }
     }
     return encryptMessage(message, wrapper);

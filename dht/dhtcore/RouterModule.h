@@ -49,7 +49,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  * @param callbackContext a pointer which will be passed back to the callback when it is called.
  * @param module the router module which should perform the search.
  * @return a search if all goes well, NULL if the search could not be completed because there are
- *         no nodes closer to the destination than us.
+ *         no nodes closer to the destination than us or if there is not enough empty search slots.
  */
 struct RouterModule_Search*
     RouterModule_beginSearch(const uint8_t target[Address_SEARCH_TARGET_SIZE],
