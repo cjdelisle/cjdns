@@ -121,7 +121,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
     //printf("\n%s\n", outMessage->peerAddress);
 
     assert(outMessage->length == strlen(EXPECTED_OUTPUT("xx")));
-    assert(memcmp(outMessage->bytes, EXPECTED_OUTPUT("\x00\x07"), outMessage->length) == 0);
+    assert(memcmp(outMessage->bytes, EXPECTED_OUTPUT("8\x00"), outMessage->length) == 0);
     //assert(strcmp(outMessage->address->networkAddress, " 00014  ") == 0);
     // In a normal DHT, 00014 is the closest node, however, 00011 has sent us a message in
     // testQuery() and thus his reach is 1 and he beats all other nodes which are 0-reach.
@@ -152,7 +152,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
         .allocator = allocator,
         .address = &address
     };
-    memcpy(message.bytes, CRAFTED_REPLY("\x00\x07"), message.length);
+    memcpy(message.bytes, CRAFTED_REPLY("8\x00"), message.length);
    // memcpy(message.peerAddress, peerAddress, 18);
 
     *outMessagePtr = NULL;

@@ -385,7 +385,6 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         context->contentSession =
             SessionManager_getSession(message, false, context->contentSmInside);
         context->contentSession->receiveMessage(message, context->contentSession);
-        //context->contentSmOutside.receiveMessage(message, &context->contentSmOutside);
         return 0;
     }
 
@@ -397,6 +396,11 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     struct Node* nextBest = RouterModule_getNextBest(context->ip6Header->destinationAddr,
                                                      context->routerModule);
     if (nextBest) {
+        #ifdef Log_DEBUG
+            uint8_t netAddr[20];
+            Address_printNetworkAddress(netAddr, &nextBest->address);
+            Log_debug1(context->logger, "Forwarding packet to %s\n", netAddr);
+        #endif
         return sendToRouter(nextBest, message, context);
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "
@@ -518,7 +522,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     return 0;
 }
 
-int Ducttape_register(uint8_t privateKey[32],
+int Ducttape_register(Dict* config,
+                      uint8_t privateKey[32],
                       struct DHTModuleRegistry* registry,
                       struct RouterModule* routerModule,
                       struct Interface* routerIf,
@@ -534,7 +539,7 @@ int Ducttape_register(uint8_t privateKey[32],
     context->switchCore = switchCore;
     context->allocator = allocator;
     context->logger = logger;
-    context->cryptoAuth = CryptoAuth_new(allocator, privateKey, logger);
+    context->cryptoAuth = CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, context->cryptoAuth);
     Address_getPrefix(&context->myAddr);
 

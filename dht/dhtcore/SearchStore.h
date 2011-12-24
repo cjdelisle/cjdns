@@ -20,7 +20,7 @@
 #define SearchStore_SEARCH_NODES 256
 
 /** Maximum number of concurrent searches. */
-#define SearchStore_MAX_SEARCHES 256
+#define SearchStore_MAX_SEARCHES 8
 
 
 #if (SearchStore_SEARCH_NODES & (SearchStore_SEARCH_NODES - 1))

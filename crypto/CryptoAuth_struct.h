@@ -10,6 +10,7 @@
 #include "wire/Message.h"
 
 #include <stdint.h>
+#include <event2/event.h>
 
 struct Auth {
     union Headers_AuthChallenge challenge;
@@ -30,6 +31,13 @@ struct CryptoAuth
     uint32_t passwordCapacity;
 
     struct Log* logger;
+    struct event_base* eventBase;
+
+    /**
+     * After this number of seconds of inactivity,
+     * a connection will be reset to prevent them hanging in a bad state.
+     */
+    uint32_t resetAfterInactivitySeconds;
 
     struct MemAllocator* allocator;
 };
@@ -62,6 +70,9 @@ struct Wrapper
 
     /** The next nonce to use. */
     uint32_t nextNonce;
+
+    /** Used to reset the connection if it's in a bad state (no traffic coming in). */
+    uint32_t timeOfLastPacket;
 
     /** The method to use for trying to auth with the server. */
     uint8_t authType;

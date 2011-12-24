@@ -521,7 +521,8 @@ int main(int argc, char** argv)
     context.eHandler = AbortHandler_INSTANCE;
     context.base = event_base_new();
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
-    context.ca = CryptoAuth_new(context.allocator, privateKey, context.logger);
+    context.ca =
+        CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
     context.registry = DHTModules_new(context.allocator);
     ReplyModule_register(context.registry, context.allocator);
 
@@ -550,7 +551,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    Ducttape_register(privateKey,
+    Ducttape_register(&config,
+                      privateKey,
                       context.registry,
                       context.routerModule,
                       context.routerIf,

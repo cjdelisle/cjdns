@@ -7,10 +7,14 @@
 #include "wire/Message.h"
 
 #include <stdio.h>
+#include <event2/event.h>
 
-uint8_t* privateKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
-uint8_t* publicKey = (uint8_t*) "\x3f\x5b\x96\x62\x11\x11\xd8\x9c\x7d\x3f\x51\x71\x68\x78\xfa\xb4"
-                                "\xc3\xcf\xd9\x7e\x32\x04\x12\xb4\xaf\x7e\x22\x92\xa5\xdf\x31\x71";
+static uint8_t* privateKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
+static uint8_t* publicKey = (uint8_t*)
+    "\x3f\x5b\x96\x62\x11\x11\xd8\x9c\x7d\x3f\x51\x71\x68\x78\xfa\xb4"
+    "\xc3\xcf\xd9\x7e\x32\x04\x12\xb4\xaf\x7e\x22\x92\xa5\xdf\x31\x71";
+
+static struct event_base* eventBase;
 
 int encryptRndNonceTest()
 {
@@ -28,7 +32,7 @@ int createNew()
     #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
@@ -53,7 +57,7 @@ int handshake1()
     #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, NULL);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -79,7 +83,7 @@ int handshake1()
 
 
     allocator->free(allocator);
-    ca = CryptoAuth_new(allocator, privateKey, NULL);
+    ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
     struct Message* finalOut = NULL;
     struct Wrapper wrapper2 = {
         .context = ca,
@@ -100,5 +104,6 @@ int handshake1()
 
 int main()
 {
+    eventBase = event_base_new();
     return encryptRndNonceTest() | createNew() | handshake1();
 }

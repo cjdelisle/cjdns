@@ -8,7 +8,8 @@
 
 #include <event2/event.h>
 
-int Ducttape_register(uint8_t privateKey[32],
+int Ducttape_register(Dict* config,
+                      uint8_t privateKey[32],
                       struct DHTModuleRegistry* registry,
                       struct RouterModule* routerModule,
                       struct Interface* routerIf,

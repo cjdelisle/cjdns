@@ -123,19 +123,33 @@ void receiveMessage(struct Message* message, struct Interface* iface)
     struct SwitchCore* core = sourceIf->core;
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
-    const uint32_t bits = NumberCompress_bitsUsedForLabel(label);
+    uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIfIndex = sourceIf - core->interfaces;
+    const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
+    const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIfIndex);
 
-    if (NumberCompress_bitsUsedForNumber(sourceIfIndex) > bits) {
-        // Source address bigger than destination address, fail.
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
-        return;
+    if (sourceBits > bits) {
+        // If the destination index is this router, don't drop the packet since there no
+        // way for a node to know the size of the representation of it's source label.
+        if (destIndex == 1) {
+            if (label >> bits & (UINT64_MAX >> (64 - sourceBits))) {
+                Log_debug(sourceIf->core->logger,
+                          "Dropped packet for this router because there is no way to "
+                          "represent the return path.");
+                sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
+                return;
+            }
+        } else {
+            Log_debug(sourceIf->core->logger, "Dropped packet because source address is "
+                                              "larger than destination address.\n");
+            sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
+            return;
+        }
     }
 
-    const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
-
     if (destIndex >= core->interfaceCount) {
-        // No such interface
+        Log_debug(sourceIf->core->logger, "Dropped packet because there is no interface "
+                                          "where the bits specify.\n");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
         return;
     }
@@ -174,6 +188,7 @@ void receiveMessage(struct Message* message, struct Interface* iface)
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message);
     if (err) {
+        Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u\n", err);
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err);
         return;

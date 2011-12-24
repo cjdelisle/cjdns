@@ -1,12 +1,13 @@
-#include <assert.h>
-#include <stdio.h>
-
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "libbenc/benc.h"
 #include "memory/MallocAllocator.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <event2/event.h>
 
 static uint8_t* privateKey = (uint8_t*)
     "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
@@ -83,13 +84,15 @@ int init(const uint8_t* privateKey,
     struct MemAllocator* allocator = MallocAllocator_new(1048576);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
 
+    struct event_base* base = event_base_new();
+
     String* passStr = NULL;
     if (password) {
         String passStrStorage = {.bytes=(char*)password,.len=strlen((char*)password)};
         passStr = &passStrStorage;
     }
 
-    ca1 = CryptoAuth_new(allocator, NULL, NULL);
+    ca1 = CryptoAuth_new(NULL, allocator, NULL, base, NULL);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
@@ -99,7 +102,7 @@ int init(const uint8_t* privateKey,
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(allocator, privateKey, NULL);
+    ca2 = CryptoAuth_new(NULL, allocator, privateKey, base, NULL);
     if (password) {
         CryptoAuth_setAuth(passStr, 1, cif1);
         CryptoAuth_addUser(passStr, 1, userObj, ca2);

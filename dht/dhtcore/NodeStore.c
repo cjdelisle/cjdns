@@ -92,13 +92,24 @@ void NodeStore_addNode(struct NodeStore* store,
 
     uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
+        uint32_t newReach = 0;
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
-                && Address_isSame(&store->nodes[i].address, addr))
+                && memcmp(&store->nodes[i].address.key, addr->key, Address_KEY_SIZE) == 0)
             {
-                // Node already exists
-                adjustReach(&store->headers[i], reachDifference);
-                return;
+                if (store->nodes[i].address.networkAddress_be == addr->networkAddress_be) {
+                    // Node already exists
+                    store->headers[i].reach =
+                        store->headers[i].reach > newReach ? store->headers[i].reach : newReach;
+                    adjustReach(&store->headers[i], reachDifference);
+                    return;
+                } else {
+                    // Identical node with different network addr.
+                    // We'll just keep track of the reach in order to ensure the new node has a
+                    // better reach than the old because a new connection might mean the old path
+                    // is down.
+                    newReach = store->headers[i].reach;
+                }
             }
         }
 
@@ -112,7 +123,7 @@ void NodeStore_addNode(struct NodeStore* store,
 
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
-        adjustReach(&store->headers[store->size], reachDifference);
+        adjustReach(&store->headers[store->size], reachDifference + newReach);
         store->size++;
         return;
     }
@@ -153,12 +164,11 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator)
 {
-    struct MemAllocator* tempAllocator = allocator->child(allocator);
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
                                                         store->thisNodeAddress,
                                                         allowNodesFartherThanUs,
-                                                        tempAllocator);
+                                                        allocator);
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
@@ -180,7 +190,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
     }
     out->size = outIndex;
 
-    tempAllocator->free(tempAllocator);
     return out;
 }
 

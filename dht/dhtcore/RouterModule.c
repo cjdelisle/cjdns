@@ -850,32 +850,19 @@ void RouterModule_pingNode(const uint64_t networkAddress_be,
 struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                       struct RouterModule* module)
 {
-    #define NUMBER_TO_GET 8
-
     struct Address addr;
     memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
 
     uint8_t buffer[1024];
     struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 1024);
-    // Allow the message to be sent on to nodes which are further from the target than us!
-    // This means packets sent to nonexistant nodes will loop around the network until they expire
-    // or their priority is decreased to 0.
     struct NodeList* nodes =
-        NodeStore_getClosestNodes(module->nodeStore, &addr, NUMBER_TO_GET, false, tmpAlloc);
+        NodeStore_getClosestNodes(module->nodeStore, &addr, 1, false, tmpAlloc);
 
     if (nodes->size == 0) {
         return NULL;
     }
 
-    for (int i = nodes->size - 1; i >= 0; i--) {
-        if (nodes->nodes[i]->session.exists) {
-            return nodes->nodes[i];
-        }
-    }
-
-    return nodes->nodes[nodes->size - 1];
-
-    #undef NUMBER_TO_GET
+    return nodes->nodes[0];
 }
 
 struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module)

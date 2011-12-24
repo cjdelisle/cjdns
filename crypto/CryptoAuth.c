@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <event2/event.h>
 
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
@@ -422,6 +423,16 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
 
+    // If there has been no incoming traffic for a while, reset the connection to state 0.
+    // This will prevent "connection in bad state" situations from lasting forever.
+    struct timeval now;
+    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
+    int64_t whenToReset =
+        (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
+    if (now.tv_sec > whenToReset) {
+        wrapper->nextNonce = 0;
+    }
+
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
     // nextNonce 2: sending key, hello received.
@@ -446,6 +457,10 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 /** Call the external interface and tell it that a message has been received. */
 static inline void callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
 {
+    struct timeval now;
+    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
+    wrapper->timeOfLastPacket = now.tv_sec;
+
     if (wrapper->externalInterface.receiveMessage != NULL) {
         wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
     }
@@ -537,8 +552,6 @@ static void decryptHandshake(struct Wrapper* wrapper,
         } else {
             Log_debug(wrapper->context->logger, "Received a repeat hello packet\n");
         }
-
-        // TODO: Prevent this from happening on connections which are active to prevent RST attacks.
 
         // Decrypt message with perminent keys.
         if (!knowHerKey(wrapper)) {
@@ -647,8 +660,10 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
+struct CryptoAuth* CryptoAuth_new(Dict* config,
+                                  struct MemAllocator* allocator,
                                   const uint8_t* privateKey,
+                                  struct event_base* eventBase,
                                   struct Log* logger)
 {
     struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
@@ -657,7 +672,14 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
     ca->passwords = allocator->calloc(sizeof(struct Auth), 256, allocator);
     ca->passwordCount = 0;
     ca->passwordCapacity = 256;
+    ca->eventBase = eventBase;
     ca->logger = logger;
+    ca->resetAfterInactivitySeconds = UINT32_MAX;
+    Integer* resetAfterInactivitySeconds =
+        benc_lookupInteger(config, &(String){ .len=27, .bytes="resetAfterInactivitySeconds" });
+    if (resetAfterInactivitySeconds && *resetAfterInactivitySeconds > 0) {
+        ca->resetAfterInactivitySeconds = (uint32_t) *resetAfterInactivitySeconds;
+    }
 
     if (privateKey != NULL) {
         memcpy(ca->privateKey, privateKey, 32);
