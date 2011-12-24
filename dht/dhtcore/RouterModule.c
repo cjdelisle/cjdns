@@ -1,7 +1,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModuleInternal.h"
+#include "dht/dhtcore/RouterModule_struct.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -9,6 +9,7 @@
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"
@@ -189,7 +190,8 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct MemAllocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
-                                           struct event_base* eventBase)
+                                           struct event_base* eventBase,
+                                           struct Log* logger)
 {
     struct RouterModule* const out = allocator->malloc(sizeof(struct RouterModule), allocator);
 
@@ -205,9 +207,10 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
     out->searchStore = SearchStore_new(allocator, out->gmrtRoller);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator);
+    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger);
     out->registry = registry;
     out->eventBase = eventBase;
+    out->logger = logger;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                REACH_DECREASE_PER_SECOND,
@@ -432,9 +435,14 @@ static inline void cleanup(struct SearchStore* store,
             parentNode->reach = newReach;
             module->totalReach += newReach - oldReach;
 
-uint8_t nodeAddr[40];
-Address_printIp(nodeAddr, &parentNode->address);
-printf("increasing reach for node (%s) by %d\n", nodeAddr, ((int) (newReach - oldReach)));
+            #ifdef Log_DEBUG
+                uint8_t nodeAddr[40];
+                Address_printIp(nodeAddr, &parentNode->address);
+                Log_debug2(module->logger,
+                           "increasing reach for node (%s) by %u\n",
+                           nodeAddr,
+                           (unsigned int) (newReach - oldReach));
+            #endif
 
             NodeStore_updateReach(parentNode, module->nodeStore);
         }
@@ -612,11 +620,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         if ((thisNodePrefix ^ targetPrefix) >= parentDistance
             && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
         {
-            // Answer was further from the target than us.
+            Log_debug(module->logger, "Answer was further from the target than us.\n");
         } else if (thisNodePrefix == ourAddressPrefix
             && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
         {
-            // They just told us about ourselves.
+            Log_debug(module->logger, "They just told us about ourselves.\n");
         } else {
             SearchStore_addNodeToSearch(parent, &addr, evictTime, search);
         }
@@ -820,16 +828,6 @@ void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
     memset(&address, 0, sizeof(struct Address));
     memcpy(&address.key, key, Address_KEY_SIZE);
     address.networkAddress_be = networkAddress_be;
-
-    #ifdef DEBUGGING
-        Address_getPrefix(&address);
-        printf("Adding node:  ");
-        for (int i = 0; i < 16; i++) {
-            printf("%02x", address.ip6.bytes[i]);
-        }
-        printf("\n");
-    #endif
-
     NodeStore_addNode(module->nodeStore, &address, 0);
 }
 

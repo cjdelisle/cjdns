@@ -5,6 +5,7 @@
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
+#include "log/Log.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -12,13 +13,15 @@
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
-                                const struct MemAllocator* allocator)
+                                const struct MemAllocator* allocator,
+                                struct Log* logger)
 {
     struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
     out->thisNodeAddress = myAddress;
     out->headers = allocator->malloc(sizeof(struct NodeHeader) * capacity, allocator);
     out->nodes = allocator->malloc(sizeof(struct Node) * capacity, allocator);
     out->capacity = capacity;
+    out->logger = logger;
     out->size = 0;
     return out;
 }
@@ -79,19 +82,11 @@ void NodeStore_addNode(struct NodeStore* store,
                        struct Address* addr,
                        const int64_t reachDifference)
 {
-Address_getPrefix(addr);
-if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
-    printf("got introduced to ourselves\n");
-    return;
-}
-
-uint8_t nodeAddr[40];
-Address_printIp(nodeAddr, addr);
-uint8_t netAddr[20];
-Address_printNetworkAddress(netAddr, addr);
-if (netAddr[0] != '0') {
-    printf("This address is probably bogus!\n");
-}
+    Address_getPrefix(addr);
+    if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
+        printf("got introduced to ourselves\n");
+        return;
+    }
 
     // TODO: maintain a sorted list.
 
@@ -107,7 +102,13 @@ if (netAddr[0] != '0') {
             }
         }
 
-printf("Discovered node: %s at addr %s\n", nodeAddr, netAddr);
+        #ifdef Log_DEBUG
+            uint8_t nodeAddr[40];
+            Address_printIp(nodeAddr, addr);
+            uint8_t netAddr[20];
+            Address_printNetworkAddress(netAddr, addr);
+            Log_debug2(store->logger, "Discovered node: %s at addr %s\n", nodeAddr, netAddr);
+        #endif
 
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);

@@ -8,6 +8,7 @@
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 
 /**
  * The router module is the functional part of the DHT engine.
@@ -27,12 +28,15 @@ struct RouterModule_Search;
  *
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
- * @param id a 20 byte random id for this DHT node.
+ * @param myAddress the public key for this node.
+ * @param eventBase the libevent base.
+ * @param logger the means of writing logs.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct MemAllocator* allocator,
-                                           const uint8_t id[Address_KEY_SIZE],
-                                           struct event_base* eventBase);
+                                           const uint8_t myAddress[Address_KEY_SIZE],
+                                           struct event_base* eventBase,
+                                           struct Log* logger);
 
 /**
  * Start a search.

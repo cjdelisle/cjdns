@@ -7,7 +7,7 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModuleInternal.h"
+#include "dht/dhtcore/RouterModule_struct.h"
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -16,7 +16,6 @@
 #include "util/Timeout.h"
 #include "util/Time.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -113,10 +112,16 @@ static void runSearch(void* vcontext)
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (nodes->size == 0 || nodes->nodes[nodes->size - 1]->reach == 0) {
-/*
-String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &targetAddr.ip6.bytes }, tempAllocator);
-printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, NodeStore_size(janitor->nodeStore), (long) janitor->routerModule->totalReach);
-*/
+        #ifdef Log_DEBUG
+            uint8_t printable[40];
+            Address_printIp(printable, &targetAddr);
+            Log_debug3(janitor->routerModule->logger,
+                       "Running search for %s, node count: %u total reach: %lu\n",
+                       printable,
+                       (unsigned int) NodeStore_size(janitor->nodeStore),
+                       (unsigned long) janitor->routerModule->totalReach);
+        #endif
+
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
@@ -133,15 +138,16 @@ printf("Running search for %s, node count: %d total reach: %ld\n", hex->bytes, N
         NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
     janitor->timeOfLastReachDecrease = now;
 
-
-uint32_t nonZeroNodes = 0;
-for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
-    nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
-}
-printf("gmrt %d  non-zero nodes %d\n",
-       (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
-       (unsigned int) nonZeroNodes);
-
+    #ifdef Log_DEBUG
+        uint32_t nonZeroNodes = 0;
+        for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
+            nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
+        }
+        Log_debug2(janitor->routerModule->logger,
+                   "Global Mean Response Time: %u non-zero nodes: %u\n",
+                   (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
+                   (unsigned int) nonZeroNodes);
+    #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         RouterModule_beginSearch(targetAddr.ip6.bytes,

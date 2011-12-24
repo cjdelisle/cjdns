@@ -4,6 +4,7 @@
 #include <event2/event.h>
 
 #include "interface/Interface.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 
 struct UDPInterface;
@@ -13,12 +14,14 @@ struct UDPInterface;
  * @param bindAddr a string representation of the address to bind to such as "0.0.0.0:12345".
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
+ * @param logger
  * @return a new UDPInterface.
  */
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct MemAllocator* allocator,
-                                      struct ExceptionHandler* exHandler);
+                                      struct ExceptionHandler* exHandler,
+                                      struct Log* logger);
 
 /**
  * Add an endpoint.

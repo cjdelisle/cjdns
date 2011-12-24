@@ -2,6 +2,7 @@
 #define NODE_STORE_STRUCT_H
 
 #include "dht/dhtcore/NodeStore.h"
+#include "log/Log.h"
 
 /** A list of DHT nodes. */
 struct NodeStore
@@ -23,6 +24,9 @@ struct NodeStore
 
     /** The number of nodes in the list. */
     uint32_t size;
+
+    /** The means for this node store to log. */
+    struct Log* logger;
 };
 
 #endif

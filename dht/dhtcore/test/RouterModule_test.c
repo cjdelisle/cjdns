@@ -10,7 +10,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModuleInternal.h"
+#include "dht/dhtcore/RouterModule_struct.h"
 #include "dht/dhtcore/test/TestFramework.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -185,7 +185,7 @@ int main()
 
     ReplyModule_register(registry, allocator);
     struct RouterModule* routerModule =
-        RouterModule_register(registry, allocator, (uint8_t*) MY_ADDRESS, event_base_new());
+        RouterModule_register(registry, allocator, (uint8_t*) MY_ADDRESS, event_base_new(), NULL);
 
     SerializationModule_register(registry, allocator);
 

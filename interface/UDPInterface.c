@@ -4,6 +4,7 @@
 #include "net/NetworkTools.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Endian.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 
@@ -76,6 +77,8 @@ struct UDPInterface
     struct sockaddr_storage* defaultInterfaceSender;
 
     uint8_t* messageBuff;
+
+    struct Log* logger;
 };
 
 struct Endpoint
@@ -139,12 +142,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct MemAllocator* allocator,
-                                      struct ExceptionHandler* exHandler)
+                                      struct ExceptionHandler* exHandler,
+                                      struct Log* logger)
 {
     struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
 
     context->messageBuff = allocator->calloc(MAX_PACKET_SIZE + PADDING, 1, allocator);
-    
+    context->logger = logger;
     context->allocator = allocator;
 
     sa_family_t addrFam;
@@ -328,7 +332,9 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       (struct sockaddr*) &addrStore,
                       (socklen_t*) &addrLen);
 
-    printf("got message from peer on port %u\n", ((struct sockaddr_in*) &addrStore)->sin_port);
+    Log_debug1(context->logger,
+               "Got message from peer on port %u\n",
+               Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
     if (addrLen != context->addrLen) {
         return;
     }

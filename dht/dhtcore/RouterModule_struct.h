@@ -1,3 +1,6 @@
+#ifndef ROUTER_MODULE_STRUCT
+#define ROUTER_MODULE_STRUCT
+
 /**
  * Internal structures which are needed for testing but should not be exposed to the outside world.
  */
@@ -27,4 +30,8 @@ struct RouterModule
     struct event_base* eventBase;
 
     struct Janitor* janitor;
+
+    struct Log* logger;
 };
+
+#endif

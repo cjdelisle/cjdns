@@ -42,7 +42,7 @@ int startServer(char* bindToAddress,
 {
     CryptoAuth_addUser(&(String){.bytes=passwd, .len=strlen(passwd)}, 1, (void*)1, ca);
     struct UDPInterface* udpContext =
-        UDPInterface_new(base, bindToAddress, allocator, AbortHandler_INSTANCE);
+        UDPInterface_new(base, bindToAddress, allocator, AbortHandler_INSTANCE, NULL);
     struct Interface* udpDefault = UDPInterface_getDefaultInterface(udpContext);
     struct Interface* authedUdp = CryptoAuth_wrapInterface(udpDefault, NULL, true, true, ca);
     struct Interface* tun = TunInterface_new(NULL, base, allocator);
@@ -83,7 +83,7 @@ int startClient(char* connectToAddress,
     }
 
     struct UDPInterface* udpContext =
-        UDPInterface_new(base, NULL, allocator, AbortHandler_INSTANCE);
+        UDPInterface_new(base, NULL, allocator, AbortHandler_INSTANCE, NULL);
     struct Interface* udp =
         UDPInterface_addEndpoint(udpContext, connectToAddress, AbortHandler_INSTANCE);
     struct Interface* authedUdp = CryptoAuth_wrapInterface(udp, srvrKey, false, true, ca);

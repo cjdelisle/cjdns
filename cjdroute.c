@@ -431,7 +431,7 @@ static void configureUDP(Dict* config, struct Context* ctx)
     char* bindAddress = bindStr ? bindStr->bytes : NULL;
 
     struct UDPInterface* udpContext =
-        UDPInterface_new(ctx->base, bindAddress, ctx->allocator, ctx->eHandler);
+        UDPInterface_new(ctx->base, bindAddress, ctx->allocator, ctx->eHandler, ctx->logger);
 
     if (bindStr) {
         struct Interface* udpDefault = UDPInterface_getDefaultInterface(udpContext);
@@ -473,8 +473,11 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
         String* tunPath = benc_lookupString(iface, BSTR("tunDevice"));
         context->routerIf = TunInterface_new(tunPath, context->base, context->allocator);
     }
-    context->routerModule =
-        RouterModule_register(context->registry, context->allocator, myPubKey, context->base);
+    context->routerModule = RouterModule_register(context->registry,
+                                                  context->allocator,
+                                                  myPubKey,
+                                                  context->base,
+                                                  context->logger);
 }
 
 int main(int argc, char** argv)

@@ -6,6 +6,7 @@
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 
 struct NodeStore;
@@ -16,10 +17,12 @@ struct NodeStore;
  * @param myAddress the address for this DHT node.
  * @param capacity the number of nodes which this store can hold.
  * @param allocator the allocator to allocate storage space for this NodeStore.
+ * @param logger the means for this node store to log.
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
-                                const struct MemAllocator* allocator);
+                                const struct MemAllocator* allocator,
+                                struct Log* logger);
 
 /**
  * Find a node in the store.
