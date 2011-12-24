@@ -1,4 +1,5 @@
 #include "crypto/CryptoAuth.h"
+#include "log/Log.h"
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Node.h"
@@ -7,6 +8,7 @@
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"
@@ -18,8 +20,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include <event2/event.h>
-
-#define DEBUG(x) printf(__FILE__ ":%u " x, __LINE__)
 
 /**
  * A network module which connects the DHT router to the SwitchCore.
@@ -79,26 +79,13 @@ struct Context
     struct Interface* contentSession;
 
     struct event_base* eventBase;
+
+    struct Log* logger;
 };
 
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
-
-/*--------------------Interface--------------------*/
-
-static void printMessage(struct Message* message)
-{
-    uint8_t chr;
-    for (uint32_t i = 0; i < message->length; i++) {
-        chr = (uint8_t) message->bytes[i] & 0xFF;
-        if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
-            printf("%c", chr);
-        } else {
-            printf("\\x%.2X", chr);
-        }
-    }
-}
 
 static inline void incomingDHT(struct Message* message,
                                struct Address* addr,
@@ -209,10 +196,8 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
         context->routerIf->sendMessage(message, context->routerIf);
     } else {
-        printf("Dropping message because there is no router interface configured.\n"
-               "message content: ");
-        printMessage(message);
-        printf("\n");
+        Log_warn(context->logger,
+                 "Dropping message because there is no router interface configured.\n");
     }
 }
 
@@ -353,19 +338,19 @@ static inline bool isForMe(struct Message* message, struct Context* context)
 static inline void ip6FromTun(struct Message* message,
                               struct Interface* interface)
 {
+    struct Context* context = (struct Context*) interface->receiverContext;
+
     if (!validIP6(message)) {
-        DEBUG("dropped message from TUN because it was not valid IPv6.\n");
+        Log_debug(context->logger, "dropped message from TUN because it was not valid IPv6.\n");
         return;
     }
-
-    struct Context* context = (struct Context*) interface->receiverContext;
 
     struct Headers_IP6Header header;
     memcpy(&header, message->bytes, Headers_IP6Header_SIZE);
 
     if (memcmp(&header.sourceAddr, context->myAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
-        fprintf(stderr, "dropped message because only one address is allowed to be used "
-                        "and the source address was different.\n");
+        Log_warn(context->logger, "dropped message because only one address is allowed to be used "
+                                  "and the source address was different.\n");
         return;
     }
 
@@ -390,7 +375,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
     if (!validIP6(message)) {
-        DEBUG("Dropping message because of invalid ipv6 header.\n");
+        Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return 0;
     }
 
@@ -405,7 +390,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
 
     if (context->ip6Header->hopLimit == 0) {
-        DEBUG("dropped message because hop limit has been exceeded.\n");
+        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
     }
     context->ip6Header->hopLimit--;
 
@@ -414,7 +399,8 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     if (nextBest) {
         return sendToRouter(nextBest, message, context);
     }
-    DEBUG("Dropped message because this node is the closest known node to the destination.\n");
+    Log_debug(context->logger, "Dropped message because this node is the closest known "
+                               "node to the destination.\n");
     return 0;
 }
 
@@ -490,7 +476,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (node) {
         herKey = node->address.key;
     } else if (message->length < Headers_CryptoAuth_SIZE) {
-        DEBUG("Dropped runt packet.\n");
+        Log_debug(context->logger, "Dropped runt packet.\n");
         return 0;
     } else {
         herKey = caHeader->handshake.publicKey;
@@ -526,7 +512,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     iface->receiveMessage(message, iface);
 
     if (!context->messageFromCryptoAuth) {
-        DEBUG("invalid (?) message was eaten by the cryptoAuth\n");
+        Log_debug(context->logger, "invalid (?) message was eaten by the cryptoAuth\n");
     }
 
     return 0;
@@ -538,7 +524,8 @@ int Ducttape_register(uint8_t privateKey[32],
                       struct Interface* routerIf,
                       struct SwitchCore* switchCore,
                       struct event_base* eventBase,
-                      struct MemAllocator* allocator)
+                      struct MemAllocator* allocator,
+                      struct Log* logger)
 {
     struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
     context->ifMap = InterfaceMap_new(8, allocator);
@@ -546,7 +533,8 @@ int Ducttape_register(uint8_t privateKey[32],
     context->routerModule = routerModule;
     context->switchCore = switchCore;
     context->allocator = allocator;
-    context->cryptoAuth = CryptoAuth_new(allocator, privateKey);
+    context->logger = logger;
+    context->cryptoAuth = CryptoAuth_new(allocator, privateKey, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, context->cryptoAuth);
     Address_getPrefix(&context->myAddr);
 

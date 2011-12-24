@@ -89,7 +89,7 @@ int init(const uint8_t* privateKey,
         passStr = &passStrStorage;
     }
 
-    ca1 = CryptoAuth_new(allocator, NULL);
+    ca1 = CryptoAuth_new(allocator, NULL, NULL);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
@@ -99,7 +99,7 @@ int init(const uint8_t* privateKey,
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(allocator, privateKey);
+    ca2 = CryptoAuth_new(allocator, privateKey, NULL);
     if (password) {
         CryptoAuth_setAuth(passStr, 1, cif1);
         CryptoAuth_addUser(passStr, 1, userObj, ca2);

@@ -11,8 +11,11 @@
 #include "interface/UDPInterface.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
+#include "io/Writer.h"
+#include "io/FileWriter.h"
 #include "libbenc/serialization/BencSerializer.h"
 #include "libbenc/serialization/json/JsonBencSerializer.h"
+#include "log/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MemAllocator.h"
@@ -44,6 +47,8 @@ struct Context
     struct DHTModuleRegistry* registry;
 
     struct RouterModule* routerModule;
+
+    struct Log* logger;
 };
 
 struct UDPInterfaceContext
@@ -330,7 +335,6 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 
 static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
 {
-    printf("serverFirstIncoming");
     struct UDPInterfaceContext* uictx = (struct UDPInterfaceContext*) iface->receiverContext;
 
     struct Interface* udpDefault = UDPInterface_getDefaultInterface(uictx->udpContext);
@@ -502,14 +506,19 @@ int main(int argc, char** argv)
         return getcmds(&config);
     }
 
+    // Logging
+    struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
+    struct Log logger = { .writer = logwriter };
+    context.logger = &logger;
+
     struct Address myAddr;
     uint8_t privateKey[32];
     parsePrivateKey(&config, &myAddr, privateKey);
 
     context.eHandler = AbortHandler_INSTANCE;
     context.base = event_base_new();
-    context.switchCore = SwitchCore_new(context.allocator);
-    context.ca = CryptoAuth_new(context.allocator, privateKey);
+    context.switchCore = SwitchCore_new(context.logger, context.allocator);
+    context.ca = CryptoAuth_new(context.allocator, privateKey, context.logger);
     context.registry = DHTModules_new(context.allocator);
     ReplyModule_register(context.registry, context.allocator);
 
@@ -544,7 +553,8 @@ int main(int argc, char** argv)
                       context.routerIf,
                       context.switchCore,
                       context.base,
-                      context.allocator);
+                      context.allocator,
+                      context.logger);
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

@@ -28,7 +28,7 @@ int createNew()
     #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, NULL);
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
@@ -53,7 +53,7 @@ int handshake1()
     #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, NULL);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -79,7 +79,7 @@ int handshake1()
 
 
     allocator->free(allocator);
-    ca = CryptoAuth_new(allocator, privateKey);
+    ca = CryptoAuth_new(allocator, privateKey, NULL);
     struct Message* finalOut = NULL;
     struct Wrapper wrapper2 = {
         .context = ca,

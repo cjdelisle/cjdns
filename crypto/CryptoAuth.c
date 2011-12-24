@@ -1,8 +1,3 @@
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <assert.h>
-
 #include "crypto_box_curve25519xsalsa20poly1305.h"
 #include "crypto_core_hsalsa20.h"
 #include "crypto_hash_sha256.h"
@@ -16,14 +11,16 @@
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "util/Endian.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
-#include <stdio.h>
-#define DEBUG(x) printf(__FILE__ ":%u " x, __LINE__)
-#define DEBUG1(x, y) printf(__FILE__ ":%u " x, __LINE__, y)
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
 
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
@@ -281,12 +278,13 @@ static uint8_t genReverseHandshake(struct Message* message,
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage == NULL) {
-        DEBUG("Buffered a message.\n");
+        Log_debug(wrapper->context->logger, "Buffered a message.\n");
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
         assert(wrapper->nextNonce == 0);
     } else {
-        DEBUG("Expelled a message because a session has not yet been setup.\n");
+        Log_debug(wrapper->context->logger,
+                  "Expelled a message because a session has not yet been setup.\n");
         Message_copyOver(wrapper->bufferedMessage,
                          message,
                          wrapper->externalInterface.allocator);
@@ -357,9 +355,9 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
         if (wrapper->nextNonce == 0) {
-            DEBUG("Sending hello packet\n");
+            Log_debug(wrapper->context->logger, "Sending hello packet\n");
         } else {
-            DEBUG("Sending repeat hello packet\n");
+            Log_debug(wrapper->context->logger, "Sending repeat hello packet\n");
         }
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
@@ -371,9 +369,9 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
     } else {
         if (wrapper->nextNonce == 2) {
-            DEBUG("Sending key packet\n");
+            Log_debug(wrapper->context->logger, "Sending key packet\n");
         } else {
-            DEBUG("Sending repeat key packet\n");
+            Log_debug(wrapper->context->logger, "Sending repeat key packet\n");
         }
         // Handshake2 wrapper->tempKey holds her public temp key.
         // it was put there by receiveMessage()
@@ -489,7 +487,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
                              union Headers_CryptoAuth* header)
 {
     if (message->length < sizeof(union Headers_CryptoAuth)) {
-        DEBUG("Dropped runt packet\n");
+        Log_debug(wrapper->context->logger, "Dropped runt packet\n");
         return;
     }
 
@@ -521,7 +519,8 @@ static void decryptHandshake(struct Wrapper* wrapper,
     uint8_t passwordHashStore[32];
     uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
     if (wrapper->requireAuth && !user) {
-        DEBUG("Dropping message because auth was not given and is required.\n");
+        Log_debug(wrapper->context->logger,
+                  "Dropping message because auth was not given and is required.\n");
         return;
     }
 
@@ -534,9 +533,9 @@ static void decryptHandshake(struct Wrapper* wrapper,
     uint8_t* herPermKey = NULL;
     if (nonce < 2) {
         if (nonce == 0) {
-            DEBUG("Received a hello packet\n");
+            Log_debug(wrapper->context->logger, "Received a hello packet\n");
         } else {
-            DEBUG("Received a repeat hello packet\n");
+            Log_debug(wrapper->context->logger, "Received a repeat hello packet\n");
         }
 
         // TODO: Prevent this from happening on connections which are active to prevent RST attacks.
@@ -555,11 +554,12 @@ static void decryptHandshake(struct Wrapper* wrapper,
         nextNonce = 2;
     } else {
         if (nonce == 2) {
-            DEBUG("Received a key packet\n");
+            Log_debug(wrapper->context->logger, "Received a key packet\n");
         } else if (nonce == 3) {
-            DEBUG("Received a repeat key packet\n");
+            Log_debug(wrapper->context->logger, "Received a repeat key packet\n");
         } else {
-            DEBUG1("Received a packet of unknown type! nonce=%u\n", nonce);
+            Log_debug1(wrapper->context->logger,
+                       "Received a packet of unknown type! nonce=%u\n", nonce);
         }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
@@ -576,7 +576,8 @@ static void decryptHandshake(struct Wrapper* wrapper,
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
         memset(header, 0, Headers_CryptoAuth_SIZE);
-        DEBUG("Dropped message because authenticated decryption failed.\n");
+        Log_debug(wrapper->context->logger,
+                  "Dropped message because authenticated decryption failed.\n");
         return;
     }
 
@@ -591,11 +592,11 @@ static void decryptHandshake(struct Wrapper* wrapper,
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
     if (wrapper->bufferedMessage && message->length == 0) {
-        DEBUG("Sending buffered message.\n");
+        Log_debug(wrapper->context->logger, "Sending buffered message.\n");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return;
     } else if (wrapper->bufferedMessage) {
-        DEBUG("There is a buffered message");
+        Log_debug(wrapper->context->logger, "There is a buffered message");
     }
 
     setRequiredPadding(wrapper);
@@ -609,7 +610,7 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->requireAuth ? 20 : 4)) {
-        DEBUG("Dropped runt");
+        Log_debug(wrapper->context->logger, "Dropped runt");
         return;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
@@ -620,9 +621,8 @@ static void receiveMessage(struct Message* received, struct Interface* interface
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (wrapper->nextNonce < 5) {
-        DEBUG("Got handshake.\n");
         if (nonce > 3 && nonce != UINT32_MAX) {
-            DEBUG1("Trying final handshake step, nonce=%u\n", nonce);
+            Log_debug1(wrapper->context->logger, "Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
             getSharedSecret(secret,
                             wrapper->secret,
@@ -633,13 +633,13 @@ static void receiveMessage(struct Message* received, struct Interface* interface
                 memcpy(wrapper->secret, secret, 32);
                 return;
             }
-            DEBUG("Final handshake step failed.\n");
+            Log_debug(wrapper->context->logger, "Final handshake step failed.\n");
         }
     } else if (nonce > 2 && decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         // If decryptMessage returns false then we will try the packet as a handshake.
         return;
     } else {
-        DEBUG("Decryption failed, trying message as a handshake.\n");
+        Log_debug(wrapper->context->logger, "Decryption failed, trying message as a handshake.\n");
     }
     Message_shift(received, 4);
     decryptHandshake(wrapper, nonce, received, header);
@@ -648,7 +648,8 @@ static void receiveMessage(struct Message* received, struct Interface* interface
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
-                                  const uint8_t* privateKey)
+                                  const uint8_t* privateKey,
+                                  struct Log* logger)
 {
     struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
     ca->allocator = allocator;
@@ -656,6 +657,7 @@ struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
     ca->passwords = allocator->calloc(sizeof(struct Auth), 256, allocator);
     ca->passwordCount = 0;
     ca->passwordCapacity = 256;
+    ca->logger = logger;
 
     if (privateKey != NULL) {
         memcpy(ca->privateKey, privateKey, 32);

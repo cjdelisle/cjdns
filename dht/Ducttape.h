@@ -14,6 +14,7 @@ int Ducttape_register(uint8_t privateKey[32],
                       struct Interface* routerIf,
                       struct SwitchCore* switchCore,
                       struct event_base* eventBase,
-                      struct MemAllocator* allocator);
+                      struct MemAllocator* allocator,
+                      struct Log* logger);
 
 #endif

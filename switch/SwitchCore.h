@@ -1,7 +1,11 @@
-#include <stdint.h>
+#ifndef SWITCH_CORE_H
+#define SWITCH_CORE_H
 
 #include "interface/Interface.h"
+#include "log/Log.h"
 #include "wire/Message.h"
+
+#include <stdint.h>
 
 /**
  * The maximum number of interfaces this switch implementation is capable of handling.
@@ -15,9 +19,10 @@ struct SwitchCore;
 /**
  * Create a new router core.
  *
+ * @param logger what to log output to.
  * @param allocator the memory allocator to use for allocating the core context and interfaces.
  */
-struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator);
+struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* allocator);
 
 /**
  * Register a new interface.
@@ -45,3 +50,5 @@ int SwitchCore_addInterface(struct Interface* iface,
  * @return 0
  */
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core);
+
+#endif

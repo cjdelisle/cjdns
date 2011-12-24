@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 
     struct event_base* base = event_base_new();
     struct MemAllocator* allocator = MallocAllocator_new(2000000);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, NULL);
 
     switch (argv[1][0]) {
         case 's': return startServer(argv[2], argv[3], base, allocator, ca);

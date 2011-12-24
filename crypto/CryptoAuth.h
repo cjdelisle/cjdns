@@ -7,6 +7,7 @@
 #include "crypto/Session.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "util/Endian.h"
 
@@ -48,9 +49,13 @@ void* CryptoAuth_getUser(struct Interface* interface);
  *
  * @param allocator the means of aquiring memory.
  * @param privateKey the private key to use for this CryptoAuth or null if one should be generated.
+ * @param logger the mechanism for logging output from the CryptoAuth.
+ *               if NULL then no logging will be done.
  * @return a new CryptoAuth context.
  */
-struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator, const uint8_t privateKey[32]);
+struct CryptoAuth* CryptoAuth_new(struct MemAllocator* allocator,
+                                  const uint8_t* privateKey,
+                                  struct Log* logger);
 
 /**
  * Wrap an interface with crypto authentication.

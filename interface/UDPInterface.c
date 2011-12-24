@@ -328,6 +328,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       (struct sockaddr*) &addrStore,
                       (socklen_t*) &addrLen);
 
+    printf("got message from peer on port %u\n", ((struct sockaddr_in*) &addrStore)->sin_port);
     if (addrLen != context->addrLen) {
         return;
     }

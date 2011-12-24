@@ -4,6 +4,7 @@
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -27,6 +28,8 @@ struct CryptoAuth
     struct Auth* passwords;
     uint32_t passwordCount;
     uint32_t passwordCapacity;
+
+    struct Log* logger;
 
     struct MemAllocator* allocator;
 };

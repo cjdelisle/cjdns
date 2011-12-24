@@ -2,6 +2,7 @@
 
 #include "memory/MemAllocator.h"
 #include "interface/Interface.h"
+#include "log/Log.h"
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
@@ -45,6 +46,7 @@ struct SwitchCore
     struct SwitchInterface interfaces[SwitchCore_MAX_INTERFACES];
     uint32_t interfaceCount;
     bool routerAdded;
+    struct Log* logger;
 
     struct MemAllocator* allocator;
 };
@@ -54,11 +56,12 @@ struct ErrorPacket {
     struct Headers_Error error;
 };
 
-struct SwitchCore* SwitchCore_new(struct MemAllocator* allocator)
+struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* allocator)
 {
     struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1, allocator);
     core->allocator = allocator;
     core->interfaceCount = 0;
+    core->logger = logger;
     return core;
 }
 
@@ -108,12 +111,12 @@ void receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        // Fl00d -- probably an edge node which is not adhering to the protocol..
+        Log_debug(sourceIf->core->logger, "Packet dropped because node seems to be flooding.\n");
         return;
     }
 
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
-        // runt packet, don't bother trying to respond.
+        Log_debug(sourceIf->core->logger, "Dropped runt packet.\n");
         return;
     }
 
@@ -152,11 +155,15 @@ void receiveMessage(struct Message* message, struct Interface* iface)
     if (destIf->congestion > priority) {
         // Flood condition, the packets with least priority are dropped
         // and flood errors are sent upstream.
+        Log_debug(sourceIf->core->logger,
+                  "Packet was dropped for not enough priority in flooded link.\n");
         sendError(sourceIf, message, Error_FLOOD);
         return;
     } else if (destIf->buffer - priority < 0 - destIf->bufferMax) {
         // Buffer decreases are metered out,
         // If there is too much traffic it can't be sent.
+        Log_debug(sourceIf->core->logger,
+                  "Link closed because priority limit has been exceeded.\n");
         sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED);
         return;
     }
