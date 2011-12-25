@@ -13,6 +13,7 @@
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
+#include "wire/Error.h"
 #include "wire/Headers.h"
 
 #include "crypto_stream_salsa20.h"
@@ -87,9 +88,9 @@ struct Context
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
 
-static inline void incomingDHT(struct Message* message,
-                               struct Address* addr,
-                               struct Context* context)
+static inline uint8_t incomingDHT(struct Message* message,
+                                  struct Address* addr,
+                                  struct Context* context)
 {
     struct DHTMessage dht;
     memset(&dht, 0, sizeof(struct DHTMessage));
@@ -105,6 +106,9 @@ static inline void incomingDHT(struct Message* message,
     context->perMessageAllocator->free(context->perMessageAllocator);
 
     DHTModules_handleIncoming(&dht, context->registry);
+
+    // TODO: return something meaningful.
+    return Error_NONE;
 }
 
 static int handleOutgoing(struct DHTMessage* dmessage,
@@ -169,7 +173,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  * Message which is for us, message is aligned on the beginning of the content.
  * this is called from decryptedIncoming() which calls through an interfaceMap.
  */
-static void incomingForMe(struct Message* message, struct Interface* iface)
+static uint8_t incomingForMe(struct Message* message, struct Interface* iface)
 {
     struct Context* context = (struct Context*) iface->receiverContext;
     if (isRouterTraffic(message, context->ip6Header)) {
@@ -180,8 +184,7 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
         memcpy(addr.key, key, 32);
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
-        incomingDHT(message, &addr, context);
-        return;
+        return incomingDHT(message, &addr, context);
     }
 
     if (context->routerIf) {
@@ -198,7 +201,9 @@ static void incomingForMe(struct Message* message, struct Interface* iface)
     } else {
         Log_warn(context->logger,
                  "Dropping message because there is no router interface configured.\n");
+        return Error_UNDELIVERABLE;
     }
+    return Error_NONE;
 }
 
 /**
@@ -230,7 +235,7 @@ static uint8_t sendToSwitchFromCryptoAuth(struct Message* message, struct Interf
     return sendToSwitch(message, context->switchHeader, context);
 }
 
-static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface);
+static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface* iface);
 
 static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header,
                                              uint8_t key[32],
@@ -335,14 +340,14 @@ static inline bool isForMe(struct Message* message, struct Context* context)
 }
 
 // Called by the TUN device.
-static inline void ip6FromTun(struct Message* message,
-                              struct Interface* interface)
+static inline uint8_t ip6FromTun(struct Message* message,
+                                 struct Interface* interface)
 {
     struct Context* context = (struct Context*) interface->receiverContext;
 
     if (!validIP6(message)) {
         Log_debug(context->logger, "dropped message from TUN because it was not valid IPv6.\n");
-        return;
+        return Error_INVALID;
     }
 
     struct Headers_IP6Header header;
@@ -351,7 +356,7 @@ static inline void ip6FromTun(struct Message* message,
     if (memcmp(&header.sourceAddr, context->myAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
         Log_warn(context->logger, "dropped message because only one address is allowed to be used "
                                   "and the source address was different.\n");
-        return;
+        return Error_INVALID;
     }
 
     context->ip6Header = &header;
@@ -363,7 +368,7 @@ static inline void ip6FromTun(struct Message* message,
     Message_shift(message, -Headers_IP6Header_SIZE);
 
     // This comes out at outgoingFromMe()
-    assert(!context->contentSmInside->sendMessage(message, context->contentSmInside));
+    return context->contentSmInside->sendMessage(message, context->contentSmInside);
 }
 
 /**
@@ -438,14 +443,14 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
     return decryptedIncoming(message, context);
 }
 
-static void receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
+static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
     struct Context* context = iface->receiverContext;
     context->messageFromCryptoAuth = message;
     RouterModule_addNode(context->herPublicKey, 
                          context->switchHeader->label_be,
                          context->routerModule);
-    decryptedIncoming(message, context);
+    return decryptedIncoming(message, context);
 }
 
 /**
@@ -491,11 +496,12 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
 
+    /* More trouble than it's worth
     if (nonce > 4 && node && node->session.exists) {
         Message_shift(message, -4);
         decrypt(nonce, message, node->session.sharedSecret, node->session.isInitiator);
         return decryptedIncoming(message, context);
-    }
+    }*/
 
     // Nonce is <4, this is a crypto negotiation.
     struct Interface* iface = getCaSession(switchHeader, NULL, context);
@@ -506,18 +512,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         CryptoAuth_getSession(&node->session, iface);
     }
 
-    // Null the message in the context then call cryptoAuth and if
-    // it's nolonger null then the message is valid :/
-    context->messageFromCryptoAuth = NULL;
     context->herPublicKey = herKey;
 
     // This goes to receivedFromCryptoAuth()
     // then decryptedIncoming()
     iface->receiveMessage(message, iface);
-
-    if (!context->messageFromCryptoAuth) {
-        Log_debug(context->logger, "invalid (?) message was eaten by the cryptoAuth\n");
-    }
 
     return 0;
 }

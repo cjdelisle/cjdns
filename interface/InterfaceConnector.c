@@ -2,10 +2,10 @@
 #include "wire/Message.h"
 
 
-static void transferMessage(struct Message* msg, struct Interface* iface)
+static uint8_t transferMessage(struct Message* msg, struct Interface* iface)
 {
     struct Interface* other = (struct Interface*) iface->receiverContext;
-    other->sendMessage(msg, other);
+    return other->sendMessage(msg, other);
 }
 
 /**

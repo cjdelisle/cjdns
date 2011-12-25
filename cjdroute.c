@@ -333,7 +333,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
-static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
+static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
 {
     struct UDPInterfaceContext* uictx = (struct UDPInterfaceContext*) iface->receiverContext;
 
@@ -355,7 +355,7 @@ static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
     newAuthedUdpDefault->receiverContext = uictx;
 
     // Send the message on to the switch so the first message isn't lost.
-    iface->receiveMessage(msg, iface);
+    return iface->receiveMessage(msg, iface);
 }
 
 static void udpConnectTo(String* connectToAddress,

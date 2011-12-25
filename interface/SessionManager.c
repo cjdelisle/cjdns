@@ -53,12 +53,13 @@ struct SessionManager
  * This additional step of indirection is needed because the user may change
  * the receiver or receiverContext later on.
  */
-static void receiveMessageTwo(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessageTwo(struct Message* message, struct Interface* iface)
 {
     struct SessionManager* sm = (struct SessionManager*) iface->receiverContext;
     if (sm->outgoing.receiveMessage != NULL) {
-        sm->outgoing.receiveMessage(message, &sm->outgoing);
+        return sm->outgoing.receiveMessage(message, &sm->outgoing);
     }
+    return Error_NONE;
 }
 
 static inline struct Interface* getSession(struct Message* message,
@@ -79,7 +80,7 @@ static inline struct Interface* getSession(struct Message* message,
                 .allocator = ifAllocator
             });
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, key, false, true, sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, key, false, false, sm->cryptoAuth);
         insideIf->receiveMessage = receiveMessageTwo;
         insideIf->receiverContext = sm;
 
@@ -135,15 +136,15 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 }
 
 // This is messages coming in from the big bad world.
-static void receiveMessage(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SessionManager* sm = (struct SessionManager*) iface->receiverContext;
     if (runt(message, sm->incomingKeyOffset, sm)) {
         DEBUG("dropped incoming runt message");
-        return;
+        return Error_UNDERSIZE_MESSAGE;
     }
     struct Interface* inIface = getSession(message, NULL, sm->incomingKeyOffset, sm);
-    inIface->receiveMessage(message, inIface);
+    return inIface->receiveMessage(message, inIface);
 }
 
 static void cleanup(void* vsm)

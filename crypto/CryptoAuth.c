@@ -14,6 +14,7 @@
 #include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "util/Endian.h"
+#include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
@@ -456,15 +457,22 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 }
 
 /** Call the external interface and tell it that a message has been received. */
-static inline void callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
+static inline uint8_t callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
 {
-    struct timeval now;
-    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
-    wrapper->timeOfLastPacket = now.tv_sec;
-
+    uint8_t ret = 0;
     if (wrapper->externalInterface.receiveMessage != NULL) {
-        wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
+        ret = wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
     }
+
+    // If the message is authenticated OR if the packet is considered valid by the next level,
+    // then don't allow the connection to timeout.
+    if (!ret || wrapper->authenticatePackets) {
+        struct timeval now;
+        event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
+        wrapper->timeOfLastPacket = now.tv_sec;
+    }
+
+    return ret;
 }
 
 static inline bool decryptMessage(struct Wrapper* wrapper,
@@ -497,14 +505,14 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
     return false;
 }
 
-static void decryptHandshake(struct Wrapper* wrapper,
-                             uint32_t nonce,
-                             struct Message* message,
-                             union Headers_CryptoAuth* header)
+static uint8_t decryptHandshake(struct Wrapper* wrapper,
+                                const uint32_t nonce,
+                                struct Message* message,
+                                union Headers_CryptoAuth* header)
 {
     if (message->length < sizeof(union Headers_CryptoAuth)) {
         Log_debug(wrapper->context->logger, "Dropped runt packet\n");
-        return;
+        return Error_UNDERSIZE_MESSAGE;
     }
 
     // handshake
@@ -528,7 +536,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
         wrapper->user = NULL;
         // Send an empty response (to initiate the connection).
         encryptHandshake(message, wrapper);
-        return;
+        return Error_NONE;
     }
 
     void* user = NULL;
@@ -537,7 +545,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
     if (wrapper->requireAuth && !user) {
         Log_debug(wrapper->context->logger,
                   "Dropping message because auth was not given and is required.\n");
-        return;
+        return Error_AUTHENTICATION;
     }
 
     // What the nextNonce will become if this packet is valid.
@@ -592,7 +600,7 @@ static void decryptHandshake(struct Wrapper* wrapper,
         memset(header, 0, Headers_CryptoAuth_SIZE);
         Log_debug(wrapper->context->logger,
                   "Dropped message because authenticated decryption failed.\n");
-        return;
+        return Error_AUTHENTICATION;
     }
 
     wrapper->user = user;
@@ -608,24 +616,23 @@ static void decryptHandshake(struct Wrapper* wrapper,
     if (wrapper->bufferedMessage && message->length == 0) {
         Log_debug(wrapper->context->logger, "Sending buffered message.\n");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
-        return;
+        return Error_NONE;
     } else if (wrapper->bufferedMessage) {
         Log_debug(wrapper->context->logger, "There is a buffered message");
     }
 
     setRequiredPadding(wrapper);
-    callReceivedMessage(wrapper, message);
-    return;
+    return callReceivedMessage(wrapper, message);
 }
 
-static void receiveMessage(struct Message* received, struct Interface* interface)
+static uint8_t receiveMessage(struct Message* received, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->requireAuth ? 20 : 4)) {
         Log_debug(wrapper->context->logger, "Dropped runt");
-        return;
+        return Error_UNDERSIZE_MESSAGE;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
 
@@ -645,18 +652,18 @@ static void receiveMessage(struct Message* received, struct Interface* interface
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 wrapper->nextNonce += 2;
                 memcpy(wrapper->secret, secret, 32);
-                return;
+                return Error_NONE;
             }
             Log_debug(wrapper->context->logger, "Final handshake step failed.\n");
         }
     } else if (nonce > 2 && decryptMessage(wrapper, nonce, received, wrapper->secret)) {
         // If decryptMessage returns false then we will try the packet as a handshake.
-        return;
+        return Error_NONE;
     } else {
         Log_debug(wrapper->context->logger, "Decryption failed, trying message as a handshake.\n");
     }
     Message_shift(received, 4);
-    decryptHandshake(wrapper, nonce, received, header);
+    return decryptHandshake(wrapper, nonce, received, header);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

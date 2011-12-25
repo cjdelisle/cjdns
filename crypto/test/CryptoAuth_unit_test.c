@@ -4,6 +4,7 @@
 #include "crypto/test/Exports.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MemAllocator.h"
+#include "wire/Error.h"
 #include "wire/Message.h"
 
 #include <stdio.h>
@@ -41,15 +42,16 @@ int createNew()
     return 0;
 }
 
-static void receiveMessage(struct Message* message, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     *((struct Message**)iface->receiverContext) = message;
+    return Error_NONE;
 }
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     *((struct Message**)iface->senderContext) = message;
-    return 0;
+    return Error_NONE;
 }
 
 int handshake1()

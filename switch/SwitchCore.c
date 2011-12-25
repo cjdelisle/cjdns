@@ -107,17 +107,18 @@ static inline void sendError(struct SwitchInterface* interface,
     sendMessage(interface, cause);
 }
 
-void receiveMessage(struct Message* message, struct Interface* iface)
+/** This never returns an error, it sends an error packet instead. */
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
         Log_debug(sourceIf->core->logger, "Packet dropped because node seems to be flooding.\n");
-        return;
+        return Error_NONE;
     }
 
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
         Log_debug(sourceIf->core->logger, "Dropped runt packet.\n");
-        return;
+        return Error_NONE;
     }
 
     struct SwitchCore* core = sourceIf->core;
@@ -137,13 +138,13 @@ void receiveMessage(struct Message* message, struct Interface* iface)
                           "Dropped packet for this router because there is no way to "
                           "represent the return path.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
-                return;
+                return Error_NONE;
             }
         } else {
             Log_debug(sourceIf->core->logger, "Dropped packet because source address is "
                                               "larger than destination address.\n");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
-            return;
+            return Error_NONE;
         }
     }
 
@@ -151,7 +152,7 @@ void receiveMessage(struct Message* message, struct Interface* iface)
         Log_debug(sourceIf->core->logger, "Dropped packet because there is no interface "
                                           "where the bits specify.\n");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
-        return;
+        return Error_NONE;
     }
     struct SwitchInterface* destIf = &core->interfaces[destIndex];
 
@@ -172,14 +173,14 @@ void receiveMessage(struct Message* message, struct Interface* iface)
         Log_debug(sourceIf->core->logger,
                   "Packet was dropped for not enough priority in flooded link.\n");
         sendError(sourceIf, message, Error_FLOOD);
-        return;
+        return Error_NONE;
     } else if (destIf->buffer - priority < 0 - destIf->bufferMax) {
         // Buffer decreases are metered out,
         // If there is too much traffic it can't be sent.
         Log_debug(sourceIf->core->logger,
                   "Link closed because priority limit has been exceeded.\n");
         sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED);
-        return;
+        return Error_NONE;
     }
 
     header->label_be =
@@ -191,10 +192,11 @@ void receiveMessage(struct Message* message, struct Interface* iface)
         Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u\n", err);
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err);
-        return;
+        return Error_NONE;
     }
 
     destIf->buffer -= priority;
+    return Error_NONE;
 }
 
 static void removeInterface(void* vcontext)

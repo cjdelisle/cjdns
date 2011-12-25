@@ -26,12 +26,12 @@ int usage()
     return 0;
 }
 
-static void serverFirstIncoming(struct Message* msg, struct Interface* iface)
+static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
 {
     struct Interface** interfaces = iface->receiverContext;
     UDPInterface_bindToCurrentEndpoint(interfaces[0]);
     InterfaceConnector_connect(interfaces[1], interfaces[2]);
-    interfaces[2]->sendMessage(msg, interfaces[2]);
+    return interfaces[2]->sendMessage(msg, interfaces[2]);
 }
 
 int startServer(char* bindToAddress,

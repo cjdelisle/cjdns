@@ -50,8 +50,10 @@ struct Interface
      *
      * @param received the incoming message from the other node.
      * @param senderContext arbitrary data which must be passed to the receiver.
+     * @return 0 If all goes well, non-zero in case of an error.
+     *           See Error.h for more information about interface error codes.
      */
-    void (* receiveMessage)(struct Message* received, struct Interface* thisInterface);
+    uint8_t (* receiveMessage)(struct Message* received, struct Interface* thisInterface);
 };
 
 

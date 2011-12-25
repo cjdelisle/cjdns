@@ -4,6 +4,7 @@
 #include "memory/MallocAllocator.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
+#include "wire/Error.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -48,7 +49,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
     printf("sent message -->  nonce=%d\n", nonce);
     assert(message->length + message->padding <= BUFFER_SIZE);
     if2->receiveMessage(message, if2);
-    return 0;
+    return Error_NONE;
 }
 
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
@@ -58,21 +59,23 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
     printf("sent message <--  nonce=%d\n", nonce);
     assert(message->length + message->padding <= BUFFER_SIZE);
     if1->receiveMessage(message, if1);
-    return 0;
+    return Error_NONE;
 }
 
-static void recvMessageOnIf1(struct Message* message, struct Interface* iface)
+static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
     iface = iface;
     printf("if1 got message! %s\n", message->bytes);
     if1Msg = message->bytes;
+    return Error_NONE;
 }
 
-static void recvMessageOnIf2(struct Message* message, struct Interface* iface)
+static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
     iface = iface;
     printf("if2 got message! %s\n", message->bytes);
     if2Msg = message->bytes;
+    return Error_NONE;
 }
 
 int init(const uint8_t* privateKey,
