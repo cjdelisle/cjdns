@@ -547,6 +547,11 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
                   "Dropping message because auth was not given and is required.\n");
         return Error_AUTHENTICATION;
     }
+    if (passwordHash == NULL && header->handshake.auth.challenge.type != 0) {
+        Log_debug(wrapper->context->logger,
+                  "Dropping message because it contans an authenticator which is unrecognized.\n");
+        return Error_AUTHENTICATION;
+    }
 
     // What the nextNonce will become if this packet is valid.
     uint32_t nextNonce;
@@ -557,7 +562,9 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     uint8_t* herPermKey = NULL;
     if (nonce < 2) {
         if (nonce == 0) {
-            Log_debug(wrapper->context->logger, "Received a hello packet\n");
+            Log_debug1(wrapper->context->logger,
+                       "Received a hello packet, using auth: %d\n",
+                       (passwordHash != NULL));
         } else {
             Log_debug(wrapper->context->logger, "Received a repeat hello packet\n");
         }
@@ -585,6 +592,9 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         } else {
             Log_debug1(wrapper->context->logger,
                        "Received a packet of unknown type! nonce=%u\n", nonce);
+        }
+        if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
+            Log_warn(wrapper->context->logger, "Packet contains different perminent key!\n");
         }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,

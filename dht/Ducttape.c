@@ -381,7 +381,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
 
     if (!validIP6(message)) {
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
-        return 0;
+        return Error_INVALID;
     }
 
     if (isForMe(message, context)) {
@@ -389,8 +389,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         // This call goes to incomingForMe()
         context->contentSession =
             SessionManager_getSession(message, false, context->contentSmInside);
-        context->contentSession->receiveMessage(message, context->contentSession);
-        return 0;
+        return context->contentSession->receiveMessage(message, context->contentSession);
     }
 
     if (context->ip6Header->hopLimit == 0) {
@@ -410,7 +409,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "
                                "node to the destination.\n");
-    return 0;
+    return Error_UNDELIVERABLE;
 }
 
 /**
@@ -447,9 +446,14 @@ static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface*
 {
     struct Context* context = iface->receiverContext;
     context->messageFromCryptoAuth = message;
-    RouterModule_addNode(context->herPublicKey, 
-                         context->switchHeader->label_be,
-                         context->routerModule);
+    if (validIP6(message)) {
+        RouterModule_addNode(context->herPublicKey,
+                             context->switchHeader->label_be,
+                             context->routerModule);
+    } else {
+        Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
+        return Error_INVALID;
+    }
     return decryptedIncoming(message, context);
 }
 

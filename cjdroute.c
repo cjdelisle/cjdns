@@ -186,6 +186,8 @@ static int genconf()
            "        }\n"
            "    }\n"
            "\n"
+           "    \"resetAfterInactivitySeconds\": 20,\n"
+           "\n"
            "    // Version of the config file, used internally for migration.\n"
            "    \"version\": 0\n"
            "}\n");
