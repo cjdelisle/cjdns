@@ -567,6 +567,9 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
             herPermKey = header->handshake.publicKey;
         } else {
             herPermKey = wrapper->herPerminentPubKey;
+            if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
+                Log_warn(wrapper->context->logger, "Packet contains different perminent key!\n");
+            }
         }
 
         getSharedSecret(sharedSecret,
@@ -784,4 +787,10 @@ void CryptoAuth_getSession(struct Session* output, struct Interface* interface)
     memcpy(output->sharedSecret, wrapper->secret, 32);
     assert(!wrapper->authenticatePackets);
     output->exists = true;
+}
+
+void CryptoAuth_reset(struct Interface* interface)
+{
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
+    wrapper->nextNonce = 0;
 }

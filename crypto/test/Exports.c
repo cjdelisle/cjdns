@@ -6,6 +6,7 @@
 #define CryptoAuth_getPublicKey Export_CryptoAuth_getPublicKey
 #define CryptoAuth_getHerPublicKey Export_CryptoAuth_getHerPublicKey
 #define CryptoAuth_getSession Exports_CryptoAuth_getSession
+#define CryptoAuth_reset Exports_CryptoAuth_reset
 
 #include "crypto/CryptoAuth.c"
 

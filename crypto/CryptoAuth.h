@@ -102,4 +102,6 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
 
 void CryptoAuth_getSession(struct Session* output, struct Interface* interface);
 
+void CryptoAuth_reset(struct Interface* interface);
+
 #endif
