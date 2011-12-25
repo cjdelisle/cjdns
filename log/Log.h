@@ -17,7 +17,7 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
     if (!log) {
         return;
     }
-    #define Log_BUFFER_SZ 256
+    #define Log_BUFFER_SZ 1024
     char buff[Log_BUFFER_SZ];
     va_list args;
     va_start(args, format);
@@ -69,6 +69,9 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
 #define Log_printf3(log, level, str, param, paramb, paramc) \
     Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb, paramc)
 
+#define Log_printf4(log, level, str, param, paramb, paramc, paramd) \
+    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb, paramc, paramd)
+
 #ifdef Log_KEYS
     #define Log_keys(log, str) \
         Log_printf(log, "KEYS", str)
@@ -78,11 +81,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "KEYS", str, param, paramb)
     #define Log_keys3(log, str, param, paramb, paramc) \
         Log_printf3(log, "KEYS", str, param, paramb, paramc)
+    #define Log_keys4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "KEYS", str, param, paramb, paramc, paramd)
 #else
     #define Log_keys(log, str)
     #define Log_keys1(log, str, param)
     #define Log_keys2(log, str, param, paramb)
     #define Log_keys3(log, str, param, paramb, paramc)
+    #define Log_keys4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #ifdef Log_DEBUG
@@ -94,11 +100,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "DEBUG", str, param, paramb)
     #define Log_debug3(log, str, param, paramb, paramc) \
         Log_printf3(log, "DEBUG", str, param, paramb, paramc)
+    #define Log_debug4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "DEBUG", str, param, paramb, paramc, paramd)
 #else
     #define Log_debug(log, str)
     #define Log_debug1(log, str, param)
     #define Log_debug2(log, str, param, paramb)
     #define Log_debug3(log, str, param, paramb, paramc)
+    #define Log_debug4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #ifdef Log_INFO
@@ -110,11 +119,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "INFO", str, param, paramb)
     #define Log_info3(log, str, param, paramb, paramc) \
         Log_printf3(log, "INFO", str, param, paramb, paramc)
+    #define Log_info4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "INFO", str, param, paramb, paramc, paramd)
 #else
     #define Log_info(log, str)
     #define Log_info1(log, str, param)
     #define Log_info2(log, str, param, paramb)
     #define Log_info3(log, str, param, paramb, paramc)
+    #define Log_info4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #ifdef Log_WARN
@@ -126,11 +138,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "WARN", str, param, paramb)
     #define Log_warn3(log, str, param, paramb, paramc) \
         Log_printf3(log, "WARN", str, param, paramb, paramc)
+    #define Log_warn4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "WARN", str, param, paramb, paramc, paramd)
 #else
     #define Log_warn(log, str)
     #define Log_warn1(log, str, param)
     #define Log_warn2(log, str, param, paramb)
     #define Log_warn3(log, str, param, paramb, paramc)
+    #define Log_warn4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #ifdef Log_ERROR
@@ -142,11 +157,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "ERROR", str, param, paramb)
     #define Log_error3(log, str, param, paramb, paramc) \
         Log_printf3(log, "ERROR", str, param, paramb, paramc)
+    #define Log_error4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "ERROR", str, param, paramb, paramc, paramd)
 #else
     #define Log_error(log, str)
     #define Log_error1(log, str, param)
     #define Log_error2(log, str, param, paramb)
     #define Log_error3(log, str, param, paramb, paramc)
+    #define Log_error4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #ifdef Log_CRITICAL
@@ -158,11 +176,14 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
         Log_printf2(log, "CRITICAL", str, param, paramb)
     #define Log_critical3(log, str, param, paramb, paramc) \
         Log_printf3(log, "CRITICAL", str, param, paramb, paramc)
+    #define Log_critical4(log, str, param, paramb, paramc, paramd) \
+        Log_printf4(log, "CRITICAL", str, param, paramb, paramc, paramd)
 #else
     #define Log_critical(log, str)
     #define Log_critical1(log, str, param)
     #define Log_critical2(log, str, param, paramb)
     #define Log_critical3(log, str, param, paramb, paramc)
+    #define Log_critical4(log, str, param, paramb, paramc, paramd)
 #endif
 
 #endif

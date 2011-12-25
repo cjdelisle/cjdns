@@ -14,6 +14,9 @@
 #include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "util/Endian.h"
+#ifdef Log_KEYS
+    #include "util/Hex.h"
+#endif
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -34,6 +37,7 @@ static const uint8_t keyHashNonce[16] = {0};
  * @param outputSecret an array to place the shared secret in.
  * @param myPrivateKey
  * @param herPublicKey
+ * @param logger
  * @param passwordHash a 32 byte value known to both ends, this must be provably pseudorandom
  *                     the first 32 bytes of a sha256 output from hashing a password is ok,
  *                     whatever she happens to send me in the Auth field is NOT ok.
@@ -42,7 +46,8 @@ static const uint8_t keyHashNonce[16] = {0};
 static inline void getSharedSecret(uint8_t outputSecret[32],
                                    uint8_t myPrivateKey[32],
                                    uint8_t herPublicKey[32],
-                                   uint8_t passwordHash[32])
+                                   uint8_t passwordHash[32],
+                                   struct Log* logger)
 {
     uint8_t tempBuff[64];
     crypto_scalarmult_curve25519(tempBuff, myPrivateKey, herPublicKey);
@@ -52,6 +57,31 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         memcpy(&tempBuff[32], passwordHash, 32);
         crypto_hash_sha256(outputSecret, tempBuff, 64);
     }
+    #ifdef Log_KEYS
+        uint8_t myPrivateKeyHex[65] = "NULL";
+        if (myPrivateKey) {
+            Hex_encode(myPrivateKeyHex, 65, myPrivateKey, 32);
+        }
+        uint8_t herPublicKeyHex[65] = "NULL";
+        if (herPublicKey) {
+            Hex_encode(herPublicKeyHex, 65, herPublicKey, 32);
+        }
+        uint8_t passwordHashHex[65] = "NULL";
+        if (passwordHash) {
+            Hex_encode(passwordHashHex, 65, passwordHash, 32);
+        }
+        uint8_t outputSecretHex[65] = "NULL";
+        if (outputSecret) {
+            Hex_encode(outputSecretHex, 65, outputSecret, 32);
+        }
+        Log_keys4(logger,
+                  "Generated a shared secret:\n"
+                  "    myPrivateKey=%s\n"
+                  "    herPublicKey=%s\n"
+                  "    passwordHash=%s\n"
+                  "    outputSecret=%s\n",
+                  myPrivateKeyHex, herPublicKeyHex, passwordHashHex, outputSecretHex);
+    #endif
 }
 
 static inline void hashPassword_sha256(struct Auth* auth, const String* password)
@@ -364,7 +394,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->herPerminentPubKey,
-                        passwordHash);
+                        passwordHash,
+                        wrapper->context->logger);
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
         // just generated this, copy it into tempKey so it is available for handshake2.
@@ -380,7 +411,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->tempKey,
-                        passwordHash);
+                        passwordHash,
+                        wrapper->context->logger);
         wrapper->nextNonce = 3;
     }
 
@@ -439,7 +471,9 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         } else {
             getSharedSecret(wrapper->secret,
                             wrapper->secret,
-                            wrapper->tempKey, NULL);
+                            wrapper->tempKey,
+                            NULL,
+                            wrapper->context->logger);
         }
     } else {
         // If there has been no incoming traffic for a while, reset the connection to state 0.
@@ -582,7 +616,8 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         herPermKey,
-                        passwordHash);
+                        passwordHash,
+                        wrapper->context->logger);
         nextNonce = 2;
     } else {
         if (nonce == 2) {
@@ -600,7 +635,8 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         getSharedSecret(sharedSecret,
                         wrapper->secret,
                         wrapper->herPerminentPubKey,
-                        passwordHash);
+                        passwordHash,
+                        wrapper->context->logger);
         nextNonce = 4;
     }
 
@@ -661,7 +697,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             getSharedSecret(secret,
                             wrapper->secret,
                             wrapper->tempKey,
-                            NULL);
+                            NULL,
+                            wrapper->context->logger);
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 wrapper->nextNonce += 2;
                 memcpy(wrapper->secret, secret, 32);
