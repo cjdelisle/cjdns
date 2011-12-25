@@ -58,9 +58,11 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         crypto_hash_sha256(outputSecret, tempBuff, 64);
     }
     #ifdef Log_KEYS
-        uint8_t myPrivateKeyHex[65] = "NULL";
+        uint8_t myPublicKeyHex[65] = "NULL";
         if (myPrivateKey) {
-            Hex_encode(myPrivateKeyHex, 65, myPrivateKey, 32);
+            uint8_t myPublicKey[32];
+            crypto_scalarmult_curve25519_base(myPublicKey, myPrivateKey);
+            Hex_encode(myPublicKeyHex, 65, myPublicKey, 32);
         }
         uint8_t herPublicKeyHex[65] = "NULL";
         if (herPublicKey) {
@@ -76,11 +78,11 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         }
         Log_keys4(logger,
                   "Generated a shared secret:\n"
-                  "    myPrivateKey=%s\n"
+                  "     myPublicKey=%s\n"
                   "    herPublicKey=%s\n"
                   "    passwordHash=%s\n"
                   "    outputSecret=%s\n",
-                  myPrivateKeyHex, herPublicKeyHex, passwordHashHex, outputSecretHex);
+                  myPublicKeyHex, herPublicKeyHex, passwordHashHex, outputSecretHex);
     #endif
 }
 
@@ -745,6 +747,17 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
     } else {
         crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
     }
+
+    #ifdef Log_KEYS
+        uint8_t publicKeyHex[65];
+        Hex_encode(publicKeyHex, 65, ca->publicKey, 32);
+        uint8_t privateKeyHex[65];
+        Hex_encode(privateKeyHex, 65, ca->privateKey, 32);
+        Log_keys2(logger,
+                  "Initialized CryptoAuth:\n    myPrivateKey=%s\n     myPublicKey=%s\n",
+                  privateKeyHex,
+                  publicKeyHex);
+    #endif
 
     return ca;
 }
