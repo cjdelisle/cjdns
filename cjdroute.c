@@ -484,6 +484,9 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
 
 int main(int argc, char** argv)
 {
+    #ifdef Log_KEYS
+        fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
+    #endif
     Crypto_init();
     assert(argc > 0);
     if (isatty(STDIN_FILENO)) {

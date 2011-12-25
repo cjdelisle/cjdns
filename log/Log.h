@@ -1,11 +1,6 @@
 #ifndef LOG_H
 #define LOG_H
 
-#define Log_DEBUG
-#define Log_WARN
-#define Log_ERROR
-#define Log_CRITICAL
-
 #include "io/Writer.h"
 
 #include <stdarg.h>
@@ -33,6 +28,35 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
     #undef Log_BUFFER_SZ
 }
 
+#if (Log_LEVEL == KEYS)
+    #define Log_KEYS
+    #define Log_DEBUG
+    #define Log_INFO
+    #define Log_WARN
+    #define Log_ERROR
+    #define Log_CRITICAL
+#elif (Log_LEVEL == DEBUG)
+    #define Log_DEBUG
+    #define Log_INFO
+    #define Log_WARN
+    #define Log_ERROR
+    #define Log_CRITICAL
+#elif (Log_LEVEL == INFO || !defined(Log_LEVEL))
+    #define Log_INFO
+    #define Log_WARN
+    #define Log_ERROR
+    #define Log_CRITICAL
+#elif (Log_LEVEL == WARN)
+    #define Log_WARN
+    #define Log_ERROR
+    #define Log_CRITICAL
+#elif (Log_LEVEL == ERROR)
+    #define Log_ERROR
+    #define Log_CRITICAL
+#elif (Log_LEVEL == CRITICAL)
+    #define Log_CRITICAL
+#endif
+
 #define Log_printf(log, level, str) \
     Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__)
 
@@ -44,6 +68,22 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
 
 #define Log_printf3(log, level, str, param, paramb, paramc) \
     Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb, paramc)
+
+#ifdef Log_KEYS
+    #define Log_keys(log, str) \
+        Log_printf(log, "KEYS", str)
+    #define Log_keys1(log, str, param) \
+        Log_printf1(log, "KEYS", str, param)
+    #define Log_keys2(log, str, param, paramb) \
+        Log_printf2(log, "KEYS", str, param, paramb)
+    #define Log_keys3(log, str, param, paramb, paramc) \
+        Log_printf3(log, "KEYS", str, param, paramb, paramc)
+#else
+    #define Log_keys(log, str)
+    #define Log_keys1(log, str, param)
+    #define Log_keys2(log, str, param, paramb)
+    #define Log_keys3(log, str, param, paramb, paramc)
+#endif
 
 #ifdef Log_DEBUG
     #define Log_debug(log, str) \

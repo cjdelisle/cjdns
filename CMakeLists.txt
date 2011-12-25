@@ -35,6 +35,13 @@ add_definitions(
 # debugging
 add_definitions(-g)
 
+if(NOT $ENV{Log_LEVEL} STREQUAL "")
+    if ($ENV{Log_LEVEL} STREQUAL "KEYS")
+        message("\n\nLog_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
+    endif ($ENV{Log_LEVEL} STREQUAL "KEYS")
+    add_definitions(-D Log_LEVEL=$ENV{Log_LEVEL})
+endif(NOT $ENV{Log_LEVEL} STREQUAL "")
+
 #add_definitions(-O3)
 
 
