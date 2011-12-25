@@ -389,7 +389,6 @@ struct SearchCallbackContext
  * @param module this router module.
  * @param searchSuccessful true if the search found the desired content, otherwise false.
  */
-#include <stdio.h>
 static inline void cleanup(struct SearchStore* store,
                            struct SearchStore_Node* lastNode,
                            struct Address* targetAddress,

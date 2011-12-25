@@ -296,7 +296,7 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
                                    struct Message* message,
                                    struct Context* context)
 {
-    if (sendTo->session.exists) {
+    /*if (sendTo->session.exists) {
         encrypt(sendTo->session.nextNonce,
                 message,
                 sendTo->session.sharedSecret,
@@ -311,7 +311,7 @@ static inline uint8_t sendToRouter(struct Node* sendTo,
         context->switchHeader->label_be = sendTo->address.networkAddress_be;
 
         return sendToSwitch(message, context->switchHeader, context);
-    }
+    }*/
 
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.

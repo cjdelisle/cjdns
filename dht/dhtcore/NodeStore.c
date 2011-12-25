@@ -93,16 +93,14 @@ void NodeStore_addNode(struct NodeStore* store,
     uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
         uint32_t newReach = 0;
+        struct NodeHeader* match = NULL;
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
                 && memcmp(&store->nodes[i].address.key, addr->key, Address_KEY_SIZE) == 0)
             {
                 if (store->nodes[i].address.networkAddress_be == addr->networkAddress_be) {
                     // Node already exists
-                    store->headers[i].reach =
-                        store->headers[i].reach > newReach ? store->headers[i].reach : newReach;
-                    adjustReach(&store->headers[i], reachDifference);
-                    return;
+                    match = &store->headers[i];
                 } else {
                     // Identical node with different network addr.
                     // We'll just keep track of the reach in order to ensure the new node has a
@@ -111,6 +109,13 @@ void NodeStore_addNode(struct NodeStore* store,
                     newReach = store->headers[i].reach;
                 }
             }
+        }
+        if (match) {
+            if (match->reach < newReach) {
+                match->reach = newReach;
+            }
+            adjustReach(match, reachDifference);
+            return;
         }
 
         #ifdef Log_DEBUG
