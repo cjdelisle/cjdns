@@ -593,7 +593,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
             Log_debug1(wrapper->context->logger,
                        "Received a packet of unknown type! nonce=%u\n", nonce);
         }
-        if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
+        if (memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
             Log_warn(wrapper->context->logger, "Packet contains different perminent key!\n");
         }
         // We sent the hello, this is a key
