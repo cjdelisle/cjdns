@@ -581,12 +581,12 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
         if (decrypt(nonce, content, secret, wrapper->isInitiator, true) == 0
             && ReplayProtector_checkNonce(nonce, &wrapper->replayProtector))
         {
-            return callReceivedMessage(wrapper, content);
+            return callReceivedMessage(wrapper, content) == 0;
         }
     } else {
         // Decrypt and send whatever garbage comes out the other end!
         decrypt(nonce, content, secret, wrapper->isInitiator, false);
-        return callReceivedMessage(wrapper, content);
+        return callReceivedMessage(wrapper, content) == 0;
     }
     return false;
 }
@@ -795,9 +795,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                 wrapper->nextNonce += 2;
                 memcpy(wrapper->secret, secret, 32);
                 return Error_NONE;
-            } else {
-                CryptoAuth_reset(interface);
             }
+            CryptoAuth_reset(interface);
             Log_debug(wrapper->context->logger, "Final handshake step failed.\n");
         }
     } else if (nonce > 2 && decryptMessage(wrapper, nonce, received, wrapper->secret)) {
