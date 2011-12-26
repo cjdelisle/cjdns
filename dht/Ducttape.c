@@ -153,7 +153,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
     // This comes out at outgoingFromMe()
-    assert(!context->contentSmInside->sendMessage(&message, context->contentSmInside));
+    context->contentSmInside->sendMessage(&message, context->contentSmInside);
     return 0;
 }
 
