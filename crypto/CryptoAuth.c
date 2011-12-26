@@ -581,22 +581,12 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
         if (decrypt(nonce, content, secret, wrapper->isInitiator, true) == 0
             && ReplayProtector_checkNonce(nonce, &wrapper->replayProtector))
         {
-            if (nonce == 4) {
-                wrapper->nextNonce += 3;
-            }
-            callReceivedMessage(wrapper, content);
-            return true;
+            return callReceivedMessage(wrapper, content);
         }
     } else {
         // Decrypt and send whatever garbage comes out the other end!
         decrypt(nonce, content, secret, wrapper->isInitiator, false);
-        if (nonce == 4 && wrapper->nextNonce < 4) {
-            // While this is safe against packet drops, that safety is lost if a packet
-            // is forged with nonce=4 during a handshake.
-            wrapper->nextNonce += 3;
-        }
-        callReceivedMessage(wrapper, content);
-        return true;
+        return callReceivedMessage(wrapper, content);
     }
     return false;
 }
@@ -805,6 +795,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                 wrapper->nextNonce += 2;
                 memcpy(wrapper->secret, secret, 32);
                 return Error_NONE;
+            } else {
+                CryptoAuth_reset(interface);
             }
             Log_debug(wrapper->context->logger, "Final handshake step failed.\n");
         }
