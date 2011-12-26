@@ -31,6 +31,26 @@
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
 static const uint8_t keyHashNonce[16] = {0};
 
+static inline void printHexKey(uint8_t output[65], uint8_t key[32])
+{
+    if (key) {
+        Hex_encode(output, 65, key, 32);
+    } else {
+        memcpy(output, "NULL", 5);
+    }
+}
+
+static inline void printHexPubKey(uint8_t output[65], uint8_t privateKey[32])
+{
+    if (privateKey) {
+        uint8_t publicKey[32];
+        crypto_scalarmult_curve25519_base(publicKey, privateKey);
+        printHexKey(output, publicKey);
+    } else {
+        printHexKey(output, NULL);
+    }
+}
+
 /**
  * Get a shared secret.
  *
@@ -58,24 +78,14 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         crypto_hash_sha256(outputSecret, tempBuff, 64);
     }
     #ifdef Log_KEYS
-        uint8_t myPublicKeyHex[65] = "NULL";
-        if (myPrivateKey) {
-            uint8_t myPublicKey[32];
-            crypto_scalarmult_curve25519_base(myPublicKey, myPrivateKey);
-            Hex_encode(myPublicKeyHex, 65, myPublicKey, 32);
-        }
-        uint8_t herPublicKeyHex[65] = "NULL";
-        if (herPublicKey) {
-            Hex_encode(herPublicKeyHex, 65, herPublicKey, 32);
-        }
-        uint8_t passwordHashHex[65] = "NULL";
-        if (passwordHash) {
-            Hex_encode(passwordHashHex, 65, passwordHash, 32);
-        }
+        uint8_t myPublicKeyHex[65];
+        printHexPubKey(myPublicKeyHex, myPrivateKey);
+        uint8_t herPublicKeyHex[65];
+        printHexKey(herPublicKeyHex, herPublicKey);
+        uint8_t passwordHashHex[65];
+        printHexKey(passwordHashHex, passwordHash);
         uint8_t outputSecretHex[65] = "NULL";
-        if (outputSecret) {
-            Hex_encode(outputSecretHex, 65, outputSecret, 32);
-        }
+        printHexKey(outputSecretHex, outputSecret);
         Log_keys4(logger,
                   "Generated a shared secret:\n"
                   "     myPublicKey=%s\n"
@@ -162,6 +172,7 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
  * @param nonce a 24 byte number, may be random, cannot repeat.
  * @param msg a message to encipher and authenticate.
  * @param secret a shared secret.
+ * @return 0 if decryption is succeddful, otherwise -1.
  */
 static inline int decryptRndNonce(uint8_t nonce[24],
                                   struct Message* msg,
@@ -203,7 +214,7 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
     memcpy(paddingSpace, startAt, 16);
-    memset(startAt, 0, 16);
+    memset(startAt, 0, 32);
     crypto_box_curve25519xsalsa20poly1305_afternm(
         startAt, startAt, msg->length + 32, nonce, secret);
 
@@ -380,6 +391,9 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         // If we're sending a hello or a key
         crypto_box_curve25519xsalsa20poly1305_keypair(header->handshake.encryptedTempKey,
                                                       wrapper->secret);
+        if (wrapper->nextNonce == 0) {
+            memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
+        }
         #ifdef Log_DEBUG
             assert(!isZero(header->handshake.encryptedTempKey, 32));
             assert(!isZero(wrapper->secret, 32));
@@ -411,14 +425,12 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                         passwordHash,
                         wrapper->context->logger);
         wrapper->isInitiator = true;
-        if (wrapper->nextNonce == 0) {
-            // just generated this, copy it into tempKey so it is available
-            // if we need to send a duplicate hello packet.
-            memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
-        }
         wrapper->nextNonce = 1;
         #ifdef Log_DEBUG
             assert(!isZero(header->handshake.encryptedTempKey, 32));
+            uint8_t myTempPubKey[32];
+            crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
+            assert(!memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
         #endif
         #ifdef Log_KEYS
             uint8_t tempKeyHex[65];
@@ -457,6 +469,22 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     Message_shift(message, 32 - Headers_CryptoAuth_SIZE);
 
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
+
+    Log_debug1(wrapper->context->logger, "Message length: %u", message->length);
+    #ifdef Log_KEYS
+        uint8_t sharedSecretHex[65];
+        printHexKey(sharedSecretHex, sharedSecret);
+        uint8_t nonceHex[49];
+        Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
+        uint8_t cipherHex[65];
+        printHexKey(cipherHex, message->bytes);
+        Log_keys3(wrapper->context->logger,
+                  "Encrypting message with:\n"
+                  "    nonce: %s\n"
+                  "   secret: %s\n"
+                  "   cipher: %s\n",
+                  nonceHex, sharedSecretHex, cipherHex);
+    #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
     Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16);
@@ -501,6 +529,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         if (wrapper->nextNonce < 4) {
             return encryptHandshake(message, wrapper);
         } else {
+            Log_debug(wrapper->context->logger, "Doing final step to send message.\n");
             getSharedSecret(wrapper->secret,
                             wrapper->secret,
                             wrapper->tempKey,
@@ -516,7 +545,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
             (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
         if (now.tv_sec > whenToReset) {
             Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
-            wrapper->nextNonce = 0;
+            CryptoAuth_reset(interface);
         }
     }
     return encryptMessage(message, wrapper);
@@ -683,6 +712,21 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     #ifdef Log_DEBUG
         assert(!isZero(header->handshake.encryptedTempKey, 32));
     #endif
+    Log_debug1(wrapper->context->logger, "Message length: %u", message->length);
+    #ifdef Log_KEYS
+        uint8_t sharedSecretHex[65];
+        printHexKey(sharedSecretHex, sharedSecret);
+        uint8_t nonceHex[49];
+        Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
+        uint8_t cipherHex[65];
+        printHexKey(cipherHex, message->bytes);
+        Log_keys3(wrapper->context->logger,
+                  "Decrypting message with:\n"
+                  "    nonce: %s\n"
+                  "   secret: %s\n"
+                  "   cipher: %s\n",
+                  nonceHex, sharedSecretHex, cipherHex);
+    #endif
 
     // Decrypt her temp public key and the message.
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
@@ -710,6 +754,9 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
 
     Message_shift(message, -32);
     wrapper->nextNonce = nextNonce;
+    if (nextNonce == 2) {
+        wrapper->isInitiator = false;
+    }
     if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
         memcpy(wrapper->herPerminentPubKey, herPermKey, 32);
     }
@@ -802,9 +849,9 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
 
     #ifdef Log_KEYS
         uint8_t publicKeyHex[65];
-        Hex_encode(publicKeyHex, 65, ca->publicKey, 32);
+        printHexKey(publicKeyHex, ca->publicKey);
         uint8_t privateKeyHex[65];
-        Hex_encode(privateKeyHex, 65, ca->privateKey, 32);
+        printHexKey(privateKeyHex, ca->privateKey);
         Log_keys2(logger,
                   "Initialized CryptoAuth:\n    myPrivateKey=%s\n     myPublicKey=%s\n",
                   privateKeyHex,
@@ -905,4 +952,5 @@ void CryptoAuth_reset(struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
     wrapper->nextNonce = 0;
+    wrapper->isInitiator = false;
 }

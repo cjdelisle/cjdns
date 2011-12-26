@@ -2,6 +2,7 @@
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
+#include "io/FileWriter.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MemAllocator.h"
 #include "wire/Error.h"
@@ -9,6 +10,8 @@
 
 #include <stdio.h>
 #include <event2/event.h>
+
+#define BUFFER_SIZE 8192*4
 
 static uint8_t* privateKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
 static uint8_t* publicKey = (uint8_t*)
@@ -30,7 +33,6 @@ int encryptRndNonceTest()
 
 int createNew()
 {
-    #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
@@ -56,10 +58,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 int hello()
 {
-    #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
     struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, NULL);
+    struct Writer* logwriter = FileWriter_new(stdout, allocator);
+    struct Log logger = { .writer = logwriter };
+    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, &logger);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -84,8 +87,7 @@ int hello()
     Exports_encryptHandshake(&msg, &wrapper);
 
 
-    allocator->free(allocator);
-    ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
+    ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
     struct Message* finalOut = NULL;
     struct Wrapper wrapper2 = {
         .context = ca,

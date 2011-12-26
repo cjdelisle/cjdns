@@ -1,5 +1,6 @@
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
+#include "io/FileWriter.h"
 #include "libbenc/benc.h"
 #include "memory/MallocAllocator.h"
 #include "util/Hex.h"
@@ -86,6 +87,9 @@ int init(const uint8_t* privateKey,
     printf("\nSetting up:\n");
     struct MemAllocator* allocator = MallocAllocator_new(1048576);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
+    struct Writer* logwriter = FileWriter_new(stdout, allocator);
+    struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);
+    logger->writer = logwriter;
 
     struct event_base* base = event_base_new();
 
@@ -95,7 +99,7 @@ int init(const uint8_t* privateKey,
         passStr = &passStrStorage;
     }
 
-    ca1 = CryptoAuth_new(NULL, allocator, NULL, base, NULL);
+    ca1 = CryptoAuth_new(NULL, allocator, NULL, base, logger);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
@@ -105,7 +109,7 @@ int init(const uint8_t* privateKey,
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(NULL, allocator, privateKey, base, NULL);
+    ca2 = CryptoAuth_new(NULL, allocator, privateKey, base, logger);
     if (password) {
         CryptoAuth_setAuth(passStr, 1, cif1);
         CryptoAuth_addUser(passStr, 1, userObj, ca2);
@@ -127,8 +131,10 @@ static int simpleInit()
 
 static int sendToIf1(const char* x)
 {
+    if1Msg = NULL;
     MK_MSG(x);
     cif2->sendMessage(&msg, cif2);
+    assert(if1Msg);
     if (strcmp((char*)if1Msg, x) != 0) {
         printf("expected %s, got %s\n", x, (char*)if1Msg);
         return -1;
@@ -138,8 +144,10 @@ static int sendToIf1(const char* x)
 
 static int sendToIf2(const char* x)
 {
+    if2Msg = NULL;
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
+    assert(if2Msg);
     if (strcmp((char*)if2Msg, x) != 0) {
         printf("expected %s, got %s\n", x, (char*)if2Msg);
         return -1;
@@ -279,6 +287,7 @@ int reset()
 
 int authAndReset()
 {
+    printf("\n\nSetting up authAndReset()\n");
     init(privateKey, publicKey, (uint8_t*)"password", false);
     int ret =
         sendToIf2("hello world")
