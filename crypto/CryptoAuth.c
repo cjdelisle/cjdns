@@ -337,8 +337,6 @@ static uint8_t genReverseHandshake(struct Message* message,
     Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = UINT32_MAX;
-    memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
-
     message->length = Headers_CryptoAuth_SIZE;
 
     // sessionState must be 0, auth and 24 byte nonce are garbaged and public key is set
@@ -358,6 +356,7 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
 
     // garbage the auth field to frustrate DPI and set the nonce (next 24 bytes after the auth)
     randombytes((uint8_t*) &header->handshake.auth, sizeof(union Headers_AuthChallenge) + 24);
+    memcpy(&header->handshake.publicKey, wrapper->context->publicKey, 32);
 
     if (!knowHerKey(wrapper)) {
         return genReverseHandshake(message, wrapper, header);
@@ -455,12 +454,12 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     }
 
     // Shift message over the encryptedTempKey field.
-    Message_shift(message, 32 - ((int32_t) sizeof(union Headers_CryptoAuth)));
+    Message_shift(message, 32 - Headers_CryptoAuth_SIZE);
 
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
 
-    // Shift it back -- encryptRndNonce adds 16 bytes of padding.
-    Message_shift(message, sizeof(union Headers_CryptoAuth) - 32 - 16);
+    // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
+    Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
@@ -639,6 +638,11 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         // Decrypt message with perminent keys.
         if (!knowHerKey(wrapper)) {
             herPermKey = header->handshake.publicKey;
+            #ifdef Log_DEBUG
+                if (isZero(header->handshake.publicKey, 32)) {
+                    Log_debug(wrapper->context->logger, "Node sent public key of ZERO!\n");
+                }
+            #endif
         } else {
             herPermKey = wrapper->herPerminentPubKey;
             if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
