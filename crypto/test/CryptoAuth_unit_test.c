@@ -54,7 +54,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return Error_NONE;
 }
 
-int handshake1()
+int hello()
 {
     #define BUFFER_SIZE 8192*2
     uint8_t buff[BUFFER_SIZE];
@@ -107,5 +107,5 @@ int handshake1()
 int main()
 {
     eventBase = event_base_new();
-    return encryptRndNonceTest() | createNew() | handshake1();
+    return encryptRndNonceTest() | createNew() | hello();
 }

@@ -277,6 +277,25 @@ int reset()
       | sendToIf1("goodbye");
 }
 
+int authAndReset()
+{
+    init(privateKey, publicKey, (uint8_t*)"password", false);
+    int ret =
+        sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("brb");
+
+    CryptoAuth_reset(cif2);
+    return
+        ret
+      | sendToIf1("hi again")
+      | sendToIf2("hello world")
+      | sendToIf1("hello cjdns")
+      | sendToIf2("hai")
+      | sendToIf1("goodbye");
+}
+
 int main()
 {
     return normal()
@@ -289,5 +308,6 @@ int main()
         | poly1305UnknownKey()
         | poly1305AndPassword()
         | poly1305UnknownKeyAndPassword()
-        | reset();
+        | reset()
+        | authAndReset();
 }

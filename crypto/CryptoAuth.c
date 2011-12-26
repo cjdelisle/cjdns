@@ -400,8 +400,18 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                         wrapper->context->logger);
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
-        // just generated this, copy it into tempKey so it is available for handshake2.
-        memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
+        if (wrapper->nextNonce == 0) {
+            // just generated this, copy it into tempKey so it is available for her key packet.
+            memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
+        }
+        #ifdef Log_KEYS
+            uint8_t tempKeyHex[65];
+            Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
+            Log_keys1(wrapper->context->logger,
+                      "Wrapping temp public key:\n"
+                      "    %s\n",
+                      tempKeyHex);
+        #endif
     } else {
         if (wrapper->nextNonce == 2) {
             Log_debug(wrapper->context->logger, "Sending key packet\n");
@@ -416,6 +426,15 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                         passwordHash,
                         wrapper->context->logger);
         wrapper->nextNonce = 3;
+
+        #ifdef Log_KEYS
+            uint8_t tempKeyHex[65];
+            Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
+            Log_keys1(wrapper->context->logger,
+                      "Using their temp public key:\n"
+                      "    %s\n",
+                      tempKeyHex);
+        #endif
     }
 
     // Shift message over the encryptedTempKey field.
@@ -656,6 +675,16 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
 
     wrapper->user = user;
     memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
+
+    #ifdef Log_KEYS
+        uint8_t tempKeyHex[65];
+        Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
+        Log_keys1(wrapper->context->logger,
+                  "Unwrapping temp public key:\n"
+                  "    %s\n",
+                  tempKeyHex);
+    #endif
+
     Message_shift(message, -32);
     wrapper->nextNonce = nextNonce;
     if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
@@ -669,7 +698,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         return Error_NONE;
     } else if (wrapper->bufferedMessage) {
-        Log_debug(wrapper->context->logger, "There is a buffered message");
+        Log_debug(wrapper->context->logger, "There is a buffered message.\n");
     }
 
     setRequiredPadding(wrapper);
