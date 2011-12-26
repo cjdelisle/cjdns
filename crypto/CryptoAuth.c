@@ -199,15 +199,15 @@ static inline void encryptRndNonce(uint8_t nonce[24],
                                    uint8_t secret[32])
 {
     assert(msg->padding >= 32);
-
+    uint8_t* startAt = msg->bytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
-    memcpy(paddingSpace, msg->bytes - 32, 16);
-    memset(msg->bytes - 32, 0, 32);
+    memcpy(paddingSpace, startAt, 16);
+    memset(startAt, 0, 16);
     crypto_box_curve25519xsalsa20poly1305_afternm(
-        msg->bytes - 32, msg->bytes - 32, msg->length + 32, nonce, secret);
+        startAt, startAt, msg->length + 32, nonce, secret);
 
-    memcpy(msg->bytes - 32, paddingSpace, 16);
+    memcpy(startAt, paddingSpace, 16);
     Message_shift(msg, 16);
 }
 
@@ -293,10 +293,19 @@ static inline void setRequiredPadding(struct Wrapper* wrapper)
         wrapper->wrappedInterface->maxMessageLength - padding;
 }
 
+static inline bool isZero(uint8_t* buffer, size_t length)
+{
+    for (size_t i = 0; i < length; i++) {
+        if (buffer[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static inline bool knowHerKey(struct Wrapper* wrapper)
 {
-    uint64_t* herKey = (uint64_t*) wrapper->herPerminentPubKey;
-    return (herKey[0] | herKey[1] | herKey[2] | herKey[3]) != 0;
+    return !isZero(wrapper->herPerminentPubKey, 32);
 }
 
 /**
@@ -372,6 +381,10 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         // If we're sending a hello or a key
         crypto_box_curve25519xsalsa20poly1305_keypair(header->handshake.encryptedTempKey,
                                                       wrapper->secret);
+        #ifdef Log_DEBUG
+            assert(!isZero(header->handshake.encryptedTempKey, 32));
+            assert(!isZero(wrapper->secret, 32));
+        #endif
     } else if (wrapper->nextNonce == 3) {
         // Dupe key
         // If nextNonce is 1 then we have our pubkey stored in wrapper->tempKey,
@@ -401,9 +414,13 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
         if (wrapper->nextNonce == 0) {
-            // just generated this, copy it into tempKey so it is available for her key packet.
+            // just generated this, copy it into tempKey so it is available
+            // if we need to send a duplicate hello packet.
             memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
         }
+        #ifdef Log_DEBUG
+            assert(!isZero(header->handshake.encryptedTempKey, 32));
+        #endif
         #ifdef Log_KEYS
             uint8_t tempKeyHex[65];
             Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
@@ -440,17 +457,12 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     // Shift message over the encryptedTempKey field.
     Message_shift(message, 32 - ((int32_t) sizeof(union Headers_CryptoAuth)));
 
-    // This function uses space in the "padding" section of the message
-    // which has the effect of zeroing the publicKey field
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
-
-    memcpy(header->handshake.publicKey, wrapper->context->publicKey, 32);
 
     // Shift it back -- encryptRndNonce adds 16 bytes of padding.
     Message_shift(message, sizeof(union Headers_CryptoAuth) - 32 - 16);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
-
 }
 
 static inline uint8_t encryptMessage(struct Message* message,
@@ -664,6 +676,10 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     // Shift it on top of the authenticator before the encrypted public key
     Message_shift(message, 48 - Headers_CryptoAuth_SIZE);
 
+    #ifdef Log_DEBUG
+        assert(!isZero(header->handshake.encryptedTempKey, 32));
+    #endif
+
     // Decrypt her temp public key and the message.
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
@@ -676,6 +692,9 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     wrapper->user = user;
     memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
 
+    #ifdef Log_DEBUG
+        assert(!isZero(header->handshake.encryptedTempKey, 32));
+    #endif
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
         Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
