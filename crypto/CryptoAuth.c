@@ -524,6 +524,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
     if (now.tv_sec > whenToReset) {
         Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
+        wrapper->timeOfLastPacket = now.tv_sec;
         CryptoAuth_reset(interface);
         return encryptHandshake(message, wrapper);
     }
