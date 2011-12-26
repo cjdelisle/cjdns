@@ -516,6 +516,18 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
 
+    // If there has been no incoming traffic for a while, reset the connection to state 0.
+    // This will prevent "connection in bad state" situations from lasting forever.
+    struct timeval now;
+    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
+    int64_t whenToReset =
+        (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
+    if (now.tv_sec > whenToReset) {
+        Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
+        CryptoAuth_reset(interface);
+        return encryptHandshake(message, wrapper);
+    }
+
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
     // nextNonce 2: sending key, hello received.
@@ -524,7 +536,6 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     //
     // if it's a blind handshake, every message will be empty and nextNonce will remain
     // zero until the first message is received back.
-
     if (wrapper->nextNonce < 5) {
         if (wrapper->nextNonce < 4) {
             return encryptHandshake(message, wrapper);
@@ -536,19 +547,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
                             NULL,
                             wrapper->context->logger);
         }
-    } else {
-        // If there has been no incoming traffic for a while, reset the connection to state 0.
-        // This will prevent "connection in bad state" situations from lasting forever.
-        struct timeval now;
-        event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
-        int64_t whenToReset =
-            (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
-        if (now.tv_sec > whenToReset) {
-            Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
-            CryptoAuth_reset(interface);
-            return encryptHandshake(message, wrapper);
-        }
     }
+
     return encryptMessage(message, wrapper);
 }
 
@@ -578,17 +578,29 @@ static inline bool decryptMessage(struct Wrapper* wrapper,
 {
     if (wrapper->authenticatePackets) {
         // Decrypt with authentication and replay prevention.
-        if (decrypt(nonce, content, secret, wrapper->isInitiator, true) == 0
-            && ReplayProtector_checkNonce(nonce, &wrapper->replayProtector))
-        {
-            return callReceivedMessage(wrapper, content) == 0;
+        int ret = decrypt(nonce, content, secret, wrapper->isInitiator, true);
+        if (ret) {
+            Log_debug1(wrapper->context->logger,
+                       "Authenticated decryption failed returning %u\n",
+                       ret);
+            return false;
+        }
+        ret = !ReplayProtector_checkNonce(nonce, &wrapper->replayProtector);
+        if (ret) {
+            Log_debug(wrapper->context->logger, "Nonce checking failed.\n");
+            return false;
         }
     } else {
-        // Decrypt and send whatever garbage comes out the other end!
         decrypt(nonce, content, secret, wrapper->isInitiator, false);
-        return callReceivedMessage(wrapper, content) == 0;
     }
-    return false;
+    int ret = callReceivedMessage(wrapper, content);
+    if (ret) {
+        Log_debug1(wrapper->context->logger,
+                   "Call received message failed returning %u\n",
+                   ret);
+        return false;
+    }
+    return true;
 }
 
 static uint8_t decryptHandshake(struct Wrapper* wrapper,

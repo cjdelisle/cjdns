@@ -18,6 +18,7 @@ struct ReplayProtector
  * @param nonce the number to check, this should be a counter nonce as numbers less than 20 minus
  *              the highest seen nonce will be dropped erroniously.
  * @param context the context
+ * @return true if the packet is provably not a replay, otherwise false.
  */
 static inline bool ReplayProtector_checkNonce(const uint32_t nonce, struct ReplayProtector* context)
 {
