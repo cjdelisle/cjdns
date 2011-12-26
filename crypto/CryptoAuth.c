@@ -412,12 +412,12 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                         passwordHash,
                         wrapper->context->logger);
         wrapper->isInitiator = true;
-        wrapper->nextNonce = 1;
         if (wrapper->nextNonce == 0) {
             // just generated this, copy it into tempKey so it is available
             // if we need to send a duplicate hello packet.
             memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
         }
+        wrapper->nextNonce = 1;
         #ifdef Log_DEBUG
             assert(!isZero(header->handshake.encryptedTempKey, 32));
         #endif
