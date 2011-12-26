@@ -546,6 +546,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         if (now.tv_sec > whenToReset) {
             Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
             CryptoAuth_reset(interface);
+            return encryptHandshake(message, wrapper);
         }
     }
     return encryptMessage(message, wrapper);
