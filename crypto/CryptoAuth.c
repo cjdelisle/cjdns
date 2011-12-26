@@ -957,4 +957,5 @@ void CryptoAuth_reset(struct Interface* interface)
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
     wrapper->nextNonce = 0;
     wrapper->isInitiator = false;
+    memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 }
