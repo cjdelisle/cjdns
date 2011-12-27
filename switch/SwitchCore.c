@@ -66,7 +66,8 @@ struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* alloc
 }
 
 static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
-                                   struct Message* toSend)
+                                   struct Message* toSend,
+                                   struct Log* logger)
 {
     uint16_t priority = Headers_getPriority((struct Headers_SwitchHeader*) toSend->bytes);
     if (switchIf->buffer + priority > switchIf->bufferMax) {
@@ -74,15 +75,15 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
     }
 
     if (!switchIf) {
-        Log_error("switchIf is NULL!\n");
+        Log_error(logger, "switchIf is NULL!\n");
         return Error_NONE;
     }
     if (!switchIf->iface) {
-        Log_error("switchIf->iface is NULL!\n");
+        Log_error(logger, "switchIf->iface is NULL!\n");
         return Error_NONE;
     }
     if (!switchIf->iface->sendMessage) {
-        Log_error("switchIf-.iface->sendMEssage is NULL!\n");
+        Log_error(logger, "switchIf-.iface->sendMessage is NULL!\n");
         return Error_NONE;
     }
     uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
@@ -94,7 +95,8 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
 
 static inline void sendError(struct SwitchInterface* interface,
                              struct Message* cause,
-                             uint16_t code)
+                             uint16_t code,
+                             struct Log* logger)
 {
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
     if (Headers_getMessageType(header) == MessageType_CONTROL) {
@@ -116,7 +118,7 @@ static inline void sendError(struct SwitchInterface* interface,
     err->error.length = errLength;
 
     cause->length = sizeof(struct ErrorPacket) - (255 - errLength);
-    sendMessage(interface, cause);
+    sendMessage(interface, cause, logger);
 }
 
 /** This never returns an error, it sends an error packet instead. */
@@ -149,13 +151,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 Log_debug(sourceIf->core->logger,
                           "Dropped packet for this router because there is no way to "
                           "represent the return path.");
-                sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
+                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
             }
         } else {
             Log_debug(sourceIf->core->logger, "Dropped packet because source address is "
                                               "larger than destination address.\n");
-            sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
+            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
         }
     }
@@ -163,7 +165,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     if (destIndex >= core->interfaceCount) {
         Log_debug(sourceIf->core->logger, "Dropped packet because there is no interface "
                                           "where the bits specify.\n");
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS);
+        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
     struct SwitchInterface* destIf = &core->interfaces[destIndex];
@@ -184,14 +186,14 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         // and flood errors are sent upstream.
         Log_debug(sourceIf->core->logger,
                   "Packet was dropped for not enough priority in flooded link.\n");
-        sendError(sourceIf, message, Error_FLOOD);
+        sendError(sourceIf, message, Error_FLOOD, sourceIf->core->logger);
         return Error_NONE;
     } else if (destIf->buffer - priority < 0 - destIf->bufferMax) {
         // Buffer decreases are metered out,
         // If there is too much traffic it can't be sent.
         Log_debug(sourceIf->core->logger,
                   "Link closed because priority limit has been exceeded.\n");
-        sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED);
+        sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED, sourceIf->core->logger);
         return Error_NONE;
     }
 
@@ -199,11 +201,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         Endian_hostToBigEndian64(
             (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIfIndex, bits)));
 
-    const uint16_t err = sendMessage(&core->interfaces[destIndex], message);
+    const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
         Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u\n", err);
         header->label_be = Endian_bigEndianToHost64(label);
-        sendError(sourceIf, message, err);
+        sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
     }
 
