@@ -26,7 +26,6 @@ add_definitions(
     -Wtype-limits
     -Wuninitialized
 #    -Wunused-parameter messes up logging
-    -Wunused-but-set-parameter
 )
 
 # hardening
@@ -53,10 +52,10 @@ add_definitions(-g)
 
 if(NOT $ENV{Log_LEVEL} STREQUAL "")
     message("Log_LEVEL = $ENV{Log_LEVEL}")
-    if ($ENV{Log_LEVEL} STREQUAL "Log_KEYS")
+    if ($ENV{Log_LEVEL} STREQUAL "KEYS")
         message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
-    endif ($ENV{Log_LEVEL} STREQUAL "Log_KEYS")
-    add_definitions("-D $ENV{Log_LEVEL}")
+    endif ($ENV{Log_LEVEL} STREQUAL "KEYS")
+    add_definitions("-D Log_$ENV{Log_LEVEL}")
 endif(NOT $ENV{Log_LEVEL} STREQUAL "")
 
 #add_definitions(-O3)

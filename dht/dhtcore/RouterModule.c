@@ -612,7 +612,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             Address_print(fromAddr, message->address);
             Address_print(newAddr, &addr);
             Log_debug2(module->logger,
-                       "Disconvered new node:\n     %s\n via:%s\n",
+                       "Discovered new node:\n    %s\nvia:%s\n",
                        newAddr,
                        fromAddr);
         #endif

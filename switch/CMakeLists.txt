@@ -1,5 +1,5 @@
 add_library(switch SwitchCore.c LabelSplicer.c)
 
 # Everything must be tested.
-#enable_testing()
-#add_subdirectory(test)
+enable_testing()
+add_subdirectory(test)

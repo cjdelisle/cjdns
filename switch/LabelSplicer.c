@@ -1,4 +1,5 @@
 #include "switch/NumberCompress.h"
+#include "switch/LabelSplicer.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 
@@ -10,7 +11,7 @@
  */
 uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
 {
-    uint64_t goHere = Endian_bigEndianToHost64(goHere_be) ^ 1;
+    uint64_t goHere = Endian_bigEndianToHost64(goHere_be);
     uint64_t viaHere = Endian_bigEndianToHost64(viaHere_be);
 
     if (Bits_log264(goHere) + Bits_log264(viaHere) > 61) {
@@ -18,7 +19,7 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
         return UINT64_MAX;
     }
 
-    return Endian_hostToBigEndian64((goHere << (Bits_log264(viaHere) - 1)) ^ viaHere);
+    return Endian_hostToBigEndian64(((goHere ^ 1) << Bits_log264(viaHere)) ^ viaHere);
 }
 
 /**
