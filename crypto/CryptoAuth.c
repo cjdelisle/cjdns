@@ -667,7 +667,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         }
 
         // Decrypt message with perminent keys.
-        if (!knowHerKey(wrapper)) {
+        if (!knowHerKey(wrapper) || wrapper->nextNonce == 0) {
             herPermKey = header->handshake.publicKey;
             #ifdef Log_DEBUG
                 if (isZero(header->handshake.publicKey, 32)) {

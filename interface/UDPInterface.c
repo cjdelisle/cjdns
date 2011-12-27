@@ -31,7 +31,7 @@
 // 1426 + 8 (udp) + 20 (ip) + 2 (ppp) + 6 (pppoe) + 18 (eth) = 1480 (optimum adsl/pppoe mtu)
 #define MAX_PACKET_SIZE 1426
 
-#define PADDING 128
+#define PADDING 512
 
 #define MAX_INTERFACES 256
 
