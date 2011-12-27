@@ -19,8 +19,8 @@ int splice()
 
     uint64_t out_be = LabelSplicer_splice(goHere_be, viaHere_be);
 
-    uint64_t out = Endian_bigEndianToHost64(out_be);
-    printf("Splicing %lu with %lu yields %lu, expecting %lu\n", goHere, viaHere, out, expected);
+    //uint64_t out = Endian_bigEndianToHost64(out_be);
+    //printf("Splicing %lu with %lu yields %lu, expecting %lu\n", goHere, viaHere, out, expected);
 
     return expected_be != out_be;
 }
