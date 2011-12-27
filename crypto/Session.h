@@ -15,6 +15,9 @@ struct Session
     /** true if this node initiated the session. */
     bool isInitiator : 1;
 
+    /** If true, poly1305 authentication must be run on every packet. */
+    bool authenticatePackets : 1;
+
     /** true if this is a session and not just empty space. */
     bool exists : 1;
 };

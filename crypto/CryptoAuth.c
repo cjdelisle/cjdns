@@ -948,8 +948,8 @@ void CryptoAuth_getSession(struct Session* output, struct Interface* interface)
     struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
     output->isInitiator = wrapper->isInitiator;
     output->nextNonce = wrapper->nextNonce;
+    output->authenticatePackets = wrapper->authenticatePackets;
     memcpy(output->sharedSecret, wrapper->secret, 32);
-    assert(!wrapper->authenticatePackets);
     output->exists = true;
 }
 
