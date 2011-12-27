@@ -803,7 +803,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                             NULL,
                             wrapper->context->logger);
             if (decryptMessage(wrapper, nonce, received, secret)) {
-                wrapper->nextNonce += 2;
+                Log_debug(wrapper->context->logger, "Final handshake step succeeded.\n");
+                wrapper->nextNonce += 3;
                 memcpy(wrapper->secret, secret, 32);
                 return Error_NONE;
             }
