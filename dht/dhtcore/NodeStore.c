@@ -106,7 +106,9 @@ void NodeStore_addNode(struct NodeStore* store,
                     // We'll just keep track of the reach in order to ensure the new node has a
                     // better reach than the old because a new connection might mean the old path
                     // is down.
-                    newReach = store->headers[i].reach;
+                    if (store->headers[i].reach > newReach) {
+                        newReach = store->headers[i].reach;
+                    }
                 }
             }
         }

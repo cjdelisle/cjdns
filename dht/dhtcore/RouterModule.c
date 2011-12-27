@@ -396,6 +396,10 @@ static inline void cleanup(struct SearchStore* store,
                            bool searchSuccessful)
 {
     struct SearchStore_Search* search = SearchStore_getSearchForNode(lastNode, store);
+    if (!searchSuccessful) {
+        SearchStore_freeSearch(search);
+        return;
+    }
 
     // Add a fake node to the search for the target,
     // this allows us to track the amount of time it took for the last node to get us
@@ -421,11 +425,6 @@ static inline void cleanup(struct SearchStore* store,
             uint32_t oldReach = parentNode->reach;
             uint32_t distanceOverTime =
                 calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
-            // If satisfactory result was not returned then the max value is 65535
-            // low 16 bits represent effort, high 16 represent results.
-            if (!searchSuccessful) {
-            //    distanceOverTime >>= 16;
-            }
 
             // ORing the reach is a possible solution to avoid number rollover.
             // TODO: is this a good idea?
@@ -627,6 +626,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             Address_print(splicedAddr, &addr);
             Log_debug1(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
         #endif
+
+        if (addr.networkAddress_be == UINT64_MAX) {
+            Log_debug(module->logger, "Dropping node because spliced route is too large.\n");
+            continue;
+        }
 
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
 
