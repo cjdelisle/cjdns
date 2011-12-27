@@ -606,10 +606,27 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
 
+        #ifdef Log_DEBUG
+            uint8_t fromAddr[60];
+            uint8_t newAddr[60];
+            Address_print(fromAddr, message->address);
+            Address_print(newAddr, &addr);
+            Log_debug2(module->logger,
+                       "Disconvered new node:\n     %s\n via:%s\n",
+                       newAddr,
+                       fromAddr);
+        #endif
+
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
         addr.networkAddress_be = LabelSplicer_splice(addr.networkAddress_be,
                                                      message->address->networkAddress_be);
+
+        #ifdef Log_DEBUG
+            uint8_t splicedAddr[60];
+            Address_print(splicedAddr, &addr);
+            Log_debug1(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
+        #endif
 
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
 

@@ -14,9 +14,7 @@
 #include "log/Log.h"
 #include "memory/MemAllocator.h"
 #include "util/Endian.h"
-#ifdef Log_KEYS
-    #include "util/Hex.h"
-#endif
+#include "util/Hex.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -470,7 +468,7 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
 
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
 
-    Log_debug1(wrapper->context->logger, "Message length: %u", message->length);
+    Log_debug1(wrapper->context->logger, "Message length: %u\n", message->length);
     #ifdef Log_KEYS
         uint8_t sharedSecretHex[65];
         printHexKey(sharedSecretHex, sharedSecret);
@@ -716,7 +714,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     #ifdef Log_DEBUG
         assert(!isZero(header->handshake.encryptedTempKey, 32));
     #endif
-    Log_debug1(wrapper->context->logger, "Message length: %u", message->length);
+    Log_debug1(wrapper->context->logger, "Message length: %u\n", message->length);
     #ifdef Log_KEYS
         uint8_t sharedSecretHex[65];
         printHexKey(sharedSecretHex, sharedSecret);

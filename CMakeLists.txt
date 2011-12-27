@@ -11,7 +11,23 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 find_package(Libevent2 REQUIRED)
 
 # validation
-add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
+add_definitions(-Wall -std=c99 -Werror -pedantic)
+
+# taken from -Wextra
+add_definitions(
+    -Wclobbered
+    -Wempty-body
+    -Wignored-qualifiers
+    -Wmissing-field-initializers
+    -Wmissing-parameter-type
+    -Wold-style-declaration
+    -Woverride-init
+    -Wsign-compare
+    -Wtype-limits
+    -Wuninitialized
+#    -Wunused-parameter messes up logging
+    -Wunused-but-set-parameter
+)
 
 # hardening
 add_definitions(
@@ -36,14 +52,14 @@ add_definitions(
 add_definitions(-g)
 
 if(NOT $ENV{Log_LEVEL} STREQUAL "")
-    if ($ENV{Log_LEVEL} STREQUAL "KEYS")
-        message("\n\nLog_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
-    endif ($ENV{Log_LEVEL} STREQUAL "KEYS")
-    add_definitions(-D Log_LEVEL=$ENV{Log_LEVEL})
+    message("Log_LEVEL = $ENV{Log_LEVEL}")
+    if ($ENV{Log_LEVEL} STREQUAL "Log_KEYS")
+        message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
+    endif ($ENV{Log_LEVEL} STREQUAL "Log_KEYS")
+    add_definitions("-D $ENV{Log_LEVEL}")
 endif(NOT $ENV{Log_LEVEL} STREQUAL "")
 
 #add_definitions(-O3)
-
 
 include_directories(${CMAKE_SOURCE_DIR})
 

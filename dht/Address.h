@@ -121,4 +121,11 @@ static inline void Address_printIp(uint8_t output[40], struct Address* addr)
             addr->ip6.bytes[15]);
 }
 
+static inline void Address_print(uint8_t output[60], struct Address* addr)
+{
+    Address_printIp(output, addr);
+    output[39] = '@';
+    Address_printNetworkAddress(output + 40, addr);
+}
+
 #endif

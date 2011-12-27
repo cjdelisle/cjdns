@@ -28,32 +28,25 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
     #undef Log_BUFFER_SZ
 }
 
-#if (Log_LEVEL == KEYS)
-    #define Log_KEYS
+#ifdef Log_KEYS
     #define Log_DEBUG
+#endif
+#ifdef Log_DEBUG
+    #define Log_INFO
+#endif
+#ifdef Log_INFO
+    #define Log_WARN
+#endif
+#ifdef Log_WARN
+    #define Log_ERROR
+#endif
+#ifdef Log_ERROR
+    #define Log_CRITICAL
+#endif
+#ifndef Log_CRITICAL
     #define Log_INFO
     #define Log_WARN
     #define Log_ERROR
-    #define Log_CRITICAL
-#elif (Log_LEVEL == DEBUG)
-    #define Log_DEBUG
-    #define Log_INFO
-    #define Log_WARN
-    #define Log_ERROR
-    #define Log_CRITICAL
-#elif (Log_LEVEL == INFO || !defined(Log_LEVEL))
-    #define Log_INFO
-    #define Log_WARN
-    #define Log_ERROR
-    #define Log_CRITICAL
-#elif (Log_LEVEL == WARN)
-    #define Log_WARN
-    #define Log_ERROR
-    #define Log_CRITICAL
-#elif (Log_LEVEL == ERROR)
-    #define Log_ERROR
-    #define Log_CRITICAL
-#elif (Log_LEVEL == CRITICAL)
     #define Log_CRITICAL
 #endif
 
