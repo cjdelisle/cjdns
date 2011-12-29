@@ -773,6 +773,8 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         Log_debug(wrapper->context->logger, "There is a buffered message.\n");
     }
 
+    memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
+
     setRequiredPadding(wrapper);
     return callReceivedMessage(wrapper, message);
 }
