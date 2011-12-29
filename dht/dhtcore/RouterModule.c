@@ -816,16 +816,19 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
     }
 
     struct Ping* ping = module->pingAllocator->malloc(sizeof(struct Ping), module->pingAllocator);
+    ping->node = node;
+    ping->module = module;
 
     uint64_t milliseconds =
         AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
 
+    ping->timeout = Timeout_setTimeout(pingTimeoutCallback,
+                                       ping,
+                                       milliseconds,
+                                       module->eventBase,
+                                       module->pingAllocator);
+    *location = ping->timeout;
 
-    *location = Timeout_setTimeout(pingTimeoutCallback,
-                                   ping,
-                                   milliseconds,
-                                   module->eventBase,
-                                   module->pingAllocator);
 
     sendRequest(&node->address,
                 CJDHTConstants_QUERY_PING,
