@@ -483,6 +483,9 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                   "   cipher: %s\n",
                   nonceHex, sharedSecretHex, cipherHex);
     #endif
+    #ifdef Log_DEBUG
+        assert(!isZero(header->handshake.encryptedTempKey, 32));
+    #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
     Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16);
@@ -711,9 +714,6 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     // Shift it on top of the authenticator before the encrypted public key
     Message_shift(message, 48 - Headers_CryptoAuth_SIZE);
 
-    #ifdef Log_DEBUG
-        assert(!isZero(header->handshake.encryptedTempKey, 32));
-    #endif
     Log_debug1(wrapper->context->logger, "Message length: %u\n", message->length);
     #ifdef Log_KEYS
         uint8_t sharedSecretHex[65];
