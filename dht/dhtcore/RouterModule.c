@@ -153,16 +153,17 @@
 
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
-/**
- * The amount to decrease the reach of *every* node per second.
- * This guarantees that no matter how high the reach is, it will never
- * allow a node to be used if it has not replied to a search within
- * an hour. Most nodes will be forced to reply much sooner.
- */
-#define REACH_DECREASE_PER_SECOND 20 //(UINT32_MAX / (60 * 30))
-
 /** The maximum number of requests to make before calling a search failed. */
 #define MAX_REQUESTS_PER_SEARCH 100
+
+/** Maximum number of concurrent pings. */
+#define MAX_CONCURRENT_PINGS 16
+
+/**
+ * The number of times the GMRT before pings should be timed out,
+ * 4 means 12% of pings will drop.
+ */
+#define PING_TIMEOUT_GMRT_MULTIPLIER 4
 
 /*--------------------Structures--------------------*/
 /**
@@ -211,10 +212,9 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
+    out->allocator = allocator;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                               REACH_DECREASE_PER_SECOND,
-                               SEARCH_REPEAT_MILLISECONDS,
                                out,
                                out->nodeStore,
                                allocator,
@@ -380,80 +380,6 @@ struct SearchCallbackContext
 };
 
 /**
- * Called when a search has completed.
- * Frees the memory that was used in the search and adjusts the reach of the participating nodes.
- *
- * @param store the SearchStore which carried out the search.
- * @param lastNode the last node to respond (presumably with results.)
- * @param targetAddress the address of the thing we're looking for.
- * @param module this router module.
- * @param searchSuccessful true if the search found the desired content, otherwise false.
- */
-static inline void cleanup(struct SearchStore* store,
-                           struct SearchStore_Node* lastNode,
-                           struct Address* targetAddress,
-                           struct RouterModule* module,
-                           bool searchSuccessful)
-{
-    struct SearchStore_Search* search = SearchStore_getSearchForNode(lastNode, store);
-    if (!searchSuccessful) {
-        SearchStore_freeSearch(search);
-        return;
-    }
-
-    // Add a fake node to the search for the target,
-    // this allows us to track the amount of time it took for the last node to get us
-    // the result and adjust it's reach accordingly.
-    int32_t ret = SearchStore_addNodeToSearch(lastNode, targetAddress, UINT64_MAX, search);
-
-    // if addNode fails because the search is full, don't bother with the last node.
-    struct SearchStore_Node* fakeNode =
-        (ret == -1) ? lastNode : SearchStore_getNextNode(search, SearchStore_getAllocator(search));
-
-    struct SearchStore_TraceElement* child = SearchStore_backTrace(fakeNode, store);
-    struct SearchStore_TraceElement* parent = child->next;
-    uint32_t milliseconds = 0;
-    uint32_t childPrefix = Address_getPrefix(child->address);
-    const uint32_t targetPrefix = Address_getPrefix(targetAddress);
-    while (parent != NULL) {
-        uint32_t parentPrefix = Address_getPrefix(parent->address);
-        struct Node* parentNode = NodeStore_getNode(module->nodeStore, parent->address);
-        // If parentNode is NULL then it must have been replaced in the node store.
-        if (parentNode != NULL) {
-            // anti-divide-by-0 hack
-            milliseconds += parent->delayUntilReply | 1;
-            uint32_t oldReach = parentNode->reach;
-            uint32_t distanceOverTime =
-                calculateDistance(parentPrefix, targetPrefix, childPrefix) / milliseconds;
-
-            // ORing the reach is a possible solution to avoid number rollover.
-            // TODO: is this a good idea?
-            uint32_t newReach = oldReach | distanceOverTime;
-
-            parentNode->reach = newReach;
-            module->totalReach += newReach - oldReach;
-
-            #ifdef Log_DEBUG
-                uint8_t nodeAddr[40];
-                Address_printIp(nodeAddr, &parentNode->address);
-                Log_debug2(module->logger,
-                           "increasing reach for node (%s) by %u\n",
-                           nodeAddr,
-                           (unsigned int) (newReach - oldReach));
-            #endif
-
-            NodeStore_updateReach(parentNode, module->nodeStore);
-        }
-
-        child = parent;
-        childPrefix = parentPrefix;
-        parent = parent->next;
-    }
-
-    SearchStore_freeSearch(search);
-}
-
-/**
  * Send a search request to the next node in this search.
  * This is called whenever a response comes in or after the global mean response time passes.
  *
@@ -472,11 +398,7 @@ static void searchStep(struct SearchCallbackContext* scc)
         if (scc->resultCallback != NULL) {
             scc->resultCallback(scc->resultCallbackContext, NULL);
         }
-        cleanup(module->searchStore,
-                (nextSearchNode == NULL) ? scc->lastNodeCalled : nextSearchNode,
-                &scc->targetAddress,
-                module,
-                false);
+        SearchStore_freeSearch(scc->search);
         return;
     }
 
@@ -570,12 +492,21 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     // A reply causes the reach to be bumped by 2
     NodeStore_addNode(module->nodeStore, message->address, 2);
 
+    String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
+    if (nodes == NULL && tid && tid->len == 2) {
+        uint16_t index;
+        memcpy(&index, tid->bytes, 2);
+        if (index < MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
+            Timeout_clearTimeout(module->pingTimers[index]);
+            module->pingTimers[index] = NULL;
+        }
+        return 0;
+    }
     if (nodes == NULL || nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0) {
         return -1;
     }
 
-    String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     struct SearchStore_Node* parent =
         SearchStore_getNode(tid, module->searchStore, message->allocator);
 
@@ -656,7 +587,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     {
         searchStep(scc);
     } else {
-        cleanup(module->searchStore, parent, &scc->targetAddress, module, true);
+        SearchStore_freeSearch(search);
     }
     return 0;
 }
@@ -713,7 +644,6 @@ static inline int handleQuery(struct DHTMessage* message,
     nodes->bytes = message->allocator->malloc(nodeList->size * Address_SERIALIZED_SIZE,
                                               message->allocator);
 
-    bool hasNonZeroReach = false;
     uint32_t i;
     for (i = 0; i < nodeList->size; i++) {
 
@@ -727,14 +657,9 @@ static inline int handleQuery(struct DHTMessage* message,
                                                           query->address->networkAddress_be);
 
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
-        hasNonZeroReach |= nodeList->nodes[i]->reach;
     }
     if (i > 0) {
         benc_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
-    }
-
-    if (!hasNonZeroReach) {
-        Janitor_informOfRecentLocalSearch((uint8_t*) target, module->janitor);
     }
 
     return 0;
@@ -842,6 +767,75 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
     SearchStore_freeSearch(toCancel->search);
 }
 
+struct Ping
+{
+    struct RouterModule* module;
+    struct Node* node;
+    struct Timeout* timeout;
+};
+
+void pingTimeoutCallback(void* vping)
+{
+    struct Ping* ping = (struct Ping*) vping;
+    struct RouterModule* module = ping->module;
+    ping->node->reach = 0;
+    NodeStore_updateReach(ping->node, ping->module->nodeStore);
+    bool freeAlloc = true;
+    for (int i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
+        if (ping->timeout == module->pingTimers[i]) {
+            module->pingTimers[i] = NULL;
+        } else if (module->pingTimers[i] != NULL) {
+            freeAlloc = false;
+        }
+    }
+    if (freeAlloc) {
+        module->pingAllocator->free(module->pingAllocator);
+        module->pingAllocator = NULL;
+    }
+}
+
+/** See: RouterModule.h */
+int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
+{
+    if (module->pingAllocator == NULL) {
+        module->pingAllocator = module->allocator->child(module->allocator);
+    }
+
+    struct Timeout** location = NULL;
+    uint16_t i;
+    for (i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
+        if (module->pingTimers[i] == NULL) {
+            location = &module->pingTimers[i];
+        }
+    }
+    uint8_t index[2];
+    memcpy(index, &i, 2);
+
+    if (location == NULL) {
+        return -1;
+    }
+
+    struct Ping* ping = module->pingAllocator->malloc(sizeof(struct Ping), module->pingAllocator);
+
+    uint64_t milliseconds =
+        AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
+
+
+    *location = Timeout_setTimeout(pingTimeoutCallback,
+                                   ping,
+                                   milliseconds,
+                                   module->eventBase,
+                                   module->pingAllocator);
+
+    sendRequest(&node->address,
+                CJDHTConstants_QUERY_PING,
+                &(String){ .len = 2, .bytes =(char*) index},
+                NULL,
+                NULL,
+                module->registry);
+    return 0;
+}
+
 /** See: RouterModule.h */
 void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
                           const uint64_t networkAddress_be,
@@ -851,27 +845,16 @@ void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
     memset(&address, 0, sizeof(struct Address));
     memcpy(&address.key, key, Address_KEY_SIZE);
     address.networkAddress_be = networkAddress_be;
+    Address_getPrefix(&address);
     NodeStore_addNode(module->nodeStore, &address, 0);
+    struct Node* best = RouterModule_getBest(address.ip6.bytes, module);
+    if (best->address.networkAddress_be != networkAddress_be) {
+        RouterModule_pingNode(best, module);
+    }
 }
 
-/** See: RouterModule.h */
-void RouterModule_pingNode(const uint64_t networkAddress_be,
-                           struct RouterModule* module)
-{
-    struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
-    addr.networkAddress_be = networkAddress_be;
-    // using "xx" as the tid is just convienent, it could be anything.
-    sendRequest(&addr,
-                CJDHTConstants_QUERY_PING,
-                &(String){ .len = 2, .bytes = "xx" },
-                NULL,
-                NULL,
-                module->registry);
-}
-
-struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                      struct RouterModule* module)
+struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                  struct RouterModule* module)
 {
     struct Address addr;
     memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
@@ -885,7 +868,7 @@ struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_S
         return NULL;
     }
 
-    return nodes->nodes[0];
+    return NodeStore_getBest(&addr, module->nodeStore);
 }
 
 struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module)

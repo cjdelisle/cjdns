@@ -48,6 +48,8 @@ void NodeStore_addNode(struct NodeStore* store,
                        struct Address* addr,
                        const int64_t reachDiff);
 
+struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
+
 /**
  * Get the best nodes for servicing a lookup.
  * These are returned in reverse order, from farthest to closest.
@@ -77,9 +79,6 @@ void NodeStore_updateReach(const struct Node* const node,
                            const struct NodeStore* const store);
 
 uint32_t NodeStore_size(const struct NodeStore* const store);
-
-uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
-                                 const struct NodeStore* const store);
 
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store);
 #endif

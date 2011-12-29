@@ -23,6 +23,8 @@ struct RouterModule_Search;
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
+#define RouterModule_MAX_CONCURRENT_PINGS 16
+
 /**
  * Register a new RouterModule.
  *
@@ -85,12 +87,12 @@ void RouterModule_addNode(const uint8_t address[Address_KEY_SIZE],
  * @param networkAddress the network address of the node.
  * @param module the router module.
  */
-void RouterModule_pingNode(const uint64_t networkAddress_be,
-                           struct RouterModule* module);
+//void RouterModule_pingNode(const uint64_t networkAddress_be,
+ //                          struct RouterModule* module);
 
 struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module);
 
-struct Node* RouterModule_getNextBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                      struct RouterModule* module);
+struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                  struct RouterModule* module);
 
 #endif

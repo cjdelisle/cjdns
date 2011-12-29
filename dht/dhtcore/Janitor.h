@@ -10,15 +10,10 @@ struct Janitor;
 
 struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
-                            uint64_t reachDecreasePerSecond,
-                            uint64_t searchRepeatMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
                             struct MemAllocator* allocator,
                             struct event_base* eventBase);
-
-void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                  struct Janitor* janitor);
 
 void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor);

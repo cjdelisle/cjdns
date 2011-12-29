@@ -93,31 +93,13 @@ void NodeStore_addNode(struct NodeStore* store,
     uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
         uint32_t newReach = 0;
-        struct NodeHeader* match = NULL;
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
-                && memcmp(&store->nodes[i].address.key, addr->key, Address_KEY_SIZE) == 0)
+                && Address_isSame(&store->nodes[i].address, addr))
             {
-                if (store->nodes[i].address.networkAddress_be == addr->networkAddress_be) {
-                    // Node already exists
-                    match = &store->headers[i];
-                } else {
-                    // Identical node with different network addr.
-                    // We'll just keep track of the reach in order to ensure the new node has a
-                    // better reach than the old because a new connection might mean the old path
-                    // is down.
-                    if (store->headers[i].reach > newReach) {
-                        newReach = store->headers[i].reach;
-                    }
-                }
+                adjustReach(&store->headers[i], reachDifference);
+                return;
             }
-        }
-        if (match) {
-            if (match->reach < newReach) {
-                match->reach = newReach;
-            }
-            adjustReach(match, reachDifference);
-            return;
         }
 
         #ifdef Log_DEBUG
@@ -164,6 +146,38 @@ void NodeStore_addNode(struct NodeStore* store,
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
 }
 
+static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)
+{
+    struct Node* n = &store->nodes[header - store->headers];
+    n->reach = header->reach;
+    return n;
+}
+
+struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store)
+{
+    struct NodeCollector_Element element = {
+        .notDistanceTimesReach = 0,
+        .distance = UINT32_MAX,
+        .node = NULL
+    };
+
+    struct NodeCollector collector = {
+        .capacity = 1,
+        .targetPrefix = Address_getPrefix(targetAddress),
+        .targetAddress = targetAddress,
+        .nodes = &element
+    };
+
+    collector.thisNodeDistance =
+        Address_getPrefix(store->thisNodeAddress) ^ collector.targetPrefix;
+
+    for (uint32_t i = 0; i < store->size; i++) {
+        NodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
+    }
+
+    return nodeForHeader(element.node, store);
+}
+
 /** See: NodeStore.h */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
@@ -188,10 +202,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
     uint32_t outIndex = 0;
     for (uint32_t i = 0; i < count; i++) {
         if (collector->nodes[i].node != NULL) {
-            // Use pointer arithmatic to determine index locations.
-            out->nodes[outIndex] = &store->nodes[collector->nodes[i].node - store->headers];
-            // Sync nodes and node headers.
-            out->nodes[outIndex]->reach = collector->nodes[i].node->reach;
+            out->nodes[outIndex] = nodeForHeader(collector->nodes[i].node, store);
             outIndex++;
         }
     }
@@ -210,23 +221,6 @@ void NodeStore_updateReach(const struct Node* const node,
 uint32_t NodeStore_size(const struct NodeStore* const store)
 {
     return store->size;
-}
-
-uint64_t NodeStore_decreaseReach(const uint32_t decreaseReachBy,
-                                 const struct NodeStore* const store)
-{
-    uint64_t out = 0;
-    for (uint32_t i = 0; i < store->size; i++) {
-        struct NodeHeader* header = &store->headers[i];
-        if (header->reach > decreaseReachBy) {
-            header->reach -= decreaseReachBy;
-            out += decreaseReachBy;
-        } else {
-            out += header->reach;
-            header->reach = 0;
-        }
-    }
-    return out;
 }
 
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store)

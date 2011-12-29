@@ -397,8 +397,8 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
     context->ip6Header->hopLimit--;
 
-    struct Node* nextBest = RouterModule_getNextBest(context->ip6Header->destinationAddr,
-                                                     context->routerModule);
+    struct Node* nextBest = RouterModule_getBest(context->ip6Header->destinationAddr,
+                                                 context->routerModule);
     if (nextBest) {
         #ifdef Log_DEBUG
             uint8_t netAddr[20];
@@ -496,7 +496,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         herKey = caHeader->handshake.publicKey;
     }
 
-    uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
+    //uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
@@ -513,9 +513,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     // If it's past negotiation then copy the session into the node
     // then the ca session can be freed.
-    if (nonce > 4 && node) {
+    /*if (nonce > 4 && node) {
         CryptoAuth_getSession(&node->session, iface);
-    }
+    }*/
 
     context->herPublicKey = herKey;
 

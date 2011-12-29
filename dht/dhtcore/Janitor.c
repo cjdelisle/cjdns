@@ -39,13 +39,8 @@ struct Janitor
     uint64_t globalMaintainenceMilliseconds;
     uint64_t timeOfNextGlobalMaintainence;
 
-    uint64_t reachDecreasePerSecond;
-    uint64_t timeOfLastReachDecrease;
-
     struct MemAllocator* allocator;
 
-    uint8_t recentSearchTarget[Address_SEARCH_TARGET_SIZE];
-    bool hasRecentSearchTarget;
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
@@ -59,37 +54,6 @@ static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
     result = result;
     return false;
 }
-/*
-static bool repeatRecentSearchCallback(void* callbackContext, struct DHTMessage* result)
-{
-    callbackContext = callbackContext;
-    if (result == NULL) {
-printf("\nRepeated Search Failed!\n\n");
-        return false;
-    }
-
-    Dict* arguments = benc_lookupDictionary(result->asDict, &DHTConstants_reply);
-    List* values = benc_lookupList(arguments, &DHTConstants_values);
-    if (values != NULL) {
-printf("Found Values!\n");
-        for (int32_t i = 0; i < benc_itemCount(values); i++) {
-            String* val = benc_getString(values, i);
-            if (val != NULL && val->len == 6) {
-                printf("%d.%d.%d.%d:%d\n", (int) val->bytes[1] & 0xFF,
-                                           (int) val->bytes[2] & 0xFF,
-                                           (int) val->bytes[3] & 0xFF,
-                                           (int) val->bytes[4] & 0xFF,
-                                           (int) val->bytes[5] & 0xFFFF);
-            } else if (val == NULL) {
-                printf("Got an entry that wasn't a string!?\n");
-            } else {
-                printf("got entry of length %d\n", (int) val->len);
-            }
-        }
-        return true;
-    }
-    return false;
-}*/
 
 static void runSearch(void* vcontext)
 {
@@ -131,13 +95,6 @@ static void runSearch(void* vcontext)
 
     uint64_t now = Time_currentTimeMilliseconds();
 
-    // Decrease reach at the same time..
-    uint64_t millisecondsInLastCycle = now - janitor->timeOfLastReachDecrease;
-    uint64_t amountPerNode = (janitor->reachDecreasePerSecond * millisecondsInLastCycle) / 1024;
-    janitor->routerModule->totalReach -=
-        NodeStore_decreaseReach(amountPerNode, janitor->nodeStore);
-    janitor->timeOfLastReachDecrease = now;
-
     #ifdef Log_DEBUG
         uint32_t nonZeroNodes = 0;
         for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
@@ -156,24 +113,10 @@ static void runSearch(void* vcontext)
                                  janitor->routerModule);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
-
-    /*if (now > janitor->timeOfNextSearchRepeat && janitor->hasRecentSearchTarget) {
-String* hex = Hex_encode(&(String) { .len = Address_SEARCH_TARGET_SIZE, .bytes = (char*) &janitor->recentSearchTarget }, tempAllocator);
-printf("Running global search for %s\n", hex->bytes);
-        RouterModule_beginSearch(janitor->recentSearchTarget,
-                                 repeatRecentSearchCallback,
-                                 janitor,
-                                 janitor->routerModule);
-
-        janitor->timeOfNextSearchRepeat += janitor->searchRepeatMilliseconds;
-        janitor->hasRecentSearchTarget = false;
-    }*/
 }
 
 struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
-                            uint64_t reachDecreasePerSecond,
-                            uint64_t searchRepeatMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
                             struct MemAllocator* allocator,
@@ -192,24 +135,9 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
     janitor->globalMaintainenceMilliseconds = globalMaintainenceMilliseconds;
     janitor->timeOfNextGlobalMaintainence = now + globalMaintainenceMilliseconds;
-
-    janitor->reachDecreasePerSecond = reachDecreasePerSecond;
-    janitor->timeOfLastReachDecrease = now;
-
-    janitor->searchRepeatMilliseconds = searchRepeatMilliseconds;
-    janitor->timeOfNextSearchRepeat = now + searchRepeatMilliseconds;
-    janitor->hasRecentSearchTarget = false;
-
     janitor->allocator = allocator;
     return janitor;
 }
-
-/*void Janitor_informOfRecentSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                  struct Janitor* janitor)
-{
-    memcpy(janitor->recentSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
-    janitor->hasRecentSearchTarget = true;
-}*/
 
 void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor)
