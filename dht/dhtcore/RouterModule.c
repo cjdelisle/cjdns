@@ -559,14 +559,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         #endif
 
         if (addr.networkAddress_be == UINT64_MAX) {
-            Log_debug(module->logger, "Dropping node because spliced route is too large.\n");
+            Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
             continue;
         }
 
         uint32_t thisNodePrefix = Address_getPrefix(&addr);
-
-        // Nodes we are told about are inserted with 0 reach.
-        NodeStore_addNode(module->nodeStore, &addr, 0);
 
         if ((thisNodePrefix ^ targetPrefix) >= parentDistance
             && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
@@ -577,7 +574,10 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         {
             Log_debug(module->logger, "They just told us about ourselves.\n");
         } else {
-            SearchStore_addNodeToSearch(parent, &addr, evictTime, search);
+            // Nodes we are told about are inserted with 0 reach.
+            NodeStore_addNode(module->nodeStore, &addr, 0);
+            struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
+            SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
         }
     }
 
