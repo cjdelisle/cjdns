@@ -102,25 +102,31 @@ void NodeStore_addNode(struct NodeStore* store,
 
                 adjustReach(&store->headers[i], reachDifference);
 
-                Log_debug3(store->logger,
-                           "Insert where node exists, altering reach by %lld. "
-                           "old reach %u, new reach %u.\n",
-                           (long long) reachDifference,
-                           oldReach,
-                           store->headers[i].reach);
+                #ifdef Log_DEBUG
+                    if (oldReach != store->headers[i].reach) {
+                        uint8_t nodeAddr[60];
+                        Address_print(nodeAddr, addr);
+                        Log_debug3(store->logger,
+                                   "Altering reach for node %s, old reach %u, new reach %u.\n",
+                                   nodeAddr,
+                                   oldReach,
+                                   store->headers[i].reach);
+                        if (oldReach > store->headers[i].reach) {
+                            Log_debug(store->logger, "Reach was decreased!\n");
+                        }
+                    }
+                #endif
+
                 return;
             }
         }
 
         #ifdef Log_DEBUG
-            uint8_t nodeAddr[40];
-            Address_printIp(nodeAddr, addr);
-            uint8_t netAddr[20];
-            Address_printNetworkAddress(netAddr, addr);
-            Log_debug3(store->logger,
-                       "Discovered node: %s at addr %s reach %u\n",
+            uint8_t nodeAddr[60];
+            Address_print(nodeAddr, addr);
+            Log_debug2(store->logger,
+                       "Discovered node: %s reach %u\n",
                        nodeAddr,
-                       netAddr,
                        reachDifference);
         #endif
 

@@ -423,10 +423,9 @@ static void searchStep(struct SearchCallbackContext* scc)
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
-    // Go directly to 0 reach, do not pass go, do not collect 200$
     NodeStore_addNode(scc->routerModule->nodeStore,
                       scc->lastNodeCalled->address,
-                      INT64_MIN);
+                      -1);
     searchStep(scc);
 }
 
