@@ -535,6 +535,19 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     for (uint32_t i = 0; i < nodes->len; i += Address_SERIALIZED_SIZE) {
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
+        uint32_t newNodePrefix = Address_getPrefix(&addr);
+
+        if (newNodePrefix == ourAddressPrefix
+            && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
+        {
+            //Log_debug(module->logger, "They just told us about ourselves.\n");
+            continue;
+        } else if ((newNodePrefix ^ targetPrefix) >= parentDistance
+            && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
+        {
+            Log_debug(module->logger, "Answer was further from the target than us.\n");
+            continue;
+        }
 
         #ifdef Log_DEBUG
             uint8_t fromAddr[60];
@@ -563,22 +576,10 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             continue;
         }
 
-        uint32_t thisNodePrefix = Address_getPrefix(&addr);
-
-        if ((thisNodePrefix ^ targetPrefix) >= parentDistance
-            && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
-        {
-            Log_debug(module->logger, "Answer was further from the target than us.\n");
-        } else if (thisNodePrefix == ourAddressPrefix
-            && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
-        {
-            Log_debug(module->logger, "They just told us about ourselves.\n");
-        } else {
-            // Nodes we are told about are inserted with 0 reach.
-            NodeStore_addNode(module->nodeStore, &addr, 0);
-            struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
-            SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
-        }
+        // Nodes we are told about are inserted with 0 reach.
+        NodeStore_addNode(module->nodeStore, &addr, 0);
+        struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
+        SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
     }
 
     // Ask the callback if we should continue.

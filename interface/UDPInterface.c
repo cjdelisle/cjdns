@@ -331,10 +331,11 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       0,
                       (struct sockaddr*) &addrStore,
                       (socklen_t*) &addrLen);
-
+    /*
     Log_debug1(context->logger,
                "Got message from peer on port %u\n",
                Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
+    */
     if (addrLen != context->addrLen) {
         return;
     }

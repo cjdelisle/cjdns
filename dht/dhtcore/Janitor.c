@@ -55,7 +55,7 @@ static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
     return false;
 }
 
-static void runSearch(void* vcontext)
+static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
 
@@ -104,6 +104,10 @@ static void runSearch(void* vcontext)
                    "Global Mean Response Time: %u non-zero nodes: %u\n",
                    (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
                    (unsigned int) nonZeroNodes);
+
+        Log_debug(janitor->routerModule->logger, "\nRouting table dump:\n");
+        NodeStore_dumpTables(janitor->routerModule->logger->writer, janitor->routerModule->nodeStore);
+        Log_debug(janitor->routerModule->logger, "\n");
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
@@ -127,7 +131,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
     janitor->routerModule = routerModule;
     janitor->nodeStore = nodeStore;
-    janitor->timeout = Timeout_setInterval(runSearch,
+    janitor->timeout = Timeout_setInterval(maintanenceCycle,
                                            janitor,
                                            localMaintainenceMilliseconds,
                                            eventBase,

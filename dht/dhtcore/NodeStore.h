@@ -81,4 +81,6 @@ void NodeStore_updateReach(const struct Node* const node,
 uint32_t NodeStore_size(const struct NodeStore* const store);
 
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store);
+
+void NodeStore_dumpTables(struct Writer* writeTo, struct NodeStore* store);
 #endif

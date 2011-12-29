@@ -92,12 +92,22 @@ void NodeStore_addNode(struct NodeStore* store,
 
     uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
-        uint32_t newReach = 0;
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
                 && Address_isSame(&store->nodes[i].address, addr))
             {
+                #ifdef Log_DEBUG
+                    uint32_t oldReach = store->headers[i].reach;
+                #endif
+
                 adjustReach(&store->headers[i], reachDifference);
+
+                Log_debug3(store->logger,
+                           "Insert where node exists, altering reach by %lld. "
+                           "old reach %u, new reach %u.\n",
+                           (long long) reachDifference,
+                           oldReach,
+                           store->headers[i].reach);
                 return;
             }
         }
@@ -107,12 +117,16 @@ void NodeStore_addNode(struct NodeStore* store,
             Address_printIp(nodeAddr, addr);
             uint8_t netAddr[20];
             Address_printNetworkAddress(netAddr, addr);
-            Log_debug2(store->logger, "Discovered node: %s at addr %s\n", nodeAddr, netAddr);
+            Log_debug3(store->logger,
+                       "Discovered node: %s at addr %s reach %u\n",
+                       nodeAddr,
+                       netAddr,
+                       reachDifference);
         #endif
 
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
-        adjustReach(&store->headers[store->size], reachDifference + newReach);
+        adjustReach(&store->headers[store->size], reachDifference);
         store->size++;
         return;
     }
@@ -231,4 +245,18 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
         }
     }
     return NULL;
+}
+
+void NodeStore_dumpTables(struct Writer* writer, struct NodeStore* store)
+{
+    for (uint32_t i = 0; i < store->size; i++) {
+        if (store->headers[i].reach > 0) {
+            uint8_t out[60];
+            Address_print(out, &store->nodes[i].address);
+            writer->write(out, 60, writer);
+            char reachDec[48];
+            snprintf(reachDec, 48, " reach = %u\n", store->headers[i].reach);
+            writer->write(reachDec, strlen(reachDec), writer);
+        }
+    }
 }
