@@ -59,42 +59,6 @@ static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader
 }
 
 /**
- * A return message which indicates an error has occurred.
- *
- *                     1               2               3
- *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  0 |     Length    |    Reserved   |         Error Type            |
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  4 |                                                               |
- *    +    First <Length> Bytes of Packet Which Caused The Error      +
- *  8 |                                                               |
- *
- */
-struct Headers_Error
-{
-    /** The number of bytes of original cause packet, maximum 256.*/
-    uint8_t length;
-
-    /** Unused. */
-    uint8_t reserved;
-
-    /** The error code. Big Endian. */
-    uint16_t errorType_be;
-
-    union {
-        /** The header from the cause. */
-        struct Headers_SwitchHeader switchHeader;
-
-        /** The first 256 bytes of the packet which caused the error. */
-        uint8_t bytes[256];
-    } cause;
-};
-#define Headers_Error_SIZE 260
-#define Headers_Error_MAX_LENGTH 255
-Assert_assertTrue(sizeof(struct Headers_Error) == Headers_Error_SIZE);
-
-/**
  * Header for nodes authenticating to one another.
  *
  *                       1               2               3

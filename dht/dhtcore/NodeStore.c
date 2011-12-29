@@ -94,8 +94,23 @@ void NodeStore_addNode(struct NodeStore* store,
     if (store->size < store->capacity) {
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
-                && Address_isSame(&store->nodes[i].address, addr))
+                && Address_isSameIp(&store->nodes[i].address, addr))
             {
+                int red = Address_checkRedundantRoute(&store->nodes[i].address, addr);
+                if (red == 1) {
+                    #ifdef Log_DEBUG
+                        uint8_t nodeAddr[60];
+                        Address_print(nodeAddr, &store->nodes[i].address);
+                        uint8_t newAddr[20];
+                        Address_printNetworkAddress(newAddr, addr);
+                        Log_debug2(store->logger,
+                                   "Found a better route to %s via %s\n",
+                                   nodeAddr,
+                                   newAddr);
+                    #endif
+                    store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
+                }
+
                 #ifdef Log_DEBUG
                     uint32_t oldReach = store->headers[i].reach;
                 #endif

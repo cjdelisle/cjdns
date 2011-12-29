@@ -3,6 +3,7 @@
 
 #include "crypto/AddressCalc.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 
 #include <string.h>
@@ -71,6 +72,12 @@ static inline bool Address_isSame(const struct Address* addr,
     return memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
 }
 
+static inline bool Address_isSameIp(const struct Address* addr,
+                                    const struct Address* addr2)
+{
+    return memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
+}
+
 static inline bool Address_equalsSearchTarget(struct Address* addr,
                                               const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
 {
@@ -126,6 +133,32 @@ static inline void Address_print(uint8_t output[60], struct Address* addr)
     Address_printIp(output, addr);
     output[39] = '@';
     Address_printNetworkAddress(output + 40, addr);
+}
+
+/**
+ * Detect a redundant (looping) route.
+ *
+ * @param addrA
+ * @param addrB
+ * @return 1 if addrA is a redundant version of addrB, -1 if addrB is a redundant version of
+ *         addrA, 0 if neither is a redundant version of the other.
+ */
+static inline int Address_checkRedundantRoute(struct Address* addrA, struct Address* addrB)
+{
+    if (addrA->networkAddress_be == addrB->networkAddress_be) {
+        return 0;
+    }
+    uint64_t addrANet = Endian_bigEndianToHost64(addrA->networkAddress_be);
+    uint64_t addrBNet = Endian_bigEndianToHost64(addrB->networkAddress_be);
+    #define Address_MASK(var) UINT64_MAX >> (64 - Bits_log264(var) + 1)
+    if (addrANet > addrBNet) {
+        uint64_t mask = Address_MASK(addrBNet);
+        return (addrANet & mask) == (addrBNet & mask);
+    } else {
+        uint64_t mask = Address_MASK(addrANet);
+        return !((addrANet & mask) == (addrBNet & mask));
+    }
+    #undef Address_MASK
 }
 
 #endif

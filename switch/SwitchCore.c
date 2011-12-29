@@ -7,6 +7,7 @@
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
+#include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -51,11 +52,6 @@ struct SwitchCore
     struct MemAllocator* allocator;
 };
 
-struct ErrorPacket {
-    struct Headers_SwitchHeader switchHeader;
-    struct Headers_Error error;
-};
-
 struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* allocator)
 {
     struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1, allocator);
@@ -93,9 +89,14 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
     return Error_NONE;
 }
 
+struct ErrorPacket {
+    struct Headers_SwitchHeader switchHeader;
+    struct Control ctrl;
+};
+
 static inline void sendError(struct SwitchInterface* interface,
                              struct Message* cause,
-                             uint16_t code,
+                             uint32_t code,
                              struct Log* logger)
 {
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
@@ -105,19 +106,25 @@ static inline void sendError(struct SwitchInterface* interface,
     }
     // Just swap the error into the message used for the cause.
     struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
-    uint8_t errLength =
-        (cause->length >= Headers_Error_MAX_LENGTH) ? cause->length : Headers_Error_MAX_LENGTH;
 
-    memcpy(err->error.cause.bytes, cause->bytes, errLength);
+    if (Headers_getMessageType(header) == MessageType_CONTROL
+        && err->ctrl.type_be == Control_ERROR_be)
+    {
+        // Errors never cause other errors to be sent.
+        return;
+    }
+
+    int errLength =
+        (cause->length >= Control_Error_MAX_LENGTH) ? cause->length : Control_Error_MAX_LENGTH;
+
+    memmove(&err->ctrl.content.error.cause, cause->bytes, errLength);
+    cause->length = ((uint8_t*) &err->ctrl.content.error.cause) - cause->bytes + errLength;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
     Headers_setPriorityAndMessageType(&err->switchHeader,
-                                                 Headers_getPriority(header),
-                                                 MessageType_CONTROL);
-    err->error.errorType_be = Endian_hostToBigEndian16(code);
-    err->error.length = errLength;
-
-    cause->length = sizeof(struct ErrorPacket) - (255 - errLength);
+                                      Headers_getPriority(header),
+                                      MessageType_CONTROL);
+    err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
     sendMessage(interface, cause, logger);
 }
 
@@ -126,7 +133,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        Log_debug(sourceIf->core->logger, "Packet dropped because node seems to be flooding.\n");
+        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.\n");
         return Error_NONE;
     }
 
@@ -172,10 +179,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     // If this happens to be an Error_FLOOD packet, we will react by
     // increasing the congestion for the source interface to make flooding harder.
-    if (Headers_getMessageType(header) == MessageType_CONTROL
-        && ((struct ErrorPacket*) header)->error.errorType_be == ntohs(Error_FLOOD))
-    {
-        sourceIf->congestion += Headers_getPriority(header);
+    if (Headers_getMessageType(header) == MessageType_CONTROL) {
+        struct Control* ctrl = &((struct ErrorPacket*) header)->ctrl;
+        if (ctrl->type_be == Control_ERROR_be
+            && ctrl->content.error.errorType_be == ntohs(Error_FLOOD))
+        {
+            sourceIf->congestion += Headers_getPriority(header);
+        }
     }
 
     // Calculate antiflood.
