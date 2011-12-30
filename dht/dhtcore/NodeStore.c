@@ -94,7 +94,7 @@ void NodeStore_addNode(struct NodeStore* store,
         Log_debug1(store->logger,
                    "tried to insert address %s which does not begin with 0xFC.\n",
                    address);
-        return;
+        assert(false);
     }
 
     // TODO: maintain a sorted list.
