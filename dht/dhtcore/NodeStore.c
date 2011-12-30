@@ -88,6 +88,14 @@ void NodeStore_addNode(struct NodeStore* store,
         printf("got introduced to ourselves\n");
         return;
     }
+    if (addr->ip6.bytes[0] != 0xfc) {
+        uint8_t address[60];
+        Address_print(address, addr);
+        Log_debug1(store->logger,
+                   "tried to insert address %s which does not begin with 0xFC.\n",
+                   address);
+        return;
+    }
 
     // TODO: maintain a sorted list.
 

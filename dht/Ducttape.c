@@ -402,11 +402,11 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     struct Node* nextBest = RouterModule_getBest(context->ip6Header->destinationAddr,
                                                  context->routerModule);
     if (nextBest) {
-        #ifdef Log_DEBUG
+        /*#ifdef Log_DEBUG
             uint8_t netAddr[20];
             Address_printNetworkAddress(netAddr, &nextBest->address);
             Log_debug1(context->logger, "Forwarding packet to %s\n", netAddr);
-        #endif
+        #endif*/
         return sendToRouter(nextBest, message, context);
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "

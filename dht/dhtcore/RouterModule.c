@@ -546,9 +546,12 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         {
             Log_debug(module->logger, "Answer was further from the target than us.\n");
             continue;
+        } else if (addr.ip6.bytes[0] != 0xfc) {
+            Log_debug(module->logger, "Was told garbage.\n");
+            continue;
         }
 
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t fromAddr[60];
             uint8_t newAddr[60];
             Address_print(fromAddr, message->address);
@@ -557,18 +560,18 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                        "Discovered new node:\n    %s\nvia:%s\n",
                        newAddr,
                        fromAddr);
-        #endif*/
+        #endif
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
         addr.networkAddress_be = LabelSplicer_splice(addr.networkAddress_be,
                                                      message->address->networkAddress_be);
 
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t splicedAddr[60];
             Address_print(splicedAddr, &addr);
             Log_debug1(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
-        #endif*/
+        #endif
 
         if (addr.networkAddress_be == UINT64_MAX) {
             //Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
