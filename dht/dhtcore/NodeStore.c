@@ -229,7 +229,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
-        if (store->nodes[i].address.networkAddress_be & Endian_bigEndianToHost64(UINT64_MAX >> 56)) {
+        if (store->nodes[i].address.networkAddress_be & Endian_bigEndianToHost64(~255)) {
             // This is a test, trying only returning short paths.
             continue;
         }
