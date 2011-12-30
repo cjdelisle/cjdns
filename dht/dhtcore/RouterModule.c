@@ -851,7 +851,7 @@ void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
     Address_getPrefix(&address);
     NodeStore_addNode(module->nodeStore, &address, 0);
     struct Node* best = RouterModule_getBest(address.ip6.bytes, module);
-    if (best->address.networkAddress_be != networkAddress_be) {
+    if (best && best->address.networkAddress_be != networkAddress_be) {
         RouterModule_pingNode(best, module);
     }
 }
