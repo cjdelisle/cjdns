@@ -90,6 +90,8 @@ void RouterModule_addNode(const uint8_t address[Address_KEY_SIZE],
 //void RouterModule_pingNode(const uint64_t networkAddress_be,
  //                          struct RouterModule* module);
 
+int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module);
+
 struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module);
 
 struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],

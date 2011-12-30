@@ -13,8 +13,10 @@
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
+#include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
+#include "wire/MessageType.h"
 
 #include "crypto_stream_salsa20.h"
 
@@ -469,18 +471,31 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
 
-    uint32_t messageType = Headers_getMessageType(switchHeader);
-    if (messageType != 0) {
-        // TODO: handle this
-        fprintf(stderr,
-                "A message with a non-zero type, perhaps an error. messageType=%d\n",
-                messageType);
-        return 0;
-    }
-
     // The label comes in reversed from the switch because the switch doesn't know that we aren't
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
+
+    if (Headers_getMessageType(switchHeader) == MessageType_CONTROL) {
+        struct Control* ctrl = (struct Control*) (switchHeader + 1);
+        if (ctrl->type_be == Control_ERROR_be) {
+            if (memcmp(&ctrl->content.error.cause.label_be, &switchHeader->label_be, 8)) {
+                Log_debug(context->logger,
+                          "Different label for cause than return packet, this shouldn't happen. "
+                          "Perhaps a packet was corrupted.");
+                return 0;
+            }
+            uint32_t errType_be = ctrl->content.error.errorType_be;
+            if (errType_be == Endian_bigEndianToHost16(Error_MALFORMED_ADDRESS)) {
+                Log_info(context->logger, "Got malformed-address error, removing route.\n");
+                RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
+                return 0;
+            }
+            Log_info1(context->logger,
+                      "Got error packet, error type: %d",
+                      Endian_bigEndianToHost16(errType_be));
+        }
+        return 0;
+    }
 
     struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
 

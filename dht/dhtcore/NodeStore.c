@@ -7,6 +7,7 @@
 #include "dht/dhtcore/NodeList.h"
 #include "log/Log.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -271,13 +272,20 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
 void NodeStore_dumpTables(struct Writer* writer, struct NodeStore* store)
 {
     for (uint32_t i = 0; i < store->size; i++) {
-        if (store->headers[i].reach > 0) {
-            uint8_t out[60];
-            Address_print(out, &store->nodes[i].address);
-            writer->write(out, 60, writer);
-            char reachDec[48];
-            snprintf(reachDec, 48, " reach = %u\n", store->headers[i].reach);
-            writer->write(reachDec, strlen(reachDec), writer);
-        }
+        uint8_t out[60];
+        Address_print(out, &store->nodes[i].address);
+        writer->write(out, 60, writer);
+        char reachDec[48];
+        snprintf(reachDec, 48, " reach = %u\n", store->headers[i].reach);
+        writer->write(reachDec, strlen(reachDec), writer);
     }
+}
+
+void NodeStore_remove(struct Node* node, struct NodeStore* store)
+{
+    assert(node >= store->nodes && node < store->nodes + store->size);
+    store->size--;
+    memcpy(node, &store->nodes[store->size], sizeof(struct Node));
+    struct NodeHeader* header = &store->headers[node - store->nodes];
+    memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 }

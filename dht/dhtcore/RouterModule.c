@@ -856,6 +856,19 @@ void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
     }
 }
 
+int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module)
+{
+    struct Node* n = NULL;
+    for (int i = 0;; i++) {
+        n = NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
+        if (n) {
+            NodeStore_remove(n, module->nodeStore);
+            continue;
+        }
+        return i;
+    }
+}
+
 struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                   struct RouterModule* module)
 {
