@@ -59,121 +59,74 @@ If you are still interested in this project and want to follow it, get in the ch
 http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
 
 
-
 Thank you for your time and interest,
 
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 
+##### SNIP #####
 
+https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.txt
+Please read this, or atleast skim it ;)
 
-
-
-
-
-20110216-20110414
-ircerr@EFNet
+--- Possibly outdated below.
+--- Please check IRC for the latest info
 irc://irc.EFNet.org/#cjdns
+http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
 
-How To compile cjdns on Debian
--Tested on Debian 6 (Squeeze) and Debian 5 (Lenny)
+Some raw pastes for the curious: (like this doc)
+http://cjdns.pastebay.org/
 
-**UNTESTED/INCOMPLETE/RFC**
-**UNTESTED/INCOMPLETE/RFC**
-**UNTESTED/INCOMPLETE/RFC**
+##### SNIP #####
+How To compile cjdns on Debian 6 (Squeeze) 
 
-Assumed:
--You use debian (probally works on ubuntu)
--You did a backup recently ;)
+Hint1: You did a backup recently ;)
+Hint2: Might work same under Ubuntu.
 
-# [command] lines are commands..
-- [comment] lines are comments (or instructions/commands.. do it!)
+# [command] lines are commands
+- [comment] lines are comments (or instructions/commands...do it!)
 * [therest] is obvious
 
 -Remove older versions of deps
 
--Be sure libevent is gone
+-Be sure libevent is gone and remove if found. It will cause problems during the build.
 # dpkg -l | grep ^ii| grep libevent
 ii  libevent-dev                    1.3e-3                     Development libraries, header files and docs
 ii  libevent1                       1.3e-3                     An asynchronous event notification library
-
---Remove it if found
 # apt-get remove libevent-dev
 
 -Note: You may need to (re)compile TOR if you use it.
 
---Get newest versions of deps
-
---Get gcrypt
-# apt-get install libgcrypt11-dev
-
---Get some additional things
+--Get newest versions of deps, some additional things
 # apt-get install build-essential cmake git
 
 --libevent2 required:
 
-***OPTION ONE - unstable branch of debian ***
---Check http://ftp.debian.org/debian/pool/main/libe/libevent/ for current
+- Grab the stable tarball from libevent and untar
+- CHECK https://github.com/libevent/libevent for LATEST version
+# wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
+# tar -xzf libevent-2.0.16-stable.tar.gz
 
---Make a new dir for deps
-# mkdir .deps
---Go There
-# cd .deps
---Fetch deb packages:
-# wget -N \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-core-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-dev_2.0.10-stable-1_i386.deb \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-extra-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-openssl-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.debian.org/debian/pool/main/libe/libevent/libevent-pthreads-2.0-5_2.0.10-stable-1_i386.deb \
-http://ftp.ca.debian.org/debian/pool/main/o/openssl/libssl0.9.8_0.9.8o-4squeeze1_i386.deb
---Install them
-# dpkg -i libevent-*.deb libssl*.deb
---Back to first dir
-# cd ..
-
-
-*** OPTION TWO - fetch git version, compile it ***
--Grab a copy of libevent ( http://monkey.org/~provos/libevent/ )
-# git clone git://levent.git.sourceforge.net/gitroot/levent/libevent libevent
--Go there
-# cd libevent
--Pre-config, detect what ya got
-# ./autogen.sh
--Config
+- Enter directory and compile libevent
+# cd libevent-2.0.16-stable
 # ./configure
--Build
+- resolve missing dependencies if needed and run again until all errors gone
 # make
--Install
 # make install
--Go back.. DoH
-# cd ..
---Libevent is now done.
-
-*** OPTION THREE - man up and use the experimental repo! ***
--Add the repo to your sources.
-# echo 'deb http://ftp.debian.org/debian experimental main' >> /etc/apt/sources.list
--Install it. Everything you need will be pulled in as dependencies.
-# apt-get install libevent-dev=2.0.10-stable-1
---Was that so hard?
-
-*** PICK ONE OF THE ABOVE ***
 
 --cjdns
--Grab it
+-Grab it and go there
 # git clone https://github.com/cjdelisle/cjdns.git cjdns
-
--Go there
 # cd cjdns
 
--Setup build dir
+-Setup build dir and go there
 # mkdir build
-
--Go there
 # cd build
 
--pre-build
+-You Likely want DEBUG logs: (this is VERY ALPHA after all)
+# export Log_LEVEL=DEBUG
+
+-Pre-build
 # cmake ..
 
 -Build
@@ -183,55 +136,118 @@ http://ftp.ca.debian.org/debian/pool/main/o/openssl/libssl0.9.8_0.9.8o-4squeeze1
 Linking C executable DNSTools_test
 [100%] Built target DNSTools_test
 
---ALL DONE
+--ALL DONE! Wanna test? Sure.
 
---Test? Sure.
+##### SNIP #####
+-Use screen or such to get a few ttys, Xterms, pipe to log and bg, whatever.
 
--use screen or such to get a few ttys, Xshells, pipe to log and bg, whatever.
--Setup a session, pointing at 2nd session
-# ./cjdns 127.0.0.1:5353 127.0.0.1:5000 127.0.0.1:5001
--Setup 2nd session pointing at first session
-# ./cjdns 127.0.0.1:5354 127.0.0.1:5001 127.0.0.1:5000
+-TESTING Instructions:
+-Change to the cjdns/build directory if you need to
 
---Look for this line when it starts:
-ANNOUNCING: 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
-This is your domain address.
+-Run cjdroute without options for HELP
+# ./cjdroute
 
--Whatever that number is points to you. If you shut down cjdns or it (OMG) crashes,
--you can and should enter that number again in the command line like so:
-# ./cjdns 127.0.0.1:5354 127.0.0.1:5001 127.0.0.1:5000 01901520f60cf0d7ed23521288cf5bf640bb7608
--This is more important when in the real swarm since you will not suddenly be
--in the wrong neighborhood for your id.
+Step 1:
+  Generate a new configuration file.
+    ./cjdroute --genconf > cjdroute.conf
 
-Now for the fun:  ** REPLACE [string].dht with YOUR DHT ^^ seen above **
+Step 2:
+  From a root shell or using sudo, run use these commands:
 
--Do a lookup via DHT
-# dig @127.0.0.1 -p 5353 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
+  Create a cjdns user so it can run unprivileged.
+    useradd cjdns
 
-; <<>> DiG 9.6-ESV-R1 <<>> @127.0.0.1 -p 5353 01901520f60cf0d7ed23521288cf5bf640bb7608.dht
-; (1 server found)
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12313
-;; flags: qr rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
-;; WARNING: recursion requested but not available
+  Create a new TUN device and give the cjdns user authority to access it:
+    /sbin/ip tuntap add mode tun user cjdns
+    /sbin/ip tuntap list | grep `id -u cjdns`
+  The output of the last command will tell you the name of the new device.
+  This is needed to edit the configuration file.
 
-;; QUESTION SECTION:
-;01901520f60cf0d7ed23521288cf5bf640bb7608.dht. IN A
+Step 3:
+  Edit the configuration file, fill in the key from the node to connect to and your
+  password as well as the bind address to listen for UDP packets on and the
+  passwords of other nodes who are allowed to connect to this node.
+  Also replace "tunDevice": "tun0" with the name of the TUN device gotten in step 2
 
-;; ANSWER SECTION:
-01901520f60cf0d7ed23521288cf5bf640bb7608.dht. 30 IN A 208.91.129.187
+Step 4:
+  Get the commands to run in order to prepare your TUN device by running:
+    ./cjdroute --getcmds < cjdroute.conf
+  These commands should be executed as root now every time the system restarts.
 
-;; Query time: 71 msec
-;; SERVER: 127.0.0.1#5353(127.0.0.1)
-;; WHEN: Thu Feb 17 18:53:43 2011
-;; MSG SIZE  rcvd: 78
+Step 5:
+  Fire it up!
+    sudo -u cjdns ./cjdroute < cjdroute.conf
 
-^that's a real query of another dht node on the net,
-yea 71 msec
-really ;)
+Notes:
+  To delete a tunnel, use this command:
+    /sbin/ip tuntap del mode tun <name of tunnel>
+
+
+##### SNIP #####
+** Known issues:
+
+-Old versions of the IP utility do not work for creating tunnel devices
+# ip -V
+ip utility, iproute2-ss080725
+# /sbin/ip tuntap add mode tun user cjdns
+Object "tuntap" is unknown, try "ip help".
+# /sbin/ip tuntap list
+Object "tuntap" is unknown, try "ip help".
+
+# ip -V
+ip utility, iproute2-ss100519
+# /sbin/ip tuntap list
+tun0: tun user 1001
+
+The fix, for now grab a copy of a newer 'ip' binary and copy it to your home dir. Replacing the system binaries is not likely a good idea.
+
+
+** Currently we are still debugging some routing issues.
+If you want to help out, load up a few VMs or physical boxen,
+link them, see what happens, tell us! :)
+
+Lots of bugs to fix yet, but hey, its talking now!!
+
+
+##### SNIP #####
+** Self Check your IPv6 addy to be sure you are not offering more services then you intended to ;)
+- Use ifconfig -a to find your tun device's IP address (same as above)
+
+# nmap -6 -n -r -v -p1-65535 -sT fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+
+Starting Nmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
+Initiating Connect Scan at 20:40
+Scanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 ports]
+Completed Connect Scan at 20:40, 4.38s elapsed (65535 total ports)
+Nmap scan report for fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+Host is up (0.00073s latency).
+All 65535 scanned ports on fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe are closed
+
+Read data files from: /usr/local/bin/../share/nmap
+Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
+           Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
+
+If you see anything open, fix it.
+
+Some examples:
+
+ssh - /etc/ssh/sshd_config
+ListenAddress 192.168.1.1
+^^ Replace with your STATIC IP (or map dhcp via mac)
+
+samba - /etc/samba/smb.conf
+[global]        
+interfaces = eth0                                                       
+bind interfaces only = Yes
+^^ this will not bind to tun0 (or whichever device)
+
 
 --Thats IT for now.
--Run it again on a public IP with a known dht host
+
+Got More? Tell us on IRC.
+
+--iR
+20110216-20111229
+ircerr@EFNet
 
 #EOF#
