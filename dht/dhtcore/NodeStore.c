@@ -112,13 +112,13 @@ void NodeStore_addNode(struct NodeStore* store,
                     store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
                 }
 
-                #ifdef Log_DEBUG
+                /*#ifdef Log_DEBUG
                     uint32_t oldReach = store->headers[i].reach;
-                #endif
+                #endif*/
 
                 adjustReach(&store->headers[i], reachDifference);
 
-                #ifdef Log_DEBUG
+                /*#ifdef Log_DEBUG
                     if (oldReach != store->headers[i].reach) {
                         uint8_t nodeAddr[60];
                         Address_print(nodeAddr, addr);
@@ -131,7 +131,7 @@ void NodeStore_addNode(struct NodeStore* store,
                             Log_debug(store->logger, "Reach was decreased!\n");
                         }
                     }
-                #endif
+                #endif*/
 
                 return;
             }
@@ -229,6 +229,10 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
+        if (store->nodes[i].address.networkAddress_be & Endian_bigEndianToHost64(UINT64_MAX >> 56)) {
+            // This is a test, trying only returning short paths.
+            continue;
+        }
         NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 

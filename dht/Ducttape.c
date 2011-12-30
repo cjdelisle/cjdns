@@ -456,7 +456,7 @@ static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface*
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
     }
-    Log_debug(context->logger, "Got message from router.\n");
+    //Log_debug(context->logger, "Got message from router.\n");
     return decryptedIncoming(message, context);
 }
 
