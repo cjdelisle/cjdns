@@ -496,7 +496,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         }
         return 0;
     }
-
+/*
     struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
 
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -509,7 +509,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return 0;
     } else {
         herKey = caHeader->handshake.publicKey;
-    }
+    }*/
 
     //uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
@@ -532,7 +532,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         CryptoAuth_getSession(&node->session, iface);
     }*/
 
-    context->herPublicKey = herKey;
+    context->herPublicKey = CryptoAuth_getHerPublicKey(iface);
 
     // This goes to receivedFromCryptoAuth()
     // then decryptedIncoming()

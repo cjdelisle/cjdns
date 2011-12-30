@@ -346,8 +346,17 @@ static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
     struct User* u = CryptoAuth_getUser(iface);
     assert(u);
     // Add it to the switch, this will change the receiveMessage for this interface.
-    uint64_t discard;
-    SwitchCore_addInterface(iface, u->trust, &discard, uictx->context->switchCore);
+    struct Address addr;
+    memset(&addr, 0, sizeof(struct Address));
+    SwitchCore_addInterface(iface, u->trust, &addr.networkAddress_be, uictx->context->switchCore);
+
+    uint8_t* herKey = CryptoAuth_getHerPublicKey(iface);
+    memcpy(addr.key, herKey, 32);
+    uint8_t printedAddr[60];
+    Address_print(printedAddr, &addr);
+    Log_info1(uictx->context->logger,
+              "Node %s has connected to us.\n",
+              printedAddr);
 
     // Prepare for the next connection.
     struct Interface* newUdpDefault = UDPInterface_getDefaultInterface(uictx->udpContext);

@@ -68,14 +68,10 @@ static void maintanenceCycle(void* vcontext)
         randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
-    uint8_t tempBuffer[512];
-    struct MemAllocator* tempAllocator = BufferAllocator_new(tempBuffer, sizeof(tempBuffer));
-
-    struct NodeList* nodes =
-        NodeStore_getClosestNodes(janitor->nodeStore, &targetAddr, 1, false, tempAllocator);
+    struct Node* n = RouterModule_getBest(targetAddr.ip6.bytes, janitor->routerModule);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
-    if (nodes->size == 0 || nodes->nodes[nodes->size - 1]->reach == 0) {
+    if (n == NULL || n->reach == 0) {
         #ifdef Log_DEBUG
             uint8_t printable[40];
             Address_printIp(printable, &targetAddr);
