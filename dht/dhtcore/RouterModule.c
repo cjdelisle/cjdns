@@ -843,18 +843,12 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
 }
 
 /** See: RouterModule.h */
-void RouterModule_addNode(const uint8_t key[Address_KEY_SIZE],
-                          const uint64_t networkAddress_be,
-                          struct RouterModule* module)
+void RouterModule_addNode(struct Address* address, struct RouterModule* module)
 {
-    struct Address address;
-    memset(&address, 0, sizeof(struct Address));
-    memcpy(&address.key, key, Address_KEY_SIZE);
-    address.networkAddress_be = networkAddress_be;
-    Address_getPrefix(&address);
-    NodeStore_addNode(module->nodeStore, &address, 0);
-    struct Node* best = RouterModule_getBest(address.ip6.bytes, module);
-    if (best && best->address.networkAddress_be != networkAddress_be) {
+    Address_getPrefix(address);
+    NodeStore_addNode(module->nodeStore, address, 0);
+    struct Node* best = RouterModule_getBest(address->ip6.bytes, module);
+    if (best && best->address.networkAddress_be != address->networkAddress_be) {
         RouterModule_pingNode(best, module);
     }
 }
@@ -877,15 +871,6 @@ struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE]
 {
     struct Address addr;
     memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-
-    uint8_t buffer[1024];
-    struct MemAllocator* tmpAlloc = BufferAllocator_new(buffer, 1024);
-    struct NodeList* nodes =
-        NodeStore_getClosestNodes(module->nodeStore, &addr, 1, false, tmpAlloc);
-
-    if (nodes->size == 0) {
-        return NULL;
-    }
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }

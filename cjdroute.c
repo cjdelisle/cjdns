@@ -433,7 +433,11 @@ static void udpConnectTo(String* connectToAddress,
 
     uint64_t switchAddr_be;
     SwitchCore_addInterface(authedUdp, *trust, &switchAddr_be, ctx->switchCore);
-    RouterModule_addNode(pkBytes, switchAddr_be, ctx->routerModule);
+    struct Address addr;
+    memset(&addr, 0, sizeof(struct Address));
+    memcpy(addr.key, pkBytes, 32);
+    addr.networkAddress_be = switchAddr_be;
+    RouterModule_addNode(&addr, ctx->routerModule);
 }
 
 static void configureUDP(Dict* config, struct Context* ctx)

@@ -1,7 +1,13 @@
+#ifndef NODE_COLLECTOR_H
+#define NODE_COLLECTOR_H
+
+#include "dht/Address.h"
+#include "dht/dhtcore/Node.h"
+#include "dht/dhtcore/NodeHeader.h"
+#include "memory/MemAllocator.h"
+
 #include <string.h>
 #include <stdbool.h>
-
-#include "dht/dhtcore/NodeHeader.h"
 
 struct NodeCollector_Element
 {
@@ -136,3 +142,5 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         }
     }
 }
+
+#endif

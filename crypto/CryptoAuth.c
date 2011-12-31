@@ -15,6 +15,7 @@
 #include "libbenc/benc.h"
 #include "log/Log.h"
 #include "memory/MemAllocator.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
 #include "wire/Error.h"
@@ -304,19 +305,9 @@ static inline void setRequiredPadding(struct Wrapper* wrapper)
         wrapper->wrappedInterface->maxMessageLength - padding;
 }
 
-static inline bool isZero(uint8_t* buffer, size_t length)
-{
-    for (size_t i = 0; i < length; i++) {
-        if (buffer[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static inline bool knowHerKey(struct Wrapper* wrapper)
 {
-    return !isZero(wrapper->herPerminentPubKey, 32);
+    return !Bits_isZero(wrapper->herPerminentPubKey, 32);
 }
 
 /**

@@ -16,6 +16,7 @@ else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
         NAMES
             event
         PATHS
+            ${LIBEVENT2_INCLUDE_DIRS}/../lib
             ${LIBEVENT2_PREFIX}/lib
             /usr/lib
             /usr/local/lib

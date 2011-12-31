@@ -2,6 +2,8 @@
 #define BITS_H
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
 
 static inline int Bits_log264(uint64_t number)
 {
@@ -30,6 +32,22 @@ static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
     return toReverse;
 
     #undef Bits_rotateAndMask
+}
+
+/**
+ * @param buffer the space of check if it's zero.
+ * @length the nuber of bytes to check for zero'd-ness.
+ * @return true if all bytes checked are zero.
+ */
+static inline bool Bits_isZero(void* buffer, size_t length)
+{
+    uint8_t* buff = (uint8_t*) buffer;
+    for (size_t i = 0; i < length; i++) {
+        if (buff[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 #endif
