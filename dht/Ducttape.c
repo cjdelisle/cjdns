@@ -447,11 +447,25 @@ static uint8_t outgoingFromMe(struct Message* message, struct Interface* iface)
 static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
     struct Context* context = iface->receiverContext;
+
+    struct Address address;
+    memset(&address, 0, sizeof(struct Address));
+    memcpy(&address.key, context->herPublicKey, Address_KEY_SIZE);
+    address.networkAddress_be = context->switchHeader->label_be;
+    Address_getPrefix(&address);
+
+    if (address.ip6.bytes[0] != 0xFC) {
+        if (Bits_isZero(address.key, 32)) {
+            assert(!"Somebody connected to us and we don't know their key!\n");
+        }
+        Log_debug(context->logger,
+                  "Someone connected with a key which is out of the fc00::/8 range.\n");
+        return 0;
+    }
+
     context->messageFromCryptoAuth = message;
     if (validIP6(message)) {
-        RouterModule_addNode(context->herPublicKey,
-                             context->switchHeader->label_be,
-                             context->routerModule);
+        RouterModule_addNode(&address, context->routerModule);
     } else {
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
@@ -481,7 +495,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             if (memcmp(&ctrl->content.error.cause.label_be, &switchHeader->label_be, 8)) {
                 Log_debug(context->logger,
                           "Different label for cause than return packet, this shouldn't happen. "
-                          "Perhaps a packet was corrupted.");
+                          "Perhaps a packet was corrupted.\n");
                 return 0;
             }
             uint32_t errType_be = ctrl->content.error.errorType_be;

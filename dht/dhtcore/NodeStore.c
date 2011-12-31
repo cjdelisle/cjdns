@@ -1,4 +1,5 @@
 #include "dht/Address.h"
+#include "dht/dhtcore/DistanceNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -219,7 +220,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         NodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
     }
 
-    return nodeForHeader(element.node, store);
+    return element.node ? nodeForHeader(element.node, store) : NULL;
 }
 
 /** See: NodeStore.h */
@@ -241,7 +242,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
             // This is a test, trying only returning short paths.
             continue;
         }
-        NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
+        DistanceNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
     struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);

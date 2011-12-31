@@ -73,12 +73,9 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
  * routing engine pick up the ping response and insert the node then.
  *
  * @param address the address of the node.
- * @param networkAddress_be the network address to get to the node, big endian encoded.
  * @param module the router module to add the node to.
  */
-void RouterModule_addNode(const uint8_t address[Address_KEY_SIZE],
-                          const uint64_t networkAddress_be,
-                          struct RouterModule* module);
+void RouterModule_addNode(struct Address* address, struct RouterModule* module);
 
 /**
  * Send a ping to a node, when it responds it will be added to the routing table.

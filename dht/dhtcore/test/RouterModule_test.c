@@ -193,13 +193,14 @@ int main()
     // dummy "network module" which just catches outgoing messages and makes them available.
     TestFramework_registerOutputCatcher(&outMessage, registry, allocator);
 
-    uint64_t netAddrNum;
+    struct Address addr;
 
     // damn this \0, was a mistake but to fix it would break all of the hashes :(
     #define ADD_NODE(address, netAddr) \
-        memcpy(&netAddrNum, netAddr "  ", 8);                                 \
-        RouterModule_addNode((uint8_t*) address "           \0",              \
-                             netAddrNum, routerModule)
+        memset(&addr, 0, sizeof(struct Address));                             \
+        memcpy(&addr.networkAddress_be, netAddr "  ", 8);                     \
+        memcpy(&addr.key, (uint8_t*) address "           \0", 32);            \
+        RouterModule_addNode(&addr, routerModule)
 
 //                                             most significant byte --vv
     ADD_NODE("qponmlkjihgzyxwvutsr", " 00001"); // fce8:573b:d230:ca3b 1c4e:f9d6 0632:9445
@@ -222,8 +223,6 @@ int main()
     ADD_NODE("defghijklmnopqrstuvw", " 00016"); // fc40:1d18:89a6:9a7e c8af:20fd 5c9f:8140
     ADD_NODE("ghijklmnopqrstuvwxyz", " 00017"); // fc74:0f2e:d77a:e5e7 cf4e:8fe9 7791:98e1
 
-memcpy(&netAddrNum, "        ", 8);
-RouterModule_addNode((uint8_t*) "wz6b6dhuljqp8p0fjw5ztn5s73m751jb", netAddrNum, routerModule);
 
     #undef ADD_NODE
 
