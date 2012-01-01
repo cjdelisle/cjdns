@@ -42,6 +42,15 @@ struct CryptoAuth
     struct MemAllocator* allocator;
 };
 
+/**
+ * What the "secret" and "tempKey" fields hold during different stages of the handshake.
+ * |  secret  | tempKey |     message     |  secret  | tempKey | encryptedWith
+ * |+tmpPvtA  |+tmpPubA | ---- hello ---->|    0     |+tmpPubA | prmPvtA-prmPubB-passA
+ * | tmpPvtA  | tmpPubA | --dupe hello -->|    0     | tmpPubA | prmPvtA-prmPubB-passA
+ * | tmpPvtA  | tmpPubA | <---- key ----- | +tmpPvtB | tmpPubA | prmPvtB-tmpPubA-passB
+ * | tmpPvtA  | tmpPubA | <--dupe key---- |  tmpPvtB | tmpPubA | prmPvtB-tmpPubA-passB
+ * | finalSec |    0    | ---- data ----->|+finalSec |    0    | tmpPvtA-tmpPubB
+ */
 struct Wrapper
 {
     /** The public key of the other node. */
