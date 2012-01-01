@@ -2,6 +2,7 @@
 
 # Set this to the developer who signs tags which you trust.
 trustedKey='0F89CF79E785DCD0BCF6964843771307596E2918'
+trustedKeyShortName='596E2918'
 
 # Keyservers which will be used to check for revocation of above key.
 keyServers=(
@@ -56,14 +57,14 @@ checkIsUp()
 # Check proper user.
 if [ "`whoami`" != "cjdns" ]; then
     echo "run $0 as user [cjdns] not [`whoami`]"
-#    exit 1
+    exit 1
 fi
 
 # Check for updates.
-#if [ "`git pull $repo master 2>/dev/null | grep 'Already up-to-date.'`" != "" ]; then
-#    checkIsUp
-#    exit 0
-#fi
+if [ "`git pull $repo master 2>/dev/null | grep 'Already up-to-date.'`" != "" ]; then
+    checkIsUp
+    exit 0
+fi
 
 revlist="`git rev-list --tags --max-count=1`"
 version="`git describe --tags $revlist`"
@@ -85,6 +86,10 @@ if [ "`git tag -v $version 2>&1 | grep 'gpg: Good signature from '`" == "" ]; th
 fi
 if [ "`git tag -v $version 2>&1 | grep 'This key has been revoked by its owner!'`" != "" ]; then
     echo "Key revoked"
+    exit 1
+fi
+if [ "`git tag -v $version 2>&1 | grep "using DSA key ID $trustedKeyShortName"`" == "" ]; then
+    echo "Wrong key"
     exit 1
 fi
 
@@ -125,3 +130,5 @@ then
   done
 #  killall -9 cjdroute 2>>/dev/null
 fi
+
+checkIsUp
