@@ -1,5 +1,7 @@
 #!/bin/bash
 
+Log_LEVEL=DEBUG
+
 # Set this to the developer who signs tags which you trust.
 trustedKey='0F89CF79E785DCD0BCF6964843771307596E2918'
 trustedKeyShortName='596E2918'
