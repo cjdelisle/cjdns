@@ -37,7 +37,7 @@ workDir="`cd;pwd`/cjdns"
 
 checkBuildDir()
 {
-    if [ ! -e "build" ]; then
+    if [ ! -e "$workDir/build" ]; then
         echo 'No build directory, please build and setup configuration files first.'
         exit 1
     fi
