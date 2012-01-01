@@ -2,6 +2,7 @@ project(util C)
 cmake_minimum_required(VERSION 2.4)
 
 find_package(Libevent2 REQUIRED)
+include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 add_library(util
     AverageRoller.c

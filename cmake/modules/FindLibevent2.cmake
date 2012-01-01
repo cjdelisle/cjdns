@@ -8,6 +8,7 @@ else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
             ${LIBEVENT2_PREFIX}/include
             /usr/include
             /usr/local/include
+            /opt/local/include
         NO_DEFAULT_PATH
     )
 
@@ -19,6 +20,7 @@ else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
             ${LIBEVENT2_PREFIX}/lib
             /usr/lib
             /usr/local/lib
+            /opt/local/lib
         NO_DEFAULT_PATH
     )
     if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
