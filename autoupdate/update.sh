@@ -116,7 +116,7 @@ fi
 
 echo $version > $workDir/build/cjdnsLastVersion || exit 1
 
-cmake .. && make
+Log_LEVEL=$Log_LEVEL cmake .. && make
 
 #Check VER
 MD5_NOW="`md5sum cjdroute|cut -d\  -f1`"
