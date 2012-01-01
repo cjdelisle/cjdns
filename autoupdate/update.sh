@@ -52,7 +52,7 @@ checkIsUp()
     PIDS="`ps axw|grep -v 'grep\|tail'|grep cjdroute|cut -b -6`"
     if [ "$PIDS" == "" ]
     then
-        mv cat cjdroute.log >>cjdroute.log.`date +%s` 2>>/dev/null
+        cat cjdroute.log >>cjdroute.log.`date +%s` 2>>/dev/null
         echo -n >cjdroute.log
         echo "-Restarting" | tee -a cjdroute.log
         echo >>cjdroute.log
@@ -80,7 +80,7 @@ fi
 revlist="`git rev-list --tags --max-count=1`"
 version="`git describe --tags $revlist`"
 
-if [ "$version" == "`cat /tmp/cjdnsLastVersion 2>/dev/null`" ]; then
+if [ "$version" == "`cat $workDir/build/cjdnsLastVersion 2>/dev/null`" ]; then
     checkIsUp
     exit 0
 fi
@@ -104,7 +104,6 @@ if [ "`git tag -v $version 2>&1 | grep "using DSA key ID $trustedKeyShortName"`"
     exit 1
 fi
 
-echo $version > /tmp/cjdnsLastVersion || exit 1
 git checkout $version || exit 1
 
 cd $workDir || exit 1
@@ -115,6 +114,8 @@ if [ ! -e "cjdroute.conf" ]; then
     echo 'No configuration file (called cjdroute.conf) type cjdroute for instructions.'
     exit 1
 fi
+
+echo $version > $workDir/build/cjdnsLastVersion || exit 1
 
 cmake .. && make
 
