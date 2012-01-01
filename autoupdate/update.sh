@@ -29,16 +29,25 @@ repos=(
 );
 repo=${repos[$((RANDOM %= $((${#repos[@]}))))]}
 
-workDir="`cd;pwd`/cjdns/"
+workDir="`cd;pwd`/cjdns"
 
 #-----------------------------------------------------------------------------
 #   Code
 #-----------------------------------------------------------------------------
 
+checkBuildDir()
+{
+    if [ ! -e "build" ]; then
+        echo 'No build directory, please build and setup configuration files first.'
+        exit 1
+    fi
+}
+
 checkIsUp()
 {
     #Run It
     #gdb ./cjdroute -ex "run < ./cjdroute.conf"
+    checkBuildDir
     cd $workDir/build
     PIDS="`ps axw|grep -v 'grep\|tail'|grep cjdroute|cut -b -6`"
     if [ "$PIDS" == "" ]
@@ -100,10 +109,7 @@ git checkout $version || exit 1
 
 cd $workDir || exit 1
 
-if [ ! -e "build" ]; then
-    echo 'No build directory, please build and setup configuration files first.'
-    exit 1
-fi
+checkBuildDir
 cd build
 if [ ! -e "cjdroute.conf" ]; then
     echo 'No configuration file (called cjdroute.conf) type cjdroute for instructions.'
