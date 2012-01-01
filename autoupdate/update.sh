@@ -60,6 +60,8 @@ if [ "`whoami`" != "cjdns" ]; then
     exit 1
 fi
 
+cd $workDir
+
 # Check for updates.
 if [ "`git pull $repo master 2>/dev/null | grep 'Already up-to-date.'`" != "" ]; then
     checkIsUp
