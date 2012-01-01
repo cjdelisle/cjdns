@@ -74,10 +74,7 @@ fi
 cd $workDir
 
 # Check for updates.
-if [ "`git pull $repo master 2>/dev/null | grep 'Already up-to-date.'`" != "" ]; then
-    checkIsUp
-    exit 0
-fi
+git pull $repo master
 
 revlist="`git rev-list --tags --max-count=1`"
 version="`git describe --tags $revlist`"
