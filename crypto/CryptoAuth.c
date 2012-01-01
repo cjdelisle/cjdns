@@ -384,8 +384,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
             memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
         }
         #ifdef Log_DEBUG
-            assert(!isZero(header->handshake.encryptedTempKey, 32));
-            assert(!isZero(wrapper->secret, 32));
+            assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+            assert(!Bits_isZero(wrapper->secret, 32));
         #endif
     } else if (wrapper->nextNonce == 3) {
         // Dupe key
@@ -416,7 +416,7 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
         #ifdef Log_DEBUG
-            assert(!isZero(header->handshake.encryptedTempKey, 32));
+            assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
             uint8_t myTempPubKey[32];
             crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
             assert(!memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
@@ -475,7 +475,7 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
                   nonceHex, sharedSecretHex, cipherHex);
     #endif
     #ifdef Log_DEBUG
-        assert(!isZero(header->handshake.encryptedTempKey, 32));
+        assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
     #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
@@ -664,7 +664,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         if (!knowHerKey(wrapper) || wrapper->nextNonce == 0) {
             herPermKey = header->handshake.publicKey;
             #ifdef Log_DEBUG
-                if (isZero(header->handshake.publicKey, 32)) {
+                if (Bits_isZero(header->handshake.publicKey, 32)) {
                     Log_debug(wrapper->context->logger, "Node sent public key of ZERO!\n");
                 }
             #endif
@@ -734,7 +734,7 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
     memcpy(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
 
     #ifdef Log_DEBUG
-        assert(!isZero(header->handshake.encryptedTempKey, 32));
+        assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
     #endif
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
