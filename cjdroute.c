@@ -514,8 +514,8 @@ int main(int argc, char** argv)
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
 
-    // Allow it to allocate 2MB
-    context.allocator = MallocAllocator_new(1<<21);
+    // Allow it to allocate 4MB
+    context.allocator = MallocAllocator_new(1<<22);
     struct Reader* reader = FileReader_new(stdin, context.allocator);
     Dict config;
     if (benc_getJsonBencSerializer()->parseDictionary(reader, context.allocator, &config)) {

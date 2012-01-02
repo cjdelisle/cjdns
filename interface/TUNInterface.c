@@ -11,8 +11,9 @@
 #include "interface/TUNInterface.h"
 #include "libbenc/benc.h"
 
-#define MAX_PACKET_SIZE 1500
-#define PADDING_SPACE (4096 - MAX_PACKET_SIZE)
+// Defined extra large so large MTU can be taken advantage of later.
+#define MAX_PACKET_SIZE 8192
+#define PADDING_SPACE (10240 - MAX_PACKET_SIZE)
 
 struct Tunnel
 {
