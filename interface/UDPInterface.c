@@ -28,8 +28,7 @@
 #endif
 #include <errno.h>
 
-// 1426 + 8 (udp) + 20 (ip) + 2 (ppp) + 6 (pppoe) + 18 (eth) = 1480 (optimum adsl/pppoe mtu)
-#define MAX_PACKET_SIZE 1426
+#define MAX_PACKET_SIZE 8192
 
 #define PADDING 512
 
