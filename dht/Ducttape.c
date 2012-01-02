@@ -190,7 +190,7 @@ static uint8_t incomingForMe(struct Message* message, struct Interface* iface)
     Address_getPrefix(&addr);
     addr.networkAddress_be = context->switchHeader->label_be;
     if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
-        Log_debug(context->logger, "Dropped packet because source address is not same as key.");
+        Log_debug(context->logger, "Dropped packet because source address is not same as key.\n");
         return Error_INVALID;
     }
 
