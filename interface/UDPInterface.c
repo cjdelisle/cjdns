@@ -130,10 +130,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
             case ENOBUFS:
             case EAGAIN:
-            #if EAGAIN != EWOULDBLOCK
+            #if EWOULDBLOCK != EAGAIN
                 case EWOULDBLOCK:
             #endif
                 return Error_LINK_LIMIT_EXCEEDED;
+
+            default:;
+                Log_debug1(context->logger, "Got error sending to socket errno=%d", errno);
         };
     }
     return 0;
