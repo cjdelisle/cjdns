@@ -11,21 +11,23 @@
 int main()
 {
     uint8_t key[32];
-    //uint8_t addr[32];
+    struct Address addr;
     randombytes(key, 32);
-    //uint32_t smallest = ~0;
-    for (uint32_t i = 0; i < 100000; i++) {
+    uint32_t smallest = UINT32_MAX;
+    for (uint32_t i = 0;; i++) {
         crypto_scalarmult_curve25519_base(key, key);
-        /*AddressCalc_addressForPublicKey(addr, key);
-        if (*((uint16_t*)(addr + 2)) == 0) {
-            uint32_t bits = Endian_bigEndianToHost32(*((uint32_t*)(addr + 4)));
+        AddressCalc_addressForPublicKey(addr.ip6.bytes, key);
+        if ((addr.ip6.ints.three & 0xFF) == 0xFC) {
+            uint32_t bits = Endian_bigEndianToHost32(addr.ip6.ints.four);
             if (bits < smallest) {
                 smallest = bits;
                 for (int it = 0; it < 32; it++) {
                     printf("%02x", key[it]);
                 }
-                printf("    %04x iterations = %u\n", bits, i);
+                uint8_t ipv6[40];
+                Address_printIp(ipv6, &addr);
+                printf("    %s\n", ipv6);
             }
-        }*/
+        }
     }
 }
