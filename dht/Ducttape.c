@@ -76,6 +76,12 @@ struct Context
     struct Message* messageFromCryptoAuth;
     uint8_t* herPublicKey;
 
+    /**
+     * NULL unless this is router-to-router traffic.
+     * router-to-router traffic MUST NOT be forwarded, therefor it must be sent to the switch.
+     */
+    struct Address* forwardTo;
+
     struct Interface contentSmOutside;
     struct Interface* contentSmInside;
 
@@ -131,7 +137,9 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     {
         // Length will be set after the crypto.
         .nextHeader = 17,
-        .hopLimit = 255
+
+        // control messages MUST NOT be forwarded.
+        .hopLimit = 1
     };
 
     memcpy(&header.destinationAddr,
@@ -143,12 +151,9 @@ static int handleOutgoing(struct DHTMessage* dmessage,
            Address_SEARCH_TARGET_SIZE);
 
     context->ip6Header = &header;
+    context->forwardTo = dmessage->address;
 
-    struct Headers_SwitchHeader switchHeader;
-    memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
-    context->switchHeader = &switchHeader;
-
-    // Create a pseudoheader behind the message header.
+    // Create a fake header behind the message header just for giving the crypto what it wants.
     memcpy(message.bytes - 16,
            dmessage->address->ip6.bytes,
            Address_SEARCH_TARGET_SIZE);
@@ -178,12 +183,18 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 static uint8_t incomingForMe(struct Message* message, struct Interface* iface)
 {
     struct Context* context = (struct Context*) iface->receiverContext;
+
+    struct Address addr;
+    uint8_t* key = CryptoAuth_getHerPublicKey(context->contentSession);
+    memcpy(addr.key, key, 32);
+    Address_getPrefix(&addr);
+    addr.networkAddress_be = context->switchHeader->label_be;
+    if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
+        Log_debug(context->logger, "Dropped packet because source address is not same as key.");
+        return Error_INVALID;
+    }
+
     if (isRouterTraffic(message, context->ip6Header)) {
-        struct Address addr;
-        memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
-        addr.networkAddress_be = context->switchHeader->label_be;
-        uint8_t* key = CryptoAuth_getHerPublicKey(context->contentSession);
-        memcpy(addr.key, key, 32);
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
         return incomingDHT(message, &addr, context);
@@ -294,34 +305,17 @@ static inline int encrypt(uint32_t nonce,
 #define decrypt(nonce, msg, secret, isInitiator) encrypt(nonce, msg, secret, !(isInitiator))
 
 /** Message must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Node* sendTo,
+static inline uint8_t sendToRouter(struct Address* sendTo,
                                    struct Message* message,
                                    struct Context* context)
 {
-    /*if (sendTo->session.exists) {
-        encrypt(sendTo->session.nextNonce,
-                message,
-                sendTo->session.sharedSecret,
-                sendTo->session.isInitiator);
-        Message_shift(message, 4);
-
-        ((union Headers_CryptoAuth*) message->bytes)->nonce =
-            Endian_hostToBigEndian32(sendTo->session.nextNonce);
-
-        sendTo->session.nextNonce++;
-
-        context->switchHeader->label_be = sendTo->address.networkAddress_be;
-
-        return sendToSwitch(message, context->switchHeader, context);
-    }*/
-
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
     memcpy(&header, context->switchHeader, sizeof(struct Headers_SwitchHeader));
-    header.label_be = sendTo->address.networkAddress_be;
+    header.label_be = sendTo->networkAddress_be;
     context->switchHeader = &header;
-    struct Interface* session = getCaSession(&header, sendTo->address.key, context);
+    struct Interface* session = getCaSession(&header, sendTo->key, context);
     // This comes out in sendToSwitchFromCryptoAuth()
     return session->sendMessage(message, session);
 }
@@ -399,6 +393,13 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
     }
     context->ip6Header->hopLimit--;
 
+    if (context->forwardTo) {
+        // Router traffic, we know where it is to be sent to.
+        struct Address* forwardTo = context->forwardTo;
+        context->forwardTo = NULL;
+        return sendToRouter(forwardTo, message, context);
+    }
+
     struct Node* nextBest = RouterModule_getBest(context->ip6Header->destinationAddr,
                                                  context->routerModule);
     if (nextBest) {
@@ -407,7 +408,7 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
             Address_printNetworkAddress(netAddr, &nextBest->address);
             Log_debug1(context->logger, "Forwarding packet to %s\n", netAddr);
         #endif*/
-        return sendToRouter(nextBest, message, context);
+        return sendToRouter(&nextBest->address, message, context);
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "
                                "node to the destination.\n");
@@ -575,6 +576,7 @@ int Ducttape_register(Dict* config,
     context->cryptoAuth = CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, context->cryptoAuth);
     Address_getPrefix(&context->myAddr);
+    context->forwardTo = NULL;
 
     if (routerIf) {
         context->routerIf = routerIf;
