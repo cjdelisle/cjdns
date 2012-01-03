@@ -117,9 +117,10 @@ void NodeStore_addNode(struct NodeStore* store,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
                                    newAddr);
-                        struct Node* n =
-                            NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
-                        assert(!n);
+                        // This is ok sometimes but also is an indicator of a bug.
+                        //struct Node* n =
+                        //    NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
+                        //assert(!n);
                     #endif
                     store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
                 }

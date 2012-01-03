@@ -135,7 +135,7 @@ static int genconf()
            "        \"UDPInterface\":\n"
            "        {\n"
            "            // Bind to this port.\n"
-           "            \"bind\": \"127.0.0.1:10001\",\n"
+           "            \"bind\": \"0.0.0.0:10000\",\n"
            "\n"
            "            // Nodes to connect to.\n"
            "            \"connectTo\":\n"
