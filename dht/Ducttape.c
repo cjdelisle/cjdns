@@ -158,6 +158,8 @@ static int handleOutgoing(struct DHTMessage* dmessage,
            dmessage->address->ip6.bytes,
            Address_SEARCH_TARGET_SIZE);
 
+    context->switchHeader = NULL;
+
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
     // This comes out at outgoingFromMe()
     context->contentSmInside->sendMessage(&message, context->contentSmInside);
@@ -312,7 +314,11 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
-    memcpy(&header, context->switchHeader, sizeof(struct Headers_SwitchHeader));
+    if (context->switchHeader) {
+        memcpy(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
+    } else {
+        memset(&header, 0, Headers_SwitchHeader_SIZE);
+    }
     header.label_be = sendTo->networkAddress_be;
     context->switchHeader = &header;
     struct Interface* session = getCaSession(&header, sendTo->key, context);
