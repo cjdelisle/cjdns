@@ -192,7 +192,17 @@ static uint8_t incomingForMe(struct Message* message, struct Interface* iface)
     Address_getPrefix(&addr);
     addr.networkAddress_be = context->switchHeader->label_be;
     if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
-        Log_debug(context->logger, "Dropped packet because source address is not same as key.\n");
+        uint8_t keyAddr[40];
+        Address_printIp(keyAddr, &addr);
+        memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
+        uint8_t srcAddr[40];
+        Address_printIp(srcAddr, &addr);
+        Log_debug2(context->logger,
+                   "Dropped packet because source address is not same as key.\n"
+                   "    %s source addr\n"
+                   "    %s hash of key\n",
+                   srcAddr,
+                   keyAddr);
         return Error_INVALID;
     }
 
