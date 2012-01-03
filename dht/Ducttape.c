@@ -189,6 +189,7 @@ static uint8_t incomingForMe(struct Message* message, struct Interface* iface)
     struct Address addr;
     uint8_t* key = CryptoAuth_getHerPublicKey(context->contentSession);
     memcpy(addr.key, key, 32);
+    memset(addr.ip6.bytes, 0, 16);
     Address_getPrefix(&addr);
     addr.networkAddress_be = context->switchHeader->label_be;
     if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
