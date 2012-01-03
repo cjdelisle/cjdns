@@ -169,7 +169,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 // Aligned on the beginning of the content.
 static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6Header* ip6)
 {
-    if (ip6->nextHeader != 17) {
+    if (ip6->nextHeader != 17 || ip6->hopLimit != 0) {
         return false;
     }
     // TODO: validate the checksum
@@ -407,6 +407,8 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
 
     if (context->ip6Header->hopLimit == 0) {
         Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        // TODO: send back an error message in response.
+        return Error_UNDELIVERABLE;
     }
     context->ip6Header->hopLimit--;
 
