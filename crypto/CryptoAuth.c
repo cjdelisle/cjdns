@@ -787,7 +787,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
     if (wrapper->nextNonce < 5) {
-        if (nonce > 3 && nonce != UINT32_MAX) {
+        if (nonce > 3 && nonce != UINT32_MAX && knowHerKey(wrapper)) {
             Log_debug1(wrapper->context->logger, "Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
             getSharedSecret(secret,
