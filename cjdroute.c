@@ -22,6 +22,7 @@
 #include "switch/SwitchCore.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
+#include "Version.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -526,6 +527,8 @@ int main(int argc, char** argv)
     if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
         return getcmds(&config);
     }
+
+    printf("Version: " Version_STRING "\n");
 
     // Logging
     struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
