@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <sys/time.h>
 #include <event2/event.h>
 
