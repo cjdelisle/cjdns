@@ -96,9 +96,44 @@ Packet priority part of an anti-flooding scheme which is based on the observatio
 Inter-router control messages are bEncoded DHT messages which are used for routers to exchange routes to other routers. The format used is borrowed from bittorrent with the following modifications:
 Instead of "find_node" queries, nodes send "fr" queries (short for "find router") "fr" responses are sent as a string called "rf" rather than "nodes". "rf" strings are, as with nodes, concatenated ids and network addresses except that the ids are 32 byte public keys and the network addresses are 8 byte switch labels. The 32 byte key which is sent is not the DHT id, the key is hashed using sha512, the output of which is sha512 hashed again and the first 15 bytes of this become the node's id, these 15 bytes with a 0xFC byte prepended also make up the node's ipv6 address. "get_peers" queries are not used and the "id" value is never sent, node id is calculated as the double sha512 of the node's public key.
 
-
-
 ................more to come
+
+
+------------------- Some material to fit into the paper somewhere... -----------------
+Packet lifecycle:
+
+RouterModule sends search,
+SerializationModule bencodes the structures for the wire,
+Ducttape.c takes the packet and gets the public key of the node which it is sending to and gets a CryptoAuth session associated with that key from it's pool, or creates one if there is none. Packet is cryptoauthed which adds a 4 byte nonce header for all traffic packets or a 120 byte handshake header for the first 2 packets.
+Ducttape takes the encrypted packet and applies the ipv6 header to it (if it was a data packet, the ipv6 header would have been copied out of the way before adding the cryptoauth header), the length of the ipv6 header is increased to take into account the cryptoauth header, (this is so the packet could theoretically be handled by commodity routing equipment).
+SwitchConnectorModule gets a CryptoAuth session for the router it's sending to from it's pool, if there isn't any, it creates one. The packet is cryptoauthed, protecting the ipv6 header and adding another crypto header (again, 120 bytes unless the handshake is complete in which case it is 4).
+Ducttape does not lookup the switch label to forward to because the router module already knows it so Ducttape uses what the router module proscribed.
+The Switch sees an incoming packet and, not caring which interface it came from, sends it on to the interface which the bits dictate, shifting and applying the source interface as it is sent. When the packet exits through a UDP based interface, the UDPInterface chooses a CryptoAuth session which corrisponds to the destination IP address, this time the packet is encrypted *and* authenticated, adding either 20 bytes for traffic or 136 bytes for a handshake packet.
+
+CryptoAuth:
+
+There are 5 types of CryptoAuth header:
+  "connect to me"
+  handshake1
+  handshake2
+  data
+  authenticatedData
+
+All cryptoAuth headers are 120 bytes long except for the data header which is 4 bytes and the authenticatedData header which is 20 bytes. The first 4 bytes of a CryptoAuth header is used to determine it's type, if they are zero, it is a "connect to me" header, if they are equal to the obfuscated value of zero or one, it is a handshake1 packet and if they are the obfuscated value of two or three, it is a handshake2 packet. if it is the obfuscated value of a number exceeding three, it is a data or authenticated data packet.
+
+"connect to me" packets:
+When a node receives a connect to me packet from a node which it does not know, it should establish a session and send back a handshake1 packet, if it already has a session, it should drop the packet silently. The connect to me packet has no useful information except for it's system state and "Permanent Public Key" field, the rest of the packet should be filled with random.
+
+handshake1:
+A handshake1 packet contains an authentication field, a random nonce, the node's perminent public key, a poly1305 authenticator field, and the temporary public key followed by the content, all encrypted and authenticated using the perminent public keys of the two nodes and the random nonce contained in the packet. The content and temporary key is encrypted using crypto_box_curve25519poly1305xsalsa20() function.
+
+handshake2:
+A handshake2 packet likewise contains an authentication field, a random nonce, a perminent public key field (which is not used but still must be present) a poly1305 authenticator, and an encrypted temporary key and content. this time the temporary key and content is encrypted using the perminent key of the sending node and the temporary public key of the other party (which was sent in the handshake1 packet).
+
+Authentication field:
+This field allows a node to connect using a password or other shared secret, the authtype subfield specifies how the password should be hashed, the auth-derivations field specifies how many times the shared secret hash function must be run and the authentication hash code is the 5 bytes of the sha256 of the result from the hash function. Auth type of 0 indicates that the node is not offering authentication credentials in the handshake, auth type 1 is a trivial sha256 of the password to create the hash (TODO: improve this). When a client presents authentication credencials, the result of doing the number of derivations given on the password is then appended to the key generated by point multiplication of the public and private keys and sha256'd to generate the shared secret.
+This authentication scheme is designed to be resistant to MiTM attacks as well as attacks on the underlying asymmetric cryptography which protects the connection. Basicly it is using a password as what it is, a shared secret. If the auth type field is set to 0, the key generated by scalar multiplication will not be fed to sha256, it will instead be hashed using hsalsa20 as normally used in crypto_box_curve25519xsalsa20. If the A bit (at 14 byte offset) is set, the connection will use poly1305 to authenticate all packets, regardless of whether auth-type is 0.
+
 
 
 

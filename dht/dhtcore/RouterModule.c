@@ -423,9 +423,10 @@ static void searchStep(struct SearchCallbackContext* scc)
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
+    // Search timeout -> set to 0 reach.
     NodeStore_addNode(scc->routerModule->nodeStore,
                       scc->lastNodeCalled->address,
-                      -1);
+                      INT64_MIN);
     searchStep(scc);
 }
 
@@ -539,6 +540,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         if (newNodePrefix == ourAddressPrefix
             && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
         {
+            // This happens constantly.
             //Log_debug(module->logger, "They just told us about ourselves.\n");
             continue;
         } else if ((newNodePrefix ^ targetPrefix) >= parentDistance
@@ -574,7 +576,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         #endif*/
 
         if (addr.networkAddress_be == UINT64_MAX) {
-            //Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
+            Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
             continue;
         }
 
