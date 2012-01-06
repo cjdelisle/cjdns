@@ -124,7 +124,9 @@ void NodeStore_addNode(struct NodeStore* store,
                     #endif
                     // TODO understand why this is poisoning the table.
                     //store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
-                } else if (red == 0) {
+                } else if (red == 0
+                    && store->nodes[i].address.networkAddress_be != addr->networkAddress_be)
+                {
                     // Completely different routes, store seperately.
                     continue;
                 }
