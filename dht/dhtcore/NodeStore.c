@@ -122,7 +122,11 @@ void NodeStore_addNode(struct NodeStore* store,
                         //    NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
                         //assert(!n);
                     #endif
-                    store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
+                    // TODO understand why this is poisoning the table.
+                    //store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
+                } else if (red == 0) {
+                    // Completely different routes, store seperately.
+                    continue;
                 }
 
                 /*#ifdef Log_DEBUG

@@ -17,8 +17,6 @@ struct Node
 
     /** The address of the node. */
     struct Address address;
-
-    struct Session session;
 };
 
 #endif
