@@ -70,18 +70,6 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
         return Error_LINK_LIMIT_EXCEEDED;
     }
 
-    if (!switchIf) {
-        Log_error(logger, "switchIf is NULL!\n");
-        return Error_NONE;
-    }
-    if (!switchIf->iface) {
-        Log_error(logger, "switchIf->iface is NULL!\n");
-        return Error_NONE;
-    }
-    if (!switchIf->iface->sendMessage) {
-        Log_error(logger, "switchIf-.iface->sendMessage is NULL!\n");
-        return Error_NONE;
-    }
     uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
     if (err) {
         return err;
@@ -100,11 +88,6 @@ static inline void sendError(struct SwitchInterface* interface,
                              struct Log* logger)
 {
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
-    if (Headers_getMessageType(header) == MessageType_CONTROL) {
-        // Errors never cause other errors to be sent.
-        return;
-    }
-    // Just swap the error into the message used for the cause.
     struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
     if (Headers_getMessageType(header) == MessageType_CONTROL

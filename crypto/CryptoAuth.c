@@ -671,7 +671,8 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
         } else {
             herPermKey = wrapper->herPerminentPubKey;
             if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
-                Log_warn(wrapper->context->logger, "Packet contains different perminent key!\n");
+                Log_debug(wrapper->context->logger, "Packet contains different perminent key.\n");
+                return Error_AUTHENTICATION;
             }
         }
 
@@ -691,7 +692,8 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
                        "Received a packet of unknown type! nonce=%u\n", nonce);
         }
         if (memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
-            Log_warn(wrapper->context->logger, "Packet contains different perminent key!\n");
+            Log_debug(wrapper->context->logger, "Packet contains different perminent key.\n");
+            return Error_AUTHENTICATION;
         }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
