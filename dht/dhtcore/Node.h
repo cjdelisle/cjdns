@@ -5,6 +5,7 @@
 #include "dht/Address.h"
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /** A network address for reaching a peer, in the format which is sent over the wire. */
 struct Node

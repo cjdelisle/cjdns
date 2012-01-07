@@ -92,9 +92,9 @@ void NodeStore_addNode(struct NodeStore* store,
     if (addr->ip6.bytes[0] != 0xfc) {
         uint8_t address[60];
         Address_print(address, addr);
-        Log_debug1(store->logger,
-                   "tried to insert address %s which does not begin with 0xFC.\n",
-                   address);
+        Log_critical1(store->logger,
+                      "tried to insert address %s which does not begin with 0xFC.\n",
+                      address);
         assert(false);
     }
 
@@ -117,13 +117,15 @@ void NodeStore_addNode(struct NodeStore* store,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
                                    newAddr);
-                        // This is ok sometimes but also is an indicator of a bug.
-                        //struct Node* n =
-                        //    NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
-                        //assert(!n);
+
+                        struct Node* n =
+                            NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
+                        if (n) {
+                            Log_warn(store->logger, "This route is probably invalid, giving up.\n");
+                            continue;
+                        }
                     #endif
-                    // TODO understand why this is poisoning the table.
-                    //store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
+                    store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
                 } else if (red == 0
                     && store->nodes[i].address.networkAddress_be != addr->networkAddress_be)
                 {

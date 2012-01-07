@@ -1,13 +1,13 @@
 #ifndef NODE_STORE_H
 #define NODE_STORE_H
 
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "log/Log.h"
 #include "memory/MemAllocator.h"
+
+#include <stdint.h>
+#include <stdbool.h>
 
 struct NodeStore;
 
@@ -85,4 +85,5 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
 void NodeStore_dumpTables(struct Writer* writeTo, struct NodeStore* store);
 
 void NodeStore_remove(struct Node* node, struct NodeStore* store);
+
 #endif
