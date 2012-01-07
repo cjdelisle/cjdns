@@ -163,6 +163,8 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     SessionManager_setKey(&message, dmessage->address->key, true, context->contentSmInside);
     // This comes out at outgoingFromMe()
     context->contentSmInside->sendMessage(&message, context->contentSmInside);
+
+    context->forwardTo = NULL;
     return 0;
 }
 
@@ -414,24 +416,22 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
 
     if (context->forwardTo) {
         // Router traffic, we know where it is to be sent to.
-        struct Address* forwardTo = context->forwardTo;
-        context->forwardTo = NULL;
         #ifdef Log_DEBUG
             uint8_t printedAddr[60];
-            Address_print(printedAddr, forwardTo);
+            Address_print(printedAddr, context->forwardTo);
             Log_debug1(context->logger, "Sending router traffic to %s\n", printedAddr);
         #endif
-        return sendToRouter(forwardTo, message, context);
+        return sendToRouter(context->forwardTo, message, context);
     }
 
     struct Node* nextBest = RouterModule_getBest(context->ip6Header->destinationAddr,
                                                  context->routerModule);
     if (nextBest) {
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t netAddr[20];
             Address_printNetworkAddress(netAddr, &nextBest->address);
-            Log_debug1(context->logger, "Forwarding packet to %s\n", netAddr);
-        #endif*/
+            Log_debug1(context->logger, "Forwarding data to %s\n", netAddr);
+        #endif
         return sendToRouter(&nextBest->address, message, context);
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "
