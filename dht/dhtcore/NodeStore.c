@@ -213,7 +213,7 @@ static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* s
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store)
 {
     struct NodeCollector_Element element = {
-        .notDistanceTimesReach = 0,
+        .value = 0,
         .distance = UINT32_MAX,
         .node = NULL
     };

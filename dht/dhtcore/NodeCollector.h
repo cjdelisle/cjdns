@@ -12,7 +12,7 @@
 struct NodeCollector_Element
 {
     struct NodeHeader* node;
-    uint64_t notDistanceTimesReach;
+    uint64_t value;
     uint32_t distance;
 };
 
@@ -61,7 +61,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
     out->nodes = allocator->malloc(capacity * sizeof(struct NodeCollector_Element), allocator);
 
     for (uint32_t i = 0; i < capacity; i++) {
-        out->nodes[i].notDistanceTimesReach = 0;
+        out->nodes[i].value = 0;
         out->nodes[i].distance = UINT32_MAX;
         out->nodes[i].node = NULL;
     }
@@ -90,10 +90,6 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                                          struct Node* body,
                                          struct NodeCollector* collector)
 {
-    // TODO use node body for a more precise measurment.
-    body=body;
-
-
     uint32_t nodeDistance = header->addressPrefix ^ collector->targetPrefix;
 
     // This is a hack because we don't really care about
@@ -111,23 +107,24 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
     // Check that it's not farther from the target than we are...
     if (nodeDistance < collector->thisNodeDistance) {
 
-        uint64_t ndtr = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach;
+        uint64_t value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach;
+        value |= (64 - Bits_log2x64_be(body->address.networkAddress_be));
 
         // 0 distance (match) always wins,
         // If both have 0 distance, highest reach wins.
         // If both have 0 reach (likely) smallest distance wins.
-        // Otherwise highest ndtr wins.
+        // Otherwise highest value wins.
 
         uint32_t i;
         for (i = 0; i < collector->capacity; i++) {
             if (nodeDistance == 0 && nodes[i].distance != 0) {
                 continue;
             }
-            if (ndtr == 0) {
-                if (nodes[i].notDistanceTimesReach > 0 || nodes[i].distance < nodeDistance) {
+            if (value == 0) {
+                if (nodes[i].value > 0 || nodes[i].distance < nodeDistance) {
                     break;
                 }
-            } else if (ndtr < nodes[i].notDistanceTimesReach) {
+            } else if (value < nodes[i].value) {
                 break;
             }
         }
@@ -137,7 +134,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
-            nodes[i - 1].notDistanceTimesReach = ndtr;
+            nodes[i - 1].value = value;
             nodes[i - 1].distance = nodeDistance;
         }
     }

@@ -41,7 +41,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
         // lowest distance distance wins,
         // If both have same distance, highest reach wins.
         // If both the same reach, smallest log base 2 of route wins
-        // NOTE: in this implementation, the notDistanceTimesReach field holds
+        // NOTE: in this implementation, the value field holds
         //       reach and inverse of log2 of path.
 
         uint32_t reachAndPath;
@@ -58,7 +58,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             if (nodeDistance < nodes[i].distance) {
                 // smaller distance.
                 continue;
-            } else if (reachAndPath > nodes[i].notDistanceTimesReach) {
+            } else if (reachAndPath > nodes[i].value) {
                 continue;
             }
             break;
@@ -69,7 +69,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
-            nodes[i - 1].notDistanceTimesReach = reachAndPath;
+            nodes[i - 1].value = reachAndPath;
             nodes[i - 1].distance = nodeDistance;
         }
     }
