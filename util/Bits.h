@@ -1,14 +1,30 @@
 #ifndef BITS_H
 #define BITS_H
 
+#include "util/Endian.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
-static inline int Bits_log264(uint64_t number)
+static inline int Bits_log2x64(uint64_t number)
 {
     int out = 0;
     while (number >>= 1) {
+        out++;
+    }
+    return out;
+}
+// TODO fix usages of this
+#define Bits_log264(x) Bits_log2x64(x)
+
+static inline int Bits_log2x64_be(uint64_t number)
+{
+    if (Endian_isBigEndian()) {
+        return Bits_log2x64(number);
+    }
+    int out = 0;
+    while (number <<= 1) {
         out++;
     }
     return out;
