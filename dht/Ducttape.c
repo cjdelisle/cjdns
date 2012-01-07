@@ -416,6 +416,11 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
         // Router traffic, we know where it is to be sent to.
         struct Address* forwardTo = context->forwardTo;
         context->forwardTo = NULL;
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, &forwardTo);
+            Log_debug1(context->logger, "Sending router traffic to %s\n", printedAddr);
+        #endif
         return sendToRouter(forwardTo, message, context);
     }
 

@@ -3,6 +3,7 @@
 
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"
+#include "util/Bits.h"
 
 #include <string.h>
 #include <stdbool.h>
@@ -20,10 +21,6 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
                                                  struct Node* body,
                                                  struct NodeCollector* collector)
 {
-    // TODO use node body for a more precise measurment.
-    body=body;
-
-
     uint32_t nodeDistance = header->addressPrefix ^ collector->targetPrefix;
 
     // This is a hack because we don't really care about
