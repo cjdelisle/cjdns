@@ -428,9 +428,17 @@ static inline uint8_t decryptedIncoming(struct Message* message, struct Context*
                                                  context->routerModule);
     if (nextBest) {
         #ifdef Log_DEBUG
-            uint8_t netAddr[20];
-            Address_printNetworkAddress(netAddr, &nextBest->address);
-            Log_debug1(context->logger, "Forwarding data to %s\n", netAddr);
+            uint8_t nhAddr[60];
+            Address_print(nhAddr, &nextBest->address);
+            if (memcmp(context->ip6Header->destinationAddr, nextBest->address.ip6.bytes, 16)) {
+                struct Address destination;
+                memcpy(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+                uint8_t ipAddr[40];
+                Address_printIp(ipAddr, &destination);
+                Log_debug2(context->logger, "Forwarding data to %s for node: %s\n", nhAddr, ipAddr);
+            } else {
+                Log_debug1(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
+            }
         #endif
         return sendToRouter(&nextBest->address, message, context);
     }

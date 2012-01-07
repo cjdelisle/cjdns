@@ -232,7 +232,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
-    return (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3) / 2;
+    uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3) / 2;
+    return x + (rand() % x) / 2;
 }
 
 /**
