@@ -222,7 +222,8 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         .capacity = 1,
         .targetPrefix = Address_getPrefix(targetAddress),
         .targetAddress = targetAddress,
-        .nodes = &element
+        .nodes = &element,
+        .logger = store->logger
     };
 
     collector.thisNodeDistance =
@@ -246,6 +247,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                                         count,
                                                         store->thisNodeAddress,
                                                         allowNodesFartherThanUs,
+                                                        store->logger,
                                                         allocator);
 
     // naive implementation, todo make this faster

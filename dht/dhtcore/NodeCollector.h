@@ -4,6 +4,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
+#include "log/Log.h"
 #include "memory/MemAllocator.h"
 
 #include <string.h>
@@ -35,6 +36,8 @@ struct NodeCollector
 
     /** The array of collected nodes, capacity long. */
     struct NodeCollector_Element* nodes;
+
+    struct Log* logger;
 };
 
 /**
@@ -48,6 +51,7 @@ struct NodeCollector
  * @param thisNodeAddress this node's address.
  * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
  *                                this is required for searches but unallowable for answering queries.
+ * @param logger
  * @param allocator the means of getting memory to store the collector.
  * @return a new collector.
  */
@@ -55,6 +59,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
                                                const uint32_t capacity,
                                                struct Address* thisNodeAddress,
                                                const bool allowNodesFartherThanUs,
+                                               struct Log* logger,
                                                const struct MemAllocator* allocator)
 {
     struct NodeCollector* out = allocator->malloc(sizeof(struct NodeCollector), allocator);
@@ -69,6 +74,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
     out->capacity = capacity;
     out->targetAddress = targetAddress;
     out->targetPrefix = Address_getPrefix(targetAddress);
+    out->logger = logger;
     if (allowNodesFartherThanUs) {
         out->thisNodeDistance = UINT32_MAX;
     } else {
@@ -99,6 +105,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                   collector->targetAddress,
                   Address_SEARCH_TARGET_SIZE) != 0)
     {
+        Log_debug(collector->logger, "Increasing distance because addr is not exact match.\n");
         nodeDistance++;
     }
 
@@ -117,14 +124,15 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
 
         uint32_t i;
         for (i = 0; i < collector->capacity; i++) {
-            if (nodeDistance == 0 && nodes[i].distance != 0) {
-                continue;
-            }
-            if (value == 0) {
-                if (nodes[i].value > 0 || nodes[i].distance < nodeDistance) {
+            if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
+                if (value == 0) {
+                    if (nodes[i].value > 0 || nodes[i].distance < nodeDistance) {
+                        break;
+                    }
+                } else if (value < nodes[i].value) {
                     break;
                 }
-            } else if (value < nodes[i].value) {
+            } else if (nodeDistance != 0) {
                 break;
             }
         }
