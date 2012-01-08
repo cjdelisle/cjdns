@@ -265,11 +265,9 @@ static uint8_t sendToSwitchFromCryptoAuth(struct Message* message, struct Interf
 
 static uint8_t receivedFromCryptoAuth(struct Message* message, struct Interface* iface);
 
-static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header,
-                                             uint8_t key[32],
-                                             struct Context* context)
+static inline struct Interface* getCaSession(uint8_t key[32], struct Context* context)
 {
-    int index = InterfaceMap_indexOf((uint8_t*) &header->label_be, context->ifMap);
+    int index = InterfaceMap_indexOf(key, context->ifMap);
     if (index > -1) {
         return context->ifMap->interfaces[index];
     }
@@ -299,7 +297,7 @@ static inline struct Interface* getCaSession(struct Headers_SwitchHeader* header
 
     struct timeval now;
     event_base_gettimeofday_cached(context->eventBase, &now);
-    InterfaceMap_put((uint8_t*) &header->label_be, iface, now.tv_sec, context->ifMap);
+    InterfaceMap_put(key, iface, now.tv_sec, context->ifMap);
 
     return iface;
 }
@@ -334,7 +332,7 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
     }
     header.label_be = sendTo->networkAddress_be;
     context->switchHeader = &header;
-    struct Interface* session = getCaSession(&header, sendTo->key, context);
+    struct Interface* session = getCaSession(sendTo->key, context);
     // This comes out in sendToSwitchFromCryptoAuth()
     return session->sendMessage(message, session);
 }
@@ -543,22 +541,24 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         }
         return 0;
     }
-/*
+
     struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
 
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
+    uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
     uint8_t* herKey;
     if (node) {
         herKey = node->address.key;
+    } else if (nonce > 3 && nonce < UINT32_MAX) {
+        Log_debug(context->logger, "Dropped traffic packet from unknown node.\n");
+        return 0;
     } else if (message->length < Headers_CryptoAuth_SIZE) {
         Log_debug(context->logger, "Dropped runt packet.\n");
         return 0;
     } else {
         herKey = caHeader->handshake.publicKey;
-    }*/
-
-    //uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
+    }
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
@@ -571,7 +571,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }*/
 
     // Nonce is <4, this is a crypto negotiation.
-    struct Interface* iface = getCaSession(switchHeader, NULL, context);
+    struct Interface* iface = getCaSession(herKey, context);
 
     // If it's past negotiation then copy the session into the node
     // then the ca session can be freed.
@@ -599,7 +599,7 @@ int Ducttape_register(Dict* config,
                       struct Log* logger)
 {
     struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
-    context->ifMap = InterfaceMap_new(8, allocator);
+    context->ifMap = InterfaceMap_new(32, allocator);
     context->registry = registry;
     context->routerModule = routerModule;
     context->switchCore = switchCore;

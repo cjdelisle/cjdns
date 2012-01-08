@@ -129,10 +129,6 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         uint32_t i;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                if (value == 0) {
-                    value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach
-                        | (64 - Bits_log2x64_be(body->address.networkAddress_be));
-                }
                 if (NodeCollector_getValue() < nodes[i].value) {
                     break;
                 }
