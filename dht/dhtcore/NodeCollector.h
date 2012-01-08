@@ -114,8 +114,12 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
     // Check that it's not farther from the target than we are...
     if (nodeDistance < collector->thisNodeDistance) {
 
-        uint64_t value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach;
-        value |= (64 - Bits_log2x64_be(body->address.networkAddress_be));
+        uint64_t value = 0;
+        #define NodeCollector_getValue() \
+            ((value == 0)                                                           \
+                ? (value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach   \
+                    | (64 - Bits_log2x64_be(body->address.networkAddress_be)))      \
+                : value)
 
         // 0 distance (match) always wins,
         // If both have 0 distance, highest reach wins.
@@ -126,10 +130,10 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
                 if (value == 0) {
-                    if (nodes[i].value > 0 || nodes[i].distance < nodeDistance) {
-                        break;
-                    }
-                } else if (value < nodes[i].value) {
+                    value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach
+                        | (64 - Bits_log2x64_be(body->address.networkAddress_be));
+                }
+                if (NodeCollector_getValue() < nodes[i].value) {
                     break;
                 }
             } else if (nodeDistance != 0) {
@@ -142,9 +146,11 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
-            nodes[i - 1].value = value;
+            nodes[i - 1].value = NodeCollector_getValue();
             nodes[i - 1].distance = nodeDistance;
         }
+
+        #undef NodeCollector_getValue
     }
 }
 
