@@ -206,6 +206,7 @@ static inline uint8_t incomingForMe(struct Message* message, struct Context* con
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
         addr.networkAddress_be = context->switchHeader->label_be;
+        memcpy(addr.key, key, 32);
         return incomingDHT(message, &addr, context);
     }
 
