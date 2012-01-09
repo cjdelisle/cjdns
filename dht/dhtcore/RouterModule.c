@@ -405,7 +405,7 @@ static void searchStep(struct SearchCallbackContext* scc)
 
     // Get the node from the nodestore because there might be a much better path to the same node.
     struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
-    if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address.ip6.bytes, 16)) {
+    if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address->ip6.bytes, 16)) {
         nextSearchNode->address = &n->address;
     }
 
