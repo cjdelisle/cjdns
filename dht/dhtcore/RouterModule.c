@@ -154,7 +154,7 @@
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
 /** The maximum number of requests to make before calling a search failed. */
-#define MAX_REQUESTS_PER_SEARCH 100
+#define MAX_REQUESTS_PER_SEARCH 8
 
 /** Maximum number of concurrent pings. */
 #define MAX_CONCURRENT_PINGS 16
@@ -232,7 +232,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
-    uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3) / 2;
+    uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3);
     return x + (rand() % x) / 2;
 }
 
@@ -405,7 +405,7 @@ static void searchStep(struct SearchCallbackContext* scc)
 
     // Get the node from the nodestore because there might be a much better path to the same node.
     struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
-    if (n) {
+    if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address.ip6.bytes, 16)) {
         nextSearchNode->address = &n->address;
     }
 
