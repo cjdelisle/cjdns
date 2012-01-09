@@ -403,6 +403,12 @@ static void searchStep(struct SearchCallbackContext* scc)
         return;
     }
 
+    // Get the node from the nodestore because there might be a much better path to the same node.
+    struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
+    if (n) {
+        nextSearchNode->address = &n->address;
+    }
+
     sendRequest(nextSearchNode->address,
                 scc->requestType,
                 SearchStore_tidForNode(nextSearchNode, searchAllocator),
