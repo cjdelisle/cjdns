@@ -245,6 +245,9 @@ static inline uint8_t sendToSwitch(struct Message* message,
         memmove(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
     }
 
+    // This is a test to trap a bug.
+    assert(Headers_getPriority(destinationSwitchHeader) == 0);
+
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
