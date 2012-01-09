@@ -424,10 +424,14 @@ static void searchStep(struct SearchCallbackContext* scc)
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
+    struct Node* n = NodeStore_getNode(scc->routerModule->nodeStore, scc->lastNodeCalled->address);
+
     // Search timeout -> set to 0 reach.
-    NodeStore_addNode(scc->routerModule->nodeStore,
-                      scc->lastNodeCalled->address,
-                      INT64_MIN);
+    if (n) {
+        n->reach = 0;
+        NodeStore_updateReach(n, scc->routerModule->nodeStore);
+    }
+
     searchStep(scc);
 }
 
