@@ -150,6 +150,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 
     context->ip6Header = &header;
     context->forwardTo = dmessage->address;
+    context->switchHeader = NULL;
 
     struct Interface* session =
         SessionManager_getSession(dmessage->address->ip6.bytes, dmessage->address->key, context->sm);
