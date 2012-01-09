@@ -156,6 +156,13 @@ void NodeStore_addNode(struct NodeStore* store,
 
                 return;
             }
+            #ifdef Log_DEBUG
+                else if (store->headers[i].addressPrefix == pfx) {
+                    uint8_t realAddr[16];
+                    AddressCalc_addressForPublicKey(realAddr, addr->key);
+                    assert(!memcmp(realAddr, addr->ip6.bytes, 16));
+                }
+            #endif
         }
 
         #ifdef Log_DEBUG
