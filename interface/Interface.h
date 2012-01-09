@@ -7,6 +7,12 @@
 
 #define Interface_ERROR_WRONG_STATE 256
 
+#define Interface_CALLBACK(name) \
+    uint8_t (* name)(struct Message* message, struct Interface* thisInterface)
+
+#define Interface_CONST_CALLBACK(name) \
+    uint8_t (* const name)(struct Message* message, struct Interface* thisInterface)
+
 /**
  * An interface.
  * All interfaces are point-to-point, no addressing is done at this level.
@@ -34,7 +40,7 @@ struct Interface
      * @return 0 If all goes well, non-zero in case of an error.
      *           See Error.h for more information about interface error codes.
      */
-    uint8_t (* const sendMessage)(struct Message* message, struct Interface* thisInterface);
+    Interface_CONST_CALLBACK(sendMessage);
 
     /** Used to allocate this interface, the interface will close when this allocator is freed. */
     struct MemAllocator* const allocator;
@@ -53,7 +59,7 @@ struct Interface
      * @return 0 If all goes well, non-zero in case of an error.
      *           See Error.h for more information about interface error codes.
      */
-    uint8_t (* receiveMessage)(struct Message* received, struct Interface* thisInterface);
+    Interface_CALLBACK(receiveMessage);
 };
 
 
