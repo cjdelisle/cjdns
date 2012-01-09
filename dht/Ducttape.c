@@ -584,8 +584,8 @@ int Ducttape_register(Dict* config,
     Address_getPrefix(&context->myAddr);
 
     context->sm = SessionManager_new(16,
-                                     outgoingFromCryptoAuth,
                                      incomingFromCryptoAuth,
+                                     outgoingFromCryptoAuth,
                                      context,
                                      eventBase,
                                      cryptoAuth,
