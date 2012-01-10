@@ -503,7 +503,7 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
         if (i == index) {
             continue;
         }
-        if (memcmp(&nodes->bytes[index], &nodes->bytes[i], Address_KEY_SIZE)) {
+        if (memcmp(&nodes->bytes[index], &nodes->bytes[i], Address_KEY_SIZE) == 0) {
             return true;
         }
     }
