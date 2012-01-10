@@ -13,13 +13,14 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
 {
     uint64_t goHere = Endian_bigEndianToHost64(goHere_be);
     uint64_t viaHere = Endian_bigEndianToHost64(viaHere_be);
+    uint64_t log2ViaHere = Bits_log2x64(viaHere);
 
-    if (Bits_log264(goHere) + Bits_log264(viaHere) > 61) {
+    if (Bits_log2x64(goHere) + log2ViaHere > 61) {
         // Too big, can't splice.
         return UINT64_MAX;
     }
 
-    return Endian_hostToBigEndian64(((goHere ^ 1) << Bits_log264(viaHere)) ^ viaHere);
+    return Endian_hostToBigEndian64(((goHere ^ 1) << log2ViaHere) ^ viaHere);
 }
 
 /**

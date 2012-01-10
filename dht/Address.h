@@ -152,10 +152,10 @@ static inline int Address_checkRedundantRoute(struct Address* addrA, struct Addr
     uint64_t addrBNet = Endian_bigEndianToHost64(addrB->networkAddress_be);
 
     if (addrANet > addrBNet) {
-        uint64_t mask = (1 << Bits_log264(addrBNet)) - 1;
+        uint64_t mask = (1 << Bits_log2x64(addrBNet)) - 1;
         return (addrANet & mask) == (addrBNet & mask);
     } else {
-        uint64_t mask = (1 << Bits_log264(addrANet)) - 1;
+        uint64_t mask = (1 << Bits_log2x64(addrANet)) - 1;
         return -((addrANet & mask) == (addrBNet & mask));
     }
 }
