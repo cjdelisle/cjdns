@@ -175,10 +175,11 @@ static void* allocatorRealloc(const void* original,
     struct Allocation* nextLoc = origLoc->next;
 
     size_t realSize = sizeof(struct Allocation) + size;
-    if (*(context->spaceAvailable) <= realSize - origLoc->size) {
+    if (*(context->spaceAvailable) + origLoc->size < realSize) {
         failure("Out of memory, limit exceeded.");
     }
-    *(context->spaceAvailable) -= realSize - origLoc->size;
+    *(context->spaceAvailable) += origLoc->size;
+    *(context->spaceAvailable) -= realSize;
 
     struct Allocation* alloc = realloc(origLoc, realSize);
 
