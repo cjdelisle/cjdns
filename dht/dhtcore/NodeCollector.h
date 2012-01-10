@@ -135,7 +135,9 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                 if (NodeCollector_getValue() < nodes[i].value) {
                     break;
                 }
-                if (memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0) {
+                if (nodes[i].body
+                    && memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0)
+                {
                     match = i + 1;
                 }
             } else if (nodeDistance != 0) {
