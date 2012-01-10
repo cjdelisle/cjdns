@@ -232,7 +232,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  */
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
-    uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 3);
+    uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
     return x + (rand() % x) / 2;
 }
 
@@ -439,10 +439,10 @@ static void searchRequestTimeout(void* vcontext)
             uint8_t addr[60];
             Address_print(addr, &n->address);
             Log_debug1(scc->routerModule->logger,
-                       "Search timeout for %s, setting reach to 0\n", addr);
+                       "Search timeout for %s, halving reach\n", addr);
         #endif
 
-        n->reach = 0;
+        n->reach /= 2;
         NodeStore_updateReach(n, scc->routerModule->nodeStore);
     }
 
