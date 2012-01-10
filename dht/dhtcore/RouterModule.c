@@ -489,6 +489,28 @@ static inline int xorCompare(struct Address* target,
 }
 
 /**
+ * Spot a duplicate entry in a node list.
+ * If a router sends a response containing duplicate entries,
+ * only the last (best) entry should be accepted.
+ *
+ * @param nodes the list of nodes.
+ * @param index the index of the entry to check for being a duplicate.
+ * @return true if duplicate, otherwise false.
+ */
+static inline bool isDuplicateEntry(String* nodes, uint32_t index)
+{
+    for (uint32_t i = index; i < nodes->len; i += Address_SERIALIZED_SIZE) {
+        if (i == index) {
+            continue;
+        }
+        if (memcmp(&nodes->bytes[index], &nodes->bytes[i], Address_KEY_SIZE)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Handle an incoming reply to one of our queries.
  * This will handle the reply on the incoming direction.
  *
@@ -544,6 +566,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += Address_SERIALIZED_SIZE) {
+        if (isDuplicateEntry(nodes, i)) {
+            continue;
+        }
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
         uint32_t newNodePrefix = Address_getPrefix(&addr);
