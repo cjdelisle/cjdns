@@ -148,7 +148,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         if (i > 0) {
             if (match > 0) {
                 i = match;
-            } if (i > 1) {
+            } else if (i > 1) {
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
