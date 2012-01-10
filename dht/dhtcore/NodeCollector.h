@@ -13,6 +13,7 @@
 struct NodeCollector_Element
 {
     struct NodeHeader* node;
+    struct Node* body;
     uint64_t value;
     uint32_t distance;
 };
@@ -69,6 +70,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
         out->nodes[i].value = 0;
         out->nodes[i].distance = UINT32_MAX;
         out->nodes[i].node = NULL;
+        out->nodes[i].body = NULL;
     }
 
     out->capacity = capacity;
@@ -127,10 +129,14 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         // Otherwise highest value wins.
 
         uint32_t i;
+        uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
                 if (NodeCollector_getValue() < nodes[i].value) {
                     break;
+                }
+                if (memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0) {
+                    match = i + 1;
                 }
             } else if (nodeDistance != 0) {
                 break;
@@ -138,10 +144,13 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         }
 
         if (i > 0) {
-            if (i > 1) {
+            if (match > 0) {
+                i = match;
+            } if (i > 1) {
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
+            nodes[i - 1].body = body;
             nodes[i - 1].value = NodeCollector_getValue();
             nodes[i - 1].distance = nodeDistance;
         }

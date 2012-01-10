@@ -69,6 +69,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
                 memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
+            nodes[i - 1].body = body;
             nodes[i - 1].value = reachAndPath;
             nodes[i - 1].distance = nodeDistance;
         }
