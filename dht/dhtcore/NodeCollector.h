@@ -132,10 +132,11 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                if (NodeCollector_getValue() < nodes[i].value) {
+                if (NodeCollector_getValue() <= nodes[i].value) {
                     break;
                 }
-                if (nodes[i].body
+                if (i > 0
+                    && nodes[i].body
                     && memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0)
                 {
                     match = i + 1;
