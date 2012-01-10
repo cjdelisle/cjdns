@@ -243,6 +243,39 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
     return element.node ? nodeForHeader(element.node, store) : NULL;
 }
 
+struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
+                                          const uint32_t max,
+                                          const struct MemAllocator* allocator,
+                                          struct NodeStore* store)
+{
+    struct NodeCollector* collector = NodeCollector_new(address,
+                                                        max,
+                                                        store->thisNodeAddress,
+                                                        true,
+                                                        store->logger,
+                                                        allocator);
+
+    for (uint32_t i = 0; i < store->size; i++) {
+        DistanceNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
+    }
+
+    struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
+    out->nodes = allocator->malloc(max * sizeof(char*), allocator);
+
+    uint32_t outIndex = 0;
+    for (uint32_t i = 0; i < max; i++) {
+        if (collector->nodes[i].node != NULL
+            && !memcmp(collector->nodes[i].body->address.ip6.bytes, address->ip6.bytes, 16))
+        {
+            out->nodes[outIndex] = collector->nodes[i].body;
+            outIndex++;
+        }
+    }
+    out->size = outIndex;
+
+    return out;
+}
+
 /** See: NodeStore.h */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
@@ -259,7 +292,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
 
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
-        DistanceNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
+        NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
     struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);

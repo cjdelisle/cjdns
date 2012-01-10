@@ -25,15 +25,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Log* logger);
 
 /**
- * Find a node in the store.
- *
- * @param store a store to get the node from.
- * @param addr the identifier for the node to lookup.
- * @return A pointer to the node if one is found, otherwise NULL.
- */
-struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* addr);
-
-/**
  * Put a node into the store.
  *
  * @param store a node store to insert into.
@@ -49,6 +40,11 @@ void NodeStore_addNode(struct NodeStore* store,
                        const int64_t reachDiff);
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
+
+struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
+                                          const uint32_t max,
+                                          const struct MemAllocator* allocator,
+                                          struct NodeStore* store);
 
 /**
  * Get the best nodes for servicing a lookup.

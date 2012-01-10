@@ -178,6 +178,8 @@ struct RouterModule_Search
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 
+int RouterModule_pingNode(struct Node* node, struct RouterModule* module);
+
 /*--------------------Interface--------------------*/
 
 /**
@@ -430,7 +432,8 @@ static void searchStep(struct SearchCallbackContext* scc)
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
-    struct Node* n = NodeStore_getNode(scc->routerModule->nodeStore, scc->lastNodeCalled->address);
+    struct Node* n = NodeStore_getNodeByNetworkAddr(scc->lastNodeCalled->address->networkAddress_be,
+                                                    scc->routerModule->nodeStore);
 
     // Search timeout -> set to 0 reach.
     if (n) {
@@ -444,6 +447,16 @@ static void searchRequestTimeout(void* vcontext)
 
         n->reach /= 2;
         NodeStore_updateReach(n, scc->routerModule->nodeStore);
+    }
+
+    struct NodeList* nl = NodeStore_getNodesByAddr(scc->lastNodeCalled->address,
+                                                   16,
+                                                   SearchStore_getAllocator(scc->search),
+                                                   scc->routerModule->nodeStore);
+
+    if (nl->size > 0) {
+        RouterModule_pingNode(nl->nodes[rand() % nl->size], scc->routerModule);
+        RouterModule_pingNode(nl->nodes[rand() % nl->size], scc->routerModule);
     }
 
     searchStep(scc);
