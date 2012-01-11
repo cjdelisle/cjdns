@@ -517,14 +517,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 return 0;
             }
             uint32_t errType_be = ctrl->content.error.errorType_be;
-            if (errType_be == Endian_bigEndianToHost16(Error_MALFORMED_ADDRESS)) {
+            if (errType_be == Endian_bigEndianToHost32(Error_MALFORMED_ADDRESS)) {
                 Log_info(context->logger, "Got malformed-address error, removing route.\n");
                 RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
                 return 0;
             }
             Log_info1(context->logger,
                       "Got error packet, error type: %d",
-                      Endian_bigEndianToHost16(errType_be));
+                      Endian_bigEndianToHost32(errType_be));
         }
         return 0;
     }

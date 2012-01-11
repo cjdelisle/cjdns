@@ -161,7 +161,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     if (sourceIfIndex == destIndex) {
         Log_debug(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+        return Error_NONE;
     }
 
     struct SwitchInterface* destIf = &core->interfaces[destIndex];
@@ -171,7 +171,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     if (Headers_getMessageType(header) == MessageType_CONTROL) {
         struct Control* ctrl = &((struct ErrorPacket*) header)->ctrl;
         if (ctrl->type_be == Control_ERROR_be
-            && ctrl->content.error.errorType_be == ntohs(Error_FLOOD))
+            && ctrl->content.error.errorType_be == Endian_hostToBigEndian32(Error_FLOOD))
         {
             sourceIf->congestion += Headers_getPriority(header);
         }
