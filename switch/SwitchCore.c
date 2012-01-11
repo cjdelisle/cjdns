@@ -158,6 +158,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
+
+    if (sourceIfIndex == destIndex) {
+        Log_debug(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
+        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+    }
+
     struct SwitchInterface* destIf = &core->interfaces[destIndex];
 
     // If this happens to be an Error_FLOOD packet, we will react by
