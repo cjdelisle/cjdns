@@ -336,6 +336,7 @@ static uint8_t genReverseHandshake(struct Message* message,
                          wrapper->externalInterface.allocator);
         assert(wrapper->nextNonce == 0);
     }
+    wrapper->hasBufferedMessage = true;
 
     Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
@@ -761,11 +762,12 @@ static uint8_t decryptHandshake(struct Wrapper* wrapper,
 
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->bufferedMessage && message->length == 0) {
+    if (wrapper->hasBufferedMessage && message->length == 0) {
         Log_debug(wrapper->context->logger, "Sending buffered message.\n");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
+        wrapper->hasBufferedMessage = false;
         return Error_NONE;
-    } else if (wrapper->bufferedMessage) {
+    } else if (wrapper->hasBufferedMessage) {
         Log_debug(wrapper->context->logger, "There is a buffered message.\n");
     }
 

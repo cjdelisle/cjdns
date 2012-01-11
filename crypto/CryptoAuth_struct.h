@@ -95,6 +95,9 @@ struct Wrapper
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
     bool requireAuth : 1;
 
+    /** True if there is a message which is buffered until a connection is setup. */
+    bool hasBufferedMessage : 1;
+
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth* const context;
 
