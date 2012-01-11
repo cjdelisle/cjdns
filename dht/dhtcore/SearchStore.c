@@ -2,6 +2,7 @@
 
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"
+#include "log/Log.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
 #include "util/Time.h"
@@ -75,11 +76,13 @@ struct SearchNodeIndex
 
 /** See: SearchStore.h */
 struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
-                                    struct AverageRoller* gmrtRoller)
+                                    struct AverageRoller* gmrtRoller,
+                                    struct Log* logger)
 {
     struct SearchStore* out = allocator->calloc(sizeof(struct SearchStore), 1, allocator);
     out->allocator = allocator;
     out->gmrtRoller = gmrtRoller;
+    out->logger = logger;
     return out;
 }
 
@@ -324,10 +327,11 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
 {
     struct SearchNode* searchNode = &store->searches[node->searchIndex]->nodes[node->nodeIndex];
     uint32_t delay = Time_currentTimeMilliseconds() - searchNode->timeOfRequest;
-    // If it's an old stray reply then don't put it in the GMRT
-    if (delay <  AverageRoller_getAverage(store->gmrtRoller) * 2) {
-        AverageRoller_update(store->gmrtRoller, delay);
-    }
+    AverageRoller_update(store->gmrtRoller, delay);
+    Log_debug2(store->logger,
+               "Received response in %u milliseconds, gmrt now %u",
+               delay,
+               AverageRoller_getAverage(store->gmrtRoller));
     searchNode->delayUntilReply = delay;
 }
 

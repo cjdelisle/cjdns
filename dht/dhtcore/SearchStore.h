@@ -6,6 +6,7 @@
 #include "dht/Address.h"
 #include "memory/MemAllocator.h"
 #include "libbenc/benc.h"
+#include "log/Log.h"
 #include "util/AverageRoller.h"
 
 
@@ -48,6 +49,8 @@ struct SearchStore
 
     /** Averager for milliseconds wait for request turnaround. */
     struct AverageRoller* gmrtRoller;
+
+    struct Log* logger;
 };
 
 struct SearchStore_Node;
@@ -81,9 +84,11 @@ struct SearchStore_TraceElement
  *
  * @param allocator the means of aquiring memory for the new store.
  * @param gmrtRoller averager of the mean response time for all nodes.
+ * @param logger
  */
 struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
-                                    struct AverageRoller* gmrtRoller);
+                                    struct AverageRoller* gmrtRoller,
+                                    struct Log* logger);
 
 /**
  * Create a new search.

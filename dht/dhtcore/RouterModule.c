@@ -209,7 +209,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->searchStore = SearchStore_new(allocator, out->gmrtRoller);
+    out->searchStore = SearchStore_new(allocator, out->gmrtRoller, logger);
     out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger);
     out->registry = registry;
     out->eventBase = eventBase;
@@ -235,7 +235,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
-    return x + (rand() % x) / 2;
+    return x + (rand() % (x | 1)) / 2;
 }
 
 /**
@@ -380,6 +380,9 @@ struct SearchCallbackContext
     String* const targetKey;
 
     struct SearchStore_Node* lastNodeCalled;
+
+    /** The number of milliseconds before timing out a request. */
+    uint64_t timeoutMilliseconds;
 };
 
 /**
@@ -421,7 +424,8 @@ static void searchStep(struct SearchCallbackContext* scc)
     scc->totalRequests++;
     scc->lastNodeCalled = nextSearchNode;
     SearchStore_requestSent(nextSearchNode, module->searchStore);
-    Timeout_resetTimeout(scc->timeout, tryNextNodeAfter(module));
+    scc->timeoutMilliseconds = tryNextNodeAfter(module);
+    Timeout_resetTimeout(scc->timeout, scc->timeoutMilliseconds);
 }
 
 /**
@@ -441,8 +445,10 @@ static void searchRequestTimeout(void* vcontext)
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &n->address);
-            Log_debug1(scc->routerModule->logger,
-                       "Search timeout for %s, halving reach\n", addr);
+            Log_debug2(scc->routerModule->logger,
+                       "Search timeout for %s, after %lums. halving reach\n",
+                       addr,
+                       (unsigned long)scc->timeoutMilliseconds);
         #endif
 
         n->reach /= 2;
@@ -796,9 +802,11 @@ struct RouterModule_Search* RouterModule_beginSearch(
     struct SearchCallbackContext* scc =
         searchAllocator->malloc(sizeof(struct SearchCallbackContext), searchAllocator);
 
+    scc->timeoutMilliseconds = tryNextNodeAfter(module);
+
     struct Timeout* timeout = Timeout_setTimeout(searchRequestTimeout,
                                                  scc,
-                                                 tryNextNodeAfter(module),
+                                                 scc->timeoutMilliseconds,
                                                  module->eventBase,
                                                  searchAllocator);
 
