@@ -19,14 +19,14 @@
 #define SCHEME_THREE_BITS 13
 static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label)
 {
-    if ((label & GET_MAX(3)) == GET_MAX(3)) {
-        if ((label & GET_MAX(4)) == GET_MAX(4)) {
+    if ((label & GET_MAX(4)) == GET_MAX(3)) {
+        if ((label & GET_MAX(5)) == GET_MAX(4)) {
             return SCHEME_THREE_BITS;
         } else {
             return SCHEME_TWO_BITS;
         }
     } else {
-        if ((label & GET_MAX(2)) == GET_MAX(2)) {
+        if ((label & GET_MAX(3)) == GET_MAX(2)) {
             return SCHEME_ONE_BITS;
         } else {
             return SCHEME_ZERO_BITS;
@@ -37,7 +37,7 @@ static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label)
 static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number)
 {
     if (number > 15) {
-        return (number > 15) ? SCHEME_THREE_BITS : SCHEME_TWO_BITS;
+        return (number > 63) ? SCHEME_THREE_BITS : SCHEME_TWO_BITS;
     } else {
         return (number >  2) ? SCHEME_ONE_BITS : SCHEME_ZERO_BITS;
     }
