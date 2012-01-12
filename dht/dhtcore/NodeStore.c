@@ -7,6 +7,7 @@
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
 #include "log/Log.h"
+#include "switch/NumberCompress.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -55,12 +56,20 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* ad
     return &store->nodes[bestIndex];
 }
 
+static inline uint32_t getSwitchIndex(struct Address* addr)
+{
+    uint64_t label = Endian_bigEndianToHost64(addr->networkAddress_be);
+    uint32_t bits = NumberCompress_bitsUsedForLabel(label);
+    return NumberCompress_getDecompressed(label, bits);
+}
+
 static inline void replaceNode(struct Node* const nodeToReplace,
                                struct NodeHeader* const headerToReplace,
                                struct Address* addr)
 {
     headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
+    headerToReplace->switchIndex = getSwitchIndex(addr);
     memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
@@ -279,6 +288,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
 /** See: NodeStore.h */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
+                                           struct Address* requestorsAddress,
                                            const uint32_t count,
                                            const bool allowNodesFartherThanUs,
                                            const struct MemAllocator* allocator)
@@ -290,8 +300,14 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                                         store->logger,
                                                         allocator);
 
+    // Don't send nodes which route back to the node which asked us.
+    uint32_t index = (requestorsAddress) ? getSwitchIndex(requestorsAddress) : 0;
+
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
+        if (requestorsAddress && store->headers[i].switchIndex == index) {
+            continue;
+        }
         NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 

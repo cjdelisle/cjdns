@@ -704,6 +704,7 @@ static inline int handleQuery(struct DHTMessage* message,
     // send the closest nodes
     struct NodeList* nodeList = NodeStore_getClosestNodes(module->nodeStore,
                                                           &targetAddr,
+                                                          query->address,
                                                           RouterModule_K + 5,
                                                           false,
                                                           message->allocator);
@@ -771,6 +772,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     struct NodeList* nodes =
         NodeStore_getClosestNodes(module->nodeStore,
                                   &targetAddr,
+                                  NULL,
                                   RouterModule_K,
                                   true,
                                   searchAllocator);
