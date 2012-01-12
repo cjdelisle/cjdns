@@ -129,9 +129,9 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
-    const uint32_t sourceIfIndex = sourceIf - core->interfaces;
+    const uint32_t sourceIndex = sourceIf - core->interfaces;
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
-    const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIfIndex);
+    const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
 
     if (sourceBits > bits) {
         // If the destination index is this router, don't drop the packet since there no
@@ -144,6 +144,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
             }
+            bits = sourceBits;
         } else {
             Log_debug(sourceIf->core->logger, "Dropped packet because source address is "
                                               "larger than destination address.\n");
@@ -159,7 +160,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    if (sourceIfIndex == destIndex) {
+    if (sourceIndex == destIndex) {
         Log_debug(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
         return Error_NONE;
     }
@@ -198,7 +199,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be =
         Endian_hostToBigEndian64(
-            (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIfIndex, bits)));
+            (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits)));
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
