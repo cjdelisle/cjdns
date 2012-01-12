@@ -131,8 +131,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
-    const uint32_t sourceBits =
-        (sourceIndex == 1) ? 2 : NumberCompress_bitsUsedForNumber(sourceIndex);
+    const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
 
     if (sourceBits > bits) {
         // If the destination index is this router, don't drop the packet since there no
@@ -198,9 +197,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    header->label_be =
-        Endian_hostToBigEndian64(
-            (label >> bits) | Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits)));
+    // Sending from the router is a special case, all from-router messages have same label.
+    uint64_t sourceLabel = (sourceIndex == 1)
+        ? Bits_bitReverse64(NumberCompress_getCompressed(1, 2))
+        : Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
+
+    header->label_be = Endian_hostToBigEndian64((label >> bits) | sourceLabel);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
