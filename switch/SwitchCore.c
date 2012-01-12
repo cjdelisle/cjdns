@@ -131,7 +131,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
-    const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
+    const uint32_t sourceBits =
+        (sourceIndex == 1) ? 2 : NumberCompress_bitsUsedForNumber(sourceIndex);
 
     if (sourceBits > bits) {
         // If the destination index is this router, don't drop the packet since there no
