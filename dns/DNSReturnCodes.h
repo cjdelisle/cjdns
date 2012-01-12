@@ -1,3 +1,16 @@
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #define DNS_RETURN_NO_ERROR        0  /* No error. The request completed successfully.	RFC 1035 */
 #define DNS_RETURN_FORMAT_ERROR    1  /* The name server was unable to interpret the query.	RFC 1035 */
 #define DNS_RETURN_SERVER_FAILURE  2  /* The name server was unable to process this query due to a problem
