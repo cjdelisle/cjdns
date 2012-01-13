@@ -169,9 +169,6 @@
 /** The maximum number of requests to make before calling a search failed. */
 #define MAX_REQUESTS_PER_SEARCH 8
 
-/** Maximum number of concurrent pings. */
-#define MAX_CONCURRENT_PINGS 16
-
 /**
  * The number of times the GMRT before pings should be timed out,
  * 4 means 12% of pings will drop.
@@ -571,7 +568,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         Log_debug(module->logger, "Got non-search reply.\n");
         uint16_t index;
         memcpy(&index, tid->bytes, 2);
-        if (index < MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
+        if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
             #ifdef Log_DEBUG
                 uint8_t printedAddr[60];
                 Address_print(printedAddr, message->address);
@@ -580,7 +577,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             Timeout_clearTimeout(module->pingTimers[index]);
             module->pingTimers[index] = NULL;
         } else if (Log_DEBUG) {
-            Log_debug1(module->logger, "Looks like a ping but unrecognized slot. slot=%d\n", index);
+            Log_debug1(module->logger,
+                       "Looks like a ping but unrecognized slot. slot=%d\n",
+                       (int) index);
         }
         return 0;
     }
@@ -933,6 +932,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
     for (i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
         if (module->pingTimers[i] == NULL) {
             location = &module->pingTimers[i];
+            break;
         }
     }
     uint8_t index[2];
