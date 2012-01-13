@@ -57,7 +57,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
         // NOTE: in this implementation, the value field holds
         //       reach and inverse of log2 of path.
 
-        uint32_t reachAndPath;
+        uint32_t reachAndPath = 0;
 
         uint32_t i;
         for (i = 0; i < collector->capacity; i++) {

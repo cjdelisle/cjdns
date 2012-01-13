@@ -367,9 +367,8 @@ void NodeStore_dumpTables(struct Writer* writer, struct NodeStore* store)
         uint8_t out[60];
         Address_print(out, &store->nodes[i].address);
         writer->write(out, 60, writer);
-        char reachDec[48];
-        snprintf(reachDec, 48, " reach = %u\n", store->headers[i].reach);
-        writer->write(reachDec, strlen(reachDec), writer);
+        snprintf((char*)out, 60, " link quality = %u\n", store->headers[i].reach);
+        writer->write(out, strlen((char*)out), writer);
     }
 }
 
