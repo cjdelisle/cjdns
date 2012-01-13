@@ -568,6 +568,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
     if (nodes == NULL && tid && tid->len == 2) {
+        Log_debug(module->logger, "Got non-search reply.\n");
         uint16_t index;
         memcpy(&index, tid->bytes, 2);
         if (index < MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
@@ -582,6 +583,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return 0;
     }
     if (nodes == NULL || nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0) {
+        Log_debug(module->logger, "Dropping unrecognized reply.\n");
         return -1;
     }
 
