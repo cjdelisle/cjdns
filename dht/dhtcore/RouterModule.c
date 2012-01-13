@@ -571,6 +571,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         uint16_t index;
         memcpy(&index, tid->bytes, 2);
         if (index < MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
+            #ifdef Log_DEBUG
+                uint8_t printedAddr[60];
+                Address_print(printedAddr, message->address);
+                Log_debug1(module->logger, "Got pong! %s\n", printedAddr);
+            #endif
             Timeout_clearTimeout(module->pingTimers[index]);
             module->pingTimers[index] = NULL;
         }
@@ -865,6 +870,19 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
     SearchStore_freeSearch(toCancel->search);
 }
 
+int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module)
+{
+    struct Node* n = NULL;
+    for (int i = 0;; i++) {
+        n = NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
+        if (n) {
+            NodeStore_remove(n, module->nodeStore);
+            continue;
+        }
+        return i;
+    }
+}
+
 struct Ping
 {
     struct RouterModule* module;
@@ -880,11 +898,11 @@ void pingTimeoutCallback(void* vping)
     #ifdef Log_DEBUG
         uint8_t addr[60];
         Address_print(addr, &ping->node->address);
-        Log_debug1(module->logger, "Ping timeout for %s, setting reach to 0\n", addr);
+        Log_debug1(module->logger, "Ping timeout for %s, removing entry.\n", addr);
     #endif
 
-    ping->node->reach = 0;
-    NodeStore_updateReach(ping->node, ping->module->nodeStore);
+    RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
+
     bool freeAlloc = true;
     for (int i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
         if (ping->timeout == module->pingTimers[i]) {
@@ -952,19 +970,6 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module)
     struct Node* best = RouterModule_getBest(address->ip6.bytes, module);
     if (best && best->address.networkAddress_be != address->networkAddress_be) {
         RouterModule_pingNode(best, module);
-    }
-}
-
-int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module)
-{
-    struct Node* n = NULL;
-    for (int i = 0;; i++) {
-        n = NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
-        if (n) {
-            NodeStore_remove(n, module->nodeStore);
-            continue;
-        }
-        return i;
     }
 }
 
