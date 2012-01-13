@@ -592,9 +592,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     // and another search is taking place in the same slot, drop this reply because it is late.
     if (!Address_isSame(parent->address, message->address)) {
         #ifdef Log_DEBUG
-            uint8_t expectedAddr[20];
+            uint8_t expectedAddr[60];
             Address_print(expectedAddr, parent->address);
-            uint8_t receivedAddr[20];
+            uint8_t receivedAddr[60];
             Address_print(receivedAddr, message->address);
             Log_debug2(module->logger,
                        "Got return packet from different address than search was sent!\n"
