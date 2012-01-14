@@ -53,6 +53,22 @@ struct SessionManager
     struct CryptoAuth* cryptoAuth;
 };
 
+static void cleanup(void* vsm)
+{
+    struct SessionManager* sm = (struct SessionManager*) vsm;
+    struct timeval now;
+    event_base_gettimeofday_cached(sm->eventBase, &now);
+    uint32_t nowSeconds = now.tv_sec;
+    for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
+        if (sm->ifaceMap.lastMessageTimes[i] < (nowSeconds - SESSION_TIMEOUT_SECONDS)) {
+            struct MemAllocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
+            ifAllocator->free(ifAllocator);
+            InterfaceMap_remove(i, &sm->ifaceMap);
+            i--;
+        }
+    }
+}
+
 struct Interface* SessionManager_getSession(uint8_t* lookupKey,
                                             uint8_t cryptoKey[32],
                                             struct SessionManager* sm)
@@ -62,6 +78,9 @@ struct Interface* SessionManager_getSession(uint8_t* lookupKey,
 
     int ifaceIndex = InterfaceMap_indexOf(lookupKey, &sm->ifaceMap);
     if (ifaceIndex == -1) {
+        // Make sure cleanup() doesn't get behind.
+        cleanup(sm);
+
         struct MemAllocator* ifAllocator = sm->allocator->child(sm->allocator);
         struct Interface* outsideIf =
             ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
@@ -92,22 +111,6 @@ struct Interface* SessionManager_getSession(uint8_t* lookupKey,
     }
 
     return sm->ifaceMap.interfaces[ifaceIndex];
-}
-
-static void cleanup(void* vsm)
-{
-    struct SessionManager* sm = (struct SessionManager*) vsm;
-    struct timeval now;
-    event_base_gettimeofday_cached(sm->eventBase, &now);
-    uint32_t nowSeconds = now.tv_sec;
-    for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
-        if (sm->ifaceMap.lastMessageTimes[i] < (nowSeconds - SESSION_TIMEOUT_SECONDS)) {
-            struct MemAllocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
-            ifAllocator->free(ifAllocator);
-            InterfaceMap_remove(i, &sm->ifaceMap);
-            i--;
-        }
-    }
 }
 
 struct SessionManager* SessionManager_new(uint16_t keySize,

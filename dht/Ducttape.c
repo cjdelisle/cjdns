@@ -14,6 +14,7 @@
 #include "crypto/CryptoAuth.h"
 #include "log/Log.h"
 #include "dht/Address.h"
+#include "dht/AddressMapper.h"
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -66,6 +67,8 @@ struct Context
     struct Address myAddr;
 
     struct SessionManager* sm;
+
+    struct AddressMapper addrMap;
 
     struct event_base* eventBase;
 
@@ -473,8 +476,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     assert(false);
 }
 
-static inline uint8_t* extractPublicKey(struct Node* node,
-                                        struct Message* message,
+static inline uint8_t* extractPublicKey(struct Message* message,
                                         uint64_t switchLabel_be,
                                         struct Log* logger)
 {
@@ -482,16 +484,6 @@ static inline uint8_t* extractPublicKey(struct Node* node,
     uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
     if (nonce > 3 && nonce < UINT32_MAX) {
-        if (node) {
-            return node->address.key;
-        }
-        #ifdef Log_DEBUG
-            uint8_t switchAddr[20];
-            struct Address addr;
-            addr.networkAddress_be = switchLabel_be;
-            Address_printNetworkAddress(switchAddr, &addr);
-            Log_debug1(logger, "Dropped traffic packet from unknown node. (%s)\n", &switchAddr);
-        #endif
         return NULL;
     }
 
@@ -500,9 +492,7 @@ static inline uint8_t* extractPublicKey(struct Node* node,
         return NULL;
     }
 
-    return (node && !memcmp(node->address.key, caHeader->handshake.publicKey, 32))
-        ? node->address.key
-        : caHeader->handshake.publicKey;
+    return caHeader->handshake.publicKey;
 }
 
 /**
@@ -542,31 +532,33 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return 0;
     }
 
-    struct Node* node = RouterModule_getNode(switchHeader->label_be, context->routerModule);
-    uint8_t* herKey = extractPublicKey(node, message, switchHeader->label_be, context->logger);
-
-    if (!herKey) {
-        // Whatever happened, it's logged in extractPublicKey()
-        return 0;
-    }
-
-    uint8_t* herAddr;
-    if (!node || herKey != node->address.key) {
-        if (node) {
-            Log_info(context->logger, "Got message from new node at old route, removing route.\n");
-            RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
-        }
+    uint8_t* herKey = extractPublicKey(message, switchHeader->label_be, context->logger);
+    int herAddrIndex;
+    if (herKey) {
         uint8_t herAddrStore[16];
-        herAddr = herAddrStore;
         AddressCalc_addressForPublicKey(herAddrStore, herKey);
         if (herAddrStore[0] != 0xFC) {
             Log_debug(context->logger,
                       "Got message from peer whose address is not in fc00::/8 range.\n");
             return 0;
         }
+        herAddrIndex = AddressMapper_put(switchHeader->label_be, herAddrStore, &context->addrMap);
     } else {
-        herAddr = node->address.ip6.bytes;
+        herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
+        if (herAddrIndex == -1) {
+            #ifdef Log_DEBUG
+                uint8_t switchAddr[20];
+                struct Address addr;
+                addr.networkAddress_be = switchHeader->label_be;
+                Address_printNetworkAddress(switchAddr, &addr);
+                Log_debug1(context->logger,
+                           "Dropped traffic packet from unknown node. (%s)\n",
+                           &switchAddr);
+            #endif
+            return 0;
+        }
     }
+    uint8_t* herAddr = context->addrMap.addresses[herAddrIndex];
 
     // The address is extracted from the switch header later.
     context->switchHeader = switchHeader;
