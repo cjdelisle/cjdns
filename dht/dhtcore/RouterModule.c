@@ -564,7 +564,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
-    if (nodes == NULL && tid && tid->len == 2) {
+    if (nodes == NULL && tid && tid->len == 4 && !memcmp(tid->bytes, "pn", 2)) {
         uint16_t index;
         memcpy(&index, tid->bytes, 2);
         if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
@@ -943,8 +943,8 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
             break;
         }
     }
-    uint8_t index[2];
-    memcpy(index, &i, 2);
+    uint8_t index[4] = "pn  ";
+    memcpy(index + 2, &i, 2);
 
     if (location == NULL) {
         return -1;
