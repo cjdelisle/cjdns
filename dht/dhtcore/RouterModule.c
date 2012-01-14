@@ -880,6 +880,11 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
 
 int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module)
 {
+    if (LabelSplicer_isOneHop(networkAddress_be)) {
+        // Do not remove 1 hop routes.
+        // TODO: Allow 1 hop routes to be removed in the switch if they were incoming connections.
+        return 0;
+    }
     struct Node* n = NULL;
     for (int i = 0;; i++) {
         n = NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);

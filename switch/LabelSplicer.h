@@ -15,6 +15,7 @@
 #define LABEL_SPLICER_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * Splice a label and a label fragment together.
@@ -33,5 +34,13 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be);
  * @return the modified target for that node in big endian.
  */
 uint64_t LabelSplicer_getLabelFor(uint64_t target_be, uint64_t whoIsAsking_be);
+
+/**
+ * Determine if the node at the end of the given label is one hop away.
+ *
+ * @param label_be the label to test.
+ * @return true if the node is 1 hop away, false otherwise.
+ */
+bool LabelSplicer_isOneHop(uint64_t label_be);
 
 #endif

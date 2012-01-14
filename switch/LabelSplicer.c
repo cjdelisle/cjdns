@@ -65,3 +65,15 @@ uint64_t LabelSplicer_getLabelFor(uint64_t target_be, uint64_t whoIsAsking_be)
 
     return Endian_hostToBigEndian64(out);
 }
+
+/**
+ * Determine if the node at the end of the given label is one hop away.
+ *
+ * @param label_be the label to test.
+ * @return true if the node is 1 hop away, false otherwise.
+ */
+bool LabelSplicer_isOneHop(uint64_t label_be)
+{
+    uint64_t label = Endian_bigEndianToHost64(label_be);
+    return (int)NumberCompress_bitsUsedForNumber(label) == (Bits_log2x64(label) - 1);
+}
