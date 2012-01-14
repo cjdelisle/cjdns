@@ -170,10 +170,14 @@
 #define MAX_REQUESTS_PER_SEARCH 8
 
 /**
- * The number of times the GMRT before pings should be timed out,
- * 4 means 12% of pings will drop.
+ * The number of times the GMRT before pings should be timed out.
  */
-#define PING_TIMEOUT_GMRT_MULTIPLIER 4
+#define PING_TIMEOUT_GMRT_MULTIPLIER 100
+
+/**
+ * The minimum amount of time before a ping should timeout.
+ */
+#define PING_TIMEOUT_MINIMUM 3000
 
 /*--------------------Structures--------------------*/
 /**
@@ -471,8 +475,11 @@ static void searchRequestTimeout(void* vcontext)
                                                    scc->routerModule->nodeStore);
 
     if (nl->size > 0) {
-        RouterModule_pingNode(nl->nodes[rand() % nl->size], scc->routerModule);
-        RouterModule_pingNode(nl->nodes[rand() % nl->size], scc->routerModule);
+        int i = rand();
+        RouterModule_pingNode(nl->nodes[i % nl->size], scc->routerModule);
+        if (nl->size > 1) {
+            RouterModule_pingNode(nl->nodes[(i + 1) % nl->size], scc->routerModule);
+        }
     }
 
     searchStep(scc);
@@ -968,6 +975,9 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
 
     uint64_t milliseconds =
         AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
+    if (milliseconds < PING_TIMEOUT_MINIMUM) {
+        milliseconds = PING_TIMEOUT_MINIMUM;
+    }
 
     ping->timeout = Timeout_setTimeout(pingTimeoutCallback,
                                        ping,

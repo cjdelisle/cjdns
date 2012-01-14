@@ -37,7 +37,7 @@ struct RouterModule_Search;
 #define RouterModule_K 8
 
 /** Maximum number of pings which can be in flight at once. */
-#define RouterModule_MAX_CONCURRENT_PINGS 16
+#define RouterModule_MAX_CONCURRENT_PINGS 64
 
 /**
  * Register a new RouterModule.
