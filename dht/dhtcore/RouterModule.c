@@ -581,8 +581,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                        (int) index);
         }
         return 0;
-    }
-    if (nodes == NULL || nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0) {
+    } else if (nodes && (nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0)) {
         Log_debug(module->logger, "Dropping unrecognized reply.\n");
         return -1;
     }
@@ -616,6 +615,12 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     SearchStore_replyReceived(parent, module->searchStore);
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
     struct SearchCallbackContext* scc = SearchStore_getContext(search);
+
+    if (!nodes) {
+        // They didn't have anything to give us.
+        searchStep(scc);
+        return 0;
+    }
 
     // If this node has sent us any entries which are further from the target than it is,
     // garbage the whole response.
