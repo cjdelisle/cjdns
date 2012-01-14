@@ -565,7 +565,6 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
     if (nodes == NULL && tid && tid->len == 2) {
-        Log_debug(module->logger, "Got non-search reply.\n");
         uint16_t index;
         memcpy(&index, tid->bytes, 2);
         if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
@@ -824,6 +823,12 @@ struct RouterModule_Search* RouterModule_beginSearch(
 
     struct SearchStore_Node* firstSearchNode = SearchStore_getNextNode(search, searchAllocator);
 
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, firstSearchNode->address);
+        Log_debug1(module->logger, "Search %s\n", addr);
+    #endif
+
     // Send out the request.
     sendRequest(firstSearchNode->address,
                 CJDHTConstants_QUERY_FN,
@@ -901,7 +906,7 @@ void pingTimeoutCallback(void* vping)
     #ifdef Log_DEBUG
         uint8_t addr[60];
         Address_print(addr, &ping->node->address);
-        Log_debug1(module->logger, "Ping timeout for %s, removing entry.\n", addr);
+        Log_debug1(module->logger, "Ping timeout %s\n", addr);
     #endif
 
     RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
@@ -941,6 +946,12 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
     if (location == NULL) {
         return -1;
     }
+
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug1(module->logger, "Ping %s\n", addr);
+    #endif
 
     struct Ping* ping = module->pingAllocator->malloc(sizeof(struct Ping), module->pingAllocator);
     ping->node = node;

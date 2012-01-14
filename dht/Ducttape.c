@@ -369,11 +369,11 @@ static inline int core(struct Message* message, struct Context* context)
 
     if (context->forwardTo) {
         // Router traffic, we know where it is to be sent to.
-        #ifdef Log_DEBUG
+        /*#ifdef Log_DEBUG
             uint8_t printedAddr[60];
             Address_print(printedAddr, context->forwardTo);
             Log_debug1(context->logger, "Sending router traffic to %s\n", printedAddr);
-        #endif
+        #endif*/
         return sendToRouter(context->forwardTo, message, context);
     }
 
