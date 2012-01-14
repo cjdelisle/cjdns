@@ -75,5 +75,5 @@ uint64_t LabelSplicer_getLabelFor(uint64_t target_be, uint64_t whoIsAsking_be)
 bool LabelSplicer_isOneHop(uint64_t label_be)
 {
     uint64_t label = Endian_bigEndianToHost64(label_be);
-    return (int)NumberCompress_bitsUsedForNumber(label) == (Bits_log2x64(label) - 1);
+    return (int)NumberCompress_bitsUsedForNumber(label) == Bits_log2x64(label);
 }
