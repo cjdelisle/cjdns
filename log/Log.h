@@ -19,17 +19,25 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 struct Log
 {
     struct Writer* writer;
 };
 
-static inline void Log_logInternal(struct Log* log, char* format, ...)
+static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, char* format, ...)
 {
     if (!log) {
         return;
     }
+
+    log->writer->write(logLevel, strlen(logLevel), log->writer);
+
+    // Strip the path to make log lines shorter.
+    char* lastSlash = strrchr(file, '/');
+    log->writer->write(lastSlash + 1, strlen(lastSlash + 1), log->writer);
+
     #define Log_BUFFER_SZ 1024
     char buff[Log_BUFFER_SZ];
     va_list args;
@@ -64,19 +72,19 @@ static inline void Log_logInternal(struct Log* log, char* format, ...)
 #endif
 
 #define Log_printf(log, level, str) \
-    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__)
+    Log_logInternal(log, level " ", __FILE__, ":%u " str, __LINE__)
 
 #define Log_printf1(log, level, str, param) \
-    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param)
+    Log_logInternal(log, level " ", __FILE__, ":%u " str, __LINE__, param)
 
 #define Log_printf2(log, level, str, param, paramb) \
-    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb)
+    Log_logInternal(log, level " ", __FILE__, ":%u " str, __LINE__, param, paramb)
 
 #define Log_printf3(log, level, str, param, paramb, paramc) \
-    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb, paramc)
+    Log_logInternal(log, level " ", __FILE__, ":%u " str, __LINE__, param, paramb, paramc)
 
 #define Log_printf4(log, level, str, param, paramb, paramc, paramd) \
-    Log_logInternal(log, level " " __FILE__ ":%u " str, __LINE__, param, paramb, paramc, paramd)
+    Log_logInternal(log, level " ", __FILE__, ":%u " str, __LINE__, param, paramb, paramc, paramd)
 
 #ifdef Log_KEYS
     #define Log_keys(log, str) \
