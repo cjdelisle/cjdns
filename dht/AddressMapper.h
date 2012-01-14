@@ -79,7 +79,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
 static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
 {
     int i;
-    for (i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
+    for (i = 0; i < AddressMapper_MAX_ENTRIES - 1; i++) {
         if (map->labels[i] == 0L || map->labels[i] == label) {
             break;
         }
