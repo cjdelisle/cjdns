@@ -375,6 +375,13 @@ void NodeStore_dumpTables(struct Writer* writer, struct NodeStore* store)
 void NodeStore_remove(struct Node* node, struct NodeStore* store)
 {
     assert(node >= store->nodes && node < store->nodes + store->size);
+
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug1(store->logger, "Removing route to %s\n", addr);
+    #endif
+
     store->size--;
     memcpy(node, &store->nodes[store->size], sizeof(struct Node));
     struct NodeHeader* header = &store->headers[node - store->nodes];

@@ -114,9 +114,9 @@ static void maintanenceCycle(void* vcontext)
                    (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
                    (unsigned int) nonZeroNodes);
 
-        Log_debug(janitor->routerModule->logger, "\nRouting table dump:\n");
+        Log_debug(janitor->routerModule->logger, "Routing table dump:\n");
         NodeStore_dumpTables(janitor->routerModule->logger->writer, janitor->routerModule->nodeStore);
-        Log_debug(janitor->routerModule->logger, "\n");
+        janitor->routerModule->logger->writer->write("\n", 1, janitor->routerModule->logger->writer);
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
