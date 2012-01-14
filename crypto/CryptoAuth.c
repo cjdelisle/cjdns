@@ -391,7 +391,8 @@ static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
 
     // set the session state
-    header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
+    uint32_t sessionState_be = Endian_hostToBigEndian32(wrapper->nextNonce);
+    header->nonce = sessionState_be;
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
