@@ -16,7 +16,7 @@
 
 #include <stdio.h>
 
-int splice()
+static int splice()
 {
     // 000000100
     uint64_t goHere = 1<<2;
@@ -38,7 +38,13 @@ int splice()
     return expected_be != out_be;
 }
 
+static int isOneHop()
+{
+    uint64_t label_be = Endian_bigEndianToHost64(4);
+    return LabelSplicer_isOneHop(label_be) != true;
+}
+
 int main()
 {
-    return splice();
+    return splice() | isOneHop();
 }
