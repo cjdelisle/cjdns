@@ -974,7 +974,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
 
     sendRequest(&node->address,
                 CJDHTConstants_QUERY_PING,
-                &(String){ .len = 2, .bytes =(char*) index},
+                &(String){ .len = 4, .bytes =(char*) index},
                 NULL,
                 NULL,
                 module->registry);
