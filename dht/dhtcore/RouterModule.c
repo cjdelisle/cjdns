@@ -564,9 +564,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
     String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
-    if (nodes == NULL && tid && tid->len == 4 && !memcmp(tid->bytes, "pn", 2)) {
-        uint16_t index;
-        memcpy(&index, tid->bytes, 2);
+    if (nodes == NULL && tid && tid->len == 2 && tid->bytes[0] == 'p') {
+        uint8_t index = tid->bytes[1];
         if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
             #ifdef Log_DEBUG
                 uint8_t printedAddr[60];
@@ -577,7 +576,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             module->pingTimers[index] = NULL;
         } else if (Log_DEBUG) {
             Log_debug1(module->logger,
-                       "Looks like a ping but unrecognized slot. slot=%d\n",
+                       "Looks like a ping but unrecognized slot. slot=%u\n",
                        (int) index);
         }
         return 0;
@@ -942,15 +941,16 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
     }
 
     struct Timeout** location = NULL;
-    uint16_t i;
+    uint8_t i;
     for (i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
         if (module->pingTimers[i] == NULL) {
             location = &module->pingTimers[i];
             break;
         }
     }
-    uint8_t index[4] = "pn  ";
-    memcpy(index + 2, &i, 2);
+    uint8_t txid[2];
+    txid[0] = 'p';
+    txid[1] = i;
 
     if (location == NULL) {
         return -1;
@@ -979,7 +979,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
 
     sendRequest(&node->address,
                 CJDHTConstants_QUERY_PING,
-                &(String){ .len = 4, .bytes =(char*) index},
+                &(String){ .len = 2, .bytes = (char*) txid},
                 NULL,
                 NULL,
                 module->registry);
