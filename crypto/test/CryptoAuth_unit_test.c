@@ -99,6 +99,67 @@ int hello()
     memcpy(msg.bytes, hello, 13);
     Exports_encryptHandshake(&msg, &wrapper);
 
+    // Check the nonce
+    assert(!memcmp(msg.bytes, "\0\0\0\0", 4));
+
+    ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
+    struct Message* finalOut = NULL;
+    struct Wrapper wrapper2 = {
+        .context = ca,
+        .externalInterface = {
+            .receiveMessage = receiveMessage,
+            .receiverContext = &finalOut
+        },
+        .wrappedInterface = &iface
+    };
+
+    Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
+
+    assert(finalOut);
+    assert(finalOut->length == 13);
+    assert(memcmp(hello, finalOut->bytes, 13) == 0);
+    //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
+    return 0;
+}
+
+int repeatHello()
+{
+    uint8_t buff[BUFFER_SIZE];
+    struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
+    struct Writer* logwriter = FileWriter_new(stdout, allocator);
+    struct Log logger = { .writer = logwriter };
+    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, &logger);
+
+    struct Message* out = NULL;
+    struct Interface iface = {
+        .sendMessage = sendMessage,
+        .senderContext = &out
+    };
+
+    struct Wrapper wrapper = {
+        .context = ca,
+        .wrappedInterface = &iface
+    };
+    memcpy(wrapper.herPerminentPubKey, publicKey, 32);
+
+    uint8_t* hello = (uint8_t*) "Hello World!";
+    uint8_t msgBuff[Headers_CryptoAuth_SIZE + 13];
+    struct Message msg = {
+        .length = 13,
+        .padding = Headers_CryptoAuth_SIZE,
+        .bytes = msgBuff + Headers_CryptoAuth_SIZE
+    };
+    struct Message msg2;
+    memcpy(&msg2, &msg, sizeof(struct Message));
+
+    memcpy(msg2.bytes, hello, 13);
+    Exports_encryptHandshake(&msg, &wrapper);
+
+    memcpy(msg2.bytes, hello, 13);
+    Exports_encryptHandshake(&msg2, &wrapper);
+
+    // Check the nonce
+    assert(!memcmp(msg2.bytes, "\0\0\0\1", 4));
 
     ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
     struct Message* finalOut = NULL;
@@ -123,5 +184,5 @@ int hello()
 int main()
 {
     eventBase = event_base_new();
-    return encryptRndNonceTest() | createNew() | hello();
+    return encryptRndNonceTest() | createNew() | hello() | repeatHello();
 }

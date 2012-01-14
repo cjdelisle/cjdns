@@ -581,7 +581,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             #endif
             Timeout_clearTimeout(module->pingTimers[index]);
             module->pingTimers[index] = NULL;
-        } else if (Log_DEBUG) {
+        } else {
             Log_debug1(module->logger,
                        "Looks like a ping but unrecognized slot. slot=%u\n",
                        (int) index);
