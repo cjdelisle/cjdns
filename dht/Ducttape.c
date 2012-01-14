@@ -546,16 +546,23 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     } else {
         herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
         if (herAddrIndex == -1) {
-            #ifdef Log_DEBUG
-                uint8_t switchAddr[20];
-                struct Address addr;
-                addr.networkAddress_be = switchHeader->label_be;
-                Address_printNetworkAddress(switchAddr, &addr);
-                Log_debug1(context->logger,
-                           "Dropped traffic packet from unknown node. (%s)\n",
-                           &switchAddr);
-            #endif
-            return 0;
+            struct Node* n = RouterModule_getNode(switchHeader->label_be, context->routerModule);
+            if (n) {
+                herAddrIndex = AddressMapper_put(switchHeader->label_be,
+                                                 n->address.ip6.bytes,
+                                                 &context->addrMap);
+            } else {
+                #ifdef Log_DEBUG
+                    uint8_t switchAddr[20];
+                    struct Address addr;
+                    addr.networkAddress_be = switchHeader->label_be;
+                    Address_printNetworkAddress(switchAddr, &addr);
+                    Log_debug1(context->logger,
+                               "Dropped traffic packet from unknown node. (%s)\n",
+                               &switchAddr);
+                #endif
+                return 0;
+            }
         }
     }
     uint8_t* herAddr = context->addrMap.addresses[herAddrIndex];
