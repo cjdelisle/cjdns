@@ -908,17 +908,15 @@ void pingTimeoutCallback(void* vping)
     struct Ping* ping = (struct Ping*) vping;
     struct RouterModule* module = ping->module;
 
-    #ifdef Log_DEBUG
-        uint8_t addr[60];
-        Address_print(addr, &ping->node->address);
-        Log_debug1(module->logger, "Ping timeout %s\n", addr);
-    #endif
-
-    RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
-
     bool freeAlloc = true;
     for (int i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
         if (ping->timeout == module->pingTimers[i]) {
+            #ifdef Log_DEBUG
+                uint8_t addr[60];
+                Address_print(addr, &ping->node->address);
+                Log_debug1(module->logger, "Ping timeout %s\n", addr);
+            #endif
+            RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
             module->pingTimers[i] = NULL;
         } else if (module->pingTimers[i] != NULL) {
             freeAlloc = false;
