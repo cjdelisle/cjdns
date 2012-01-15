@@ -12,7 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/CryptoAuth.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "dht/Address.h"
 #include "dht/AddressMapper.h"
 #include "dht/DHTModules.h"
@@ -22,7 +22,7 @@
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/SwitchCore.h"

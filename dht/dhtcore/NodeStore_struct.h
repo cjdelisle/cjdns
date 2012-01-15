@@ -15,7 +15,7 @@
 #define NODE_STORE_STRUCT_H
 
 #include "dht/dhtcore/NodeStore.h"
-#include "log/Log.h"
+#include "util/Log.h"
 
 /** A list of DHT nodes. */
 struct NodeStore

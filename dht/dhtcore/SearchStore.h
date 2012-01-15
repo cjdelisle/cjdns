@@ -19,7 +19,7 @@
 #include "dht/Address.h"
 #include "memory/MemAllocator.h"
 #include "libbenc/benc.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "util/AverageRoller.h"
 
 

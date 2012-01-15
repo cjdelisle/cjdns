@@ -28,7 +28,7 @@
 #include "io/FileWriter.h"
 #include "libbenc/serialization/BencSerializer.h"
 #include "libbenc/serialization/json/JsonBencSerializer.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MemAllocator.h"

@@ -19,7 +19,7 @@
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "switch/NumberCompress.h"
 
 #include <assert.h>

@@ -17,7 +17,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "memory/MemAllocator.h"
 
 #include <string.h>

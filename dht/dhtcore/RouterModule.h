@@ -21,7 +21,7 @@
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
-#include "log/Log.h"
+#include "util/Log.h"
 
 /**
  * The router module is the functional part of the DHT engine.

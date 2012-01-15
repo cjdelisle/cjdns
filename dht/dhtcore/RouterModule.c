@@ -22,7 +22,7 @@
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"

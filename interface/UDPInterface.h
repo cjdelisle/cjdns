@@ -17,7 +17,7 @@
 #include <event2/event.h>
 
 #include "interface/Interface.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "memory/MemAllocator.h"
 
 struct UDPInterface;

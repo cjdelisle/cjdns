@@ -15,7 +15,7 @@
 
 #include "memory/MemAllocator.h"
 #include "interface/Interface.h"
-#include "log/Log.h"
+#include "util/Log.h"
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
