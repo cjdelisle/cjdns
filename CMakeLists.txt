@@ -19,8 +19,6 @@ endif(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR})
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
-find_package(Libevent2 REQUIRED)
-
 # validation
 add_definitions(-Wall -std=c99 -Werror -pedantic)
 
@@ -73,24 +71,21 @@ endif(NOT $ENV{Log_LEVEL} STREQUAL "")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
+find_package(Libevent2 REQUIRED)
+include_directories(${LIBEVENT2_INCLUDE_DIRS})
+
+find_package(NACL REQUIRED)
+include_directories(${NACL_INCLUDE_DIRS})
+
 add_subdirectory(memory)
 add_subdirectory(io)
 add_subdirectory(libbenc)
-add_subdirectory(net)
 add_subdirectory(crypto)
 add_subdirectory(dht)
 add_subdirectory(dns)
 add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(interface)
-
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
-
-add_executable(cjdvpn cjdvpn.c)
-target_link_libraries(cjdvpn
-    crypto
-    interface
-)
 
 add_executable(cjdroute cjdroute.c)
 target_link_libraries(cjdroute
@@ -103,23 +98,6 @@ target_link_libraries(cjdroute
     benc_JsonBencSerializer
     MemAllocator
     ${LIBEVENT2_LIBRARIES}
-)
-
-add_executable(benc2json benc2json.c)
-target_link_libraries(benc2json
-    benc
-    benc_StandardBencSerializer
-    benc_JsonBencSerializer
-    MemAllocator
-    cjdio
-)
-
-find_package(NACL REQUIRED)
-include_directories(${NACL_INCLUDE_DIRS})
-add_executable(addressgen addressgen.c)
-target_link_libraries(addressgen
-    crypto
-    util
 )
 
 # Everything must be tested.

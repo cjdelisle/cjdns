@@ -14,7 +14,6 @@
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
 #include "interface/UDPInterface.h"
-#include "net/NetworkTools.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "util/Endian.h"

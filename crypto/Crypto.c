@@ -11,14 +11,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <assert.h>
-#include <stdio.h>
-#include <event2/util.h>
-
 #include "crypto/Crypto.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "libbenc/benc.h"
+
+#include "crypto_hash_sha256.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <event2/util.h>
 
 
 /** @see Crypto.h */
@@ -28,6 +30,15 @@ void Crypto_init()
         fprintf(stderr, "Unable to initialize secure random number generator, bailing out.");
         abort();
     }
+}
+
+/** @see Crypto.h */
+String* Crypto_sha256sum(const String* hashThis,
+                         const struct MemAllocator* allocator)
+{
+    String* out = benc_newBinaryString(NULL, crypto_hash_sha256_BYTES, allocator);
+    crypto_hash_sha256((uint8_t*)out->bytes, (uint8_t*)hashThis->bytes, hashThis->len);
+    return out;
 }
 
 /** @see Crypto.h */

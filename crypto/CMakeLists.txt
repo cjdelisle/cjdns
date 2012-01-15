@@ -10,13 +10,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 find_package(NACL REQUIRED)
-
 include_directories(${NACL_INCLUDE_DIRS})
 
 # Libevent is used to get random numbers.
+find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
-add_library(crypto Crypto.c CryptoAuth.c HashFunctions.c AddressCalc.c sha1/sha1.c)
+add_library(crypto Crypto.c CryptoAuth.c AddressCalc.c)
 target_link_libraries(crypto
     benc
     MemAllocator
