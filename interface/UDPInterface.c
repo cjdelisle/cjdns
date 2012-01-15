@@ -53,7 +53,16 @@ static void freeEvent(void* vevent);
 
 static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext);
 
-/*--------------------Interface--------------------*/
+/*--------------------Structs--------------------*/
+
+struct Endpoint
+{
+    /** The ip address where messages to this endpoint should go. */
+    struct sockaddr_storage addr;
+
+    /** the public api. */
+    struct Interface interface;
+};
 
 struct UDPInterface
 {
@@ -72,10 +81,9 @@ struct UDPInterface
      * The ip address / interface mapping.
      * Although this is 4 bytes, it compares the full sockaddr so this will work with ip6.
      */
-    uint32_t* addresses;
-    struct Endpoint* endpoints;
+    uint32_t addresses[MAX_INTERFACES];
+    struct Endpoint endpoints[MAX_INTERFACES];
     uint32_t endpointCount;
-    uint32_t endpointCapacity;
 
     struct MemAllocator* allocator;
 
@@ -91,15 +99,6 @@ struct UDPInterface
     uint8_t* messageBuff;
 
     struct Log* logger;
-};
-
-struct Endpoint
-{
-    /** The ip address where messages to this endpoint should go. */
-    struct sockaddr_storage addr;
-
-    /** the public api. */
-    struct Interface interface;
 };
 
 static void closeInterface(void* vcontext)
@@ -229,16 +228,8 @@ static inline uint32_t getAddr(struct sockaddr_storage* addr)
 struct Interface* insertEndpoint(struct sockaddr_storage* addr,
                                  struct UDPInterface* context)
 {
-    if (context->endpointCount == context->endpointCapacity) {
-        context->addresses =
-            context->allocator->realloc(context->addresses,
-                                        (context->endpointCount + 10) * sizeof(uint32_t),
-                                        context->allocator);
-        context->endpoints =
-            context->allocator->realloc(context->endpoints,
-                                        (context->endpointCount + 10) * sizeof(struct Endpoint),
-                                        context->allocator);
-        context->endpointCapacity += 10;
+    if (context->endpointCount >= MAX_INTERFACES) {
+        return NULL;
     }
 
     struct MemAllocator* epAllocator = context->allocator->child(context->allocator);
