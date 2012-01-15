@@ -17,14 +17,14 @@
 #include <errno.h>
 #include <limits.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "libbenc/benc.h"
 #include "libbenc/serialization/BencSerializer.h"
 
 static int32_t parseGeneric(const struct Reader* reader,
-                            const struct MemAllocator* allocator,
+                            const struct Allocator* allocator,
                             bobj_t** output);
 static int32_t serializeGeneric(const struct Writer* writer,
                                 const bobj_t* obj);
@@ -58,7 +58,7 @@ static int32_t serializeString(const struct Writer* writer,
 
 /** @see BencSerializer.h */
 static int32_t parseString(const struct Reader* reader,
-                           const struct MemAllocator* allocator,
+                           const struct Allocator* allocator,
                            String** output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -198,7 +198,7 @@ static int32_t serializeList(const struct Writer* writer,
 
 /** @see BencSerializer.h */
 static int32_t parseList(const struct Reader* reader,
-                         const struct MemAllocator* allocator,
+                         const struct Allocator* allocator,
                          List* output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -261,7 +261,7 @@ static int32_t serializeDictionary(const struct Writer* writer,
 
 /** @see BencSerializer.h */
 static int32_t parseDictionary(const struct Reader* reader,
-                               const struct MemAllocator* allocator,
+                               const struct Allocator* allocator,
                                Dict* output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -334,7 +334,7 @@ static int32_t parseDictionary(const struct Reader* reader,
  * @param output a pointer which will be pointed to the output.
  */
 static int32_t parseGeneric(const struct Reader* reader,
-                            const struct MemAllocator* allocator,
+                            const struct Allocator* allocator,
                             bobj_t** output)
 {
     #define OUT_OF_CONTENT_TO_READ -2

@@ -73,7 +73,7 @@ static void handleTimeoutEvent(evutil_socket_t socket,
  * @param targetRequestsPerSecond the target number of requests to handle per second.
  */
 void RateLimitModule_register(struct DHTModuleRegistry* registry,
-                              const struct MemAllocator* allocator,
+                              const struct Allocator* allocator,
                               uint32_t targetRequestsPerSecond,
                               struct event_base* base)
 {

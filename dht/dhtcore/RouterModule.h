@@ -49,7 +49,7 @@ struct RouterModule_Search;
  * @param logger the means of writing logs.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
-                                           struct MemAllocator* allocator,
+                                           struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
                                            struct Log* logger);

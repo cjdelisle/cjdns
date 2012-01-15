@@ -59,7 +59,7 @@ struct AverageRoller
 };
 
 /** @see AverageRoller.h */
-struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator)
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct Allocator* allocator)
 {
     struct AverageRoller* roller = allocator->calloc(
         sizeof(struct AverageRoller) + (sizeof(struct SumAndEntryCount) * (windowSeconds - 1)),

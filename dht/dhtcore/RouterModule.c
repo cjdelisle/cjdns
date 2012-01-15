@@ -23,7 +23,7 @@
 #include "dht/DHTModules.h"
 #include "libbenc/benc.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"
 #include "util/AverageRoller.h"
@@ -205,7 +205,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module);
  * @return the RouterModule.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
-                                           struct MemAllocator* allocator,
+                                           struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
                                            struct Log* logger)
@@ -334,7 +334,7 @@ static inline void sendRequest(struct Address* address,
     memset(&message, 0, sizeof(struct DHTMessage));
 
     char buffer[4096];
-    const struct MemAllocator* allocator = BufferAllocator_new(buffer, 4096);
+    const struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
     message.allocator = allocator;
     message.asDict = benc_newDictionary(allocator);
@@ -408,7 +408,7 @@ struct SearchCallbackContext
 static void searchStep(struct SearchCallbackContext* scc)
 {
     struct RouterModule* module = scc->routerModule;
-    struct MemAllocator* searchAllocator = SearchStore_getAllocator(scc->search);
+    struct Allocator* searchAllocator = SearchStore_getAllocator(scc->search);
 
     struct SearchStore_Node* nextSearchNode =
         SearchStore_getNextNode(scc->search, searchAllocator);
@@ -807,7 +807,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     if (!search) {
         return NULL;
     }
-    struct MemAllocator* searchAllocator = SearchStore_getAllocator(search);
+    struct Allocator* searchAllocator = SearchStore_getAllocator(search);
 
     struct Address targetAddr;
     memcpy(targetAddr.ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);

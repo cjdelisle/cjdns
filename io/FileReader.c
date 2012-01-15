@@ -12,7 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "io/Reader.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -33,7 +33,7 @@ static int read(void* readInto, size_t length, const struct Reader* reader);
 static void skip(size_t byteCount, const struct Reader* reader);
 
 /** @see ArrayReader.h */
-struct Reader* FileReader_new(FILE* toRead, const struct MemAllocator* allocator)
+struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
 {
     struct Context* context = allocator->calloc(sizeof(struct Context), 1, allocator);
 

@@ -15,7 +15,7 @@
 #define ARRAYWRITER_H
 
 #include "Writer.h"
-#include <memory/MemAllocator.h>
+#include <memory/Allocator.h>
 
 /**
  * Create a new Writer which writes to a user supplied buffer.
@@ -26,6 +26,6 @@
  */
 struct Writer* ArrayWriter_new(void* writeTo,
                                size_t length,
-                               const struct MemAllocator* allocator);
+                               const struct Allocator* allocator);
 
 #endif

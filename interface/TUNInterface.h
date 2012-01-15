@@ -18,10 +18,10 @@
 
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 struct Interface* TunInterface_new(String* interfaceName,
                                    struct event_base* base,
-                                   struct MemAllocator* allocator);
+                                   struct Allocator* allocator);
 
 #endif

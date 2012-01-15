@@ -18,7 +18,7 @@
 
 #include "interface/Interface.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 struct UDPInterface;
 
@@ -32,7 +32,7 @@ struct UDPInterface;
  */
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
-                                      struct MemAllocator* allocator,
+                                      struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
                                       struct Log* logger);
 

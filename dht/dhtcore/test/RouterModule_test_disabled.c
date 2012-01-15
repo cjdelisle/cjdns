@@ -25,7 +25,7 @@
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_struct.h"
 #include "dht/dhtcore/test/TestFramework.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 
 #define MY_ADDRESS "hgzyxwvutsrqponmlkji           3"
@@ -35,7 +35,7 @@
 
 void testQuery(struct DHTMessage** outMessagePtr,
                struct DHTModuleRegistry* registry,
-               struct MemAllocator* allocator)
+               struct Allocator* allocator)
 {
     *outMessagePtr = NULL;
     // on the wire  xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
@@ -103,7 +103,7 @@ bool testSearch_callback(void* context, struct DHTMessage* message)
 void testSearch(struct DHTMessage** outMessagePtr,
                 struct RouterModule* routerModule,
                 struct DHTModuleRegistry* registry,
-                struct MemAllocator* allocator)
+                struct Allocator* allocator)
 {
     *outMessagePtr = NULL;
 
@@ -193,7 +193,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
 int main()
 {
     char buffer[1<<20];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1<<20);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 1<<20);
     struct DHTModuleRegistry* registry = DHTModules_new(allocator);
 
     ReplyModule_register(registry, allocator);

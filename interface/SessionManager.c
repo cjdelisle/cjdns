@@ -14,7 +14,7 @@
 #include "crypto/CryptoAuth.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -46,7 +46,7 @@ struct SessionManager
 
     struct InterfaceMap ifaceMap;
 
-    struct MemAllocator* const allocator;
+    struct Allocator* const allocator;
 
     struct Timeout* cleanupInterval;
 
@@ -61,7 +61,7 @@ static void cleanup(void* vsm)
     uint32_t nowSeconds = now.tv_sec;
     for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
         if (sm->ifaceMap.lastMessageTimes[i] < (nowSeconds - SESSION_TIMEOUT_SECONDS)) {
-            struct MemAllocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
+            struct Allocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
             ifAllocator->free(ifAllocator);
             InterfaceMap_remove(i, &sm->ifaceMap);
             i--;
@@ -81,7 +81,7 @@ struct Interface* SessionManager_getSession(uint8_t* lookupKey,
         // Make sure cleanup() doesn't get behind.
         cleanup(sm);
 
-        struct MemAllocator* ifAllocator = sm->allocator->child(sm->allocator);
+        struct Allocator* ifAllocator = sm->allocator->child(sm->allocator);
         struct Interface* outsideIf =
             ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
                 .sendMessage = sm->encryptedOutgoing,
@@ -119,7 +119,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
                                           void* interfaceContext,
                                           struct event_base* eventBase,
                                           struct CryptoAuth* cryptoAuth,
-                                          struct MemAllocator* allocator)
+                                          struct Allocator* allocator)
 {
     struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
     memcpy(sm, &(struct SessionManager) {

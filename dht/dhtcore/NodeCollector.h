@@ -18,7 +18,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <string.h>
 #include <stdbool.h>
@@ -74,7 +74,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
                                                struct Address* thisNodeAddress,
                                                const bool allowNodesFartherThanUs,
                                                struct Log* logger,
-                                               const struct MemAllocator* allocator)
+                                               const struct Allocator* allocator)
 {
     struct NodeCollector* out = allocator->malloc(sizeof(struct NodeCollector), allocator);
     out->nodes = allocator->malloc(capacity * sizeof(struct NodeCollector_Element), allocator);

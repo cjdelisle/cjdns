@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 struct Message
 {
@@ -34,7 +34,7 @@ struct Message
 };
 
 static inline struct Message* Message_clone(struct Message* toClone,
-                                            struct MemAllocator* allocator)
+                                            struct Allocator* allocator)
 {
     uint8_t* allocation = allocator->malloc(toClone->length + toClone->padding, allocator);
     memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
@@ -47,7 +47,7 @@ static inline struct Message* Message_clone(struct Message* toClone,
 
 static inline void Message_copyOver(struct Message* output,
                                     struct Message* input,
-                                    struct MemAllocator* allocator)
+                                    struct Allocator* allocator)
 {
     size_t inTotalLength = input->length + input->padding;
     size_t outTotalLength = output->length + output->padding;

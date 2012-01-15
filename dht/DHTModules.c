@@ -14,7 +14,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
@@ -39,7 +39,7 @@ static inline void deserializeContext(struct DHTModule* module,
 /*--------------------Interface--------------------*/
 
 /** @see DHTModules.h */
-struct DHTModuleRegistry* DHTModules_new(struct MemAllocator* allocator)
+struct DHTModuleRegistry* DHTModules_new(struct Allocator* allocator)
 {
     struct DHTModuleRegistry* reg =
         allocator->calloc(sizeof(struct DHTModuleRegistry), 1, allocator);
@@ -116,7 +116,7 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
                           const struct Writer* writer)
 {
     char buffer[1024];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1024);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 1024);
     Dict* dictionary = benc_newDictionary(allocator);
 
     struct DHTModule** modulePtr = registry->members;
@@ -136,7 +136,7 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
 
 /** @see DHTModules.h */
 struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
-                                                 struct MemAllocator* allocator)
+                                                 struct Allocator* allocator)
 {
     Dict* dictionary = benc_newDictionary(allocator);
     if (SERIALIZER->parseDictionary(reader, allocator, dictionary) != 0) {

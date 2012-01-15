@@ -29,7 +29,7 @@
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
-                                const struct MemAllocator* allocator,
+                                const struct Allocator* allocator,
                                 struct Log* logger)
 {
     struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
@@ -267,7 +267,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
-                                          const struct MemAllocator* allocator,
+                                          const struct Allocator* allocator,
                                           struct NodeStore* store)
 {
     struct NodeCollector* collector = NodeCollector_new(address,
@@ -304,7 +304,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
                                            const bool allowNodesFartherThanUs,
-                                           const struct MemAllocator* allocator)
+                                           const struct Allocator* allocator)
 {
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,

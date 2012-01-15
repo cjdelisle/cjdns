@@ -24,11 +24,11 @@ struct InterfaceMap
 
     size_t keySize;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 };
 
 static inline struct InterfaceMap* InterfaceMap_new(size_t keySize,
-                                                    struct MemAllocator* allocator)
+                                                    struct Allocator* allocator)
 {
     return allocator->clone(sizeof(struct InterfaceMap), allocator, &(struct InterfaceMap) {
         .keySize = keySize,

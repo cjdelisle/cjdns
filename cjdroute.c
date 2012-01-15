@@ -31,7 +31,7 @@
 #include "util/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
@@ -48,7 +48,7 @@ struct Context
 {
     struct event_base* base;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     struct ExceptionHandler* eHandler;
 

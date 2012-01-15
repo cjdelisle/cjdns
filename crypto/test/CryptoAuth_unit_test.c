@@ -17,7 +17,7 @@
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "memory/BufferAllocator.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -47,7 +47,7 @@ int encryptRndNonceTest()
 int createNew()
 {
     uint8_t buff[BUFFER_SIZE];
-    struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
+    struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
@@ -72,7 +72,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 int hello()
 {
     uint8_t buff[BUFFER_SIZE];
-    struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
+    struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log logger = { .writer = logwriter };
     struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, &logger);
@@ -125,7 +125,7 @@ int hello()
 int repeatHello()
 {
     uint8_t buff[BUFFER_SIZE];
-    struct MemAllocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
+    struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log logger = { .writer = logwriter };
     struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, &logger);

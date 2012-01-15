@@ -15,7 +15,7 @@
 #define ARRAYREADER_H
 
 #include "Reader.h"
-#include <memory/MemAllocator.h>
+#include <memory/Allocator.h>
 
 /**
  * Create a new Reader which reads a user supplied buffer.
@@ -26,6 +26,6 @@
  */
 struct Reader* ArrayReader_new(const void* bufferToRead,
                                size_t length,
-                               const struct MemAllocator* allocator);
+                               const struct Allocator* allocator);
 
 #endif

@@ -100,7 +100,7 @@ int init(const uint8_t* privateKey,
          bool authenticatePackets)
 {
     printf("\nSetting up:\n");
-    struct MemAllocator* allocator = MallocAllocator_new(1048576);
+    struct Allocator* allocator = MallocAllocator_new(1048576);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);

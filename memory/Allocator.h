@@ -16,23 +16,23 @@
 
 #include <stdlib.h>
 
-struct MemAllocator;
+struct Allocator;
 
 /**
  * Writer interface which writes data to memory and
  * provides pointers to the memory locations where it wrote.
  */
-struct MemAllocator
+struct Allocator
 {
-    /** The internal state of the MemAllocator. */
+    /** The internal state of the Allocator. */
     void* const context;
 
     /**
      * Free the heap allocations held by the allocator and any of it's children.
      *
-     * @param this the MemAllocator which is being called. Use: allocator->free(allocator);
+     * @param this the Allocator which is being called. Use: allocator->free(allocator);
      */
-    void (* const free)(const struct MemAllocator* this);
+    void (* const free)(const struct Allocator* this);
 
     /**
      * Add a function to be called when the allocator is freed.
@@ -45,7 +45,7 @@ struct MemAllocator
      */
     void (* const onFree)(void (*callback)(void* callbackContext),
                           void* callbackContext,
-                          const struct MemAllocator* this);
+                          const struct Allocator* this);
 
     /**
      * Allocate some memory from this memory allocator.
@@ -58,7 +58,7 @@ struct MemAllocator
      * @see malloc()
      */
     void* (* const malloc)(size_t numberOfBytes,
-                           const struct MemAllocator* this);
+                           const struct Allocator* this);
 
     /**
      * Allocate some memory from this memory allocator.
@@ -74,7 +74,7 @@ struct MemAllocator
      */
     void* (* const calloc)(size_t numberOfBytes,
                            size_t multiplier,
-                           const struct MemAllocator* this);
+                           const struct Allocator* this);
 
     /**
      * Allocate some memory and copy something into that memory space.
@@ -88,7 +88,7 @@ struct MemAllocator
      * @return a pointer to the newly allocated memory.
      */
     void* (* const clone)(size_t numberOfBytes,
-                          const struct MemAllocator* thisAllocator,
+                          const struct Allocator* thisAllocator,
                           const void* toClone);
 
     /**
@@ -103,7 +103,7 @@ struct MemAllocator
      */
     void* (* const realloc)(const void* originalAllocation,
                             size_t numberOfBytes,
-                            const struct MemAllocator* thisAllocator);
+                            const struct Allocator* thisAllocator);
 
     /**
      * Get a new child of this allocator.
@@ -112,7 +112,7 @@ struct MemAllocator
      * @param this the memory allocator, use allocator->child(allocator) to get a child.
      * @return a child allocator.
      */
-    struct MemAllocator* (* const child)(const struct MemAllocator* this);
+    struct Allocator* (* const child)(const struct Allocator* this);
 };
 
 #endif /* MEMALLOCATOR_H */

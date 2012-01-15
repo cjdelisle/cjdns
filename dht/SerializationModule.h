@@ -25,6 +25,6 @@
 #ifdef __GNUC__
 __attribute__((nonnull))
 #endif
-void SerializationModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator);
+void SerializationModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator);
 
 #endif

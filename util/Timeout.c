@@ -15,7 +15,7 @@
 #include <sys/time.h>
 #include <event2/event.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Timeout.h"
 
 struct Timeout
@@ -86,7 +86,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   const uint64_t milliseconds,
                                   const uint32_t interval,
                                   struct event_base* eventBase,
-                                  const struct MemAllocator* allocator)
+                                  const struct Allocator* allocator)
 {
     struct Timeout* timeout =
         allocator->malloc(sizeof(struct Timeout) + event_get_struct_event_size(), allocator);
@@ -109,7 +109,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
                                    struct event_base* eventBase,
-                                   const struct MemAllocator* allocator)
+                                   const struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 0, eventBase, allocator);
 }
@@ -119,7 +119,7 @@ struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContex
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct event_base* eventBase,
-                                    const struct MemAllocator* allocator)
+                                    const struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 1, eventBase, allocator);
 }

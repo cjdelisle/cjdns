@@ -114,7 +114,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 struct Interface* TunInterface_new(String* interfaceName,
                                    struct event_base* base,
-                                   struct MemAllocator* allocator)
+                                   struct Allocator* allocator)
 {
     errno = 0;
     int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL);

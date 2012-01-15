@@ -17,7 +17,7 @@
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "switch/SwitchCore.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <event2/event.h>
 
@@ -28,7 +28,7 @@ int Ducttape_register(Dict* config,
                       struct Interface* routerIf,
                       struct SwitchCore* switchCore,
                       struct event_base* eventBase,
-                      struct MemAllocator* allocator,
+                      struct Allocator* allocator,
                       struct Log* logger);
 
 #endif

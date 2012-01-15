@@ -31,7 +31,7 @@
 #include "DHTModules.h"
 
 #include <libbenc/benc.h>
-#include <memory/MemAllocator.h>
+#include <memory/Allocator.h>
 #include <memory/BufferAllocator.h>
 #include <io/Reader.h>
 #include <io/ArrayReader.h>
@@ -56,7 +56,7 @@ static int handleIncoming(struct DHTMessage* message,
 
 /*--------------------Interface--------------------*/
 
-void SerializationModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator)
+void SerializationModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
 {
     struct SerializationModule_context* context =
         allocator->malloc(sizeof(struct SerializationModule_context), allocator);

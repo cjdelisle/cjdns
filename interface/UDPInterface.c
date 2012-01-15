@@ -14,7 +14,7 @@
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
 #include "interface/UDPInterface.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "util/Endian.h"
 #include "wire/Message.h"
@@ -84,7 +84,7 @@ struct UDPInterface
     struct Endpoint endpoints[MAX_INTERFACES];
     uint32_t endpointCount;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     /** The interface which will get all traffic for which there is no endpoint. */
     struct Interface* defaultInterface;
@@ -154,7 +154,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
-                                      struct MemAllocator* allocator,
+                                      struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
                                       struct Log* logger)
 {
@@ -231,7 +231,7 @@ struct Interface* insertEndpoint(struct sockaddr_storage* addr,
         return NULL;
     }
 
-    struct MemAllocator* epAllocator = context->allocator->child(context->allocator);
+    struct Allocator* epAllocator = context->allocator->child(context->allocator);
     struct Endpoint* ep = &context->endpoints[context->endpointCount];
     memcpy(&ep->addr, addr, sizeof(struct sockaddr_storage));
 

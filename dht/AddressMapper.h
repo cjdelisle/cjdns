@@ -20,7 +20,7 @@ struct AddressMapper
     uint8_t canary[3];
 };
 
-static inline struct AddressMapper* AddressMapper_new(struct MemAllocator* allocator)
+static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
 {
     return allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
 }

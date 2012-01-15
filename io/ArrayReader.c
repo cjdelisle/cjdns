@@ -25,7 +25,7 @@ static void skip(size_t byteCount, const struct Reader* reader);
 /** @see ArrayReader.h */
 struct Reader* ArrayReader_new(const void* bufferToRead,
                                size_t length,
-                               const struct MemAllocator* allocator)
+                               const struct Allocator* allocator)
 {
     struct Reader* reader =
         allocator->calloc(sizeof(struct Reader), 1, allocator);

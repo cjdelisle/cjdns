@@ -15,7 +15,7 @@
 #define SESSION_MANAGER_H
 
 #include "interface/Interface.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <stdint.h>
 #include <event2/event.h>
@@ -44,7 +44,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
                                           void* interfaceContext,
                                           struct event_base* eventBase,
                                           struct CryptoAuth* cryptoAuth,
-                                          struct MemAllocator* allocator);
+                                          struct Allocator* allocator);
 
 /**
  * Get a session from the session manager.

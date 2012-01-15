@@ -69,7 +69,7 @@ struct SearchStore_Search
     struct SearchStore* store;
 
     /** Allocator which allocated this Search. */
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     /** The nodes to ask when performing the search. */
     struct SearchNode nodes[SearchStore_SEARCH_NODES];
@@ -88,7 +88,7 @@ struct SearchNodeIndex
 /*--------------------Functions--------------------*/
 
 /** See: SearchStore.h */
-struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
+struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
                                     struct Log* logger)
 {
@@ -111,7 +111,7 @@ struct SearchStore_Search* SearchStore_newSearch(
         return NULL;
     }
 
-    struct MemAllocator* allocator = store->allocator->child(store->allocator);
+    struct Allocator* allocator = store->allocator->child(store->allocator);
     struct SearchStore_Search* search =
         allocator->malloc(sizeof(struct SearchStore_Search), allocator);
     search->searchIndex = i;
@@ -127,7 +127,7 @@ struct SearchStore_Search* SearchStore_newSearch(
 }
 
 /** See: SearchStore.h */
-struct MemAllocator* SearchStore_getAllocator(const struct SearchStore_Search* search)
+struct Allocator* SearchStore_getAllocator(const struct SearchStore_Search* search)
 {
     return search->allocator;
 }
@@ -187,7 +187,7 @@ static inline uint32_t intLog2_constant(const uint32_t number)
  * @return a string which will deserialize to the same index if passed to searchNodeIndexForTid().
  */
 static String* tidForSearchNodeIndex(const struct SearchNodeIndex* index,
-                                     const struct MemAllocator* allocator)
+                                     const struct Allocator* allocator)
 {
     const uint32_t searchNodesBits = intLog2_constant(SearchStore_SEARCH_NODES);
     const uint32_t maxSearchBits = intLog2_constant(SearchStore_MAX_SEARCHES);
@@ -239,7 +239,7 @@ static struct SearchNodeIndex searchNodeIndexForTid(const String* tid)
 
 /** See: SearchStore.h */
 String* SearchStore_tidForNode(const struct SearchStore_Node* node,
-                               const struct MemAllocator* allocator)
+                               const struct Allocator* allocator)
 {
     const struct SearchNodeIndex index = {
         .search = node->searchIndex,
@@ -252,7 +252,7 @@ String* SearchStore_tidForNode(const struct SearchStore_Node* node,
 /** See: SearchStore.h */
 struct SearchStore_Node* SearchStore_getNode(const String* tid,
                                              const struct SearchStore* store,
-                                             const struct MemAllocator* allocator)
+                                             const struct Allocator* allocator)
 {
     struct SearchNodeIndex index = searchNodeIndexForTid(tid);
     struct SearchStore_Search* search = store->searches[index.search];
@@ -350,7 +350,7 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
 
 /** See: SearchStore.h */
 struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search* search,
-                                                 const struct MemAllocator* allocator)
+                                                 const struct Allocator* allocator)
 {
     uint16_t index = search->indexOfLastInsertedNode;
     do {
@@ -378,7 +378,7 @@ struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_
 {
     const uint16_t searchIndex = end->searchIndex;
     const uint16_t nodeIndex = end->nodeIndex;
-    struct MemAllocator* const allocator = store->searches[searchIndex]->allocator;
+    struct Allocator* const allocator = store->searches[searchIndex]->allocator;
     struct SearchNode* const lastSearchNode = &store->searches[searchIndex]->nodes[nodeIndex];
     struct SearchNode* searchNode = lastSearchNode;
     struct SearchStore_TraceElement* element =

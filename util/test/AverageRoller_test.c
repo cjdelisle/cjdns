@@ -45,7 +45,7 @@ int main()
     const uint32_t windowSeconds = 3;
 
     uint8_t buffer[4096];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 4096);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
     struct AverageRoller* roller =
         (struct AverageRoller*) AverageRoller_new(windowSeconds, allocator);

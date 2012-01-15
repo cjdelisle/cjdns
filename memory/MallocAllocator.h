@@ -14,16 +14,16 @@
 #ifndef MALLOC_ALLOCATOR_H
 #define MALLOC_ALLOCATOR_H
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 /**
- * Create a new MemAllocator which is a wrapper around malloc().
+ * Create a new Allocator which is a wrapper around malloc().
  *
  * @param sizeLimit the number of bytes which are allowed to be allocated by
  *                  this allocator or any of it's children before the program
  *                  will be halted with an error.
  */
-struct MemAllocator* MallocAllocator_new(size_t sizeLimit);
+struct Allocator* MallocAllocator_new(size_t sizeLimit);
 
 /**
  * Get the number of bytes allocated so far by this allocator,
@@ -32,6 +32,6 @@ struct MemAllocator* MallocAllocator_new(size_t sizeLimit);
  * @param allocator this *must* be a MallocAllocator, no checking is done!
  * @return the number of bytes which have been allocated so far.
  */
-size_t MallocAllocator_bytesAllocated(struct MemAllocator* allocator);
+size_t MallocAllocator_bytesAllocated(struct Allocator* allocator);
 
 #endif

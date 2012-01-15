@@ -18,7 +18,7 @@
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Endian.h"
 
 #include <stdint.h>
@@ -72,7 +72,7 @@ void* CryptoAuth_getUser(struct Interface* interface);
  * @return a new CryptoAuth context.
  */
 struct CryptoAuth* CryptoAuth_new(Dict* config,
-                                  struct MemAllocator* allocator,
+                                  struct Allocator* allocator,
                                   const uint8_t* privateKey,
                                   struct event_base* eventBase,
                                   struct Log* logger);

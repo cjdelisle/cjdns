@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 
 struct OnFreeJob;
@@ -31,7 +31,7 @@ struct Allocation {
     size_t size;
 };
 
-/** Internal state for MemAllocator. */
+/** Internal state for Allocator. */
 struct Context;
 struct Context
 {
@@ -65,7 +65,7 @@ struct Context
     size_t maxSpace;
 
     /** This allocator. */
-    struct MemAllocator allocator;
+    struct Allocator allocator;
 };
 
 /** The first ("genesis") allocator, not a child of any other allocator. */
@@ -101,8 +101,8 @@ static inline void* newAllocation(struct Context* context, size_t size)
     return (void*) (alloc + 1);
 }
 
-/** @see MemAllocator->free() */
-static void freeAllocator(const struct MemAllocator* allocator)
+/** @see Allocator->free() */
+static void freeAllocator(const struct Allocator* allocator)
 {
     struct Context* context = (struct Context*) allocator->context;
 
@@ -143,32 +143,32 @@ static void freeAllocator(const struct MemAllocator* allocator)
     }
 }
 
-/** @see MemAllocator->malloc() */
-static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator)
+/** @see Allocator->malloc() */
+static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
 {
     return newAllocation(allocator->context, length);
 }
 
-/** @see MemAllocator->calloc() */
-static void* allocatorCalloc(size_t length, size_t count, const struct MemAllocator* allocator)
+/** @see Allocator->calloc() */
+static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator)
 {
     void* pointer = allocator->malloc(length * count, allocator);
     memset(pointer, 0, length * count);
     return pointer;
 }
 
-/** @see MemAllocator->clone() */
-static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone)
+/** @see Allocator->clone() */
+static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone)
 {
     void* pointer = allocator->malloc(length, allocator);
     memcpy(pointer, toClone, length);
     return pointer;
 }
 
-/** @see MemAllocator->realloc() */
+/** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
                               size_t size,
-                              const struct MemAllocator* allocator)
+                              const struct Allocator* allocator)
 {
     if (original == NULL) {
         return allocatorMalloc(size, allocator);
@@ -208,12 +208,12 @@ static void* allocatorRealloc(const void* original,
     return (void*) (alloc + 1);
 }
 
-/** @see MemAllocator->child() */
-static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
+/** @see Allocator->child() */
+static struct Allocator* childAllocator(const struct Allocator* allocator)
 {
     struct Context* context = allocator->context;
 
-    struct MemAllocator* childAlloc = MallocAllocator_new(0);
+    struct Allocator* childAlloc = MallocAllocator_new(0);
     struct Context* child = (struct Context*) childAlloc->context;
     child->maxSpace = context->maxSpace;
     child->lastSibling = context;
@@ -227,10 +227,10 @@ static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
     return childAlloc;
 }
 
-/** @see MemAllocator->onFree() */
+/** @see Allocator->onFree() */
 static void addOnFreeJob(void (* callback)(void* callbackContext),
                          void* callbackContext,
-                         const struct MemAllocator* this)
+                         const struct Allocator* this)
 {
     struct Context* context =
         (struct Context*) this->context;
@@ -252,7 +252,7 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
 }
 
 /** @see MallocAllocator.h */
-struct MemAllocator* MallocAllocator_new(size_t sizeLimit)
+struct Allocator* MallocAllocator_new(size_t sizeLimit)
 {
     struct FirstContext stackContext = {
         .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit
@@ -266,7 +266,7 @@ struct MemAllocator* MallocAllocator_new(size_t sizeLimit)
     context->spaceAvailable = &firstContext->spaceAvailable;
     context->maxSpace = firstContext->spaceAvailable;
 
-    struct MemAllocator allocator = {
+    struct Allocator allocator = {
         .context = context,
         .free = freeAllocator,
         .malloc = allocatorMalloc,
@@ -277,11 +277,11 @@ struct MemAllocator* MallocAllocator_new(size_t sizeLimit)
         .onFree = addOnFreeJob
     };
 
-    memcpy(&context->allocator, &allocator, sizeof(struct MemAllocator));
+    memcpy(&context->allocator, &allocator, sizeof(struct Allocator));
     return &context->allocator;
 }
 
-size_t MallocAllocator_bytesAllocated(struct MemAllocator* allocator)
+size_t MallocAllocator_bytesAllocated(struct Allocator* allocator)
 {
     struct Context* context = ((struct Context*) allocator->context);
     return context->maxSpace - *context->spaceAvailable;

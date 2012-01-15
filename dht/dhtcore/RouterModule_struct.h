@@ -46,13 +46,13 @@ struct RouterModule
 
     struct Log* logger;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     /** An array of timers for in-flight pings, allocated with pingAllocator. */
     struct Timeout* pingTimers[RouterModule_MAX_CONCURRENT_PINGS];
 
     /** A memory allocator which only exists when there are pings in flight. */
-    struct MemAllocator* pingAllocator;
+    struct Allocator* pingAllocator;
 };
 
 #endif

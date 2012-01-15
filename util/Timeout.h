@@ -33,7 +33,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
                                    struct event_base* eventBase,
-                                   const struct MemAllocator* allocator);
+                                   const struct Allocator* allocator);
 
 /**
  * Create a new interval event.
@@ -50,7 +50,7 @@ struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContex
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct event_base* eventBase,
-                                    const struct MemAllocator* allocator);
+                                    const struct Allocator* allocator);
 
 /**
  * Change an existing event to trigger after a new timeout.

@@ -37,7 +37,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  */
-void ReplyModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator)
+void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
 {
     DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .name = "ReplyModule",

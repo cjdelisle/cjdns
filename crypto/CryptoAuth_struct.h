@@ -18,7 +18,7 @@
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
@@ -52,7 +52,7 @@ struct CryptoAuth
      */
     uint32_t resetAfterInactivitySeconds;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 };
 
 /**

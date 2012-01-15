@@ -35,14 +35,14 @@ struct BencSerializer
      *               assumes the reader's pointer is alligned on the first digit of the length
      *               of the string and will leave the read pointer on the first character AFTER
      *               the end of the string.
-     * @param writer a MemAllocator which will be used to store data.
+     * @param writer a Allocator which will be used to store data.
      * @param stringPointer a pointer which will be set to the string.
      * @return 0 if everything goes well, -1 if NULL returned by the writer indicating an array
      *           overflow, -2 if -1 returned by the reader indicating an array underflow,
      *           -3 if content unparsable.
      */
     int32_t (* const parseString)(const struct Reader* reader,
-                                  const struct MemAllocator* allocator,
+                                  const struct Allocator* allocator,
                                   String** stringPointer);
 
     /**
@@ -87,13 +87,13 @@ struct BencSerializer
      *               assumes the reader's pointer is alligned on the 'l' which signifies the
      *               beginning of the list. This will leave the pointer on the first character
      *               AFTER the 'e' which signifies the end of the list.
-     * @param allocator a MemAllocator which will be used to store data.
+     * @param allocator a Allocator which will be used to store data.
      * @param output a pointer which will be set to the location of the List.
      * @return 0 if everything goes well, -2 if -1 returned by the reader indicating an array
      *           underflow, -3 if content unparsable.
      */
     int32_t (* const parseList)(const struct Reader* reader,
-                                const struct MemAllocator* allocator,
+                                const struct Allocator* allocator,
                                 List* output);
 
     /**
@@ -113,13 +113,13 @@ struct BencSerializer
      *               assumes the reader's pointer is alligned on the 'd' which indicates
      *               dictionary and will leave the read pointer on the first character AFTER
      *               the 'e' which ends the dictionary.
-     * @param allocator a MemAllocator which will be used to store data.
+     * @param allocator a Allocator which will be used to store data.
      * @param output a dictionary pointer which will be set to the output. Dict* out = NULL; is enough.
      * @return 0 if everything goes well -2 if -1 returned by read indicating an array underflow,
      *           -3 if content unparsable.
      */
     int32_t (* const parseDictionary)(const struct Reader* reader,
-                                      const struct MemAllocator* allocator,
+                                      const struct Allocator* allocator,
                                       Dict* output);
 };
 

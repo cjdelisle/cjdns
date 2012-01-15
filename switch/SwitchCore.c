@@ -13,7 +13,7 @@
  */
 #include <string.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/Log.h"
 #include "switch/SwitchCore.h"
@@ -62,10 +62,10 @@ struct SwitchCore
     bool routerAdded;
     struct Log* logger;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 };
 
-struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* allocator)
+struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocator)
 {
     struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1, allocator);
     core->allocator = allocator;

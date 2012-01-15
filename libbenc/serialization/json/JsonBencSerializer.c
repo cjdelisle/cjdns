@@ -11,7 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "libbenc/benc.h"
@@ -25,7 +25,7 @@
 #include <stdbool.h>
 
 static int32_t parseGeneric(const struct Reader* reader,
-                            const struct MemAllocator* allocator,
+                            const struct Allocator* allocator,
                             bobj_t** output);
 static int32_t serializeGenericWithPadding(const struct Writer* writer,
                                            size_t padSpaceCount,
@@ -100,7 +100,7 @@ static inline int readUntil(uint8_t target, const struct Reader* reader)
 }
 
 static inline int parseString(const struct Reader* reader,
-                              const struct MemAllocator* allocator,
+                              const struct Allocator* allocator,
                               String** output)
 {
     #define BUFF_SZ (1<<20)
@@ -254,7 +254,7 @@ static inline int parseComment(const struct Reader* reader)
 
 /** @see BencSerializer.h */
 static int32_t parseList(const struct Reader* reader,
-                         const struct MemAllocator* allocator,
+                         const struct Allocator* allocator,
                          List* output)
 {
     char nextChar;
@@ -355,7 +355,7 @@ static int32_t serializeDictionary(const struct Writer* writer,
 
 /** @see BencSerializer.h */
 static int32_t parseDictionary(const struct Reader* reader,
-                               const struct MemAllocator* allocator,
+                               const struct Allocator* allocator,
                                Dict* output)
 {
     uint8_t nextChar;
@@ -415,7 +415,7 @@ static int32_t parseDictionary(const struct Reader* reader,
 }
 
 static int32_t parseGeneric(const struct Reader* reader,
-                            const struct MemAllocator* allocator,
+                            const struct Allocator* allocator,
                             bobj_t** output)
 {
     int ret = 0;

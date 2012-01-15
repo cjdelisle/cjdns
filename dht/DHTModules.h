@@ -14,7 +14,7 @@
 #ifndef DHTMODULES_H
 #define DHTMODULES_H
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "libbenc/benc.h"
@@ -56,7 +56,7 @@ struct DHTMessage
     struct DHTMessage* replyTo;
 
     /** A memory allocator which will be freed after this message is sent. */
-    const struct MemAllocator* allocator;
+    const struct Allocator* allocator;
 };
 
 /**
@@ -148,7 +148,7 @@ struct DHTModuleRegistry {
     Dict* serializedContexts;
 
     /** Means of getting memory for the registry. */
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 };
 
 /**
@@ -157,7 +157,7 @@ struct DHTModuleRegistry {
  * @param allocator the means of getting memory to store the registry.
  * @return a new (empty) registry.
  */
-struct DHTModuleRegistry* DHTModules_new(struct MemAllocator* allocator);
+struct DHTModuleRegistry* DHTModules_new(struct Allocator* allocator);
 
 /**
  * Register an event handler.
@@ -208,6 +208,6 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
  * @see DHTModule->deserialize
  */
 struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
-                                                 struct MemAllocator* allocator);
+                                                 struct Allocator* allocator);
 
 #endif

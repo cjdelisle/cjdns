@@ -13,17 +13,17 @@
  */
 #include <string.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "libbenc/benc.h"
 
 /** @see benc.h */
-String* benc_newString(const char* bytes, const struct MemAllocator* allocator)
+String* benc_newString(const char* bytes, const struct Allocator* allocator)
 {
     return benc_newBinaryString(bytes, strlen(bytes), allocator);
 }
 
 /** @see benc.h */
-String* benc_newBinaryString(const char* bytes, size_t length, const struct MemAllocator* allocator)
+String* benc_newBinaryString(const char* bytes, size_t length, const struct Allocator* allocator)
 {
     char* copy = allocator->malloc(length + 1, allocator);
     // Make the string null terminated so it will print nicely.

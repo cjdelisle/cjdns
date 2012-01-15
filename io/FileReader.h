@@ -15,7 +15,7 @@
 #define FILEREADER_H
 
 #include "io/Reader.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <stdio.h>
 
@@ -26,6 +26,6 @@
  * @param allocator the memory allocator to use for allocating the reader and context.
  */
 struct Reader* FileReader_new(FILE* toRead,
-                              const struct MemAllocator* allocator);
+                              const struct Allocator* allocator);
 
 #endif

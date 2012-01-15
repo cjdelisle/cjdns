@@ -29,7 +29,7 @@
 
 struct BufferAllocator_onFreeJob;
 
-/** Internal state for MemAllocator. */
+/** Internal state for Allocator. */
 struct BufferAllocator_context {
     char* basePointer;
     char* pointer;
@@ -44,18 +44,18 @@ struct BufferAllocator_onFreeJob {
 };
 
 /* Internal Prototypes. */
-static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator);
-static void* allocatorCalloc(size_t length, size_t count, const struct MemAllocator* allocator);
-static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone);
-static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator);
-static void freeAllocator(const struct MemAllocator* allocator);
-static struct MemAllocator* childAllocator(const struct MemAllocator* allocator);
+static void* allocatorMalloc(size_t length, const struct Allocator* allocator);
+static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator);
+static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone);
+static void* allocatorRealloc(const void* original, size_t length, const struct Allocator* allocator);
+static void freeAllocator(const struct Allocator* allocator);
+static struct Allocator* childAllocator(const struct Allocator* allocator);
 static void addOnFreeJob(void (* callback)(void* callbackContext),
                          void* callbackContext,
-                         const struct MemAllocator* this);
+                         const struct Allocator* this);
 
 /** @see BufferAllocator.h */
-struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
+struct Allocator* BufferAllocator_new(void* buffer, size_t length)
 {
     /* Write itself into it's own buffer :) */
     struct BufferAllocator_context context = {
@@ -78,7 +78,7 @@ struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
     /* put the context into the buffer. */
     memcpy(context.pointer, &context, sizeof(struct BufferAllocator_context));
 
-    struct MemAllocator allocator = {
+    struct Allocator allocator = {
         .context = context.pointer,
         .free = freeAllocator,
         .malloc = allocatorMalloc,
@@ -96,7 +96,7 @@ struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
     contextPtr->pointer += sizeof(struct BufferAllocator_context);
 
     /* Now that the context is in place we can begin using the allocater. */
-    struct MemAllocator* allocatorPtr = allocator.malloc(sizeof(struct MemAllocator), &allocator);
+    struct Allocator* allocatorPtr = allocator.malloc(sizeof(struct Allocator), &allocator);
     if (allocatorPtr == NULL) {
         return NULL;
     }
@@ -104,7 +104,7 @@ struct MemAllocator* BufferAllocator_new(void* buffer, size_t length)
     /* Reset the base pointer so as not to clobber the context on free() */
     contextPtr->basePointer = contextPtr->pointer;
 
-    memcpy(allocatorPtr, &allocator, sizeof(struct MemAllocator));
+    memcpy(allocatorPtr, &allocator, sizeof(struct Allocator));
     return allocatorPtr;
 }
 
@@ -116,8 +116,8 @@ static void failure(const char* message)
     abort();
 }
 
-/** @see MemAllocator->malloc() */
-static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator)
+/** @see Allocator->malloc() */
+static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
 {
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;
@@ -139,24 +139,24 @@ static void* allocatorMalloc(size_t length, const struct MemAllocator* allocator
     return (void*) pointer;
 }
 
-/** @see MemAllocator->calloc() */
-static void* allocatorCalloc(size_t length, size_t count, const struct MemAllocator* allocator)
+/** @see Allocator->calloc() */
+static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator)
 {
     void* pointer = allocator->malloc(length * count, allocator);
     memset(pointer, 0, length * count);
     return pointer;
 }
 
-/** @see MemAllocator->clone() */
-static void* allocatorClone(size_t length, const struct MemAllocator* allocator, const void* toClone)
+/** @see Allocator->clone() */
+static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone)
 {
     void* pointer = allocator->malloc(length, allocator);
     memcpy(pointer, toClone, length);
     return pointer;
 }
 
-/** @see MemAllocator->realloc() */
-static void* allocatorRealloc(const void* original, size_t length, const struct MemAllocator* allocator)
+/** @see Allocator->realloc() */
+static void* allocatorRealloc(const void* original, size_t length, const struct Allocator* allocator)
 {
     if (original == NULL) {
         return allocatorMalloc(length, allocator);
@@ -176,8 +176,8 @@ static void* allocatorRealloc(const void* original, size_t length, const struct 
     return newAlloc;
 }
 
-/** @see MemAllocator->free() */
-static void freeAllocator(const struct MemAllocator* allocator)
+/** @see Allocator->free() */
+static void freeAllocator(const struct Allocator* allocator)
 {
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;
@@ -192,15 +192,15 @@ static void freeAllocator(const struct MemAllocator* allocator)
 }
 
 /** Fake freeAllocator so that child allocators don't get freed. */
-static void doNothing(const struct MemAllocator* allocator)
+static void doNothing(const struct Allocator* allocator)
 {
     allocator = allocator;
 }
 
-/** @see MemAllocator->onFree() */
+/** @see Allocator->onFree() */
 static void addOnFreeJob(void (* callback)(void* callbackContext),
                          void* callbackContext,
-                         const struct MemAllocator* this)
+                         const struct Allocator* this)
 {
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) this->context;
@@ -221,10 +221,10 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
     job->next = newJob;
 }
 
-/** @see MemAllocator->child() */
-static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
+/** @see Allocator->child() */
+static struct Allocator* childAllocator(const struct Allocator* allocator)
 {
-    return allocator->clone(sizeof(struct MemAllocator), allocator, &(struct MemAllocator) {
+    return allocator->clone(sizeof(struct Allocator), allocator, &(struct Allocator) {
         .context = allocator->context,
         .free = doNothing,
         .malloc = allocatorMalloc,

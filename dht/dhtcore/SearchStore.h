@@ -17,7 +17,7 @@
 #include <stdint.h>
 
 #include "dht/Address.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "libbenc/benc.h"
 #include "util/Log.h"
 #include "util/AverageRoller.h"
@@ -52,7 +52,7 @@ struct SearchStore_Search;
 struct SearchStore
 {
     /** The means of getting memory to store each search. */
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     /**
      * An array of pointers to all search slots.
@@ -99,7 +99,7 @@ struct SearchStore_TraceElement
  * @param gmrtRoller averager of the mean response time for all nodes.
  * @param logger
  */
-struct SearchStore* SearchStore_new(struct MemAllocator* allocator,
+struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
                                     struct Log* logger);
 
@@ -121,7 +121,7 @@ struct SearchStore_Search* SearchStore_newSearch(
  * @param search the search.
  * @return the allocator for the search.
  */
-struct MemAllocator* SearchStore_getAllocator(const struct SearchStore_Search* search);
+struct Allocator* SearchStore_getAllocator(const struct SearchStore_Search* search);
 
 /**
  * Set some additional data to go along with the search.
@@ -164,7 +164,7 @@ struct SearchStore_Search* SearchStore_getSearchForNode(const struct SearchStore
  * @return a string representing the TID to get the same node.
  */
 String* SearchStore_tidForNode(const struct SearchStore_Node* node,
-                               const struct MemAllocator* allocator);
+                               const struct Allocator* allocator);
 
 /**
  * Get a node from the search store.
@@ -176,7 +176,7 @@ String* SearchStore_tidForNode(const struct SearchStore_Node* node,
  */
 struct SearchStore_Node* SearchStore_getNode(const String* tid,
                                              const struct SearchStore* store,
-                                             const struct MemAllocator* allocator);
+                                             const struct Allocator* allocator);
 
 /**
  * Add a node to a search.
@@ -222,7 +222,7 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
  * @return the node which is copied from the storage to the allocated space.
  */
 struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search* search,
-                                                 const struct MemAllocator* allocator);
+                                                 const struct Allocator* allocator);
 
 /**
  * Get a linked list of trace elements showing the speed of each reply.

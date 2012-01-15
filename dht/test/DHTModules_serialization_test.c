@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include "dht/DHTModules.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
@@ -36,7 +36,7 @@ static const benc_bstr_t hi = { .bytes = "hi", .len = 2 };
 static Dict* serialize(void* vcontext)
 {
     char* buffer = calloc(2048, 1);
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 2048);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 2048);
     Dict* out = benc_newDictionary(allocator);
     benc_putString(out, &hi, benc_newString((char*) vcontext, allocator), allocator);
     return out;
@@ -53,7 +53,7 @@ static int testSerialization()
     };
 
     char buffer[256];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 256);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 256);
     char writeBuffer[64];
     memset(writeBuffer, 0, 64);
     struct Writer* writer = ArrayWriter_new(writeBuffer, 64, allocator);
@@ -93,7 +93,7 @@ int testDeserialization()
     };
 
     char buffer[512];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 512);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 512);
     struct Reader* reader = ArrayReader_new(control, strlen(control), allocator);
 
     struct DHTModuleRegistry* reg = DHTModules_deserialize(reader, allocator);

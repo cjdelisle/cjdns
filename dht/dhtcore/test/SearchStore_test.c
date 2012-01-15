@@ -24,7 +24,7 @@ int main()
 {
     srand(time(NULL));
     char buffer[1024];
-    struct MemAllocator* allocator = BufferAllocator_new(buffer, 1024);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 1024);
     struct SearchNodeIndex index = {rand() % SearchStore_MAX_SEARCHES, rand() % SearchStore_SEARCH_NODES};
     String* str = tidForSearchNodeIndex(&index, allocator);
     struct SearchNodeIndex index2 = searchNodeIndexForTid(str);

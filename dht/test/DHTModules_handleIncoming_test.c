@@ -12,7 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "dht/DHTModules.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ int testInputHandler()
         .handleIncoming = handleIncoming
     };
 
-    struct MemAllocator* allocator = MallocAllocator_new(2048);
+    struct Allocator* allocator = MallocAllocator_new(2048);
 
     struct DHTModuleRegistry* reg = DHTModules_new(allocator);
     DHTModules_register(&module, reg);

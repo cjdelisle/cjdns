@@ -11,7 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "benc.h"
 
 int32_t benc_itemCount(const List* list)
@@ -27,7 +27,7 @@ int32_t benc_itemCount(const List* list)
     return -1;
 }
 
-static List* addObject(List* list, Object* item, const struct MemAllocator* allocator)
+static List* addObject(List* list, Object* item, const struct Allocator* allocator)
 {
     if (list == NULL) {
         List* newList = allocator->calloc(sizeof(List), 1, allocator);
@@ -43,7 +43,7 @@ static List* addObject(List* list, Object* item, const struct MemAllocator* allo
 }
 
 /** @see benc.h */
-List* benc_addInteger(List* list, Integer toAdd, const struct MemAllocator* allocator)
+List* benc_addInteger(List* list, Integer toAdd, const struct Allocator* allocator)
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_INT,
@@ -53,7 +53,7 @@ List* benc_addInteger(List* list, Integer toAdd, const struct MemAllocator* allo
 }
 
 /** @see benc.h */
-List* benc_addString(List* list, String* toAdd, const struct MemAllocator* allocator)
+List* benc_addString(List* list, String* toAdd, const struct Allocator* allocator)
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_BSTR,
@@ -63,7 +63,7 @@ List* benc_addString(List* list, String* toAdd, const struct MemAllocator* alloc
 }
 
 /** @see benc.h */
-List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* allocator)
+List* benc_addDictionary(List* list, Dict* toAdd, const struct Allocator* allocator)
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_DICT,
@@ -73,7 +73,7 @@ List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* all
 }
 
 /** @see benc.h */
-List* benc_addList(List* list, List* toAdd, const struct MemAllocator* allocator)
+List* benc_addList(List* list, List* toAdd, const struct Allocator* allocator)
 {
     Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
         .type = BENC_LIST,

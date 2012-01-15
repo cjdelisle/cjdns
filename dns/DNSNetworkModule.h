@@ -12,7 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <event2/event.h>
-#include <memory/MemAllocator.h>
+#include <memory/Allocator.h>
 
 /**
  * Create a new DNS network module.
@@ -23,7 +23,7 @@
  */
 struct DNSModule* DNSNetworkModule_new(struct event_base* base,
                                        evutil_socket_t socket,
-                                       struct MemAllocator* allocator);
+                                       struct Allocator* allocator);
 
 /**
  * Register the module.

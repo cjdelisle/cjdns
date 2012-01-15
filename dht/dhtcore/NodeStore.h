@@ -17,7 +17,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -34,7 +34,7 @@ struct NodeStore;
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
-                                const struct MemAllocator* allocator,
+                                const struct Allocator* allocator,
                                 struct Log* logger);
 
 /**
@@ -56,7 +56,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
-                                          const struct MemAllocator* allocator,
+                                          const struct Allocator* allocator,
                                           struct NodeStore* store);
 
 /**
@@ -77,7 +77,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
                                            const bool allowNodesFartherThanUs,
-                                           const struct MemAllocator* allocator);
+                                           const struct Allocator* allocator);
 
 /**
  * Change the reach of a node in the NodeStore.

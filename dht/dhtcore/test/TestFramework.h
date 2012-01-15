@@ -11,7 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "dht/DHTModules.h"
 #include "dht/CJDHTConstants.h"
 
@@ -19,11 +19,11 @@ static int catchOutgoing(struct DHTMessage* message, void* vcontext);
 static int bounceMessage(struct DHTMessage* message, void* vcontext);
 
 static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                const struct MemAllocator* allocator)
+                                                const struct Allocator* allocator)
 __attribute__((unused));
 
 static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                const struct MemAllocator* allocator)
+                                                const struct Allocator* allocator)
 {
     struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .context = registry,
@@ -34,7 +34,7 @@ static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* regist
 
 static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePointer,
                                                 struct DHTModuleRegistry* registry,
-                                                const struct MemAllocator* allocator)
+                                                const struct Allocator* allocator)
 {
     struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .context = messagePointer,

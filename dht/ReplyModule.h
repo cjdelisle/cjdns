@@ -31,6 +31,6 @@
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  */
-void ReplyModule_register(struct DHTModuleRegistry* registry, const struct MemAllocator* allocator);
+void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator);
 
 #endif

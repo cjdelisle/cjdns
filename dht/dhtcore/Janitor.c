@@ -22,7 +22,7 @@
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_struct.h"
 #include "libbenc/benc.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
@@ -53,7 +53,7 @@ struct Janitor
     uint64_t globalMaintainenceMilliseconds;
     uint64_t timeOfNextGlobalMaintainence;
 
-    struct MemAllocator* allocator;
+    struct Allocator* allocator;
 
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
@@ -138,7 +138,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
-                            struct MemAllocator* allocator,
+                            struct Allocator* allocator,
                             struct event_base* eventBase)
 {
     struct Janitor* janitor = allocator->malloc(sizeof(struct Janitor), allocator);

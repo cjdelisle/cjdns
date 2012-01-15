@@ -34,7 +34,7 @@ static int handleIncoming(struct DNSMessage* message,
  *
  * @param allocator the memory allocator to use for getting memory.
  */
-struct DNSModule* DNSCheckZoneModule_new(struct MemAllocator* allocator)
+struct DNSModule* DNSCheckZoneModule_new(struct Allocator* allocator)
 {
     struct DNSModule* module = allocator->malloc(sizeof(struct DNSModule), allocator);
 

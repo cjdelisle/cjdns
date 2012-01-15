@@ -56,7 +56,7 @@ struct Interface
     Interface_CONST_CALLBACK(sendMessage);
 
     /** Used to allocate this interface, the interface will close when this allocator is freed. */
-    struct MemAllocator* const allocator;
+    struct Allocator* const allocator;
 
 
 

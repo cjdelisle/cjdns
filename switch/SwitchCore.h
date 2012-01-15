@@ -35,7 +35,7 @@ struct SwitchCore;
  * @param logger what to log output to.
  * @param allocator the memory allocator to use for allocating the core context and interfaces.
  */
-struct SwitchCore* SwitchCore_new(struct Log* logger, struct MemAllocator* allocator);
+struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocator);
 
 /**
  * Register a new interface.

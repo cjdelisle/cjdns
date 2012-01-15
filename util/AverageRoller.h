@@ -16,7 +16,7 @@
 
 #include <stdint.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 struct AverageRoller;
 
@@ -26,7 +26,7 @@ struct AverageRoller;
  * @param windowSeconds the number of seconds the average should run over.
  * @return a new roller.
  */
-struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct MemAllocator* allocator);
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct Allocator* allocator);
 
 /**
  * Get the average.

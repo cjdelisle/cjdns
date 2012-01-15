@@ -27,7 +27,7 @@ static uint64_t bytesWritten(const struct Writer* writer);
 /** @see ArrayWriter.h */
 struct Writer* ArrayWriter_new(void* writeToBuffer,
                                size_t length,
-                               const struct MemAllocator* allocator)
+                               const struct Allocator* allocator)
 {
     struct Writer* writer =
         allocator->calloc(sizeof(struct Writer), 1, allocator);

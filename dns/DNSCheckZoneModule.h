@@ -11,11 +11,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <memory/MemAllocator.h>
+#include <memory/Allocator.h>
 
 /**
  * Create a new DNS module for failing any requests which are not in the .key zone.
  *
  * @param allocator the memory allocator to use for getting memory.
  */
-struct DNSModule* DNSCheckZoneModule_new(struct MemAllocator* allocator);
+struct DNSModule* DNSCheckZoneModule_new(struct Allocator* allocator);

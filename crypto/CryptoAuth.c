@@ -28,7 +28,7 @@
 #include "interface/Interface.h"
 #include "libbenc/benc.h"
 #include "util/Log.h"
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
@@ -843,7 +843,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct CryptoAuth* CryptoAuth_new(Dict* config,
-                                  struct MemAllocator* allocator,
+                                  struct Allocator* allocator,
                                   const uint8_t* privateKey,
                                   struct event_base* eventBase,
                                   struct Log* logger)

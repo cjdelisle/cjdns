@@ -11,7 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 #include "benc.h"
 
 int32_t benc_entryCount(const Dict* dictionary)
@@ -94,7 +94,7 @@ List* benc_lookupList(const Dict* dictionary, const String* key)
 }
 
 /** @see benc.h */
-Dict* benc_newDictionary(const struct MemAllocator* allocator)
+Dict* benc_newDictionary(const struct Allocator* allocator)
 {
     return allocator->calloc(sizeof(Dict), 1, allocator);
 }
@@ -116,7 +116,7 @@ Dict* benc_newDictionary(const struct MemAllocator* allocator)
 static Object* putObject(Dict* dictionary,
                          const String* key,
                          Object* value,
-                         const struct MemAllocator* allocator)
+                         const struct Allocator* allocator)
 {
     benc_dict_entry_t** prev_p = dictionary;
     benc_dict_entry_t* current = *dictionary;
@@ -145,7 +145,7 @@ static Object* putObject(Dict* dictionary,
 Object* benc_putInteger(Dict* dictionary,
                         const String* key,
                         Integer value,
-                        const struct MemAllocator* allocator)
+                        const struct Allocator* allocator)
 {
     Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
         .type = BENC_INT,
@@ -158,7 +158,7 @@ Object* benc_putInteger(Dict* dictionary,
 Object* benc_putString(Dict* dictionary,
                        const String* key,
                        String* value,
-                       const struct MemAllocator* allocator)
+                       const struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;
@@ -174,7 +174,7 @@ Object* benc_putString(Dict* dictionary,
 Object* benc_putList(Dict* dictionary,
                      const String* key,
                      List* value,
-                     const struct MemAllocator* allocator)
+                     const struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;
@@ -190,7 +190,7 @@ Object* benc_putList(Dict* dictionary,
 Object* benc_putDictionary(Dict* dictionary,
                            const String* key,
                            Dict* value,
-                           const struct MemAllocator* allocator)
+                           const struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;

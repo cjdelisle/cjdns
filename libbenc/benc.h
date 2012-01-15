@@ -16,7 +16,7 @@
 
 #include <stdint.h>
 
-#include "memory/MemAllocator.h"
+#include "memory/Allocator.h"
 
 typedef struct bobj_s               bobj_t;
 typedef int64_t                     benc_int_t;
@@ -85,7 +85,7 @@ int32_t benc_entryCount(const Dict* dictionary);
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the integer.
  */
-List* benc_addInteger(List* list, Integer toAdd, const struct MemAllocator* allocator);
+List* benc_addInteger(List* list, Integer toAdd, const struct Allocator* allocator);
 
 /**
  * Add a string to a list, if the list does not exist then it is allocated.
@@ -96,7 +96,7 @@ List* benc_addInteger(List* list, Integer toAdd, const struct MemAllocator* allo
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the string.
  */
-List* benc_addString(List* list, String* toAdd, const struct MemAllocator* allocator);
+List* benc_addString(List* list, String* toAdd, const struct Allocator* allocator);
 
 /**
  * Add a dictionary to a list, if the list does not exist then it is allocated.
@@ -107,7 +107,7 @@ List* benc_addString(List* list, String* toAdd, const struct MemAllocator* alloc
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the dictionary.
  */
-List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* allocator);
+List* benc_addDictionary(List* list, Dict* toAdd, const struct Allocator* allocator);
 
 /**
  * Add a list as an item to another list, if the list does not exist then it is allocated.
@@ -118,7 +118,7 @@ List* benc_addDictionary(List* list, Dict* toAdd, const struct MemAllocator* all
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the item.
  */
-List* benc_addList(List* list, List* toAdd, const struct MemAllocator* allocator);
+List* benc_addList(List* list, List* toAdd, const struct Allocator* allocator);
 
 /*----------------------- List Get Functions -----------------------*/
 
@@ -219,7 +219,7 @@ List* benc_lookupList(const Dict* dictionary, const String* key);
 Object* benc_putInteger(Dict* putIntoThis,
                         const String* key,
                         Integer value,
-                        const struct MemAllocator* allocator);
+                        const struct Allocator* allocator);
 
 /**
  * Insert a String object into another dictionary.
@@ -235,7 +235,7 @@ Object* benc_putInteger(Dict* putIntoThis,
 Object* benc_putString(Dict* putIntoThis,
                        const String* key,
                        String* value,
-                       const struct MemAllocator* allocator);
+                       const struct Allocator* allocator);
 
 /**
  * Insert a Dictionary object into another dictionary.
@@ -251,7 +251,7 @@ Object* benc_putString(Dict* putIntoThis,
 Object* benc_putDictionary(Dict* putIntoThis,
                            const String* key,
                            Dict* value,
-                           const struct MemAllocator* allocator);
+                           const struct Allocator* allocator);
 
 /**
  * Insert a List object into a dictionary.
@@ -267,7 +267,7 @@ Object* benc_putDictionary(Dict* putIntoThis,
 Object* benc_putList(Dict* putIntoThis,
                      const String* key,
                      List* value,
-                     const struct MemAllocator* allocator);
+                     const struct Allocator* allocator);
 
 /*----------------------- Constructors -----------------------*/
 
@@ -276,7 +276,7 @@ Object* benc_putList(Dict* putIntoThis,
  *
  * @param allocator the place to allocate the memory for storing the dictionary.
  */
-Dict* benc_newDictionary(const struct MemAllocator* allocator);
+Dict* benc_newDictionary(const struct Allocator* allocator);
 
 /**
  * Create a new bencoded string from a C null terminated string.
@@ -286,7 +286,7 @@ Dict* benc_newDictionary(const struct MemAllocator* allocator);
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.
  */
-String* benc_newString(const char* bytes, const struct MemAllocator* allocator);
+String* benc_newString(const char* bytes, const struct Allocator* allocator);
 
 /**
  * Create a new bencoded string from a set of bytes.
@@ -298,7 +298,7 @@ String* benc_newString(const char* bytes, const struct MemAllocator* allocator);
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.
  */
-String* benc_newBinaryString(const char* bytes, size_t length, const struct MemAllocator* allocator);
+String* benc_newBinaryString(const char* bytes, size_t length, const struct Allocator* allocator);
 
 /*----------------------- Comparitors -----------------------*/
 

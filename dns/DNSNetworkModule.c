@@ -40,7 +40,7 @@ static void shutdownModule(void* vcontext);
  */
 struct DNSModule* DNSNetworkModule_new(struct event_base* base,
                                        evutil_socket_t socket,
-                                       struct MemAllocator* allocator)
+                                       struct Allocator* allocator)
 {
     struct DNSNetworkModule_context* context =
         allocator->malloc(sizeof(struct DNSNetworkModule_context), allocator);
