@@ -19,7 +19,7 @@ include_directories(${LIBEVENT2_INCLUDE_DIRS})
 add_library(crypto Crypto.c CryptoAuth.c AddressCalc.c)
 target_link_libraries(crypto
     benc
-    MemAllocator
+    cjdmemory
     ${NACL_LIBRARIES}
     ${LIBEVENT2_LIBRARIES}
     util

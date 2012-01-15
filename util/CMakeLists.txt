@@ -20,7 +20,7 @@ add_library(util
     Timeout.c
     Hex.c
 )
-target_link_libraries(util MemAllocator ${LIBEVENT2_LIBRARIES})
+target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()

@@ -96,7 +96,7 @@ target_link_libraries(cjdroute
     dhtcore
     benc
     benc_JsonBencSerializer
-    MemAllocator
+    cjdmemory
     ${LIBEVENT2_LIBRARIES}
 )
 

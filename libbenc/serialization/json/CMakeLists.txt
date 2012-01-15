@@ -10,7 +10,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_library(benc_JsonBencSerializer JsonBencSerializer.c)
-target_link_libraries(benc_JsonBencSerializer MemAllocator cjdio util benc)
+target_link_libraries(benc_JsonBencSerializer cjdmemory cjdio util benc)
 
 # Everything must be tested.
 enable_testing()
