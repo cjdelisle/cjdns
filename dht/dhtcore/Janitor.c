@@ -24,6 +24,7 @@
 #include "libbenc/benc.h"
 #include "memory/MemAllocator.h"
 #include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
 #include "util/Hex.h"
 #include "util/Timeout.h"
@@ -117,6 +118,11 @@ static void maintanenceCycle(void* vcontext)
         Log_debug(janitor->routerModule->logger, "Routing table dump:\n");
         NodeStore_dumpTables(janitor->routerModule->logger->writer, janitor->routerModule->nodeStore);
         janitor->routerModule->logger->writer->write("\n", 1, janitor->routerModule->logger->writer);
+
+        size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
+        Log_debug1(janitor->routerModule->logger,
+                   "Using %u bytes of memory.\n",
+                   (unsigned int) bytes);
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {

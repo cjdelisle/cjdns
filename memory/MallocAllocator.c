@@ -61,6 +61,9 @@ struct Context
     /** The number of bytes which can be allocated by this allocator and all of it's family. */
     size_t* spaceAvailable;
 
+    /** The number of bytes which can be allocated total. */
+    size_t maxSpace;
+
     /** This allocator. */
     struct MemAllocator allocator;
 };
@@ -212,6 +215,7 @@ static struct MemAllocator* childAllocator(const struct MemAllocator* allocator)
 
     struct MemAllocator* childAlloc = MallocAllocator_new(0);
     struct Context* child = (struct Context*) childAlloc->context;
+    child->maxSpace = context->maxSpace;
     child->lastSibling = context;
     child->nextSibling = context->firstChild;
     if (context->firstChild != NULL) {
@@ -258,8 +262,9 @@ struct MemAllocator* MallocAllocator_new(size_t sizeLimit)
     struct FirstContext* firstContext =
         newAllocation(&stackContext.context, sizeof(struct FirstContext));
     memcpy(firstContext, &stackContext, sizeof(struct FirstContext));
-    firstContext->context.spaceAvailable = &firstContext->spaceAvailable;
     struct Context* context = &firstContext->context;
+    context->spaceAvailable = &firstContext->spaceAvailable;
+    context->maxSpace = firstContext->spaceAvailable;
 
     struct MemAllocator allocator = {
         .context = context,
@@ -274,4 +279,10 @@ struct MemAllocator* MallocAllocator_new(size_t sizeLimit)
 
     memcpy(&context->allocator, &allocator, sizeof(struct MemAllocator));
     return &context->allocator;
+}
+
+size_t MallocAllocator_bytesAllocated(struct MemAllocator* allocator)
+{
+    struct Context* context = ((struct Context*) allocator->context);
+    return context->maxSpace - *context->spaceAvailable;
 }

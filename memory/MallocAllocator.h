@@ -25,4 +25,13 @@
  */
 struct MemAllocator* MallocAllocator_new(size_t sizeLimit);
 
+/**
+ * Get the number of bytes allocated so far by this allocator,
+ * all of it's parents, and all of it's children.
+ *
+ * @param allocator this *must* be a MallocAllocator, no checking is done!
+ * @return the number of bytes which have been allocated so far.
+ */
+size_t MallocAllocator_bytesAllocated(struct MemAllocator* allocator);
+
 #endif
