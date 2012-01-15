@@ -44,11 +44,12 @@ static struct Message msg;
 
 #define BUFFER_SIZE 400
 static uint8_t* textBuff;
+#define ALIGNED_LEN(x) (strlen(x) + (strlen(x) % 4))
 #define MK_MSG(x) \
-    memcpy(&textBuff[BUFFER_SIZE - strlen(x)], x, strlen(x));   \
-    msg.length = strlen(x);                                     \
-    msg.bytes = textBuff + BUFFER_SIZE - strlen(x);             \
-    msg.padding = BUFFER_SIZE - strlen(x)
+    memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));    \
+    msg.length = strlen(x);                                           \
+    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);              \
+    msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 
 static uint8_t* if1Msg;
 static uint8_t* if2Msg;

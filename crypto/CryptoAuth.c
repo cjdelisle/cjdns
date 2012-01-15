@@ -539,6 +539,10 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         return encryptHandshake(message, wrapper);
     }
 
+    #ifdef Log_DEBUG
+        assert(!((uintptr_t)message->bytes % 4) || !"alignment fault");
+    #endif
+
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
     // nextNonce 2: sending key, hello received.
@@ -801,8 +805,9 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         return Error_UNDERSIZE_MESSAGE;
     }
     assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
-
-
+    #ifdef Log_DEBUG
+        assert(!((uintptr_t)received->bytes % 4) || !"alignment fault");
+    #endif
     Message_shift(received, -4);
 
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
