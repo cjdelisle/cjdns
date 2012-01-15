@@ -30,15 +30,15 @@
 
 static const char* control = "d10:TestModuled2:hi11:Hello Worldee";
 
-static const benc_bstr_t hello = { .bytes = "Hello World!", .len = 12 };
-static const benc_bstr_t hi = { .bytes = "hi", .len = 2 };
+static const String hello = { .bytes = "Hello World!", .len = 12 };
+static const String hi = { .bytes = "hi", .len = 2 };
 
 static Dict* serialize(void* vcontext)
 {
     char* buffer = calloc(2048, 1);
     struct Allocator* allocator = BufferAllocator_new(buffer, 2048);
-    Dict* out = benc_newDictionary(allocator);
-    benc_putString(out, &hi, benc_newString((char*) vcontext, allocator), allocator);
+    Dict* out = Dict_new(allocator);
+    Dict_putString(out, &hi, String_new((char*) vcontext, allocator), allocator);
     return out;
 }
 
@@ -78,7 +78,7 @@ static int testSerialization()
 static void deserialize(const Dict* serialData, void* vcontext)
 {
     char* context = (char*) vcontext;
-    String* out = benc_lookupString(serialData, &hi);
+    String* out = Dict_getString(serialData, &hi);
     memcpy(context, out->bytes, out->len);
 }
 

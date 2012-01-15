@@ -208,7 +208,7 @@ static String* tidForSearchNodeIndex(const struct SearchNodeIndex* index,
         out <<= (32 - totalBits);
     }
 
-    return benc_newBinaryString((char*) &out, totalBytes, allocator);
+    return String_newBinary((char*) &out, totalBytes, allocator);
 }
 
 /**

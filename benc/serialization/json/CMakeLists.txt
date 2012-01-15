@@ -9,10 +9,5 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-add_subdirectory(serialization)
-
-add_library(benc String.c Dict.c List.c)
-target_link_libraries(benc cjdmemory cjdio)
-
-# Everything must be tested.
-enable_testing()
+add_library(cjdbenc_JsonBencSerializer JsonBencSerializer.c)
+target_link_libraries(cjdbenc_JsonBencSerializer cjdmemory cjdio util cjdbenc)

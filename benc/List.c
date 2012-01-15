@@ -12,12 +12,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "benc.h"
+#include "benc/List.h"
 
-int32_t benc_itemCount(const List* list)
+int32_t List_size(const List* list)
 {
     if (list != NULL) {
-        benc_list_entry_t* item = *list;
+        struct List_Item* item = *list;
         int32_t i;
         for (i = 0; item != NULL; i++) {
             item = item->next;
@@ -34,7 +34,7 @@ static List* addObject(List* list, Object* item, const struct Allocator* allocat
         return addObject(newList, item, allocator);
     }
 
-    benc_list_entry_t* entry = allocator->malloc(sizeof(benc_list_entry_t), allocator);
+    struct List_Item* entry = allocator->malloc(sizeof(struct List_Item), allocator);
     entry->next = *list;
     entry->elem = item;
     *list = entry;
@@ -42,41 +42,41 @@ static List* addObject(List* list, Object* item, const struct Allocator* allocat
     return list;
 }
 
-/** @see benc.h */
-List* benc_addInteger(List* list, Integer toAdd, const struct Allocator* allocator)
+/** @see Object.h */
+List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
-        .type = BENC_INT,
-        .as.int_ = toAdd
+    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_INTEGER,
+        .as.number = toAdd
     });
     return addObject(list, obj, allocator);
 }
 
-/** @see benc.h */
-List* benc_addString(List* list, String* toAdd, const struct Allocator* allocator)
+/** @see Object.h */
+List* List_addString(List* list, String* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
-        .type = BENC_BSTR,
-        .as.bstr = toAdd
+    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_STRING,
+        .as.string = toAdd
     });
     return addObject(list, obj, allocator);
 }
 
-/** @see benc.h */
-List* benc_addDictionary(List* list, Dict* toAdd, const struct Allocator* allocator)
+/** @see Object.h */
+List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
-        .type = BENC_DICT,
+    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_DICT,
         .as.dictionary = toAdd
     });
     return addObject(list, obj, allocator);
 }
 
-/** @see benc.h */
-List* benc_addList(List* list, List* toAdd, const struct Allocator* allocator)
+/** @see Object.h */
+List* List_addList(List* list, List* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(bobj_t) {
-        .type = BENC_LIST,
+    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_LIST,
         .as.list = toAdd
     });
     return addObject(list, obj, allocator);
@@ -85,7 +85,7 @@ List* benc_addList(List* list, List* toAdd, const struct Allocator* allocator)
 static Object* getObject(const List* list, uint32_t index)
 {
     if (list != NULL && *list != NULL) {
-        benc_list_entry_t* entry = *list;
+        struct List_Item* entry = *list;
         uint32_t i;
         for (i = 0; i < index && entry != NULL; i++) {
             entry = entry->next;
@@ -95,41 +95,41 @@ static Object* getObject(const List* list, uint32_t index)
     return NULL;
 }
 
-/** @see benc.h */
-Integer* benc_getInteger(const List* list, uint32_t index)
+/** @see Object.h */
+int64_t* List_getInt(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
-    if (o != NULL && o->type == BENC_INT) {
-        return &(o->as.int_);
+    if (o != NULL && o->type == Object_INTEGER) {
+        return &(o->as.number);
     }
     return NULL;
 }
 
-/** @see benc.h */
-String* benc_getString(const List* list, uint32_t index)
+/** @see Object.h */
+String* List_getString(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
-    if (o != NULL && o->type == BENC_BSTR) {
-        return o->as.bstr;
+    if (o != NULL && o->type == Object_STRING) {
+        return o->as.string;
     }
     return NULL;
 }
 
-/** @see benc.h */
-Dict* benc_getDictionary(const List* list, uint32_t index)
+/** @see Object.h */
+Dict* List_getDict(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
-    if (o != NULL && o->type == BENC_DICT) {
+    if (o != NULL && o->type == Object_DICT) {
         return o->as.dictionary;
     }
     return NULL;
 }
 
-/** @see benc.h */
-List* benc_getList(const List* list, uint32_t index)
+/** @see Object.h */
+List* List_getList(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
-    if (o != NULL && o->type == BENC_LIST) {
+    if (o != NULL && o->type == Object_LIST) {
         return o->as.list;
     }
     return NULL;

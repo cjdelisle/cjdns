@@ -26,8 +26,8 @@
 #include "io/FileReader.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
-#include "libbenc/serialization/BencSerializer.h"
-#include "libbenc/serialization/json/JsonBencSerializer.h"
+#include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/json/JsonBencSerializer.h"
 #include "util/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -212,7 +212,7 @@ static int genconf()
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateKey[32])
 {
-    String* privateKeyStr = benc_lookupString(config, BSTR("privateKey"));
+    String* privateKeyStr = Dict_getString(config, BSTR("privateKey"));
     if (privateKeyStr == NULL) {
         fprintf(stderr, "Could not extract private key from configuration.\n");
     } else if (privateKeyStr->len != 64) {
@@ -284,11 +284,11 @@ static int getcmds(Dict* config)
     uint8_t myIp[40];
     Address_printIp(myIp, &addr);
 
-    Dict* router = benc_lookupDictionary(config, BSTR("router"));
-    Dict* iface = benc_lookupDictionary(router, BSTR("interface"));
-    String* type = benc_lookupString(iface, BSTR("type"));
-    String* tunDevice = benc_lookupString(iface, BSTR("tunDevice"));
-    if (!benc_stringEquals(type, BSTR("TUNInterface"))) {
+    Dict* router = Dict_getDict(config, BSTR("router"));
+    Dict* iface = Dict_getDict(router, BSTR("interface"));
+    String* type = Dict_getString(iface, BSTR("type"));
+    String* tunDevice = Dict_getString(iface, BSTR("tunDevice"));
+    if (!String_equals(type, BSTR("TUNInterface"))) {
         fprintf(stderr, "router.interface.type is not recognized.\n");
         return -1;
     }
@@ -306,8 +306,8 @@ static int getcmds(Dict* config)
 }
 
 static void authorizedPassword(String* passwd,
-                               Integer* authType,
-                               Integer* trust,
+                               int64_t* authType,
+                               int64_t* trust,
                                uint32_t index,
                                struct Context* ctx)
 {
@@ -335,16 +335,16 @@ static void authorizedPassword(String* passwd,
 
 static void authorizedPasswords(List* list, struct Context* ctx)
 {
-    uint32_t count = benc_itemCount(list);
+    uint32_t count = List_size(list);
     for (uint32_t i = 0; i < count; i++) {
-        Dict* d = benc_getDictionary(list, i);
+        Dict* d = List_getDict(list, i);
         if (!d) {
             fprintf(stderr, "authorizedPasswords[%u] is not a dictionary type.\n", i);
             exit(-1);
         }
-        String* passwd = benc_lookupString(d, BSTR("password"));
-        Integer* authType = benc_lookupInteger(d, BSTR("authType"));
-        Integer* trust = benc_lookupInteger(d, BSTR("trust"));
+        String* passwd = Dict_getString(d, BSTR("password"));
+        int64_t* authType = Dict_getInt(d, BSTR("authType"));
+        int64_t* trust = Dict_getInt(d, BSTR("trust"));
         authorizedPassword(passwd, authType, trust, i, ctx);
     }
 }
@@ -388,10 +388,10 @@ static void udpConnectTo(String* connectToAddress,
                          struct UDPInterface* udpContext,
                          struct Context* ctx)
 {
-    String* password = benc_lookupString(config, BSTR("password"));
-    Integer* authType = benc_lookupInteger(config, BSTR("authType"));
-    String* publicKey = benc_lookupString(config, BSTR("publicKey"));
-    Integer* trust = benc_lookupInteger(config, BSTR("trust"));
+    String* password = Dict_getString(config, BSTR("password"));
+    int64_t* authType = Dict_getInt(config, BSTR("authType"));
+    String* publicKey = Dict_getString(config, BSTR("publicKey"));
+    int64_t* trust = Dict_getInt(config, BSTR("trust"));
 
     #define FAIL_IF_NULL(cannotBeNull, fieldName) \
         if (!cannotBeNull) {                                                     \
@@ -456,7 +456,7 @@ static void udpConnectTo(String* connectToAddress,
 
 static void configureUDP(Dict* config, struct Context* ctx)
 {
-    String* bindStr = benc_lookupString(config, BSTR("bind"));
+    String* bindStr = Dict_getString(config, BSTR("bind"));
     char* bindAddress = bindStr ? bindStr->bytes : NULL;
 
     struct UDPInterface* udpContext =
@@ -475,12 +475,12 @@ static void configureUDP(Dict* config, struct Context* ctx)
         authedDef->receiverContext = uictx;
     }
 
-    Dict* connectTo = benc_lookupDictionary(config, BSTR("connectTo"));
+    Dict* connectTo = Dict_getDict(config, BSTR("connectTo"));
     if (connectTo) {
-        benc_dict_entry_t* entry = *connectTo;
+        struct Dict_Entry* entry = *connectTo;
         while (entry != NULL) {
             String* key = (String*) entry->key;
-            if (entry->val->type != BENC_DICT) {
+            if (entry->val->type != Object_DICT) {
                 fprintf(stderr,
                         "interfaces.UDPInterface.connectTo: entry %s is not a dictionary type.\n",
                         key->bytes);
@@ -497,9 +497,9 @@ static void configureUDP(Dict* config, struct Context* ctx)
 
 static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* context)
 {
-    Dict* iface = benc_lookupDictionary(config, BSTR("interface"));
-    if (benc_stringEquals(benc_lookupString(iface, BSTR("type")), BSTR("TUNInterface"))) {
-        String* tunPath = benc_lookupString(iface, BSTR("tunDevice"));
+    Dict* iface = Dict_getDict(config, BSTR("interface"));
+    if (String_equals(Dict_getString(iface, BSTR("type")), BSTR("TUNInterface"))) {
+        String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
         context->routerIf = TunInterface_new(tunPath, context->base, context->allocator);
     }
     context->routerModule = RouterModule_register(context->registry,
@@ -532,7 +532,7 @@ int main(int argc, char** argv)
     context.allocator = MallocAllocator_new(1<<22);
     struct Reader* reader = FileReader_new(stdin, context.allocator);
     Dict config;
-    if (benc_getJsonBencSerializer()->parseDictionary(reader, context.allocator, &config)) {
+    if (List_getJsonBencSerializer()->parseDictionary(reader, context.allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
@@ -561,20 +561,20 @@ int main(int argc, char** argv)
     ReplyModule_register(context.registry, context.allocator);
 
     // Router
-    Dict* routerConf = benc_lookupDictionary(&config, BSTR("router"));
+    Dict* routerConf = Dict_getDict(&config, BSTR("router"));
     registerRouter(routerConf, myAddr.key, &context);
 
     SerializationModule_register(context.registry, context.allocator);
 
     // Authed passwords.
-    List* authedPasswords = benc_lookupList(&config, BSTR("authorizedPasswords"));
+    List* authedPasswords = Dict_getList(&config, BSTR("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &context);
     }
 
     // Interfaces.
-    Dict* interfaces = benc_lookupDictionary(&config, BSTR("interfaces"));
-    Dict* udpConf = benc_lookupDictionary(interfaces, BSTR("UDPInterface"));
+    Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
+    Dict* udpConf = Dict_getDict(interfaces, BSTR("UDPInterface"));
 
     if (udpConf) {
         configureUDP(udpConf, &context);

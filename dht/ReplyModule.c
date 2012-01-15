@@ -15,7 +15,7 @@
 
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTModules.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 
 /**
  * The reply module replies to all incoming queries.
@@ -50,7 +50,7 @@ void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Alloc
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
-    if (benc_lookupString(message->asDict, CJDHTConstants_QUERY) == NULL) {
+    if (Dict_getString(message->asDict, CJDHTConstants_QUERY) == NULL) {
         return 0;
     }
 
@@ -75,13 +75,13 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 
     if (message->replyTo != NULL) {
         if (message->asDict == NULL) {
-            message->asDict = benc_newDictionary(message->allocator);
+            message->asDict = Dict_new(message->allocator);
         }
 
         // Put the transaction ID
-        String* tid = benc_lookupString(message->replyTo->asDict, CJDHTConstants_TXID);
+        String* tid = Dict_getString(message->replyTo->asDict, CJDHTConstants_TXID);
         if (tid != NULL) {
-            benc_putString(message->asDict, CJDHTConstants_TXID, tid, message->allocator);
+            Dict_putString(message->asDict, CJDHTConstants_TXID, tid, message->allocator);
         }
     }
     return 0;

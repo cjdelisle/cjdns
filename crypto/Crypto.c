@@ -14,9 +14,6 @@
 #include "crypto/Crypto.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
-#include "libbenc/benc.h"
-
-#include "crypto_hash_sha256.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -30,21 +27,6 @@ void Crypto_init()
         fprintf(stderr, "Unable to initialize secure random number generator, bailing out.");
         abort();
     }
-}
-
-/** @see Crypto.h */
-String* Crypto_sha256sum(const String* hashThis,
-                         const struct Allocator* allocator)
-{
-    String* out = benc_newBinaryString(NULL, crypto_hash_sha256_BYTES, allocator);
-    crypto_hash_sha256((uint8_t*)out->bytes, (uint8_t*)hashThis->bytes, hashThis->len);
-    return out;
-}
-
-/** @see Crypto.h */
-void Crypto_randomize(String* toRandomize)
-{
-    evutil_secure_rng_get_bytes(toRandomize->bytes, toRandomize->len);
 }
 
 /**

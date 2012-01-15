@@ -18,16 +18,16 @@
 #include "memory/BufferAllocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "libbenc/benc.h"
-#include "libbenc/serialization/BencSerializer.h"
-#include "libbenc/serialization/standard/StandardBencSerializer.h"
+#include "benc/Object.h"
+#include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/standard/StandardBencSerializer.h"
 #include "DHTModules.h"
 
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
 
 /** This defines what format the registry will be serialized in. */
-#define SERIALIZER benc_getStandardBencSerializer()
+#define SERIALIZER List_getStandardBencSerializer()
 
 /*--------------------Prototypes--------------------*/
 static void forEachModule(int (*doThis)(struct DHTModule* module, struct DHTMessage* message),
@@ -117,14 +117,14 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
 {
     char buffer[1024];
     struct Allocator* allocator = BufferAllocator_new(buffer, 1024);
-    Dict* dictionary = benc_newDictionary(allocator);
+    Dict* dictionary = Dict_new(allocator);
 
     struct DHTModule** modulePtr = registry->members;
     struct DHTModule* module = *modulePtr;
     while (module) {
         if (module->serialize != NULL) {
-            benc_putDictionary(dictionary,
-                               benc_newString(module->name, allocator),
+            Dict_putDict(dictionary,
+                               String_new(module->name, allocator),
                                module->serialize(module->context),
                                allocator);
         }
@@ -138,7 +138,7 @@ void DHTModules_serialize(const struct DHTModuleRegistry* registry,
 struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
                                                  struct Allocator* allocator)
 {
-    Dict* dictionary = benc_newDictionary(allocator);
+    Dict* dictionary = Dict_new(allocator);
     if (SERIALIZER->parseDictionary(reader, allocator, dictionary) != 0) {
         return NULL;
     }
@@ -167,8 +167,8 @@ static inline void deserializeContext(struct DHTModule* module,
 {
     char* name = (char*) module->name;
     if (module && registry && registry->serializedContexts) {
-        Dict* serContext = benc_lookupDictionary(registry->serializedContexts,
-                                                 &(benc_bstr_t) { .len = strlen(name), .bytes = name } );
+        Dict* serContext = Dict_getDict(registry->serializedContexts,
+                                                 &(String) { .len = strlen(name), .bytes = name } );
         if (module->deserialize && module->context && serContext) {
             module->deserialize(serContext, module->context);
         }

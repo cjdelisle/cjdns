@@ -11,11 +11,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <memory/Allocator.h>
+#ifndef BENC_H
+#define BENC_H
 
-/**
- * Create a new DNS module for failing any requests which are not in the .key zone.
- *
- * @param allocator the memory allocator to use for getting memory.
- */
-struct DNSModule* DNSCheckZoneModule_new(struct Allocator* allocator);
+#include <stdint.h>
+
+#include "memory/Allocator.h"
+#include "benc/String.h"
+
+// Dictionaries and lists are pointers to the head entry so that the head can change.
+typedef struct Dict_Entry* Dict;
+typedef struct List_Item* List;
+
+enum Object_Type {
+    Object_INTEGER,
+    Object_STRING,
+    Object_LIST,
+    Object_DICT,
+    Object_UNPARSABLE
+};
+
+typedef struct {
+    enum Object_Type type;
+    union {
+        int64_t number;
+        String *string;
+        List* list;
+        Dict* dictionary;
+    } as;
+} Object;
+
+#include "benc/List.h"
+#include "benc/Dict.h"
+
+
+#endif

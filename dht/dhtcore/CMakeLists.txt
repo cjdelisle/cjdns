@@ -18,7 +18,7 @@ add_library(dhtcore
     Janitor.c
 )
 
-target_link_libraries(dhtcore benc util crypto switch ${LIBEVENT2_LIBRARIES})#dhtstore)
+target_link_libraries(dhtcore cjdbenc util crypto switch ${LIBEVENT2_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()

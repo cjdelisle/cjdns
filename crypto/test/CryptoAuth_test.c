@@ -14,7 +14,7 @@
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "memory/MallocAllocator.h"
 #include "util/Hex.h"
 #include "util/Endian.h"

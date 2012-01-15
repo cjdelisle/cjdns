@@ -14,12 +14,11 @@
 #ifndef CRYPTO_AUTH_H
 #define CRYPTO_AUTH_H
 
-#include "crypto/Session.h"
+#include "benc/Object.h"
 #include "interface/Interface.h"
-#include "libbenc/benc.h"
-#include "util/Log.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
+#include "util/Log.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -112,8 +111,6 @@ void CryptoAuth_setAuth(const String* password,
 void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
-
-void CryptoAuth_getSession(struct Session* output, struct Interface* interface);
 
 void CryptoAuth_reset(struct Interface* interface);
 

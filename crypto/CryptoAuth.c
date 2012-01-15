@@ -26,7 +26,7 @@
 #include "crypto/CryptoAuth_struct.h"
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
@@ -857,8 +857,8 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
     ca->eventBase = eventBase;
     ca->logger = logger;
     ca->resetAfterInactivitySeconds = UINT32_MAX;
-    Integer* resetAfterInactivitySeconds =
-        benc_lookupInteger(config, &(String){ .len=27, .bytes="resetAfterInactivitySeconds" });
+    int64_t* resetAfterInactivitySeconds =
+        Dict_getInt(config, &(String){ .len=27, .bytes="resetAfterInactivitySeconds" });
     if (resetAfterInactivitySeconds && *resetAfterInactivitySeconds > 0) {
         ca->resetAfterInactivitySeconds = (uint32_t) *resetAfterInactivitySeconds;
     }
@@ -946,7 +946,7 @@ void CryptoAuth_setAuth(const String* password,
 {
     struct Wrapper* wrapper = (struct Wrapper*) wrappedInterface->senderContext;
     wrapper->password = (password != NULL)
-        ? benc_newBinaryString(password->bytes, password->len, wrappedInterface->allocator)
+        ? String_newBinary(password->bytes, password->len, wrappedInterface->allocator)
         : NULL;
     wrapper->authType = (password != NULL) ? authType : 0;
 }
@@ -959,16 +959,6 @@ void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 {
     return ((struct Wrapper*) interface->senderContext)->herPerminentPubKey;
-}
-
-void CryptoAuth_getSession(struct Session* output, struct Interface* interface)
-{
-    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
-    output->isInitiator = wrapper->isInitiator;
-    output->nextNonce = wrapper->nextNonce;
-    output->authenticatePackets = wrapper->authenticatePackets;
-    memcpy(output->sharedSecret, wrapper->secret, 32);
-    output->exists = true;
 }
 
 void CryptoAuth_reset(struct Interface* interface)

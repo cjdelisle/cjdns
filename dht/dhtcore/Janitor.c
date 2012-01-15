@@ -21,7 +21,7 @@
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_struct.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"

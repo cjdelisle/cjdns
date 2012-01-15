@@ -22,7 +22,7 @@
 
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 
 // Defined extra large so large MTU can be taken advantage of later.
 #define MAX_PACKET_SIZE 8192

@@ -12,12 +12,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "benc.h"
+#include "benc/Dict.h"
 
-int32_t benc_entryCount(const Dict* dictionary)
+int32_t Dict_size(const Dict* dictionary)
 {
     if (dictionary != NULL) {
-        benc_dict_entry_t* entry = *dictionary;
+        struct Dict_Entry* entry = *dictionary;
         int32_t i;
         for (i = 0; entry != NULL; i++) {
             entry = entry->next;
@@ -27,14 +27,14 @@ int32_t benc_entryCount(const Dict* dictionary)
     return -1;
 }
 
-static bobj_t* lookupObject(const Dict* dictionary, const String* key)
+static Object* lookupObject(const Dict* dictionary, const String* key)
 {
     if (dictionary == NULL || key == NULL) {
         return NULL;
     }
-    const benc_dict_entry_t* curr = *dictionary;
+    const struct Dict_Entry* curr = *dictionary;
     while (curr != NULL) {
-        if (benc_stringEquals(key, curr->key)) {
+        if (String_equals(key, curr->key)) {
             return curr->val;
         }
         
@@ -45,56 +45,48 @@ static bobj_t* lookupObject(const Dict* dictionary, const String* key)
     return NULL;
 }
 
-bobj_t * bobj_dict_lookup(bobj_t* obj, const benc_bstr_t* key)
+/** @see Object.h */
+int64_t* Dict_getInt(const Dict* dictionary, const String* key)
 {
-    if (obj == NULL || key == NULL || obj->type != BENC_DICT) {
+    Object* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != Object_INTEGER) {
         return NULL;
     }
-    return lookupObject(obj->as.dictionary, key);
+    return &(obj->as.number);
 }
 
-/** @see benc.h */
-Integer* benc_lookupInteger(const Dict* dictionary, const String* key)
+/** @see Object.h */
+String* Dict_getString(const Dict* dictionary, const String* key)
 {
-    bobj_t* obj = lookupObject(dictionary, key);
-    if (obj == NULL || obj->type != BENC_INT) {
+    Object* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != Object_STRING) {
         return NULL;
     }
-    return &(obj->as.int_);
+    return obj->as.string;
 }
 
-/** @see benc.h */
-String* benc_lookupString(const Dict* dictionary, const String* key)
+/** @see Object.h */
+Dict* Dict_getDict(const Dict* dictionary, const String* key)
 {
-    bobj_t* obj = lookupObject(dictionary, key);
-    if (obj == NULL || obj->type != BENC_BSTR) {
-        return NULL;
-    }
-    return obj->as.bstr;
-}
-
-/** @see benc.h */
-Dict* benc_lookupDictionary(const Dict* dictionary, const String* key)
-{
-    bobj_t* obj = lookupObject(dictionary, key);
-    if (obj == NULL || obj->type != BENC_DICT) {
+    Object* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != Object_DICT) {
         return NULL;
     }
     return obj->as.dictionary;
 }
 
-/** @see benc.h */
-List* benc_lookupList(const Dict* dictionary, const String* key)
+/** @see Object.h */
+List* Dict_getList(const Dict* dictionary, const String* key)
 {
-    bobj_t* obj = lookupObject(dictionary, key);
-    if (obj == NULL || obj->type != BENC_LIST) {
+    Object* obj = lookupObject(dictionary, key);
+    if (obj == NULL || obj->type != Object_LIST) {
         return NULL;
     }
     return obj->as.list;
 }
 
-/** @see benc.h */
-Dict* benc_newDictionary(const struct Allocator* allocator)
+/** @see Object.h */
+Dict* Dict_new(const struct Allocator* allocator)
 {
     return allocator->calloc(sizeof(Dict), 1, allocator);
 }
@@ -118,21 +110,21 @@ static Object* putObject(Dict* dictionary,
                          Object* value,
                          const struct Allocator* allocator)
 {
-    benc_dict_entry_t** prev_p = dictionary;
-    benc_dict_entry_t* current = *dictionary;
+    struct Dict_Entry** prev_p = dictionary;
+    struct Dict_Entry* current = *dictionary;
     while (current != NULL) {
-        int cmp = benc_bstr_compare(key, current->key);
+        int cmp = String_compare(key, current->key);
         if (cmp < 0) {
             break;
         } else if (cmp == 0) {
-            bobj_t* out = current->val;
+            Object* out = current->val;
             current->val = value;
             return out;
         }
         prev_p = &(current->next);
         current = current->next;
     }
-    benc_dict_entry_t* entry = allocator->malloc(sizeof(benc_dict_entry_t), allocator);
+    struct Dict_Entry* entry = allocator->malloc(sizeof(struct Dict_Entry), allocator);
     entry->key = key;
     entry->val = value;
     entry->next = current;
@@ -141,21 +133,21 @@ static Object* putObject(Dict* dictionary,
     return NULL;
 }
 
-/** @see benc.h */
-Object* benc_putInteger(Dict* dictionary,
+/** @see Object.h */
+Object* Dict_putInt(Dict* dictionary,
                         const String* key,
-                        Integer value,
+                        int64_t value,
                         const struct Allocator* allocator)
 {
-    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
-        .type = BENC_INT,
-        .as.int_ = value
+    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_INTEGER,
+        .as.number = value
     });
     return putObject(dictionary, key, v, allocator);
 }
 
-/** @see benc.h */
-Object* benc_putString(Dict* dictionary,
+/** @see Object.h */
+Object* Dict_putString(Dict* dictionary,
                        const String* key,
                        String* value,
                        const struct Allocator* allocator)
@@ -163,15 +155,15 @@ Object* benc_putString(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
-        .type = BENC_BSTR,
-        .as.bstr = value
+    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_STRING,
+        .as.string = value
     });
     return putObject(dictionary, key, v, allocator);
 }
 
-/** @see benc.h */
-Object* benc_putList(Dict* dictionary,
+/** @see Object.h */
+Object* Dict_putList(Dict* dictionary,
                      const String* key,
                      List* value,
                      const struct Allocator* allocator)
@@ -179,15 +171,15 @@ Object* benc_putList(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
-        .type = BENC_LIST,
+    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_LIST,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.list = value
     });
     return putObject(dictionary, key, v, allocator);
 }
 
-Object* benc_putDictionary(Dict* dictionary,
+Object* Dict_putDict(Dict* dictionary,
                            const String* key,
                            Dict* value,
                            const struct Allocator* allocator)
@@ -195,21 +187,21 @@ Object* benc_putDictionary(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(bobj_t), allocator, &(bobj_t) {
-        .type = BENC_DICT,
+    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+        .type = Object_DICT,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.dictionary = value
     });
     return putObject(dictionary, key, v, allocator);
 }
 
-/** @see benc.h */
-int32_t benc_removeEntry(Dict* dictionary, const String* key)
+/** @see Object.h */
+int32_t Dict_remove(Dict* dictionary, const String* key)
 {
-    benc_dict_entry_t** prev_p = dictionary;
-    benc_dict_entry_t* current = *dictionary;
+    struct Dict_Entry** prev_p = dictionary;
+    struct Dict_Entry* current = *dictionary;
     while (current != NULL) {
-        if (benc_stringEquals(key, current->key)) {
+        if (String_equals(key, current->key)) {
             *prev_p = current->next;
             return 1;
         }

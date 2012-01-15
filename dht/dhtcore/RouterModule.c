@@ -21,7 +21,7 @@
 #include "dht/dhtcore/SearchStore.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTModules.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
@@ -337,14 +337,14 @@ static inline void sendRequest(struct Address* address,
     const struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
     message.allocator = allocator;
-    message.asDict = benc_newDictionary(allocator);
+    message.asDict = Dict_new(allocator);
 
     // "t":"1234"
-    benc_putString(message.asDict, CJDHTConstants_TXID, transactionId, allocator);
+    Dict_putString(message.asDict, CJDHTConstants_TXID, transactionId, allocator);
 
     if (searchTarget != NULL) {
         // Otherwise we're sending a ping.
-        benc_putString(message.asDict,
+        Dict_putString(message.asDict,
                        targetKey,
                        &(String) { .bytes = (char*) searchTarget->ip6.bytes,
                                    .len = Address_SEARCH_TARGET_SIZE },
@@ -352,7 +352,7 @@ static inline void sendRequest(struct Address* address,
     }
 
     /* "q":"fn" */
-    benc_putString(message.asDict, CJDHTConstants_QUERY, queryType, allocator);
+    Dict_putString(message.asDict, CJDHTConstants_QUERY, queryType, allocator);
 
     message.address = address;
 
@@ -569,8 +569,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     // A reply causes the reach to be bumped by 2
     NodeStore_addNode(module->nodeStore, message->address, 2);
 
-    String* tid = benc_lookupString(message->asDict, CJDHTConstants_TXID);
-    String* nodes = benc_lookupString(message->asDict, CJDHTConstants_NODES);
+    String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
+    String* nodes = Dict_getString(message->asDict, CJDHTConstants_NODES);
     if (nodes == NULL && tid && tid->len == 2 && tid->bytes[0] == 'p') {
         uint8_t index = tid->bytes[1];
         if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
@@ -710,7 +710,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
  */
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
-    if (benc_lookupString(message->asDict, CJDHTConstants_QUERY) == NULL) {
+    if (Dict_getString(message->asDict, CJDHTConstants_QUERY) == NULL) {
         return handleReply(message, (struct RouterModule*) vcontext);
     } else {
         return 0;
@@ -736,7 +736,7 @@ static inline int handleQuery(struct DHTMessage* message,
     NodeStore_addNode(module->nodeStore, query->address, 1);
 
     // get the target
-    String* target = benc_lookupString(query->asDict, CJDHTConstants_TARGET);
+    String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
     if (target == NULL || target->len != Address_SEARCH_TARGET_SIZE) {
         return 0;
     }
@@ -772,7 +772,7 @@ static inline int handleQuery(struct DHTMessage* message,
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
     }
     if (i > 0) {
-        benc_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
+        Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
     }
 
     return 0;

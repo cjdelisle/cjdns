@@ -14,7 +14,7 @@
 #ifndef BENC_SERIALIZER_H
 #define BENC_SERIALIZER_H
 
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 
 struct BencSerializer
 {
@@ -53,8 +53,8 @@ struct BencSerializer
      * @param integer the number to write.
      * @return whatever the Writer returns when writing.
      */
-    int32_t (* const serializeInteger)(const struct Writer* writer,
-                                       Integer integer);
+    int32_t (* const serializeint64_t)(const struct Writer* writer,
+                                       int64_t integer);
 
     /**
      * Parse an integer, read in with the reader and set the intPointer to the value of the int.
@@ -67,8 +67,8 @@ struct BencSerializer
      * @return 0 if everything goes well, -2 if -1 returned by the reader indicating an
      *           array underflow, -3 if content unparsable.
      */
-    int32_t (* const parseInteger)(const struct Reader* reader,
-                                   Integer* output);
+    int32_t (* const parseint64_t)(const struct Reader* reader,
+                                   int64_t* output);
 
     /**
      * Serialize a list.

@@ -14,7 +14,6 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include "crypto/Session.h"
 #include "dht/Address.h"
 
 #include <stdint.h>

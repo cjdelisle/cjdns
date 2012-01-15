@@ -9,11 +9,5 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
-
-add_library(benc_StandardBencSerializer StandardBencSerializer.c)
-target_link_libraries(benc_StandardBencSerializer cjdmemory cjdio)
-
-# Everything must be tested.
-enable_testing()
-add_subdirectory(test)
+add_library(cjdbenc_StandardBencSerializer StandardBencSerializer.c)
+target_link_libraries(cjdbenc_StandardBencSerializer cjdmemory cjdio)

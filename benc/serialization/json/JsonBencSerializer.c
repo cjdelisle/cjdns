@@ -14,8 +14,8 @@
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "libbenc/benc.h"
-#include "libbenc/serialization/BencSerializer.h"
+#include "benc/Object.h"
+#include "benc/serialization/BencSerializer.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
@@ -26,10 +26,10 @@
 
 static int32_t parseGeneric(const struct Reader* reader,
                             const struct Allocator* allocator,
-                            bobj_t** output);
+                            Object** output);
 static int32_t serializeGenericWithPadding(const struct Writer* writer,
                                            size_t padSpaceCount,
-                                           const bobj_t* obj);
+                                           const Object* obj);
 
 /** What the name says. */
 static const char* thirtyTwoSpaces = "                                ";
@@ -123,7 +123,7 @@ static inline int parseString(const struct Reader* reader,
             }
             buffer[i] = (uint8_t) byte;
         } else if (buffer[i] == '"') {
-            *output = benc_newBinaryString((char*)buffer, i, allocator);
+            *output = String_newBinary((char*)buffer, i, allocator);
             return 0;
         }
         if (reader->read(buffer + i + 1, 1, reader)) {
@@ -137,8 +137,8 @@ static inline int parseString(const struct Reader* reader,
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeInteger(const struct Writer* writer,
-                                benc_int_t integer)
+static int32_t serializeint64_t(const struct Writer* writer,
+                                int64_t integer)
 {
     char buffer[32];
     memset(buffer, 0, 32);
@@ -150,8 +150,8 @@ static int32_t serializeInteger(const struct Writer* writer,
 }
 
 /** @see BencSerializer.h */
-static int32_t parseInteger(const struct Reader* reader,
-                            Integer* output)
+static int32_t parseint64_t(const struct Reader* reader,
+                            int64_t* output)
 {
     uint8_t buffer[32];
 
@@ -166,7 +166,7 @@ static int32_t parseInteger(const struct Reader* reader,
         if (buffer[i] < '0' || buffer[i] > '9') {
             buffer[i] = '\0';
             errno = 0;
-            Integer out = strtol((char*)buffer, NULL, 10);
+            int64_t out = strtol((char*)buffer, NULL, 10);
             // Failed parse causes 0 to be set.
             if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {
                 return UNPARSABLE;
@@ -199,7 +199,7 @@ static int32_t serializeListWithPadding(const struct Writer* writer,
 
     writer->write("[\n", 2, writer);
 
-    const benc_list_entry_t* entry = *list;
+    const struct List_Item* entry = *list;
     while (entry != NULL) {
         PAD(padSpaceCount + 2, padCounter, writer);
         serializeGenericWithPadding(writer, padSpaceCount + 2, entry->elem);
@@ -260,16 +260,16 @@ static int32_t parseList(const struct Reader* reader,
     char nextChar;
     readUntil('[', reader);
 
-    bobj_t* element;
-    benc_list_entry_t* thisEntry = NULL;
-    benc_list_entry_t** lastEntryPointer = output;
+    Object* element;
+    struct List_Item* thisEntry = NULL;
+    struct List_Item** lastEntryPointer = output;
     int ret;
 
     for (;;) {
         if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
             return ret;
         }
-        thisEntry = allocator->malloc(sizeof(benc_list_entry_t), allocator);
+        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
         thisEntry->elem = element;
 
         // Read backwards so that the list reads out forward.
@@ -329,7 +329,7 @@ static int32_t serializeDictionaryWithPadding(const struct Writer* writer,
 {
     int padCounter = 0;
     writer->write("{\n", 2, writer);
-    const benc_dict_entry_t* entry = *dictionary;
+    const struct Dict_Entry* entry = *dictionary;
     while (entry != NULL) {
         PAD(padSpaceCount + 2, padCounter, writer);
         serializeString(writer, entry->key);
@@ -362,9 +362,9 @@ static int32_t parseDictionary(const struct Reader* reader,
     readUntil('{', reader);
 
     String* key;
-    bobj_t* value;
-    benc_dict_entry_t* entryPointer;
-    benc_dict_entry_t* lastEntryPointer = NULL;
+    Object* value;
+    struct Dict_Entry* entryPointer;
+    struct Dict_Entry* lastEntryPointer = NULL;
     int ret = 0;
 
     for (;;) {
@@ -405,7 +405,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = allocator->malloc(sizeof(benc_dict_entry_t), allocator);
+        entryPointer = allocator->malloc(sizeof(struct Dict_Entry), allocator);
 
         entryPointer->next = lastEntryPointer;
         entryPointer->key = key;
@@ -416,7 +416,7 @@ static int32_t parseDictionary(const struct Reader* reader,
 
 static int32_t parseGeneric(const struct Reader* reader,
                             const struct Allocator* allocator,
-                            bobj_t** output)
+                            Object** output)
 {
     int ret = 0;
     char firstChar;
@@ -446,7 +446,7 @@ static int32_t parseGeneric(const struct Reader* reader,
         break;
     }
 
-    bobj_t* out = allocator->malloc(sizeof(bobj_t), allocator);
+    Object* out = allocator->malloc(sizeof(Object), allocator);
 
     switch (firstChar) {
         case '0':
@@ -459,18 +459,18 @@ static int32_t parseGeneric(const struct Reader* reader,
         case '7':
         case '8':
         case '9':;
-            // Integer. Int is special because it is not a pointer but a int64_t.
-            benc_int_t bint;
-            ret = parseInteger(reader, &bint);
-            out->type = BENC_INT;
-            out->as.int_ = bint;
+            // int64_t. Int is special because it is not a pointer but a int64_t.
+            int64_t bint;
+            ret = parseint64_t(reader, &bint);
+            out->type = Object_INTEGER;
+            out->as.number = bint;
             break;
 
         case '[':;
             // List.
             List* list = allocator->calloc(sizeof(List), 1, allocator);
             ret = parseList(reader, allocator, list);
-            out->type = BENC_LIST;
+            out->type = Object_LIST;
             out->as.list = list;
             break;
 
@@ -478,7 +478,7 @@ static int32_t parseGeneric(const struct Reader* reader,
             // Dictionary
             Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
             ret = parseDictionary(reader, allocator, dict);
-            out->type = BENC_DICT;
+            out->type = Object_DICT;
             out->as.dictionary = dict;
             break;
 
@@ -486,8 +486,8 @@ static int32_t parseGeneric(const struct Reader* reader,
             // String
             String* string = NULL;
             ret = parseString(reader, allocator, &string);
-            out->type = BENC_BSTR;
-            out->as.bstr = string;
+            out->type = Object_STRING;
+            out->as.string = string;
             break;
 
         default:
@@ -514,18 +514,18 @@ static int32_t parseGeneric(const struct Reader* reader,
  */
 static int32_t serializeGenericWithPadding(const struct Writer* writer,
                                            size_t padSpaceCount,
-                                           const bobj_t* obj)
+                                           const Object* obj)
 {
     switch (obj->type)
     {
-        case BENC_BSTR:
-            return serializeString(writer, obj->as.bstr);
-        case BENC_DICT:
+        case Object_STRING:
+            return serializeString(writer, obj->as.string);
+        case Object_DICT:
             return serializeDictionaryWithPadding(writer, padSpaceCount, obj->as.dictionary);
-        case BENC_LIST:
+        case Object_LIST:
             return serializeListWithPadding(writer, padSpaceCount, obj->as.list);
-        case BENC_INT:
-            return serializeInteger(writer, obj->as.int_);
+        case Object_INTEGER:
+            return serializeint64_t(writer, obj->as.number);
         default:
             return -2;
     }
@@ -535,15 +535,15 @@ static const struct BencSerializer SERIALIZER =
 {
     .serializeString = serializeString,
     .parseString = parseString,
-    .serializeInteger = serializeInteger,
-    .parseInteger = parseInteger,
+    .serializeint64_t = serializeint64_t,
+    .parseint64_t = parseint64_t,
     .serializeList = serializeList,
     .parseList = parseList,
     .serializeDictionary = serializeDictionary,
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* benc_getJsonBencSerializer()
+const struct BencSerializer* List_getJsonBencSerializer()
 {
     return &SERIALIZER;
 }

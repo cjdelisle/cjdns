@@ -79,10 +79,9 @@ include_directories(${NACL_INCLUDE_DIRS})
 
 add_subdirectory(memory)
 add_subdirectory(io)
-add_subdirectory(libbenc)
+add_subdirectory(benc)
 add_subdirectory(crypto)
 add_subdirectory(dht)
-add_subdirectory(dns)
 add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(interface)
@@ -94,8 +93,8 @@ target_link_libraries(cjdroute
     switch
     dht
     dhtcore
-    benc
-    benc_JsonBencSerializer
+    cjdbenc
+    cjdbenc_JsonBencSerializer
     cjdmemory
     ${LIBEVENT2_LIBRARIES}
 )

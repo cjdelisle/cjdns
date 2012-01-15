@@ -20,9 +20,9 @@
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
-#include "libbenc/benc.h"
-#include "libbenc/serialization/BencSerializer.h"
-#include "libbenc/serialization/standard/StandardBencSerializer.h"
+#include "benc/Object.h"
+#include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/standard/StandardBencSerializer.h"
 
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {
@@ -40,13 +40,13 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 
-    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, 1);
+    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1);
     ret |= expect("i1e", writer, reader, ret);
 
-    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, 1000);
+    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1000);
     ret |= expect("i1000e", writer, reader, ret);
 
-    ret |= benc_getStandardBencSerializer()->serializeInteger(writer, -100);
+    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, -100);
     ret |= expect("i-100e", writer, reader, ret);
 
     return ret;

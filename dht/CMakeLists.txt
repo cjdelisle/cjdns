@@ -22,11 +22,10 @@ add_library(dht
     DHTModules.c
     SerializationModule.c
     ReplyModule.c
-    #SanityModule.c
     #RateLimitModule.c
     Ducttape.c
 )
-target_link_libraries(dht benc benc_StandardBencSerializer util interface ${NACL_LIBRARIES})
+target_link_libraries(dht cjdbenc cjdbenc_StandardBencSerializer util interface ${NACL_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()

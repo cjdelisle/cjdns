@@ -17,7 +17,7 @@
 #include <event2/event.h>
 
 #include "interface/Interface.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "memory/Allocator.h"
 
 struct Interface* TunInterface_new(String* interfaceName,

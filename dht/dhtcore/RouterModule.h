@@ -20,7 +20,7 @@
 
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 #include "util/Log.h"
 
 /**

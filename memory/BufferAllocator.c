@@ -66,7 +66,7 @@ struct Allocator* BufferAllocator_new(void* buffer, size_t length)
     };
 
     if (context.endPointer < context.pointer) {
-        /* Integer overflow. */
+        /* int64_t overflow. */
         return NULL;
     }
 

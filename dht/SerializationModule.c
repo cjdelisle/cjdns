@@ -30,19 +30,19 @@
 
 #include "DHTModules.h"
 
-#include <libbenc/benc.h>
+#include <benc/Object.h>
 #include <memory/Allocator.h>
 #include <memory/BufferAllocator.h>
 #include <io/Reader.h>
 #include <io/ArrayReader.h>
 #include <io/Writer.h>
 #include <io/ArrayWriter.h>
-#include "libbenc/serialization/BencSerializer.h"
-#include "libbenc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/standard/StandardBencSerializer.h"
 
 #include <string.h>
 
-#define SERIALIZER benc_getStandardBencSerializer()
+#define SERIALIZER List_getStandardBencSerializer()
 
 struct SerializationModule_context {
     struct DHTModule module;

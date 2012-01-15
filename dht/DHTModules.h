@@ -17,7 +17,7 @@
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "libbenc/benc.h"
+#include "benc/Object.h"
 
 /**
  * Maximum number of bytes in a message.

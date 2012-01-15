@@ -14,16 +14,16 @@
 #include <string.h>
 
 #include "memory/Allocator.h"
-#include "libbenc/benc.h"
+#include "benc/String.h"
 
-/** @see benc.h */
-String* benc_newString(const char* bytes, const struct Allocator* allocator)
+/** @see Object.h */
+String* String_new(const char* bytes, const struct Allocator* allocator)
 {
-    return benc_newBinaryString(bytes, strlen(bytes), allocator);
+    return String_newBinary(bytes, strlen(bytes), allocator);
 }
 
-/** @see benc.h */
-String* benc_newBinaryString(const char* bytes, size_t length, const struct Allocator* allocator)
+/** @see Object.h */
+String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator)
 {
     char* copy = allocator->malloc(length + 1, allocator);
     // Make the string null terminated so it will print nicely.
@@ -33,13 +33,13 @@ String* benc_newBinaryString(const char* bytes, size_t length, const struct Allo
     } else {
         memset(copy, '\0', length);
     }
-    benc_bstr_t* string = allocator->malloc(sizeof(benc_bstr_t), allocator);
+    String* string = allocator->malloc(sizeof(String), allocator);
     string->len = length;
     string->bytes = copy;
     return string;
 }
 
-int benc_bstr_compare(const String* a, const String* b)
+int String_compare(const String* a, const String* b)
 {
     if (a == NULL || b == NULL) {
         return (a == NULL) - (b == NULL);
@@ -54,7 +54,7 @@ int benc_bstr_compare(const String* a, const String* b)
     return a->len - b->len;
 }
 
-int32_t benc_stringEquals(const String* a, const String* b)
+bool String_equals(const String* a, const String* b)
 {
     if (a == NULL || b == NULL) {
         return a == NULL && b == NULL;
