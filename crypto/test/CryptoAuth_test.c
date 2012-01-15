@@ -46,6 +46,7 @@ static struct Message msg;
 static uint8_t* textBuff;
 #define ALIGNED_LEN(x) (strlen(x) + (strlen(x) % 4))
 #define MK_MSG(x) \
+    memset(textBuff, 0, BUFFER_SIZE);                                 \
     memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));    \
     msg.length = strlen(x);                                           \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);              \
