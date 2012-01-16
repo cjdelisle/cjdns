@@ -88,7 +88,8 @@ struct Context
      */
     struct Address* forwardTo;
 
-    struct Interface* contentSession;
+    /** The last crypto session, used for getting the public key of the other party. */
+    struct Interface* session;
 
     /** whether we are encrypting/decrypting the inner layer or the outer layer. */
     int layer;
@@ -133,6 +134,28 @@ static inline uint8_t incomingDHT(struct Message* message,
     return Error_NONE;
 }
 
+/** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
+static inline uint8_t sendToRouter(struct Address* sendTo,
+                                   struct Message* message,
+                                   struct Context* context)
+{
+    // We have to copy out the switch header because it
+    // will probably be clobbered by the crypto headers.
+    struct Headers_SwitchHeader header;
+    if (context->switchHeader) {
+        memcpy(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
+    } else {
+        memset(&header, 0, Headers_SwitchHeader_SIZE);
+    }
+    header.label_be = sendTo->networkAddress_be;
+    context->switchHeader = &header;
+    struct Interface* session =
+        SessionManager_getSession(sendTo->ip6.bytes, sendTo->key, context->sm);
+    // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
+    context->layer = OUTER_LAYER;
+    return session->sendMessage(message, session);
+}
+
 static int handleOutgoing(struct DHTMessage* dmessage,
                           void* vcontext)
 {
@@ -147,35 +170,26 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     uh->length_be = Endian_hostToBigEndian16(dmessage->length);
     uh->checksum_be = 0;
 
-    struct Headers_IP6Header header =
-    {
-        // Length will be set after the crypto.
-        .nextHeader = 17,
+    Message_shift(&message, Headers_IP6Header_SIZE);
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) message.bytes;
+    header->versionClassAndFlowLabel = 0;
+    header->flowLabelLow_be = 0;
+    header->nextHeader = 17;
+    header->hopLimit = 1;
 
-        // control messages MUST NOT be forwarded.
-        .hopLimit = 1
-    };
-
-    memcpy(header.destinationAddr,
-           dmessage->address->ip6.bytes,
-           Address_SEARCH_TARGET_SIZE);
-
-    memcpy(header.sourceAddr,
+    memcpy(header->sourceAddr,
            context->myAddr.ip6.bytes,
            Address_SEARCH_TARGET_SIZE);
 
-    context->ip6Header = &header;
-    context->forwardTo = dmessage->address;
+    memcpy(header->destinationAddr,
+           dmessage->address->ip6.bytes,
+           Address_SEARCH_TARGET_SIZE);
+
+    context->ip6Header = header;
     context->switchHeader = NULL;
 
-    struct Interface* session =
-        SessionManager_getSession(dmessage->address->ip6.bytes, dmessage->address->key, context->sm);
+    sendToRouter(dmessage->address, &message, context);
 
-    // This comes out at outgoingFromMe()
-    context->layer = INNER_LAYER;
-    session->sendMessage(&message, session);
-
-    context->forwardTo = NULL;
     return 0;
 }
 
@@ -198,7 +212,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 static inline uint8_t incomingForMe(struct Message* message, struct Context* context)
 {
     struct Address addr;
-    uint8_t* key = CryptoAuth_getHerPublicKey(context->contentSession);
+    uint8_t* key = CryptoAuth_getHerPublicKey(context->session);
     AddressCalc_addressForPublicKey(addr.ip6.bytes, key);
 
     if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
@@ -239,10 +253,12 @@ static inline uint8_t incomingForMe(struct Message* message, struct Context* con
     // between the ipv6 header and the content which just got eaten.
     Message_shift(message, Headers_IP6Header_SIZE);
     uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
-    context->ip6Header->payloadLength_be =
-        Endian_hostToBigEndian16(
-            Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
-    memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+    if (sizeDiff) {
+        context->ip6Header->payloadLength_be =
+            Endian_hostToBigEndian16(
+                Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
+        memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+    }
     context->routerIf->sendMessage(message, context->routerIf);
     return Error_NONE;
 }
@@ -267,28 +283,6 @@ static inline uint8_t sendToSwitch(struct Message* message,
     assert(Headers_getPriority(destinationSwitchHeader) == 0);
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
-}
-
-/** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Address* sendTo,
-                                   struct Message* message,
-                                   struct Context* context)
-{
-    // We have to copy out the switch header because it
-    // will probably be clobbered by the crypto headers.
-    struct Headers_SwitchHeader header;
-    if (context->switchHeader) {
-        memcpy(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
-    } else {
-        memset(&header, 0, Headers_SwitchHeader_SIZE);
-    }
-    header.label_be = sendTo->networkAddress_be;
-    context->switchHeader = &header;
-    struct Interface* session =
-        SessionManager_getSession(sendTo->ip6.bytes, sendTo->key, context->sm);
-    // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
-    context->layer = OUTER_LAYER;
-    return session->sendMessage(message, session);
 }
 
 static inline bool validIP6(struct Message* message)
@@ -317,24 +311,41 @@ static inline uint8_t ip6FromTun(struct Message* message,
         return Error_INVALID;
     }
 
-    struct Headers_IP6Header header;
-    memcpy(&header, message->bytes, Headers_IP6Header_SIZE);
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
-    if (memcmp(&header.sourceAddr, context->myAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
+    if (memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
         Log_warn(context->logger, "dropped message because only one address is allowed to be used "
                                   "and the source address was different.\n");
         return Error_INVALID;
     }
 
-    context->ip6Header = &header;
+    context->switchHeader = NULL;
 
-    struct Headers_SwitchHeader switchHeader;
-    memset(&switchHeader, 0, sizeof(struct Headers_SwitchHeader));
-    context->switchHeader = &switchHeader;
+    struct Node* bestNext = RouterModule_getBest(header->destinationAddr, context->routerModule);
+    if (bestNext) {
+        context->forwardTo = &bestNext->address;
+        if (!memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
+            // Direct send, skip the innermost layer of encryption.
+            header->hopLimit = 0;
+            #ifdef Log_DEBUG
+                uint8_t nhAddr[60];
+                Address_print(nhAddr, &bestNext->address);
+                Log_debug1(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
+            #endif
+            return sendToRouter(&bestNext->address, message, context);
+        }
+    }
 
+    // Grab out the header so it doesn't get clobbered.
+    struct Headers_IP6Header headerStore;
+    memcpy(&headerStore, header, Headers_IP6Header_SIZE);
+    context->ip6Header = &headerStore;
+
+    // Shift over the content.
     Message_shift(message, -Headers_IP6Header_SIZE);
 
-    struct Interface* session = SessionManager_getSession(header.destinationAddr, NULL, context->sm);
+    struct Interface* session =
+        SessionManager_getSession(headerStore.destinationAddr, NULL, context->sm);
 
     // This comes out at outgoingFromMe()
     context->layer = INNER_LAYER;
@@ -357,46 +368,58 @@ static inline int core(struct Message* message, struct Context* context)
 
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
-        // This call goes to incomingForMe()
-        context->layer = INNER_LAYER;
-        context->contentSession =
-            SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
-        return context->contentSession->receiveMessage(message, context->contentSession);
+        if (context->ip6Header->hopLimit != 0) {
+            // triple encrypted
+            // This call goes to incomingForMe()
+            context->layer = INNER_LAYER;
+            context->session =
+                SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
+            return context->session->receiveMessage(message, context->session);
+        } else {
+            // double encrypted, inner layer plaintext.
+            // The session is still set from the router-to-router traffic and that is the one we use
+            // to determine the node's id.
+            return incomingForMe(message, context);
+        }
     }
 
-    if (context->ip6Header->hopLimit == 0) {
-        Log_debug(context->logger, "0 hop message not addressed to us, broken route.\n");
-        return 0;
+    if (context->ip6Header->hopLimit < 2) {
+        if (context->ip6Header->hopLimit == 0) {
+            Log_debug(context->logger, "0 hop message not addressed to us, broken route.\n");
+            return 0;
+        } else {
+            assert(!"1 hop message, this should have been handled elsewhere.\n");
+        }
     }
     context->ip6Header->hopLimit--;
 
-    if (context->forwardTo) {
-        // Router traffic, we know where it is to be sent to.
-        /*#ifdef Log_DEBUG
-            uint8_t printedAddr[60];
-            Address_print(printedAddr, context->forwardTo);
-            Log_debug1(context->logger, "Sending router traffic to %s\n", printedAddr);
-        #endif*/
-        return sendToRouter(context->forwardTo, message, context);
+    struct Address* ft = context->forwardTo;
+    context->forwardTo = NULL;
+    if (!ft) {
+        struct Node* bestNext =
+            RouterModule_getBest(context->ip6Header->destinationAddr, context->routerModule);
+        if (bestNext) {
+            ft = &bestNext->address;
+        }
     }
 
-    struct Node* nextBest = RouterModule_getBest(context->ip6Header->destinationAddr,
-                                                 context->routerModule);
-    if (nextBest) {
+    if (ft) {
         #ifdef Log_DEBUG
             uint8_t nhAddr[60];
-            Address_print(nhAddr, &nextBest->address);
-            if (memcmp(context->ip6Header->destinationAddr, nextBest->address.ip6.bytes, 16)) {
+            Address_print(nhAddr, ft);
+            if (memcmp(context->ip6Header->destinationAddr, ft->ip6.bytes, 16)) {
+                // Potentially forwarding for ourselves.
                 struct Address destination;
                 memcpy(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
                 uint8_t ipAddr[40];
                 Address_printIp(ipAddr, &destination);
                 Log_debug2(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
             } else {
+                // Definitely forwarding on behalf of someone else.
                 Log_debug1(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
-        return sendToRouter(&nextBest->address, message, context);
+        return sendToRouter(ft, message, context);
     }
     Log_debug(context->logger, "Dropped message because this node is the closest known "
                                "node to the destination.\n");
@@ -567,15 +590,16 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
     uint8_t* herAddr = context->addrMap.addresses[herAddrIndex];
 
-    // The address is extracted from the switch header later.
+    // This is needed so that the priority and other information
+    // from the switch header can be passed on properly.
     context->switchHeader = switchHeader;
 
-    struct Interface* session = SessionManager_getSession(herAddr, herKey, context->sm);
+    context->session = SessionManager_getSession(herAddr, herKey, context->sm);
 
     // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()
     context->layer = OUTER_LAYER;
-    session->receiveMessage(message, session);
+    context->session->receiveMessage(message, context->session);
 
     return 0;
 }
