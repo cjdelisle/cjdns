@@ -175,7 +175,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     header->versionClassAndFlowLabel = 0;
     header->flowLabelLow_be = 0;
     header->nextHeader = 17;
-    header->hopLimit = 1;
+    header->hopLimit = 0;
 
     memcpy(header->sourceAddr,
            context->myAddr.ip6.bytes,
