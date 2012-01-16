@@ -176,6 +176,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     header->flowLabelLow_be = 0;
     header->nextHeader = 17;
     header->hopLimit = 0;
+    header->payloadLength_be = Endian_hostToBigEndian16((uint16_t)dmessage->length);
 
     memcpy(header->sourceAddr,
            context->myAddr.ip6.bytes,
