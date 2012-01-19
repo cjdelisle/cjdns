@@ -130,11 +130,11 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
     if (nodeDistance < collector->thisNodeDistance) {
 
         uint64_t value = 0;
-        #define NodeCollector_getValue() \
-            ((value == 0)                                                           \
-                ? (value = (uint64_t) (UINT32_MAX - nodeDistance) * header->reach   \
-                    | (64 - Bits_log2x64_be(body->address.networkAddress_be)))      \
-                : value)
+        #define NodeCollector_getValue(value, header, body, nodeDistance) \
+            if (value == 0) {                                                            \
+                value = 64 - Bits_log2x64_be(body->address.networkAddress_be);           \
+                value |= (uint64_t) (UINT32_MAX - nodeDistance) * header->reach * value; \
+            }
 
         // 0 distance (match) always wins,
         // If both have 0 distance, highest reach wins.
@@ -145,7 +145,8 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                if (NodeCollector_getValue() <= nodes[i].value) {
+                NodeCollector_getValue(value, header, body, nodeDistance);
+                if (value <= nodes[i].value) {
                     break;
                 }
                 if (i > 0
@@ -167,7 +168,8 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;
-            nodes[i - 1].value = NodeCollector_getValue();
+            NodeCollector_getValue(value, header, body, nodeDistance);
+            nodes[i - 1].value = value;
             nodes[i - 1].distance = nodeDistance;
         }
 
