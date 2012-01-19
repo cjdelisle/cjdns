@@ -67,7 +67,7 @@ if(NOT $ENV{Log_LEVEL} STREQUAL "")
     add_definitions("-D Log_$ENV{Log_LEVEL}")
 endif(NOT $ENV{Log_LEVEL} STREQUAL "")
 
-#add_definitions(-O3)
+add_definitions(-O3 -funroll-loops)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
