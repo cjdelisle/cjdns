@@ -368,6 +368,14 @@ static inline int core(struct Message* message, struct Context* context)
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
     }
+    
+    // Do this here and check for 1 hop, not 0 because we want to differentiate between single
+    // hop traffic and routed traffic as single hop traffic doesn't need 2 layers of crypto.
+    if (context->ip6Header->hopLimit == 1) {
+        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        // TODO: send back an error message in response.
+        return Error_UNDELIVERABLE;
+    }
 
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
@@ -386,13 +394,9 @@ static inline int core(struct Message* message, struct Context* context)
         }
     }
 
-    if (context->ip6Header->hopLimit < 2) {
-        if (context->ip6Header->hopLimit == 0) {
-            Log_debug(context->logger, "0 hop message not addressed to us, broken route.\n");
-            return 0;
-        } else {
-            assert(!"1 hop message, this should have been handled elsewhere.\n");
-        }
+    if (context->ip6Header->hopLimit == 0) {
+        Log_debug(context->logger, "0 hop message not addressed to us, broken route.\n");
+        return 0;
     }
     context->ip6Header->hopLimit--;
 
@@ -462,14 +466,6 @@ static inline int incomingFromRouter(struct Message* message, struct Context* co
     if (!validIP6(message)) {
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
-    }
-
-    // Do this here and check for 1 hop, not 0 because we want to differentiate between single
-    // hop traffic and routed traffic as single hop traffic doesn't need 2 layers of crypto.
-    if (((struct Headers_IP6Header*) message->bytes)->hopLimit == 1) {
-        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
-        // TODO: send back an error message in response.
-        return Error_UNDELIVERABLE;
     }
 
     //Log_debug(context->logger, "Got message from router.\n");
