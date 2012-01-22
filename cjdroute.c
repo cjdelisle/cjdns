@@ -520,6 +520,9 @@ int main(int argc, char** argv)
         if (argc < 2) {
             return usage(argv[0]);
         }
+        if (strcmp(argv[1], "--help") == 0) {
+            return usage(argv[0]);
+        }
         if (strcmp(argv[1], "--genconf") == 0) {
             return genconf();
         }
