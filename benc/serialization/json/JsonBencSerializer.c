@@ -51,14 +51,12 @@ static const char* thirtyTwoSpaces = "                                ";
 
 static inline int outOfContent()
 {
-    printf("ran out of content to read.\n");
     return -2;
 }
 #define OUT_OF_CONTENT_TO_READ outOfContent()
 
 static inline int unparsable()
 {
-    printf("failed to parse data.\n");
     return -3;
 }
 #define UNPARSABLE unparsable()
@@ -93,6 +91,7 @@ static inline int readUntil(uint8_t target, const struct Reader* reader)
     uint8_t nextChar;
     do {
         if (reader->read((char*)&nextChar, 1, reader)) {
+            printf("Unexpected end of input while looking for '%c'\n",target);
             return OUT_OF_CONTENT_TO_READ;
         }
     } while (nextChar != target);
@@ -107,6 +106,7 @@ static inline int parseString(const struct Reader* reader,
 
     uint8_t buffer[BUFF_SZ];
     if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
+        printf("Unterminated string\n");
         return OUT_OF_CONTENT_TO_READ;
     }
     for (int i = 0; i < BUFF_SZ; i++) {
@@ -115,10 +115,12 @@ static inline int parseString(const struct Reader* reader,
             reader->skip(1, reader);
             uint8_t hex[2];
             if (reader->read((char*)hex, 2, reader)) {
+                printf("Unexpected end of input parsing escape sequence\n");
                 return OUT_OF_CONTENT_TO_READ;
             }
             int byte = Hex_decodeByte(hex[0], hex[1]);
             if (byte == -1) {
+                printf("Invalid escape \"%c%c\" after \"%.*s\"\n",hex[0],hex[1],i+1,buffer);
                 return UNPARSABLE;
             }
             buffer[i] = (uint8_t) byte;
@@ -127,10 +129,15 @@ static inline int parseString(const struct Reader* reader,
             return 0;
         }
         if (reader->read(buffer + i + 1, 1, reader)) {
+            if (i+1 <= 20)
+                printf("Unterminated string \"%.*s\"\n", i+1, buffer);
+            else
+                printf("Unterminated string starting with \"%.*s...\"\n", 20, buffer);
             return OUT_OF_CONTENT_TO_READ;
         }
     }
 
+    printf("Maximum string length of %d bytes exceeded.\n",BUFF_SZ);
     return UNPARSABLE;
 
     #undef BUFF_SZ
@@ -156,22 +163,22 @@ static int32_t parseint64_t(const struct Reader* reader,
     uint8_t buffer[32];
 
     for (int i = 0; i < 21; i++) {
-        if (reader->read(buffer + i, 0, reader) != 0) {
-            return OUT_OF_CONTENT_TO_READ;
-        }
-        if (i == 0 && buffer[i] == '-') {
+        int32_t status = reader->read(buffer + i, 0, reader);
+        if (i == 0 && buffer[i] == '-' && status == 0) {
             // It's just a negative number, no need to fail it.
             continue;
         }
-        if (buffer[i] < '0' || buffer[i] > '9') {
+        if (buffer[i] < '0' || buffer[i] > '9' || status != 0 /* end of input */) {
             buffer[i] = '\0';
             errno = 0;
             int64_t out = strtol((char*)buffer, NULL, 10);
             // Failed parse causes 0 to be set.
             if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {
+                printf("Failed to parse \"%s\": not a number\n",buffer);
                 return UNPARSABLE;
             }
             if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
+                printf("Failed to parse \"%s\": number too large/small\n",buffer);
                 return UNPARSABLE;
             }
             *output = out;
@@ -181,6 +188,8 @@ static int32_t parseint64_t(const struct Reader* reader,
     }
 
     // Larger than the max possible int64.
+    buffer[22] = '\0';
+    printf("Failed to parse \"%s\": number too large\n",buffer);
     return UNPARSABLE;
 }
 
@@ -230,9 +239,11 @@ static inline int parseComment(const struct Reader* reader)
     char chars[2];
     int ret = reader->read(&chars, 2, reader);
     if (ret) {
+        printf("Warning: expected comment\n");
         return OUT_OF_CONTENT_TO_READ;
     }
     if (chars[0] != '/') {
+        printf("Warning: expected a comment starting with '/', instead found '%c'\n",chars[0]);
         return UNPARSABLE;
     }
     switch (chars[1]) {
@@ -241,15 +252,17 @@ static inline int parseComment(const struct Reader* reader)
                 readUntil('*', reader);
             } while (!(ret = reader->read(&chars, 1, reader)) && chars[0] != '/');
             if (ret) {
+                printf("Unterminated multiline comment\n");
                 return OUT_OF_CONTENT_TO_READ;
             }
-
+            return 0;
         case '/':;
             return readUntil('\n', reader);
+        default:
+            printf("Warning: expected a comment starting with \"//\" or \"/*\", instead found \"/%c\"\n",chars[1]);
+            return UNPARSABLE;
             
     }
-
-    return UNPARSABLE;
 }
 
 /** @see BencSerializer.h */
@@ -266,18 +279,9 @@ static int32_t parseList(const struct Reader* reader,
     int ret;
 
     for (;;) {
-        if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
-            return ret;
-        }
-        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
-        thisEntry->elem = element;
-
-        // Read backwards so that the list reads out forward.
-        *lastEntryPointer = thisEntry;
-        lastEntryPointer = &(thisEntry->next);
-
         for (;;) {
             if (reader->read(&nextChar, 0, reader) != 0) {
+                printf("Unterminated list\n");
                 return OUT_OF_CONTENT_TO_READ;
             }
             if (nextChar == '/') {
@@ -286,8 +290,6 @@ static int32_t parseList(const struct Reader* reader,
                 }
                 continue;
             }
-            reader->skip(1, reader);
-
             switch (nextChar) {
                 case '0':
                 case '1':
@@ -305,14 +307,28 @@ static int32_t parseList(const struct Reader* reader,
                     break;
 
                 case ']':
-                    thisEntry->next = NULL;
+                    reader->skip(1, reader);
                     return 0;
 
                 default:
+                    // FIXME: silently skipping anything we don't understand
+                    // might not be the best idea
+                    reader->skip(1, reader);
                     continue;
             }
             break;
         }
+        
+        if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
+            return ret;
+        }
+        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
+        thisEntry->elem = element;
+        thisEntry->next = NULL;
+
+        // Read backwards so that the list reads out forward.
+        *lastEntryPointer = thisEntry;
+        lastEntryPointer = &(thisEntry->next);
     }
 }
 
@@ -390,6 +406,7 @@ static int32_t parseDictionary(const struct Reader* reader,
             break;
         }
         if (ret) {
+            printf("Unterminated dictionary\n");
             return OUT_OF_CONTENT_TO_READ;
         }
 
@@ -441,6 +458,7 @@ static int32_t parseGeneric(const struct Reader* reader,
                 break;
         }
         if (ret) {
+            printf("Unexpected end of input\n");
             return OUT_OF_CONTENT_TO_READ;
         }
         break;
@@ -491,6 +509,7 @@ static int32_t parseGeneric(const struct Reader* reader,
             break;
 
         default:
+            printf("While looking for something to parse: expected one of 0 1 2 3 4 5 6 7 8 9 [ { \", found '%c'\n", firstChar);
             return UNPARSABLE;
     }
 

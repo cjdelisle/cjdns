@@ -198,7 +198,7 @@ static int genconf()
            "            // pure router, unable to send or receive traffic.\n"
            "            \"tunDevice\": \"tun0\"\n"
            "        }\n"
-           "    }\n"
+           "    },\n"
            "\n"
            "    \"resetAfterInactivitySeconds\": 20,\n"
            "\n"
