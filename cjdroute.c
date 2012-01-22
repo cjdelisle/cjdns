@@ -234,7 +234,16 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
 
 static int usage(char* appName)
 {
-    printf("Step 1:\n"
+    printf(
+           "Usage: %s [--help] [--genconf] [--getcmds]\n"
+           "Examples:\n"
+           "  %s --help\n"
+           "  %s (same as --help)\n"
+           "  %s --genconf > cjdroute.conf\n"
+           "  %s --getcmds < cjdroute.conf\n"
+           "  %s < cjdroute.conf\n"
+           "\n"
+           "Step 1:\n"
            "  Generate a new configuration file.\n"
            "    %s --genconf > cjdroute.conf\n"
            "\n"
@@ -270,7 +279,7 @@ static int usage(char* appName)
            "  To delete a tunnel, use this command:\n"
            "    /sbin/ip tuntap del mode tun <name of tunnel>\n"
            "\n",
-           appName, appName, appName);
+           appName, appName, appName, appName, appName, appName, appName, appName, appName);
 
     return 0;
 }
@@ -517,18 +526,37 @@ int main(int argc, char** argv)
     #endif
     Crypto_init();
     assert(argc > 0);
-    if (isatty(STDIN_FILENO)) {
-        if (argc < 2) {
+    
+    if (argc == 1) { // no arguments
+        if (isatty(STDIN_FILENO)) {
+            // We were started from a terminal
+            // The chances an user wants to type in a configuration
+            // bij hand are pretty slim so we show him the usage
             return usage(argv[0]);
-        }
-        if (strcmp(argv[1], "--help") == 0) {
-            return usage(argv[0]);
-        }
-        if (strcmp(argv[1], "--genconf") == 0) {
-            return genconf();
+        } else {
+            // We assume stdin is a configuration file and that we should
+            // start routing
         }
     }
-
+    if (argc == 2) { // one argument
+        if (strcmp(argv[1], "--help") == 0) {
+            return usage(argv[0]);
+        } else if (strcmp(argv[1], "--genconf") == 0) {
+            return genconf();
+        } else if (strcmp(argv[1], "--getcmds") == 0) {
+            // Performed after reading the configuration
+        } else {
+            fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
+        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+            return -1;
+        }
+    }
+    if (argc >  2) { // more than one argument?
+        fprintf(stderr, "%s: too many arguments\n", argv[0]);
+        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+        return -1;
+    }
+    
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
 
