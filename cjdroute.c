@@ -307,7 +307,8 @@ static int getcmds(Dict* config)
     }
 
     printf("#!/bin/bash\n"
-           "# Run these commands as root to get the interfaces setup properly.\n\n");
+           "# Run these commands as root now and every time the system is rebooted\n"
+           "# in order to get the interfaces setup properly.\n\n");
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
     printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
     printf("/sbin/ip link set %s up\n", tunDev);
