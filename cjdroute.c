@@ -301,6 +301,7 @@ static int getcmds(Dict* config)
            "# Run these commands as root to get the interfaces setup properly.\n\n");
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
     printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
+    printf("/sbin/ip link set %s up\n", tunDev);
 
     return 0;
 }
