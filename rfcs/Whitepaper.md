@@ -380,6 +380,7 @@ sha512 of the node's public key.
 
 ................more to come
 
+----
 
 # Addenda
 
@@ -387,30 +388,31 @@ sha512 of the node's public key.
 
 ## Packet lifecycle:
 
-#. RouterModule sends search,
-#. SerializationModule bencodes the structures for the wire,
+RouterModule sends search,
 
-#. Ducttape.c takes the packet and gets the public key of the node which it is
+SerializationModule bencodes the structures for the wire,
+
+Ducttape.c takes the packet and gets the public key of the node which it is
    sending to and gets a CryptoAuth session associated with that key from it's
    pool, or creates one if there is none. Packet is cryptoauthed which adds a
    4 byte nonce header for all traffic packets or a 120 byte handshake header
    for the first 2 packets.
 
-#. Ducttape takes the encrypted packet and applies the ipv6 header to it (if
+Ducttape takes the encrypted packet and applies the ipv6 header to it (if
    it was a data packet, the ipv6 header would have been copied out of the way
    before adding the cryptoauth header), the length of the ipv6 header is
    increased to take into account the cryptoauth header, (this is so the packet
    could theoretically be handled by commodity routing equipment).
 
-#. SwitchConnectorModule gets a CryptoAuth session for the router it's sending to
+SwitchConnectorModule gets a CryptoAuth session for the router it's sending to
    from it's pool, if there isn't any, it creates one. The packet is
    cryptoauthed, protecting the ipv6 header and adding another crypto header
    (again, 120 bytes unless the handshake is complete in which case it is 4).
 
-#. Ducttape does not lookup the switch label to forward to because the router
+Ducttape does not lookup the switch label to forward to because the router
    module already knows it so Ducttape uses what the router module proscribed.
 
-#. The Switch sees an incoming packet and, not caring which interface it came
+The Switch sees an incoming packet and, not caring which interface it came
    from, sends it on to the interface which the bits dictate, shifting and
    applying the source interface as it is sent. When the packet exits through a
    UDP based interface, the UDPInterface chooses a CryptoAuth session which
@@ -422,11 +424,11 @@ sha512 of the node's public key.
 
 There are 5 types of CryptoAuth header:
 
-#. "connect to me"
-#. handshake1
-#. handshake2
-#. data
-#. authenticatedData
+1. "connect to me"
+2. handshake1
+3. handshake2
+4. data
+5. authenticatedData
 
 All cryptoAuth headers are 120 bytes long except for the data header which is
 4 bytes and the authenticatedData header which is 20 bytes. The first 4 bytes
@@ -436,7 +438,7 @@ one, it is a handshake1 packet and if they are the obfuscated value of two or
 three, it is a handshake2 packet. if it is the obfuscated value of a number
 exceeding three, it is a data or authenticated data packet.
 
-### "connect to me" packets:
+### 1) "connect to me" packets:
 
 When a node receives a connect to me packet from a node which it does not
 know, it should establish a session and send back a handshake1 packet, if it
@@ -444,7 +446,7 @@ already has a session, it should drop the packet silently. The connect to me
 packet has no useful information except for it's system state and "Permanent
 Public Key" field, the rest of the packet should be filled with random.
 
-### handshake1:
+### 2) handshake1:
 
 A handshake1 packet contains an authentication field, a random nonce, the
 node's perminent public key, a poly1305 authenticator field, and the temporary
@@ -453,7 +455,7 @@ perminent public keys of the two nodes and the random nonce contained in the
 packet. The content and temporary key is encrypted using
 crypto_box_curve25519poly1305xsalsa20() function.
 
-### handshake2:
+### 3) handshake2:
 
 A handshake2 packet likewise contains an authentication field, a random nonce,
 a perminent public key field (which is not used but still must be present) a
@@ -462,7 +464,10 @@ the temporary key and content is encrypted using the perminent key of the
 sending node and the temporary public key of the other party (which was sent
 in the handshake1 packet).
 
-### Authentication field:
+### 4) Data packets
+
+
+### 5) Authentication field:
 
 This field allows a node to connect using a password or other shared secret,
 the authtype subfield specifies how the password should be hashed, the auth-
