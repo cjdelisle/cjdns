@@ -33,6 +33,7 @@ nacl_do_build () {
     cd -
 }
 
+nacl_artifacts
 nacl_find_artifacts () {
     build_arch="`uname -m`"
     nacl_artifacts="`find $nacl_build_dir/$nacl_dist_vers -iname $1`"
@@ -40,6 +41,10 @@ nacl_find_artifacts () {
     for i in $nacl_artifacts; do
         if [ $(echo "$i" | grep "$build_arch") ]; then
             echo "$i" && return
+        elif [ $(echo "$i" | grep "x86") ]; then
+            if [ $(echo "$build_arch" | grep "i.86") ]; then
+                echo "$i" && return
+            fi
         elif [ $(echo "$i" | grep "amd64") ]; then
             if [ $(echo "$build_arch" | grep "x86_64") ]; then
                 echo "$i" && return
@@ -49,6 +54,11 @@ nacl_find_artifacts () {
                 echo "$i" && return
             fi
         fi
+    done
+
+    # Just pick the first one and hope they are only compiling for one arch.
+    for i in $nacl_artifacts; do
+        echo "$i" && return
     done
 }
 
