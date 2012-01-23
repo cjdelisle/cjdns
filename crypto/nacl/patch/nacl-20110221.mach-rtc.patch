@@ -1,0 +1,37 @@
+--- a/curvecp/nanoseconds.c	2011-02-20 18:49:34.000000000 -0700
++++ b/curvecp/nanoseconds.c	2012-01-22 17:18:01.000000000 -0700
+@@ -4,9 +4,34 @@
+ /* XXX: Y2036 problems; should upgrade to a 128-bit type for this */
+ /* XXX: nanosecond granularity limits users to 1 terabyte per second */
+ 
++#ifdef __MACH__ /* Check for OSX */
++
++#include <assert.h>
++#include <CoreServices/CoreServices.h>
++#include <mach/mach.h>
++#include <mach/mach_time.h>
++#include <unistd.h>
++
++long long nanoseconds(void)
++{
++    long long time;
++    static mach_timebase_info_data_t sTimebaseInfo;
++
++    if (sTimebaseInfo.denom == 0) {
++        (void) mach_timebase_info(&sTimebaseInfo);
++    }
++
++    time = mach_absolute_time() * sTimebaseInfo.numer / sTimebaseInfo.denom;
++    return time;
++}
++
++#else /* __MACH__ */
++
+ long long nanoseconds(void)
+ {
+   struct timespec t;
+   if (clock_gettime(CLOCK_REALTIME,&t) != 0) return -1;
+   return t.tv_sec * 1000000000LL + t.tv_nsec;
+ }
++
++#endif /* __MACH__ */
