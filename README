@@ -1,7 +1,10 @@
+# cjdns: cjd's Network Suite
+
 Dear Reader,
-    I suppose you are here because you are interested in alternative networks,
-perhaps for censorship resistance, perhaps network security and I have no doubt you are wondering what
-the hell this thing is supposed to do.
+
+  I suppose you are here because you are interested in alternative networks,
+perhaps for censorship resistance, perhaps network security and I have no doubt you are wondering what the hell this thing is supposed to do.
+
 We can all find common ground in the statement that The Internet is painfully insecure. Free speech
 and privacy advocates find it insecure against government listening and blocking, governments find
 it insecure against hackers taking systems over and leaking secrets, and internet service providers
@@ -11,6 +14,7 @@ to overload a network link. These are, however, all different views of the same 
 We have a number of somewhat competing offerings to solve this problem from ISPs and government.
 We have IPSEC, DNSSEC, numerous proposals from the mundane to the wild and whacky such as "internet
 drivers licenses".
+
 The people who have developed these proposals are unfortunately limited in their thinking. ISPs are
 unable to see past the now almost 30 year old routing protocols which glue together the internet of
 today. Government actors are conditioned to think of something as secure when they have control over
@@ -24,230 +28,289 @@ It is worthy of note that the vulnerability in DNS which ICE exploited to take d
 they deemed "dedicated to copyright infringement" was also used by Anonymous to replace a movie
 industry website with a manifesto.
 
+_*A System Is Only Secure When Nobody Has Total Control*_
 
+## What is cjdns?
 
---------------------   A System Is Only Secure When Nobody Has Total Control   --------------------
+It is a routing engine designed for security, scalability, speed and ease of
+use. The dream: You type `./cjdns` and give it an interface which connects
+another node and it gives you an ipv6 address generated from a public
+encryption key and a virtual network card (TUN device) which you can use to
+send packets to anyone in the cjdns network to which you are connected.
 
+## How does it work?
 
+In order to understand how cjdns works, it is important to understand how the
+existing internet works when you send a packet, at each "intersection in the
+road" the router reads the address on the packet and decides which turn it
+should take. In the cjdns net, a packet goes to a router and the router labels
+the packet with directions to a router which will be able to best handle it.
+That is, a router which is near by in physical space and has an address which
+is numerically close to the destination address of the packet. The directions
+which are added to the packet allow it to go through a number of routers
+without much handling, they just read the label and bounce the packet wherever
+the next bits in the label tell them to. Routers have a responsibility to
+"keep in touch" with other routers that are numerically close to their address
+and also routers which are physically close to them.
 
-What is cjdns?
-It is a routing engine designed for security, scalability, speed and ease of use.
-The dream: You type ./cjdns and give it an interface which connects another node and it gives you an
-ipv6 address generated from a public encryption key and a virtual network card (TUN device) which
-you can use to send packets to anyone in the cjdns network to which you are connected.
-
-How does it work?
-In order to understand how cjdns works, it is important to understand how the existing internet works
-when you send a packet, at each "intersection in the road" the router reads the address on the packet
-and decides which turn it should take. In the cjdns net, a packet goes to a router and the router
-labels the packet with directions to a router which will be able to best handle it. That is, a router
-which is near by in physical space and has an address which is numerically close to the destination
-address of the packet. The directions which are added to the packet allow it to go through a number
-of routers without much handling, they just read the label and bounce the packet wherever the next
-bits in the label tell them to. Routers have a responsibility to "keep in touch" with other routers
-that are numerically close to their address and also routers which are physically close to them.
 The router engine is a modified implementation of the Kademlia DHT design.
 
-How close is it to complete?
-If we're lucky, we'll have a live test network for Christmas.
+## How close is it to complete?
 
-What about DNS?
+A live testing network exists with at least 15 active nodes.
+
+## What about DNS?
+
 DNS is a complex system to implement and highly complex to implement without central authority, if
 you would like to offer help with this part, I invite you to come join.
 
 If you are still interested in this project and want to follow it, get in the channel on IRC:
-http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
-
+[http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login](http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login).
 
 Thank you for your time and interest,
 
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
+----
 
-##### SNIP #####
+Please read the [Whitepaper], or atleast skim it ;)
 
-https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.txt
-Please read this, or atleast skim it ;)
 
 --- Possibly outdated below.
 --- Please check IRC for the latest info
-irc://irc.EFNet.org/#cjdns
-http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
+
+[irc://irc.EFNet.org/#cjdns](irc://irc.EFNet.org/#cjdns)
+
+[http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login](http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login)
 
 Some raw pastes for the curious: (like this doc)
-http://cjdns.pastebay.org/
 
-##### SNIP #####
-How To compile cjdns on Debian 6 (Squeeze) 
+[http://cjdns.pastebay.org/](http://cjdns.pastebay.org/)
+
+# Installation
+
+## How To compile cjdns on Debian 6 (Squeeze) 
 
 Hint1: You did a backup recently ;)
-Hint2: Might work same under Ubuntu.
 
-# [command] lines are commands
-- [comment] lines are comments (or instructions/commands...do it!)
-* [therest] is obvious
+Hint2: Might work same under [Ubuntu] and [Linux Mint].
 
--Remove older versions of deps
+### 1. Remove older versions of dependencies: `libevent` and `libevent-dev`.
 
--Be sure libevent is gone and remove if found. It will cause problems during the build.
-# dpkg -l | grep ^ii| grep libevent
-ii  libevent-dev                    1.3e-3                     Development libraries, header files and docs
-ii  libevent1                       1.3e-3                     An asynchronous event notification library
-# apt-get remove libevent-dev
+Be sure libevent is gone and remove if found. It will cause problems during the build.
 
--Note: You may need to (re)compile TOR if you use it.
+_Check to see which libevent is installed:_
 
---Get newest versions of deps, some additional things
-# apt-get install build-essential cmake git
+      # dpkg -l | grep ^ii| grep libevent
+      ii  libevent-dev                    1.3e-3                     Development libraries, header files and docs
+      ii  libevent1                       1.3e-3                     An asynchronous event notification library
+      # apt-get remove libevent-dev
 
---libevent2 required:
+**Note: You may need to (re)compile TOR if you use it.**
 
-- Grab the stable tarball from libevent and untar
-- CHECK https://github.com/libevent/libevent for LATEST version
-# wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
-# tar -xzf libevent-2.0.16-stable.tar.gz
+### 2. Get newest versions of dependencies, some additional tool are required to build cjdns:
 
-- Enter directory and compile libevent
-# cd libevent-2.0.16-stable
-# ./configure
-- resolve missing dependencies if needed and run again until all errors gone
-# make
-# make install
+        # apt-get install build-essential cmake git
 
---cjdns
--Grab it and go there
-# git clone https://github.com/cjdelisle/cjdns.git cjdns
-# cd cjdns
+### 3. `libevent2` is required:
 
--Setup build dir and go there
-# mkdir build
-# cd build
+CHECK https://github.com/libevent/libevent for LATEST version, this document assumes 2.0.16.
 
--You Likely want DEBUG logs: (this is VERY ALPHA after all)
-# export Log_LEVEL=DEBUG
+_Grab the stable tarball from libevent and untar_:
 
--Pre-build
-# cmake ..
+        # wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
+        # tar -xzf libevent-2.0.16-stable.tar.gz
 
--Build
-# make
+_Enter directory and compile libevent:_
 
--Look for:
-Linking C executable DNSTools_test
-[100%] Built target DNSTools_test
+        # cd libevent-2.0.16-stable
+        # ./configure
 
---ALL DONE! Wanna test? Sure.
+_Resolve missing dependencies if needed and run again until all errors gone:_
 
-##### SNIP #####
--Use screen or such to get a few ttys, Xterms, pipe to log and bg, whatever.
+        # make
+        # make install
 
--TESTING Instructions:
--Change to the cjdns/build directory if you need to
+### 4. Retrieve cjdns from GitHub.
 
--Run cjdroute without options for HELP
-# ./cjdroute
+_Grab it from GitHub and change to the source directory:_
 
-Step 1:
-  Generate a new configuration file.
-    ./cjdroute --genconf > cjdroute.conf
+        # git clone https://github.com/cjdelisle/cjdns.git cjdns
+        # cd cjdns
 
-Step 2:
+_Setup `build` directory and change to it:_
+
+        # mkdir build
+        # cd build
+
+_You Likely want DEBUG logs (this is VERY ALPHA after all), so set the
+`Log_LEVEL` environment variable:_
+
+        # export Log_LEVEL=DEBUG
+
+_Pre-build step with `cmake`:_
+
+        # cmake ..
+
+_Build cjbdns:_
+
+        # make
+
+_Look for:_
+
+        Linking C executable DNSTools_test
+        [100%] Built target DNSTools_test
+
+ALL DONE! Wanna test? Sure.
+
+----
+
+# Testing Your Installation
+
+Use screen or such to get a few ttys, Xterms, pipe to log and bg, whatever.
+
+Change to the `cjdns/build` directory if you need to
+
+_Run cjdroute without options for HELP:_
+
+      # ./cjdroute
+
+## Step 1:
+
+  _Generate a new configuration file:_
+
+      # ./cjdroute --genconf > cjdroute.conf
+
+## Step 2:
+
   From a root shell or using sudo, run use these commands:
 
-  Create a cjdns user so it can run unprivileged.
-    useradd cjdns
+  _Create a cjdns user so it can run unprivileged._
 
-  Create a new TUN device and give the cjdns user authority to access it:
-    /sbin/ip tuntap add mode tun user cjdns
-    /sbin/ip tuntap list | grep `id -u cjdns`
+      # useradd cjdns
+
+  _Create a new TUN device and give the cjdns user authority to access it:_
+
+      # /sbin/ip tuntap add mode tun user cjdns
+      # /sbin/ip tuntap list | grep `id -u cjdns`
+
   The output of the last command will tell you the name of the new device.
+
   This is needed to edit the configuration file.
 
-Step 3:
+## Step 3: Bootstraping your first connection.
+
   Edit the configuration file, fill in the key from the node to connect to and your
   password as well as the bind address to listen for UDP packets on and the
   passwords of other nodes who are allowed to connect to this node.
+
   Also replace "tunDevice": "tun0" with the name of the TUN device gotten in step 2
 
-Step 4:
+  **Note: While cjdns is a mesh-network, there isn't auto-discovery of nodes to peer with. You
+  will need the key from a friend's node to add your own node to their network.**
+
+## Step 4:
+
   Get the commands to run in order to prepare your TUN device by running:
-    ./cjdroute --getcmds < cjdroute.conf
+
+      # ./cjdroute --getcmds < cjdroute.conf
+
   These commands should be executed as root now every time the system restarts.
 
-Step 5:
+## Step 5:
+
   Fire it up!
-    sudo -u cjdns ./cjdroute < cjdroute.conf
 
-Notes:
-  To delete a tunnel, use this command:
-    /sbin/ip tuntap del mode tun <name of tunnel>
+      # sudo -u cjdns ./cjdroute < cjdroute.conf
 
+**Notes:**
 
-##### SNIP #####
-** Known issues:
+  _To delete a tunnel, use this command:_
 
--Old versions of the IP utility do not work for creating tunnel devices
-# ip -V
-ip utility, iproute2-ss080725
-# /sbin/ip tuntap add mode tun user cjdns
-Object "tuntap" is unknown, try "ip help".
-# /sbin/ip tuntap list
-Object "tuntap" is unknown, try "ip help".
+      # /sbin/ip tuntap del mode tun <name of tunnel>
 
-# ip -V
-ip utility, iproute2-ss100519
-# /sbin/ip tuntap list
-tun0: tun user 1001
+----
+
+# Known Issues
+
+## Old versions of the IP utility do not work for creating tunnel devices
+
+    # ip -V
+    ip utility, iproute2-ss080725
+    # /sbin/ip tuntap add mode tun user cjdns
+    Object "tuntap" is unknown, try "ip help".
+
+    # /sbin/ip tuntap list
+    Object "tuntap" is unknown, try "ip help".
+
+    # ip -V
+    ip utility, iproute2-ss100519
+    # /sbin/ip tuntap list
+    tun0: tun user 1001
 
 The fix, for now grab a copy of a newer 'ip' binary and copy it to your home dir. Replacing the system binaries is not likely a good idea.
 
+## Currently we are still debugging some routing issues.
 
-** Currently we are still debugging some routing issues.
 If you want to help out, load up a few VMs or physical boxen,
 link them, see what happens, tell us! :)
 
 Lots of bugs to fix yet, but hey, its talking now!!
 
 
-##### SNIP #####
-** Self Check your IPv6 addy to be sure you are not offering more services then you intended to ;)
-- Use ifconfig -a to find your tun device's IP address (same as above)
+----
 
-# nmap -6 -n -r -v -p1-65535 -sT fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+# Self Check Your Network
 
-Starting Nmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
-Initiating Connect Scan at 20:40
-Scanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 ports]
-Completed Connect Scan at 20:40, 4.38s elapsed (65535 total ports)
-Nmap scan report for fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
-Host is up (0.00073s latency).
-All 65535 scanned ports on fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe are closed
+Once your node is running, you're now a newly minted IPv6 host. Your operating system may 
+automatically reconfigure network services to use this new address. If this is not what you 
+intend, you should check to see that you are not offering more services then you intended to ;)
 
-Read data files from: /usr/local/bin/../share/nmap
-Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
+_Use `ifconfig -a` to find your tun device's IP address (same as above)_:
+
+_Run `nmap` to discover which services are accessible from this address:_
+
+      # nmap -6 -n -r -v -p1-65535 -sT fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+
+      Starting Nmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
+      Initiating Connect Scan at 20:40
+      Scanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 ports]
+      Completed Connect Scan at 20:40, 4.38s elapsed (65535 total ports)
+      Nmap scan report for fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
+      Host is up (0.00073s latency).
+      All 65535 scanned ports on fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe are closed
+
+      Read data files from: /usr/local/bin/../share/nmap
+      Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
            Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
 
 If you see anything open, fix it.
 
 Some examples:
 
-ssh - /etc/ssh/sshd_config
-ListenAddress 192.168.1.1
+## ssh - `/etc/ssh/sshd_config`
+      ListenAddress 192.168.1.1
+
 ^^ Replace with your STATIC IP (or map dhcp via mac)
 
-samba - /etc/samba/smb.conf
-[global]        
-interfaces = eth0                                                       
-bind interfaces only = Yes
+## samba - `/etc/samba/smb.conf`
+
+      [global]        
+      interfaces = eth0                                                       
+      bind interfaces only = Yes
+
 ^^ this will not bind to tun0 (or whichever device)
 
-
---Thats IT for now.
+Thats IT for now.
 
 Got More? Tell us on IRC.
 
 --iR
+
 20110216-20111229
+
 ircerr@EFNet
 
-#EOF#
+[Whitepaper]: https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.txt
+[Ubuntu]: http://www.ubuntu.com/
+[Linux Mint]: http://www.linuxmint.com/
