@@ -17,10 +17,11 @@ nacl_dist_vers="nacl-20110221"
 nacl_dist_file="$nacl_dist_dir/$nacl_dist_vers.tar.bz2"
 nacl_build_dir="."
 
-function nacl_do_build()
-{
+fnmatch () { case "$2" in $1) return 0 ;; esac ; return 1 ; }
+
+nacl_do_build () {
     tar -xjf "$nacl_dist_file" -C "$nacl_build_dir"
-    pushd "$nacl_dist_vers"
+    cd "$nacl_dist_vers"
 
     # Apply patches
     for i in $( ls "patch" ); do
@@ -31,41 +32,36 @@ function nacl_do_build()
     sh ./do.loudly
     rm -f ./do.loudly
 
-    popd
+    cd -
 }
 
-function nacl_find_artifacts()
-{
+nacl_find_artifacts () {
     build_arch="`uname -m`"
     nacl_artifacts="`find $nacl_build_dir/$nacl_dist_vers -iname $1`"
 
     for i in $nacl_artifacts; do
-        if [[ $i =~ $build_arch ]]; then
-            echo "${i}" && return
-        elif [[ $i =~ "amd64" ]]; then
-            if [[ "x86_64" =~ $build_arch ]]; then
-                echo "${i}" && return
+        if [ $(echo "$i" | grep "$build_arch") ]; then
+            echo "$i" && return
+        elif [ $(echo "$i" | grep "amd64") ]; then
+            if [ $(echo "$build_arch" | grep "x86_64") ]; then
+                echo "$i" && return
             fi
-        elif [[ $i =~ "x86_64" ]]; then
-            if [[ "amd64" =~ $build_arch ]]; then
-                echo "${i}" && return
+        elif [ $(echo "$i" | grep "x86_64") ]; then
+            if [ $(echo "$build_arch" | grep "amd64") ]; then
+                echo "$i" && return
             fi
         fi
     done
 }
 
-set +x
-
 nacl_do_build
 
 # Get the path of the library
-nacl_lib_path=$(nacl_find_artifacts '*.a')
+nacl_lib_path=$(nacl_find_artifacts 'libnacl.a')
 
 # Get the path of an include file, then get the directory it's in.
-nacl_include_path=$(nacl_find_artifacts '*.h')
+nacl_include_path=$(nacl_find_artifacts 'cpucycles.h')
 nacl_include_dir="`echo $nacl_include_path | sed 's|\(.*\)/.*|\1|'`"
 
 echo "SET(NACL_INCLUDE_DIRS $nacl_include_dir)" > nacl.cmake
 echo "SET(NACL_LIBRARIES $nacl_lib_path)" >> nacl.cmake
-
-set -x
