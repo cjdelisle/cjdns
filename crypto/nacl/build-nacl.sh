@@ -63,5 +63,5 @@ nacl_lib_path=$(nacl_find_artifacts 'libnacl.a')
 nacl_include_path=$(nacl_find_artifacts 'cpucycles.h')
 nacl_include_dir="`echo $nacl_include_path | sed 's|\(.*\)/.*|\1|'`"
 
-echo "SET(NACL_INCLUDE_DIRS $nacl_include_dir)" > nacl.cmake
-echo "SET(NACL_LIBRARIES $nacl_lib_path)" >> nacl.cmake
+echo "SET(NACL_INCLUDE_DIRS $(pwd)/$nacl_include_dir)" > nacl.cmake
+echo "SET(NACL_LIBRARIES $(pwd)/$nacl_lib_path)" >> nacl.cmake
