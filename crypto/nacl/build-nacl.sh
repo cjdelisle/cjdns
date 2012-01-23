@@ -17,8 +17,6 @@ nacl_dist_vers="nacl-20110221"
 nacl_dist_file="$nacl_dist_dir/$nacl_dist_vers.tar.bz2"
 nacl_build_dir="."
 
-fnmatch () { case "$2" in $1) return 0 ;; esac ; return 1 ; }
-
 nacl_do_build () {
     tar -xjf "$nacl_dist_file" -C "$nacl_build_dir"
     cd "$nacl_dist_vers"
