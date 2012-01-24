@@ -18,6 +18,8 @@ _Get the IPv6 address for your node (assuming its tunnel `tun0`):_
 
 _Write a configuration file for `lighttpd`:_
 
+Naturaly, supply _your_ IPv6 address here.
+
 	# Default Server Configuration
 	server.use-ipv6 = "enable"
 	server.bind = "fc6d:3c44:c420:cefc:432f:6f6b:2aa:d2b7"
