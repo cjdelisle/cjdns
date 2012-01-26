@@ -115,10 +115,6 @@ static void maintanenceCycle(void* vcontext)
                    (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
                    (unsigned int) nonZeroNodes);
 
-        Log_debug(janitor->routerModule->logger, "Routing table dump:\n");
-        NodeStore_dumpTables(janitor->routerModule->logger->writer, janitor->routerModule->nodeStore);
-        janitor->routerModule->logger->writer->write("\n", 1, janitor->routerModule->logger->writer);
-
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
         Log_debug1(janitor->routerModule->logger,
                    "Using %u bytes of memory.\n",

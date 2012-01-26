@@ -1,0 +1,28 @@
+<html>
+<head>
+<script src="/text/javascript/bencode.js"></script>
+<script>
+   var xmlhttp = new XMLHttpRequest();
+   xmlhttp.open("GET", "/api/?q=d1:q19:NodeStore_dumpTablee", true);
+   xmlhttp.onreadystatechange = function() {
+      if (xmlhttp.readyState==4) {
+         var obj = bdecode(xmlhttp.responseText);
+         var table = obj.routingTable;
+
+         var uniqueNames = {};
+         for (var i = 0; i < table.length; i++) {
+             uniqueNames[table[i].ip] = 1;
+         }
+         var x = 0;
+         for (var un in uniqueNames) {
+             x++;
+         }
+         document.body.innerHTML = 'unique: ' + x + '\ntotal: ' + table.length + '\n\n\n\n' + JSON.stringify(obj);
+      }
+   };
+   xmlhttp.send(null);
+</script>
+</head>
+<body>
+</body>
+</html>

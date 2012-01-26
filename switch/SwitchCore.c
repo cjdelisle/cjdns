@@ -252,8 +252,12 @@ int SwitchCore_addInterface(struct Interface* iface,
                             struct SwitchCore* core)
 {
     // This is some hackery to make sure the router interface is always index 1.
-    uint32_t ifIndex =
-        (core->interfaceCount == 1) ? ((core->routerAdded) ? 0 : 2) : core->interfaceCount;
+    uint32_t ifIndex = core->interfaceCount;
+    if (ifIndex > 0 && !core->routerAdded) {
+        ifIndex++;
+    } else if (ifIndex == 1) {
+        ifIndex--;
+    }
 
     if (ifIndex == SwitchCore_MAX_INTERFACES) {
         return -1;

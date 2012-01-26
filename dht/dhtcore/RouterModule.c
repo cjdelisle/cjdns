@@ -208,7 +208,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
-                                           struct Log* logger)
+                                           struct Log* logger,
+                                           struct Admin* admin)
 {
     struct RouterModule* const out = allocator->malloc(sizeof(struct RouterModule), allocator);
 
@@ -224,7 +225,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
     out->searchStore = SearchStore_new(allocator, out->gmrtRoller, logger);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger);
+    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
@@ -235,7 +236,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                out->nodeStore,
                                allocator,
                                eventBase);
-
     return out;
 }
 
@@ -425,7 +425,11 @@ static void searchStep(struct SearchCallbackContext* scc)
     // Get the node from the nodestore because there might be a much better path to the same node.
     struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
     if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address->ip6.bytes, 16)) {
-        nextSearchNode->address = &n->address;
+        uint64_t nlabel = Endian_bigEndianToHost64(n->address.networkAddress_be);
+        uint64_t nsn = Endian_bigEndianToHost64(nextSearchNode->address->networkAddress_be);
+        if (nlabel < nsn) {
+            nextSearchNode->address = &n->address;
+        }
     }
 
     sendRequest(nextSearchNode->address,

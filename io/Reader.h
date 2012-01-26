@@ -43,6 +43,12 @@ struct Reader {
      * @param thisReader the Reader which is being called. Use: reader->skip(Y, reader);
      */
     void (* const skip)(size_t byteCount, const struct Reader* thisReader);
+
+    /**
+     * @param thisReader the reader itself.
+     * @return the total number of bytes which have been read OR SKIPPED by this reader.
+     */
+    size_t (* const bytesRead)(const struct Reader* thisReader);
 };
 
 #endif

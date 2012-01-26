@@ -11,9 +11,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "admin/Admin.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/Ducttape.h"
@@ -35,6 +37,7 @@
 #include "switch/SwitchCore.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
+#include "util/Security.h"
 #include "Version.h"
 
 #include "crypto_scalarmult_curve25519.h"
@@ -63,6 +66,8 @@ struct Context
     struct RouterModule* routerModule;
 
     struct Log* logger;
+
+    struct Admin* admin;
 };
 
 struct UDPInterfaceContext
@@ -99,32 +104,40 @@ static int genAddress(uint8_t addressOut[40],
 
 static int genconf()
 {
+    uint8_t passwdBin[16];
+    randombytes(passwdBin, 16);
+    uint8_t password[32];
+    Base32_encode(password, 32, passwdBin, 16);
+
+    uint16_t port;
+    randombytes((uint8_t*) &port, 2);
     uint8_t publicKeyBase32[53];
     uint8_t address[40];
     uint8_t privateKeyHex[65];
     genAddress(address, privateKeyHex, publicKeyBase32);
 
     printf("{\n"
-           "     // Private key:\n"
-           "     // This key corrisponds to the public key: %s.k\n", publicKeyBase32);
-    printf("     // And the ipv6 address: %s\n", address);
-    printf("     // Your confidentiality and data integrity depend on this key, keep it secret!\n"
-           "     //\n"
+           "    // Private key:\n"
+           "    // This key corrisponds to the public key: %s.k\n", publicKeyBase32);
+    printf("    // And the ipv6 address: %s\n", address);
+    printf("    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
+           "    //\n"
            "    \"privateKey\": \"%s\",\n", privateKeyHex);
     printf("\n"
-           "     // Anyone connecting and offering these passwords on connection will be allowed.\n"
-           "     //\n"
-           "     // WARNING: Currently there is no key derivation done on the password field,\n"
-           "     //          DO NOT USE A PASSWORD HERE use something which is truely random and\n"
-           "     //          cannot be guessed.\n"
-           "     // Including a username in the beginning of the password string is encouraged\n"
-           "     // to aid in remembering which users are who.\n"
-           "     //\n"
-           "    \"authorizedPasswords\": [\n"
+           "    // Anyone connecting and offering these passwords on connection will be allowed.\n"
+           "    //\n"
+           "    // WARNING: Currently there is no key derivation done on the password field,\n"
+           "    //          DO NOT USE A PASSWORD HERE use something which is truly random and\n"
+           "    //          cannot be guessed.\n"
+           "    // Including a username in the beginning of the password string is encouraged\n"
+           "    // to aid in remembering which users are who.\n"
+           "    //\n"
+           "    \"authorizedPasswords\":\n"
+           "    [\n"
            "        {\n"
            "            // A unique string which is known to the client and server.\n"
-           "            \"password\": \"Bob - 2Q4qAPGemxgrydSSetSmOWlE2YO8wYMSG2H1aBPolS3n\",\n"
-           "\n"
+           "            \"password\": \"%s\",\n", password);
+    printf("\n"
            "            // the authentication type, currently only 1 is supported.\n"
            "            \"authType\": 1,\n"
            "\n"
@@ -133,13 +146,28 @@ static int genconf()
            "            \"trust\": 5000\n"
            "        },\n"
            "\n"
-           "        /* You can add as many authorized passwords as you want.\n"
-           "        {\n"
-           "            \"password\": \"Alice - wTNeK7nlFRn1tRfgnOkWEATkd/RFlZOQVuOsUy8ATWjD\",\n"
-           "            \"authType\": 1,\n"
-           "            \"trust\": 2500\n"
-           "        },*/\n"
+           "        /* These are your connection credentials\n"
+           "           for people connecting to you with your default password.\n"
+           "           adding more passwords for different users is advisable\n"
+           "           so that leaks can be isolated.\n"
+           "\n"
+           "            \"your.external.ip.goes.here:%u\":\n", port);
+    printf("            {\n"
+           "                \"password\": \"%s\",\n", password);
+    printf("                \"authType\": 1,\n"
+           "                \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("                \"trust\": 10000\n"
+           "            }\n"
+           "        */\n"
            "    ],\n"
+           "\n"
+           "    // Settings for administering and extracting information from your router.\n"
+           "    // This interface provides API functions which can be called through a TCP socket.\n"
+           "    \"admin\":\n"
+           "    {\n"
+           "        // Port to bind the admin TCP server to.\n"
+           "        \"bind\": \"127.0.0.1:11234\"\n"
+           "    }\n"
            "\n"
            "    // Interfaces to connect to the switch core.\n"
            "    \"interfaces\":\n"
@@ -148,35 +176,13 @@ static int genconf()
            "        \"UDPInterface\":\n"
            "        {\n"
            "            // Bind to this port.\n"
-           "            \"bind\": \"0.0.0.0:10000\",\n"
-           "\n"
+           "            \"bind\": \"0.0.0.0:%u\",\n", port);
+    printf("\n"
            "            // Nodes to connect to.\n"
            "            \"connectTo\":\n"
            "            {\n"
-           "                \"127.0.0.1:10000\":\n"
-           "                {\n"
-           "                    // Password to present when connecting.\n"
-           "                    \"password\": \"secret\",\n"
-           "\n"
-           "                    // The method of authenticating, only 1 is supported for now.\n"
-           "                    \"authType\": 1,\n"
-           "\n"
-           "                    // The public key of the node to connect to.\n"
-           "                    \"publicKey\": "
-           "\"y39gwfy5259s8fj4khntfy95bx6wxu5lbm2m132yx0ucrk0ruyx0.k\",\n"
-           "\n"
-           "                    // Anti-flood trust level.\n"
-           "                    \"trust\": 9000\n"
-           "                },\n"
-           "                /* You may connect to as many other nodes as you want.\n"
-           "                \"1.2.3.4:56789\": {\n"
-           "                    \"password\": \"secret2\",\n"
-           "                    \"authType\": 1,\n"
-           "                    \"publicKey\": "
-           "\"y39gwfy5259s8fj4khntfy95bx6wxu5lbm2m132yx0ucrk0ruyx0.k\",\n"
-           "                    \"trust\": 1234\n"
-           "                }\n"
-           "                */\n"
+           "                // Add connection credentials here to join the network\n"
+           "                // Ask somebody who is already connected.\n"
            "            }\n"
            "        }\n"
            "    },\n"
@@ -200,10 +206,25 @@ static int genconf()
            "        }\n"
            "    },\n"
            "\n"
-           "    \"resetAfterInactivitySeconds\": 20,\n"
+           "    // Tear down inactive CryptoAuth sessions after this number of seconds\n"
+           "    // to make them more forgiving in the event that they become desynchronized.\n"
+           "    \"resetAfterInactivitySeconds\": 30,\n"
+           "\n"
+           "    // Dropping permissions.\n"
+           "    \"security\":\n"
+           "    [\n"
+           "        // Set number of open files to zero, in Linux, this will succeed even if\n"
+           "        // files are already open and will not allow any files to be opened for the\n"
+           "        // duration of the program's operation.\n"
+           "        // Most security exploits require the use of files.\n"
+           "        \"nofiles\",\n"
+           "\n"
+           "        // Change the user id to this user after starting up and getting resources.\n"
+           "        {\"setuser\": \"nobody\"}\n"
+           "     ],\n"
            "\n"
            "    // Version of the config file, used internally for migration.\n"
-           "    \"version\": 0\n"
+           "    \"version\": 1\n"
            "}\n");
 
     return 0;
@@ -517,7 +538,61 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
                                                   context->allocator,
                                                   myPubKey,
                                                   context->base,
-                                                  context->logger);
+                                                  context->logger,
+                                                  context->admin);
+}
+
+static char* setUser(List* config)
+{
+    for (int i = 0; i < List_size(config); i++) {
+        Dict* d = List_getDict(config, i);
+        if (d) {
+            String* uname = Dict_getString(d, BSTR("setuser"));
+            if (uname) {
+                return uname->bytes;
+            }
+        }
+    }
+    return NULL;
+}
+
+static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
+{
+    if (!config) {
+        return;
+    }
+    bool nofiles = false;
+    for (int i = 0; i < List_size(config); i++) {
+        String* s = List_getString(config, i);
+        if (s && String_equals(s, BSTR("nofiles"))) {
+            nofiles = true;
+        }
+    }
+    char* user = setUser(config);
+    if (user) {
+        Log_info1(logger, "Changing user to [%s]\n", user);
+        Security_setUser(user, logger, eh);
+    }
+    if (nofiles) {
+        Log_info(logger, "Setting max open files to zero.\n");
+        Security_noFiles(eh);
+    }
+}
+
+static void adminPing(Dict* input, void* vadmin, struct Allocator* alloc)
+{
+    String pong = { .len = 4, .bytes = "pong" };
+    Dict_remove(input, CJDHTConstants_QUERY);
+    Dict_putString(input, CJDHTConstants_QUERY, &pong, alloc);
+    Admin_sendMessage(input, (struct Admin*) vadmin);
+}
+
+static void admin(Dict* adminConf, char* user, struct Context* context)
+{
+    context->admin =
+        Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
+
+    Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
 int main(int argc, char** argv)
@@ -560,6 +635,7 @@ int main(int argc, char** argv)
     
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
+    context.base = event_base_new();
 
     // Allow it to allocate 4MB
     context.allocator = MallocAllocator_new(1<<22);
@@ -576,6 +652,14 @@ int main(int argc, char** argv)
 
     printf("Version: " Version_STRING "\n");
 
+    char* user = setUser(Dict_getList(&config, BSTR("security")));
+
+    // Admin
+    Dict* adminConf = Dict_getDict(&config, BSTR("admin"));
+    if (adminConf) {
+        admin(adminConf, user, &context);
+    }
+
     // Logging
     struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
     struct Log logger = { .writer = logwriter };
@@ -586,7 +670,6 @@ int main(int argc, char** argv)
     parsePrivateKey(&config, &myAddr, privateKey);
 
     context.eHandler = AbortHandler_INSTANCE;
-    context.base = event_base_new();
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
     context.ca =
         CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
@@ -630,7 +713,13 @@ int main(int argc, char** argv)
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);
-    printf("Your address is: %s.k\n", address);
+    Log_info1(context.logger, "Your address is: %s.k\n", address);
+    uint8_t myIp[40];
+    Address_printIp(myIp, &myAddr);
+    Log_info1(context.logger, "Your IPv6 address is: %s\n", myIp);
+
+    // Security.
+    security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
 }
