@@ -165,7 +165,7 @@ static int genconf()
            "    // This interface provides API functions which can be called through a TCP socket.\n"
            "    \"admin\":\n"
            "    {\n"
-           "        // Port to bind the admin TCP server to.
+           "        // Port to bind the admin TCP server to.\n"
            "        \"bind\": \"127.0.0.1:11234\"\n"
            "    }\n"
            "\n"
