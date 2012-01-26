@@ -23,7 +23,7 @@ Naturaly, supply _your_ IPv6 address here.
 	# Default Server Configuration
 	server.use-ipv6 = "enable"
 	server.bind = "fc6d:3c44:c420:cefc:432f:6f6b:2aa:d2b7"
-	server.port = 8080
+	server.port = 8000
 
 	server.document-root = "html6"
 	# MIME Types
