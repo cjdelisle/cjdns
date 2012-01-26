@@ -15,6 +15,8 @@
 #define BENC_SERIALIZER_H
 
 #include "benc/Object.h"
+#include "io/Writer.h"
+#include "io/Reader.h"
 
 struct BencSerializer
 {

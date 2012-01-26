@@ -11,7 +11,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "admin/Admin.h"
+#include "benc/List.h"
+#include "benc/Dict.h"
+#include "benc/String.h"
+#include "benc/Object.h"
 #include "dht/Address.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/DistanceNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
@@ -26,11 +32,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc);
+
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 const struct Allocator* allocator,
-                                struct Log* logger)
+                                struct Log* logger,
+                                struct Admin* admin)
 {
     struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
     out->thisNodeAddress = myAddress;
@@ -39,6 +48,10 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->capacity = capacity;
     out->logger = logger;
     out->size = 0;
+    out->admin = admin;
+
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, admin);
+
     return out;
 }
 
@@ -386,4 +399,74 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(node, &store->nodes[store->size], sizeof(struct Node));
     struct NodeHeader* header = &store->headers[node - store->nodes];
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
+}
+
+static void sendEntries(struct NodeStore* store, struct List_Item* last, String* txid)
+{
+    struct Dict_Entry txidEntry = {
+        .next = NULL,
+        .key = CJDHTConstants_TXID,
+        .val = &(Object) { .type = Object_STRING, .as.string = txid }
+    };
+    struct Dict_Entry tableEntry = {
+        .next = &txidEntry,
+        .key = &(String) { .len = 12, .bytes = "routingTable" },
+        .val = &(Object) { .type = Object_LIST, .as.list = &last }
+    };
+    Dict d = &tableEntry;
+    Admin_sendMessage(&d, store->admin);
+}
+
+static void addRoutingTableEntries(struct NodeStore* store,
+                                   uint32_t i,
+                                   struct List_Item* last,
+                                   String* txid)
+{
+    if (i >= store->size) {
+        sendEntries(store, last, txid);
+        return;
+    }
+
+    uint8_t path[20];
+    String pathStr = { .len = 20, .bytes = (char*)path };
+    struct Dict_Entry pathEntry = {
+        .next = NULL,
+        .key = &(String) { .len = 4, .bytes = "path" },
+        .val = &(Object) { .type = Object_STRING, .as.string = &pathStr }
+    };
+
+    struct Dict_Entry linkStateEntry = {
+        .next = &pathEntry,
+        .key = &(String) { .len = 4, .bytes = "linkState" },
+        .val = &(Object) { .type = Object_INTEGER, .as.number = store->headers[i].reach }
+    };
+    
+    uint8_t ip[40];
+    String ipStr = { .len = 40, .bytes = (char*)ip };
+    struct Dict_Entry entry = {
+        .next = &linkStateEntry,
+        .key = &(String) { .len = 2, .bytes = "ip" },
+        .val = &(Object) { .type = Object_STRING, .as.string = &ipStr }
+    };
+    Dict d = &entry;
+
+    struct List_Item next = {
+        .next = last,
+        .elem = &(Object) { .type = Object_DICT, .as.dictionary = &d }
+    };
+
+    Address_printIp(ip, &store->nodes[i].address);
+    Address_printNetworkAddress(path, &store->nodes[i].address);
+
+    addRoutingTableEntries(store, i + 1, &next, txid);
+}
+
+static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc)
+{
+    struct NodeStore* store = (struct NodeStore*) vnodeStore;
+    String* txid = Dict_getString(req, CJDHTConstants_TXID);
+    if (!txid) {
+        return;
+    }
+    addRoutingTableEntries(store, 0, NULL, txid);
 }

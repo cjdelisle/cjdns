@@ -11,9 +11,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "admin/Admin.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/Ducttape.h"
@@ -64,6 +66,8 @@ struct Context
     struct RouterModule* routerModule;
 
     struct Log* logger;
+
+    struct Admin* admin;
 };
 
 struct UDPInterfaceContext
@@ -526,7 +530,8 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
                                                   context->allocator,
                                                   myPubKey,
                                                   context->base,
-                                                  context->logger);
+                                                  context->logger,
+                                                  context->admin);
 }
 
 static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
@@ -555,6 +560,20 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
         Log_info(logger, "Setting max open files to zero.\n");
         Security_noFiles(eh);
     }
+}
+
+static void adminPing(Dict* input, void* vadmin, struct Allocator* alloc)
+{
+    String pong = { .len = 4, .bytes = "pong" };
+    Dict_remove(input, CJDHTConstants_QUERY);
+    Dict_putString(input, CJDHTConstants_QUERY, &pong, alloc);
+    Admin_sendMessage(input, (struct Admin*) vadmin);
+}
+
+static void admin(Dict* adminConf, struct Context* context)
+{
+    context->admin = Admin_new(adminConf, &context->base, context->eHandler, context->allocator);
+    Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
 int main(int argc, char** argv)
@@ -613,6 +632,14 @@ int main(int argc, char** argv)
 
     printf("Version: " Version_STRING "\n");
 
+    // Admin
+    Dict* adminConf = Dict_getDict(&config, BSTR("admin"));
+    if (adminConf) {
+        admin(adminConf, &context);
+    } else {
+        context.base = event_base_new();
+    }
+
     // Logging
     struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
     struct Log logger = { .writer = logwriter };
@@ -623,7 +650,6 @@ int main(int argc, char** argv)
     parsePrivateKey(&config, &myAddr, privateKey);
 
     context.eHandler = AbortHandler_INSTANCE;
-    context.base = event_base_new();
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
     context.ca =
         CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
@@ -673,7 +699,7 @@ int main(int argc, char** argv)
     Log_info1(context.logger, "Your IPv6 address is: %s\n", myIp);
 
     // Security.
-    security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
+    security(NULL/*Dict_getList(&config, BSTR("security"))*/, context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
 }

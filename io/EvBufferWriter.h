@@ -11,27 +11,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ABORT_HANDLER_H
-#define ABORT_HANDLER_H
+#ifndef EV_BUFFER_WRITER_H
+#define EV_BUFFER_WRITER_H
 
-#include "exception/ExceptionHandler.h"
-
-#include <stdio.h>
-
-/** Internal callback, please use AbortHandler_INSTANCE instead. */
-static void AbortHandler_callback(char* message, int code, struct ExceptionHandler* handler)
-{
-    handler = handler;
-    fprintf(stderr, "Error: %s (code: %d)\n", message, code);
-    abort();
-}
+#include "Writer.h"
+#include "memory/Allocator.h"
+#include <event2/buffer.h>
 
 /**
- * The exception handler.
- * Prints the message to stderr and aborts the program.
+ * Create a new Writer which writes to a libevent buffer.
+ *
+ * @param buffer the libevent buffer to write to.
+ * @param allocator the memory allocator to use for allocating the writer and context.
  */
-static struct ExceptionHandler* AbortHandler_INSTANCE = &(struct ExceptionHandler) {
-    .exception = AbortHandler_callback
-};
+struct Writer* EvBufferWriter_new(struct evbuffer* buffer, const struct Allocator* allocator);
 
 #endif

@@ -217,6 +217,11 @@ static int32_t parseList(const struct Reader* reader,
     struct List_Item** lastEntryPointer = output;
     int ret;
 
+    if (reader->read(&nextChar, 0, reader) != 0) {
+        return OUT_OF_CONTENT_TO_READ;
+    }
+    *lastEntryPointer = NULL;
+
     while (nextChar != 'e') {
         ret = parseGeneric(reader, allocator, &element);
         if (ret != 0) {
@@ -234,7 +239,9 @@ static int32_t parseList(const struct Reader* reader,
         }
     }
 
-    thisEntry->next = NULL;
+    if (thisEntry) {
+        thisEntry->next = NULL;
+    }
 
     /* move the pointer to after the 'e' at the end of the list. */
     reader->skip(1, reader);

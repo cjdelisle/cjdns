@@ -35,7 +35,8 @@ struct NodeStore;
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 const struct Allocator* allocator,
-                                struct Log* logger);
+                                struct Log* logger,
+                                struct Admin* admin);
 
 /**
  * Put a node into the store.

@@ -11,3 +11,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_library(cjdbenc_StandardBencSerializer StandardBencSerializer.c)
 target_link_libraries(cjdbenc_StandardBencSerializer cjdmemory cjdio)
+
+enable_testing()
+add_subdirectory(test)
