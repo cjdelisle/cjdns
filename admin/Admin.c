@@ -286,6 +286,9 @@ void Admin_registerFunction(char* name,
                             void* callbackContext,
                             struct Admin* admin)
 {
+    if (!admin) {
+        return;
+    }
     String* str = String_new(name, admin->allocator);
     if (!admin->functionCount) {
         admin->functions = admin->allocator->malloc(sizeof(struct Function), admin->allocator);
@@ -305,6 +308,9 @@ void Admin_registerFunction(char* name,
 
 void Admin_sendMessage(Dict* message, struct Admin* admin)
 {
+    if (!admin) {
+        return;
+    }
     uint8_t buff[MAX_API_REQUEST_SIZE];
     uint8_t allocBuff[256];
     struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
