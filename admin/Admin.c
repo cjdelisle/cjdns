@@ -161,12 +161,11 @@ void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
     eventType = eventType;
-perror("incomingFromClient");
+    errno = 0;
     char buf[MAX_API_REQUEST_SIZE];
     ssize_t result = recv(socket, buf, MAX_API_REQUEST_SIZE, 0);
     if (result > 0) {
         size_t amountWritten = write(context->outFd, buf, result);
-perror("wrote to parent pipe");
         if (amountWritten != (size_t)result) {
             exit(0);
         }
@@ -192,7 +191,7 @@ struct Connection* newConnection(struct ChildContext* context, evutil_socket_t f
     if (!conn) {
         return NULL;
     }
-perror("new connection");
+
     conn->read = event_new(context->eventBase, fd, EV_READ | EV_PERSIST, incomingFromClient, conn);
     conn->socket = fd;
     conn->context = context;
@@ -228,8 +227,10 @@ void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
     }
 }
 
+#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
+
 // only in child
-void child(struct ChildContext* context)
+void child(Dict* config, struct ChildContext* context)
 {
     context->dataFromParent =
         event_new(context->eventBase,
@@ -242,9 +243,23 @@ void child(struct ChildContext* context)
 
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
-    evutil_parse_sockaddr_port("127.0.0.1:9999", (struct sockaddr*) &addr, &addrLen);
+    char* bindTo = "127.0.0.1:9999";
+    String* bindStr = Dict_getString(config, BSTR("bind"));
+    if (bindStr) {
+        fprintf(stderr, "Admin: Binding to %s\n", bindStr->bytes);
+        if (evutil_parse_sockaddr_port(bindStr->bytes, (struct sockaddr*) &addr, &addrLen)) {
+            fprintf(stderr, "Admin: admin.bind parse failed, calling back on %s\n", bindTo);
+            bindStr = NULL;
+        }
+    }
+    if (!bindStr) {
+        fprintf(stderr, "Admin: Binding to %s\n", bindTo);
+        evutil_parse_sockaddr_port(bindTo, (struct sockaddr*) &addr, &addrLen);
+    }
+
     evutil_socket_t listener = socket(addr.ss_family, SOCK_STREAM, 0);
     evutil_make_socket_nonblocking(listener);
+    evutil_make_listen_socket_reuseable(listener);
 
     if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         perror("bind");
@@ -310,13 +325,12 @@ void setUser(String* name)
     }
 }
 
-#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 struct Admin* Admin_new(Dict* config,
-                        struct event_base** eventBase,
+                        char* user,
+                        struct event_base* eventBase,
                         struct ExceptionHandler* eh,
                         struct Allocator* allocator)
 {
-    Dict_getString(config, BSTR("bind"));
     errno = 0;
     int pipes[2][2];
     if (pipe(pipes[0]) || pipe(pipes[1])) {
@@ -342,15 +356,18 @@ struct Admin* Admin_new(Dict* config,
         // become orphaned if the parent gets signal 11 err um 9.
         setpgid(0, pgid);
 
-        setUser(Dict_getString(config, BSTR("setuser")));
+        if (user) {
+            Security_setUser(user, NULL, AbortHandler_INSTANCE);
+        }
+
         struct ChildContext context;
         memset(&context, 0, sizeof(struct ChildContext));
         context.inFd = inFd;
         context.outFd = outFd;
         context.allocator = allocator;
-        //event_reinit(eventBase);
-        context.eventBase = event_base_new();//eventBase;
-        child(&context);
+        event_reinit(eventBase);
+        context.eventBase = eventBase;
+        child(config, &context);
         exit(0);
     }
 
@@ -361,9 +378,8 @@ struct Admin* Admin_new(Dict* config,
     admin->outFd = outFd;
     admin->allocator = allocator;
     admin->functionCount = 0;
-    *eventBase = event_base_new();
-    admin->eventBase = *eventBase;
-    admin->pipeEv = event_new(admin->eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
+    admin->eventBase = eventBase;
+    admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
 
     return admin;

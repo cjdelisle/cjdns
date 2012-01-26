@@ -534,6 +534,20 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
                                                   context->admin);
 }
 
+static char* setUser(List* config)
+{
+    for (int i = 0; i < List_size(config); i++) {
+        Dict* d = List_getDict(config, i);
+        if (d) {
+            String* uname = Dict_getString(d, BSTR("setuser"));
+            if (uname) {
+                return uname->bytes;
+            }
+        }
+    }
+    return NULL;
+}
+
 static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
 {
     if (!config) {
@@ -544,17 +558,12 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
         String* s = List_getString(config, i);
         if (s && String_equals(s, BSTR("nofiles"))) {
             nofiles = true;
-            continue;
         }
-        Dict* d = List_getDict(config, i);
-        if (d) {
-            String* uname = Dict_getString(d, BSTR("setuser"));
-            if (uname) {
-                Log_info1(logger, "Changing user to [%s]\n", uname->bytes);
-                Security_setUser(uname->bytes, logger, eh);
-                continue;
-            }
-        }
+    }
+    char* user = setUser(config);
+    if (user) {
+        Log_info1(logger, "Changing user to [%s]\n", user);
+        Security_setUser(user, logger, eh);
     }
     if (nofiles) {
         Log_info(logger, "Setting max open files to zero.\n");
@@ -570,9 +579,11 @@ static void adminPing(Dict* input, void* vadmin, struct Allocator* alloc)
     Admin_sendMessage(input, (struct Admin*) vadmin);
 }
 
-static void admin(Dict* adminConf, struct Context* context)
+static void admin(Dict* adminConf, char* user, struct Context* context)
 {
-    context->admin = Admin_new(adminConf, &context->base, context->eHandler, context->allocator);
+    context->admin =
+        Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
+
     Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
@@ -616,6 +627,7 @@ int main(int argc, char** argv)
     
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
+    context.base = event_base_new();
 
     // Allow it to allocate 4MB
     context.allocator = MallocAllocator_new(1<<22);
@@ -632,12 +644,12 @@ int main(int argc, char** argv)
 
     printf("Version: " Version_STRING "\n");
 
+    char* user = setUser(Dict_getList(&config, BSTR("security")));
+
     // Admin
     Dict* adminConf = Dict_getDict(&config, BSTR("admin"));
     if (adminConf) {
-        admin(adminConf, &context);
-    } else {
-        context.base = event_base_new();
+        admin(adminConf, user, &context);
     }
 
     // Logging
@@ -699,7 +711,7 @@ int main(int argc, char** argv)
     Log_info1(context.logger, "Your IPv6 address is: %s\n", myIp);
 
     // Security.
-    security(NULL/*Dict_getList(&config, BSTR("security"))*/, context.logger, context.eHandler);
+    security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
 }

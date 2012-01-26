@@ -32,7 +32,8 @@ void Admin_registerFunction(char* name,
 void Admin_sendMessage(Dict* message, struct Admin* admin);
 
 struct Admin* Admin_new(Dict* config,
-                        struct event_base** eventBase,
+                        char* user,
+                        struct event_base* eventBase,
                         struct ExceptionHandler* eh,
                         struct Allocator* allocator);
 #endif

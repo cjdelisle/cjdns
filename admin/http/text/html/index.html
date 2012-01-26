@@ -1,0 +1,19 @@
+<html>
+<head>
+</head>
+<script src="/text/javascript/bencode.js"></script>
+<script>
+   var xmlhttp = new XMLHttpRequest();
+   xmlhttp.open("GET", "/api/?q=d1:q19:NodeStore_dumpTablee", true);
+   xmlhttp.onreadystatechange = function() {
+      if (xmlhttp.readyState==4) {
+         var obj = bdecode(xmlhttp.responseText);
+         var table = obj.routingTable;
+         document.body.innerHTML = JSON.stringify(obj);
+      }
+   };
+   xmlhttp.send(null);
+</script>
+<body>
+</body>
+</html>

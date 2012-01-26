@@ -401,7 +401,7 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 }
 
-static void sendEntries(struct NodeStore* store, struct List_Item* last, String* txid)
+static void sendEntries(struct NodeStore* store, struct List_Item* last, String* txid, bool isMore)
 {
     struct Dict_Entry txidEntry = {
         .next = NULL,
@@ -413,22 +413,28 @@ static void sendEntries(struct NodeStore* store, struct List_Item* last, String*
         .key = &(String) { .len = 12, .bytes = "routingTable" },
         .val = &(Object) { .type = Object_LIST, .as.list = &last }
     };
-    Dict d = &tableEntry;
+    Dict d;
+    if (isMore) {
+        struct Dict_Entry more = {
+            .next = &tableEntry,
+            .key = &(String) { .len = 4, .bytes = "more" },
+            .val = &(Object) { .type = Object_INTEGER, .as.number = 1 }
+        };
+        d = &more;
+    } else {
+        d = &tableEntry;
+    }
     Admin_sendMessage(&d, store->admin);
 }
 
 static void addRoutingTableEntries(struct NodeStore* store,
                                    uint32_t i,
+                                   uint32_t j,
                                    struct List_Item* last,
                                    String* txid)
 {
-    if (i >= store->size) {
-        sendEntries(store, last, txid);
-        return;
-    }
-
-    uint8_t path[20];
-    String pathStr = { .len = 20, .bytes = (char*)path };
+    uint8_t path[19];
+    String pathStr = { .len = 19, .bytes = (char*)path };
     struct Dict_Entry pathEntry = {
         .next = NULL,
         .key = &(String) { .len = 4, .bytes = "path" },
@@ -438,11 +444,11 @@ static void addRoutingTableEntries(struct NodeStore* store,
     struct Dict_Entry linkStateEntry = {
         .next = &pathEntry,
         .key = &(String) { .len = 4, .bytes = "linkState" },
-        .val = &(Object) { .type = Object_INTEGER, .as.number = store->headers[i].reach }
+        .val = &(Object) { .type = Object_INTEGER }
     };
     
-    uint8_t ip[40];
-    String ipStr = { .len = 40, .bytes = (char*)ip };
+    uint8_t ip[39];
+    String ipStr = { .len = 39, .bytes = (char*)ip };
     struct Dict_Entry entry = {
         .next = &linkStateEntry,
         .key = &(String) { .len = 2, .bytes = "ip" },
@@ -455,10 +461,20 @@ static void addRoutingTableEntries(struct NodeStore* store,
         .elem = &(Object) { .type = Object_DICT, .as.dictionary = &d }
     };
 
+    if (i >= store->size || j > 900) {
+        linkStateEntry.val->as.number = 0xFFFFFFFF;
+        Address_printIp(ip, store->thisNodeAddress);
+        strcpy((char*)path, "0000.0000.0000.0001");
+
+        sendEntries(store, &next, txid, (j > 900));
+        return;
+    }
+
+    linkStateEntry.val->as.number = store->headers[i].reach;
     Address_printIp(ip, &store->nodes[i].address);
     Address_printNetworkAddress(path, &store->nodes[i].address);
 
-    addRoutingTableEntries(store, i + 1, &next, txid);
+    addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }
 
 static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc)
@@ -468,5 +484,10 @@ static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc)
     if (!txid) {
         return;
     }
-    addRoutingTableEntries(store, 0, NULL, txid);
+    uint32_t i = 0;
+    int64_t* iPtr = Dict_getInt(req, &(String) { .len = 5, .bytes = "start" });
+    if (iPtr && *iPtr > 0 && *iPtr < UINT32_MAX) {
+        i = *iPtr;
+    }
+    addRoutingTableEntries(store, i, 0, NULL, txid);
 }

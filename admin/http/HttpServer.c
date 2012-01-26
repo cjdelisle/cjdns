@@ -166,7 +166,7 @@ void apiHandler(struct evhttp_request* req, void* vcontext)
     struct Context* context = (struct Context*) vcontext;
     context=context;
     const char* uri = evhttp_decode_uri(evhttp_request_get_uri(req));
-    printf("%s\n", uri);
+
     #define KEY "/?q="
     const char* q = strstr(uri, "/?q=");
     if (!q) {
@@ -267,16 +267,14 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
             event_free(context->apiEvent);
             return;
         }
-        fprintf(stderr, "overlong message\n");
+        perror("overlong message");
         return;
     }
     context->messageBuffer[length] = '\0';
-    fprintf(stderr, "incoming from api server [%s]\n", context->messageBuffer);
     struct Reader* reader =
         ArrayReader_new(context->messageBuffer, MAX_API_REPLY_SIZE, context->allocator);
     Dict message;
     if (List_getStandardBencSerializer()->parseDictionary(reader, context->allocator, &message)) {
-        fprintf(stderr, "unparsable\n");
         return;
     }
 
@@ -311,15 +309,15 @@ void setupApi(char* ipAndPort, struct Context* context)
 int main(int argc, char **argv)
 {
     assert(argc > 0);
-    if (argc < 2) {
-        printf("Usage: %s address.and.port.of.api:server /full/path/to/directory/\n", argv[0]);
+    if (argc < 3) {
+        printf("Usage: %s address.of.api.server:port /full/path/to/directory/\n", argv[0]);
         return 0;
     }
     Crypto_init();
 
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
-    context.workingDir = argv[1];
+    context.workingDir = argv[2];
     randombytes((uint8_t*) &context.txidBaseline, 4);
 
     char alloc[1<<16];
@@ -327,7 +325,7 @@ int main(int argc, char **argv)
 
     context.eventBase = event_base_new();
 
-    setupApi("127.0.0.1:9999", &context);
+    setupApi(argv[1], &context);
 
     struct evhttp* httpd = evhttp_new(context.eventBase);
    	evhttp_bind_socket(httpd, "127.0.0.1", 51902);
