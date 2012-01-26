@@ -315,7 +315,8 @@ void Admin_sendMessage(Dict* message, struct Admin* admin)
         buff[written] = '\n';
         written++;
     }
-    write(admin->outFd, buff, written);
+    size_t ignore = write(admin->outFd, buff, written);
+    ignore = ignore;
 }
 
 void setUser(String* name)

@@ -433,7 +433,7 @@ static void addRoutingTableEntries(struct NodeStore* store,
                                    struct List_Item* last,
                                    String* txid)
 {
-    uint8_t path[19];
+    uint8_t path[20];
     String pathStr = { .len = 19, .bytes = (char*)path };
     struct Dict_Entry pathEntry = {
         .next = NULL,

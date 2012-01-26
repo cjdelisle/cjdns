@@ -215,7 +215,8 @@ void apiHandler(struct evhttp_request* req, void* vcontext)
                 fprintf(stderr, "failed to serialize");
                 return;
             }
-            write(context->apiSocket, buff, w->bytesWritten(w));
+            size_t ignore = write(context->apiSocket, buff, w->bytesWritten(w));
+            ignore = ignore;
             return;
         }
     }
