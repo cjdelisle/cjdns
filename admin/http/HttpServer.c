@@ -329,7 +329,7 @@ int main(int argc, char **argv)
     setupApi(argv[1], &context);
 
     struct evhttp* httpd = evhttp_new(context.eventBase);
-   	evhttp_bind_socket(httpd, "127.0.0.1", 51902);
+    evhttp_bind_socket(httpd, "::", 51902);
     evhttp_set_cb(httpd, "/api/", apiHandler, &context);
     evhttp_set_gencb(httpd, fileHandler, &context);
 
