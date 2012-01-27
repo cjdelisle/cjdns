@@ -262,13 +262,13 @@ int SwitchCore_addInterface(struct Interface* iface,
     if (ifIndex == SwitchCore_MAX_INTERFACES) {
         return -1;
     }
-    memcpy(&core->interfaces[ifIndex], &(struct SwitchInterface) {
+    memcpy(&core->interfaces[ifIndex], (&(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
         .bufferMax = trust,
         .congestion = 0
-    }, sizeof(struct SwitchInterface));
+    }), sizeof(struct SwitchInterface));
 
     iface->allocator->onFree(removeInterface,
                              &core->interfaces[ifIndex],
@@ -288,13 +288,13 @@ int SwitchCore_addInterface(struct Interface* iface,
 
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
 {
-    memcpy(&core->interfaces[1], &(struct SwitchInterface) {
+    memcpy(&core->interfaces[1], (&(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
         .bufferMax = INT64_MAX,
         .congestion = 0
-    }, sizeof(struct SwitchInterface));
+    }), sizeof(struct SwitchInterface));
 
     iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
