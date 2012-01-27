@@ -20,7 +20,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-static void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
+static inline void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
 {
     errno = 0;
     struct passwd* pw = getpwnam(userName);
@@ -37,7 +37,7 @@ static void Security_setUser(char* userName, struct Log* logger, struct Exceptio
     }
 }
 
-static void Security_noFiles(struct ExceptionHandler* eh)
+static inline void Security_noFiles(struct ExceptionHandler* eh)
 {
     #ifdef BSD
         #define RLIMIT_NOFILE RLIMIT_OFILE

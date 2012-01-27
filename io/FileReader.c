@@ -26,13 +26,15 @@ struct Context {
     char* pointer;
     char* endPointer;
     bool skipFailed;
+    size_t bytesRead;
     struct Reader reader;
 };
 
 static int read(void* readInto, size_t length, const struct Reader* reader);
 static void skip(size_t byteCount, const struct Reader* reader);
+static size_t bytesRead(const struct Reader* reader);
 
-/** @see ArrayReader.h */
+/** @see FileReader.h */
 struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
 {
     struct Context* context = allocator->calloc(sizeof(struct Context), 1, allocator);
@@ -44,7 +46,8 @@ struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
     struct Reader localReader = {
         .context = context,
         .read = read,
-        .skip = skip
+        .skip = skip,
+        .bytesRead = bytesRead
     };
     memcpy(&context->reader, &localReader, sizeof(struct Reader));
 
@@ -55,6 +58,7 @@ struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
 static int read(void* readInto, size_t length, const struct Reader* reader)
 {
     struct Context* context = (struct Context*) reader->context;
+    context->bytesRead += length;
 
     if (length == 0) {
         int ret = read(readInto, 1, reader);
@@ -99,10 +103,17 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
     return 0;
 }
 
+/** @see Reader->bytesRead() */
+static size_t bytesRead(const struct Reader* reader)
+{
+    return ((struct Context*) reader->context)->bytesRead;
+}
+
 /** @see Reader->skip() */
 static void skip(size_t length, const struct Reader* reader)
 {
     struct Context* context = (struct Context*) reader->context;
+    context->bytesRead += length;
 
     while (context->pointer + length > context->endPointer) {
         length -= (context->endPointer - context->pointer + 1);

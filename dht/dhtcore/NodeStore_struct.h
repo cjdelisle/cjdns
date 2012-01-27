@@ -40,6 +40,9 @@ struct NodeStore
 
     /** The means for this node store to log. */
     struct Log* logger;
+
+    /** Administration tool. */
+    struct Admin* admin;
 };
 
 #endif

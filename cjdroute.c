@@ -11,9 +11,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "admin/Admin.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
+#include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/Ducttape.h"
@@ -64,6 +66,8 @@ struct Context
     struct RouterModule* routerModule;
 
     struct Log* logger;
+
+    struct Admin* admin;
 };
 
 struct UDPInterfaceContext
@@ -156,6 +160,14 @@ static int genconf()
            "            }\n"
            "        */\n"
            "    ],\n"
+           "\n"
+           "    // Settings for administering and extracting information from your router.\n"
+           "    // This interface provides API functions which can be called through a TCP socket.\n"
+           "    \"admin\":\n"
+           "    {\n"
+           "        // Port to bind the admin TCP server to.\n"
+           "        \"bind\": \"127.0.0.1:11234\"\n"
+           "    }\n"
            "\n"
            "    // Interfaces to connect to the switch core.\n"
            "    \"interfaces\":\n"
@@ -526,7 +538,22 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
                                                   context->allocator,
                                                   myPubKey,
                                                   context->base,
-                                                  context->logger);
+                                                  context->logger,
+                                                  context->admin);
+}
+
+static char* setUser(List* config)
+{
+    for (int i = 0; i < List_size(config); i++) {
+        Dict* d = List_getDict(config, i);
+        if (d) {
+            String* uname = Dict_getString(d, BSTR("setuser"));
+            if (uname) {
+                return uname->bytes;
+            }
+        }
+    }
+    return NULL;
 }
 
 static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
@@ -539,22 +566,33 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
         String* s = List_getString(config, i);
         if (s && String_equals(s, BSTR("nofiles"))) {
             nofiles = true;
-            continue;
         }
-        Dict* d = List_getDict(config, i);
-        if (d) {
-            String* uname = Dict_getString(d, BSTR("setuser"));
-            if (uname) {
-                Log_info1(logger, "Changing user to [%s]\n", uname->bytes);
-                Security_setUser(uname->bytes, logger, eh);
-                continue;
-            }
-        }
+    }
+    char* user = setUser(config);
+    if (user) {
+        Log_info1(logger, "Changing user to [%s]\n", user);
+        Security_setUser(user, logger, eh);
     }
     if (nofiles) {
         Log_info(logger, "Setting max open files to zero.\n");
         Security_noFiles(eh);
     }
+}
+
+static void adminPing(Dict* input, void* vadmin, struct Allocator* alloc)
+{
+    String pong = { .len = 4, .bytes = "pong" };
+    Dict_remove(input, CJDHTConstants_QUERY);
+    Dict_putString(input, CJDHTConstants_QUERY, &pong, alloc);
+    Admin_sendMessage(input, (struct Admin*) vadmin);
+}
+
+static void admin(Dict* adminConf, char* user, struct Context* context)
+{
+    context->admin =
+        Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
+
+    Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
 int main(int argc, char** argv)
@@ -597,6 +635,7 @@ int main(int argc, char** argv)
     
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
+    context.base = event_base_new();
 
     // Allow it to allocate 4MB
     context.allocator = MallocAllocator_new(1<<22);
@@ -613,6 +652,14 @@ int main(int argc, char** argv)
 
     printf("Version: " Version_STRING "\n");
 
+    char* user = setUser(Dict_getList(&config, BSTR("security")));
+
+    // Admin
+    Dict* adminConf = Dict_getDict(&config, BSTR("admin"));
+    if (adminConf) {
+        admin(adminConf, user, &context);
+    }
+
     // Logging
     struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
     struct Log logger = { .writer = logwriter };
@@ -623,7 +670,6 @@ int main(int argc, char** argv)
     parsePrivateKey(&config, &myAddr, privateKey);
 
     context.eHandler = AbortHandler_INSTANCE;
-    context.base = event_base_new();
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
     context.ca =
         CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);

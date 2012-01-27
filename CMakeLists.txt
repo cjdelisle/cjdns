@@ -77,14 +77,16 @@ include_directories(${LIBEVENT2_INCLUDE_DIRS})
 find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})
 
-add_subdirectory(memory)
-add_subdirectory(io)
+add_subdirectory(admin)
 add_subdirectory(benc)
 add_subdirectory(crypto)
 add_subdirectory(dht)
+add_subdirectory(interface)
+add_subdirectory(io)
+add_subdirectory(memory)
 add_subdirectory(util)
 add_subdirectory(switch)
-add_subdirectory(interface)
+
 
 add_executable(cjdroute cjdroute.c)
 target_link_libraries(cjdroute
@@ -96,6 +98,7 @@ target_link_libraries(cjdroute
     cjdbenc
     cjdbenc_JsonBencSerializer
     cjdmemory
+    cjdadmin
     ${LIBEVENT2_LIBRARIES}
 )
 

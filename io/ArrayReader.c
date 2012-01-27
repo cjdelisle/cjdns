@@ -17,10 +17,12 @@
 struct ArrayReader_context {
     char* pointer;
     char* endPointer;
+    size_t bytesRead;
 };
 
 static int read(void* readInto, size_t length, const struct Reader* reader);
 static void skip(size_t byteCount, const struct Reader* reader);
+static size_t bytesRead(const struct Reader* reader);
 
 /** @see ArrayReader.h */
 struct Reader* ArrayReader_new(const void* bufferToRead,
@@ -42,7 +44,8 @@ struct Reader* ArrayReader_new(const void* bufferToRead,
     struct Reader localReader = {
         .context = context,
         .read = read,
-        .skip = skip
+        .skip = skip,
+        .bytesRead = bytesRead
     };
     memcpy(reader, &localReader, sizeof(struct Reader));
 
@@ -70,8 +73,14 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
 
     memcpy(readInto, context->pointer, length);
     context->pointer += length;
+    context->bytesRead += length;
 
     return 0;
+}
+
+static size_t bytesRead(const struct Reader* reader)
+{
+    return ((struct ArrayReader_context*) reader->context)->bytesRead;
 }
 
 /** @see Reader->skip() */

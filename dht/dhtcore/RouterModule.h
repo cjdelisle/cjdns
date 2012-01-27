@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <event2/event.h>
 
+#include "admin/Admin.h"
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "benc/Object.h"
@@ -47,12 +48,14 @@ struct RouterModule_Search;
  * @param myAddress the public key for this node.
  * @param eventBase the libevent base.
  * @param logger the means of writing logs.
+ * @param admin tool for administrating a running router.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
-                                           struct Log* logger);
+                                           struct Log* logger,
+                                           struct Admin* admin);
 
 /**
  * Start a search.
