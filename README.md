@@ -193,8 +193,7 @@ Build cjbdns:
 
 Look for:
 
-    Linking C executable DNSTools_test
-    [100%] Built target DNSTools_test
+    [100%] Built target LabelSplicer_test
 
 ALL DONE! Wanna test? Sure.
 
