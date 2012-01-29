@@ -38,7 +38,6 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 #include "util/Security.h"
-#include "Version.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -649,8 +648,6 @@ int main(int argc, char** argv)
     if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
         return getcmds(&config);
     }
-
-    printf("Version: " Version_STRING "\n");
 
     char* user = setUser(Dict_getList(&config, BSTR("security")));
 

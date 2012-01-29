@@ -205,7 +205,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     return uh->sourceAndDestPorts == 0
-        && Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
+        && (int) Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
 }
 
 /**
