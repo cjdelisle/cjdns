@@ -60,14 +60,14 @@ void SerializationModule_register(struct DHTModuleRegistry* registry, const stru
 {
     struct SerializationModule_context* context =
         allocator->malloc(sizeof(struct SerializationModule_context), allocator);
-    memcpy(context, &(struct SerializationModule_context) {
+    memcpy(context, (&(struct SerializationModule_context) {
         .module = {
             .name = "SerializationModule",
             .context = context,
             .handleIncoming = handleIncoming,
             .handleOutgoing = handleOutgoing
         }
-    }, sizeof(struct SerializationModule_context));
+    }), sizeof(struct SerializationModule_context));
 
     DHTModules_register(&(context->module), registry);
 }
