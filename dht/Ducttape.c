@@ -637,17 +637,17 @@ int Ducttape_register(Dict* config,
         routerIf->receiverContext = context;
     }
 
-    memcpy(&context->module, &(struct DHTModule) {
+    memcpy(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
         .context = context,
         .handleOutgoing = handleOutgoing
-    }, sizeof(struct DHTModule));
+    }), sizeof(struct DHTModule));
 
-    memcpy(&context->switchInterface, &(struct Interface) {
+    memcpy(&context->switchInterface, (&(struct Interface) {
         .sendMessage = incomingFromSwitch,
         .senderContext = context,
         .allocator = allocator
-    }, sizeof(struct Interface));
+    }), sizeof(struct Interface));
 
     return DHTModules_register(&context->module, context->registry)
         | SwitchCore_setRouterInterface(&context->switchInterface, switchCore);
