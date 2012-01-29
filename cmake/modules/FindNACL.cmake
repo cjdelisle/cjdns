@@ -9,27 +9,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-if (NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
-    set(NACL_FOUND TRUE)
-endif (NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
+cmake_minimum_required(VERSION 2.8.2)
 
-if (NOT NACL_FOUND)
-    message("Checking for nacl crypto library.")
-    if(NOT EXISTS "${CMAKE_BINARY_DIR}/nacl.cmake")
-        MESSAGE("Compiling nacl crypto library.")
-        execute_process(COMMAND sh "${CMAKE_SOURCE_DIR}/crypto/nacl/build-nacl.sh"
-                        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}//")
-    endif(NOT EXISTS "${CMAKE_BINARY_DIR}/nacl.cmake")
-    include("${CMAKE_BINARY_DIR}/nacl.cmake")
-    if (NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
-        set(NACL_FOUND TRUE)
-    endif (NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
-endif (NOT NACL_FOUND)
+if (NOT NACL_INCLUDE_DIRS)
+    include(ExternalProject)
 
-if (NACL_FOUND)
-    message(STATUS "Found libnacl: includes ${NACL_INCLUDE_DIRS} libs ${NACL_LIBRARIES}")
-else (NACL_FOUND)
-    if (NACL_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find libnacl, try to setup NACL_PREFIX accordingly")
-    endif (NACL_FIND_REQUIRED)
-endif (NACL_FOUND)
+    # Without this, the build doesn't happen until link time.
+    include_directories(${NACL_USE_FILES})
+
+    ExternalProject_Add(NACL
+        GIT_REPOSITORY git://github.com/cjdelisle/nacl.git
+        GIT_TAG 96761dcce8227ec130b6db395fcaae2c3d3eb166
+        SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
+        BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
+        INSTALL_COMMAND ""
+        UPDATE_COMMAND ""
+        PATCH_COMMAND ""
+    )
+
+    set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
+    set(NACL_LIBRARIES    "${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a")
+
+endif (NOT NACL_INCLUDE_DIRS)

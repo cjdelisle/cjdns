@@ -178,8 +178,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    struct SwitchInterface* destIf = &core->interfaces[destIndex];
-
     // If this happens to be an Error_FLOOD packet, we will react by
     // increasing the congestion for the source interface to make flooding harder.
     if (Headers_getMessageType(header) == MessageType_CONTROL) {
@@ -189,25 +187,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         {
             sourceIf->congestion += Headers_getPriority(header);
         }
-    }
-
-    // Calculate antiflood.
-    uint16_t priority = Headers_getPriority(header);
-    sourceIf->buffer += priority;
-    if (destIf->congestion > priority) {
-        // Flood condition, the packets with least priority are dropped
-        // and flood errors are sent upstream.
-        Log_debug(sourceIf->core->logger,
-                  "Packet was dropped for not enough priority in flooded link.\n");
-        sendError(sourceIf, message, Error_FLOOD, sourceIf->core->logger);
-        return Error_NONE;
-    } else if (destIf->buffer - priority < 0 - destIf->bufferMax) {
-        // Buffer decreases are metered out,
-        // If there is too much traffic it can't be sent.
-        Log_debug(sourceIf->core->logger,
-                  "Link closed because priority limit has been exceeded.\n");
-        sendError(sourceIf, message, Error_LINK_LIMIT_EXCEEDED, sourceIf->core->logger);
-        return Error_NONE;
     }
 
     // Sending from the router is a special case, all from-router messages have same label.
@@ -225,7 +204,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    destIf->buffer -= priority;
     return Error_NONE;
 }
 
