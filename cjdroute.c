@@ -378,8 +378,8 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         authorizedPassword(passwd, authType, trust, i, ctx);
     }
     printf("Added %d authorized password%s.\n",
-			count,
-			count > 1 ? "s" : "");
+            count,
+            count > 1 ? "s" : "");
 }
 
 static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
@@ -660,7 +660,7 @@ static struct Context* startNode(struct event_base* base, Dict* config, struct L
     Address_printIp(myIp, &myAddr);
     Log_info1(context->logger, "Your IPv6 address is: %s\n", myIp);
 
-	return context;
+    return context;
 }
 
 int main(int argc, char** argv)
@@ -671,7 +671,7 @@ int main(int argc, char** argv)
     Crypto_init();
     assert(argc > 0);
 
-	int nodeCount = 1;
+    int nodeCount = 1;
 
     if (argc == 1) { // no arguments
         if (isatty(STDIN_FILENO)) {
@@ -692,8 +692,8 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--getcmds") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--benchmark") == 0) {
-			nodeCount = 20;
-		} else {
+            nodeCount = 20;
+        } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
@@ -705,16 +705,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
-	// Read the config file.
+    // Read the config file.
     struct Allocator* allocator = MallocAllocator_new(1<<22);
     struct Reader* reader = FileReader_new(stdin, allocator);
     Dict config;
-	if (List_getJsonBencSerializer()->parseDictionary(reader, allocator, &config)) {
-		fprintf(stderr, "Failed to parse configuration.\n");
-		return -1;
-	}
+    if (List_getJsonBencSerializer()->parseDictionary(reader, allocator, &config)) {
+        fprintf(stderr, "Failed to parse configuration.\n");
+        return -1;
+    }
 
-	// Print the commands and exit if necessary.
+    // Print the commands and exit if necessary.
     if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
         return getcmds(&config);
     }
@@ -724,77 +724,77 @@ int main(int argc, char** argv)
     struct Log logger = { .writer = logwriter };
 
     struct event_base* base = event_base_new();
-	struct Context* context;
+    struct Context* context;
 
-	for (int i = 0; i < nodeCount; i++) {
-		// If it's a test node, modify the config before running.
-		if (nodeCount > 1) {
-			char buffer[512];
+    for (int i = 0; i < nodeCount; i++) {
+        // If it's a test node, modify the config before running.
+        if (nodeCount > 1) {
+            char buffer[512];
 
-			// Give it a unique port.
-			Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
-			Dict* udpInterface = Dict_new(allocator);
-			sprintf(buffer, "0.0.0.0:%d", 1024+i);
-			String* bindStr = String_new(buffer, allocator);
-			Dict_putString(udpInterface, BSTR("bind"), bindStr, allocator);
-			Dict_putDict(interfaces, BSTR("UDPInterface"), udpInterface, allocator);
+            // Give it a unique port.
+            Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
+            Dict* udpInterface = Dict_new(allocator);
+            sprintf(buffer, "0.0.0.0:%d", 1024+i);
+            String* bindStr = String_new(buffer, allocator);
+            Dict_putString(udpInterface, BSTR("bind"), bindStr, allocator);
+            Dict_putDict(interfaces, BSTR("UDPInterface"), udpInterface, allocator);
 
-			// Give it a unique tun device name.
-			Dict* router = Dict_getDict(&config, BSTR("router"));
-			Dict* interface = Dict_getDict(router, BSTR("interface"));
-			sprintf(buffer, "tun%d", nodeCount-(i+1));
-			String* tunStr = String_new(buffer, allocator);
-			Dict_putString(interface, BSTR("tunDevice"), tunStr, allocator);
+            // Give it a unique tun device name.
+            Dict* router = Dict_getDict(&config, BSTR("router"));
+            Dict* interface = Dict_getDict(router, BSTR("interface"));
+            sprintf(buffer, "tun%d", nodeCount-(i+1));
+            String* tunStr = String_new(buffer, allocator);
+            Dict_putString(interface, BSTR("tunDevice"), tunStr, allocator);
 
-			// Give it a unique private key.
-			uint8_t publicKeyBase32[53];
-			uint8_t address[40];
-			uint8_t privateKeyHex[65];
-			genAddress(address, privateKeyHex, publicKeyBase32);
-			sprintf(buffer, "%s", privateKeyHex);
-			String* privStr = String_new(buffer, allocator);
-			Dict_putString(&config, BSTR("privateKey"), privStr, allocator);
+            // Give it a unique private key.
+            uint8_t publicKeyBase32[53];
+            uint8_t address[40];
+            uint8_t privateKeyHex[65];
+            genAddress(address, privateKeyHex, publicKeyBase32);
+            sprintf(buffer, "%s", privateKeyHex);
+            String* privStr = String_new(buffer, allocator);
+            Dict_putString(&config, BSTR("privateKey"), privStr, allocator);
 
-			// Set it up to connect to several random test nodes.
-			List* authList = Dict_getList(&config, BSTR("authorizedPasswords"));
-			if (i > 0) {
-				Dict* connectTo = Dict_new(allocator);
-				Dict_putDict(udpInterface, BSTR("connectTo"), connectTo, allocator);
+            // Set it up to connect to several random test nodes.
+            List* authList = Dict_getList(&config, BSTR("authorizedPasswords"));
+            if (i > 0) {
+                Dict* connectTo = Dict_new(allocator);
+                Dict_putDict(udpInterface, BSTR("connectTo"), connectTo, allocator);
 
-				for (int j = 0; j < 3; j++) {
-					int neighbor = rand() % List_size(authList);
-					Dict* neighborAuth = List_getDict(authList, neighbor);
-					String* addr = Dict_getString(neighborAuth, BSTR("addr"));
-					Dict_putDict(connectTo, addr, neighborAuth, allocator);
-				}
-			}
+                for (int j = 0; j < 3; j++) {
+                    int neighbor = rand() % List_size(authList);
+                    Dict* neighborAuth = List_getDict(authList, neighbor);
+                    String* addr = Dict_getString(neighborAuth, BSTR("addr"));
+                    Dict_putDict(connectTo, addr, neighborAuth, allocator);
+                }
+            }
 
-			// Save its info in a Dict so other test nodes can access it later.
-			Dict* auth = Dict_new(allocator);
-			Dict_putString(auth, BSTR("password"), BSTR("password"), allocator);
-			Dict_putInt(auth, BSTR("authType"), 1, allocator);
-			Dict_putInt(auth, BSTR("trust"), 5000, allocator);
-			sprintf(buffer, "%s.k", publicKeyBase32);
-			String* publicKey = String_new(buffer, allocator);
-			Dict_putString(auth, BSTR("publicKey"), publicKey, allocator);
-			Dict_putString(auth, BSTR("addr"), bindStr, allocator);
+            // Save its info in a Dict so other test nodes can access it later.
+            Dict* auth = Dict_new(allocator);
+            Dict_putString(auth, BSTR("password"), BSTR("password"), allocator);
+            Dict_putInt(auth, BSTR("authType"), 1, allocator);
+            Dict_putInt(auth, BSTR("trust"), 5000, allocator);
+            sprintf(buffer, "%s.k", publicKeyBase32);
+            String* publicKey = String_new(buffer, allocator);
+            Dict_putString(auth, BSTR("publicKey"), publicKey, allocator);
+            Dict_putString(auth, BSTR("addr"), bindStr, allocator);
 
-			// Put the Dict in authorizedPasswords (and remove any non-test entries).
-			if (i == 0) {
-				Dict_remove(&config, BSTR("authorizedPasswords"));
-				authList = List_addDict(NULL, auth, allocator);
-				Dict_putList(&config, BSTR("authorizedPasswords"), authList, allocator);
-			}
-			else {
-				List_addDict(authList, auth, allocator);
-			}
-		}
+            // Put the Dict in authorizedPasswords (and remove any non-test entries).
+            if (i == 0) {
+                Dict_remove(&config, BSTR("authorizedPasswords"));
+                authList = List_addDict(NULL, auth, allocator);
+                Dict_putList(&config, BSTR("authorizedPasswords"), authList, allocator);
+            }
+            else {
+                List_addDict(authList, auth, allocator);
+            }
+        }
 
-		// Start the node.
-		if ((context = startNode(base, &config, &logger)) == NULL) {
-			return -1;
-		}
-	}
+        // Start the node.
+        if ((context = startNode(base, &config, &logger)) == NULL) {
+            return -1;
+        }
+    }
 
     // Admin
     char* user = setUser(Dict_getList(&config, BSTR("security")));
