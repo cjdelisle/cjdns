@@ -20,6 +20,7 @@ else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
             /usr/include
             /usr/local/include
             /opt/local/include
+            ${CMAKE_BINARY_DIR}/libevent2-bin/include
         NO_DEFAULT_PATH
     )
 
@@ -34,15 +35,37 @@ else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
             /opt/local/lib
         NO_DEFAULT_PATH
     )
+
     if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
        set(LIBEVENT2_FOUND TRUE)
     endif(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
 endif (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
 
-if (LIBEVENT2_FOUND)
-    message(STATUS "Found libevent2: includes ${LIBEVENT2_INCLUDE_DIRS} libs ${LIBEVENT2_LIBRARIES}")
-else (LIBEVENT2_FOUND)
-    if (Libevent2_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find libevent2, try to setup LIBEVENT2_PREFIX accordingly")
-    endif (Libevent2_FIND_REQUIRED)
+if (NOT LIBEVENT2_FOUND)
+    include(ExternalProject)
+
+    # Without this, the build doesn't happen until link time.
+    include_directories(${NACL_USE_FILES})
+
+    ExternalProject_Add(Libevent2
+        GIT_REPOSITORY git://github.com/libevent/libevent.git
+        GIT_TAG 5de3fa3208c6d6221f188b623fb4b78992fda89a
+        SOURCE_DIR "${CMAKE_BINARY_DIR}/libevent2"
+        BINARY_DIR "${CMAKE_BINARY_DIR}/libevent2-build"
+        CONFIGURE_COMMAND "${CMAKE_BINARY_DIR}/libevent2/configure
+            --prefix=/home/user/src/libevent-bin
+            --disable-openssl
+            --disable-shared
+            --with-pic
+            --disable-thread-support
+        "
+        COMPILE_COMMAND "make"
+        INSTALL_COMMAND "make install"
+        UPDATE_COMMAND ""
+        PATCH_COMMAND ""
+    )
+
+    set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2-bin/include/")
+    set(LIBEVENT2_LIBRARIES    "${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a")
+
 endif (LIBEVENT2_FOUND)
