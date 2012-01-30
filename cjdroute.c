@@ -598,13 +598,13 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
 
 static struct Context* startNode(struct event_base* base, Dict* config, struct Log* logger)
 {
-    struct Context* context = (struct Context*)malloc(sizeof(struct Context));
+	struct Allocator* allocator = MallocAllocator_new(1<<22);
+
+	struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
     memset(context, 0, sizeof(struct Context));
     context->base = base;
 
-    // Allow it to allocate 4MB
-    context->allocator = MallocAllocator_new(1<<22);
-
+    context->allocator = allocator;
     context->logger = logger;
 
     struct Address myAddr;
@@ -705,8 +705,10 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Read the config file.
+    // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
+
+    // Read the config file.
     struct Reader* reader = FileReader_new(stdin, allocator);
     Dict config;
     if (List_getJsonBencSerializer()->parseDictionary(reader, allocator, &config)) {
@@ -729,7 +731,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < nodeCount; i++) {
         // If it's a test node, modify the config before running.
         if (nodeCount > 1) {
-            char buffer[512];
+            char buffer[256];
 
             // Give it a unique port.
             Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
