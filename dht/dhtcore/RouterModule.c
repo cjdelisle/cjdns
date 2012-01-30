@@ -908,6 +908,15 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
             NodeStore_remove(n, module->nodeStore);
             continue;
         }
+        #ifdef Log_INFO
+            if (i == 0) {
+                struct Address addr;
+                addr.networkAddress_be = networkAddress_be;
+                uint8_t printed[20];
+                Address_printNetworkAddress(printed, &addr);
+                Log_info1(module->logger, "Couldn't find route to remove. route=%s", printed);
+            }
+        #endif
         return i;
     }
 }

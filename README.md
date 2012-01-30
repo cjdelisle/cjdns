@@ -85,7 +85,7 @@ Further Reading & Discussion
 
 Please read the Whitepaper, or at least skim it:
 
-  * https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.txt
+  * https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.md
 
 If you are still interested in this project and want to follow it, 
 get in the channel on IRC:
@@ -98,7 +98,7 @@ Some raw pastes for the curious:
   * http://cjdns.pastebay.org/
 
 
-Thank you for your time and interest,  
+Thank you for your time and interest,
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 
@@ -166,7 +166,6 @@ Grab it from GitHub and change to the source directory:
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-
 5: Setup environment.
 ---------------------
 
@@ -197,6 +196,7 @@ Look for:
 
 ALL DONE! Wanna test? Sure.
 
+    # make test
 
 --------------------------------------------------------------------------------
 
@@ -212,17 +212,130 @@ Run cjdroute without options for HELP:
 
     # ./cjdroute
 
+0: Make sure you've got the stuff.
+----------------------------------
+
+    # sudo modprobe tun
+
+If it says nothing, good.
+
+If it says: `FATAL: Module tun not found.` Bad.
+
+In this case, look up how to get the tun module installed for your platform.
+How to get TUN working is beyond the scope of this document, look up how to install
+openvpn on your particular platform.
+
+NOTE: TonidoPlug2 ships with a kernel which does not include TUN and does not
+offer the source code to build it yourself.
+
+    # cat /dev/net/tun
+
+If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
+
+If it says: `cat: /dev/net/tun: No such file or directory`
+
+Create it using:
+
+    # mkdir /dev/net ; mknod /dev/net/tun c 10 200 ; chmod 0666 /dev/net/tun
+
+Then `cat /dev/net/tun` again.
+
 1: Generate a new configuration file.
 -------------------------------------
 
-    # ./cjdroute --genconf > cjdroute.conf
+    # ./cjdroute --genconf >> cjdroute.conf
 
-2: Setup operating system.
---------------------------
+2: Find a friend.
+-----------------
 
-From a root shell or using sudo, run the following commands.
+In order to get into the network you need to meet someone who is also in the network and connect
+to them. This is required for a number of reasons:
 
-Create a cjdns user so it can run unprivileged:
+1. It is a preventitive against abuse because bad people will be less likely to abuse a
+   system after they were, in an act of human kindness, given access to that system.
+2. This is not intended to overlay The Old Internet, it is intended to replace it. Each connection
+   will in due time be replaced by a wire, a fiber optic cable, or a wireless network connection.
+3. In any case of a disagreement, there will be a "chain of friends" linking the people involved
+   so there will already be a basis for coming to a resolution.
+
+tl;dr Get out and make some human contact once in a while!
+
+You can meet people to peer with in the IRC channel:
+
+  * irc://irc.EFNet.org/#cjdns
+  * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
+
+NOTE: If you're just interested in setting up a local VPN between your computers, this step is
+  not necessary.
+
+3: Fill in your friend's info.
+------------------------------
+
+In your cjdroute.conf file, you will see:
+
+            // Nodes to connect to.
+            "connectTo":
+            {
+                // Add connection credentials here to join the network
+                // Ask somebody who is already connected.
+            }
+
+After adding their connection credentials, it will look like:
+
+            // Nodes to connect to.
+            "connectTo":
+            {
+                "0.1.2.3:45678":
+                {
+                    "password": "thisIsNotARealConnection",
+                    "authType": 1,
+                    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k",
+                    "trust": 10000
+                }
+            }
+
+You can add as many connections as you want to your "connectTo" section.
+
+Your own connection credentials will be shown in a JSON comment above in your
+"authorizedPasswords" section. Do not modify this but if you want to allow someone
+to connect to you, give it to them.
+
+It looks like this:
+
+        /* These are your connection credentials
+           for people connecting to you with your default password.
+           adding more passwords for different users is advisable
+           so that leaks can be isolated.
+
+            "your.external.ip.goes.here:12345":
+            {
+                "password": "thisIsNotARealConnectionEither",
+                "authType": 1,
+                "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k",
+                "trust": 10000
+            }
+        */
+
+`your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
+connect to you from over The Old Internet.
+
+4a: Startup the easy way!
+------------------------
+
+If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
+persistent tunnels.
+
+    sudo su -c "./cjdroute < cjdroute.conf >> cjdroute.log & ./cjdroute --getcmds < cjdroute.conf | bash"
+
+
+4b: Run cjdroute as non-root.
+-----------------------------
+
+cjdroute will by default change it's username to "nobody" (an unprivileged user) after startup
+but if you don't trust me or you want to be extra sure, you can run it without root access even
+in the beginning.
+
+Create a cjdns user:
 
     # useradd cjdns
 
@@ -232,24 +345,10 @@ Create a new TUN device and give the cjdns user authority to access it:
     # /sbin/ip tuntap list | grep `id -u cjdns`
 
 The output of the last command will tell you the name of the new device.
+If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
+and change the line which says: `"tunDevice": "tun0"` to whatever it is.
 
-This is needed to edit the configuration file.
-
-3: Bootstraping your first connection.
---------------------------------------
-
-Edit the configuration file, fill in the key from the node to connect to and
-your password as well as the bind address to listen for UDP packets on and the
-passwords of other nodes who are allowed to connect to this node.
-
-Also replace `"tunDevice": "tun0"` with the name of the TUN device gotten 
-in step 2.
-
-**Note: While cjdns is a mesh-network, there isn't auto-discovery of nodes to
-peer with. You will need the key from a friend's node to add your own node to
-their network.**
-
-4: Get commands.
+4b-1: Get commands.
 ----------------
 
 Get the commands to run in order to prepare your TUN device by running:
@@ -258,13 +357,20 @@ Get the commands to run in order to prepare your TUN device by running:
 
 These commands should be executed as root now every time the system restarts.
 
-5: Fire it up!
+4b-2: Fire it up!
 --------------
 
     # sudo -u cjdns ./cjdroute < cjdroute.conf
 
-Note
-----
+Notes
+-----
+
+Protect your conf file! A lost conf file means you lost your password and connections
+and anyone who connected to you will nolonger be able to connect. A *compromized* conf
+file means that other people can impersonate you on the network.
+
+    chmod 400 cjdroute.conf
+    mkdir /etc/cjdns ; cp ./cjdroute.conf /etc/cjdns/
 
 To delete a tunnel, use this command:
 
@@ -371,4 +477,4 @@ Thats it for now! Got More? Tell us on IRC.
 --------------------------------------------------------------------------------
 
 Created on 2011-02-16.  
-Last modified on 2011-12-23.
+Last modified on 2011-12-30.

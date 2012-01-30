@@ -321,8 +321,8 @@ int main(int argc, char **argv)
     context.workingDir = argv[2];
     randombytes((uint8_t*) &context.txidBaseline, 4);
 
-    char alloc[1<<16];
-    context.allocator = BufferAllocator_new(alloc, 1<<16);
+    char alloc[1<<20];
+    context.allocator = BufferAllocator_new(alloc, 1<<20);
 
     context.eventBase = event_base_new();
 

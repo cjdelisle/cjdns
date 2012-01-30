@@ -535,21 +535,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (Headers_getMessageType(switchHeader) == MessageType_CONTROL) {
         struct Control* ctrl = (struct Control*) (switchHeader + 1);
         if (ctrl->type_be == Control_ERROR_be) {
-            if (memcmp(&ctrl->content.error.cause.label_be, &switchHeader->label_be, 8)) {
-                Log_warn(context->logger,
-                         "Different label for cause than return packet, this shouldn't happen. "
-                         "Perhaps a packet was corrupted.\n");
-                return 0;
-            }
-            uint32_t errType_be = ctrl->content.error.errorType_be;
-            if (errType_be == Endian_bigEndianToHost32(Error_MALFORMED_ADDRESS)) {
-                Log_info(context->logger, "Got malformed-address error, removing route.\n");
-                RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
-                return 0;
-            }
-            Log_info1(context->logger,
-                      "Got error packet, error type: %d",
-                      Endian_bigEndianToHost32(errType_be));
+            uint32_t errType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
+            Log_info1(context->logger, "Got error packet, error type: %d", errType);
+            RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
         }
         return 0;
     }
