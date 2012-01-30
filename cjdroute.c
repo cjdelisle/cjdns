@@ -598,9 +598,9 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
 
 static struct Context* startNode(struct event_base* base, Dict* config, struct Log* logger)
 {
-	struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Allocator* allocator = MallocAllocator_new(1<<22);
 
-	struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
+    struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
     memset(context, 0, sizeof(struct Context));
     context->base = base;
 
