@@ -85,7 +85,7 @@ Further Reading & Discussion
 
 Please read the Whitepaper, or at least skim it:
 
-  * https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.txt
+  * https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.md
 
 If you are still interested in this project and want to follow it, 
 get in the channel on IRC:
