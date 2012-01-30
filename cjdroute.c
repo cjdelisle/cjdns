@@ -596,10 +596,8 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
     Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
-static struct Context* startNode(struct event_base* base, Dict* config, struct Log* logger)
+static struct Context* startNode(struct event_base* base, Dict* config, struct Log* logger, struct Allocator* allocator)
 {
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
-
     struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
     memset(context, 0, sizeof(struct Context));
     context->base = base;
@@ -705,8 +703,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    // Allow it to allocate 4MB per node.
+    struct Allocator* allocator = MallocAllocator_new((1<<22)*nodeCount);
 
     // Read the config file.
     struct Reader* reader = FileReader_new(stdin, allocator);
@@ -793,7 +791,7 @@ int main(int argc, char** argv)
         }
 
         // Start the node.
-        if ((context = startNode(base, &config, &logger)) == NULL) {
+        if ((context = startNode(base, &config, &logger, allocator)) == NULL) {
             return -1;
         }
     }
