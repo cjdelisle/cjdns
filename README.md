@@ -220,30 +220,26 @@ Run cjdroute without options for HELP:
 
 If it says nothing, good.
 
-If it says:
-    FATAL: Module tun not found.
+If it says: `FATAL: Module tun not found.` Bad.
 
-Bad.
-
-Look up how to get the tun module installed for your platform.
+In this case, look up how to get the tun module installed for your platform.
 How to get TUN working is beyond the scope of this document, look up how to install
 openvpn on your particular platform.
 
 NOTE: TonidoPlug2 ships with a kernel which does not include TUN and does not
-  offer the source code to build it yourself.
+offer the source code to build it yourself.
 
     # cat /dev/net/tun
 
-If it says:
-    cat: /dev/net/tun: File descriptor in bad state
-Good!
+If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
-If it says:
-    cat: /dev/net/tun1: No such file or directory
+If it says: `cat: /dev/net/tun: No such file or directory`
 
 Create it using:
+
     # mkdir /dev/net ; mknod /dev/net/tun c 10 200 ; chmod 0666 /dev/net/tun
-Then cat /dev/net/tun again.
+
+Then `cat /dev/net/tun` again.
 
 1: Generate a new configuration file.
 -------------------------------------
@@ -255,6 +251,7 @@ Then cat /dev/net/tun again.
 
 In order to get into the network you need to meet someone who is also in the network and connect
 to them. This is required for a number of reasons:
+
 1. It is a preventitive against abuse because bad people will be less likely to abuse a
    system after they were, in an act of human kindness, given access to that system.
 2. This is not intended to overlay The Old Internet, it is intended to replace it. Each connection
@@ -265,6 +262,7 @@ to them. This is required for a number of reasons:
 tl;dr Get out and make some human contact once in a while!
 
 You can meet people to peer with in the IRC channel:
+
   * irc://irc.EFNet.org/#cjdns
   * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
 
@@ -303,7 +301,7 @@ Your own connection credentials will be shown in a JSON comment above in your
 "authorizedPasswords" section. Do not modify this but if you want to allow someone
 to connect to you, give it to them.
 
-It looks liike this:
+It looks like this:
 
         /* These are your connection credentials
            for people connecting to you with your default password.
@@ -319,7 +317,7 @@ It looks liike this:
             }
         */
 
-your.external.ip.goes.here is to be replaced with the IPv4 address which people will use to
+`your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
 4a: Startup the easy way!
@@ -351,7 +349,7 @@ The output of the last command will tell you the name of the new device.
 If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
 and change the line which says: `"tunDevice": "tun0"` to whatever it is.
 
-3: Get commands.
+4b-1: Get commands.
 ----------------
 
 Get the commands to run in order to prepare your TUN device by running:
@@ -360,7 +358,7 @@ Get the commands to run in order to prepare your TUN device by running:
 
 These commands should be executed as root now every time the system restarts.
 
-4: Fire it up!
+4b-2: Fire it up!
 --------------
 
     # sudo -u cjdns ./cjdroute < cjdroute.conf
