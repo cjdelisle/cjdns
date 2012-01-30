@@ -166,7 +166,6 @@ Grab it from GitHub and change to the source directory:
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-
 5: Setup environment.
 ---------------------
 
@@ -363,8 +362,15 @@ These commands should be executed as root now every time the system restarts.
 
     # sudo -u cjdns ./cjdroute < cjdroute.conf
 
-Note
-----
+Notes
+-----
+
+Protect your conf file! A lost conf file means you lost your password and connections
+and anyone who connected to you will nolonger be able to connect. A *compromized* conf
+file means that other people can impersonate you on the network.
+
+    chmod 400 cjdroute.conf
+    mkdir /etc/cjdns ; cp ./cjdroute.conf /etc/cjdns/
 
 To delete a tunnel, use this command:
 
