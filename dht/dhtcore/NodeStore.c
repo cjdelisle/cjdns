@@ -115,14 +115,14 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
-void NodeStore_addNode(struct NodeStore* store,
-                       struct Address* addr,
-                       const int64_t reachDifference)
+struct Node* NodeStore_addNode(struct NodeStore* store,
+                               struct Address* addr,
+                               const int64_t reachDifference)
 {
     Address_getPrefix(addr);
     if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
         printf("got introduced to ourselves\n");
-        return;
+        return NULL;
     }
     if (addr->ip6.bytes[0] != 0xfc) {
         uint8_t address[60];
@@ -189,7 +189,7 @@ void NodeStore_addNode(struct NodeStore* store,
                     }
                 #endif*/
 
-                return;
+                return &store->nodes[i];
             }
             #ifdef Log_DEBUG
                 else if (store->headers[i].addressPrefix == pfx) {
@@ -212,8 +212,7 @@ void NodeStore_addNode(struct NodeStore* store,
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
         adjustReach(&store->headers[store->size], reachDifference);
-        store->size++;
-        return;
+        return &store->nodes[store->size++];
     }
 
     // The node whose reach OR distance is the least.
@@ -226,8 +225,8 @@ void NodeStore_addNode(struct NodeStore* store,
 
         if (distance == 0 && Address_isSame(&store->nodes[i].address, addr)) {
             // Node already exists
-            adjustReach(&store->headers[store->size], reachDifference);
-            return;
+            adjustReach(&store->headers[i], reachDifference);
+            return &store->nodes[i];
         }
 
         uint32_t reachOrDistance = store->headers[i].reach | distance;
@@ -243,6 +242,8 @@ void NodeStore_addNode(struct NodeStore* store,
                 addr);
 
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
+
+    return &store->nodes[indexOfNodeToReplace];
 }
 
 static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)

@@ -48,10 +48,12 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  *                  amount causes the reach to become negative or nolonger fit in a uint32
  *                  type, it will be set to 0 or UINT32_MAX, respectively.
  *                  Undefined behavior will result if this input exceeds UINT32_MAX.
+ * @return the node in the node store which was added or NULL if the node is "us".
+ *         NOTE: The reach in this node will be *wrong* because it is not synced with the header.
  */
-void NodeStore_addNode(struct NodeStore* store,
-                       struct Address* addr,
-                       const int64_t reachDiff);
+struct Node* NodeStore_addNode(struct NodeStore* store,
+                               struct Address* addr,
+                               const int64_t reachDiff);
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
