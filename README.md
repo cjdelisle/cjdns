@@ -9,24 +9,24 @@ you are wondering what the hell this thing is supposed to do.
 
 We can all find common ground in the statement that The Internet is painfully
 insecure. Free speech and privacy advocates find it insecure against government
-listening and blocking, governments find it insecure against hackers taking 
+listening and blocking, governments find it insecure against hackers taking
 systems over and leaking secrets, and internet service providers find it
 insecure against DDoS kiddies who use large swarms of zombie machines to send
-enough traffic to overload a network link. These are, however, all different 
+enough traffic to overload a network link. These are, however, all different
 views of the same problem.
 
 We have a number of somewhat competing offerings to solve this problem from ISPs
-and government. We have IPSEC, DNSSEC, numerous proposals from the mundane to 
+and government. We have IPSEC, DNSSEC, numerous proposals from the mundane to
 the wild and whacky such as "internet drivers licenses".
 
-The people who have developed these proposals are unfortunately limited in 
+The people who have developed these proposals are unfortunately limited in
 their thinking. ISPs are unable to see past the now almost 30 year old routing
 protocols which glue together the internet of today. Government actors are
 conditioned to think of something as secure when they have control over it.
 A quick look at x509 (the authentication system behind SSL) shows us that
 central points of failure inevitably live up to their name. In order to have a
 central authority, the people must not only be able to trust his motives but
-they must be able to trust his system's integrity as well. Recently people's 
+they must be able to trust his system's integrity as well. Recently people's
 e-mail was compromised when DigiNotar certificate authority was hacked and used
 to forge gmail certificates.
 
@@ -87,7 +87,7 @@ Please read the Whitepaper, or at least skim it:
 
   * https://github.com/cjdelisle/cjdns/raw/master/rfcs/Whitepaper.md
 
-If you are still interested in this project and want to follow it, 
+If you are still interested in this project and want to follow it,
 get in the channel on IRC:
 
   * irc://irc.EFNet.org/#cjdns
@@ -112,53 +112,20 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 Build
 =====
 
-How to compile cjdns on Debian 6 (Squeeze):
+How to compile cjdns:
 
   * Hint 1: You did a backup recently. ;)
-  * Hint 2: Might work same under Ubuntu and Linux Mint.
+  * Hint 2: Created on Debian Squeeze, will work on Ubuntu/Mint just as well.
+  * Hint 3: By default the build process will try to find Libevent2 in your operating system
+and if it can't be found, default to compiling and *static linking* it's own. If you want to
+force it to use dynamic or static linking, see [Non-Standard Setups] below.
 
-1: Remove older versions of dependencies: `libevent` and `libevent-dev`.
-------------------------------------------------------------------------
+0: Install the build tools you will need.
+-----------------------------------------
 
-Be sure libevent is gone and remove if found. 
-It will cause problems during the build.
+    # apt-get install cmake git build-essential
 
-Check to see which libevent is installed:
-
-    # dpkg -l | grep ^ii| grep libevent
-    ii  libevent-dev            1.3e-3     Development libraries, header files and docs
-    ii  libevent1               1.3e-3     An asynchronous event notification library
-    # apt-get remove libevent-dev
-
-**Note: You may need to (re)compile TOR if you use it.**
-
-2: Obtain latest versions of dependencies from repository.
-----------------------------------------------------------
-
-    # apt-get install build-essential cmake git
-
-3: Obtain latest `libevent2` dependency manually.
--------------------------------------------------
-
-CHECK https://github.com/libevent/libevent for LATEST version.
-(This document assumes 2.0.16.)
-
-Grab the stable tarball from libevent and untar:
-
-    # wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
-    # tar -xzf libevent-2.0.16-stable.tar.gz
-
-Enter directory and compile libevent:
-
-    # cd libevent-2.0.16-stable
-    # ./configure
-
-Resolve missing dependencies if needed and run again until all errors gone:
-
-    # make
-    # make install
-
-4: Retrieve cjdns from GitHub.
+1: Retrieve cjdns from GitHub.
 ------------------------------
 
 Grab it from GitHub and change to the source directory:
@@ -166,7 +133,7 @@ Grab it from GitHub and change to the source directory:
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-5: Setup environment.
+2: Setup environment.
 ---------------------
 
 Setup `build` directory and change to it:
@@ -179,7 +146,7 @@ You Likely want DEBUG logs (this is VERY ALPHA after all), so set the
 
     # export Log_LEVEL=DEBUG
 
-6: Build.
+3: Build.
 ---------
 
 Pre-build step with `cmake`:
@@ -319,51 +286,17 @@ It looks like this:
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
-4a: Startup the easy way!
-------------------------
-
-If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
-persistent tunnels.
+4: Start it up!
+---------------
 
     sudo su -c "./cjdroute < cjdroute.conf >> cjdroute.log & ./cjdroute --getcmds < cjdroute.conf | bash"
 
-
-4b: Run cjdroute as non-root.
------------------------------
-
-cjdroute will by default change it's username to "nobody" (an unprivileged user) after startup
-but if you don't trust me or you want to be extra sure, you can run it without root access even
-in the beginning.
-
-Create a cjdns user:
-
-    # useradd cjdns
-
-Create a new TUN device and give the cjdns user authority to access it:
-
-    # /sbin/ip tuntap add mode tun user cjdns
-    # /sbin/ip tuntap list | grep `id -u cjdns`
-
-The output of the last command will tell you the name of the new device.
-If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
-and change the line which says: `"tunDevice": "tun0"` to whatever it is.
-
-4b-1: Get commands.
-----------------
-
-Get the commands to run in order to prepare your TUN device by running:
-
-    # ./cjdroute --getcmds < cjdroute.conf
-
-These commands should be executed as root now every time the system restarts.
-
-4b-2: Fire it up!
---------------
-
-    # sudo -u cjdns ./cjdroute < cjdroute.conf
-
 Notes
 -----
+
+This starts cjdroute as the root user so cjdroute can configure your system and shed
+permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups
+below.
 
 Protect your conf file! A lost conf file means you lost your password and connections
 and anyone who connected to you will nolonger be able to connect. A *compromized* conf
@@ -371,10 +304,6 @@ file means that other people can impersonate you on the network.
 
     chmod 400 cjdroute.conf
     mkdir /etc/cjdns ; cp ./cjdroute.conf /etc/cjdns/
-
-To delete a tunnel, use this command:
-
-    # /sbin/ip tuntap del mode tun <name of tunnel>
 
 
 --------------------------------------------------------------------------------
@@ -399,7 +328,7 @@ Old versions of the IP utility do not work for creating tunnel devices.
     # /sbin/ip tuntap list
     tun0: tun user 1001
 
-The fix: for now grab a copy of a newer `ip` binary and copy it to your home 
+The fix: for now grab a copy of a newer `ip` binary and copy it to your home
 directory. Replacing the system binaries is not likely a good idea.
 
 Currently we are still debugging some routing issues.
@@ -419,7 +348,7 @@ Self-Check Your Network
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not 
+If this is not what you intend, you should check to see that you are not
 offering more services then you intended to.  ;)
 
 1: Obtain IP address.
@@ -458,23 +387,124 @@ Edit `/etc/ssh/sshd_config`:
 
     ListenAddress 192.168.1.1
 
-^ Replace `192.168.1.1` in the example above 
+^ Replace `192.168.1.1` in the example above
   with your STATIC IP (or map DHCP via MAC).
 
 ### Samba
 
 Edit `/etc/samba/smb.conf`:
 
-    [global]      
-    interfaces = eth0 
+    [global]
+    interfaces = eth0
     bind interfaces only = Yes
 
-^ This will cause Samba to not bind to `tun0` 
+^ This will cause Samba to not bind to `tun0`
   (or whichever TUN device you are using).
 
 Thats it for now! Got More? Tell us on IRC.
 
 --------------------------------------------------------------------------------
 
-Created on 2011-02-16.  
-Last modified on 2011-12-30.
+Non-Standard Setups
+===================
+
+Instructions for building or installing in non-default ways.
+
+Dynamically linking to Libevent2
+================================
+
+By default, the build process will search your system for Libevent2 and if it is not found,
+it will download, compile, and statically link it. If you would like to link it dynamically
+follow these instructions.
+
+1: Remove older versions of dependencies: `libevent` and `libevent-dev`.
+------------------------------------------------------------------------
+
+Be sure libevent is gone and remove if found.
+It will cause problems during the build.
+
+Check to see which libevent is installed:
+
+    # dpkg -l | grep ^ii| grep libevent
+    ii  libevent-dev            1.3e-3     Development libraries, header files and docs
+    ii  libevent1               1.3e-3     An asynchronous event notification library
+    # apt-get remove libevent-dev
+
+**Note: You may need to (re)compile TOR if you use it.**
+
+
+2: Obtain latest `libevent2` dependency manually.
+-------------------------------------------------
+
+CHECK https://github.com/libevent/libevent for LATEST version.
+(This document assumes 2.0.16.)
+
+Grab the stable tarball from libevent and untar:
+
+    # wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
+    # tar -xzf libevent-2.0.16-stable.tar.gz
+
+Enter directory and compile libevent:
+
+    # cd libevent-2.0.16-stable
+    # ./configure
+
+Resolve missing dependencies if needed and run again until all errors gone:
+
+    # make
+    # make install
+
+3: Compile cjdns using NO_STATIC.
+---------------------------------
+
+By compiling with NO_STATIC, the process will fail rather than defaulting to static link.
+
+    # NO_STATIC=1 cmake ..
+    # make
+
+You can also force a static build even if you have libevent2 by using:
+
+    # STATIC=1 cmake ..
+    # make
+
+
+Start cjdroute as non-root user.
+================================
+
+If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
+persistent tunnels.
+
+Create a cjdns user:
+
+    # useradd cjdns
+
+Create a new TUN device and give the cjdns user authority to access it:
+
+    # /sbin/ip tuntap add mode tun user cjdns
+    # /sbin/ip tuntap list | grep `id -u cjdns`
+
+The output of the last command will tell you the name of the new device.
+If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
+and change the line which says: `"tunDevice": "tun0"` to whatever it is.
+
+4b-1: Get commands.
+----------------
+
+Get the commands to run in order to prepare your TUN device by running:
+
+    # ./cjdroute --getcmds < cjdroute.conf
+
+These commands should be executed as root now every time the system restarts.
+
+4b-2: Fire it up!
+--------------
+
+    # sudo -u cjdns ./cjdroute < cjdroute.conf
+
+
+To delete a tunnel, use this command:
+
+    # /sbin/ip tuntap del mode tun <name of tunnel>
+
+Created on 2011-02-16.
+Last modified on 2012-2-1.
