@@ -61,7 +61,7 @@ List* List_addString(List* list, String* toAdd, const struct Allocator* allocato
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the dictionary.
  */
-List* List_addDictionary(List* list, Dict* toAdd, const struct Allocator* allocator);
+List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator);
 
 /**
  * Add a list as an item to another list, if the list does not exist then it is allocated.
