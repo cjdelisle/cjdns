@@ -291,6 +291,17 @@ connect to you from over The Old Internet.
 
     sudo su -c "./cjdroute < cjdroute.conf >> cjdroute.log & ./cjdroute --getcmds < cjdroute.conf | bash"
 
+5: Get in IRC
+-------------
+
+Welcome to the network, you are now a real network administrator.
+There are responsibilities which come with being a network administrator which include
+being available in case there is something wrong with your equipment. You can connect to irc via
+irc.efnet.org or you can connect to irc inside of the network by going to
+fcec:cbd:3c03:1a2a:63f:c917:b1db:1695 or fce4:d261:d2d8:68df:c67d:11be:6cf6:3e09
+Either way, the channel to join is #cjdns and you should stay there so that we are able to reach
+you if something goes wrong.
+
 Notes
 -----
 
