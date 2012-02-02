@@ -211,7 +211,7 @@ static int genconf()
            "\n"
            "    // Save the pid of the running process to this file.\n"
            "    // If this fail cannot be opened for writing, the router will not start.\n"
-           "    \"pidFile\": \"cjdroute.pid\",\n"
+           "    //\"pidFile\": \"cjdroute.pid\",\n"
            "\n"
            "    // Dropping permissions.\n"
            "    \"security\":\n"

@@ -101,7 +101,12 @@ var getData = function() {
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState==4) {
            var table = bdecode(xmlhttp.responseText).routingTable;
-           //var table = bdecode(dummyResponseText).routingTable;
+
+           if (window.location.href.indexOf('#listNodes') != -1) {
+               table.sort(function(a, b){ return a.link - b.link; });
+               document.body.innerHTML = JSON.stringify(table);
+               return;
+           }
 
            routes = parseRoutes(table);
            var tree = buildTree(routes);
