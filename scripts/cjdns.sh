@@ -11,12 +11,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#
+###
 # cjdns.sh
 # copy this file into your cjdns user's hime directory and add
 # */5 * * * * /home/cjdns/cjdns.sh check
 # to your cron tab for the cjdns user.
 #
+# When you type:
+#  ./cjdns.sh start
+# cjdns will be started and if it should stop for any reason (including the computer beign halted)
+# the cron job will restart it.
+# To stop it and prevent it from restarting, use:
+#  ./cjdns.sh stop
+# After doing an update, use:
+#  ./cjdns.sh restart
+# to stop it and bring it back online immedietly.
+##
 
 cd
 dir="`pwd`/cjdns/build"
@@ -46,27 +56,28 @@ start()
     fi
 }
 
-if [ "$1" == "start" ]; then
-    start();
-    exit 0
-fi
+case "$1" in
+"start" )
+    start
+    ;;
 
-case "$1" in 
 "restart" )
-    stop();
-    start();
+    stop
+    start
     ;;
 
 "stop" )
-    stop();
+    stop
     ;;
 
 "check" )
-    if [ -f cjdroute.pid ]; then
+    if [ ! -f cjdroute.pid ]; then
         # router is stopped, let's not defeat the user.
+        exit 0
+    fi
+    if ! kill -0 `cat cjdroute.pid 2>>/dev/null` 2>>/dev/null; then
 
-    elif ! kill -0 `cat cjdroute.pid 2>>/dev/null` 2>>/dev/null; then
-        start();
+        start
     fi
     ;;
 esac
