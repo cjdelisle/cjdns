@@ -462,12 +462,12 @@ static void addRoutingTableEntries(struct NodeStore* store,
         .elem = &(Object) { .type = Object_DICT, .as.dictionary = &d }
     };
 
-    if (i >= store->size || j > 900) {
+    if (i >= store->size || j > 500) {
         linkStateEntry.val->as.number = 0xFFFFFFFF;
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
 
-        sendEntries(store, &next, txid, (j > 900));
+        sendEntries(store, &next, txid, (j > 500));
         return;
     }
 
