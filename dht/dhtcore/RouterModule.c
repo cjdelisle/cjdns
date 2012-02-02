@@ -179,6 +179,8 @@
  */
 #define PING_TIMEOUT_MINIMUM 3000
 
+#define LINK_STATE_MULTIPLIER 536870
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -625,7 +627,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     uint32_t pingTime = SearchStore_replyReceived(parent, module->searchStore);
     uint64_t worst = tryNextNodeAfter(module);
     if (node) {
-        node->reach = worst - pingTime;
+        node->reach = (worst - pingTime) * LINK_STATE_MULTIPLIER;
         NodeStore_updateReach(node, module->nodeStore);
     }
 
