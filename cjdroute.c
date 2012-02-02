@@ -209,6 +209,10 @@ static int genconf()
            "    // to make them more forgiving in the event that they become desynchronized.\n"
            "    \"resetAfterInactivitySeconds\": 30,\n"
            "\n"
+           "    // Save the pid of the running process to this file.\n"
+           "    // If this fail cannot be opened for writing, the router will not start.\n"
+           "    \"pidFile\": \"cjdroute.pid\",\n"
+           "\n"
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
@@ -696,6 +700,22 @@ int main(int argc, char** argv)
     if (udpConf == NULL) {
         fprintf(stderr, "No interfaces configured to connect to.\n");
         return -1;
+    }
+
+    // pid file
+    String* pidFile = Dict_getString(&config, BSTR("pidFile"));
+    if (pidFile) {
+        Log_info1(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
+        FILE* pf = fopen(pidFile->bytes, "w");
+        if (!pf) {
+            Log_critical2(context.logger,
+                          "Failed to open pid file [%s] for writing, errno=%d\n",
+                          pidFile->bytes,
+                          errno);
+            return -1;
+        }
+        fprintf(pf, "%d", getpid());
+        fclose(pf);
     }
 
     Ducttape_register(&config,
