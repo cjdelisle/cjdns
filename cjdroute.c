@@ -240,24 +240,22 @@ static int genconf()
 
 static int importconf(char *privateKey) {
 
-  uint8_t passwdBin[16];
-  randombytes(passwdBin, 16);
-  uint8_t password[32];
-  Base32_encode(password, 32, passwdBin, 16);
-  uint16_t port;
-  randombytes((uint8_t*) &port, 2);
-  uint8_t publicKeyBase32[53];
-  //uint8_t privateKeyHex[65];
-  struct Address address;
-  uint8_t address2[40];
-  crypto_scalarmult_curve25519_base(address.key, (uint8_t*)privateKey);
-  AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
-  //Hex_encode(privateKeyHex, 65, (uint8_t*)privateKey, 32);
-  Base32_encode(publicKeyBase32, 53, address.key, 32);
-  Address_printIp(address2, &address);
-  outputconf(publicKeyBase32, address2, privateKey, password, port);
+    uint8_t passwdBin[16];
+    randombytes(passwdBin, 16);
+    uint8_t password[32];
+    Base32_encode(password, 32, passwdBin, 16);
+    uint16_t port;
+    randombytes((uint8_t*) &port, 2);
+    uint8_t publicKeyBase32[53];
+    struct Address address;
+    uint8_t address2[40];
+    crypto_scalarmult_curve25519_base(address.key, (uint8_t*)privateKey);
+    AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
+    Base32_encode(publicKeyBase32, 53, address.key, 32);
+    Address_printIp(address2, &address);
+    outputconf(publicKeyBase32, address2, privateKey, password, port);
 
-  return 0;
+    return 0;
 
 }
 
