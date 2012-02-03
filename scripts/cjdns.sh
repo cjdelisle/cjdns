@@ -14,7 +14,7 @@
 ###
 # cjdns.sh
 # copy this file into your cjdns user's hime directory and add
-# */5 * * * * /home/cjdns/cjdns.sh check
+# */5 * * * * /home/cjdns/cjdns.sh check >>/dev/null 2>>/dev/null
 # to your cron tab for the cjdns user.
 #
 # When you type:
