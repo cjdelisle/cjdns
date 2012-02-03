@@ -101,7 +101,64 @@ static int genAddress(uint8_t addressOut[40],
     }
 }
 
-static int genconf()
+static int genAddressFromPrivKey(uint8_t addressOut[40],
+                      uint8_t privateKeyHexOut[65],
+                      uint8_t publicKeyBase32Out[53],
+                                          char* privateKeyChar)
+{
+
+    struct Address address;
+    uint8_t privateKey[32];
+
+        uint8_t chosenPrivateKeyHex[65];
+
+        for(int i = 0; i < 64; i++){
+                char c = privateKeyChar[i];
+                if (c >= '0' && c <= '9')
+                        chosenPrivateKeyHex[i] = atoi(&c);
+                else{
+                        chosenPrivateKeyHex[i] = (int)c-(int)'a'+10;
+                }
+        }
+        printf("\n");
+
+        //Hex_decode(privateKey, 32, chosenPrivateKeyHex, 64);
+
+        int high;
+        int low;
+        for (int i = 0; i < 64; i+=2){
+                high = chosenPrivateKeyHex[i];
+                low = chosenPrivateKeyHex[i+1];
+                privateKey[i/2] = (high + low < 31) ? (high << 4) | low : -1;
+        }
+
+        for (int it = 0; it < 32; it++) {
+                printf("%02x", privateKey[it]);
+        }
+        printf("\n");
+
+
+        crypto_scalarmult_curve25519_base(address.key, privateKey);
+        AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
+
+        for (int it = 0; it < 16; it++){
+                printf("%02x", address.ip6.bytes[it]);
+                if ((it + 1) % 2 == 0 && it != 15) printf(":");
+        }
+        printf("\n");
+
+        if (address.ip6.bytes[0] == 0xFC) {
+                Hex_encode(privateKeyHexOut, 65, privateKey, 32);
+                Base32_encode(publicKeyBase32Out, 53, address.key, 32);
+                Address_printIp(addressOut, &address);
+                return 0;
+        }
+        printf("ERROR");
+        return -1;
+}
+
+
+static int genconf(bool havePrivKey, char* presetPrivKey)
 {
     uint8_t passwdBin[16];
     randombytes(passwdBin, 16);
@@ -113,7 +170,10 @@ static int genconf()
     uint8_t publicKeyBase32[53];
     uint8_t address[40];
     uint8_t privateKeyHex[65];
-    genAddress(address, privateKeyHex, publicKeyBase32);
+        if(havePrivKey)
+                genAddressFromPrivKey(address, privateKeyHex, publicKeyBase32, presetPrivKey);
+        else
+                genAddress(address, privateKeyHex, publicKeyBase32);
 
     printf("{\n"
            "    // Private key:\n"
@@ -605,7 +665,7 @@ int main(int argc, char** argv)
     #endif
     Crypto_init();
     assert(argc > 0);
-    
+
     if (argc == 1) { // no arguments
         if (isatty(STDIN_FILENO)) {
             // We were started from a terminal
@@ -621,21 +681,27 @@ int main(int argc, char** argv)
         if (strcmp(argv[1], "--help") == 0) {
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
-            return genconf();
+            return genconf(0, "");
         } else if (strcmp(argv[1], "--getcmds") == 0) {
             // Performed after reading the configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
         }
     }
     if (argc >  2) { // more than one argument?
-        fprintf(stderr, "%s: too many arguments\n", argv[0]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
-        return -1;
+                if (strcmp(argv[1], "--import") == 0){
+                        //argv[2] is char[]
+                        return genconf(1, argv[2]);
+                        //printf("%s\n", argv[2]);
+                } else {
+                        fprintf(stderr, "%s: too many arguments\n", argv[0]);
+                        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                        return -1;
+                }
     }
-    
+
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
     context.base = event_base_new();
