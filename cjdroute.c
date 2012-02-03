@@ -104,57 +104,41 @@ static int genAddress(uint8_t addressOut[40],
 static int genAddressFromPrivKey(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
                       uint8_t publicKeyBase32Out[53],
-                                          char* privateKeyChar)
+                      char* privateKeyChar)
 {
-
     struct Address address;
     uint8_t privateKey[32];
+    uint8_t chosenPrivateKeyHex[65];
+    for(int i = 0; i < 64; i++){
+            char c = privateKeyChar[i];
+            if (c >= '0' && c <= '9')
+                    chosenPrivateKeyHex[i] = atoi(&c);
+            else{
+                    chosenPrivateKeyHex[i] = (int)c-(int)'a'+10;
+            }
+    }
+    printf("\n");
+    //Hex_decode(privateKey, 32, chosenPrivateKeyHex, 64);
+    int high;
+    int low;
+    for (int i = 0; i < 64; i+=2){
+            high = chosenPrivateKeyHex[i];
+            low = chosenPrivateKeyHex[i+1];
+            privateKey[i/2] = (high + low < 31) ? (high << 4) | low : -1;
+    }
 
-        uint8_t chosenPrivateKeyHex[65];
-
-        for(int i = 0; i < 64; i++){
-                char c = privateKeyChar[i];
-                if (c >= '0' && c <= '9')
-                        chosenPrivateKeyHex[i] = atoi(&c);
-                else{
-                        chosenPrivateKeyHex[i] = (int)c-(int)'a'+10;
-                }
-        }
-        printf("\n");
-
-        //Hex_decode(privateKey, 32, chosenPrivateKeyHex, 64);
-
-        int high;
-        int low;
-        for (int i = 0; i < 64; i+=2){
-                high = chosenPrivateKeyHex[i];
-                low = chosenPrivateKeyHex[i+1];
-                privateKey[i/2] = (high + low < 31) ? (high << 4) | low : -1;
-        }
-
-        for (int it = 0; it < 32; it++) {
-                printf("%02x", privateKey[it]);
-        }
-        printf("\n");
-
-
-        crypto_scalarmult_curve25519_base(address.key, privateKey);
-        AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
-
-        for (int it = 0; it < 16; it++){
-                printf("%02x", address.ip6.bytes[it]);
-                if ((it + 1) % 2 == 0 && it != 15) printf(":");
-        }
-        printf("\n");
-
-        if (address.ip6.bytes[0] == 0xFC) {
-                Hex_encode(privateKeyHexOut, 65, privateKey, 32);
-                Base32_encode(publicKeyBase32Out, 53, address.key, 32);
-                Address_printIp(addressOut, &address);
-                return 0;
-        }
-        printf("ERROR");
-        return -1;
+    crypto_scalarmult_curve25519_base(address.key, privateKey);
+    AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
+    
+    if (address.ip6.bytes[0] == 0xFC) {
+            Hex_encode(privateKeyHexOut, 65, privateKey, 32);
+            Base32_encode(publicKeyBase32Out, 53, address.key, 32);
+            Address_printIp(addressOut, &address);
+            return 0;
+    }
+    
+    fprintf(stderr, "Invalid private key passed to --import.\n");
+    exit(-1);
 }
 
 
