@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 struct Log
 {
@@ -31,6 +32,12 @@ static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, 
     if (!log) {
         return;
     }
+
+    char timeBuff[32];
+    time_t now;
+    time(&now);
+    snprintf(timeBuff, 32, "%u ", (uint32_t) now);
+    log->writer->write(timeBuff, strlen(timeBuff), log->writer);
 
     log->writer->write(logLevel, strlen(logLevel), log->writer);
 
