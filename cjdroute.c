@@ -260,6 +260,11 @@ static int usage(char* appName)
 {
     printf(
            "Usage: %s [--help] [--genconf] [--getcmds]\n"
+           "  %s --genconf generate a new configuration file and write it to stdout.\n"
+           "  %s --getcmds read a configuration file from stdin and output commands for\n"
+           "               setting up the network.\n"
+           "  %s --pidfile read a configuration file from stdin and output the location\n"
+           "               where the process id will be written.\n"
            "Examples:\n"
            "  %s --help\n"
            "  %s (same as --help)\n"
@@ -303,7 +308,8 @@ static int usage(char* appName)
            "  To delete a tunnel, use this command:\n"
            "    /sbin/ip tuntap del mode tun <name of tunnel>\n"
            "\n",
-           appName, appName, appName, appName, appName, appName, appName, appName, appName);
+           appName, appName, appName, appName, appName, appName,
+           appName, appName, appName, appName, appName, appName);
 
     return 0;
 }
@@ -598,6 +604,14 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
     Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
+static void pidfile(Dict* config)
+{
+    String* pidFile = Dict_getString(config, BSTR("pidFile"));
+    if (pidFile) {
+        printf("%s", pidFile->bytes);
+    }
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -623,6 +637,8 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf();
         } else if (strcmp(argv[1], "--getcmds") == 0) {
+            // Performed after reading the configuration
+        } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
@@ -651,6 +667,10 @@ int main(int argc, char** argv)
 
     if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
         return getcmds(&config);
+    }
+    if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
+        pidfile(&config);
+        return 0;
     }
 
     char* user = setUser(Dict_getList(&config, BSTR("security")));

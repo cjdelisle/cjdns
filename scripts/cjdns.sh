@@ -28,33 +28,49 @@
 # to stop it and bring it back online immedietly.
 ##
 
-cd
-dir="`pwd`/cjdns/build"
+# path to the cjdroute process
+CJDROUTE="`pwd`/cjdns/build/cjdroute"
+
+# path to the configuration
+CONF="cjdroute.conf"
+
+# path ot the log file.
+LOGTO="cjdroute.log"
+
+# location of pid file.
+PIDFILE="`$CJDROUTE --pidfile < $CONF`"
 
 stop()
 {
-    kill `cat cjdroute.pid 2>>/dev/null` 2>>/dev/null
-    rm cjdroute.pid
+    kill `cat $PIDFILE 2>>/dev/null` 2>>/dev/null
+    rm $PIDFILE
+}
+
+noPid()
+{
+    echo 'Can''t find pid file, please edit cjdroute.conf and make sure'
+    echo 'it is configured to save a pid file. You can get this behavior by adding:'
+    echo '    "pidFile": "/path/to/your/pid.file",'
+    echo 'to your configuration.'
+    echo 'Stopping.'
+    kill $!
+    exit 1
 }
 
 start()
 {
-    if [ -f cjdroute.log ]; then
-        tar -cjf "cjdroute.log.`date +%s`.tar.bz2" cjdroute.log
-    fi
-
-    $dir/cjdroute < cjdroute.conf 2>&1 > cjdroute.log &
+    $CJDROUTE < $CONF 2>&1 >> $LOGTO &
 
     sleep 1
 
-    if [ ! -f cjdroute.pid ]; then
-        echo 'Can''t find pid file, please edit cjdroute.conf and make sure'
-        echo 'it is configured to save a pid file called cjdroute.pid'
-        echo 'Stopping.'
-        kill $!
-        exit 1
+    if [ ! -f $PIDFILE ]; then
+        noPid
     fi
 }
+
+if [ "$PIDFILE" == "" ]; then
+    noPid
+fi
 
 case "$1" in
 "start" )
@@ -71,11 +87,11 @@ case "$1" in
     ;;
 
 "check" )
-    if [ ! -f cjdroute.pid ]; then
+    if [ ! -f $PIDFILE ]; then
         # router is stopped, let's not defeat the user.
         exit 0
     fi
-    if ! kill -0 `cat cjdroute.pid 2>>/dev/null` 2>>/dev/null; then
+    if ! kill -0 `cat $PIDFILE 2>>/dev/null` 2>>/dev/null; then
 
         start
     fi
