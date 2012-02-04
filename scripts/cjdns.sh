@@ -45,8 +45,10 @@ PIDFILE="`${CJDROUTE} --pidfile < $CONF`"
 
 stop()
 {
-    kill `cat $PIDFILE 2>>/dev/null` 2>>/dev/null
-    rm $PIDFILE
+    if [ -f $PIDFILE && kill -0 `cat $PIDFILE` > /dev/null ]; then
+        kill `cat $PIDFILE`
+        rm $PIDFILE
+    fi
 }
 
 noPid()
@@ -89,7 +91,7 @@ case "$1" in
     ;;
 
 "check" )
-    if [ ! -f $PIDFILE || ! kill -0 `cat $PIDFILE 2>>/dev/null` 2>>/dev/null ]; then
+    if [ ! -f $PIDFILE || ! kill -0 `cat $PIDFILE` > /dev/null ]; then
         start
     fi
     ;;
