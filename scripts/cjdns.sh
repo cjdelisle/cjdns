@@ -28,17 +28,20 @@
 # to stop it and bring it back online immedietly.
 ##
 
+# path of cjdns
+CJDPATH="`dirname $0`/"
+
 # path to the cjdroute process
-CJDROUTE="`pwd`/cjdns/build/cjdroute"
+CJDROUTE="${CJDPATH}cjdroute"
 
 # path to the configuration
-CONF="cjdroute.conf"
+CONF="${CJDPATH}cjdroute.conf"
 
 # path ot the log file.
-LOGTO="cjdroute.log"
+LOGTO="${CJDPATH}cjdroute.log"
 
 # location of pid file.
-PIDFILE="`$CJDROUTE --pidfile < $CONF`"
+PIDFILE="`${CJDROUTE} --pidfile < $CONF`"
 
 stop()
 {
@@ -53,7 +56,6 @@ noPid()
     echo '    "pidFile": "/path/to/your/pid.file",'
     echo 'to your configuration.'
     echo 'Stopping.'
-    kill $!
     exit 1
 }
 
@@ -87,12 +89,7 @@ case "$1" in
     ;;
 
 "check" )
-    if [ ! -f $PIDFILE ]; then
-        # router is stopped, let's not defeat the user.
-        exit 0
-    fi
-    if ! kill -0 `cat $PIDFILE 2>>/dev/null` 2>>/dev/null; then
-
+    if [ ! -f $PIDFILE || ! kill -0 `cat $PIDFILE 2>>/dev/null` 2>>/dev/null ]; then
         start
     fi
     ;;
