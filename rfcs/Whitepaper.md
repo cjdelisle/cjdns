@@ -240,18 +240,29 @@ Each cjdns "node" is a router and a switch. Switches are the cjdns engine's
 analog of the OSI level 2. They are very dumb and only know how to read a
 label, parse the lowest bits in that label and forward the packet down the
 interface given by those bits. The lack of any memory look ups makes switches
-very fast as well. Switches use an internal numeric compression scheme to
+very fast as well. Routers are smart and make decisions about where a packet
+should be sent. Routers have limited routing table space tend to prefer nodes
+which are close to them physically (have good link state) or are close to them
+in address space (calculated using a XOR metric). A router who doesn't know the
+full path to a given destination simple forwards the packet to the node whose
+physical distance from them, multiplied by address space distance from the target,
+is the least.
+
+
+## The Switch
+
+Switches use an internal numeric compression scheme to
 compress the interface index into a few bits of the 64-bit label. How they
 compress the number is an implementation detail as long as they can read a
 label number and know how many of the low bits belong to them. After
 determining the correct destination interface, the switch will bit shift the
-label and add bits to the now empty high side of the label such that if the
-label were reversed, the switch would send the packet back to the interface
-where it came from. In the event of an error, the switch does a bitwise
-reversal of the label and sends the packet to the source interface. By doing a
-full bitwise reversal, the switches need not care how other switches encode
-the numbers or be able to reverse the order since they can reverse the order
-of the entire label.
+label to the right and add bits to the now empty high side of the label such
+that if the label were reversed, the switch would send the packet back to the
+interface where it came from. In the event of an error, the switch does a
+bitwise reversal of the label and sends the packet to the source interface.
+By doing a full bitwise reversal, the switches need not care how other switches
+encode the numbers or be able to reverse the order since they can reverse the
+order of the entire label.
 
                         1               2               3
         0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -260,123 +271,157 @@ of the entire label.
        -                         Switch Label                          -
      4 |                                                               |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     8 |  Type |  Frag |                  Priority                     |
+     8 |      Type     |                  Priority                     |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 Switch headers are designed to be small and efficient. The fields include the
-`label` of which some unknown number of bits, henceforth known as a
-discriminator, belong to each switch along the forwarding path, the `Type` field
-indicating the type of packet. Reserved packet types are `0` for opaque data,
-and `1` for switch control messages (eg errors). The `Frag` field which tells the
-recipient what number fragment is being carried under this switch header if
-fragmentation is supported. The `Frag` field are only of concern to the sender
-and recipient. The `Priority` field contains a number which represents how
-important the delivery of a packet is. When a link becomes saturated, the
-switch sending packets over that link SHOULD drop packets of least priority
-and MAY decrease the priority of all packets passing through it. When packets
-are dropped, switches SHOULD emit an error packet with the inverse label to be
-sent to the sender. Switches SHOULD make adjustments based on error packets
-which are sent in response to packets which they forwarded, forwarding error
-packets is OPTIONAL, in flood situations it may not be wise.
+`label` of which some number of bits (henceforth known as a discriminator)
+belong to each switch along the forwarding path, the `Type` field indicating
+the type of packet. Reserved packet types are `0` for opaque data,
+and `1` for switch control messages (eg errors). The `Priority` field contains
+a number which represents how important the delivery of a packet is. When a
+link becomes saturated, the switch sending packets over that link SHOULD drop
+packets of least priority and MAY decrease the priority of all packets passing
+through it. When packets are dropped, switches SHOULD emit an error packet with
+the inverse label to be sent to the sender. Switches SHOULD make adjustments
+based on error packets which are sent in response to packets which they
+forwarded, forwarding error packets is OPTIONAL, in flood situations it may
+not be wise.
 
 If Alice wants to send a packet to Fred via Bob, Charlie, Dave and Elinor, she
-will send a message to Bob's switch which has a label that causes the packet
-to be routed to Charlie then on to Dave.
+will send a message over her interface to Bob's. This packet will have a label
+that causes the packet to be routed to Charlie then on to Dave.
 
 NOTE: Spaces between bits are for illustration only, switches do not know how
-many bits of a label are used by any other switch than themselves.
+many bits of a label are used by anyone other than themselves.
 
 Alice's original label:
 
-    0000000000000000000000000000000000000 0101011 011010 100101101 10111
+    00000000000000000000000000000000000000 101011 011010 100101101 10111
     ^^^^^^^^^-- unused space --^^^^^^^^^^                          ^^^^^-- Bob's discriminator for routing to Charlie.
 
 Bob shifts off his discriminator and applies to the top of the label the bit-
 reversed discriminator for the Bob->Alice interface.
 
-    11001 0000000000000000000000000000000000000 0101011 011010 100101101
+    11001 00000000000000000000000000000000000000 101011 011010 100101101
     ^^^^^-- Bob's discriminator for Alice, bit-reversed.       ^^^^^^^^^-- Charlie's discriminator for Dave.
 
 Charlie removes his discriminator and applies the reversed discriminator for sending to Bob then forwards to Dave.
 
-    100101101 11001 00000000000000000000000000000000000000 101011 011010
+    110110011 11001 00000000000000000000000000000000000000 101011 011010
     ^^^^^^^^^ ^^^^^-- Bob's discriminator for Alice (reversed).   ^^^^^^-- Dave's discriminator for Elinor.
             ^-- Charlie discriminator for Bob (reversed).
 
 Supposing Dave cannot forward the packet and needs to send an error, he does
-not know where Charlie's discriminator ends and Bob's begins so he can't re
-order them but because they are bit reversed, he can reverse the order by bit
-reversing the entire label.
+not know where Charlie's discriminator ends and Bob's begins so he can't
+re-order them but because they are bit reversed, he can reverse the order by
+bit reversing the entire label.
 
-    010110 110101 00000000000000000000000000000000000000 10011 101101001
-                                                         ^^^^^ ^^^^^^^^^-- Charlie'sdiscriminator for Bob.
+    010110 110101 00000000000000000000000000000000000000 10011 110011011
+                                                         ^^^^^ ^^^^^^^^^-- Charlie's discriminator for Bob.
                                                          ^-- Bob's discriminator for Alice.
 
 Dave can then send the packet back to Charlie who need not know what it is in
-order to forward it correctly on to Bob and then to Alice.
+order to forward it correctly on to Bob and then to Alice. If the packet had
+reached Fred, he would be able to use the same technique of reversing the label
+in order to determine it's origin.
 
-When Alice's router asks Bob's for the route to Charlie's router, Bob MUST
-give a route (`routeBC`) which, when shifted left by one less than the position
-of the most significant set bit in the route from Alice to Bob (`routeAB`) and
-XORd against `routeAB`, will yield a route which leads from Alice to Charlie via
-Bob.
+In order for labels to be able to be appended to one another, the most significant
+bit in a label must always be `1` so that we know where it ends. Since all routes
+must end at a router, this means that all nodes must regard `1` as a reference to
+themselves. Specifically, any label ending in `0001` must be regarded as a self
+reference and if splicing two labels together results in less than 3 `0`s between
+the highest set bit and the beginning of the label, the splice has failed. This
+is important so that the reverse route data applied by routers along the path is
+not mistaken for additional forwarding data.
+
+Splicing is done by XORing the second part with `1` and shifting it left by the
+log base 2 of the first part, then XORing the result with the first part. 
 
 Given:
 
-    routeAB =      0000000000000000000000000000000000000000000001011101110101011001
-    routeBC =      0000000000000000000000000000000000000000000000000000110101010101
-    
-    SHIFT  routeBC 0000000000000000000000000000000000110101010101000000000000000000
-    XOR    routeAB 0000000000000000000000000000000000000000000001011101110101011001
-    equals routeAC 0000000000000000000000000000000000110101010100011101110101011001
-                                                                ^-- Overlap bit
+    routeAB =        0000000000000000000000000000000000000000000001011101110101011001
+    routeBC =        0000000000000000000000000000000000000000000000000000110101010100
 
-cjdns nodes SHOULD use a `01` to reference themselves, therefor Bob's switch
-parses `01` and sends the message to his own router. Then crafting a valid
-answer to Alice's request for `routeBC` is a simple matter of taking Bob's route
-to Charlie and flipping the least significant bit (the "overlap bit"). When
-Alice gets the request, shifts and XORs, she will have a valid route.
+    routeBC XOR 1    0000000000000000000000000000000000000000000000000000110101010101
 
-Switches MUST NOT apply return path discriminators which are a different
-length than destination discriminator. In order to add interfaces on the fly
-without breaking existing routes, they may have discriminators of different
-lengths but when handling a long destination discriminator from a short source
-discriminator, the source discriminator MUST be represented using the same
-number of bits. When sending responses to requests for routes, all responses
-MUST be at least as long as the discriminator for the node who requested them.
+    << log2(routeAB) 0000000000000000000000000000000000110101010101000000000000000000
+    XOR  routeAB     0000000000000000000000000000000000000000000001011101110101011001
+    equals routeAC   0000000000000000000000000000000000110101010100011101110101011001
+                                                                  ^-- Overlap bit
+
+The log base 2 represents the index of the first set bit, starting from the right.
+This means that shifting by the log base 2 leaves 1 bit of overlap, this along with
+the XORing of the second part (`routeBC`) against `1` causes the highest bit in
+the first part to be overwritten.
+
+In order to allow a switch to add more interfaces without knowing how many it will
+use in advance, switches should be able to add new interfaces whose discriminators
+use more bits than the ones for the old interfaces. However, when a switch forwards
+a packet, the source discriminator must not be longer than the destination
+discriminator, otherwise there would not be be enough room for it in the space made
+by shifting the label. To resolve this, a switch's number compression scheme must
+allow it to represent all discriminators shorter than X bits, using X bits. Routers
+MUST always advertize routes using at least as many bits in the first discriminator
+as are used for the discriminator for the node to whom they are advertizing.
+Finally, switches MUST drop packets for which the discriminator is represented in
+fewer bits than the smallest representation of the source interface for the packet.
+Switches SHOULD send back an error packet so that the bogus route may be purged
+as soon as possible.
 
 Since label space is most efficiently used when a switch's largest
-discriminator is closest to the same size as it's smallest discriminator,
-renumbering interfaces is encouraged, especially right after start up when all
-interfaces have just been registered. However, switches SHOULD NOT re-number
-more than necessary as it breaks existing routes which run through them.
+discriminator is closest in size to it's smallest discriminator, renumbering
+interfaces is encouraged, especially right after start up when all interfaces have
+just been registered. However, switches SHOULD NOT re-number more than necessary as
+it breaks existing routes which run through them.
 
-Packet priority part of an anti-flooding scheme which is based on the
-observation that innocent traffic is generally balanced while attack traffic
-is largely biased in one direction. Each switch SHOULD keep a running tab of
-the total priority which has passed through each interface, increasing it when
-packets come in and decreasing it when packets go out. If the total priority
-exceeds a configured amount, switches SHOULD close the offending interface as
-the other party is likely participating in a DDoS attack. Design and tuning of
-this function is left up to the implementer, it is imaginable that the
-priority fields could be used to promote fairness in peering among ISPs or for
-other purposes but this is clearly a complex function and as such is being
-left open to experimentation and discovery.
 
-Inter-router control messages are [bEncoded][bEncode] [DHT][] messages which are used for
-routers to exchange routes to other routers. The format used is borrowed from
-[BitTorrent] with the following modifications:
+## The Router
 
-Instead of "find_node" queries, nodes send "fr" queries (short for "find
-router") "fr" responses are sent as a string called "rf" rather than "nodes".
-"rf" strings are, as with nodes, concatenated ids and network addresses except
-that the ids are 32 byte public keys and the network addresses are 8 byte
-switch labels. The 32 byte key which is sent is not the DHT id, the key is
-hashed using `sha512`, the output of which is `sha512` hashed again and the first
-15 bytes of this become the node's id, these 15 bytes with a 0xFC byte
-prepended also make up the node's ipv6 address. "get_peers" queries are not
-used and the "id" value is never sent, node id is calculated as the double
-sha512 of the node's public key.
+A router has 3 functions, it periodically searches for things, responds to searches,
+and forwards packets. When a router runs a search, it finds the router in it's table
+which whose physical distance times address distance from the target is lowest for
+the given search target, and it sends a request. The response is a partial dump of
+the routing table and the newly discovered nodes are added to the routing table and
+to the search.
+
+Adding nodes is done by splicing the route to the node which was asked with the route
+which they responded with, yielding a route to the final destination through them.
+
+Router messages are sent as normal UDP/IPv6 packets except that their source and
+destination port numbers are zero and the TTL field in the IPv6 header is set to zero.
+Any packet which meets these characteristics is to be considered a router message.
+
+The content of the inter-router messages is [bEncoded][bEncode] messages. Routers
+send queries which have a key called "q", and replies which don't. All messages have
+a transaction id number, a sort of cookie made of arbitrary bytes which must be
+reflected back in the reply. The most common query is a find router or "fr" query.
+"fr" queries have a field called "tar" for the target address which the node is
+looking for and a field for the called "rf". "rf" strings are, concatenated 32 byte
+public keys and 8 byte switch labels for other routers.
+
+Example rf query in JSON:
+    {
+        "q":    "fr",
+        "tar":  "abcdefghhijklmno",
+        "txid": "12345"
+    }
+
+Same query bEncoded as the routers use:
+    d1:q2:fn3:tar16:abcdefghhijklmno4:txid2:12345e
+
+Example "fr" reply in JSON:
+NOTE: this reply only shows 2 nodes returned and is for illustration purposes
+in most cases the number would be an implementation specific constant around 8.
+    {
+        "n": "cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678"
+        "txid": "12345"
+    }
+
+Same reply bEncoded
+    d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678e
+
+
 
 ................more to come
 

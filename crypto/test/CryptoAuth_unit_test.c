@@ -89,14 +89,14 @@ int hello()
     };
     memcpy(wrapper.herPerminentPubKey, publicKey, 32);
 
-    uint8_t* hello = (uint8_t*) "Hello World!";
-    uint8_t msgBuff[Headers_CryptoAuth_SIZE + 13];
+    uint8_t* hello = (uint8_t*) "Hello World";
+    uint8_t msgBuff[Headers_CryptoAuth_SIZE + 12];
     struct Message msg = {
-        .length = 13,
+        .length = 12,
         .padding = Headers_CryptoAuth_SIZE,
         .bytes = msgBuff + Headers_CryptoAuth_SIZE
     };
-    memcpy(msg.bytes, hello, 13);
+    memcpy(msg.bytes, hello, 12);
     Exports_encryptHandshake(&msg, &wrapper);
 
     // Check the nonce
@@ -116,8 +116,8 @@ int hello()
     Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
 
     assert(finalOut);
-    assert(finalOut->length == 13);
-    assert(memcmp(hello, finalOut->bytes, 13) == 0);
+    assert(finalOut->length == 12);
+    assert(memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
     return 0;
 }

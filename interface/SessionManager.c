@@ -122,7 +122,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
                                           struct Allocator* allocator)
 {
     struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
-    memcpy(sm, &(struct SessionManager) {
+    memcpy(sm, (&(struct SessionManager) {
         .decryptedIncoming = decryptedIncoming,
         .encryptedOutgoing = encryptedOutgoing,
         .interfaceContext = interfaceContext,
@@ -136,7 +136,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
         .allocator = allocator,
         .cleanupInterval =
             Timeout_setInterval(cleanup, sm, 1000 * CLEANUP_CYCLE_SECONDS, eventBase, allocator)
-    }, sizeof(struct SessionManager));
+    }), sizeof(struct SessionManager));
 
     return sm;
 }

@@ -179,6 +179,8 @@
  */
 #define PING_TIMEOUT_MINIMUM 3000
 
+#define LINK_STATE_MULTIPLIER 536870
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -571,7 +573,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 {
     // this implementation only pings to get the address of a node, so lets add the node.
     // A reply causes the reach to be bumped by 2
-    NodeStore_addNode(module->nodeStore, message->address, 2);
+    struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 2);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
     String* nodes = Dict_getString(message->asDict, CJDHTConstants_NODES);
@@ -622,7 +624,13 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return -1;
     }
 
-    SearchStore_replyReceived(parent, module->searchStore);
+    uint32_t pingTime = SearchStore_replyReceived(parent, module->searchStore);
+    uint64_t worst = tryNextNodeAfter(module);
+    if (node) {
+        node->reach = (worst - pingTime) * LINK_STATE_MULTIPLIER;
+        NodeStore_updateReach(node, module->nodeStore);
+    }
+
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
     struct SearchCallbackContext* scc = SearchStore_getContext(search);
 
@@ -908,6 +916,15 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
             NodeStore_remove(n, module->nodeStore);
             continue;
         }
+        #ifdef Log_INFO
+            if (i == 0) {
+                struct Address addr;
+                addr.networkAddress_be = networkAddress_be;
+                uint8_t printed[20];
+                Address_printNetworkAddress(printed, &addr);
+                Log_info1(module->logger, "Couldn't find route to remove. route=%s", printed);
+            }
+        #endif
         return i;
     }
 }

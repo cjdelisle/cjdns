@@ -38,7 +38,6 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 #include "util/Security.h"
-#include "Version.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -210,6 +209,10 @@ static int genconf()
            "    // to make them more forgiving in the event that they become desynchronized.\n"
            "    \"resetAfterInactivitySeconds\": 30,\n"
            "\n"
+           "    // Save the pid of the running process to this file.\n"
+           "    // If this fail cannot be opened for writing, the router will not start.\n"
+           "    //\"pidFile\": \"cjdroute.pid\",\n"
+           "\n"
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
@@ -257,6 +260,11 @@ static int usage(char* appName)
 {
     printf(
            "Usage: %s [--help] [--genconf] [--getcmds]\n"
+           "  %s --genconf generate a new configuration file and write it to stdout.\n"
+           "  %s --getcmds read a configuration file from stdin and output commands for\n"
+           "               setting up the network.\n"
+           "  %s --pidfile read a configuration file from stdin and output the location\n"
+           "               where the process id will be written.\n"
            "Examples:\n"
            "  %s --help\n"
            "  %s (same as --help)\n"
@@ -300,7 +308,8 @@ static int usage(char* appName)
            "  To delete a tunnel, use this command:\n"
            "    /sbin/ip tuntap del mode tun <name of tunnel>\n"
            "\n",
-           appName, appName, appName, appName, appName, appName, appName, appName, appName);
+           appName, appName, appName, appName, appName, appName,
+           appName, appName, appName, appName, appName, appName);
 
     return 0;
 }
@@ -595,6 +604,14 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
     Admin_registerFunction("ping", adminPing, context->admin, context->admin);
 }
 
+static void pidfile(Dict* config)
+{
+    String* pidFile = Dict_getString(config, BSTR("pidFile"));
+    if (pidFile) {
+        printf("%s", pidFile->bytes);
+    }
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -620,6 +637,8 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf();
         } else if (strcmp(argv[1], "--getcmds") == 0) {
+            // Performed after reading the configuration
+        } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
@@ -649,8 +668,10 @@ int main(int argc, char** argv)
     if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
         return getcmds(&config);
     }
-
-    printf("Version: " Version_STRING "\n");
+    if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
+        pidfile(&config);
+        return 0;
+    }
 
     char* user = setUser(Dict_getList(&config, BSTR("security")));
 
@@ -699,6 +720,22 @@ int main(int argc, char** argv)
     if (udpConf == NULL) {
         fprintf(stderr, "No interfaces configured to connect to.\n");
         return -1;
+    }
+
+    // pid file
+    String* pidFile = Dict_getString(&config, BSTR("pidFile"));
+    if (pidFile) {
+        Log_info1(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
+        FILE* pf = fopen(pidFile->bytes, "w");
+        if (!pf) {
+            Log_critical2(context.logger,
+                          "Failed to open pid file [%s] for writing, errno=%d\n",
+                          pidFile->bytes,
+                          errno);
+            return -1;
+        }
+        fprintf(pf, "%d", getpid());
+        fclose(pf);
     }
 
     Ducttape_register(&config,

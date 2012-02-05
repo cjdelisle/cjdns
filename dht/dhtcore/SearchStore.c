@@ -335,8 +335,8 @@ void SearchStore_requestSent(const struct SearchStore_Node* node,
 }
 
 /** See: SearchStore.h */
-void SearchStore_replyReceived(const struct SearchStore_Node* node,
-                               const struct SearchStore* store)
+uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
+                                   const struct SearchStore* store)
 {
     struct SearchNode* searchNode = &store->searches[node->searchIndex]->nodes[node->nodeIndex];
     uint32_t delay = Time_currentTimeMilliseconds() - searchNode->timeOfRequest;
@@ -346,6 +346,7 @@ void SearchStore_replyReceived(const struct SearchStore_Node* node,
                delay,
                AverageRoller_getAverage(store->gmrtRoller));
     searchNode->delayUntilReply = delay;
+    return delay;
 }
 
 /** See: SearchStore.h */

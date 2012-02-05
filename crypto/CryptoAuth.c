@@ -11,9 +11,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-// Too much debugging spam from this file.
-#undef Log_DEBUG
-
 #include "crypto_box_curve25519xsalsa20poly1305.h"
 #include "crypto_core_hsalsa20.h"
 #include "crypto_hash_sha256.h"

@@ -209,9 +209,10 @@ void SearchStore_requestSent(const struct SearchStore_Node* node,
  *
  * @param node the node which sent the reply.
  * @param store the search store which holds the search.
+ * @return number of milliseconds between when the request was sent and when the reply was received.
  */
-void SearchStore_replyReceived(const struct SearchStore_Node* node,
-                               const struct SearchStore* store);
+uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
+                                   const struct SearchStore* store);
 
 /**
  * Get the next node to ask in this search.
