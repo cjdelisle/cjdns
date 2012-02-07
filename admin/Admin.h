@@ -20,16 +20,17 @@
 #include "exception/ExceptionHandler.h"
 #include "memory/Allocator.h"
 
-#define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, struct Allocator* alloc)
+#define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)
 
 struct Admin;
 
 void Admin_registerFunction(char* name,
                             Admin_FUNCTION(callback),
                             void* callbackContext,
+                            bool needsAuth,
                             struct Admin* admin);
 
-void Admin_sendMessage(Dict* message, struct Admin* admin);
+void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
 struct Admin* Admin_new(Dict* config,
                         char* user,

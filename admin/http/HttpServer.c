@@ -168,13 +168,20 @@ void apiHandler(struct evhttp_request* req, void* vcontext)
     const char* uri = evhttp_decode_uri(evhttp_request_get_uri(req));
 
     #define KEY "/?q="
-    const char* q = strstr(uri, "/?q=");
+    const char* q = strstr(uri, KEY);
     if (!q) {
-        evhttp_send_error(req, 501, "URI must contain /?q=");
+        evhttp_send_error(req, 501, "URI must contain " KEY);
         return;
     }
 
     const char* content = q + strlen(KEY);
+
+    if (strlen(content) > MAX_API_REPLY_SIZE - 8) {
+        evhttp_send_error(req, 501, "Message too long.");
+        return;
+    }
+
+    memcpy((char*)context->messageBuffer + 8, content, strlen(content));
 
     struct timeval now;
     event_base_gettimeofday_cached(context->eventBase, &now);
@@ -193,63 +200,23 @@ void apiHandler(struct evhttp_request* req, void* vcontext)
         context->allocator->free(context->allocator);
     }
 
-    struct Reader* reader = ArrayReader_new(content, strlen(content), context->allocator);
-    Dict message;
-    if (List_getStandardBencSerializer()->parseDictionary(reader, context->allocator, &message)) {
-        evhttp_send_error(req, 501, "Failed to parse message.");
-        return;
-    }
-
     for (int i = 0; i < MAX_CONCURRENT_REQUESTS; i++) {
         struct Request* oldreq = &context->requests[i];
         if (!oldreq->request) {
             context->requests[i].request = req;
             context->requests[i].time = now.tv_sec;
             uint32_t txNum = context->txidBaseline + i;
-            String* txid = String_newBinary((char*)&txNum, 4, context->allocator);
-            Dict_putString(&message, CJDHTConstants_TXID, txid, context->allocator);
-
-            uint8_t buff[MAX_API_REPLY_SIZE];
-            struct Writer* w = ArrayWriter_new(buff, MAX_API_REPLY_SIZE, context->allocator);
-            if (List_getStandardBencSerializer()->serializeDictionary(w, &message)) {
-                fprintf(stderr, "failed to serialize");
-                return;
-            }
-            size_t ignore = write(context->apiSocket, buff, w->bytesWritten(w));
+            memcpy(context->messageBuffer, "0123", 4);
+            memcpy(context->messageBuffer + 4, &txNum, 4);
+            size_t ignore = write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
+            ignore = fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
+            printf("\n");
             ignore = ignore;
             return;
         }
     }
 
     evhttp_send_error(req, 501, "not enough concurrent request slots.");
-}
-
-static void incomingFromApi(Dict* message, struct Context* context)
-{
-    String* txid = Dict_getString(message, CJDHTConstants_TXID);
-    if (!txid || txid->len != 4) {
-        fprintf(stderr, "no txid or wrong length.\n");
-        return;
-    }
-    uint32_t txNum;
-    memcpy(&txNum, txid->bytes, 4);
-    txNum -= context->txidBaseline;
-    if (txNum >= MAX_CONCURRENT_REQUESTS || !context->requests[txNum].request) {
-        fprintf(stderr, "txid out of bounds.\n");
-        return;
-    }
-    struct evhttp_request* req = context->requests[txNum].request;
-    context->requests[txNum].request = NULL;
-
-    Dict_remove(message, CJDHTConstants_TXID);
-
-    struct evbuffer* buff;
-    assert(buff = evbuffer_new());
-    struct Writer* w = EvBufferWriter_new(buff, context->allocator);
-    List_getStandardBencSerializer()->serializeDictionary(w, message);
-
-    evhttp_send_reply(req, HTTP_OK, "OK", buff);
-    evbuffer_free(buff);
 }
 
 static void handleApiEvent(evutil_socket_t socket, short eventType, void* vcontext)
@@ -259,8 +226,8 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     errno = 0;
     ssize_t length = read(socket, context->messageBuffer, MAX_API_REPLY_SIZE);
 
-    if (length < 1 || length == MAX_API_REPLY_SIZE) {
-        if (length < 1) {
+    if (length < 8 || length == MAX_API_REPLY_SIZE) {
+        if (length < 8) {
             if (errno == EAGAIN) {
                 return;
             }
@@ -271,15 +238,30 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
         perror("overlong message");
         return;
     }
-    context->messageBuffer[length] = '\0';
-    struct Reader* reader =
-        ArrayReader_new(context->messageBuffer, MAX_API_REPLY_SIZE, context->allocator);
-    Dict message;
-    if (List_getStandardBencSerializer()->parseDictionary(reader, context->allocator, &message)) {
+
+    if (memcmp(context->messageBuffer, "4567", 4)) {
+        // unrecognized message.
         return;
     }
 
-    incomingFromApi(&message, context);
+    uint32_t txNum;
+    memcpy(&txNum, context->messageBuffer + 4, 4);
+
+    txNum -= context->txidBaseline;
+    if (txNum >= MAX_CONCURRENT_REQUESTS || !context->requests[txNum].request) {
+        fprintf(stderr, "txid out of bounds.\n");
+        return;
+    }
+    struct evhttp_request* req = context->requests[txNum].request;
+    context->requests[txNum].request = NULL;
+
+    struct evbuffer* buff;
+    assert(buff = evbuffer_new());
+    struct Writer* w = EvBufferWriter_new(buff, context->allocator);
+    w->write(context->messageBuffer + 8, length - 8, w);
+
+    evhttp_send_reply(req, HTTP_OK, "OK", buff);
+    evbuffer_free(buff);
 }
 
 void setupApi(char* ipAndPort, struct Context* context)

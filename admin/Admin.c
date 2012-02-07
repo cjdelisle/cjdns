@@ -25,9 +25,11 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Hex.h"
 #include "util/Security.h"
 #include "util/Timeout.h"
 
+#include <crypto_hash_sha256.h>
 #include <event2/event.h>
 #include <errno.h>
 #include <string.h>
@@ -36,11 +38,14 @@
 
 #define MAX_API_REQUEST_SIZE (1<<16)
 
+#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
+
 struct Function
 {
     String* name;
     Admin_FUNCTION(call);
     void* context;
+    bool needsAuth;
 };
 
 struct Admin
@@ -52,14 +57,52 @@ struct Admin
     struct Function* functions;
     int functionCount;
     struct Allocator* allocator;
+    String* password;
 };
+
+static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, struct Admin* admin)
+{
+    String* cookieStr = Dict_getString(message, BSTR("cookie"));
+    uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
+    time_t now;
+    time(&now);
+    String* submittedHash = Dict_getString(message, BSTR("hash"));
+    if (cookie > now || cookie < now - 20 || !submittedHash || submittedHash->len != 64) {
+        return false;
+    }
+
+    uint8_t* hashPtr = (uint8_t*) strstr((char*) buffer, submittedHash->bytes);
+
+    if (!hashPtr || !admin->password) {
+        return false;
+    }
+
+    uint8_t passAndCookie[64];
+    snprintf((char*) passAndCookie, 64, "%s%u", admin->password->bytes, cookie);
+    uint8_t hash[32];
+    crypto_hash_sha256(hash, passAndCookie, strlen((char*) passAndCookie));
+    Hex_encode(hashPtr, 64, hash, 32);
+
+    crypto_hash_sha256(hash, buffer, length);
+    Hex_encode(hashPtr, 64, hash, 32);
+    return memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+}
 
 static void handleRequestFromChild(struct Admin* admin,
                                    uint8_t buffer[MAX_API_REQUEST_SIZE],
                                    size_t amount,
                                    struct Allocator* allocator)
 {
-    struct Reader* reader = ArrayReader_new(buffer, amount, allocator);
+    String* txid = NULL;
+    int skip = 0;
+
+    if (!memcmp(buffer, "0123", 4)) {
+        // out of band txid
+        txid = &(String) { .len = 4, .bytes = (char*) buffer + 4 };
+        skip = 8;
+    }
+
+    struct Reader* reader = ArrayReader_new(buffer + skip, amount - skip, allocator);
     Dict message;
     if (List_getStandardBencSerializer()->parseDictionary(reader, allocator, &message)) {
         return;
@@ -70,9 +113,39 @@ static void handleRequestFromChild(struct Admin* admin,
         return;
     }
 
+    // If they're asking for a cookie then lets give them one.
+    String* cookie = BSTR("cookie");
+    if (String_equals(query, cookie)) {
+        Dict* d = Dict_new(allocator);
+        char bytes[32];
+        time_t now;
+        time(&now);
+        snprintf(bytes, 32, "%u", (uint32_t) now);
+        String* theCookie = &(String) { .len = strlen(bytes), .bytes = bytes };
+        Dict_putString(d, cookie, theCookie, allocator);
+        Admin_sendMessage(d, txid, admin);
+        return;
+    }
+
+    // If this is a permitted query, make sure the cookie is right.
+    String* auth = BSTR("auth");
+    bool authed = false;
+    if (String_equals(query, auth)) {
+        if (!authValid(&message, buffer + skip, reader->bytesRead(reader), admin)) {
+            Dict* d = Dict_new(allocator);
+            Dict_putString(d, BSTR("error"), BSTR("Auth failed."), allocator);
+            Admin_sendMessage(d, txid, admin);
+            return;
+        }
+        query = Dict_getString(&message, BSTR("aq"));
+        authed = true;
+    }
+
     for (int i = 0; i < admin->functionCount; i++) {
-        if (String_equals(query, admin->functions[i].name)) {
-            admin->functions[i].call(&message, admin->functions[i].context, allocator);
+        if (String_equals(query, admin->functions[i].name)
+            && (authed || !admin->functions[i].needsAuth))
+        {
+            admin->functions[i].call(&message, admin->functions[i].context, txid);
         }
     }
     return;
@@ -227,8 +300,6 @@ void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
     }
 }
 
-#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
-
 // only in child
 void child(Dict* config, struct ChildContext* context)
 {
@@ -284,6 +355,7 @@ void child(Dict* config, struct ChildContext* context)
 void Admin_registerFunction(char* name,
                             Admin_FUNCTION(callback),
                             void* callbackContext,
+                            bool needsAuth,
                             struct Admin* admin)
 {
     if (!admin) {
@@ -304,9 +376,10 @@ void Admin_registerFunction(char* name,
     fu->name = str;
     fu->call = callback;
     fu->context = callbackContext;
+    fu->needsAuth = needsAuth;
 }
 
-void Admin_sendMessage(Dict* message, struct Admin* admin)
+void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 {
     if (!admin) {
         return;
@@ -314,12 +387,15 @@ void Admin_sendMessage(Dict* message, struct Admin* admin)
     uint8_t buff[MAX_API_REQUEST_SIZE];
     uint8_t allocBuff[256];
     struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
-    struct Writer* w = ArrayWriter_new(buff, MAX_API_REQUEST_SIZE, allocator);
+
+    int skip = (txid) ? 8 : 0;
+
+    struct Writer* w = ArrayWriter_new(buff + skip, MAX_API_REQUEST_SIZE - skip, allocator);
     List_getStandardBencSerializer()->serializeDictionary(w, message);
-    size_t written = w->bytesWritten(w);
-    if (written + 1 < MAX_API_REQUEST_SIZE) {
-        buff[written] = '\n';
-        written++;
+    size_t written = w->bytesWritten(w) + skip;
+    if (txid) {
+        memcpy(buff, "4567", 4);
+        memcpy(buff + 4, txid->bytes, 4);
     }
     size_t ignore = write(admin->outFd, buff, written);
     ignore = ignore;
@@ -386,6 +462,7 @@ struct Admin* Admin_new(Dict* config,
     admin->allocator = allocator;
     admin->functionCount = 0;
     admin->eventBase = eventBase;
+    admin->password = Dict_getString(config, BSTR("password"));
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
 

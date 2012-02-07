@@ -18,6 +18,7 @@
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
+#include "util/Hex.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -146,6 +147,25 @@ static inline void Address_print(uint8_t output[60], struct Address* addr)
     Address_printIp(output, addr);
     output[39] = '@';
     Address_printNetworkAddress(output + 40, addr);
+}
+
+static inline int Address_parseNetworkAddress(uint64_t* out_be, uint8_t netAddr[20])
+{
+    if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
+        return -1;
+    }
+    uint8_t hex[16];
+    memcpy(hex, netAddr, 4);
+    memcpy(hex + 4, netAddr + 5, 4);
+    memcpy(hex + 8, netAddr + 10, 4);
+    memcpy(hex + 12, netAddr + 15, 4);
+
+    uint8_t numberBytes_be[8];
+    if (Hex_decode(numberBytes_be, 8, hex, 16) != 8) {
+        return -1;
+    }
+    memcpy(out_be, numberBytes_be, 8);
+    return 0;
 }
 
 /**

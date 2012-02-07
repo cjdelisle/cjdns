@@ -3,6 +3,7 @@
   <head>
     <link href='http://mbostock.github.com/d3/ex/force.css' rel='stylesheet' type='text/css' />
     <script type="text/javascript" src="http://mbostock.github.com/d3/d3.js?2.7.2"></script>
+    <script type="text/javascript" src="text/javascript/jssha256.js"></script>
     <script type="text/javascript" src="text/javascript/bencode.js"></script>
     <script type="text/javascript" src="text/javascript/map.js"></script>
 
@@ -147,6 +148,20 @@ button:hover {
 <BODY onLoad="doLayout();">
 
 <div id="viz"></div>
+
+<div id="runcmd">
+  Run Command:<br/>
+  <input name="command" id="runcmd-cmd" type="text" value='{"q":"ping"}' size="50" /><br/>
+  Password:<br/>
+  <input name="password" id="runcmd-passwd" type="password" size="50" /><br/>
+  <input name="go" id="runcmd-submit" type="submit" /><br/>
+  <textarea name="output" id="runcmd-output" cols="100" rows="30"></textarea>
+</div>
+
+<div id="nodes">
+  <textarea id="nodes-list" cols="100" rows="30"></textarea>
+</div>
+
 <script type="text/javascript" src="http://mbostock.github.com/d3/d3.layout.js?2.7.2"></script>
 <script type="text/javascript" src="http://mbostock.github.com/d3/d3.geom.js?2.7.2"></script>
 <script type="text/javascript" src="text/javascript/map.js"></script>

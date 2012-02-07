@@ -588,12 +588,16 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
     }
 }
 
-static void adminPing(Dict* input, void* vadmin, struct Allocator* alloc)
+static void adminPing(Dict* input, void* vadmin, String* txid)
 {
+    uint8_t buffer[256];
+    struct Allocator* alloc = BufferAllocator_new(buffer, 256);
+
     String pong = { .len = 4, .bytes = "pong" };
-    Dict_remove(input, CJDHTConstants_QUERY);
-    Dict_putString(input, CJDHTConstants_QUERY, &pong, alloc);
-    Admin_sendMessage(input, (struct Admin*) vadmin);
+    Dict* d = Dict_new(alloc);
+    Dict_putString(d, CJDHTConstants_QUERY, &pong, alloc);
+
+    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
 }
 
 static void admin(Dict* adminConf, char* user, struct Context* context)
@@ -601,7 +605,7 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
     context->admin =
         Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
 
-    Admin_registerFunction("ping", adminPing, context->admin, context->admin);
+    Admin_registerFunction("ping", adminPing, context->admin, false, context->admin);
 }
 
 static void pidfile(Dict* config)

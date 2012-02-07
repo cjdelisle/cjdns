@@ -18,6 +18,8 @@
  * Internal structures which are needed for testing but should not be exposed to the outside world.
  */
 
+struct RouterModule_Ping;
+
 /** The context for this module. */
 struct RouterModule
 {
@@ -49,10 +51,12 @@ struct RouterModule
     struct Allocator* allocator;
 
     /** An array of timers for in-flight pings, allocated with pingAllocator. */
-    struct Timeout* pingTimers[RouterModule_MAX_CONCURRENT_PINGS];
+    struct RouterModule_Ping* pings[RouterModule_MAX_CONCURRENT_PINGS];
 
     /** A memory allocator which only exists when there are pings in flight. */
     struct Allocator* pingAllocator;
+
+    struct Admin* admin;
 };
 
 #endif

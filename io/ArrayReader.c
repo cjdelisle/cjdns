@@ -86,5 +86,7 @@ static size_t bytesRead(const struct Reader* reader)
 /** @see Reader->skip() */
 static void skip(size_t byteCount, const struct Reader* reader)
 {
-    ((struct ArrayReader_context*) reader->context)->pointer += byteCount;
+    struct ArrayReader_context* context = (struct ArrayReader_context*) reader->context;
+    context->pointer += byteCount;
+    context->bytesRead += byteCount;
 }

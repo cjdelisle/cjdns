@@ -4,7 +4,7 @@ var fill = d3.scale.category20()
 var DEBUGGING = false;
 
 /** True if we don't want to map nodes with 0 reach because they might not actually be reachable. */
-var EXCLUDE_ZERO_NODES = true;
+var EXCLUDE_ZERO_NODES = false;
 
 var vis = d3.select("#viz").append("svg").attr("width", w).attr("height", h);
 
@@ -17,6 +17,17 @@ var nodes = {};
 
 var routes;
 var pairs;
+
+var doRequest = function(url, callback) {
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", url, true);
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState==4) {
+           callback(bdecode(xmlhttp.responseText));
+        }
+    };
+    xmlhttp.send(null);
+};
 
 var getData = function() {
     // return true if a runs through b
@@ -96,28 +107,57 @@ var getData = function() {
         return pairs;
     };
 
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", "/api/?q=d1:q19:NodeStore_dumpTablee", true);
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState==4) {
-           var table = bdecode(xmlhttp.responseText).routingTable;
+    doRequest('/api/?q=d1:q19:NodeStore_dumpTablee', function(responseJSON) {
+        var table = responseJSON.routingTable;
+        table.sort(function(a, b){ return a.link - b.link; });
+        document.getElementById('nodes-list').innerText = JSON.stringify(table);
+        routes = parseRoutes(table);
+        var tree = buildTree(routes);
+        pairs = getPairs(tree);
 
-           if (window.location.href.indexOf('#listNodes') != -1) {
-               table.sort(function(a, b){ return a.link - b.link; });
-               document.body.innerHTML = JSON.stringify(table);
-               return;
-           }
-
-           routes = parseRoutes(table);
-           var tree = buildTree(routes);
-           pairs = getPairs(tree);
-
-           doLayout(1);
-           //document.body.innerHTML = JSON.stringify(routes) + '<br/><br/><br/><br/><br/><br/><br/>' + JSON.stringify(pairs);
-        }
-    };
-    xmlhttp.send(null);
+        doLayout(1);
+    });
 };
+
+var authedRequest = function(request, password, cookie)
+{
+    var hashA = SHA256_hash('' + password + cookie);
+    request.cookie = cookie;
+    request.hash = hashA;
+    request.aq = request.q;
+    request.q = 'auth';
+    var reqStr = bencode(request);
+    var hashB = SHA256_hash(reqStr);
+    request.hash = hashB
+    return bencode(request);
+};
+
+var setupSubmitEvent = function() {
+    document.removeEventListener('DOMContentLoaded', setupSubmitEvent, false);
+    document.getElementById('runcmd-submit').addEventListener('mousedown', function(ev) {
+        ev.stopPropagation();
+        var cmdInput = document.getElementById('runcmd-cmd').value;
+        var cmdPasswd = document.getElementById('runcmd-passwd').value;
+        var output = document.getElementById('runcmd-output');
+        output.innerText = '';
+        var query = null;
+        try {
+            query = JSON.parse(cmdInput);
+        } catch (e) {
+            output.innerText = "failed to parse input\n\n" + JSON.stringify(e);
+            return;
+        }
+        doRequest('/api/?q=d1:q6:cookiee', function(responseJSON) {
+            var authQuery = authedRequest(query, cmdPasswd, responseJSON.cookie);
+            doRequest('/api/?q=' + authQuery, function(response) {
+                output.innerText = JSON.stringify(response);
+            });
+        });
+    }, false);
+};
+document.addEventListener("DOMContentLoaded", setupSubmitEvent, false);
+
+
 
 var doLayout = function(step)
 {

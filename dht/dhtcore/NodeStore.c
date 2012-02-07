@@ -32,7 +32,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc);
+static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
@@ -50,7 +50,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->size = 0;
     out->admin = admin;
 
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, admin);
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, admin);
 
     return out;
 }
@@ -402,15 +402,13 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 }
 
-static void sendEntries(struct NodeStore* store, struct List_Item* last, String* txid, bool isMore)
+static void sendEntries(struct NodeStore* store,
+                        struct List_Item* last,
+                        bool isMore,
+                        String* txid)
 {
-    struct Dict_Entry txidEntry = {
-        .next = NULL,
-        .key = CJDHTConstants_TXID,
-        .val = &(Object) { .type = Object_STRING, .as.string = txid }
-    };
     struct Dict_Entry tableEntry = {
-        .next = &txidEntry,
+        .next = NULL,
         .key = &(String) { .len = 12, .bytes = "routingTable" },
         .val = &(Object) { .type = Object_LIST, .as.list = &last }
     };
@@ -425,7 +423,7 @@ static void sendEntries(struct NodeStore* store, struct List_Item* last, String*
     } else {
         d = &tableEntry;
     }
-    Admin_sendMessage(&d, store->admin);
+    Admin_sendMessage(&d, txid, store->admin);
 }
 
 static void addRoutingTableEntries(struct NodeStore* store,
@@ -467,7 +465,7 @@ static void addRoutingTableEntries(struct NodeStore* store,
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
 
-        sendEntries(store, &next, txid, (j > 500));
+        sendEntries(store, &next, (j > 500), txid);
         return;
     }
 
@@ -478,15 +476,11 @@ static void addRoutingTableEntries(struct NodeStore* store,
     addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }
 
-static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc)
+static void dumpTable(Dict* message, void* vnodeStore, String* txid)
 {
     struct NodeStore* store = (struct NodeStore*) vnodeStore;
-    String* txid = Dict_getString(req, CJDHTConstants_TXID);
-    if (!txid) {
-        return;
-    }
     uint32_t i = 0;
-    int64_t* iPtr = Dict_getInt(req, &(String) { .len = 5, .bytes = "start" });
+    int64_t* iPtr = Dict_getInt(message, &(String) { .len = 5, .bytes = "start" });
     if (iPtr && *iPtr > 0 && *iPtr < UINT32_MAX) {
         i = *iPtr;
     }
