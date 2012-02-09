@@ -29,6 +29,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
+#include "util/Time.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -525,13 +526,12 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
-    struct timeval now;
-    event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
-    int64_t whenToReset =
-        (int64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
-    if (now.tv_sec > whenToReset) {
+    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
+    uint64_t whenToReset =
+        (uint64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
+    if (nowSecs > whenToReset) {
         Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
-        wrapper->timeOfLastPacket = now.tv_sec;
+        wrapper->timeOfLastPacket = nowSecs;
         CryptoAuth_reset(interface);
         return encryptHandshake(message, wrapper);
     }
@@ -575,9 +575,7 @@ static inline uint8_t callReceivedMessage(struct Wrapper* wrapper, struct Messag
     // If the message is authenticated OR if the packet is considered valid by the next level,
     // then don't allow the connection to timeout.
     if (!ret || wrapper->authenticatePackets) {
-        struct timeval now;
-        event_base_gettimeofday_cached(wrapper->context->eventBase, &now);
-        wrapper->timeOfLastPacket = now.tv_sec;
+        wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
     }
 
     return ret;

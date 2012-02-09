@@ -14,6 +14,7 @@
 #include "util/AverageRoller.c"
 
 #include <stdio.h>
+#include <event2/event.h>
 
 #include "memory/BufferAllocator.h"
 
@@ -47,8 +48,10 @@ int main()
     uint8_t buffer[4096];
     struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
+    struct event_base* eventBase = event_base_new();
+
     struct AverageRoller* roller =
-        (struct AverageRoller*) AverageRoller_new(windowSeconds, allocator);
+        (struct AverageRoller*) AverageRoller_new(windowSeconds, eventBase, allocator);
     // To make life easy we will pretend it's january first 1970...
     roller->lastUpdateTime = 0;
 

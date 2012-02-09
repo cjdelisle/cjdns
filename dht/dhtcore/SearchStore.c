@@ -90,11 +90,13 @@ struct SearchNodeIndex
 /** See: SearchStore.h */
 struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
+                                    struct event_base* eventBase,
                                     struct Log* logger)
 {
     struct SearchStore* out = allocator->calloc(sizeof(struct SearchStore), 1, allocator);
     out->allocator = allocator;
     out->gmrtRoller = gmrtRoller;
+    out->eventBase = eventBase;
     out->logger = logger;
     return out;
 }
@@ -331,7 +333,7 @@ void SearchStore_requestSent(const struct SearchStore_Node* node,
                              const struct SearchStore* store)
 {
     store->searches[node->searchIndex]->nodes[node->nodeIndex].timeOfRequest =
-        Time_currentTimeMilliseconds();
+        Time_currentTimeMilliseconds(store->eventBase);
 }
 
 /** See: SearchStore.h */
@@ -339,7 +341,7 @@ uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
                                    const struct SearchStore* store)
 {
     struct SearchNode* searchNode = &store->searches[node->searchIndex]->nodes[node->nodeIndex];
-    uint32_t delay = Time_currentTimeMilliseconds() - searchNode->timeOfRequest;
+    uint32_t delay = Time_currentTimeMilliseconds(store->eventBase) - searchNode->timeOfRequest;
     AverageRoller_update(store->gmrtRoller, delay);
     Log_debug2(store->logger,
                "Received response in %u milliseconds, gmrt now %u\n",

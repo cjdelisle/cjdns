@@ -27,6 +27,7 @@
 #include "memory/BufferAllocator.h"
 #include "util/Hex.h"
 #include "util/Security.h"
+#include "util/Time.h"
 #include "util/Timeout.h"
 
 #include <crypto_hash_sha256.h>
@@ -64,14 +65,9 @@ static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, st
 {
     String* cookieStr = Dict_getString(message, BSTR("cookie"));
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
-    time_t now;
-    time(&now);
+    uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
     String* submittedHash = Dict_getString(message, BSTR("hash"));
-    if (cookie > (uint32_t) now
-        || cookie < (uint32_t) now - 20
-        || !submittedHash
-        || submittedHash->len != 64)
-    {
+    if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
         return false;
     }
 
@@ -122,9 +118,7 @@ static void handleRequestFromChild(struct Admin* admin,
     if (String_equals(query, cookie)) {
         Dict* d = Dict_new(allocator);
         char bytes[32];
-        time_t now;
-        time(&now);
-        snprintf(bytes, 32, "%u", (uint32_t) now);
+        snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));
         String* theCookie = &(String) { .len = strlen(bytes), .bytes = bytes };
         Dict_putString(d, cookie, theCookie, allocator);
         Admin_sendMessage(d, txid, admin);

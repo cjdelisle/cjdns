@@ -225,9 +225,9 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     Address_forKey(&out->address, myAddress);
 
-    out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
+    out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->searchStore = SearchStore_new(allocator, out->gmrtRoller, logger);
+    out->searchStore = SearchStore_new(allocator, out->gmrtRoller, eventBase, logger);
     out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, admin);
     out->registry = registry;
     out->eventBase = eventBase;
@@ -326,7 +326,7 @@ static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
  */
 static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
 {
-    return Time_currentTimeMilliseconds() - tryNextNodeAfter(module);
+    return Time_currentTimeMilliseconds(module->eventBase) - tryNextNodeAfter(module);
 }
 
 /**
@@ -627,9 +627,7 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
                                 bool timeout,
                                 struct RouterModule* module)
 {
-    struct timeval now;
-    event_base_gettimeofday_cached(module->eventBase, &now);
-    uint32_t lag = (now.tv_usec / 1024) - ping->timeSent;
+    uint32_t lag = Time_currentTimeMilliseconds(module->eventBase) - ping->timeSent;
     uint8_t lagStr[12];
     snprintf((char*)lagStr, 12, "%u", lag);
 
@@ -1104,9 +1102,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String
                                        module->eventBase,
                                        module->pingAllocator);
 
-    struct timeval now;
-    event_base_gettimeofday_cached(module->eventBase, &now);
-    ping->timeSent = now.tv_usec / 1024;
+    ping->timeSent = Time_currentTimeMilliseconds(module->eventBase);
 
     uint8_t txidBuff[2];
     txidBuff[0] = 'p';
