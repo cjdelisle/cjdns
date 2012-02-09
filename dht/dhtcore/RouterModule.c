@@ -625,9 +625,9 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
 
 static inline void pingResponse(struct RouterModule_Ping* ping,
                                 bool timeout,
+                                uint32_t lag,
                                 struct RouterModule* module)
 {
-    uint32_t lag = Time_currentTimeMilliseconds(module->eventBase) - ping->timeSent;
     uint8_t lagStr[12];
     snprintf((char*)lagStr, 12, "%u", lag);
 
@@ -652,6 +652,17 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
     Admin_sendMessage(&response, &txid, module->admin);
 }
 
+static inline void responseFromNode(struct Node* node,
+                                    uint32_t millisecondsSinceRequest,
+                                    struct RouterModule* module)
+{
+    if (node) {
+        uint64_t worst = tryNextNodeAfter(module);
+        node->reach = (worst - millisecondsSinceRequest) * LINK_STATE_MULTIPLIER;
+        NodeStore_updateReach(node, module->nodeStore);
+    }
+}
+
 /**
  * Handle an incoming reply to one of our queries.
  * This will handle the reply on the incoming direction.
@@ -664,8 +675,7 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
 static inline int handleReply(struct DHTMessage* message, struct RouterModule* module)
 {
     // this implementation only pings to get the address of a node, so lets add the node.
-    // A reply causes the reach to be bumped by 2
-    struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 2);
+    struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 0);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
     String* nodes = Dict_getString(message->asDict, CJDHTConstants_NODES);
@@ -680,8 +690,12 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
             Timeout_clearTimeout(module->pings[index]->timeout);
 
+            uint32_t lag =
+                Time_currentTimeMilliseconds(module->eventBase) - module->pings[index]->timeSent;
+            responseFromNode(node, lag, module);
+
             if (module->pings[index]->isFromAdmin) {
-                pingResponse(module->pings[index], false, module);
+                pingResponse(module->pings[index], false, lag, module);
             }
 
             module->pings[index] = NULL;
@@ -723,12 +737,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return -1;
     }
 
-    uint32_t pingTime = SearchStore_replyReceived(parent, module->searchStore);
-    uint64_t worst = tryNextNodeAfter(module);
-    if (node) {
-        node->reach = (worst - pingTime) * LINK_STATE_MULTIPLIER;
-        NodeStore_updateReach(node, module->nodeStore);
-    }
+    responseFromNode(node, SearchStore_replyReceived(parent, module->searchStore), module);
 
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
     struct SearchCallbackContext* scc = SearchStore_getContext(search);
@@ -1049,7 +1058,7 @@ void pingTimeoutCallback(void* vping)
     }
 
     if (ping->isFromAdmin) {
-        pingResponse(ping, true, module);
+        pingResponse(ping, true, UINT32_MAX, module);
     }
 
     if (freeAlloc) {
