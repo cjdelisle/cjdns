@@ -15,6 +15,7 @@
 #define ENDIAN_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // ntohs() ntohl()
 #ifdef WIN32
@@ -23,6 +24,17 @@
     #include <arpa/inet.h>
 #endif
 
+
+static inline bool Endian_checkIsBigEndian()
+{
+    union {
+        uint32_t i;
+        char c[4];
+    } bint = {0x01020304};
+
+    return bint.c[0] == 1; 
+}
+
 #if defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)
     #if (__BYTE_ORDER == __BIG_ENDIAN)
         #define Endian_isBigEndian() 1
@@ -30,15 +42,7 @@
         #define Endian_isBigEndian() 0
     #endif
 #else
-    static uint32_t Endian_isBigEndian()
-    {
-        union {
-            uint32_t i;
-            char c[4];
-        } bint = {0x01020304};
-
-        return bint.c[0] == 1; 
-    }
+    #define Endian_isBigEndian() Endian_checkIsBigEndian()
 #endif
 
 
@@ -53,12 +57,20 @@
 
 #ifdef htobe64
     #define Endian_hostToBigEndian64(x) htobe64(x)
+    #define Endian_hostToBigEndian64_uses "htobe64"
 #else
-    #if defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && defined(__bswap_64)
-        #define Endian_hostToBigEndian64(x) __bswap_64(x)
-    #elif defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)
-        #define Endian_hostToBigEndian64(x) (x)
-    #else
+    #if defined(__BYTE_ORDER)
+        #if defined(__LITTLE_ENDIAN) && (__BYTE_ORDER == __LITTLE_ENDIAN) && defined(__bswap_64)
+            #define Endian_hostToBigEndian64(x) __bswap_64(x)
+            #define Endian_hostToBigEndian64_uses "__bswap_64"
+        #elif defined(__BIG_ENDIAN) && (__BYTE_ORDER == __BIG_ENDIAN)
+            #define Endian_hostToBigEndian64(x) (x)
+            #define Endian_hostToBigEndian64_uses "nop"
+        #endif
+    #endif
+
+    #ifndef Endian_hostToBigEndian64
+        
         static inline uint64_t Endian_hostToBigEndian64(uint64_t input)
         {
             if (Endian_isBigEndian()) {
@@ -67,6 +79,7 @@
                 return input;
             }
         }
+        #define Endian_hostToBigEndian64_uses "function"
     #endif
 #endif
 #define Endian_bigEndianToHost64(x) Endian_hostToBigEndian64(x)
