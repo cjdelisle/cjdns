@@ -24,7 +24,6 @@
     #include <arpa/inet.h>
 #endif
 
-
 static inline bool Endian_checkIsBigEndian()
 {
     union {
@@ -66,15 +65,25 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
 #define Endian_byteSwap64(x) Endian_byteSwap64_manual(x)
 #define Endian_byteSwap64_uses "Endian_byteSwap64_manual"
 
+// Linux __bswap_64
 #if defined(__bswap_64)
-    #define Endian_byteSwap64_bswap_64(x) __bswap_64(x)
     #undef Endian_byteSwap64
-    #define Endian_byteSwap64(x) Endian_byteSwap64_bswap_64(x)
     #undef Endian_byteSwap64_uses
+
+    #define Endian_byteSwap64_bswap_64(x) __bswap_64(x)
+    #define Endian_byteSwap64(x) Endian_byteSwap64_bswap_64(x)
     #define Endian_byteSwap64_uses "Endian_byteSwap64_bswap_64"
 #endif
 
+#ifdef __APPLE__
+    #include <libkern/OSByteOrder.h>
+    #undef Endian_byteSwap64
+    #undef Endian_byteSwap64_uses
 
+    #define Endian_byteSwap64_OSSwapInt64(x) OSSwapInt64(x)
+    #define Endian_byteSwap64(x) Endian_byteSwap64_OSSwapInt64(x)
+    #define Endian_byteSwap64_uses "Endian_byteSwap64_OSSwapInt64"
+#endif
 
 #ifdef htobe64
     #define Endian_hostToBigEndian64(x) htobe64(x)
