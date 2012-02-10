@@ -19,6 +19,7 @@
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/DistanceNodeCollector.h"
+#include "dht/dhtcore/LinkStateNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -317,13 +318,16 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           const bool allowNodesFartherThanUs,
+                                           bool allowNodesFartherThanUs,
                                            const struct Allocator* allocator)
 {
+    // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
+    allowNodesFartherThanUs = allowNodesFartherThanUs;
+
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
                                                         store->thisNodeAddress,
-                                                        allowNodesFartherThanUs,
+                                                        true,
                                                         store->logger,
                                                         allocator);
 
@@ -335,7 +339,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
         if (requestorsAddress && store->headers[i].switchIndex == index) {
             continue;
         }
-        NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
+        LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
     struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
