@@ -55,4 +55,7 @@ int main()
     #ifdef Endian_byteSwap64_bswap_64
         assert(b == Endian_byteSwap64_bswap_64(b_be));
     #endif
+    #ifdef Endian_byteSwap64_OSSwapInt64
+        assert(b == Endian_byteSwap64_OSSwapInt64(b_be));
+    #endif
 }
