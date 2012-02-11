@@ -20,23 +20,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 # validation
-add_definitions(-Wall -std=c99 -Werror -pedantic)
-
-# taken from -Wextra
-add_definitions(
-    -Wclobbered
-    -Wempty-body
-    -Wignored-qualifiers
-    -Wmissing-field-initializers
-    -Wmissing-parameter-type
-    -Wold-style-declaration
-    -Woverride-init
-    -Wsign-compare
-    -Wtype-limits
-    -Wuninitialized
-#    -Wunused-parameter messes up logging
-)
-
+add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 # hardening
 add_definitions(
     -pie

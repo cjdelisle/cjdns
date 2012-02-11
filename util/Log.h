@@ -22,6 +22,10 @@
 #include <string.h>
 #include <time.h>
 
+// There are a lot of places where the logger is needed if the log level is high
+// but if it is low, the logger is still there and it will cause warnings.
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 struct Log
 {
     struct Writer* writer;
