@@ -21,9 +21,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 
 # validation
 add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
+
 # hardening
 add_definitions(
-    -pie
     -fPIE
 
     # Broken GCC patch makes -fstack-protector-all not work
@@ -33,12 +33,9 @@ add_definitions(
     -fstack-protector-all
 
     -Wstack-protector
-    -D_FORTIFY_SOURCE=2
-    -Wa,--noexecstack
-    -Wl,-z,relro
-    -Wl,-z,now
-    -Wl,-z,noexecstack
 )
+
+set(CMAKE_EXE_LINKER_FLAGS "-pie -z relro -z now")
 
 # debugging
 add_definitions(-g)
