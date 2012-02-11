@@ -38,6 +38,9 @@ struct NodeStore
     /** The number of nodes in the list. */
     uint32_t size;
 
+    /** The sum of the logs base 2 of all node labels. */
+    int32_t labelSum;
+
     /** The means for this node store to log. */
     struct Log* logger;
 

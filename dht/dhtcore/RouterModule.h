@@ -111,4 +111,14 @@ struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModul
 struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                   struct RouterModule* module);
 
+/**
+ * Select a node from the routing table which is likely to yield a good route and ping it.
+ * Good candidates are defined as nodes whose known link state is worse than average but their
+ * label length is shorter than average. These are probably better nodes but their link state
+ * is low or 0 because they have never been pinged so it's unknown.
+ *
+ * @param module the router module.
+ */
+void RouterModule_pingGoodCandidate(struct RouterModule* module);
+
 #endif

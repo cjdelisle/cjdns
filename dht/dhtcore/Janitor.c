@@ -124,6 +124,10 @@ static void maintanenceCycle(void* vcontext)
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
+
+        // Ping a random node shorter half of route distance and lower half of link state.
+        RouterModule_pingGoodCandidate(janitor->routerModule);
+
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,

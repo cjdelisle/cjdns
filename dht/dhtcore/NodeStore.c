@@ -50,6 +50,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->logger = logger;
     out->size = 0;
     out->admin = admin;
+    out->labelSum = 0;
 
     Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, admin);
 
@@ -92,11 +93,15 @@ static inline uint32_t getSwitchIndex(struct Address* addr)
 
 static inline void replaceNode(struct Node* const nodeToReplace,
                                struct NodeHeader* const headerToReplace,
-                               struct Address* addr)
+                               struct Address* addr,
+                               struct NodeStore* store)
 {
     headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
     headerToReplace->switchIndex = getSwitchIndex(addr);
+    store->labelSum -= Bits_log2x64_be(nodeToReplace->address.networkAddress_be);
+    store->labelSum += Bits_log2x64_be(addr->networkAddress_be);
+    assert(store->labelSum > 0);
     memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
@@ -211,7 +216,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         #endif
 
         // Free space, regular insert.
-        replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
+        replaceNode(&store->nodes[store->size], &store->headers[store->size], addr, store);
         adjustReach(&store->headers[store->size], reachDifference);
         return &store->nodes[store->size++];
     }
@@ -240,7 +245,8 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
     replaceNode(&store->nodes[indexOfNodeToReplace],
                 &store->headers[indexOfNodeToReplace],
-                addr);
+                addr,
+                store);
 
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
 
@@ -404,6 +410,23 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(node, &store->nodes[store->size], sizeof(struct Node));
     struct NodeHeader* header = &store->headers[node - store->nodes];
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
+}
+
+struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
+{
+    uint32_t start = rand() % (store->size - 1);
+    int avgLabel = store->labelSum / store->size;
+    for (uint32_t i = start + 1; i != start; i++) {
+        if (i == store->size) {
+            i = 0;
+        }
+        if (store->headers[i].reach < (UINT32_MAX / 2)
+            && Bits_log2x64_be(store->nodes[i].address.networkAddress_be) < avgLabel)
+        {
+            return &store->nodes[i];
+        }
+    }
+    return NULL;
 }
 
 static void sendEntries(struct NodeStore* store,
