@@ -80,41 +80,8 @@ struct User
     uint64_t trust;
 };
 
-static int genAddress(uint8_t addressOut[40],
-                      uint8_t privateKeyHexOut[65],
-                      uint8_t publicKeyBase32Out[53])
+static void outputconf(uint8_t publicKeyBase32[53], uint8_t address[40], char privateKeyHex[65], uint8_t password[32], uint16_t port) 
 {
-    struct Address address;
-    uint8_t privateKey[32];
-
-    for (;;) {
-        randombytes(privateKey, 32);
-        crypto_scalarmult_curve25519_base(address.key, privateKey);
-        AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
-        // Brute force for keys until one matches FC00:/8
-        if (address.ip6.bytes[0] == 0xFC) {
-            Hex_encode(privateKeyHexOut, 65, privateKey, 32);
-            Base32_encode(publicKeyBase32Out, 53, address.key, 32);
-            Address_printIp(addressOut, &address);
-            return 0;
-        }
-    }
-}
-
-static int genconf()
-{
-    uint8_t passwdBin[16];
-    randombytes(passwdBin, 16);
-    uint8_t password[32];
-    Base32_encode(password, 32, passwdBin, 16);
-
-    uint16_t port;
-    randombytes((uint8_t*) &port, 2);
-    uint8_t publicKeyBase32[53];
-    uint8_t address[40];
-    uint8_t privateKeyHex[65];
-    genAddress(address, privateKeyHex, publicKeyBase32);
-
     printf("{\n"
            "    // Private key:\n"
            "    // This key corrisponds to the public key: %s.k\n", publicKeyBase32);
@@ -229,9 +196,69 @@ static int genconf()
            "    // Version of the config file, used internally for migration.\n"
            "    \"version\": 1\n"
            "}\n");
+}
+
+
+static int genAddress(uint8_t addressOut[40],
+                      uint8_t privateKeyHexOut[65],
+                      uint8_t publicKeyBase32Out[53])
+{
+    struct Address address;
+    uint8_t privateKey[32];
+
+    for (;;) {
+        randombytes(privateKey, 32);
+        crypto_scalarmult_curve25519_base(address.key, privateKey);
+        AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
+        // Brute force for keys until one matches FC00:/8
+        if (address.ip6.bytes[0] == 0xFC) {
+            Hex_encode(privateKeyHexOut, 65, privateKey, 32);
+            Base32_encode(publicKeyBase32Out, 53, address.key, 32);
+            Address_printIp(addressOut, &address);
+            return 0;
+        }
+    }
+}
+
+static int genconf()
+{
+    uint8_t passwdBin[16];
+    randombytes(passwdBin, 16);
+    uint8_t password[32];
+    Base32_encode(password, 32, passwdBin, 16);
+
+    uint16_t port;
+    randombytes((uint8_t*) &port, 2);
+    uint8_t publicKeyBase32[53];
+    uint8_t address[40];
+    uint8_t privateKeyHex[65];
+    genAddress(address, privateKeyHex, publicKeyBase32);
+    outputconf(publicKeyBase32, address, (char*)privateKeyHex, password, port);
+    return 0;
+
+}
+
+static int importconf(char *privateKey) {
+
+    uint8_t passwdBin[16];
+    randombytes(passwdBin, 16);
+    uint8_t password[32];
+    Base32_encode(password, 32, passwdBin, 16);
+    uint16_t port;
+    randombytes((uint8_t*) &port, 2);
+    uint8_t publicKeyBase32[53];
+    struct Address address;
+    uint8_t address2[40];
+    crypto_scalarmult_curve25519_base(address.key, (uint8_t*)privateKey);
+    AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
+    Base32_encode(publicKeyBase32, 53, address.key, 32);
+    Address_printIp(address2, &address);
+    outputconf(publicKeyBase32, address2, privateKey, password, port);
 
     return 0;
+
 }
+
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateKey[32])
@@ -651,9 +678,14 @@ int main(int argc, char** argv)
         }
     }
     if (argc >  2) { // more than one argument?
-        fprintf(stderr, "%s: too many arguments\n", argv[0]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
-        return -1;
+
+        if (strcmp(argv[1], "--import") == 0) {
+            return importconf(argv[2]);
+        } else {
+          fprintf(stderr, "%s: too many arguments\n", argv[0]);
+          fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+          return -1;
+        }
     }
     
     struct Context context;
