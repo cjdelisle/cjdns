@@ -46,7 +46,9 @@ if(NOT $ENV{Log_LEVEL} STREQUAL "")
         message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
     endif ($ENV{Log_LEVEL} STREQUAL "KEYS")
     add_definitions("-D Log_$ENV{Log_LEVEL}")
-endif(NOT $ENV{Log_LEVEL} STREQUAL "")
+else()
+    add_definitions("-D Log_DEBUG")
+endif()
 
 add_definitions(-O3 -funroll-loops)
 
