@@ -213,7 +213,14 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
 {
     struct Context* context = allocator->context;
 
+    if (*(context->spaceAvailable) <= sizeof(struct FirstContext)) {
+        failure("Out of memory, limit exceeded.");
+    }
+
     struct Allocator* childAlloc = MallocAllocator_new(0);
+
+    *(context->spaceAvailable) -= sizeof(struct FirstContext);
+
     struct Context* child = (struct Context*) childAlloc->context;
     child->maxSpace = context->maxSpace;
     child->lastSibling = context;
