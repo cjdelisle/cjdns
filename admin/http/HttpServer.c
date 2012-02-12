@@ -45,7 +45,7 @@
 #define LIBSRVR_INDEX "text/html/index.html"
 #define SECOND_SLASH_INDEX 9
 #define MAX_PATH_SZ 1024
-#define MAX_FILE_SZ 131070
+#define MAX_FILE_SZ (1<<20)
 #define MAX_CONCURRENT_REQUESTS 32
 #define MAX_API_REPLY_SIZE (1<<16)
 
