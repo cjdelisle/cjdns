@@ -1,6 +1,6 @@
 var w = 960;
 var h = 600;
-var fill = d3.scale.category20()
+var fill = d3.scale.category10()
 var DEBUGGING = false;
 
 /** True if we don't want to map nodes with 0 reach because they might not actually be reachable. */
@@ -8,15 +8,10 @@ var EXCLUDE_ZERO_NODES = false;
 
 var vis = d3.select("#viz").append("svg").attr("width", w).attr("height", h);
 
-var json = {
-  links: [],
-  nodes: []
-};
-
-var nodes = {};
-
-var routes;
+var uniqueNodes;
 var pairs;
+var thisNode;
+var force;
 
 var doRequest = function(query, callback) {
     var url = '/api/?q=' + encodeURIComponent(bencode(query));
@@ -30,25 +25,33 @@ var doRequest = function(query, callback) {
     xmlhttp.send(null);
 };
 
-var getData = function() {
+var getData = function()
+{
+    var log2 = function(number)
+    {
+	    var out = 0;
+	    while ((number >>= 1) > 0) {
+		    out++;
+	    }
+	    return out;
+    };
+
     // return true if a runs through b
     var runsThrough = function(a, b)
     {
-        var mask = (1 << parseInt(Math.log(b))) - 1;
+        var mask = log2(b);
         return (a & mask) == (b & mask);
     };
 
     var buildBranch = function(parsedRoutes, indexOfTip)
     {
-        var branch = new Array();
+        var branch = [];
         branch.push(parsedRoutes[indexOfTip]);
         var path = parsedRoutes[indexOfTip].path;
-        var lastIp = parsedRoutes[indexOfTip].name;
         for (var i = indexOfTip + 1; i < parsedRoutes.length; i++) {
             if (runsThrough(path, parsedRoutes[i].path)) {
                 branch.push(parsedRoutes[i]);
                 path = parsedRoutes[i].path;
-                lastIp = parsedRoutes[i].name;
             }
         }
         return branch;
@@ -56,7 +59,7 @@ var getData = function() {
 
     var buildTree = function(parsedRoutes)
     {
-        var tree = new Array();
+        var tree = [];
         for (var i = 0; i < parsedRoutes.length; i++) {
             tree.push({
                 value: parsedRoutes[i].link,
@@ -87,29 +90,52 @@ var getData = function() {
          return out;
     }
 
-    var getPairs = function(tree)
+    /**
+     * @param routes the full list of nodes.
+     * @param nodesByIp an empty hash which will be populated with nodes.
+     * @return a list of unique nodes.
+     */
+    var getUniqueNodes = function(routes, nodesByIp)
     {
+        var out = [];
+        for (var i = 0; i < routes.length; i++) {
+            if (!nodesByIp[routes[i].name]) {
+                out.push(nodesByIp[routes[i].name] = routes[i]);
+            }
+        }
+        return out;
+    };
+
+    var getPairs = function(tree, nodesByIp)
+    {
+        var out = [];
         var pairs = {};
         for (var i = 0; i < tree.length; i++) {
             var branch = tree[i];
             for (var j = 0; j < branch.branch.length - 1; j++) {
-                var ips = [branch.branch[j].name, branch.branch[j + 1].name];
-                if (ips[0] == ips[1]) {
+                var nodes = [branch.branch[j], branch.branch[j + 1]];
+                if (nodes[0].name == nodes[1].name) {
                     continue;
                 }
-                ips.sort();
-                var p1 = pairs[ips[0]];
+                nodes.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                var p1 = pairs[nodes[0].name];
                 if (!p1) {
-                    p1 = pairs[ips[0]] = {};
+                    p1 = pairs[nodes[0].name] = {};
                 }
-                if (!p1[ips[1]]) {
-                    p1[ips[1]] = new Number(branch.value);
+                if (!p1[nodes[1].name]) {
+                    var link = {
+                        source: nodesByIp[nodes[0].name],
+                        target: nodesByIp[nodes[1].name],
+                        value: new Number(branch.value)
+                    };
+                    p1[nodes[1].name] = link;
+                    out.push(link);
                 } else {
-                    p1[ips[1]] += new Number(branch.value);
+                    p1[nodes[1].name].value += new Number(branch.value);
                 }
             }
         }
-        return pairs;
+        return out;
     };
 
     var genNodeList = function(table) {
@@ -159,12 +185,19 @@ var getData = function() {
             });
 
             document.getElementById('nodes-list').innerHTML = genNodeList(table);
-            if (firstRun) {
-                routes = parseRoutes(table);
-                var tree = buildTree(routes);
-                pairs = getPairs(tree);
 
+            var routes = parseRoutes(table);
+            var tree = buildTree(routes);
+            var nodeByIp = {};
+            uniqueNodes = getUniqueNodes(routes, nodeByIp);
+            thisNode = uniqueNodes[uniqueNodes.length - 1];
+            thisNode.group = 0;
+            pairs = getPairs(tree, nodeByIp);
+
+            if (firstRun) {
                 doLayout(1);
+            } else {
+                force.start();
             }
         });
         //setTimeout(function() { getTable(false) }, 10000);
@@ -177,7 +210,7 @@ var getData = function() {
         });
         setTimeout(checkMemory, 4000);
     }
-    //checkMemory();
+    checkMemory();
 };
 
 var doAuthedRequest = function(request, password, callback)
@@ -231,72 +264,37 @@ var doLayout = function(step)
         return;
     }
 
-    var nodeByIp = {};
-    for (var i = 0; i < routes.length; i++) {
-        nodeByIp[routes[i].name] = routes[i];
-    }
-
-    if (DEBUGGING) {
-        var noLinks = {};
-    }
-    for (var ip in nodeByIp) {
-        var node = nodeByIp[ip];
-        json.nodes.push(node);
-        if (DEBUGGING) {
-            noLinks[node] = 1;
-        }
-        for (var tar in pairs[node.name]) {
-            json.links.push({
-                source: node,
-                target: nodeByIp[tar],
-                distance: 200 / (pairs[node.name][tar] + 1)
-            });
-            if (DEBUGGING) {
-                delete noLinks[node];
-                delete noLinks[nodeByIp[tar]];
-            }
-        }
-    }
-
-    if (DEBUGGING) {
-        for (var nl in noLinks) {
-            console.log(nl.name + ' has no links!');
-        }
-    }
-
-    var force = d3.layout.force()
-        .charge(-300)
-        .linkDistance(function(link){return link.distance})
-        .nodes(json.nodes)
-        .links(json.links)
+    force = d3.layout.force()
+        .charge(-400)
+        .linkDistance(100)//function(link){return 100 / (link.value + 1)})
+        .nodes(uniqueNodes)
+        .links(pairs)
         .size([w, h])
         .start();
 
     var link = vis.selectAll("line.link")
-        .data(json.links)
+        .data(pairs)
         .enter()
         .append("line")
         .attr("class", "link")
-        .style("stroke-width", function(d) { return Math.sqrt(d.value); })
+        .style("stroke-width", function(d) { return Math.sqrt(d.value) / 300000; })
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
 
     var node = vis.selectAll("circle.node")
-        .data(json.nodes)
+        .data(uniqueNodes)
         .enter()
         .append("circle")
         .attr("class", "node")
         .attr("cx", function(d) { return d.x; })
         .attr("cy", function(d) { return d.y; })
-        .attr("r", 5)
+        .attr("r", function(d) { return Math.max(3, Math.min(Math.sqrt(d.link) * 1/4000, 8)) })
         .style("fill", function(d) { return fill(d.group); })
         .call(force.drag);
 
-    node.append("title").text(function(d) {
-        return d.name;
-    });
+    node.append("title").text(function(d) { return d.name; });
 
     force.on("tick", function() {
         link.attr("x1", function(d) { return d.source.x; })
