@@ -139,13 +139,23 @@ static void handleRequestFromChild(struct Admin* admin,
         authed = true;
     }
 
+    bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
             admin->functions[i].call(&message, admin->functions[i].context, txid);
+            noFunctionsCalled = false;
         }
     }
+
+    if (noFunctionsCalled) {
+        Dict* d = Dict_new(allocator);
+        Dict_putString(d, BSTR("error"), BSTR("No functions matched your request."), allocator);
+        Admin_sendMessage(d, txid, admin);
+        return;
+    }
+
     return;
 }
 
