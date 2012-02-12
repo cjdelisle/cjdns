@@ -14,36 +14,63 @@
 #include "exception/ExceptionHandler.h"
 #include "util/Log.h"
 
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <pwd.h>
+#ifdef _WIN32   
+    // Windows
+#elif defined __linux__
+    // Linux
+    #include <sys/resource.h>
+    #include <sys/types.h>
+	#include <pwd.h>
+#elif defined TARGET_OS_X
+    // Mac  
+#else
+#endif
+
 #include <errno.h>
 #include <unistd.h>
 
 static inline void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
 {
-    errno = 0;
-    struct passwd* pw = getpwnam(userName);
-    if (!pw) {
-        eh->exception(__FILE__ " couldn't find user to set username to.", errno, eh);
-        return;
-    }
-    if (setuid(pw->pw_uid)) {
-        if (errno == EPERM) {
-            Log_warn(logger, "You do not have permission to set UID, skipping.\n");
-            return;
-        }
-        eh->exception(__FILE__ " couldn't set UID.", errno, eh);
-    }
+	#ifdef _WIN32   
+		// Windows
+	#elif defined __linux__
+		// Linux
+		errno = 0;
+		struct passwd* pw = getpwnam(userName);
+		if (!pw) {
+			eh->exception(__FILE__ " couldn't find user to set username to.", errno, eh);
+			return;
+		}
+		if (setuid(pw->pw_uid)) {
+			if (errno == EPERM) {
+				Log_warn(logger, "You do not have permission to set UID, skipping.\n");
+				return;
+			}
+			eh->exception(__FILE__ " couldn't set UID.", errno, eh);
+		}
+	#elif defined TARGET_OS_X
+		// Mac  
+	#else
+	#endif
+    
 }
 
 static inline void Security_noFiles(struct ExceptionHandler* eh)
 {
-    #ifdef BSD
+	#ifdef BSD
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
-    errno = 0;
-    if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        eh->exception(__FILE__ " failed to set open file limit to zero.", errno, eh);
-    }
+	
+	#ifdef _WIN32   
+		// Windows
+	#elif defined __linux__
+		// Linux
+		errno = 0;
+		if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
+			eh->exception(__FILE__ " failed to set open file limit to zero.", errno, eh);
+		}
+	#elif defined TARGET_OS_X
+		// Mac  
+	#else
+	#endif
 }
