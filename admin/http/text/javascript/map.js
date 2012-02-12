@@ -18,7 +18,8 @@ var nodes = {};
 var routes;
 var pairs;
 
-var doRequest = function(url, callback) {
+var doRequest = function(query, callback) {
+    var url = '/api/?q=' + encodeURIComponent(bencode(query));
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", url, true);
     xmlhttp.onreadystatechange = function() {
@@ -107,29 +108,68 @@ var getData = function() {
         return pairs;
     };
 
-    doRequest('/api/?q=d1:q19:NodeStore_dumpTablee', function(responseJSON) {
-        var table = responseJSON.routingTable;
-        table.sort(function(a, b){ return a.link - b.link; });
-        document.getElementById('nodes-list').innerText = JSON.stringify(table);
-        routes = parseRoutes(table);
-        var tree = buildTree(routes);
-        pairs = getPairs(tree);
+    var genNodeList = function(table) {
+        var out = '<table style="border-collapse:collapse; width:800px" border="1">';
+        out += '<tr>'
+        out += '<th>IPv6 Address</th>';
+        out += '<th>Path</th>';
+        out += '<th>Link State</th>';
+        out += '</tr>'
+        for (var i = 0; i < table.length; i++) {
+            out += '<tr>'
+            out += '<td>' + table[i].ip + '</td>';
+            var p = table[i].path;
+            out += '<td>'+p+' (<a id="ping-'+p+'" onclick="window.ping(\''+p+'\')" href="#runcmd">ping</a>)</td>';
+            out += '<td>' + table[i].link + '<br/>';
+            out += '</tr>'
+        }
+        return out;
+    };
 
-        doLayout(1);
+    var getTable = function(firstRun) {
+        doRequest({"q": "NodeStore_dumpTable"}, function(responseJSON) {
+            var table = responseJSON.routingTable;
+            table.sort(function(a, b){ return b.link - a.link; });
+            document.getElementById('nodes-list').innerHTML = genNodeList(table);
+            if (firstRun) {
+                routes = parseRoutes(table);
+                var tree = buildTree(routes);
+                pairs = getPairs(tree);
+
+                doLayout(1);
+            }
+        });
+        setTimeout(function() { getTable(0) }, 10000);
+    };
+    getTable(1);
+
+    var checkMemory = function() {
+        doRequest({"q":"memory"}, function(responseJSON) {
+            document.getElementById('memory-bytes').innerText = responseJSON.bytes;
+        });
+        setTimeout(checkMemory, 4000);
+    }
+    checkMemory();
+};
+
+var doAuthedRequest = function(request, password, callback)
+{
+    doRequest({"q":"cookie"}, function(cookieJSON) {
+        var hashA = SHA256_hash('' + password + cookieJSON.cookie);
+        request.cookie = cookieJSON.cookie;
+        request.hash = hashA;
+        request.aq = request.q;
+        request.q = 'auth';
+        var reqStr = bencode(request);
+        var hashB = SHA256_hash(reqStr);
+        request.hash = hashB
+        doRequest(request, callback);
     });
 };
 
-var authedRequest = function(request, password, cookie)
-{
-    var hashA = SHA256_hash('' + password + cookie);
-    request.cookie = cookie;
-    request.hash = hashA;
-    request.aq = request.q;
-    request.q = 'auth';
-    var reqStr = bencode(request);
-    var hashB = SHA256_hash(reqStr);
-    request.hash = hashB
-    return bencode(request);
+window.ping = function(node) {
+    var cmdInput = document.getElementById('runcmd-cmd');
+    cmdInput.value = '{"q":"RouterModule_pingNode", "args":{"path":"' + node + '"}}';
 };
 
 var setupSubmitEvent = function() {
@@ -147,11 +187,8 @@ var setupSubmitEvent = function() {
             output.innerText = "failed to parse input\n\n" + JSON.stringify(e);
             return;
         }
-        doRequest('/api/?q=d1:q6:cookiee', function(responseJSON) {
-            var authQuery = authedRequest(query, cmdPasswd, responseJSON.cookie);
-            doRequest('/api/?q=' + authQuery, function(response) {
-                output.innerText = JSON.stringify(response);
-            });
+        doAuthedRequest(query, cmdPasswd, function(response) {
+            output.innerText = JSON.stringify(response);
         });
     }, false);
 };
@@ -207,46 +244,39 @@ var doLayout = function(step)
         .size([w, h])
         .start();
 
+    var link = vis.selectAll("line.link")
+        .data(json.links)
+        .enter()
+        .append("line")
+        .attr("class", "link")
+        .style("stroke-width", function(d) { return Math.sqrt(d.value); })
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
-    var link = vis.selectAll("line.link").data(json.links).enter().append("line").attr("class", "link").style("stroke-width", function(d) {
-      return Math.sqrt(d.value);
-    }).attr("x1", function(d) {
-      return d.source.x;
-    }).attr("y1", function(d) {
-      return d.source.y;
-    }).attr("x2", function(d) {
-      return d.target.x;
-    }).attr("y2", function(d) {
-      return d.target.y;
-    });
-
-    var node = vis.selectAll("circle.node").data(json.nodes).enter().append("circle").attr("class", "node").attr("cx", function(d) {
-      return d.x;
-    }).attr("cy", function(d) {
-      return d.y;
-    }).attr("r", 5).style("fill", function(d) {
-      return fill(d.group);
-    }).call(force.drag);
+    var node = vis.selectAll("circle.node")
+        .data(json.nodes)
+        .enter()
+        .append("circle")
+        .attr("class", "node")
+        .attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; })
+        .attr("r", 5)
+        .style("fill", function(d) { return fill(d.group); })
+        .call(force.drag);
 
     node.append("title").text(function(d) {
-      return d.name;
+        return d.name;
     });
 
     force.on("tick", function() {
-      link.attr("x1", function(d) {
-        return d.source.x;
-      }).attr("y1", function(d) {
-        return d.source.y;
-      }).attr("x2", function(d) {
-        return d.target.x;
-      }).attr("y2", function(d) {
-        return d.target.y;
-      });
+        link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
 
-      node.attr("cx", function(d) {
-        return d.x;
-      }).attr("cy", function(d) {
-        return d.y;
-      });
+        node.attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; });
     });
   }
