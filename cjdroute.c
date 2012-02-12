@@ -606,11 +606,24 @@ static void adminPing(Dict* input, void* vadmin, String* txid)
     uint8_t buffer[256];
     struct Allocator* alloc = BufferAllocator_new(buffer, 256);
 
-    String pong = { .len = 4, .bytes = "pong" };
+    String* pong = BSTR("pong");
     Dict* d = Dict_new(alloc);
-    Dict_putString(d, CJDHTConstants_QUERY, &pong, alloc);
+    Dict_putString(d, CJDHTConstants_QUERY, pong, alloc);
 
     Admin_sendMessage(d, txid, (struct Admin*) vadmin);
+}
+
+static void adminMemory(Dict* input, void* vcontext, String* txid)
+{
+    struct Context* context = (struct Context*) vcontext;
+    uint8_t buffer[256];
+    struct Allocator* alloc = BufferAllocator_new(buffer, 256);
+
+    String* bytes = BSTR("bytes");
+    Dict* d = Dict_new(alloc);
+    Dict_putInt(d, bytes, MallocAllocator_bytesAllocated(context->allocator), alloc);
+
+    Admin_sendMessage(d, txid, context->admin);
 }
 
 static void admin(Dict* adminConf, char* user, struct Context* context)
@@ -619,6 +632,7 @@ static void admin(Dict* adminConf, char* user, struct Context* context)
         Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
 
     Admin_registerFunction("ping", adminPing, context->admin, false, context->admin);
+    Admin_registerFunction("memory", adminMemory, context, false, context->admin);
 }
 
 static void pidfile(Dict* config)
