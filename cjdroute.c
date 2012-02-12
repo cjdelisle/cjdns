@@ -101,12 +101,20 @@ static int genAddress(uint8_t addressOut[40],
     }
 }
 
+static void randomBase32(uint8_t output[32])
+{
+    uint8_t bin[16];
+    randombytes(bin, 16);
+    Base32_encode(output, 32, bin, 16);
+}
+
 static int genconf()
 {
-    uint8_t passwdBin[16];
-    randombytes(passwdBin, 16);
     uint8_t password[32];
-    Base32_encode(password, 32, passwdBin, 16);
+    randomBase32(password);
+
+    uint8_t adminPassword[32];
+    randomBase32(adminPassword);
 
     uint16_t port;
     randombytes((uint8_t*) &port, 2);
@@ -164,9 +172,14 @@ static int genconf()
            "    // This interface provides API functions which can be called through a TCP socket.\n"
            "    \"admin\":\n"
            "    {\n"
-           "        // Port to bind the admin TCP server to.\n"
-           "        \"bind\": \"127.0.0.1:11234\"\n"
-           "    }\n"
+           "        // Port to bind the admin RPC server to.\n"
+           "        \"bind\": \"127.0.0.1:11234\",\n"
+           "\n"
+           "        // Password for admin RPC server.\n"
+           "        \"password\": \"%s\"\n", adminPassword);
+    printf("    },\n"
+           "\n"
+           "\n\n" // TODO: Why is this needed and where are these newlines going?!!
            "\n"
            "    // Interfaces to connect to the switch core.\n"
            "    \"interfaces\":\n"
