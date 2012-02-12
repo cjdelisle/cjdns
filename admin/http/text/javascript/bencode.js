@@ -60,8 +60,9 @@ function bparseString(str) {
 // parse a bencoded integer
 function bparseInt(str) {
     var str2 = str.split("e", 1)[0];
-    if(!isNum(str2))
+    if(!isNum(str2)) {
         return null;
+    }
     return [str2, str.substr(str2.length+1)];
 }
 
