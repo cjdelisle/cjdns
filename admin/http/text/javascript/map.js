@@ -66,6 +66,10 @@ var getData = function() {
         return tree;
     };
 
+    var parsePath = function(path) {
+        return new Number('0x' + path.replace(/\./g, ''));
+    };
+
     var parseRoutes = function(list)
     {
          var out = [];
@@ -75,7 +79,7 @@ var getData = function() {
              }
              out.push({
                  name: list[i].ip,
-                 path: new Number('0x' + list[i].path.replace(/\./g, '')),
+                 path: parsePath(list[i].path),
                  link: list[i].link 
              });
          }
@@ -126,10 +130,34 @@ var getData = function() {
         return out;
     };
 
-    var getTable = function(firstRun) {
-        doRequest({"q": "NodeStore_dumpTable"}, function(responseJSON) {
+    var getTable = function(firstRun, more, start) {
+        if (start && start > 20000) {
+            // sanity limit
+            return;
+        }
+        var q = {"q": "NodeStore_dumpTable"};
+        if (start) {
+            q.start = start;
+        }
+        doRequest(q, function(responseJSON) {
             var table = responseJSON.routingTable;
-            table.sort(function(a, b){ return b.link - a.link; });
+            if (more) {
+                for (var i = 0; i < more.routingTable.length; i++) {
+                    table.push(more.routingTable[i]);
+                }
+            }
+            if (responseJSON.more == 1) {
+                getTable(firstRun, responseJSON, ((start) ? start : 0) + 500);
+                return;
+            }
+
+            table.sort(function(a, b) {
+                if (b.link == a.link) {
+                    return parsePath(a.path) - parsePath(b.path);
+                }
+                return b.link - a.link;
+            });
+
             document.getElementById('nodes-list').innerHTML = genNodeList(table);
             if (firstRun) {
                 routes = parseRoutes(table);
@@ -139,7 +167,7 @@ var getData = function() {
                 doLayout(1);
             }
         });
-        setTimeout(function() { getTable(0) }, 10000);
+        //setTimeout(function() { getTable(false) }, 10000);
     };
     getTable(1);
 
@@ -149,7 +177,7 @@ var getData = function() {
         });
         setTimeout(checkMemory, 4000);
     }
-    checkMemory();
+    //checkMemory();
 };
 
 var doAuthedRequest = function(request, password, callback)
