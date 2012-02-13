@@ -292,16 +292,16 @@ void setupApi(char* ipAndPort, struct Context* context)
 
 int main(int argc, char **argv)
 {
-	 int ListenPort = LISTENPORT;
-	 char* ListenAddr = LISTENADDR;
+	 uint16_t listenPort = LISTENPORT;
+	 char* listenAddr = LISTENADDR;
     assert(argc > 0);
     if (argc < 3) {
         printf("Usage: %s address.of.api.server:port /full/path/to/directory/ [listen.address.without.brackets [listen.port]]\n", argv[0]);
         return 0;
     }
 	 if (argc > 3) {
-		 ListenAddr = argv[3];
-		 if (argc > 4) { ListenPort = atoi(argv[4]); }
+		 listenAddr = argv[3];
+		 if (argc > 4) { listenPort = atoi(argv[4]); }
 	 }
     Crypto_init();
 
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
     setupApi(argv[1], &context);
 
     struct evhttp* httpd = evhttp_new(context.eventBase);
-    evhttp_bind_socket(httpd, ListenAddr, ListenPort);
+    evhttp_bind_socket(httpd, listenAddr, listenPort);
     evhttp_set_cb(httpd, "/api/", apiHandler, &context);
     evhttp_set_gencb(httpd, fileHandler, &context);
 
