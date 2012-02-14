@@ -14,14 +14,14 @@
 #ifndef SEARCH_STORE_H
 #define SEARCH_STORE_H
 
-#include <stdint.h>
-
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "benc/Object.h"
 #include "util/Log.h"
 #include "util/AverageRoller.h"
 
+#include <stdint.h>
+#include <event2/event.h>
 
 /*--------------------Constants--------------------*/
 
@@ -63,6 +63,9 @@ struct SearchStore
     /** Averager for milliseconds wait for request turnaround. */
     struct AverageRoller* gmrtRoller;
 
+    /** Libevent event base for getting current time. */
+    struct event_base* eventBase;
+
     struct Log* logger;
 };
 
@@ -97,10 +100,12 @@ struct SearchStore_TraceElement
  *
  * @param allocator the means of aquiring memory for the new store.
  * @param gmrtRoller averager of the mean response time for all nodes.
+ * @param eventBase the libevent event base for getting current time.
  * @param logger
  */
 struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
+                                    struct event_base* eventBase,
                                     struct Log* logger);
 
 /**
@@ -209,9 +214,10 @@ void SearchStore_requestSent(const struct SearchStore_Node* node,
  *
  * @param node the node which sent the reply.
  * @param store the search store which holds the search.
+ * @return number of milliseconds between when the request was sent and when the reply was received.
  */
-void SearchStore_replyReceived(const struct SearchStore_Node* node,
-                               const struct SearchStore* store);
+uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
+                                   const struct SearchStore* store);
 
 /**
  * Get the next node to ask in this search.

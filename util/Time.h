@@ -12,10 +12,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <sys/time.h>
+#include <event2/event.h>
 
-static inline uint64_t Time_currentTimeMilliseconds()
+static inline uint64_t Time_currentTimeMilliseconds(struct event_base* eventBase)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (((uint64_t) tv.tv_sec) * 1000) + (tv.tv_usec / 1000);
+    struct timeval now;
+    event_base_gettimeofday_cached(eventBase, &now);
+    return (((uint64_t) now.tv_sec) * 1024) + (now.tv_usec / 1024);
+}
+
+static inline uint64_t Time_currentTimeSeconds(struct event_base* eventBase)
+{
+    struct timeval now;
+    event_base_gettimeofday_cached(eventBase, &now);
+    return (uint64_t) now.tv_sec;
 }

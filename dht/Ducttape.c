@@ -205,7 +205,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     return uh->sourceAndDestPorts == 0
-        && Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
+        && (int) Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
 }
 
 /**
@@ -535,21 +535,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (Headers_getMessageType(switchHeader) == MessageType_CONTROL) {
         struct Control* ctrl = (struct Control*) (switchHeader + 1);
         if (ctrl->type_be == Control_ERROR_be) {
-            if (memcmp(&ctrl->content.error.cause.label_be, &switchHeader->label_be, 8)) {
-                Log_warn(context->logger,
-                         "Different label for cause than return packet, this shouldn't happen. "
-                         "Perhaps a packet was corrupted.\n");
-                return 0;
-            }
-            uint32_t errType_be = ctrl->content.error.errorType_be;
-            if (errType_be == Endian_bigEndianToHost32(Error_MALFORMED_ADDRESS)) {
-                Log_info(context->logger, "Got malformed-address error, removing route.\n");
-                RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
-                return 0;
-            }
-            Log_info1(context->logger,
-                      "Got error packet, error type: %d",
-                      Endian_bigEndianToHost32(errType_be));
+            uint32_t errType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
+            Log_info1(context->logger, "Got error packet, error type: %d", errType);
+            RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
         }
         return 0;
     }
@@ -637,17 +625,17 @@ int Ducttape_register(Dict* config,
         routerIf->receiverContext = context;
     }
 
-    memcpy(&context->module, &(struct DHTModule) {
+    memcpy(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
         .context = context,
         .handleOutgoing = handleOutgoing
-    }, sizeof(struct DHTModule));
+    }), sizeof(struct DHTModule));
 
-    memcpy(&context->switchInterface, &(struct Interface) {
+    memcpy(&context->switchInterface, (&(struct Interface) {
         .sendMessage = incomingFromSwitch,
         .senderContext = context,
         .allocator = allocator
-    }, sizeof(struct Interface));
+    }), sizeof(struct Interface));
 
     return DHTModules_register(&context->module, context->registry)
         | SwitchCore_setRouterInterface(&context->switchInterface, switchCore);

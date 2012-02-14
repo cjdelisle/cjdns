@@ -11,10 +11,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <time.h>
-#include <string.h>
-
 #include "util/AverageRoller.h"
+#include "util/Time.h"
+
+#include <event2/event.h>
+#include <string.h>
 
 /** Used to represent the sum and entry count for a given second. */
 struct SumAndEntryCount
@@ -50,6 +51,9 @@ struct AverageRoller
     /** A stored value equal to the sum divided by the entry count. */
     uint32_t average;
 
+    /** Means of getting the current time. */
+    struct event_base* eventBase;
+
     /**
      * An array of entries containing sum and entry count for each second
      * in the seconds prior to the last update.
@@ -59,7 +63,9 @@ struct AverageRoller
 };
 
 /** @see AverageRoller.h */
-struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct Allocator* allocator)
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
+                                        struct event_base* eventBase,
+                                        const struct Allocator* allocator)
 {
     struct AverageRoller* roller = allocator->calloc(
         sizeof(struct AverageRoller) + (sizeof(struct SumAndEntryCount) * (windowSeconds - 1)),
@@ -67,7 +73,8 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const stru
 
     struct AverageRoller tempRoller = {
         .windowSeconds = windowSeconds,
-        .lastUpdateTime = (uint32_t) time(NULL)
+        .eventBase = eventBase,
+        .lastUpdateTime = (uint32_t) Time_currentTimeSeconds(eventBase)
     };
 
     memcpy(roller, &tempRoller, sizeof(struct AverageRoller));
@@ -89,7 +96,9 @@ uint32_t AverageRoller_getAverage(struct AverageRoller* roller)
  * @param newEntry the a new number to be factored into the average.
  * @return the average over the last windowSeconds seconds.
  */
-static inline uint32_t update(struct AverageRoller* roller, const time_t now, const uint32_t newEntry)
+static inline uint32_t update(struct AverageRoller* roller,
+                              const uint64_t now,
+                              const uint32_t newEntry)
 {
     uint32_t index =
         (now - roller->lastUpdateTime + roller->lastUpdateIndex) % roller->windowSeconds;
@@ -115,5 +124,5 @@ static inline uint32_t update(struct AverageRoller* roller, const time_t now, co
 /** @see AverageRoller.h */
 uint32_t AverageRoller_update(struct AverageRoller* roller, const uint32_t newEntry)
 {
-    return update(roller, time(NULL), newEntry);
+    return update(roller, Time_currentTimeSeconds(roller->eventBase), newEntry);
 }

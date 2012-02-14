@@ -19,6 +19,7 @@
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/DistanceNodeCollector.h"
+#include "dht/dhtcore/LinkStateNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -32,7 +33,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc);
+static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
@@ -49,8 +50,9 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->logger = logger;
     out->size = 0;
     out->admin = admin;
+    out->labelSum = 0;
 
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, admin);
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, admin);
 
     return out;
 }
@@ -91,11 +93,15 @@ static inline uint32_t getSwitchIndex(struct Address* addr)
 
 static inline void replaceNode(struct Node* const nodeToReplace,
                                struct NodeHeader* const headerToReplace,
-                               struct Address* addr)
+                               struct Address* addr,
+                               struct NodeStore* store)
 {
     headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
     headerToReplace->switchIndex = getSwitchIndex(addr);
+    store->labelSum -= Bits_log2x64_be(nodeToReplace->address.networkAddress_be);
+    store->labelSum += Bits_log2x64_be(addr->networkAddress_be);
+    assert(store->labelSum > 0);
     memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
@@ -115,14 +121,14 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
-void NodeStore_addNode(struct NodeStore* store,
-                       struct Address* addr,
-                       const int64_t reachDifference)
+struct Node* NodeStore_addNode(struct NodeStore* store,
+                               struct Address* addr,
+                               const int64_t reachDifference)
 {
     Address_getPrefix(addr);
     if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
         printf("got introduced to ourselves\n");
-        return;
+        return NULL;
     }
     if (addr->ip6.bytes[0] != 0xfc) {
         uint8_t address[60];
@@ -189,7 +195,7 @@ void NodeStore_addNode(struct NodeStore* store,
                     }
                 #endif*/
 
-                return;
+                return &store->nodes[i];
             }
             #ifdef Log_DEBUG
                 else if (store->headers[i].addressPrefix == pfx) {
@@ -210,10 +216,9 @@ void NodeStore_addNode(struct NodeStore* store,
         #endif
 
         // Free space, regular insert.
-        replaceNode(&store->nodes[store->size], &store->headers[store->size], addr);
+        replaceNode(&store->nodes[store->size], &store->headers[store->size], addr, store);
         adjustReach(&store->headers[store->size], reachDifference);
-        store->size++;
-        return;
+        return &store->nodes[store->size++];
     }
 
     // The node whose reach OR distance is the least.
@@ -226,8 +231,8 @@ void NodeStore_addNode(struct NodeStore* store,
 
         if (distance == 0 && Address_isSame(&store->nodes[i].address, addr)) {
             // Node already exists
-            adjustReach(&store->headers[store->size], reachDifference);
-            return;
+            adjustReach(&store->headers[i], reachDifference);
+            return &store->nodes[i];
         }
 
         uint32_t reachOrDistance = store->headers[i].reach | distance;
@@ -240,9 +245,12 @@ void NodeStore_addNode(struct NodeStore* store,
 
     replaceNode(&store->nodes[indexOfNodeToReplace],
                 &store->headers[indexOfNodeToReplace],
-                addr);
+                addr,
+                store);
 
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
+
+    return &store->nodes[indexOfNodeToReplace];
 }
 
 static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)
@@ -272,7 +280,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         Address_getPrefix(store->thisNodeAddress) ^ collector.targetPrefix;
 
     for (uint32_t i = 0; i < store->size; i++) {
-        NodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
+        LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
     }
 
     return element.node ? nodeForHeader(element.node, store) : NULL;
@@ -316,13 +324,16 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           const bool allowNodesFartherThanUs,
+                                           bool allowNodesFartherThanUs,
                                            const struct Allocator* allocator)
 {
+    // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
+    allowNodesFartherThanUs = allowNodesFartherThanUs;
+
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
                                                         store->thisNodeAddress,
-                                                        allowNodesFartherThanUs,
+                                                        true,
                                                         store->logger,
                                                         allocator);
 
@@ -334,7 +345,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
         if (requestorsAddress && store->headers[i].switchIndex == index) {
             continue;
         }
-        NodeCollector_addNode(store->headers + i, store->nodes + i, collector);
+        LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
     struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
@@ -401,15 +412,30 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 }
 
-static void sendEntries(struct NodeStore* store, struct List_Item* last, String* txid, bool isMore)
+struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
 {
-    struct Dict_Entry txidEntry = {
-        .next = NULL,
-        .key = CJDHTConstants_TXID,
-        .val = &(Object) { .type = Object_STRING, .as.string = txid }
-    };
+    uint32_t start = rand() % (store->size - 1);
+    int avgLabel = store->labelSum / store->size;
+    for (uint32_t i = start + 1; i != start; i++) {
+        if (i == store->size) {
+            i = 0;
+        }
+        if (store->headers[i].reach < (UINT32_MAX / 2)
+            && Bits_log2x64_be(store->nodes[i].address.networkAddress_be) < avgLabel)
+        {
+            return &store->nodes[i];
+        }
+    }
+    return NULL;
+}
+
+static void sendEntries(struct NodeStore* store,
+                        struct List_Item* last,
+                        bool isMore,
+                        String* txid)
+{
     struct Dict_Entry tableEntry = {
-        .next = &txidEntry,
+        .next = NULL,
         .key = &(String) { .len = 12, .bytes = "routingTable" },
         .val = &(Object) { .type = Object_LIST, .as.list = &last }
     };
@@ -424,7 +450,7 @@ static void sendEntries(struct NodeStore* store, struct List_Item* last, String*
     } else {
         d = &tableEntry;
     }
-    Admin_sendMessage(&d, store->admin);
+    Admin_sendMessage(&d, txid, store->admin);
 }
 
 static void addRoutingTableEntries(struct NodeStore* store,
@@ -461,12 +487,16 @@ static void addRoutingTableEntries(struct NodeStore* store,
         .elem = &(Object) { .type = Object_DICT, .as.dictionary = &d }
     };
 
-    if (i >= store->size || j > 900) {
+    if (i >= store->size || j > 500) {
+        if (i > j) {
+            sendEntries(store, last, (j > 500), txid);
+            return;
+        }
+
         linkStateEntry.val->as.number = 0xFFFFFFFF;
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
-
-        sendEntries(store, &next, txid, (j > 900));
+        sendEntries(store, &next, (j > 500), txid);
         return;
     }
 
@@ -477,15 +507,11 @@ static void addRoutingTableEntries(struct NodeStore* store,
     addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }
 
-static void dumpTable(Dict* req, void* vnodeStore, struct Allocator* tempAlloc)
+static void dumpTable(Dict* message, void* vnodeStore, String* txid)
 {
     struct NodeStore* store = (struct NodeStore*) vnodeStore;
-    String* txid = Dict_getString(req, CJDHTConstants_TXID);
-    if (!txid) {
-        return;
-    }
     uint32_t i = 0;
-    int64_t* iPtr = Dict_getInt(req, &(String) { .len = 5, .bytes = "start" });
+    int64_t* iPtr = Dict_getInt(message, &(String) { .len = 5, .bytes = "start" });
     if (iPtr && *iPtr > 0 && *iPtr < UINT32_MAX) {
         i = *iPtr;
     }

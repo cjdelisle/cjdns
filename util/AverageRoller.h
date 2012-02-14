@@ -14,9 +14,10 @@
 #ifndef AVERAGEROLLER_H
 #define AVERAGEROLLER_H
 
-#include <stdint.h>
-
 #include "memory/Allocator.h"
+
+#include <stdint.h>
+#include <event2/event.h>
 
 struct AverageRoller;
 
@@ -26,7 +27,9 @@ struct AverageRoller;
  * @param windowSeconds the number of seconds the average should run over.
  * @return a new roller.
  */
-struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds, const struct Allocator* allocator);
+struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
+                                        struct event_base* eventBase,
+                                        const struct Allocator* allocator);
 
 /**
  * Get the average.

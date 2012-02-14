@@ -15,6 +15,7 @@
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
+#include "util/Time.h"
 #include "util/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -56,11 +57,9 @@ struct SessionManager
 static void cleanup(void* vsm)
 {
     struct SessionManager* sm = (struct SessionManager*) vsm;
-    struct timeval now;
-    event_base_gettimeofday_cached(sm->eventBase, &now);
-    uint32_t nowSeconds = now.tv_sec;
+    uint64_t nowSecs = Time_currentTimeSeconds(sm->eventBase);
     for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
-        if (sm->ifaceMap.lastMessageTimes[i] < (nowSeconds - SESSION_TIMEOUT_SECONDS)) {
+        if (sm->ifaceMap.lastMessageTimes[i] < (nowSecs - SESSION_TIMEOUT_SECONDS)) {
             struct Allocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
             ifAllocator->free(ifAllocator);
             InterfaceMap_remove(i, &sm->ifaceMap);
@@ -73,8 +72,7 @@ struct Interface* SessionManager_getSession(uint8_t* lookupKey,
                                             uint8_t cryptoKey[32],
                                             struct SessionManager* sm)
 {
-    struct timeval now;
-    event_base_gettimeofday_cached(sm->eventBase, &now);
+    uint64_t nowSecs = Time_currentTimeSeconds(sm->eventBase);
 
     int ifaceIndex = InterfaceMap_indexOf(lookupKey, &sm->ifaceMap);
     if (ifaceIndex == -1) {
@@ -103,11 +101,11 @@ struct Interface* SessionManager_getSession(uint8_t* lookupKey,
                 .allocator = ifAllocator
             });
 
-        InterfaceMap_put(lookupKey, combinedIf, now.tv_sec, &sm->ifaceMap);
+        InterfaceMap_put(lookupKey, combinedIf, nowSecs, &sm->ifaceMap);
         return combinedIf;
     } else {
         // Interface already exists, set the time of last message to "now".
-        sm->ifaceMap.lastMessageTimes[ifaceIndex] = now.tv_sec;
+        sm->ifaceMap.lastMessageTimes[ifaceIndex] = nowSecs;
     }
 
     return sm->ifaceMap.interfaces[ifaceIndex];
@@ -122,7 +120,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
                                           struct Allocator* allocator)
 {
     struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
-    memcpy(sm, &(struct SessionManager) {
+    memcpy(sm, (&(struct SessionManager) {
         .decryptedIncoming = decryptedIncoming,
         .encryptedOutgoing = encryptedOutgoing,
         .interfaceContext = interfaceContext,
@@ -136,7 +134,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
         .allocator = allocator,
         .cleanupInterval =
             Timeout_setInterval(cleanup, sm, 1000 * CLEANUP_CYCLE_SECONDS, eventBase, allocator)
-    }, sizeof(struct SessionManager));
+    }), sizeof(struct SessionManager));
 
     return sm;
 }

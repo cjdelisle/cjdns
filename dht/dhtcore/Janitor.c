@@ -60,6 +60,8 @@ struct Janitor
 
     uint8_t recentLocalSearchTarget[Address_SEARCH_TARGET_SIZE];
     bool hasRecentLocalSearchTarget;
+
+    struct event_base* eventBase;
 };
 
 static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
@@ -103,7 +105,7 @@ static void maintanenceCycle(void* vcontext)
         return;
     }
 
-    uint64_t now = Time_currentTimeMilliseconds();
+    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
 
     #ifdef Log_DEBUG
         uint32_t nonZeroNodes = 0;
@@ -122,6 +124,10 @@ static void maintanenceCycle(void* vcontext)
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
+
+        // Ping a random node shorter half of route distance and lower half of link state.
+        RouterModule_pingGoodCandidate(janitor->routerModule);
+
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
@@ -138,8 +144,9 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct event_base* eventBase)
 {
     struct Janitor* janitor = allocator->malloc(sizeof(struct Janitor), allocator);
-    uint64_t now = Time_currentTimeMilliseconds();
+    uint64_t now = Time_currentTimeMilliseconds(eventBase);
 
+    janitor->eventBase = eventBase;
     janitor->routerModule = routerModule;
     janitor->nodeStore = nodeStore;
     janitor->timeout = Timeout_setInterval(maintanenceCycle,

@@ -179,6 +179,8 @@
  */
 #define PING_TIMEOUT_MINIMUM 3000
 
+#define LINK_STATE_MULTIPLIER 536870
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -192,7 +194,8 @@ struct RouterModule_Search
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 
-int RouterModule_pingNode(struct Node* node, struct RouterModule* module);
+int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid);
+static void pingNode(Dict* input, void* vrouter, String* txid);
 
 /*--------------------Interface--------------------*/
 
@@ -222,21 +225,83 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     Address_forKey(&out->address, myAddress);
 
-    out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, allocator);
+    out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->searchStore = SearchStore_new(allocator, out->gmrtRoller, logger);
+    out->searchStore = SearchStore_new(allocator, out->gmrtRoller, eventBase, logger);
     out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
     out->allocator = allocator;
+    out->admin = admin;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                out,
                                out->nodeStore,
                                allocator,
                                eventBase);
+
+    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, admin);
+
     return out;
+}
+
+struct RouterModule_Ping
+{
+    struct RouterModule* module;
+    struct Node* node;
+    struct Timeout* timeout;
+    uint8_t txid[4];
+    bool isFromAdmin;
+    uint32_t timeSent;
+};
+
+#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
+static void pingNode(Dict* input, void* vrouter, String* txid)
+{
+    struct RouterModule* router = (struct RouterModule*) vrouter;
+    Dict* args = Dict_getDict(input, BSTR("args"));
+    String* path = Dict_getString(args, BSTR("path"));
+
+    #define ERROR_DICT(x) \
+        struct Dict_Entry entry = {                                           \
+            .next = NULL,                                                     \
+            .key = BSTR("error"),                                             \
+            .val = &(Object) { .type = Object_STRING, .as.string = BSTR(x) }  \
+        };                                                                    \
+        Dict err = &entry
+
+    if (!path) {
+        ERROR_DICT("no path argument or path arg was not of type 'String'");
+        Admin_sendMessage(&err, txid, router->admin);
+        return;
+    }
+
+    if (path->len != 19) {
+        ERROR_DICT("path argument was not 19 characters long.");
+        Admin_sendMessage(&err, txid, router->admin);
+        return;
+    }
+
+    uint64_t netAddr_be;
+    if (Address_parseNetworkAddress(&netAddr_be, (uint8_t*) path->bytes)) {
+        ERROR_DICT("could not parse path, expected form is '0123.abcd.ef01.0011'");
+        Admin_sendMessage(&err, txid, router->admin);
+        return;
+    }
+
+    struct Node* n = RouterModule_getNode(netAddr_be, router);
+    if (!n) {
+        ERROR_DICT("could not find node to ping");
+        Admin_sendMessage(&err, txid, router->admin);
+        return;
+    }
+
+    if (RouterModule_pingNode(n, router, txid)) {
+        ERROR_DICT("no open slots to store ping, try later.");
+        Admin_sendMessage(&err, txid, router->admin);
+        return;
+    }
 }
 
 /**
@@ -261,7 +326,7 @@ static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
  */
 static inline uint64_t evictUnrepliedIfOlderThan(struct RouterModule* module)
 {
-    return Time_currentTimeMilliseconds() - tryNextNodeAfter(module);
+    return Time_currentTimeMilliseconds(module->eventBase) - tryNextNodeAfter(module);
 }
 
 /**
@@ -480,9 +545,9 @@ static void searchRequestTimeout(void* vcontext)
 
     if (nl->size > 0) {
         int i = rand();
-        RouterModule_pingNode(nl->nodes[i % nl->size], scc->routerModule);
+        RouterModule_pingNode(nl->nodes[i % nl->size], scc->routerModule, NULL);
         if (nl->size > 1) {
-            RouterModule_pingNode(nl->nodes[(i + 1) % nl->size], scc->routerModule);
+            RouterModule_pingNode(nl->nodes[(i + 1) % nl->size], scc->routerModule, NULL);
         }
     }
 
@@ -558,6 +623,46 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
     return false;
 }
 
+static inline void pingResponse(struct RouterModule_Ping* ping,
+                                bool timeout,
+                                uint32_t lag,
+                                struct RouterModule* module)
+{
+    uint8_t lagStr[12];
+    snprintf((char*)lagStr, 12, "%u", lag);
+
+    struct Dict_Entry result = {
+       .next = NULL,
+       .key = BSTR("result"),
+       .val = &(Object) { .type = Object_STRING, .as.string = NULL }
+    };
+    if (timeout) {
+        result.val->as.string = BSTR("timeout");
+    } else {
+        result.val->as.string = BSTR("pong");
+    }
+
+    struct Dict_Entry entry = {
+       .next = &result,
+       .key = BSTR("ms"),
+       .val = &(Object) { .type = Object_STRING, .as.string = BSTR((char*)lagStr) }
+    };
+    Dict response = &entry;
+    String txid = { .len = 4, .bytes = (char*)ping->txid };
+    Admin_sendMessage(&response, &txid, module->admin);
+}
+
+static inline void responseFromNode(struct Node* node,
+                                    uint32_t millisecondsSinceRequest,
+                                    struct RouterModule* module)
+{
+    if (node) {
+        uint64_t worst = tryNextNodeAfter(module);
+        node->reach = (worst - millisecondsSinceRequest) * LINK_STATE_MULTIPLIER;
+        NodeStore_updateReach(node, module->nodeStore);
+    }
+}
+
 /**
  * Handle an incoming reply to one of our queries.
  * This will handle the reply on the incoming direction.
@@ -570,21 +675,31 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
 static inline int handleReply(struct DHTMessage* message, struct RouterModule* module)
 {
     // this implementation only pings to get the address of a node, so lets add the node.
-    // A reply causes the reach to be bumped by 2
-    NodeStore_addNode(module->nodeStore, message->address, 2);
+    struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 0);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
     String* nodes = Dict_getString(message->asDict, CJDHTConstants_NODES);
     if (nodes == NULL && tid && tid->len == 2 && tid->bytes[0] == 'p') {
         uint8_t index = tid->bytes[1];
-        if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pingTimers[index] != NULL) {
+        if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pings[index] != NULL) {
             #ifdef Log_DEBUG
                 uint8_t printedAddr[60];
                 Address_print(printedAddr, message->address);
                 Log_debug1(module->logger, "Got pong! %s\n", printedAddr);
             #endif
-            Timeout_clearTimeout(module->pingTimers[index]);
-            module->pingTimers[index] = NULL;
+
+            Timeout_clearTimeout(module->pings[index]->timeout);
+
+            uint32_t lag =
+                Time_currentTimeMilliseconds(module->eventBase) - module->pings[index]->timeSent;
+            responseFromNode(node, lag, module);
+
+            if (module->pings[index]->isFromAdmin) {
+                pingResponse(module->pings[index], false, lag, module);
+            }
+
+            module->pings[index] = NULL;
+
         } else {
             Log_debug1(module->logger,
                        "Looks like a ping but unrecognized slot. slot=%u\n",
@@ -622,7 +737,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return -1;
     }
 
-    SearchStore_replyReceived(parent, module->searchStore);
+    responseFromNode(node, SearchStore_replyReceived(parent, module->searchStore), module);
+
     struct SearchStore_Search* search = SearchStore_getSearchForNode(parent, module->searchStore);
     struct SearchCallbackContext* scc = SearchStore_getContext(search);
 
@@ -908,36 +1024,43 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
             NodeStore_remove(n, module->nodeStore);
             continue;
         }
+        #ifdef Log_INFO
+            if (i == 0) {
+                struct Address addr;
+                addr.networkAddress_be = networkAddress_be;
+                uint8_t printed[20];
+                Address_printNetworkAddress(printed, &addr);
+                Log_info1(module->logger, "Couldn't find route to remove. route=%s", printed);
+            }
+        #endif
         return i;
     }
 }
 
-struct Ping
-{
-    struct RouterModule* module;
-    struct Node* node;
-    struct Timeout* timeout;
-};
-
 void pingTimeoutCallback(void* vping)
 {
-    struct Ping* ping = (struct Ping*) vping;
+    struct RouterModule_Ping* ping = (struct RouterModule_Ping*) vping;
     struct RouterModule* module = ping->module;
 
     bool freeAlloc = true;
     for (int i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
-        if (ping->timeout == module->pingTimers[i]) {
+        if (ping == module->pings[i]) {
             #ifdef Log_DEBUG
                 uint8_t addr[60];
                 Address_print(addr, &ping->node->address);
                 Log_debug1(module->logger, "Ping timeout %s\n", addr);
             #endif
             RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
-            module->pingTimers[i] = NULL;
-        } else if (module->pingTimers[i] != NULL) {
+            module->pings[i] = NULL;
+        } else if (module->pings[i] != NULL) {
             freeAlloc = false;
         }
     }
+
+    if (ping->isFromAdmin) {
+        pingResponse(ping, true, UINT32_MAX, module);
+    }
+
     if (freeAlloc) {
         module->pingAllocator->free(module->pingAllocator);
         module->pingAllocator = NULL;
@@ -945,23 +1068,20 @@ void pingTimeoutCallback(void* vping)
 }
 
 /** See: RouterModule.h */
-int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
+int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid)
 {
     if (module->pingAllocator == NULL) {
         module->pingAllocator = module->allocator->child(module->allocator);
     }
 
-    struct Timeout** location = NULL;
-    uint8_t i;
-    for (i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
-        if (module->pingTimers[i] == NULL) {
-            location = &module->pingTimers[i];
+    struct RouterModule_Ping** location = NULL;
+    uint8_t index;
+    for (index = 0; index < RouterModule_MAX_CONCURRENT_PINGS; index++) {
+        if (module->pings[index] == NULL) {
+            location = &module->pings[index];
             break;
         }
     }
-    uint8_t txid[2];
-    txid[0] = 'p';
-    txid[1] = i;
 
     if (location == NULL) {
         return -1;
@@ -973,7 +1093,9 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
         Log_debug1(module->logger, "Ping %s\n", addr);
     #endif
 
-    struct Ping* ping = module->pingAllocator->malloc(sizeof(struct Ping), module->pingAllocator);
+    struct RouterModule_Ping* ping =
+        module->pingAllocator->malloc(sizeof(struct RouterModule_Ping), module->pingAllocator);
+    *location = ping;
     ping->node = node;
     ping->module = module;
 
@@ -988,12 +1110,22 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module)
                                        milliseconds,
                                        module->eventBase,
                                        module->pingAllocator);
-    *location = ping->timeout;
 
+    ping->timeSent = Time_currentTimeMilliseconds(module->eventBase);
+
+    uint8_t txidBuff[2];
+    txidBuff[0] = 'p';
+    txidBuff[1] = index;
+    if (txid) {
+        memcpy(ping->txid, txid->bytes, 4);
+    }
+
+    // Assume that if the ping has a txid, then it's from the admin interface.
+    ping->isFromAdmin = (txid != NULL);
 
     sendRequest(&node->address,
                 CJDHTConstants_QUERY_PING,
-                &(String){ .len = 2, .bytes = (char*) txid},
+                &(String) { .len = 2, .bytes = (char*) txidBuff },
                 NULL,
                 NULL,
                 module->registry);
@@ -1007,7 +1139,7 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module)
     NodeStore_addNode(module->nodeStore, address, 0);
     struct Node* best = RouterModule_getBest(address->ip6.bytes, module);
     if (best && best->address.networkAddress_be != address->networkAddress_be) {
-        RouterModule_pingNode(best, module);
+        RouterModule_pingNode(best, module, NULL);
     }
 }
 
@@ -1023,4 +1155,17 @@ struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE]
 struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module)
 {
     return NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
+}
+
+void RouterModule_pingGoodCandidate(struct RouterModule* module)
+{
+    struct Node* n = NodeStore_getGoodCandidate(module->nodeStore);
+    if (n) {
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, &n->address);
+            Log_debug1(module->logger, "Pinging potential good route %s\n", printedAddr);
+        #endif
+        RouterModule_pingNode(n, module, NULL);
+    }
 }

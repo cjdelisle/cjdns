@@ -48,10 +48,12 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  *                  amount causes the reach to become negative or nolonger fit in a uint32
  *                  type, it will be set to 0 or UINT32_MAX, respectively.
  *                  Undefined behavior will result if this input exceeds UINT32_MAX.
+ * @return the node in the node store which was added or NULL if the node is "us".
+ *         NOTE: The reach in this node will be *wrong* because it is not synced with the header.
  */
-void NodeStore_addNode(struct NodeStore* store,
-                       struct Address* addr,
-                       const int64_t reachDiff);
+struct Node* NodeStore_addNode(struct NodeStore* store,
+                               struct Address* addr,
+                               const int64_t reachDiff);
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
@@ -98,5 +100,15 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
 void NodeStore_dumpTables(struct Writer* writeTo, struct NodeStore* store);
 
 void NodeStore_remove(struct Node* node, struct NodeStore* store);
+
+/**
+ * Return a node from the routing table which is likely to yield a good route but is not favored.
+ * Good candidates are defined as nodes whose known link state is worse than average but their
+ * label length is shorter than average. These are probably better nodes but their link state
+ * is low or 0 because they have never been pinged so it's unknown.
+ *
+ * @param store the node store.
+ */
+struct Node* NodeStore_getGoodCandidate(struct NodeStore* store);
 
 #endif

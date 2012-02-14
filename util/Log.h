@@ -20,6 +20,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
+// There are a lot of places where the logger is needed if the log level is high
+// but if it is low, the logger is still there and it will cause warnings.
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 struct Log
 {
@@ -31,6 +36,12 @@ static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, 
     if (!log) {
         return;
     }
+
+    char timeBuff[32];
+    time_t now;
+    time(&now);
+    snprintf(timeBuff, 32, "%u ", (uint32_t) now);
+    log->writer->write(timeBuff, strlen(timeBuff), log->writer);
 
     log->writer->write(logLevel, strlen(logLevel), log->writer);
 
