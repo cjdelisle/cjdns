@@ -414,6 +414,9 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
 
 struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
 {
+    if (store->size < 2) {
+        return NULL;
+    }
     uint32_t start = rand() % (store->size - 1);
     int avgLabel = store->labelSum / store->size;
     for (uint32_t i = start + 1; i != start; i++) {
