@@ -125,7 +125,7 @@ static int genconf()
 
     printf("{\n"
            "    // Private key:\n"
-           "    // This key corrisponds to the public key: %s.k\n", publicKeyBase32);
+           "    // This key corresponds to the public key: %s.k\n", publicKeyBase32);
     printf("    // And the ipv6 address: %s\n", address);
     printf("    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
            "    //\n"

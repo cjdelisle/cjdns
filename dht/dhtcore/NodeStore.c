@@ -488,10 +488,14 @@ static void addRoutingTableEntries(struct NodeStore* store,
     };
 
     if (i >= store->size || j > 500) {
+        if (i > j) {
+            sendEntries(store, last, (j > 500), txid);
+            return;
+        }
+
         linkStateEntry.val->as.number = 0xFFFFFFFF;
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
-
         sendEntries(store, &next, (j > 500), txid);
         return;
     }
