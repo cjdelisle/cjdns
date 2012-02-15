@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef InterfaceMap_H
+#define InterfaceMap_H
+
 struct InterfaceMap_Entry;
 struct InterfaceMap
 {
@@ -114,3 +117,5 @@ static inline int InterfaceMap_put(uint8_t* key,
 
     return i;
 }
+
+#endif

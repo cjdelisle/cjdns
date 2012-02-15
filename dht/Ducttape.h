@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DUCTTAPE_H
-#define DUCTTAPE_H
+#ifndef Ducttape_H
+#define Ducttape_H
 
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/RouterModule.h"

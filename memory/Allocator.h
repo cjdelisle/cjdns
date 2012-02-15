@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MEMALLOCATOR_H
-#define MEMALLOCATOR_H
+#ifndef Allocator_H
+#define Allocator_H
 
 #include <stdlib.h>
 

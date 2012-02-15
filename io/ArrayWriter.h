@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARRAYWRITER_H
-#define ARRAYWRITER_H
+#ifndef ArrayWriter_H
+#define ArrayWriter_H
 
 #include "Writer.h"
 #include <memory/Allocator.h>

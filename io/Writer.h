@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef WRITER_H
-#define WRITER_H
+#ifndef Writer_H
+#define Writer_H
 
 /* size_t */
 #include <stdlib.h>

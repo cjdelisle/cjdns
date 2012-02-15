@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SWITCH_CORE_H
-#define SWITCH_CORE_H
+#ifndef SwitchCore_H
+#define SwitchCore_H
 
 #include "interface/Interface.h"
 #include "util/Log.h"

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EXCEPTION_HANDLER_H
-#define EXCEPTION_HANDLER_H
+#ifndef ExceptionHandler_H
+#define ExceptionHandler_H
 
 struct ExceptionHandler
 {

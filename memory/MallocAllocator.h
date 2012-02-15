@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MALLOC_ALLOCATOR_H
-#define MALLOC_ALLOCATOR_H
+#ifndef MallocAllocator_H
+#define MallocAllocator_H
 
 #include "memory/Allocator.h"
 

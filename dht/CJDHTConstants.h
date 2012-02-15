@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CJDHT_CONSTANTS_H
-#define CJDHT_CONSTANTS_H
+#ifndef CJDHTConstants_H
+#define CJDHTConstants_H
 
 #include "benc/Object.h"
 

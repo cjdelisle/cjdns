@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef AddressMapper_H
+#define AddressMapper_H
+
 #define AddressMapper_MAX_ENTRIES 128
 struct AddressMapper
 {
@@ -89,3 +92,5 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
     assert(!memcmp(map->canary, "\0\0\0", 3));
     return i;
 }
+
+#endif

@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef Time_H
+#define Time_H
+
 #include <sys/time.h>
 #include <event2/event.h>
 
@@ -27,3 +30,5 @@ static inline uint64_t Time_currentTimeSeconds(struct event_base* eventBase)
     event_base_gettimeofday_cached(eventBase, &now);
     return (uint64_t) now.tv_sec;
 }
+
+#endif

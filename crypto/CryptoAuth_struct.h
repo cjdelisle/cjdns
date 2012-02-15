@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CRYPTO_AUTH_STRUCT_H
-#define CRYPTO_AUTH_STRUCT_H
+#ifndef CryptoAuth_struct_H
+#define CryptoAuth_struct_H
 
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"

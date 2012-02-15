@@ -1037,7 +1037,7 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
     }
 }
 
-void pingTimeoutCallback(void* vping)
+static void pingTimeoutCallback(void* vping)
 {
     struct RouterModule_Ping* ping = (struct RouterModule_Ping*) vping;
     struct RouterModule* module = ping->module;

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef HEADERS_H
-#define HEADERS_H
+#ifndef Headers_H
+#define Headers_H
 
 #include "util/Assert.h"
 #include "util/Endian.h"
@@ -93,7 +93,6 @@ static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader
  * shared secret, Bob can provide Charlie with a hash of his password with Alice which will allow
  * Charlie to then establish a secure connection with Alice, without relying exclusively on
  * asymmetrical cryptography.
- * 
  */
 union Headers_AuthChallenge
 {
@@ -137,7 +136,6 @@ static inline uint16_t Headers_getAuthChallengeDerivations(union Headers_AuthCha
 {
     return Endian_hostToBigEndian16(ac->challenge.requirePacketAuthAndDerivationCount)
         & (((uint16_t)~0)>>1);
- 
 }
 
 static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallenge* ac,
@@ -299,7 +297,7 @@ struct Headers_IP6Header
     uint8_t nextHeader;
     uint8_t hopLimit;
     uint8_t sourceAddr[16];
-    uint8_t destinationAddr[16];    
+    uint8_t destinationAddr[16];
 };
 #define Headers_IP6Header_SIZE 40
 Assert_assertTrue(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);

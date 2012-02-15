@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef AllocatorTools_H
+#define AllocatorTools_H
+
 /**
  * Get a pointer which is aligned on memory boundries.
  *
@@ -19,3 +22,5 @@
  */
 #define AllocatorTools_getAligned(pointer, alignedOn) \
     ((char*) ((uintptr_t)( ((char*)(pointer)) + (alignedOn) - 1) & ~ ((alignedOn) - 1)))
+
+#endif

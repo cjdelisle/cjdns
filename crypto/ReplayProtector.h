@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REPLAY_PROTECTOR_H
-#define REPLAY_PROTECTOR_H
+#ifndef ReplayProtector_H
+#define ReplayProtector_H
 
 #include <stdint.h>
 #include <stdbool.h>

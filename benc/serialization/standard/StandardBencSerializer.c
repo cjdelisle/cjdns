@@ -446,7 +446,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* List_getStandardBencSerializer()
+const struct BencSerializer* StandardBencSerializer_get()
 {
     return &SERIALIZER;
 }

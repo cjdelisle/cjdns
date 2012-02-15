@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DHTMODULES_H
-#define DHTMODULES_H
+#ifndef DHTModules_H
+#define DHTModules_H
 
 #include "memory/Allocator.h"
 #include "io/Reader.h"
@@ -23,9 +23,7 @@
  * Maximum number of bytes in a message.
  * Ethernet MTU is 1500 so it's hard to imagine much more.
  */
-#define MAX_MESSAGE_SIZE 1536
-
-#define MAX_TRANSACTION_ID_SIZE 16
+#define DHTModules_MAX_MESSAGE_SIZE 1536
 
 /**
  * This struct represents a DHT message which will be passed to the
@@ -41,7 +39,7 @@ struct DHTMessage
     char padding[512];
 
     /** The message in binary format. */
-    char bytes[MAX_MESSAGE_SIZE];
+    char bytes[DHTModules_MAX_MESSAGE_SIZE];
 
     /** The length of the binary message. */
     unsigned short length;

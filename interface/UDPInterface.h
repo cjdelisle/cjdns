@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUNNEL_OVER_IP_H
-#define TUNNEL_OVER_IP_H
+#ifndef UDPInterface_H
+#define UDPInterface_H
 
 #include <event2/event.h>
 

@@ -112,7 +112,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-struct Interface* TunInterface_new(String* interfaceName,
+struct Interface* TUNInterface_new(String* interfaceName,
                                    struct event_base* base,
                                    struct Allocator* allocator)
 {

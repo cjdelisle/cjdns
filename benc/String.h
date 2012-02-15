@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef STRING_H
-#define STRING_H
+#ifndef String_H
+#define String_H
 
 #include "memory/Allocator.h"
 

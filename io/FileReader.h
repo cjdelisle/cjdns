@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef FILEREADER_H
-#define FILEREADER_H
+#ifndef FileReader_H
+#define FileReader_H
 
 #include "io/Reader.h"
 #include "memory/Allocator.h"

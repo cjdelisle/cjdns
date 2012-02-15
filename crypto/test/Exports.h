@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EXPORTS_H
-#define EXPORTS_H
+#ifndef Exports_H
+#define Exports_H
 
 #include <stdint.h>
 

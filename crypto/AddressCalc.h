@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADDRESS_CALC_H
-#define ADDRESS_CALC_H
+#ifndef AddressCalc_H
+#define AddressCalc_H
 
 #include <stdint.h>
 

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef RATE_LIMIT_MODULE_H
-#define RATE_LIMIT_MODULE_H
+#ifndef RateLimitModule_H
+#define RateLimitModule_H
 
 #include <event2/event.h>
 

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADMIN_H
-#define ADMIN_H
+#ifndef Admin_H
+#define Admin_H
 
 #include <event2/event.h>
 

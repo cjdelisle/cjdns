@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CRYPTO_AUTH_H
-#define CRYPTO_AUTH_H
+#ifndef CryptoAuth_H
+#define CryptoAuth_H
 
 #include "benc/Object.h"
 #include "interface/Interface.h"

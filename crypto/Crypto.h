@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CRYPTO_H
-#define CRYPTO_H
+#ifndef Crypto_H
+#define Crypto_H
 
 #include "wire/Message.h"
 
@@ -24,6 +24,6 @@
  */
 void Crypto_init();
 
-void randombytes(unsigned char* buffer, unsigned long long size);
+void randombytes(unsigned char* buffer, unsigned long long size); // CHECKFILES_IGNORE
 
 #endif

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LABEL_SPLICER_H
-#define LABEL_SPLICER_H
+#ifndef LabelSplicer_H
+#define LabelSplicer_H
 
 #include <stdint.h>
 #include <stdbool.h>

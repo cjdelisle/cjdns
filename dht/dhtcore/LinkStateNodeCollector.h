@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LINK_STATE_NODE_COLLECTOR_H
-#define LINK_STATE_NODE_COLLECTOR_H
+#ifndef LinkStateNodeCollector_H
+#define LinkStateNodeCollector_H
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
@@ -57,7 +57,7 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
     if (nodeDistance < collector->thisNodeDistance) {
 
         uint64_t value = 0;
-        #define NodeCollector_getValue(value, header, body, nodeDistance) \
+        #define LinkStateNodeCollector_getValue(value, header, body, nodeDistance) \
             if (value == 0) {                                                                    \
                 value = header->reach * (64 - Bits_log2x64_be(body->address.networkAddress_be)); \
             }
@@ -69,7 +69,7 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                NodeCollector_getValue(value, header, body, nodeDistance);
+                LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
                 if (value < nodes[i].value) {
                     break;
                 }
@@ -92,12 +92,12 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;
-            NodeCollector_getValue(value, header, body, nodeDistance);
+            LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
             nodes[i - 1].value = value;
             nodes[i - 1].distance = nodeDistance;
         }
 
-        #undef NodeCollector_getValue
+        #undef LinkStateNodeCollector_getValue
     }
 }
 

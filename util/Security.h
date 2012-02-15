@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef Security_H
+#define Security_H
+
 #include "exception/ExceptionHandler.h"
 #include "util/Log.h"
 
@@ -40,10 +43,14 @@ static inline void Security_setUser(char* userName, struct Log* logger, struct E
 static inline void Security_noFiles(struct ExceptionHandler* eh)
 {
     #ifdef BSD
-        #define RLIMIT_NOFILE RLIMIT_OFILE
+        #define Security_OPEN_FILE_LIMIT RLIMIT_OFILE
+    #else
+        #define Security_RLIMIT_NOFILE
     #endif
     errno = 0;
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
         eh->exception(__FILE__ " failed to set open file limit to zero.", errno, eh);
     }
 }
+
+#endif

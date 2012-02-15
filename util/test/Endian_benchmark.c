@@ -42,7 +42,7 @@ int main()
             }                                                                               \
             printf("// " #operation " performed in %u ms.\n", (uint32_t)(time2 - time1));   \
         }
-        
+
     TRY(Endian_byteSwap64_manual)
 
     #ifdef Endian_byteSwap64_bswap_64

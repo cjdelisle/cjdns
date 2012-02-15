@@ -40,13 +40,13 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1);
     ret |= expect("i1e", writer, reader, ret);
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1000);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1000);
     ret |= expect("i1000e", writer, reader, ret);
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, -100);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, -100);
     ret |= expect("i-100e", writer, reader, ret);
 
     return ret;

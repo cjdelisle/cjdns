@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SESSION_MANAGER_H
-#define SESSION_MANAGER_H
+#ifndef SessionManager_H
+#define SessionManager_H
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"

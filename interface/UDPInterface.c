@@ -224,8 +224,8 @@ static inline uint32_t getAddr(struct sockaddr_storage* addr)
     return out;
 }
 
-struct Interface* insertEndpoint(struct sockaddr_storage* addr,
-                                 struct UDPInterface* context)
+static struct Interface* insertEndpoint(struct sockaddr_storage* addr,
+                                        struct UDPInterface* context)
 {
     if (context->endpointCount >= MAX_INTERFACES) {
         return NULL;

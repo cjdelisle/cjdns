@@ -31,13 +31,13 @@ int parseEmptyList()
     struct Allocator* alloc = BufferAllocator_new(buffer, 512);
     struct Reader* reader = ArrayReader_new(test, strlen(test), alloc);
     Dict d;
-    int ret = List_getStandardBencSerializer()->parseDictionary(reader, alloc, &d);
+    int ret = StandardBencSerializer_get()->parseDictionary(reader, alloc, &d);
     if (ret) {
         return ret;
     }
     char out[256];
     struct Writer* w = ArrayWriter_new(out, 256, alloc);
-    ret = List_getStandardBencSerializer()->serializeDictionary(w, &d);
+    ret = StandardBencSerializer_get()->serializeDictionary(w, &d);
     if (ret) {
         return ret;
     }

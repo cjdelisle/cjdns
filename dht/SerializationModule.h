@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SERIALIZATIONMODULE_H
-#define SERIALIZATIONMODULE_H
+#ifndef SerializationModule_H
+#define SerializationModule_H
 
 #include "DHTModules.h"
 

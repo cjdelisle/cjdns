@@ -554,7 +554,7 @@ static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* c
     Dict* iface = Dict_getDict(config, BSTR("interface"));
     if (String_equals(Dict_getString(iface, BSTR("type")), BSTR("TUNInterface"))) {
         String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
-        context->routerIf = TunInterface_new(tunPath, context->base, context->allocator);
+        context->routerIf = TUNInterface_new(tunPath, context->base, context->allocator);
     }
     context->routerModule = RouterModule_register(context->registry,
                                                   context->allocator,
@@ -650,7 +650,7 @@ int main(int argc, char** argv)
     #endif
     Crypto_init();
     assert(argc > 0);
-    
+
     if (argc == 1) { // no arguments
         if (isatty(STDIN_FILENO)) {
             // We were started from a terminal
@@ -682,7 +682,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         return -1;
     }
-    
+
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
     context.base = event_base_new();
@@ -691,7 +691,7 @@ int main(int argc, char** argv)
     context.allocator = MallocAllocator_new(1<<22);
     struct Reader* reader = FileReader_new(stdin, context.allocator);
     Dict config;
-    if (List_getJsonBencSerializer()->parseDictionary(reader, context.allocator, &config)) {
+    if (JsonBencSerializer_get()->parseDictionary(reader, context.allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }

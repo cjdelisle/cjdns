@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DISTANCE_NODE_COLLECTOR_H
-#define DISTANCE_NODE_COLLECTOR_H
+#ifndef DistanceNodeCollector_H
+#define DistanceNodeCollector_H
 
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"

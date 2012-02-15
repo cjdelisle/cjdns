@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARRAYREADER_H
-#define ARRAYREADER_H
+#ifndef ArrayReader_H
+#define ArrayReader_H
 
 #include "Reader.h"
 #include <memory/Allocator.h>

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_COLLECTOR_H
-#define NODE_COLLECTOR_H
+#ifndef NodeCollector_H
+#define NodeCollector_H
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"

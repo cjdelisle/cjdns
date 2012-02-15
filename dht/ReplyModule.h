@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REPLY_MODULE_H
-#define REPLY_MODULE_H
+#ifndef ReplyModule_H
+#define ReplyModule_H
 
 #include "dht/DHTModules.h"
 

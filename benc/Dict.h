@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DICT_H
-#define DICT_H
+#ifndef Dict_H
+#define Dict_H
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"

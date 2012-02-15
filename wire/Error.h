@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef Error_H
+#define Error_H
 
 /** No error, everything is ok. */
 #define Error_NONE                 0

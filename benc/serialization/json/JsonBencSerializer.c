@@ -261,7 +261,6 @@ static inline int parseComment(const struct Reader* reader)
         default:
             printf("Warning: expected a comment starting with \"//\" or \"/*\", instead found \"/%c\"\n",chars[1]);
             return UNPARSABLE;
-            
     }
 }
 
@@ -318,7 +317,7 @@ static int32_t parseList(const struct Reader* reader,
             }
             break;
         }
-        
+
         if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
             return ret;
         }
@@ -349,7 +348,7 @@ static int32_t serializeDictionaryWithPadding(const struct Writer* writer,
     while (entry != NULL) {
         PAD(padSpaceCount + 2, padCounter, writer);
         serializeString(writer, entry->key);
-        writer->write(" : ", 3, writer);        
+        writer->write(" : ", 3, writer);
         serializeGenericWithPadding(writer, padSpaceCount + 2, entry->val);
         entry = entry->next;
         if (entry != NULL) {
@@ -562,7 +561,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* List_getJsonBencSerializer()
+const struct BencSerializer* JsonBencSerializer_get()
 {
     return &SERIALIZER;
 }

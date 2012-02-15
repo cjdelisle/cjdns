@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef HEX_H
-#define HEX_H
+#ifndef Hex_H
+#define Hex_H
 
 #include <stdint.h>
 #include <stdbool.h>

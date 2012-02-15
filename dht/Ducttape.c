@@ -119,8 +119,9 @@ static inline uint8_t incomingDHT(struct Message* message,
     memset(&dht, 0, sizeof(struct DHTMessage));
 
     // TODO: These copies are not necessary at all.
-    const uint32_t length =
-        (message->length < MAX_MESSAGE_SIZE) ? message->length : MAX_MESSAGE_SIZE;
+    const uint32_t length = (message->length < DHTModules_MAX_MESSAGE_SIZE)
+        ? message->length
+        : DHTModules_MAX_MESSAGE_SIZE;
     memcpy(dht.bytes, message->bytes, length);
 
     dht.address = addr;
@@ -368,7 +369,7 @@ static inline int core(struct Message* message, struct Context* context)
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
     }
-    
+
     // Do this here and check for 1 hop, not 0 because we want to differentiate between single
     // hop traffic and routed traffic as single hop traffic doesn't need 2 layers of crypto.
     if (context->ip6Header->hopLimit == 1) {

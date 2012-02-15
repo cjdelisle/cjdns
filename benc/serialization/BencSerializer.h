@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BENC_SERIALIZER_H
-#define BENC_SERIALIZER_H
+#ifndef BencSerializer_H
+#define BencSerializer_H
 
 #include "benc/Object.h"
 #include "io/Writer.h"

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BUFFERALLOCATOR_H
-#define BUFFERALLOCATOR_H
+#ifndef BufferAllocator_H
+#define BufferAllocator_H
 
 #include "Allocator.h"
 

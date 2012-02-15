@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MESSAGE_H
-#define MESSAGE_H
+#ifndef Message_H
+#define Message_H
 
 #include <assert.h>
 #include <stdbool.h>

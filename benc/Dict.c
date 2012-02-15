@@ -37,10 +37,10 @@ static Object* lookupObject(const Dict* dictionary, const String* key)
         if (String_equals(key, curr->key)) {
             return curr->val;
         }
-        
+
         curr = curr->next;
     }
-    
+
     /* key not found */
     return NULL;
 }
@@ -205,7 +205,7 @@ int32_t Dict_remove(Dict* dictionary, const String* key)
             *prev_p = current->next;
             return 1;
         }
-        
+
         prev_p = &(current->next);
         current = current->next;
     }

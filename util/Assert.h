@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ASSERT_H
-#define ASSERT_H
+#ifndef Assert_H
+#define Assert_H
 
 /**
  * Prevent compilation if assertion is false.

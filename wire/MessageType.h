@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MESSAGE_TYPE_H
-#define MESSAGE_TYPE_H
+#ifndef MessageType_H
+#define MessageType_H
 
 #include "wire/Headers.h"
 

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ROUTER_MODULE_H
-#define ROUTER_MODULE_H
+#ifndef RouterModule_H
+#define RouterModule_H
 
 #include <stdint.h>
 #include <stdbool.h>

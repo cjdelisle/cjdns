@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AVERAGEROLLER_H
-#define AVERAGEROLLER_H
+#ifndef AverageRoller_H
+#define AverageRoller_H
 
 #include "memory/Allocator.h"
 

@@ -79,7 +79,7 @@ struct Context
     struct event* apiEvent;
 };
 
-void fileHandler(struct evhttp_request* req, void* vcontext)
+static void fileHandler(struct evhttp_request* req, void* vcontext)
 {
     struct Context* context = (struct Context*) vcontext;
     char html[MAX_FILE_SZ];
@@ -162,7 +162,7 @@ void fileHandler(struct evhttp_request* req, void* vcontext)
     evbuffer_free(buff);
 }
 
-void apiHandler(struct evhttp_request* req, void* vcontext)
+static void apiHandler(struct evhttp_request* req, void* vcontext)
 {
     struct Context* context = (struct Context*) vcontext;
     context=context;
@@ -265,7 +265,7 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     evbuffer_free(buff);
 }
 
-void setupApi(char* ipAndPort, struct Context* context)
+static void setupApi(char* ipAndPort, struct Context* context)
 {
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);

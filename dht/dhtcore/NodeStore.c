@@ -475,7 +475,7 @@ static void addRoutingTableEntries(struct NodeStore* store,
         .key = &(String) { .len = 4, .bytes = "linkState" },
         .val = &(Object) { .type = Object_INTEGER }
     };
-    
+
     uint8_t ip[40];
     String ipStr = { .len = 39, .bytes = (char*)ip };
     struct Dict_Entry entry = {

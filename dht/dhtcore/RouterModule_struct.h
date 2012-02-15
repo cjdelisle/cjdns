@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ROUTER_MODULE_STRUCT
-#define ROUTER_MODULE_STRUCT
+#ifndef RouterModule_struct_H
+#define RouterModule_struct_H
 
 /**
  * Internal structures which are needed for testing but should not be exposed to the outside world.

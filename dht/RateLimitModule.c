@@ -108,7 +108,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 
     if (context->requestsHandledThisSecond > context->targetRequestsPerSecond) {
         // Recalculate the drop rate.
-        context->dropRate = 
+        context->dropRate =
             (context->requestsHandledThisSecond
                 - context->targetRequestsPerSecond) * RAND_MAX / context->targetRequestsPerSecond;
     }

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SEARCH_STORE_H
-#define SEARCH_STORE_H
+#ifndef SearchStore_H
+#define SearchStore_H
 
 #include "dht/Address.h"
 #include "memory/Allocator.h"

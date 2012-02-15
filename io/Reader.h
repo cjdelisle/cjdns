@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef READER_H
-#define READER_H
+#ifndef Reader_H
+#define Reader_H
 
 /* size_t */
 #include <stdlib.h>

@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUN_INTERFACE_H
-#define TUN_INTERFACE_H
+#ifndef TUNInterface_H
+#define TUNInterface_H
 
 #include <event2/event.h>
 
@@ -20,7 +20,7 @@
 #include "benc/Object.h"
 #include "memory/Allocator.h"
 
-struct Interface* TunInterface_new(String* interfaceName,
+struct Interface* TUNInterface_new(String* interfaceName,
                                    struct event_base* base,
                                    struct Allocator* allocator);
 

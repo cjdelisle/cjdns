@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef Janitor_H
+#define Janitor_H
+
 #include <stdint.h>
 #include <event2/event.h>
 
@@ -30,3 +33,5 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
 
 void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
                                        struct Janitor* janitor);
+
+#endif

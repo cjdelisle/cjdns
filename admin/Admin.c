@@ -104,7 +104,7 @@ static void handleRequestFromChild(struct Admin* admin,
 
     struct Reader* reader = ArrayReader_new(buffer + skip, amount - skip, allocator);
     Dict message;
-    if (List_getStandardBencSerializer()->parseDictionary(reader, allocator, &message)) {
+    if (StandardBencSerializer_get()->parseDictionary(reader, allocator, &message)) {
         return;
     }
 
@@ -206,7 +206,7 @@ struct ChildContext
     struct Allocator* allocator;
 };
 
-void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
+static void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct ChildContext* context = (struct ChildContext*) vcontext;
     eventType = eventType;
@@ -237,7 +237,7 @@ void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
     }
 }
 
-void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
+static void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
@@ -260,7 +260,7 @@ void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
     }
 }
 
-struct Connection* newConnection(struct ChildContext* context, evutil_socket_t fd)
+static struct Connection* newConnection(struct ChildContext* context, evutil_socket_t fd)
 {
     struct Connection* conn = NULL;
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
@@ -285,7 +285,7 @@ struct Connection* newConnection(struct ChildContext* context, evutil_socket_t f
     return conn;
 }
 
-void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
+static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct ChildContext* context = (struct ChildContext*) vcontext;
 
@@ -309,7 +309,7 @@ void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
 }
 
 // only in child
-void child(Dict* config, struct ChildContext* context)
+static void child(Dict* config, struct ChildContext* context)
 {
     context->dataFromParent =
         event_new(context->eventBase,
@@ -399,7 +399,7 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     int skip = (txid) ? 8 : 0;
 
     struct Writer* w = ArrayWriter_new(buff + skip, MAX_API_REQUEST_SIZE - skip, allocator);
-    List_getStandardBencSerializer()->serializeDictionary(w, message);
+    StandardBencSerializer_get()->serializeDictionary(w, message);
     size_t written = w->bytesWritten(w) + skip;
     if (txid) {
         memcpy(buff, "4567", 4);
@@ -407,13 +407,6 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     }
     size_t ignore = write(admin->outFd, buff, written);
     ignore = ignore;
-}
-
-void setUser(String* name)
-{
-    if (name) {
-        Security_setUser(name->bytes, NULL, AbortHandler_INSTANCE);
-    }
 }
 
 struct Admin* Admin_new(Dict* config,

@@ -27,7 +27,7 @@
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
 
 /** This defines what format the registry will be serialized in. */
-#define SERIALIZER List_getStandardBencSerializer()
+#define SERIALIZER StandardBencSerializer_get()
 
 /*--------------------Prototypes--------------------*/
 static void forEachModule(int (*doThis)(struct DHTModule* module, struct DHTMessage* message),
@@ -155,7 +155,7 @@ struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
 /**
  * Deserialize the context for this module.
  * First the registry is deserialized then the modules are registered.
- * When the modules are registered, if they have serialized contexts, 
+ * When the modules are registered, if they have serialized contexts,
  * those are deserialized by this function which calls their own
  * deserialization functions.
  *

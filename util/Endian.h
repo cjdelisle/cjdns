@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ENDIAN_H
-#define ENDIAN_H
+#ifndef Endian_H
+#define Endian_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -35,7 +35,7 @@ static inline bool Endian_checkIsBigEndian()
         char c[4];
     } bint = {0x01020304};
 
-    return bint.c[0] == 1; 
+    return bint.c[0] == 1;
 }
 #define Endian_isBigEndian() Endian_checkIsBigEndian()
 

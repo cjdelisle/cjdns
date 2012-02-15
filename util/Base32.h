@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BASE32_H
-#define BASE32_H
+#ifndef Base32_H
+#define Base32_H
 
 #include <stdint.h>
 
@@ -59,38 +59,38 @@ int Base32_decode(uint8_t* output,
         21,22,23,24,25,26,27,28,29,30,31,99,99,99,99,99
     };
 
-   uint32_t outIndex = 0;
-   uint32_t inputIndex = 0;
-   uint32_t nextByte = 0;
-   uint32_t bits = 0;
+    uint32_t outIndex = 0;
+    uint32_t inputIndex = 0;
+    uint32_t nextByte = 0;
+    uint32_t bits = 0;
 
-   while (inputIndex < inputLength) {
-      if (in[inputIndex] & 0x80) {
-         return Base32_BAD_INPUT;
+    while (inputIndex < inputLength) {
+        if (in[inputIndex] & 0x80) {
+            return Base32_BAD_INPUT;
         }
-      const uint8_t b = numForAscii[in[inputIndex++]];
-      if (b > 31) {
-         return Base32_BAD_INPUT;
-      }
+        const uint8_t b = numForAscii[in[inputIndex++]];
+        if (b > 31) {
+            return Base32_BAD_INPUT;
+        }
 
-      nextByte |= ((unsigned) b) << bits;
-      bits += 5;
+        nextByte |= ((unsigned) b) << bits;
+        bits += 5;
 
-      if (bits >= 8) {
-         if (outIndex >= outLength) {
-            return Base32_TOO_BIG;
-         }
-         output[outIndex++] = nextByte;
-         bits -= 8;
-         nextByte >>= 8;
-      }
-   }
+        if (bits >= 8) {
+            if (outIndex >= outLength) {
+                return Base32_TOO_BIG;
+            }
+            output[outIndex++] = nextByte;
+            bits -= 8;
+            nextByte >>= 8;
+        }
+    }
 
-   if (bits >= 5 || nextByte) {
-		     return Base32_BAD_INPUT;
-   }
+    if (bits >= 5 || nextByte) {
+        return Base32_BAD_INPUT;
+    }
 
-   return outIndex;
+    return outIndex;
 }
 
 /**

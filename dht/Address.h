@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADDRESS_H
-#define ADDRESS_H
+#ifndef Address_H
+#define Address_H
 
 #include "crypto/AddressCalc.h"
 #include "util/Assert.h"

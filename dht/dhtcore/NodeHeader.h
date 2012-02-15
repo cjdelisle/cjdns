@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_HEADER_H
-#define NODE_HEADER_H
+#ifndef NodeHeader_H
+#define NodeHeader_H
 
 #include "util/Assert.h"
 

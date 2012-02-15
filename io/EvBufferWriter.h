@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EV_BUFFER_WRITER_H
-#define EV_BUFFER_WRITER_H
+#ifndef EvBufferWriter_H
+#define EvBufferWriter_H
 
 #include "Writer.h"
 #include "memory/Allocator.h"

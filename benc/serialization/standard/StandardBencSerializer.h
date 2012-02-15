@@ -11,7 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef STANDARD_BENC_SERIALIZER_H
-#define STANDARD_BENC_SERIALIZER_H
-const struct BencSerializer* List_getStandardBencSerializer();
+#ifndef StandardBencSerializer_H
+#define StandardBencSerializer_H
+const struct BencSerializer* StandardBencSerializer_get();
 #endif

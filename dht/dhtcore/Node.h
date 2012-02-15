@@ -11,8 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_H
-#define NODE_H
+#ifndef Node_H
+#define Node_H
 
 #include "dht/Address.h"
 
