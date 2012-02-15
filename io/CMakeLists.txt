@@ -17,4 +17,4 @@ target_link_libraries(cjdio cjdmemory ${LIBEVENT2_LIBRARIES})
 
 # Everything must be tested.
 enable_testing()
-#add_subdirectory(test) later
+add_subdirectory(test)
