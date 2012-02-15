@@ -27,7 +27,8 @@ int main()
     FILE* tmp = tmpfile();
     uint8_t buffer1[2048];
     randombytes(buffer1, 2048);
-    fwrite(buffer1, 1, 2048, tmp);
+    size_t iDoNotCare = fwrite(buffer1, 1, 2048, tmp);
+    iDoNotCare = iDoNotCare;
 
     struct Allocator* alloc = MallocAllocator_new(256);
 
