@@ -17,27 +17,15 @@ Codestyle:
 remove carrage return characters as lines in the codebase are \n deliniated.
 * File names and structures are CamelCase with first letter capital.
 * All globally visible functions shall begin with the name of the file in which they are defined
-followed by an underscore and then the name of the function.
-AKA:
-
-
-    ThingThatDoesStuff_doStuff()
-
+followed by an underscore and then the name of the function. AKA `ThingThatDoesStuff_doStuff()`
 * Functions and local variables shall use camelCase names with first letter lowercase.
 * Structures declared in header files must begin with, or be, the name of the header in which they
 are declared.
 * Global variables as well as static local variables are forbidden. Constants are acceptable.
 * All preprocessor definitions in header files must contain the name of the header file followed
-by an underscore and the definition name in all capitals AKA:
-
-
-    #define SillyMath_VALUE_OF_PI 3
-
-or
-
-    #define SillyMath_DIVIDE(a,b) (a / b)`
-
-it is sometimes acceptable for macros to use camel case as is done in Endian.h, use judgement.
+by an underscore and the definition name in all capitals AKA `define SillyMath_VALUE_OF_PI 3` 
+or `#define SillyMath_DIVIDE(a,b) (a / b)` it is sometimes acceptable for macros to use camel case
+as is done in Endian.h, use judgement.
 
 
 If there is a better way, come to irc and announce it,
@@ -65,10 +53,9 @@ as is done in Crypto.c
 Testing
 -------
 
-We always need more tests, but nobody likes writing them.
 Any file in a /test/ subdirectory which ends with _test.c will be compiled as a test and added
 to the testing regime through some cmake hackery. you might have to cmake .. again before typing
 make. Tests can fail by returning non-zero or using assert statements, whatever makes sense.
 Tests are exempt from most code style rules and checkfiles.pl is much easier on them.
 
-All patches which add tests will be addressed before any patches which don't.
+*All patches which add tests will be addressed before any patches which don't.*
