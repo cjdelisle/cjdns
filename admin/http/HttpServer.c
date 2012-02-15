@@ -48,6 +48,8 @@
 #define MAX_FILE_SZ (1<<20)
 #define MAX_CONCURRENT_REQUESTS 32
 #define MAX_API_REPLY_SIZE (1<<16)
+#define LISTENPORT 51902
+#define LISTENADDR "::1"
 
 struct Request
 {
@@ -290,11 +292,17 @@ void setupApi(char* ipAndPort, struct Context* context)
 
 int main(int argc, char **argv)
 {
+	 uint16_t listenPort = LISTENPORT;
+	 char* listenAddr = LISTENADDR;
     assert(argc > 0);
     if (argc < 3) {
-        printf("Usage: %s address.of.api.server:port /full/path/to/directory/\n", argv[0]);
+        printf("Usage: %s address.of.api.server:port /full/path/to/directory/ [listen.address.without.brackets [listen.port]]\n", argv[0]);
         return 0;
     }
+	 if (argc > 3) {
+		 listenAddr = argv[3];
+		 if (argc > 4) { listenPort = atoi(argv[4]); }
+	 }
     Crypto_init();
 
     struct Context context;
@@ -310,7 +318,7 @@ int main(int argc, char **argv)
     setupApi(argv[1], &context);
 
     struct evhttp* httpd = evhttp_new(context.eventBase);
-    evhttp_bind_socket(httpd, "::", 51902);
+    evhttp_bind_socket(httpd, listenAddr, listenPort);
     evhttp_set_cb(httpd, "/api/", apiHandler, &context);
     evhttp_set_gencb(httpd, fileHandler, &context);
 
