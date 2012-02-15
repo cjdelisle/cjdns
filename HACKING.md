@@ -20,7 +20,7 @@ remove carrage return characters as lines in the codebase are \n deliniated.
 followed by an underscore and then the name of the function.
 AKA:
 
-    ThingThatDoesStuff_doStuff()
+    `ThingThatDoesStuff_doStuff()`
 
 * Functions and local variables shall use camelCase names with first letter lowercase.
 * Structures declared in header files must begin with, or be, the name of the header in which they
@@ -29,11 +29,11 @@ are declared.
 * All preprocessor definitions in header files must contain the name of the header file followed
 by an underscore and the definition name in all capitals AKA:
 
-    #define SillyMath_VALUE_OF_PI 3
+    `#define SillyMath_VALUE_OF_PI 3`
 
 or
 
-    #define SillyMath_DIVIDE(a,b) (a / b)
+    `#define SillyMath_DIVIDE(a,b) (a / b)`
 
 it is sometimes acceptable for macros to use camel case as is done in Endian.h, use judgement.
 
