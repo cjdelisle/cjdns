@@ -20,24 +20,37 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
+#ifdef _WIN32   
+    // Windows
+	#include <w32api.h>
+	#include <ws2tcpip.h>
+	#include <w32api.h>
+	#include <ws2tcpip.h>
+	#include <Winsock2.h>
+	#define WINVER WindowsXP // WHY?
+	#define WINVER WindowsXP
+	#define EMSGSIZE WSAEMSGSIZE
+	#define ENOBUFS WSAENOBUFS
+	#define EWOULDBLOCK WSAEWOULDBLOCK
+	#ifdef _MSC_VER
+		#define sa_family_t ADDRESS_FAMILY
+	#else
+		#define sa_family_t USHORT
+	#endif
+#elif defined __linux__
+    // Linux
+	#include <arpa/inet.h>
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+#elif defined TARGET_OS_X
+    // Mac  
+#else
+#endif
+
 #include <assert.h>
 #include <string.h>
 #include <event2/event.h>
-#ifndef WIN32
- #include <arpa/inet.h>
- #include <sys/types.h>
- #include <sys/socket.h>
- #include <netinet/in.h>
-#else
- #include <w32api.h>
- #define WINVER WindowsXP
- #include <ws2tcpip.h>
- #ifdef _MSC_VER
-  #define sa_family_t ADDRESS_FAMILY
- #else
-  #define sa_family_t USHORT
- #endif
-#endif
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192

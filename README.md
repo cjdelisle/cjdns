@@ -1,3 +1,5 @@
+This is an indev port of cjdns (cjd's Network Suite) to the Windows platform (specifically Win7).
+
 cjdns: cjd's Network Suite
 ==========================
 

@@ -11,12 +11,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/stat.h>
+#ifdef _WIN32   
+    // Windows
+#elif defined __linux__
+    // Linux  
+	#include <sys/types.h>
+	#include <sys/queue.h>
+	#include <sys/stat.h>
+	#include <linux/limits.h>
+#elif defined TARGET_OS_X
+    // Mac  
+#else
+#endif
+ 
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/limits.h>
 #include <assert.h>
 #include <errno.h>
 #include <err.h>

@@ -11,8 +11,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef _WIN32   
+    // Windows
+	#include <time.h> // TODO WILL THIS DO?
+#elif defined __linux__
+    // Linux
+	#include <sys/time.h>
+#elif defined TARGET_OS_X
+    // Mac  
+#else
+#endif
+
 #include <stdint.h>
-#include <sys/time.h>
 #include <event2/event.h>
 
 #include "memory/Allocator.h"
