@@ -219,7 +219,7 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
 
     struct Allocator* childAlloc = MallocAllocator_new(0);
 
-    *(context->spaceAvailable) -= sizeof(struct FirstContext);
+    *(context->spaceAvailable) -= (sizeof(struct FirstContext) + sizeof(struct Allocation));
 
     struct Context* child = (struct Context*) childAlloc->context;
     child->maxSpace = context->maxSpace;
