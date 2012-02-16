@@ -31,10 +31,23 @@ struct Context {
 static int read(void* readInto, size_t length, const struct Reader* reader)
 {
     struct Context* context = (struct Context*) reader->context;
+
+    bool peek = false;
+    if (length == 0) {
+        peek = true;
+        length++;
+    }
+
     if (context->failed || fread((char*)readInto, 1, length, context->toRead) != length) {
         context->failed = true;
         return -1;
     }
+
+    if (peek) {
+        ungetc(((char*)readInto)[0], context->toRead);
+        length--;
+    }
+
     context->bytesRead += length;
     return 0;
 }
