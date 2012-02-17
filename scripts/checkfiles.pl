@@ -12,6 +12,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use strict;
+use warnings;
 
 my $lineInfo;
 my $ignore;
@@ -49,18 +50,27 @@ foreach my $fileName (split("\n", $files))
 
     open FILE, "$fileName" or die $!;
     my $lineNum = 1;
+    my $parenthCount = 0;
+    my $expectBracket = 0;
 
     foreach my $line (split("\n", <FILE>)) {
         $lineNum++;
 
         if ($lineNum < @headerArray.length) {
-            my $expectedLine = @headerArray[$lineNum - 2];
+            my $expectedLine = $headerArray[$lineNum - 2];
             if (index($line, $expectedLine) == -1) {
                 error("missing header\n$expectedLine\n$line");
             }
         }
 
         $ignore = ($line =~ /CHECKFILES_IGNORE/);
+
+        if ($expectBracket == 1) {
+            $expectBracket = 0;
+            if ($line !~ /^[\s]*{/) {
+                error("expecting a { bracket " . $line);
+            }
+        }
 
         if (!($fileName =~ /_test/)) {
             if ($line =~ /^\w+\s.*\(/) {
@@ -90,6 +100,26 @@ foreach my $fileName (split("\n", $files))
 
         if ($line =~ /\s$/) {
             error("trailing whitespace.");
+        }
+
+        if ($line =~ /(if|for|while)\(/) {
+            error("If/for/while statements must be followed by whitespace.");
+        }
+        if ($parenthCount > 0 || $line =~ /[^\w#](if|for|while) (\(.*$)/) {
+            my $txt = ($parenthCount > 0) ? $line : $2;
+            $parenthCount += (($txt =~ tr/(//) - ($txt =~ tr/)//));
+            if ($parenthCount == 0) {
+                $txt = substr($txt, rindex($txt, ')') + 1);
+                # for (x; y; z) ;
+                # is not an unbracketed block.
+                if ($txt !~ /[\s]*;/ && $txt !~ /[\s]+{/) {
+                    if ($txt =~ /[\s]*$/) {
+                        $expectBracket = 1;
+                    } else {
+                        error($parenthCount . '  ' . $line);
+                    }
+                }
+            }
         }
     }
 }
