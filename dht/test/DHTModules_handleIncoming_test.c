@@ -74,7 +74,7 @@ int testInputHandler()
 
     if (context.ret == -1) {
         printf("message not received");
-    } else if (context.ret == -2){
+    } else if (context.ret == -2) {
         printf("wrong message received");
     } else if (context2.ret == -1) {
         printf("message not received by all handlers.");

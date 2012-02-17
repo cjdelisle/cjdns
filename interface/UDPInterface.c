@@ -186,7 +186,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     }
 
     if (bindAddr != NULL) {
-        if(bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
+        if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
             exHandler->exception(__FILE__ " UDPInterface_new() Failed to bind socket.",
                                  errno, exHandler);
             return NULL;

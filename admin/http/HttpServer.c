@@ -124,7 +124,7 @@ static void fileHandler(struct evhttp_request* req, void* vcontext)
         if (S_ISDIR(st.st_mode)) {
             strcpy(path, context->workingDir);
             strcat(path, LIBSRVR_INDEX);
-            if(stat(path, &st) == -1) {
+            if (stat(path, &st) == -1) {
                 evhttp_send_error(req, HTTP_NOTFOUND, "not found");
                 return;
             }

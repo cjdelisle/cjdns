@@ -129,10 +129,11 @@ static inline int parseString(const struct Reader* reader,
             return 0;
         }
         if (reader->read(buffer + i + 1, 1, reader)) {
-            if (i+1 <= 20)
+            if (i+1 <= 20) {
                 printf("Unterminated string \"%.*s\"\n", i+1, buffer);
-            else
+            } else {
                 printf("Unterminated string starting with \"%.*s...\"\n", 20, buffer);
+            }
             return OUT_OF_CONTENT_TO_READ;
         }
     }
