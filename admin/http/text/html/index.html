@@ -15,9 +15,7 @@
 				text-decoration: none;
 			}
 			a:hover { text-decoration: underline; }
-			svg { background-color:#F8F8FF; }
-			#memory { margin-top:20px; }
-			#runcmd { margin-top:20px; }
+			svg { background-color:#F8F8FF; } 
 
 			circle.node {
 				stroke: #fff;
@@ -30,36 +28,105 @@
 			line.link {
 				stroke: #000;
 				stroke-opacity: .6;
-			}
+      }
+
+      h1 {
+        background-color: #1B436B;
+        color: #FFFFFF;
+        margin: 0 5px 0 5px;
+        padding-bottom: 5px;
+      }
+      
+      #content {
+        width:1355px;
+        padding: 5px 5px 3px 5px;
+        background-color: #1B436B;
+        color: #FFFFFF;
+        border-top-left-radius: 15px;
+        border-top-right-radius: 20px;
+      }
+
+      #viz {float: left}
+
+      #nodes {
+        float: right;
+        font-family: monospace;
+        margin-left: 5px; 
+      }
+
+      #memory {
+        clear: left;
+        width: 800px;
+        position: relative;
+        top: 1px;
+        padding: 2px 0 2px 1px;
+        background-color:#527CA4;
+      }
+
+      #nodes-list table, #nodes-list table tr th {
+        border-collapse: collapse;
+        border-color: #FFFFFF;
+      }
+      #nodes-list table tr {
+        font-size: 9pt;
+        font-family: monospace;
+      }
+      #nodes-list table tr.theader{
+        background-color: #1B436B;
+        font-size: 10pt;
+        padding: 2px 0 2px 0;
+      }
+      #nodes-list table tr th {color: #FFFFFF;} 
+      #nodes-list table tr td {color: #000000;}
+      #nodes-list table tr.trow1{background-color: #83ABD2;}
+      #nodes-list table tr.trow2{background-color: #527CA4;}
+      #nodes-list table tr a {
+        color: #FFFFFF;
+        font-weight: bold;
+      }
+
+      #runcmd {
+        width: 801px;
+        margin-top: 10px;
+      }
+      #runcmd label {
+        font-weight:bold;
+        margin-top:5px;
+        float: left;
+      }
+      #runcmd input {
+        float: right;
+      }
+      #runcmd div {clear: left;}
+      #runcmd div #runcmd-output {resize: none;}
+
+      .clear {clear: both;}
 		</style> 
 	</head> 
  
 	<body onLoad="doLayout();"> 
-		<h1>CJDNS Web Admin</h1> 
- 
-		<div id="viz"></div> 
- 
-		<div id="memory"> 
-			Currently using <span id="memory-bytes">[filled in by javascript]</span> bytes of memory.
-		</div> 
- 
-		<div id="nodes"> 
-			<div id="nodes-list" style="font-family:monospace"></div> 
-		</div> 
- 
-		<div id="runcmd"> 
-			<label for="runcmd-cmd">Run Command:</label><br /> 
-			<input name="command" id="runcmd-cmd" type="text" value='{"q":"ping"}' size="50" /><br /> 
- 
-			<label for="runcmd-passwd">Password:</label><br /> 
-			<input name="password" id="runcmd-passwd" type="password" size="50" /><br /> 
- 
-			<input name="go" id="runcmd-submit" type="submit" /><br /> 
-			<br /> 
- 
-			<label for="runcmd-output">Output:</label><br /> 
-			<textarea name="output" id="runcmd-output" cols="100" rows="30"></textarea> 
-		</div> 
+    <div id="content">
+		  <h1>CJDNS Web Admin</h1> 
+      <div id="viz"></div>
+		  <div id="nodes"><div id="nodes-list"></div></div> 
+      <div id="memory">&nbsp;Currently using <span id="memory-bytes"><strong>[filled in by javascript]</strong></span> bytes of memory.</div>
+      <div id="runcmd">
+        <label for="runcmd-cmd">Run Command:</label>
+        <input name="command" id="runcmd-cmd" type="text" value='{"q":"ping"}' size="50" /><br />
+        <br />
+        <label for="runcmd-passwd">Password:</label> 
+        <input name="password" id="runcmd-passwd" type="password" size="50" /><br />
+        <br /> 
+        <input name="go" id="runcmd-submit" type="submit" />
+        <br /><br />
+        <div>
+          <label for="runcmd-output">Output:</label><br />
+          <br />
+          <textarea name="output" id="runcmd-output" cols="97" rows="30"></textarea>
+        </div>
+      </div> 
+      <div class="clear"></div>
+    </div>
  
 		<script type="text/javascript" src="text/javascript/d3/d3.layout.js"></script> 
 		<script type="text/javascript" src="text/javascript/d3/d3.geom.js"></script> 

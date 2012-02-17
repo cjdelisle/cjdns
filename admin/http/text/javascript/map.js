@@ -1,5 +1,5 @@
-var w = 960;
-var h = 600;
+var w = 800;
+var h = 800;
 var fill = d3.scale.category10()
 var DEBUGGING = false;
 
@@ -139,14 +139,17 @@ var getData = function()
     };
 
     var genNodeList = function(table) {
-        var out = '<table style="border-collapse:collapse; width:800px" border="1">';
-        out += '<tr>'
+        var out = '<table border="1">';
+        out += '<tr class="theader">'
         out += '<th>IPv6 Address</th>';
         out += '<th>Path</th>';
         out += '<th>Link State</th>';
         out += '</tr>'
         for (var i = 0; i < table.length; i++) {
-            out += '<tr>'
+            if (i % 2 == 0)
+              out += '<tr class="trow1">';
+            else
+              out += '<tr class="trow2">';
             out += '<td>' + table[i].ip + '</td>';
             var p = table[i].path;
             out += '<td>'+p+' (<a id="ping-'+p+'" onclick="window.ping(\''+p+'\')" href="#runcmd">ping</a>)</td>';
