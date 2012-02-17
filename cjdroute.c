@@ -111,8 +111,9 @@ static int genAddressFromPrivKey(uint8_t addressOut[40],
     uint8_t chosenPrivateKeyHex[65];
     for(int i = 0; i < 64; i++){
             char c = privateKeyChar[i];
-            if (c >= '0' && c <= '9')
+            if (c >= '0' && c <= '9'){
                     chosenPrivateKeyHex[i] = atoi(&c);
+            }
             else{
                     chosenPrivateKeyHex[i] = (int)c-(int)'a'+10;
             }
@@ -126,7 +127,7 @@ static int genAddressFromPrivKey(uint8_t addressOut[40],
             low = chosenPrivateKeyHex[i+1];
             privateKey[i/2] = (high + low < 31) ? (high << 4) | low : -1;
     }
-
+    
     crypto_scalarmult_curve25519_base(address.key, privateKey);
     AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
     
