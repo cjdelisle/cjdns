@@ -223,7 +223,7 @@ static int genconf()
            "    \"resetAfterInactivitySeconds\": 30,\n"
            "\n"
            "    // Save the pid of the running process to this file.\n"
-           "    // If this fail cannot be opened for writing, the router will not start.\n"
+           "    // If this file cannot be opened for writing, the router will not start.\n"
            "    //\"pidFile\": \"cjdroute.pid\",\n"
            "\n"
            "    // Dropping permissions.\n"
