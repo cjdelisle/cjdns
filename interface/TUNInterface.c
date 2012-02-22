@@ -15,6 +15,7 @@
 #include <event2/event.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/if_ether.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
