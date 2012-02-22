@@ -23,10 +23,15 @@
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
 #include "benc/Object.h"
+#include "util/Endian.h"
 
 // Defined extra large so large MTU can be taken advantage of later.
 #define MAX_PACKET_SIZE 8192
 #define PADDING_SPACE (10240 - MAX_PACKET_SIZE)
+
+// The number of bytes at the beginning of the message which is used
+// to contain the type of packet.
+#define PACKET_INFO_SIZE 4
 
 struct Tunnel
 {
@@ -47,7 +52,7 @@ static int openTunnel(const char* interfaceName)
 
     struct ifreq ifRequest;
     memset(&ifRequest, 0, sizeof(struct ifreq));
-    ifRequest.ifr_flags = IFF_TUN | IFF_NO_PI;
+    ifRequest.ifr_flags = IFF_TUN;
     if (interfaceName) {
         strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     }
@@ -87,13 +92,14 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         .length = MAX_PACKET_SIZE
     };
 
-    ssize_t length = read(socket, messageBuffer + PADDING_SPACE, MAX_PACKET_SIZE);
+    ssize_t length =
+        read(socket, messageBuffer + PADDING_SPACE - PACKET_INFO_SIZE, MAX_PACKET_SIZE);
 
     if (length < 0) {
         printf("Error reading from TUN device %d\n", (int) length);
         return;
     }
-    message.length = length;
+    message.length = length - PACKET_INFO_SIZE;
 
     struct Interface* iface = &((struct Tunnel*) vcontext)->interface;
     if (iface->receiveMessage) {
@@ -103,6 +109,11 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
+    // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
+    Message_shift(message, PACKET_INFO_SIZE);
+    const uint16_t packetInfo[2] = { 0, Endian_hostToBigEndian16(ETH_P_IPV6) };
+    memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
+
     struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
     if (ret < 0) {
