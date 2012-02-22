@@ -299,7 +299,7 @@ static inline void encrypt(uint32_t nonce,
         uint32_t ints[2];
         uint8_t bytes[24];
     } nonceAs = { .ints = {0, 0} };
-    nonceAs.ints[isInitiator] = nonce;
+    nonceAs.ints[isInitiator] = Endian_hostToLittleEndian32(nonce);
 
     if (authenticate) {
         encryptRndNonce(nonceAs.bytes, msg, secret);
