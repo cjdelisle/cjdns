@@ -270,7 +270,7 @@ static inline int decrypt(uint32_t nonce,
         uint32_t ints[2];
         uint8_t bytes[24];
     } nonceAs = { .ints = {0, 0} };
-    nonceAs.ints[!isInitiator] = nonce;
+    nonceAs.ints[!isInitiator] = Endian_hostToLittleEndian32(nonce);
 
     if (authenticate) {
         return decryptRndNonce(nonceAs.bytes, msg, secret);
@@ -552,7 +552,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         if (wrapper->nextNonce < 4) {
             return encryptHandshake(message, wrapper);
         } else {
-            Log_debug(wrapper->context->logger, "Doing final step to send message.\n");
+            Log_debug(wrapper->context->logger, "Doing final step to send message. nonce=4\n");
             getSharedSecret(wrapper->secret,
                             wrapper->secret,
                             wrapper->tempKey,

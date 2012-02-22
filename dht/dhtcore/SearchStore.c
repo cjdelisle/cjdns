@@ -229,7 +229,7 @@ static struct SearchNodeIndex searchNodeIndexForTid(const String* tid)
     memcpy((char*) &number, tid->bytes, (tid->len > 4) ? 4 : tid->len);
 
     if (Endian_isBigEndian()) {
-        number >>= (64 - maxNodesBits + maxSearchBits);
+        number >>= (32 - maxNodesBits - maxSearchBits);
     }
 
     return (struct SearchNodeIndex) {
