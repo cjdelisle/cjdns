@@ -50,6 +50,9 @@
 #define MAX_API_REPLY_SIZE (1<<16)
 #define LISTENPORT 51902
 #define LISTENADDR "::1"
+#define API_RETRY_DELAY 5
+#define STR_EXPAND(tok) #tok
+#define STR(tok) STR_EXPAND(tok)
 
 struct Request
 {
@@ -245,7 +248,7 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
 
         fprintf(stderr, "attempting to reconnect...\n");
         setupApi(context);
-        
+
         return;
     } else if (8 > length && errno == EAGAIN) {
         /* Let the rest of the message accumulate */
@@ -291,9 +294,10 @@ static void setupApi(struct Context* context)
 
     evutil_socket_t sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
 
-    if (connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
+    while(connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
         perror("error connecting to API server");
-        exit(1);
+        fprintf(stderr, "retrying in " STR(API_RETRY_DELAY) " seconds\n");
+        sleep(API_RETRY_DELAY);
     }
 
     printf("established connection to API server\n");
