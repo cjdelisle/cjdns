@@ -402,8 +402,7 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         memcpy(buff, "4567", 4);
         memcpy(buff + 4, txid->bytes, 4);
     }
-    size_t ignore = write(admin->outFd, buff, written);
-    ignore = ignore;
+    write(admin->outFd, buff, written);
 }
 
 struct Admin* Admin_new(Dict* config,

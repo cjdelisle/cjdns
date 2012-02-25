@@ -208,10 +208,9 @@ static void apiHandler(struct evhttp_request* req, void* vcontext)
             uint32_t txNum = context->txidBaseline + i;
             memcpy(context->messageBuffer, "0123", 4);
             memcpy(context->messageBuffer + 4, &txNum, 4);
-            size_t ignore = write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
-            ignore = fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
+            write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
+            fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
             printf("\n");
-            ignore = ignore;
             return;
         }
     }
