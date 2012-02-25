@@ -35,7 +35,7 @@ add_definitions(
     -Wstack-protector
 )
 
-set(CMAKE_EXE_LINKER_FLAGS "-pie -z relro -z now")
+set(CMAKE_EXE_LINKER_FLAGS "-pie -Wl,-z,relro,-z,now")
 
 # debugging
 add_definitions(-g)
