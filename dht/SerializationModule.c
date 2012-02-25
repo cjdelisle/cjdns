@@ -66,7 +66,6 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    vcontext = vcontext;
     struct Writer* writer =
         ArrayWriter_new(message->bytes, DHTModules_MAX_MESSAGE_SIZE, message->allocator);
 
@@ -86,7 +85,6 @@ static int handleIncoming(struct DHTMessage* message,
 {
     message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
 
-    vcontext = vcontext;
     struct Reader* reader =
         ArrayReader_new(message->bytes, DHTModules_MAX_MESSAGE_SIZE, message->allocator);
 

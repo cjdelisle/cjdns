@@ -209,8 +209,6 @@ struct ChildContext
 static void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct ChildContext* context = (struct ChildContext*) vcontext;
-    eventType = eventType;
-    socket = socket;
     errno = 0;
     ssize_t amount = read(context->inFd, context->buffer, MAX_API_REQUEST_SIZE);
 
@@ -241,7 +239,6 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
-    eventType = eventType;
     errno = 0;
     char buf[MAX_API_REQUEST_SIZE];
     ssize_t result = recv(socket, buf, MAX_API_REQUEST_SIZE, 0);
@@ -405,8 +402,7 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         memcpy(buff, "4567", 4);
         memcpy(buff + 4, txid->bytes, 4);
     }
-    size_t ignore = write(admin->outFd, buff, written);
-    ignore = ignore;
+    write(admin->outFd, buff, written);
 }
 
 struct Admin* Admin_new(Dict* config,

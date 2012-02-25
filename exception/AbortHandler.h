@@ -21,7 +21,6 @@
 /** Internal callback, please use AbortHandler_INSTANCE instead. */
 static void AbortHandler_callback(char* message, int code, struct ExceptionHandler* handler)
 {
-    handler = handler;
     fprintf(stderr, "Error: %s (code: %d)\n", message, code);
     abort();
 }

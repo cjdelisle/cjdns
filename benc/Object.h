@@ -14,7 +14,7 @@
 #ifndef Object_H
 #define Object_H
 
-#include <stdint.h>
+#include <inttypes.h>
 
 #include "memory/Allocator.h"
 #include "benc/String.h"

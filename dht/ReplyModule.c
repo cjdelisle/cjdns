@@ -70,9 +70,6 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {
-    // unused
-    vcontext = vcontext;
-
     if (message->replyTo != NULL) {
         if (message->asDict == NULL) {
             message->asDict = Dict_new(message->allocator);

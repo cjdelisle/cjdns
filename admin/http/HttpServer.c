@@ -50,6 +50,9 @@
 #define MAX_API_REPLY_SIZE (1<<16)
 #define LISTENPORT 51902
 #define LISTENADDR "::1"
+#define API_RETRY_DELAY 5
+#define STR_EXPAND(tok) #tok
+#define STR(tok) STR_EXPAND(tok)
 
 struct Request
 {
@@ -75,9 +78,12 @@ struct Context
     uint8_t messageBuffer[MAX_API_REPLY_SIZE];
     uint8_t* messagePtr;
 
+    const char *apiAddr;
     evutil_socket_t apiSocket;
     struct event* apiEvent;
 };
+
+static void setupApi(struct Context* context);
 
 static void fileHandler(struct evhttp_request* req, void* vcontext)
 {
@@ -165,7 +171,6 @@ static void fileHandler(struct evhttp_request* req, void* vcontext)
 static void apiHandler(struct evhttp_request* req, void* vcontext)
 {
     struct Context* context = (struct Context*) vcontext;
-    context=context;
     const char* uri = evhttp_decode_uri(evhttp_request_get_uri(req));
 
     #define KEY "/?q="
@@ -209,10 +214,9 @@ static void apiHandler(struct evhttp_request* req, void* vcontext)
             uint32_t txNum = context->txidBaseline + i;
             memcpy(context->messageBuffer, "0123", 4);
             memcpy(context->messageBuffer + 4, &txNum, 4);
-            size_t ignore = write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
-            ignore = fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
+            write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
+            fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
             printf("\n");
-            ignore = ignore;
             return;
         }
     }
@@ -222,21 +226,35 @@ static void apiHandler(struct evhttp_request* req, void* vcontext)
 
 static void handleApiEvent(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    eventType = eventType;
     struct Context* context = (struct Context*) vcontext;
+
+    if (eventType & EV_TIMEOUT) {
+        fprintf(stderr, "connection to API server timed out.\n");
+        /* TODO: Reconnect */
+        exit(1);
+        return;
+    }
+
     errno = 0;
     ssize_t length = read(socket, context->messageBuffer, MAX_API_REPLY_SIZE);
 
-    if (length < 8 || length == MAX_API_REPLY_SIZE) {
-        if (length < 8) {
-            if (errno == EAGAIN) {
-                return;
-            }
-            perror("broken pipe");
-            event_free(context->apiEvent);
-            return;
+    if (0 >= length) {
+        if(0 == length) {
+            fprintf(stderr, "API server shutting down\n");
+        } else {
+            perror("error reading from API server");
         }
-        perror("overlong message");
+        close(context->apiSocket);
+
+        fprintf(stderr, "attempting to reconnect...\n");
+        setupApi(context);
+
+        return;
+    } else if (8 > length && errno == EAGAIN) {
+        /* Let the rest of the message accumulate */
+        return;
+    } else if (8 > length || MAX_API_REPLY_SIZE == length) {
+        fprintf(stderr, "received malformed message from API server\n");
         return;
     }
 
@@ -265,21 +283,24 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     evbuffer_free(buff);
 }
 
-static void setupApi(char* ipAndPort, struct Context* context)
+static void setupApi(struct Context* context)
 {
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
-    if (evutil_parse_sockaddr_port(ipAndPort, (struct sockaddr*) &addr, &addrLen)) {
-        perror("failed to parse api server ip:port");
+    if (evutil_parse_sockaddr_port(context->apiAddr, (struct sockaddr*) &addr, &addrLen)) {
+        fprintf(stderr, "failed to parse addr:port from \"%s\"\n", context->apiAddr);
         exit(1);
     }
 
     evutil_socket_t sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
 
-    if (connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
-        perror("error connecting");
-        exit(1);
+    while(connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
+        perror("error connecting to API server");
+        fprintf(stderr, "retrying in " STR(API_RETRY_DELAY) " seconds\n");
+        sleep(API_RETRY_DELAY);
     }
+
+    printf("established connection to API server\n");
 
     context->apiEvent =
         event_new(context->eventBase, sockfd, EV_READ | EV_PERSIST, handleApiEvent, context);
@@ -315,7 +336,9 @@ int main(int argc, char **argv)
 
     context.eventBase = event_base_new();
 
-    setupApi(argv[1], &context);
+    context.apiAddr = argv[1];
+
+    setupApi(&context);
 
     struct evhttp* httpd = evhttp_new(context.eventBase);
     evhttp_bind_socket(httpd, listenAddr, listenPort);
