@@ -60,7 +60,6 @@ static char* userObj = "This represents a user";
 
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
 {
-    iface=iface;
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message -->  nonce=%d\n", nonce);
     assert(message->length + message->padding <= BUFFER_SIZE);
@@ -70,7 +69,6 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
 
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
 {
-    iface=iface;
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message <--  nonce=%d\n", nonce);
     assert(message->length + message->padding <= BUFFER_SIZE);
@@ -80,7 +78,6 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
 
 static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
     printf("if1 got message! %s\n", message->bytes);
     if1Msg = message->bytes;
     return Error_NONE;
@@ -88,7 +85,6 @@ static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface
 
 static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
     printf("if2 got message! %s\n", message->bytes);
     if2Msg = message->bytes;
     return Error_NONE;

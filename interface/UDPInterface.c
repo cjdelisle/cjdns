@@ -319,9 +319,6 @@ static void freeEvent(void* vevent)
 
 static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    // We don't care about this, there's only one event registered under this socket.
-    eventType = eventType;
-
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
     struct Message message =

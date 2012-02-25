@@ -66,8 +66,6 @@ struct Janitor
 
 static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
 {
-    callbackContext = callbackContext;
-    result = result;
     return false;
 }
 

@@ -38,10 +38,6 @@ static void handleEvent(evutil_socket_t socket,
                         short eventType,
                         void* vcontext)
 {
-    // unused
-    socket = socket;
-    eventType = eventType;
-
     struct Timeout* timeout = (struct Timeout*) vcontext;
     timeout->callback(timeout->callbackContext);
 }

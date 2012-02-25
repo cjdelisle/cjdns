@@ -328,8 +328,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const struct Allocator* allocator)
 {
     // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
-    allowNodesFartherThanUs = allowNodesFartherThanUs;
-
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
                                                         store->thisNodeAddress,

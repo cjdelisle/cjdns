@@ -82,8 +82,6 @@ static void closeInterface(void* vcontext)
 
 static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    eventType = eventType;
-
     // 292 bytes of extra padding to build headers back from for better efficiency.
     uint8_t messageBuffer[MAX_PACKET_SIZE + PADDING_SPACE];
 

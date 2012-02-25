@@ -194,7 +194,6 @@ static void freeAllocator(const struct Allocator* allocator)
 /** Fake freeAllocator so that child allocators don't get freed. */
 static void doNothing(const struct Allocator* allocator)
 {
-    allocator = allocator;
 }
 
 /** @see Allocator->onFree() */

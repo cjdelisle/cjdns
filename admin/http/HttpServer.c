@@ -165,7 +165,6 @@ static void fileHandler(struct evhttp_request* req, void* vcontext)
 static void apiHandler(struct evhttp_request* req, void* vcontext)
 {
     struct Context* context = (struct Context*) vcontext;
-    context=context;
     const char* uri = evhttp_decode_uri(evhttp_request_get_uri(req));
 
     #define KEY "/?q="
