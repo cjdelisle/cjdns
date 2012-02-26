@@ -20,7 +20,18 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 # validation
-add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic -Wno-unused-parameter)
+add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
+
+# less validation
+add_definitions(
+    # This breaks logging since loggers are passed to functions
+    # and only used if the log level is high.
+    -Wno-unused-parameter
+
+    # There are a number of places in Admin where read() and write() are used
+    # and they fail silently if anything goes wrong so the result is unused.
+    -Wno-unused-result
+)
 
 # hardening
 add_definitions(
