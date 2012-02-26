@@ -151,7 +151,7 @@ static int genconf()
            "            // How much anti-flood trust to give a client\n"
            "            // who connects with this password.\n"
            "            \"trust\": 5000\n"
-           "        },\n"
+           "        }\n"
            "\n"
            "        /* These are your connection credentials\n"
            "           for people connecting to you with your default password.\n"
