@@ -383,17 +383,6 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
     return NULL;
 }
 
-void NodeStore_dumpTables(struct Writer* writer, struct NodeStore* store)
-{
-    for (uint32_t i = 0; i < store->size; i++) {
-        uint8_t out[60];
-        Address_print(out, &store->nodes[i].address);
-        writer->write(out, 60, writer);
-        snprintf((char*)out, 60, " link quality = %u\n", store->headers[i].reach);
-        writer->write(out, strlen((char*)out), writer);
-    }
-}
-
 void NodeStore_remove(struct Node* node, struct NodeStore* store)
 {
     assert(node >= store->nodes && node < store->nodes + store->size);
