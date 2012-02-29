@@ -41,7 +41,7 @@ What is cjdns?
 --------------
 
 It is a routing engine designed for security, scalability, speed and ease of
-use. The dream: You type `./cjdns` and give it an interface which connects
+use. The dream: You type `./cjdroute` and give it an interface which connects
 another node and it gives you an ipv6 address generated from a public
 encryption key and a virtual network card (TUN device) which you can use to
 send packets to anyone in the cjdns network to which you are connected.
@@ -69,7 +69,10 @@ The router engine is a modified implementation of the Kademlia DHT design.
 How close is it to complete?
 ----------------------------
 
-A live testing network exists with at least 15 active nodes.
+A live testing network exists with at least 50 active nodes.
+The software has been tested and runs on x86, amd64, ARMv5 and PowerPC64 (ps3).
+So far the only operating system it runs on is Linux (heros needed!)
+It has run well on every type of Linux that it has been installed on.
 
 
 What about DNS?
@@ -518,4 +521,3 @@ To delete a tunnel, use this command:
     # /sbin/ip tuntap del mode tun <name of tunnel>
 
 Created on 2011-02-16.
-Last modified on 2012-2-1.
