@@ -100,6 +100,15 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct N
 void NodeStore_remove(struct Node* node, struct NodeStore* store);
 
 /**
+ * Remove all nodes who are reachable by this path.
+ *
+ * @param path the label part in host order.
+ * @param store the node store.
+ * @return the number of nodes which were removed.
+ */
+int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
+
+/**
  * Return a node from the routing table which is likely to yield a good route but is not favored.
  * Good candidates are defined as nodes whose known link state is worse than average but their
  * label length is shorter than average. These are probably better nodes but their link state

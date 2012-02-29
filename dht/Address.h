@@ -193,4 +193,20 @@ static inline int Address_checkRedundantRoute(struct Address* addrA, struct Addr
     }
 }
 
+/**
+ * Determine if the route to one node passes through another node.
+ *
+ * @param destination the node to route to.
+ * @param midPath the node which might be in the middle of the route.
+ * @return true if midPath is in the middle of the route to destination.
+ */
+static inline bool Address_routesThrough(uint64_t destination, uint64_t midPath)
+{
+    if (midPath > destination) {
+        return false;
+    }
+    uint64_t mask = (1 << Bits_log2x64(destination)) - 1;
+    return (destination & mask) == (midPath & mask);
+}
+
 #endif

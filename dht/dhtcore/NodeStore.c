@@ -399,6 +399,19 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 }
 
+int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
+{
+    int out = 0;
+    for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
+        uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
+        if (Address_routesThrough(dest, path)) {
+            NodeStore_remove(&store->nodes[i], store);
+            out++;
+        }
+    }
+    return out;
+}
+
 struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
 {
     if (store->size < 2) {

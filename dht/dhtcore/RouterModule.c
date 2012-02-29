@@ -1017,24 +1017,8 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
         // TODO: Allow 1 hop routes to be removed in the switch if they were incoming connections.
         return 0;
     }
-    struct Node* n = NULL;
-    for (int i = 0;; i++) {
-        n = NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
-        if (n) {
-            NodeStore_remove(n, module->nodeStore);
-            continue;
-        }
-        #ifdef Log_INFO
-            if (i == 0) {
-                struct Address addr;
-                addr.networkAddress_be = networkAddress_be;
-                uint8_t printed[20];
-                Address_printNetworkAddress(printed, &addr);
-                Log_info1(module->logger, "Couldn't find route to remove. route=%s", printed);
-            }
-        #endif
-        return i;
-    }
+    uint64_t path = Endian_bigEndianToHost64(networkAddress_be);
+    return NodeStore_brokenPath(path, module->nodeStore);
 }
 
 static void pingTimeoutCallback(void* vping)
