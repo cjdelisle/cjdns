@@ -21,6 +21,7 @@
 
 #ifdef __APPLE__
     #define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
+    #define INET6_ETHERTYPE PF_INET6
 
     #include <netinet/in.h>
     #include <sys/socket.h>
@@ -30,6 +31,8 @@
     #include <sys/errno.h>
     #include <netinet/if_ether.h>
 #else
+    #define INET6_ETHERTYPE ETH_P_IPV6
+
     #include <linux/if.h>
     #include <linux/if_tun.h>
 #endif
@@ -62,9 +65,10 @@ static int openTunnel(const char* interfaceName) {
         fprintf(stderr, "%s", interfaceName);
     }
     fprintf(stderr, "\n");
-    
+
     if (strncmp("utun0", interfaceName, strlen("utun0"))) {
-        fprintf(stderr, "Invalid utun device %s, only valid device on Mac OS X is utun0 for now.\n", interfaceName);
+        fprintf(stderr, "Invalid utun device %s, "
+                        "the only valid device on Mac OS X is utun0 for now.\n", interfaceName);
         return -1;
     }
 
@@ -167,13 +171,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
     Message_shift(message, PACKET_INFO_SIZE);
-
-#ifdef __APPLE__
-    const uint16_t packetInfo[2] = { 0, Endian_hostToBigEndian16(PF_INET6) };
-#else
-    const uint16_t packetInfo[2] = { 0, Endian_hostToBigEndian16(ETH_P_IPV6) };
-#endif
-
+    const uint16_t packetInfo[2] = { 0, INET6_ETHERTYPE };
     memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
     struct Tunnel* tun = (struct Tunnel*) iface->senderContext;

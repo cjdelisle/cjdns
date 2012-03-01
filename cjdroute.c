@@ -46,6 +46,12 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#ifdef __APPLE__
+    #define DEFAULT_TUN_DEV "utun0"
+#else
+    #define DEFAULT_TUN_DEV "tun0"
+#endif
+
 struct Context
 {
     struct event_base* base;
@@ -151,7 +157,7 @@ static int genconf()
            "            // How much anti-flood trust to give a client\n"
            "            // who connects with this password.\n"
            "            \"trust\": 5000\n"
-           "        },\n"
+           "        }\n"
            "\n"
            "        /* These are your connection credentials\n"
            "           for people connecting to you with your default password.\n"
@@ -214,11 +220,7 @@ static int genconf()
            "            // If this is commented out, cjdns will try to allocate a TUN on startup.\n"
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
-#ifdef __APPLE__
-           "            \"tunDevice\": \"utun0\"\n"
-#else
-           "            \"tunDevice\": \"tun0\"\n"
-#endif
+           "            \"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
            "        }\n"
            "    },\n"
            "\n"
@@ -348,31 +350,21 @@ static int getcmds(Dict* config)
         fprintf(stderr, "router.interface.type is not recognized.\n");
         return -1;
     }
-    
-#ifdef __APPLE__
-    char *tunDev = "utun0";
-#else
-    char* tunDev = "tun0";
-#endif
-
-    if (tunDevice) {
-        tunDev = tunDevice->bytes;
-    }
-    
+    char *tunDev = (tunDevice) ? tunDevice->bytes : DEFAULT_TUN_DEV;
     if (strrchr(tunDev, '/') != NULL) {
         tunDev = strrchr(tunDev, '/') + 1;
     }
 
-#ifdef __APPLE__
     printf("#!/bin/bash\n"
            "# Run these commands immediately after cjdns is initialized\n"
-           "# in order to get the interfaces setup properly.\n\n");
+           "# in order to get the interfaces setup properly.\n"
+           "# If you are using persistent tunnels (see README.md),\n"
+           "# you may run them once every time the system starts up.\n");
+
+#ifdef __APPLE__
     printf("ifconfig %s inet6 %s\n", tunDev, myIp);
     printf("route -n add -inet6 fc00::/8 -interface %s\n", tunDev);
 #else
-    printf("#!/bin/bash\n"
-           "# Run these commands as root now and every time the system is rebooted\n"
-           "# in order to get the interfaces setup properly.\n\n");
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
     printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
     printf("/sbin/ip link set %s up\n", tunDev);
