@@ -50,26 +50,21 @@ add_definitions(
     -Wstack-protector
 )
 
+# allow position independent executable to be turned off with NO_PIE cmake ..
+if("$ENV{NO_PIE}" STREQUAL "")
+    message("Building with position independent executable.")
+    set(PIE "-pie")
+else()
+    message("Building with position dependent executable (ASLR security disabled).")
+    set(PIE "")
+endif()
+
 if(NOT DEFINED APPLE)
-    # allow position independent executable to be turned off with NO_PIE cmake ..
-    if("$ENV{NO_PIE}" STREQUAL "")
-        message("Building with position independent executable.")
-        set(PIE "-pie")
-    else()
-        message("Building with position dependent executable (ASLR security disabled).")
-        set(PIE "")
-    endif()
-
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
-
-else(NOT DEFINED APPLE)
-    # at the moment the mac port is using external dependencies for nacl and libevent.
-
-    include_directories("/usr/local/include")
-    link_directories("/usr/local/lib")
-    set(NACL_INCLUDE_DIRS "/usr/local/include")
-    set(NACL_LIBRARIES "/usr/local/lib/libnacl.a")
-endif(NOT DEFINED APPLE)
+else()
+    # apple seems to set noexecstack by defualt and not support relro.
+    set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
+endif()
 
 # debugging
 add_definitions(-g)

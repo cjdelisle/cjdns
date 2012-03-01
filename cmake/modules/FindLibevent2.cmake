@@ -48,8 +48,10 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     # Without this, the build doesn't happen until link time.
     include_directories(${LIBEVENT2_USE_FILES})
 
-    # Need librt to be included if libevent is static linked.
-    find_package(Librt REQUIRED)
+    if(NOT DEFINED APPLE)
+        # Need librt to be included if libevent is static linked.
+        find_package(Librt REQUIRED)
+    endif()
 
     ExternalProject_Add(Libevent2
         URL "http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz"
@@ -71,12 +73,14 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2-bin/include/")
 
-    # This is needed to make sure libevent2 pulls in rt as a dependency.
-    add_library(event2 STATIC IMPORTED)
-    set_target_properties(event2 PROPERTIES
-        IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a
-        IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES}
-    )
+    if(NOT DEFINED APPLE)
+        # This is needed to make sure libevent2 pulls in rt as a dependency.
+        add_library(event2 STATIC IMPORTED)
+        set_target_properties(event2 PROPERTIES
+            IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a
+            IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES}
+        )
+    endif()
 
     set(LIBEVENT2_LIBRARIES event2)
 

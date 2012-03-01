@@ -21,7 +21,6 @@ if(NOT LIBRT_FOUND)
     find_library(LIBRT_LIBRARIES
         NAMES
             librt.so
-            librt.dylib
         PATHS
             ${LIBRT_PREFIX}/lib/
             /usr/local/lib64/
