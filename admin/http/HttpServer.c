@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <assert.h>
 #include <errno.h>
 #include <err.h>

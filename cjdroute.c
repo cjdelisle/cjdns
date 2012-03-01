@@ -151,7 +151,7 @@ static int genconf()
            "            // How much anti-flood trust to give a client\n"
            "            // who connects with this password.\n"
            "            \"trust\": 5000\n"
-           "        }\n"
+           "        },\n"
            "\n"
            "        /* These are your connection credentials\n"
            "           for people connecting to you with your default password.\n"
@@ -214,7 +214,11 @@ static int genconf()
            "            // If this is commented out, cjdns will try to allocate a TUN on startup.\n"
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
+#ifdef __APPLE__
+           "            \"tunDevice\": \"utun0\"\n"
+#else
            "            \"tunDevice\": \"tun0\"\n"
+#endif
            "        }\n"
            "    },\n"
            "\n"
@@ -344,17 +348,35 @@ static int getcmds(Dict* config)
         fprintf(stderr, "router.interface.type is not recognized.\n");
         return -1;
     }
-    char* tunDev = tunDevice ? tunDevice->bytes : "tun0";
+    
+#ifdef __APPLE__
+    char *tunDev = "utun0";
+#else
+    char* tunDev = "tun0";
+#endif
+
+    if (tunDevice) {
+        tunDev = tunDevice->bytes;
+    }
+    
     if (strrchr(tunDev, '/') != NULL) {
         tunDev = strrchr(tunDev, '/') + 1;
     }
 
+#ifdef __APPLE__
+    printf("#!/bin/bash\n"
+           "# Run these commands immediately after cjdns is initialized\n"
+           "# in order to get the interfaces setup properly.\n\n");
+    printf("ifconfig %s inet6 %s\n", tunDev, myIp);
+    printf("route -n add -inet6 fc00::/8 -interface %s\n", tunDev);
+#else
     printf("#!/bin/bash\n"
            "# Run these commands as root now and every time the system is rebooted\n"
            "# in order to get the interfaces setup properly.\n\n");
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
     printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
     printf("/sbin/ip link set %s up\n", tunDev);
+#endif /* __APPLE__ */
 
     return 0;
 }

@@ -13,13 +13,26 @@
  */
 #include <string.h>
 #include <event2/event.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
-#include <linux/if_ether.h>
+#include <net/if.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
+
+#ifdef __APPLE__
+    #define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
+
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+    #include <sys/kern_control.h>
+    #include <sys/sys_domain.h>
+    #include <sys/kern_event.h>
+    #include <sys/errno.h>
+    #include <netinet/if_ether.h>
+#else
+    #include <linux/if.h>
+    #include <linux/if_tun.h>
+#endif
 
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
@@ -40,6 +53,48 @@ struct Tunnel
     int fileDescriptor;
     struct Interface interface;
 };
+
+#ifdef __APPLE__
+
+static int openTunnel(const char* interfaceName) {
+    fprintf(stderr, "Initializing utun device: ");
+    if (interfaceName) {
+        fprintf(stderr, "%s", interfaceName);
+    }
+    fprintf(stderr, "\n");
+    
+    if (strncmp("utun0", interfaceName, strlen("utun0"))) {
+        fprintf(stderr, "Invalid utun device %s, only valid device on Mac OS X is utun0 for now.\n", interfaceName);
+        return -1;
+    }
+
+    int tunFileDescriptor = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
+    struct sockaddr_ctl addr;
+
+    /* get/set the id */
+    struct ctl_info info;
+    memset(&info, 0, sizeof(info));
+    strncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
+
+    if (ioctl(tunFileDescriptor, CTLIOCGINFO, &info) == -1) {
+        fprintf(stderr, "Error while setting options on kernel control: %s\n", strerror(errno));
+    }
+
+    addr.sc_id = info.ctl_id;
+
+    addr.sc_len = sizeof(addr);
+    addr.sc_family = AF_SYSTEM;
+    addr.ss_sysaddr = AF_SYS_CONTROL;
+    addr.sc_unit = 0; /* allocate dynamically */
+
+    if (connect(tunFileDescriptor, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+        fprintf(stderr, "Error attempting to connect to tun device: %s\n", strerror(errno));
+    }
+
+    return tunFileDescriptor;
+}
+
+#else /* __APPLE__ */
 
 static int openTunnel(const char* interfaceName)
 {
@@ -71,6 +126,8 @@ static int openTunnel(const char* interfaceName)
 
     return tunFileDescriptor;
 }
+
+#endif /* __APPLE__ */
 
 static void closeInterface(void* vcontext)
 {
@@ -110,7 +167,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
     Message_shift(message, PACKET_INFO_SIZE);
+
+#ifdef __APPLE__
+    const uint16_t packetInfo[2] = { 0, Endian_hostToBigEndian16(PF_INET6) };
+#else
     const uint16_t packetInfo[2] = { 0, Endian_hostToBigEndian16(ETH_P_IPV6) };
+#endif
+
     memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
     struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
