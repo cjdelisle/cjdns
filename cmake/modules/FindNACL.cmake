@@ -19,7 +19,7 @@ if (NOT NACL_INCLUDE_DIRS)
 
     ExternalProject_Add(NACL
         GIT_REPOSITORY git://github.com/cjdelisle/nacl.git
-        GIT_TAG 4e44b37b89aa69356d713d27b4273e01b56d739c
+        GIT_TAG c737ed821164f397a1a0639b9361c66edf2d4000
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
         INSTALL_COMMAND ""
