@@ -87,10 +87,12 @@ static Object* getObject(const List* list, uint32_t index)
     if (list != NULL && *list != NULL) {
         struct List_Item* entry = *list;
         uint32_t i;
-        for (i = 0; i < index && entry != NULL; i++) {
+        for (i = 0; entry != NULL; i++) {
+            if (i == index) {
+                return entry->elem;
+            }
             entry = entry->next;
         }
-        return entry->elem;
     }
     return NULL;
 }
