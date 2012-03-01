@@ -51,12 +51,7 @@ add_definitions(
 )
 
 if(NOT DEFINED APPLE)
-    add_definitions(
-        -Wa,--noexecstack
-        -Wl,-z,relro
-        -Wl,-z,now
-        -Wl,-z,noexecstack
-    )
+    set(CMAKE_EXE_LINKER_FLAGS "-pie -Wl,-z,relro,-z,now")
 else(NOT DEFINED APPLE)
     # at the moment the mac port is using external dependencies for nacl and libevent.
 
