@@ -169,7 +169,7 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
 
     if (amount < 1) {
         if (amount == 0 || errno != EAGAIN) {
-            if(amount < 0) {
+            if (amount < 0) {
                 perror("broken pipe");
             } else {
                 fprintf(stderr, "connection closed unexpectedly\n");
@@ -220,7 +220,7 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
         if (errno == EAGAIN) {
             return;
         }
-        if(amount < 0) {
+        if (amount < 0) {
             perror("broken pipe");
         } else {
             fprintf(stderr, "connection closed unexpectedly\n");
