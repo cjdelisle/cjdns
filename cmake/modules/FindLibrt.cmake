@@ -15,13 +15,15 @@ if(NOT LIBRT_FOUND)
         NAMES
             time.h
         PATHS
-            ${LIBRTDIR}/include/
+            ${LIBRT_PREFIX}/include/
     )
 
-    find_file(
-        LIBRT_LIBRARIES librt.a
+    find_library(LIBRT_LIBRARIES
+        NAMES
+            librt.so
+            librt.dylib
         PATHS
-            ${LIBRTDIR}/lib/
+            ${LIBRT_PREFIX}/lib/
             /usr/local/lib64/
             /usr/local/lib/
             /usr/lib/i386-linux-gnu/
@@ -29,29 +31,13 @@ if(NOT LIBRT_FOUND)
             /usr/lib64/
             /usr/lib/
     )
-    set (LIBRT_DYNAMIC "Using static library.")
-
-    if (NOT LIBRT_LIBRARIES)
-        find_library(
-            LIBRT_LIBRARIES rt
-            PATHS
-                ${LIBRTDIR}/lib/
-                /usr/local/lib64/
-                /usr/local/lib/
-                /usr/lib/i386-linux-gnu/
-                /usr/lib/x86_64-linux-gnu/
-                /usr/lib64/
-                /usr/lib/
-        )
-        set (LIBRT_DYNAMIC "Using dynamic library.")
-    endif (NOT LIBRT_LIBRARIES)
 
     if (LIBRT_INCLUDE_DIR AND LIBRT_LIBRARIES)
         set (LIBRT_FOUND TRUE)
     endif (LIBRT_INCLUDE_DIR AND LIBRT_LIBRARIES)
 
     if (LIBRT_FOUND)
-        message(STATUS "Found librt: ${LIBRT_INCLUDE_DIR}, ${LIBRT_LIBRARIES} ${LIBRT_DYNAMIC}")
+        message(STATUS "Found librt: ${LIBRT_INCLUDE_DIR}, ${LIBRT_LIBRARIES}")
     else (LIBRT_FOUND)
         if (Librt_FIND_REQUIRED)
             message (FATAL_ERROR "Could not find librt, try to setup LIBRT_PREFIX accordingly")

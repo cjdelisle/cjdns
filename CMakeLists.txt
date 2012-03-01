@@ -51,7 +51,17 @@ add_definitions(
 )
 
 if(NOT DEFINED APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "-pie -Wl,-z,relro,-z,now,-z,noexecstack")
+    # allow position independent executable to be turned off with NO_PIE cmake ..
+    if("$ENV{NO_PIE}" STREQUAL "")
+        message("Building with position independent executable.")
+        set(PIE "-pie")
+    else()
+        message("Building with position dependent executable (ASLR security disabled).")
+        set(PIE "")
+    endif()
+
+    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
+
 else(NOT DEFINED APPLE)
     # at the moment the mac port is using external dependencies for nacl and libevent.
 
