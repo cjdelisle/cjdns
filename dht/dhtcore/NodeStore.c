@@ -139,8 +139,6 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         assert(false);
     }
 
-    // TODO: maintain a sorted list.
-
     uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
         for (uint32_t i = 0; i < store->size; i++) {
@@ -158,14 +156,8 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
                                    newAddr);
-
-                        struct Node* n =
-                            NodeStore_getNodeByNetworkAddr(addr->networkAddress_be, store);
-                        if (n) {
-                            Log_warn(store->logger, "This route is probably invalid, giving up.\n");
-                            continue;
-                        }
                     #endif
+
                     store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
                 } else if (red == 0
                     && store->nodes[i].address.networkAddress_be != addr->networkAddress_be)
@@ -414,7 +406,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
 
 struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
 {
-    if (store->size < 2) {
+    if (store->size < 3) {
         return NULL;
     }
     uint32_t start = rand() % (store->size - 1);
