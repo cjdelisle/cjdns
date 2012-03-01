@@ -27,11 +27,15 @@ add_definitions(
     # This breaks logging since loggers are passed to functions
     # and only used if the log level is high.
     -Wno-unused-parameter
-
-    # There are a number of places in Admin where read() and write() are used
-    # and they fail silently if anything goes wrong so the result is unused.
-    -Wno-unused-result
 )
+
+if(NOT DEFINED APPLE) # apple is forever stuck on gcc 4.2.1, which does not support this
+    add_definitions(
+        # There are a number of places in Admin where read() and write() are used
+        # and they fail silently if anything goes wrong so the result is unused.
+        -Wno-unused-result
+    )
+endif(NOT DEFINED APPLE)
 
 # hardening
 add_definitions(
@@ -46,7 +50,16 @@ add_definitions(
     -Wstack-protector
 )
 
-set(CMAKE_EXE_LINKER_FLAGS "-pie -Wl,-z,relro,-z,now")
+if(NOT DEFINED APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "-pie -Wl,-z,relro,-z,now")
+else(NOT DEFINED APPLE)
+    # at the moment the mac port is using external dependencies for nacl and libevent.
+
+    include_directories("/usr/local/include")
+    link_directories("/usr/local/lib")
+    set(NACL_INCLUDE_DIRS "/usr/local/include")
+    set(NACL_LIBRARIES "/usr/local/lib/libnacl.a")
+endif(NOT DEFINED APPLE)
 
 # debugging
 add_definitions(-g)

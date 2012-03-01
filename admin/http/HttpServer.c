@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <assert.h>
 #include <errno.h>
 #include <err.h>
@@ -239,7 +239,7 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     ssize_t length = read(socket, context->messageBuffer, MAX_API_REPLY_SIZE);
 
     if (0 >= length) {
-        if(0 == length) {
+        if (0 == length) {
             fprintf(stderr, "API server shutting down\n");
         } else {
             perror("error reading from API server");
@@ -294,7 +294,7 @@ static void setupApi(struct Context* context)
 
     evutil_socket_t sockfd = socket(addr.ss_family, SOCK_STREAM, 0);
 
-    while(connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
+    while (connect(sockfd, (struct sockaddr*) &addr, addrLen) < 0) {
         perror("error connecting to API server");
         fprintf(stderr, "retrying in " STR(API_RETRY_DELAY) " seconds\n");
         sleep(API_RETRY_DELAY);
