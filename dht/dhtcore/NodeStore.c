@@ -406,7 +406,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
 
 struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
 {
-    if (store->size < 2) {
+    if (store->size < 3) {
         return NULL;
     }
     uint32_t start = rand() % (store->size - 1);
