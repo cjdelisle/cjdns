@@ -678,6 +678,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 0);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
+
+    if (!tid) {
+        return -1;
+    }
+
     String* nodes = Dict_getString(message->asDict, CJDHTConstants_NODES);
     if (nodes == NULL && tid && tid->len == 2 && tid->bytes[0] == 'p') {
         uint8_t index = tid->bytes[1];
