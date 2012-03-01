@@ -73,9 +73,10 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2-bin/include/")
 
+    add_library(event2 STATIC IMPORTED)
+
     if(NOT DEFINED APPLE)
         # This is needed to make sure libevent2 pulls in rt as a dependency.
-        add_library(event2 STATIC IMPORTED)
         set_target_properties(event2 PROPERTIES
             IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a
             IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES}
