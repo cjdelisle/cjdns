@@ -62,7 +62,7 @@ static int openTunnel(const char* interfaceName) {
         fprintf(stderr, "%s", interfaceName);
     }
     fprintf(stderr, "\n");
-    
+
     if (strncmp("utun0", interfaceName, strlen("utun0"))) {
         fprintf(stderr, "Invalid utun device %s, only valid device on Mac OS X is utun0 for now.\n", interfaceName);
         return -1;

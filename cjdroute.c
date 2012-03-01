@@ -348,7 +348,7 @@ static int getcmds(Dict* config)
         fprintf(stderr, "router.interface.type is not recognized.\n");
         return -1;
     }
-    
+
 #ifdef __APPLE__
     char *tunDev = "utun0";
 #else
@@ -358,7 +358,7 @@ static int getcmds(Dict* config)
     if (tunDevice) {
         tunDev = tunDevice->bytes;
     }
-    
+
     if (strrchr(tunDev, '/') != NULL) {
         tunDev = strrchr(tunDev, '/') + 1;
     }
