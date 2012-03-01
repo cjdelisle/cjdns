@@ -171,7 +171,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
     Message_shift(message, PACKET_INFO_SIZE);
-    const uint16_t packetInfo[2] = { 0, INET6_ETHERTYPE };
+    const uint16_t packetInfo[2] = { 0, Endian_bigEndianToHost16(INET6_ETHERTYPE) };
     memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
     struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
