@@ -22,20 +22,17 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 # validation
 add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 
-# less validation
-add_definitions(
-    # This breaks logging since loggers are passed to functions
-    # and only used if the log level is high.
-    -Wno-unused-parameter
-)
+# This breaks logging since loggers are passed to functions
+# and only used if the log level is high.
+add_definitions(-Wno-unused-parameter)
 
-if(NOT DEFINED APPLE) # apple is forever stuck on gcc 4.2.1, which does not support this
-    add_definitions(
-        # There are a number of places in Admin where read() and write() are used
-        # and they fail silently if anything goes wrong so the result is unused.
-        -Wno-unused-result
-    )
-endif(NOT DEFINED APPLE)
+include(CheckCCompilerFlag)
+# There are a number of places in Admin where read() and write() are used
+# and they fail silently if anything goes wrong so the result is unused.
+check_c_compiler_flag(-Wno-invalid-offsetof HAS_NO_UNUSED_RESULT)
+if(HAS_NO_UNUSED_RESULT)
+    add_definitions(-Wno-unused-result)
+endif()
 
 # hardening
 add_definitions(
