@@ -17,8 +17,7 @@ add_library(interface
     InterfaceConnector.c
     SessionManager.c
 )
-##target_link_libraries(interface benc benc_StandardBencSerializer util)#dhtstore)
+target_link_libraries(interface ${LIBEVENT2_LIBRARIES})
 
-# Everything must be tested.
 enable_testing()
-##add_subdirectory(test)
+#add_subdirectory(test)
