@@ -389,6 +389,9 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(node, &store->nodes[store->size], sizeof(struct Node));
     struct NodeHeader* header = &store->headers[node - store->nodes];
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
+
+    // This is needed because otherwise replaceNode will cause the labelSum to skew.
+    store->nodes[store->size].address.networkAddress_be = 0;
 }
 
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
