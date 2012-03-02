@@ -17,10 +17,10 @@
 #include <stdio.h>
 
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
+#include "memory/MallocAllocator.c"
 
-#define ALLOCATION_SIZE ((size_t)16)
-#define ALLOCATOR_SIZE ((size_t)128)
+#define ALLOCATION_SIZE sizeof(struct Allocation)
+#define ALLOCATOR_SIZE sizeof(struct FirstContext)
 
 int main()
 {
