@@ -29,7 +29,7 @@ add_definitions(-Wno-unused-parameter)
 include(CheckCCompilerFlag)
 # There are a number of places in Admin where read() and write() are used
 # and they fail silently if anything goes wrong so the result is unused.
-check_c_compiler_flag(-Wno-invalid-offsetof HAS_NO_UNUSED_RESULT)
+check_c_compiler_flag(-Wno-unused-result HAS_NO_UNUSED_RESULT)
 if(HAS_NO_UNUSED_RESULT)
     add_definitions(-Wno-unused-result)
 endif()
