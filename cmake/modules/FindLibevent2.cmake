@@ -76,7 +76,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     add_library(event2 STATIC IMPORTED)
 
-    if(CMAKE_SYSTEM_VERSION VERSION_LESS "2.8.4")
+    if(CMAKE_VERSION VERSION_LESS 2.8.4)
         message("Parallel building (-j) will not be available.")
         message("To build in parallel, upgrade to cmake 2.8.4 or newer.")
         message("see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395")
