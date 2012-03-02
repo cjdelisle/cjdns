@@ -48,6 +48,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     # Without this, the build doesn't happen until link time.
     include_directories(${LIBEVENT2_USE_FILES})
 
+    # Librt functions are in the standard library on apple.
     if(NOT DEFINED APPLE)
         # Need librt to be included if libevent is static linked.
         find_package(Librt REQUIRED)
@@ -74,14 +75,22 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2-bin/include/")
 
     add_library(event2 STATIC IMPORTED)
-    add_dependencies(event2 Libevent2)
+
+    if(CMAKE_SYSTEM_VERSION VERSION_LESS "2.8.4")
+        message("Parallel building (-j) will not be available.")
+        message("To build in parallel, upgrade to cmake 2.8.4 or newer.")
+        message("see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395")
+    else()
+        add_dependencies(event2 Libevent2)
+    endif()
+
+    set_property(TARGET event2
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a)
 
     if(NOT DEFINED APPLE)
         # This is needed to make sure libevent2 pulls in rt as a dependency.
-        set_target_properties(event2 PROPERTIES
-            IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a
-            IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES}
-        )
+        set_property(TARGET event2
+            PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES})
     endif()
 
     set(LIBEVENT2_LIBRARIES event2)
