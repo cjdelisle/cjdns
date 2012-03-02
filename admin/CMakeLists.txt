@@ -12,3 +12,5 @@
 add_subdirectory(http)
 
 add_library(cjdadmin Admin.c)
+
+target_link_libraries(cjdadmin crypto)

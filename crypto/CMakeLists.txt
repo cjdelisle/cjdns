@@ -17,6 +17,10 @@ find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 add_library(crypto Crypto.c CryptoAuth.c AddressCalc.c)
+
+# This is needed because NACL must be built first because header files are generated.
+add_dependencies(crypto NACL)
+
 target_link_libraries(crypto
     cjdbenc
     cjdmemory
