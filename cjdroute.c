@@ -804,4 +804,7 @@ int main(int argc, char** argv)
     security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
+
+    // Never reached.
+    return 0;
 }
