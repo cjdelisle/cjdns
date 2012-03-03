@@ -38,4 +38,6 @@ int main()
             assert(out[i] != out[j]);
         }
     }
+
+    return 0;
 }

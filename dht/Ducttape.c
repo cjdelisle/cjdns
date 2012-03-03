@@ -289,13 +289,10 @@ static inline uint8_t sendToSwitch(struct Message* message,
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
-static inline bool validIP6(struct Message* message)
+static inline bool validEncryptedIP6(struct Message* message)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
-    uint16_t length = Endian_bigEndianToHost16(header->payloadLength_be);
-    return header->sourceAddr[0] == 0xFC
-        && header->destinationAddr[0] == 0xFC
-        && length == message->length - Headers_IP6Header_SIZE;
+    return header->sourceAddr[0] == 0xFC && header->destinationAddr[0] == 0xFC;
 }
 
 static inline bool isForMe(struct Message* message, struct Context* context)
@@ -309,11 +306,6 @@ static inline uint8_t ip6FromTun(struct Message* message,
                                  struct Interface* interface)
 {
     struct Context* context = (struct Context*) interface->receiverContext;
-
-    if (!validIP6(message)) {
-        Log_debug(context->logger, "dropped message from TUN because it was not valid IPv6.\n");
-        return Error_INVALID;
-    }
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
@@ -365,11 +357,6 @@ static inline int core(struct Message* message, struct Context* context)
 {
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
-    if (!validIP6(message)) {
-        Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
-        return Error_INVALID;
-    }
-
     // Do this here and check for 1 hop, not 0 because we want to differentiate between single
     // hop traffic and routed traffic as single hop traffic doesn't need 2 layers of crypto.
     if (context->ip6Header->hopLimit == 1) {
@@ -380,7 +367,14 @@ static inline int core(struct Message* message, struct Context* context)
 
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
-        if (context->ip6Header->hopLimit != 0) {
+        // Checking the hop limit is the old solution which ruins the packets as they are sent.
+        // the new solution is to compare the length of the packet to the reported length to
+        // decide whether the packet has another layer of encryption.
+        bool thirdLayer = context->ip6Header->hopLimit != 0;
+        thirdLayer |=
+            (Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) != message->length);
+
+        if (thirdLayer) {
             // triple encrypted
             // This call goes to incomingForMe()
             context->layer = INNER_LAYER;
@@ -464,7 +458,7 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Context* co
 
 static inline int incomingFromRouter(struct Message* message, struct Context* context)
 {
-    if (!validIP6(message)) {
+    if (!validEncryptedIP6(message)) {
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
         return Error_INVALID;
     }
