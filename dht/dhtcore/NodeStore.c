@@ -365,6 +365,10 @@ void NodeStore_updateReach(const struct Node* const node,
             if (store->headers[i].reach < node->reach) {
                 store->headers[i].reach = node->reach;
             }
+        } else if (Address_routesThrough(path, dest)) {
+            if (store->headers[i].reach > node->reach) {
+                store->headers[i].reach = node->reach;
+            }
         }
     }
 }
