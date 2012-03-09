@@ -774,11 +774,6 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             // This happens constantly.
             //Log_debug(module->logger, "They just told us about ourselves.\n");
             continue;
-        } else if ((newNodePrefix ^ targetPrefix) >= parentDistance
-            && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
-        {
-            Log_debug(module->logger, "Answer was further from the target than us.\n");
-            continue;
         } else if (addr.ip6.bytes[0] != 0xfc) {
             Log_debug(module->logger, "Was told garbage.\n");
             // This should never happen, badnode.
@@ -814,6 +809,15 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
         // Nodes we are told about are inserted with 0 reach.
         NodeStore_addNode(module->nodeStore, &addr, 0);
+
+        if ((newNodePrefix ^ targetPrefix) >= parentDistance
+            && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
+        {
+            // Too much noise.
+            //Log_debug(module->logger, "Answer was further from the target than us.\n");
+            continue;
+        }
+
         struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
         SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
     }
