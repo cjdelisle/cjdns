@@ -551,7 +551,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     } else {
         herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
         if (herAddrIndex == -1) {
-            struct Node* n = RouterModule_getNode(switchHeader->label_be, context->routerModule);
+            uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
+            struct Node* n = RouterModule_getNode(label, context->routerModule);
             if (n) {
                 herAddrIndex = AddressMapper_put(switchHeader->label_be,
                                                  n->address.ip6.bytes,

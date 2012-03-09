@@ -374,8 +374,14 @@ uint32_t NodeStore_size(const struct NodeStore* const store)
     return store->size;
 }
 
-struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store)
+/** see: NodeStore.h */
+struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store)
 {
+    if (path == 0) {
+        return (store->size > 0) ? &store->nodes[rand() % store->size] : NULL;
+    }
+
+    uint64_t networkAddress_be = Endian_hostToBigEndian64(path);
     for (uint32_t i = 0; i < store->size; i++) {
         if (networkAddress_be == store->nodes[i].address.networkAddress_be) {
             return &store->nodes[i];

@@ -95,7 +95,15 @@ void NodeStore_updateReach(const struct Node* const node,
 
 uint32_t NodeStore_size(const struct NodeStore* const store);
 
-struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store);
+/**
+ * Get a node by it's path.
+ *
+ * @param path the path to the node to get in host order. If zero, a random node will be returned.
+ * @param store the node store.
+ * @return NULL if the store is empty, a randomly chosen node if path is 0, otherwise a node with
+ *         that path or NULL if no such node exists.
+ */
+struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
 
 void NodeStore_remove(struct Node* node, struct NodeStore* store);
 

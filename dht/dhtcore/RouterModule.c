@@ -1145,9 +1145,10 @@ struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE]
     return NodeStore_getBest(&addr, module->nodeStore);
 }
 
-struct Node* RouterModule_getNode(uint64_t networkAddress_be, struct RouterModule* module)
+/** see RouterModule.h */
+struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_getNodeByNetworkAddr(networkAddress_be, module->nodeStore);
+    return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
 }
 
 void RouterModule_pingGoodCandidate(struct RouterModule* module)
