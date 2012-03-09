@@ -13,7 +13,7 @@ project(cjdns C)
 cmake_minimum_required(VERSION 2.4)
 
 if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR})
-        message( FATAL_ERROR "type: mkdir build ; cd build ; cmake .. ; make" )
+    message( FATAL_ERROR "type: mkdir build ; cd build ; cmake .. ; make" )
 endif(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
@@ -27,6 +27,7 @@ add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 add_definitions(-Wno-unused-parameter)
 
 include(CheckCCompilerFlag)
+
 # There are a number of places in Admin where read() and write() are used
 # and they fail silently if anything goes wrong so the result is unused.
 check_c_compiler_flag(-Wno-unused-result HAS_NO_UNUSED_RESULT)
@@ -34,26 +35,34 @@ if(HAS_NO_UNUSED_RESULT)
     add_definitions(-Wno-unused-result)
 endif()
 
-# hardening
-add_definitions(
-    -fPIE
+check_c_compiler_flag(-fstack-protector-all HAS_F_STACK_PROTECTOR)
+if(NOT HAS_F_STACK_PROTECTOR)
+    message("WARNING: Stack Smashing Protector is not available on this target.")
+    message("SSP is an important security measure to minimize the risk of a vulnerability.")
+else()
+    add_definitions(
+        # Broken GCC patch makes -fstack-protector-all not work
+        # workaround is to give -fno-stack-protector first.
+        # see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
+        -fno-stack-protector
+        -fstack-protector-all
 
-    # Broken GCC patch makes -fstack-protector-all not work
-    # workaround is to give -fno-stack-protector first.
-    # see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
-    -fno-stack-protector
-    -fstack-protector-all
-
-    -Wstack-protector
-)
+        -Wstack-protector
+    )
+endif()
 
 # allow position independent executable to be turned off with NO_PIE cmake ..
 if("$ENV{NO_PIE}" STREQUAL "")
-    message("Building with position independent executable.")
+    message("Building a position independent executable (ASLR security enabled).")
+    message("NOTE: PIE executables cannot run in a debugger.")
+    add_definitions(-fPIE)
     set(PIE "-pie")
 else()
-    message("Building with position dependent executable (ASLR security disabled).")
+    message("Building a position dependent executable (ASLR security disabled).")
     set(PIE "")
+
+    # debugging
+    add_definitions(-g)
 endif()
 
 if(NOT DEFINED APPLE)
@@ -62,9 +71,6 @@ else()
     # apple seems to set noexecstack by defualt and not support relro.
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
 endif()
-
-# debugging
-add_definitions(-g)
 
 if(NOT $ENV{Log_LEVEL} STREQUAL "")
     string(TOUPPER $ENV{Log_LEVEL} LEVEL)
