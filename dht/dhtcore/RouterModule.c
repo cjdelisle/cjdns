@@ -1150,16 +1150,3 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
 {
     return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
 }
-
-void RouterModule_pingGoodCandidate(struct RouterModule* module)
-{
-    struct Node* n = NodeStore_getGoodCandidate(module->nodeStore);
-    if (n) {
-        #ifdef Log_DEBUG
-            uint8_t printedAddr[60];
-            Address_print(printedAddr, &n->address);
-            Log_debug1(module->logger, "Pinging potential good route %s\n", printedAddr);
-        #endif
-        RouterModule_pingNode(n, module, NULL);
-    }
-}

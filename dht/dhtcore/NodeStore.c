@@ -422,26 +422,6 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
     return out;
 }
 
-struct Node* NodeStore_getGoodCandidate(struct NodeStore* store)
-{
-    if (store->size < 3) {
-        return NULL;
-    }
-    uint32_t start = rand() % (store->size - 1);
-    int avgLabel = store->labelSum / store->size;
-    for (uint32_t i = start + 1; i != start; i++) {
-        if (i == store->size) {
-            i = 0;
-        }
-        if (store->headers[i].reach < (UINT32_MAX / 2)
-            && Bits_log2x64_be(store->nodes[i].address.networkAddress_be) < avgLabel)
-        {
-            return &store->nodes[i];
-        }
-    }
-    return NULL;
-}
-
 static void sendEntries(struct NodeStore* store,
                         struct List_Item* last,
                         bool isMore,

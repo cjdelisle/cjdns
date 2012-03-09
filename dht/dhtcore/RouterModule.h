@@ -21,6 +21,7 @@
 #include "admin/Admin.h"
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
+#include "dht/dhtcore/Node.h"
 #include "benc/Object.h"
 #include "util/Log.h"
 
@@ -98,11 +99,13 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module);
  * Send a ping to a node, when it responds it will be added to the routing table.
  * This is the best way to introduce nodes manually.
  *
- * @param networkAddress the network address of the node.
+ * @param node the node to ping.
  * @param module the router module.
+ * @param txid a number which will be bounced back in the ping,
+ *             not useful outside of RouterModule so NULL is acceptable.
+ * @return 0 if the ping was sent, -1 if there was no more space to store state.
  */
-//void RouterModule_pingNode(const uint64_t networkAddress_be,
- //                          struct RouterModule* module);
+int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid);
 
 int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module);
 
@@ -113,15 +116,5 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 
 struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                   struct RouterModule* module);
-
-/**
- * Select a node from the routing table which is likely to yield a good route and ping it.
- * Good candidates are defined as nodes whose known link state is worse than average but their
- * label length is shorter than average. These are probably better nodes but their link state
- * is low or 0 because they have never been pinged so it's unknown.
- *
- * @param module the router module.
- */
-void RouterModule_pingGoodCandidate(struct RouterModule* module);
 
 #endif

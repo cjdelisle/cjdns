@@ -15,6 +15,7 @@
 #include "dht/Address.h"
 #include "dht/DHTModules.h"
 #include "dht/dhtcore/Janitor.h"
+#include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -121,11 +122,13 @@ static void maintanenceCycle(void* vcontext)
                    (unsigned int) bytes);
     #endif
 
+    // Ping a random node shorter half of route distance and lower half of link state.
+    struct Node* toPing = RouterModule_getNode(0, janitor->routerModule);
+    if (toPing) {
+        RouterModule_pingNode(toPing, janitor->routerModule, NULL);
+    }
+
     if (now > janitor->timeOfNextGlobalMaintainence) {
-
-        // Ping a random node shorter half of route distance and lower half of link state.
-        RouterModule_pingGoodCandidate(janitor->routerModule);
-
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
