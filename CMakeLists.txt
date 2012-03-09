@@ -35,10 +35,13 @@ if(HAS_NO_UNUSED_RESULT)
     add_definitions(-Wno-unused-result)
 endif()
 
+# GCC only sends a warning and not an error if it can't compile with stack canaries.
+set(CMAKE_REQUIRED_FLAGS "-Werror")
 check_c_compiler_flag(-fstack-protector-all HAS_F_STACK_PROTECTOR)
 if(NOT HAS_F_STACK_PROTECTOR)
     message("WARNING: Stack Smashing Protector is not available on this target.")
     message("SSP is an important security measure to minimize the risk of a vulnerability.")
+    message("")
 else()
     add_definitions(
         # Broken GCC patch makes -fstack-protector-all not work
@@ -46,7 +49,6 @@ else()
         # see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
         -fno-stack-protector
         -fstack-protector-all
-
         -Wstack-protector
     )
 endif()
@@ -55,6 +57,7 @@ endif()
 if("$ENV{NO_PIE}" STREQUAL "")
     message("Building a position independent executable (ASLR security enabled).")
     message("NOTE: PIE executables cannot run in a debugger.")
+    message("")
     add_definitions(-fPIE)
     set(PIE "-pie")
 else()
