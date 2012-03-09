@@ -400,7 +400,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
         if (Address_routesThrough(dest, path)) {
-            NodeStore_remove(&store->nodes[i], store);
+            store->headers[i].reach = 0;
             out++;
         }
     }
