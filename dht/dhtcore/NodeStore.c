@@ -358,6 +358,15 @@ void NodeStore_updateReach(const struct Node* const node,
                            const struct NodeStore* const store)
 {
     store->headers[node - store->nodes].reach = node->reach;
+    uint64_t path = Endian_bigEndianToHost64(node->address.networkAddress_be);
+    for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
+        uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
+        if (Address_routesThrough(dest, path)) {
+            if (store->headers[i].reach < node->reach) {
+                store->headers[i].reach = node->reach;
+            }
+        }
+    }
 }
 
 uint32_t NodeStore_size(const struct NodeStore* const store)
