@@ -205,7 +205,8 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
     }
 
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-    return uh->sourceAndDestPorts == 0
+    return message->length >= Headers_UDPHeader_SIZE
+        && uh->sourceAndDestPorts == 0
         && (int) Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
 }
 
@@ -232,6 +233,19 @@ static inline uint8_t incomingForMe(struct Message* message, struct Context* con
                        "    %s hash of key\n",
                        srcAddr,
                        keyAddr);
+        #endif
+        return Error_INVALID;
+    }
+
+    if (message->length == 0) {
+        #ifdef Log_WARN
+            uint8_t keyAddr[40];
+            uint8_t ipv6Hex[80];
+            Address_printIp(keyAddr, &addr);
+            Hex_encode(ipv6Hex, 80, (uint8_t*) context->ip6Header, 40);
+            Log_warn2(context->logger,
+                      "Got ipv6 packet from %s which has no content!\nIPv6 Header: [%s]",
+                      keyAddr, ipv6Hex);
         #endif
         return Error_INVALID;
     }
@@ -292,7 +306,10 @@ static inline uint8_t sendToSwitch(struct Message* message,
 static inline bool validEncryptedIP6(struct Message* message)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
-    return header->sourceAddr[0] == 0xFC && header->destinationAddr[0] == 0xFC;
+    // Empty ipv6 headers are tolerated at this stage but dropped later.
+    return message->length >= Headers_IP6Header_SIZE
+        && header->sourceAddr[0] == 0xFC
+        && header->destinationAddr[0] == 0xFC;
 }
 
 static inline bool isForMe(struct Message* message, struct Context* context)
