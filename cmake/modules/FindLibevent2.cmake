@@ -89,11 +89,10 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     if(NOT DEFINED APPLE)
         # This is needed to make sure libevent2 pulls in rt as a dependency.
-        set_property(TARGET event2
-            PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES})
+        set(LIBEVENT2_LIBRARIES event2 ${LIBRT_LIBRARIES})
+    else()
+        set(LIBEVENT2_LIBRARIES event2)
     endif()
-
-    set(LIBEVENT2_LIBRARIES event2)
 
 endif (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
