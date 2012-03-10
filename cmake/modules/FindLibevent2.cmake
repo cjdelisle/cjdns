@@ -21,45 +21,43 @@ function(includeLibrt)
     endif()
 endfunction()
 
-if ("$ENV{STATIC}" STREQUAL "")
-    if (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
+if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
+
+    find_path(LIBEVENT2_INCLUDE_DIRS
+        NAMES
+            event2/dns.h
+        PATHS
+            ${LIBEVENT2_PREFIX}/include
+            /usr/include
+            /usr/local/include
+            /opt/local/include
+            ${CMAKE_BINARY_DIR}/libevent2-bin/include
+        NO_DEFAULT_PATH
+    )
+
+    find_library(LIBEVENT2_LIBRARIES
+        NAMES
+            event
+        PATHS
+            ${LIBEVENT2_INCLUDE_DIRS}/../lib
+            ${LIBEVENT2_PREFIX}/lib
+            /usr/lib
+            /usr/local/lib
+            /opt/local/lib
+        NO_DEFAULT_PATH
+    )
+
+    if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
         set(LIBEVENT2_FOUND TRUE)
-    else (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-        find_path(LIBEVENT2_INCLUDE_DIRS
-            NAMES
-                event2/dns.h
-            PATHS
-                ${LIBEVENT2_PREFIX}/include
-                /usr/include
-                /usr/local/include
-                /opt/local/include
-                ${CMAKE_BINARY_DIR}/libevent2-bin/include
-            NO_DEFAULT_PATH
-        )
-
-        find_library(LIBEVENT2_LIBRARIES
-            NAMES
-                event
-            PATHS
-                ${LIBEVENT2_INCLUDE_DIRS}/../lib
-                ${LIBEVENT2_PREFIX}/lib
-                /usr/lib
-                /usr/local/lib
-                /opt/local/lib
-            NO_DEFAULT_PATH
-        )
-
-        if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-            set(LIBEVENT2_FOUND TRUE)
-            if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2-bin/include")
-                add_library(event2 STATIC IMPORTED)
-                set_property(TARGET event2 PROPERTY IMPORTED_LOCATION ${LIBEVENT2_LIBRARIES})
-                includeLibrt()
-            endif()
+        if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2-bin/include")
+            add_library(event2 STATIC IMPORTED)
+            set_property(TARGET event2 PROPERTY IMPORTED_LOCATION ${LIBEVENT2_LIBRARIES})
+            includeLibrt()
+            set(LIBEVENT2_LIBRARIES event2)
         endif()
+    endif()
 
-    endif (LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-endif ("$ENV{STATIC}" STREQUAL "")
+endif()
 
 if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     include(ExternalProject)
@@ -101,10 +99,6 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a)
 
     includeLibrt()
-
-endif()
-
-if(NOT LIBEVENT2_FOUND AND LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-   set(LIBEVENT2_LIBRARIES event2)
-   set(LIBEVENT2_FOUND TRUE)
+    set(LIBEVENT2_LIBRARIES event2)
+    set(LIBEVENT2_FOUND TRUE)
 endif()
