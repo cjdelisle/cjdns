@@ -91,12 +91,12 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         crypto_hash_sha256(outputSecret, tempBuff, 64);
     }
     #ifdef Log_KEYS
-        uint8_t myPublicKeyHex[65] = "";
-        //printHexPubKey(myPublicKeyHex, myPrivateKey);
-        uint8_t herPublicKeyHex[65] = "";
-        //printHexKey(herPublicKeyHex, herPublicKey);
-        uint8_t passwordHashHex[65] = "";
-        //printHexKey(passwordHashHex, passwordHash);
+        uint8_t myPublicKeyHex[65];
+        printHexPubKey(myPublicKeyHex, myPrivateKey);
+        uint8_t herPublicKeyHex[65];
+        printHexKey(herPublicKeyHex, herPublicKey);
+        uint8_t passwordHashHex[65];
+        printHexKey(passwordHashHex, passwordHash);
         uint8_t outputSecretHex[65] = "NULL";
         printHexKey(outputSecretHex, outputSecret);
         Log_keys4(logger,
