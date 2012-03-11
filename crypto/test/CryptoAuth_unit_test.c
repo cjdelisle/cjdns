@@ -137,7 +137,12 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
     uint8_t actual[265];
     assert(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
     //printf("%s", actual);
-    assert(!memcmp(actual, expectedOutput, 264));
+    if (memcmp(actual, expectedOutput, 264)) {
+        printf("Test failed.\n"
+               "Expected %s\n"
+               "     Got %s\n", expectedOutput, actual);
+        exit(1);
+    }
 }
 
 void helloNoAuth()
