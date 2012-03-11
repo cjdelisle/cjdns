@@ -11,7 +11,36 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 cmake_minimum_required(VERSION 2.8.2)
 
-if (NOT NACL_INCLUDE_DIRS)
+if (NOT NACL_FOUND)
+
+    find_path(NACL_INCLUDE_DIRS
+        NAMES
+            crypto_box_curve25519xsalsa20poly1305.h
+        PATHS
+            ${NACL_PREFIX}/include
+            /usr/include
+            /usr/local/include
+            /opt/local/include
+            ${CMAKE_BINARY_DIR}/nacl/build/include/default
+        NO_DEFAULT_PATH
+    )
+
+    find_library(NACL_LIBRARIES
+        NAMES
+            nacl
+        PATHS
+            ${NACL_INCLUDE_DIRS}/../lib
+        NO_DEFAULT_PATH
+    )
+
+    if(NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
+        message("libnacl found: ${NACL_INCLUDE_DIRS}")
+        set(NACL_FOUND TRUE)
+    endif()
+
+endif()
+
+if(NOT NACL_FOUND)
     include(ExternalProject)
 
     # Without this, the build doesn't happen until link time.
@@ -29,5 +58,7 @@ if (NOT NACL_INCLUDE_DIRS)
 
     set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
     set(NACL_LIBRARIES    "${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a")
+    message("libnacl not found, will be downloaded and compiled.")
+    set(NACL_FOUND TRUE)
 
-endif (NOT NACL_INCLUDE_DIRS)
+endif()
