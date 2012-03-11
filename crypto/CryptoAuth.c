@@ -75,13 +75,12 @@ static inline void printHexPubKey(uint8_t output[65], uint8_t privateKey[32])
  *                     the first 32 bytes of a sha256 output from hashing a password is ok,
  *                     whatever she happens to send me in the Auth field is NOT ok.
  *                     If this field is null, the secret will be generated without the password.
- * @return outputSecret
  */
-static inline uint8_t* getSharedSecret(uint8_t outputSecret[32],
-                                       uint8_t myPrivateKey[32],
-                                       uint8_t herPublicKey[32],
-                                       uint8_t passwordHash[32],
-                                       struct Log* logger)
+static inline void getSharedSecret(uint8_t outputSecret[32],
+                                   uint8_t myPrivateKey[32],
+                                   uint8_t herPublicKey[32],
+                                   uint8_t passwordHash[32],
+                                   struct Log* logger)
 {
     uint8_t tempBuff[64];
     crypto_scalarmult_curve25519(tempBuff, myPrivateKey, herPublicKey);
@@ -91,14 +90,13 @@ static inline uint8_t* getSharedSecret(uint8_t outputSecret[32],
         memcpy(&tempBuff[32], passwordHash, 32);
         crypto_hash_sha256(outputSecret, tempBuff, 64);
     }
-    return outputSecret;
     #ifdef Log_KEYS
-        uint8_t myPublicKeyHex[65];
-        printHexPubKey(myPublicKeyHex, myPrivateKey);
-        uint8_t herPublicKeyHex[65];
-        printHexKey(herPublicKeyHex, herPublicKey);
-        uint8_t passwordHashHex[65];
-        printHexKey(passwordHashHex, passwordHash);
+        uint8_t myPublicKeyHex[65] = "";
+        //printHexPubKey(myPublicKeyHex, myPrivateKey);
+        uint8_t herPublicKeyHex[65] = "";
+        //printHexKey(herPublicKeyHex, herPublicKey);
+        uint8_t passwordHashHex[65] = "";
+        //printHexKey(passwordHashHex, passwordHash);
         uint8_t outputSecretHex[65] = "NULL";
         printHexKey(outputSecretHex, outputSecret);
         Log_keys4(logger,
