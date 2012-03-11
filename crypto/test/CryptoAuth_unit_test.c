@@ -141,7 +141,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
         printf("Test failed.\n"
                "Expected %s\n"
                "     Got %s\n", expectedOutput, actual);
-        exit(1);
+        abort();
     }
 }
 
