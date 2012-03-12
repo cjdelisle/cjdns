@@ -22,6 +22,7 @@
 #ifdef __APPLE__
     #define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
     #define INET6_ETHERTYPE PF_INET6
+    #define UTUN_OPT_IFNAME 2
 
     #include <netinet/in.h>
     #include <sys/socket.h>
@@ -40,6 +41,7 @@
 
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
+#include "interface/TUNInterface_struct.h"
 #include "benc/Object.h"
 #include "util/Endian.h"
 
@@ -51,49 +53,66 @@
 // to contain the type of packet.
 #define PACKET_INFO_SIZE 4
 
-struct Tunnel
-{
-    struct event* incomingEvent;
-    int fileDescriptor;
-    struct Interface interface;
-};
-
 #ifdef __APPLE__
 
 static int openTunnel(const char* interfaceName) {
-    fprintf(stderr, "Initializing utun device: ");
-    if (interfaceName) {
-        fprintf(stderr, "%s", interfaceName);
-    }
-    fprintf(stderr, "\n");
+    int tunUnit = 0; /* allocate dynamically by default */
 
-    if (strncmp("utun0", interfaceName, strlen("utun0"))) {
-        fprintf(stderr, "Invalid utun device %s, "
-                        "the only valid device on Mac OS X is utun0 for now.\n", interfaceName);
-        return -1;
+    if (interfaceName) {
+        int parsedUnit = 0;
+
+        if (sscanf(interfaceName, "utun%i", &parsedUnit) != 1 || parsedUnit < 0) {
+            fprintf(stderr, "Invalid utun device %s. "
+                "Remove this configuration parameter to use automatic assignment.\n", interfaceName);
+            return -1;
+        }
+
+        tunUnit = parsedUnit + 1; /* device number used is unit - 1*/
     }
+
+    fprintf(stderr, "Initializing utun interface: %s\n", interfaceName ? interfaceName : "auto");
 
     int tunFileDescriptor = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
-    struct sockaddr_ctl addr;
+    if (tunFileDescriptor < 0) {
+        return tunFileDescriptor;
+    }
 
-    /* get/set the id */
+    /* get the utun control id */
     struct ctl_info info;
     memset(&info, 0, sizeof(info));
     strncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
 
-    if (ioctl(tunFileDescriptor, CTLIOCGINFO, &info) == -1) {
+    if (ioctl(tunFileDescriptor, CTLIOCGINFO, &info) < 0) {
         fprintf(stderr, "Error while setting options on kernel control: %s\n", strerror(errno));
+        close(tunFileDescriptor);
+        return -1;
     }
 
+    /* connect the utun device */
+    struct sockaddr_ctl addr;
     addr.sc_id = info.ctl_id;
 
     addr.sc_len = sizeof(addr);
     addr.sc_family = AF_SYSTEM;
     addr.ss_sysaddr = AF_SYS_CONTROL;
-    addr.sc_unit = 0; /* allocate dynamically */
+    addr.sc_unit = tunUnit;
 
-    if (connect(tunFileDescriptor, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-        fprintf(stderr, "Error attempting to connect to tun device: %s\n", strerror(errno));
+    if (connect(tunFileDescriptor, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        fprintf(stderr, "Error attempting to connect to utun device: %s\n", strerror(errno));
+        close(tunFileDescriptor);
+
+        return -1;
+    }
+
+    /* retrieve the assigned utun interface name */
+    char assignedInterfaceName[IFNAMSIZ];
+    uint32_t assignedInterfaceNameLength = sizeof(assignedInterfaceName);
+
+    if (getsockopt(tunFileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
+                   assignedInterfaceName, &assignedInterfaceNameLength) >= 0) {
+        fprintf(stderr, "Initialized utun interface: %s\n", assignedInterfaceName);
+    } else {
+        perror("getsockopt");
     }
 
     return tunFileDescriptor;
@@ -136,7 +155,7 @@ static int openTunnel(const char* interfaceName)
 
 static void closeInterface(void* vcontext)
 {
-    struct Tunnel* tun = (struct Tunnel*) vcontext;
+    struct TUNInterface_struct* tun = (struct TUNInterface_struct*) vcontext;
     close(tun->fileDescriptor);
     event_del(tun->incomingEvent);
     event_free(tun->incomingEvent);
@@ -162,7 +181,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
     message.length = length - PACKET_INFO_SIZE;
 
-    struct Interface* iface = &((struct Tunnel*) vcontext)->interface;
+    struct Interface* iface = &((struct TUNInterface_struct*) vcontext)->interface;
     if (iface->receiveMessage) {
         iface->receiveMessage(&message, iface);
     }
@@ -175,7 +194,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     const uint16_t packetInfo[2] = { 0, Endian_bigEndianToHost16(INET6_ETHERTYPE) };
     memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
-    struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
+    struct TUNInterface_struct* tun = (struct TUNInterface_struct*) iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
     if (ret < 0) {
         printf("Error writing to TUN device %d\n", errno);
@@ -202,7 +221,7 @@ struct Interface* TUNInterface_new(String* interfaceName,
 
     evutil_make_socket_nonblocking(tunFileDesc);
 
-    struct Tunnel* tun = allocator->malloc(sizeof(struct Tunnel), allocator);
+    struct TUNInterface_struct* tun = allocator->malloc(sizeof(struct TUNInterface_struct), allocator);
     tun->incomingEvent = event_new(base, tunFileDesc, EV_READ | EV_PERSIST, handleEvent, tun);
     tun->fileDescriptor = tunFileDesc;
 

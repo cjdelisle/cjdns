@@ -23,6 +23,7 @@
 #include "exception/AbortHandler.h"
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
+#include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
@@ -46,11 +47,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#ifdef __APPLE__
-    #define DEFAULT_TUN_DEV "utun0"
-#else
-    #define DEFAULT_TUN_DEV "tun0"
-#endif
+#define DEFAULT_TUN_DEV "tun0"
 
 struct Context
 {
@@ -212,7 +209,9 @@ static int genconf()
            "        \"interface\":\n"
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
-           "            \"type\": \"TUNInterface\",\n"
+           "            \"type\": \"TUNInterface\""
+#ifndef __APPLE__
+           ",\n"
            "\n"
            "            // The name of the TUN device to use.\n"
            "            // This allows you to create a persistent TUN device with the cjdns user\n"
@@ -221,6 +220,9 @@ static int genconf()
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
            "            \"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
+#else
+           "\n"
+#endif
            "        }\n"
            "    },\n"
            "\n"
@@ -362,8 +364,7 @@ static int getcmds(Dict* config)
            "# you may run them once every time the system starts up.\n");
 
 #ifdef __APPLE__
-    printf("ifconfig %s inet6 %s\n", tunDev, myIp);
-    printf("route -n add -inet6 fc00::/8 -interface %s\n", tunDev);
+    printf("ifconfig %s inet6 %s/8\n", tunDev, myIp);
 #else
     printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
     printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
@@ -563,16 +564,20 @@ static void configureUDP(Dict* config, struct Context* ctx)
     }
 }
 
-static void registerRouter(Dict* config, uint8_t myPubKey[32], struct Context* context)
+static void registerRouter(Dict* config, struct Address *addr, struct Context* context)
 {
     Dict* iface = Dict_getDict(config, BSTR("interface"));
     if (String_equals(Dict_getString(iface, BSTR("type")), BSTR("TUNInterface"))) {
         String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
         context->routerIf = TUNInterface_new(tunPath, context->base, context->allocator);
+
+        if (TUNConfigurator_configure(context->routerIf, addr->ip6.bytes, 8) < 0) {
+            fprintf(stderr, "Couldn't configure TUN interface\n");
+        }
     }
     context->routerModule = RouterModule_register(context->registry,
                                                   context->allocator,
-                                                  myPubKey,
+                                                  addr->key,
                                                   context->base,
                                                   context->logger,
                                                   context->admin);
@@ -744,7 +749,7 @@ int main(int argc, char** argv)
 
     // Router
     Dict* routerConf = Dict_getDict(&config, BSTR("router"));
-    registerRouter(routerConf, myAddr.key, &context);
+    registerRouter(routerConf, &myAddr, &context);
 
     SerializationModule_register(context.registry, context.allocator);
 

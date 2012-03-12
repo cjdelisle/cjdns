@@ -14,6 +14,7 @@ find_package(Libevent2 REQUIRED)
 add_library(interface
     UDPInterface.c
     TUNInterface.c
+    TUNConfigurator.c
     InterfaceConnector.c
     SessionManager.c
 )
