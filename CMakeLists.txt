@@ -86,7 +86,7 @@ else()
     add_definitions("-D Log_DEBUG")
 endif()
 
-add_definitions(-O3 -funroll-loops)
+#add_definitions(-O3 -funroll-loops)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
