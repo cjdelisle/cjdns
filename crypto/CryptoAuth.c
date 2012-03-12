@@ -82,13 +82,20 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
                                    uint8_t passwordHash[32],
                                    struct Log* logger)
 {
-    uint8_t tempBuff[64];
-    crypto_scalarmult_curve25519(tempBuff, myPrivateKey, herPublicKey);
     if (passwordHash == NULL) {
-        crypto_core_hsalsa20(outputSecret, keyHashNonce, tempBuff, keyHashSigma);
+        crypto_box_curve25519xsalsa20poly1305_beforenm(outputSecret, herPublicKey, myPrivateKey);
     } else {
-        memcpy(&tempBuff[32], passwordHash, 32);
-        crypto_hash_sha256(outputSecret, tempBuff, 64);
+        union {
+            struct {
+                uint8_t key[32];
+                uint8_t passwd[32];
+            } components;
+            uint8_t bytes[64];
+        } buff;
+
+        crypto_scalarmult_curve25519(buff.components.key, myPrivateKey, herPublicKey);
+        memcpy(buff.components.passwd, passwordHash, 32);
+        crypto_hash_sha256(outputSecret, buff.bytes, 64);
     }
     #ifdef Log_KEYS
         uint8_t myPublicKeyHex[65];
