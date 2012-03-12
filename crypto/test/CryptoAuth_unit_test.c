@@ -38,7 +38,7 @@ static struct event_base* eventBase;
 
 static uint8_t* hello = (uint8_t*) "Hello World";
 
-int encryptRndNonceTest()
+void encryptRndNonceTest()
 {
     uint8_t buff[44] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0"
                        "hello world";
@@ -46,10 +46,10 @@ int encryptRndNonceTest()
     uint8_t secret[24] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0b";
     struct Message m = { .bytes=&buff[32], .length=12, .padding=32};
     Exports_encryptRndNonce(nonce, &m, secret);
-    return Exports_decryptRndNonce(nonce, &m, secret);
+    assert(!Exports_decryptRndNonce(nonce, &m, secret));
 }
 
-int createNew()
+void createNew()
 {
     uint8_t buff[BUFFER_SIZE];
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
@@ -58,8 +58,6 @@ int createNew()
         printf("%.2x", ca->publicKey[i]);
     }*/
     assert(memcmp(ca->publicKey, publicKey, 32) == 0);
-
-    return 0;
 }
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
@@ -169,7 +167,7 @@ void helloWithAuth()
     testHello((uint8_t*)"password", expected);
 }
 
-int receiveHelloWithNoAuth()
+void receiveHelloWithNoAuth()
 {
     uint8_t* messageHex = (uint8_t*)
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
@@ -198,10 +196,9 @@ int receiveHelloWithNoAuth()
     assert(finalOut->length == 12);
     assert(memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
-    return 0;
 }
 
-int repeatHello()
+void repeatHello()
 {
     uint8_t buff[BUFFER_SIZE];
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
@@ -257,7 +254,6 @@ int repeatHello()
     assert(finalOut->length == 12);
     assert(memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
-    return 0;
 }
 
 int main()
@@ -266,5 +262,8 @@ int main()
     helloNoAuth();
     helloWithAuth();
     receiveHelloWithNoAuth();
-    return encryptRndNonceTest() | createNew() | repeatHello();
+    encryptRndNonceTest();
+    createNew();
+    repeatHello();
+    return 0;
 }
