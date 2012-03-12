@@ -726,7 +726,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     // If the search has already replaced the node's location or it has already finished
     // and another search is taking place in the same slot, drop this reply because it is late.
-    if (!Address_isSame(parent->address, message->address)) {
+    if (!Address_isSameIp(parent->address, message->address)) {
         #ifdef Log_DEBUG
             uint8_t expectedAddr[60];
             Address_print(expectedAddr, parent->address);
