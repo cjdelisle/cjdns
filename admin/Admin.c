@@ -345,7 +345,7 @@ static void child(Dict* config, struct ChildContext* context)
     evutil_make_socket_nonblocking(listener);
     evutil_make_listen_socket_reuseable(listener);
 
-    if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (bind(listener, (struct sockaddr*)&addr, addrLen) < 0) {
         perror("bind");
         return;
     }
