@@ -32,8 +32,6 @@
 
     #define UTUN_OPT_IFNAME 2
 #else
-    #define INET6_ETHERTYPE ETH_P_IPV6
-
     #include <linux/if.h>
     #include <linux/if_tun.h>
     #include <linux/if_ether.h>
