@@ -40,13 +40,29 @@ static uint8_t* hello = (uint8_t*) "Hello World";
 
 void encryptRndNonceTest()
 {
-    uint8_t buff[44] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0"
-                       "hello world";
-    uint8_t nonce[24] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0a";
-    uint8_t secret[24] = "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0\0" "\0\0\0\0\0\0\0b";
+    uint8_t buff[44];
+    memset(buff, 0, 44);
+
+    uint8_t nonce[24];
+    memset(nonce, 0, 24);
+
+    uint8_t secret[32];
+    memset(secret, 0, 32);
+
     struct Message m = { .bytes=&buff[32], .length=12, .padding=32};
+    strcpy((char*) m.bytes, "hello world");
+
     Exports_encryptRndNonce(nonce, &m, secret);
+
+    uint8_t* expected = (uint8_t*) "1391ac5d03ba9f7099bffbb6e6c69d67ae5bd79391a5b94399b293dc";
+    uint8_t output[57];
+    Hex_encode(output, 57, m.bytes, m.length);
+
+    //printf("\n%s\n%s\n", (char*) expected, (char*) output);
+    assert(!memcmp(expected, output, 56));
+
     assert(!Exports_decryptRndNonce(nonce, &m, secret));
+    assert(m.length == 12 && !memcmp(m.bytes, "hello world", m.length));
 }
 
 void createNew()
@@ -262,6 +278,9 @@ int main()
     helloNoAuth();
     helloWithAuth();
     receiveHelloWithNoAuth();
+    encryptRndNonceTest();
+    encryptRndNonceTest();
+    encryptRndNonceTest();
     encryptRndNonceTest();
     createNew();
     repeatHello();
