@@ -571,7 +571,7 @@ static void registerRouter(Dict* config, struct Address *addr, struct Context* c
         String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
         context->routerIf = TUNInterface_new(tunPath, context->base, context->allocator);
 
-        if (TUNConfigurator_configure(context->routerIf, addr->ip6.bytes, 8) < 0) {
+        if (TUNConfigurator_configure(tunPath->bytes, context->routerIf, addr->ip6.bytes, 8) < 0) {
             fprintf(stderr, "Couldn't configure TUN interface\n");
         }
     }

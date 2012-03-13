@@ -16,6 +16,6 @@
 
 #include "interface/Interface.h"
 
-int TUNConfigurator_configure(struct Interface* interface, uint8_t *address/*16*/, int prefixLen);
+int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *address/*16*/, int prefixLen);
 
 #endif
