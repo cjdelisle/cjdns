@@ -64,6 +64,11 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
                address[14],
                address[15]);
 
+    if ((prefixLen < 0) || (prefixLen > 128)) {
+        fprintf(stderr, "Invalid prefix length: %i", prefixLen);
+        return -1;
+    }
+
 #ifdef __APPLE__
     struct TUNInterface_struct* tun = (struct TUNInterface_struct*) interface->senderContext;
 
@@ -90,11 +95,6 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
     /* turn the prefixlen into a mask, and add it to the request */
     struct sockaddr_in6 *mask = &in6_addreq.ifra_prefixmask;
     u_char *cp;
-
-    if ((prefixLen < 0) || (prefixLen > 128)) {
-        fprintf(stderr, "Invalid prefix length: %i", prefixLen);
-        return -1;
-    }
 
     int len = prefixLen;
     mask->sin6_len = sizeof(*mask);
@@ -163,7 +163,7 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
     }
 
     ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
-    ifr6.ifr6_prefixlen = 128;
+    ifr6.ifr6_prefixlen = prefixLen;
     inet_pton(AF_INET6, myIp, &ifr6.ifr6_addr);
 
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
