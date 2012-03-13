@@ -12,7 +12,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <event2/event.h>
+#include "interface/Interface.h"
+#include "interface/TUNConfigurator.h"
+#include "interface/TUNInterface_struct.h"
+
+
+#include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -20,30 +25,37 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <arpa/inet.h>
 #include <net/if.h>
-#include <netinet/in.h>
 
 #ifdef __APPLE__
     #include <netdb.h>
     #include <net/if_var.h>
     #include <netinet/in_var.h>
     #include <netinet6/nd6.h>
+    #include <netinet/in.h>
 
     #define UTUN_OPT_IFNAME 2
 #else
     #include <linux/if.h>
     #include <linux/if_tun.h>
     #include <linux/if_ether.h>
+    #include <linux/ipv6.h>
+
+    /**
+     * We need to pull in linux/ipv6.h for in6_ifreq but a bunch
+     * of structures are defined in in6.h and also in in.h causing
+     * errors from redefinition. Declaring evutil_inet_pton() extern
+     * allows us to sidestep the problem without defining in6_ifreq ourselves.
+     */
+    extern int evutil_inet_pton(int af, const char *src, void *dst);
 #endif
 
 
-#include "interface/Interface.h"
-#include "interface/TUNConfigurator.h"
-#include "interface/TUNInterface_struct.h"
-
-int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *address/*16*/, int prefixLen) {
-
+int TUNConfigurator_configure(char* dev,
+                              struct Interface* interface,
+                              uint8_t address[16],
+                              int prefixLen)
+{
     /* stringify our IP address */
     char myIp[40];
     sprintf((char*)myIp, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
@@ -143,11 +155,7 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
 
     int s;
     struct ifreq ifRequest;
-    struct in6_ifreq {
-        struct in6_addr ifr6_addr;
-        __u32 ifr6_prefixlen;
-        unsigned int ifr6_ifindex;
-    } ifr6;
+    struct in6_ifreq ifr6;
 
     if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
         perror("socket");
@@ -164,7 +172,7 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
 
     ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
     ifr6.ifr6_prefixlen = prefixLen;
-    inet_pton(AF_INET6, myIp, &ifr6.ifr6_addr);
+    evutil_inet_pton(AF_INET6, myIp, &ifr6.ifr6_addr);
 
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
         perror("SIOCSIFADDR");
