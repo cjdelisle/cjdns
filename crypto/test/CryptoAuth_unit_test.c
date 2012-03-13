@@ -279,9 +279,6 @@ int main()
     helloWithAuth();
     receiveHelloWithNoAuth();
     encryptRndNonceTest();
-    encryptRndNonceTest();
-    encryptRndNonceTest();
-    encryptRndNonceTest();
     createNew();
     repeatHello();
     return 0;
