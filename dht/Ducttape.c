@@ -544,8 +544,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (Headers_getMessageType(switchHeader) == MessageType_CONTROL) {
         struct Control* ctrl = (struct Control*) (switchHeader + 1);
         if (ctrl->type_be == Control_ERROR_be) {
-            uint32_t errType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
-            Log_info1(context->logger, "Got error packet, error type: %d", errType);
+            #ifdef Log_DEBUG
+                uint32_t errType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
+                Log_info1(context->logger, "Got error packet, error type: %d", errType);
+            #endif
             RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
         }
         return 0;
