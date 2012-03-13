@@ -143,11 +143,18 @@ int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *a
 
     int s;
     struct ifreq ifRequest;
+
+    /*
+     * in6_ifreq is actually defined in <linux/ipv6.h>
+     * but it conflicts with <netinet/in.h> and <arpa/inet.h>,
+     * so just copycatting it for now.
+     */
     struct in6_ifreq {
         struct in6_addr ifr6_addr;
-        __u32 ifr6_prefixlen;
-        unsigned int ifr6_ifindex;
+        __u32           ifr6_prefixlen;
+        unsigned int    ifr6_ifindex;
     } ifr6;
+
 
     if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
         perror("socket");
