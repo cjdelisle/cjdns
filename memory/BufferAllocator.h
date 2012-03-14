@@ -28,4 +28,14 @@
  */
 struct Allocator* BufferAllocator_new(void* buffer, size_t length);
 
-#endif /* BUFFERALLOCATOR_H */
+/**
+ * @param bufferAllocator the buffer allocator to set this on.
+ * @param electronicThumb in an out-of-memory event, this function will be called just
+ *                        before the process is aborted.
+ * @param towel a context which electronicThumb will be called with.
+ */
+void BufferAllocator_onOOM(const struct Allocator* bufferAllocator,
+                           void (* electronicThumb)(void* towel),
+                           void* towel);
+
+#endif

@@ -27,93 +27,34 @@
 /* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */
 #define ALIGNMENT sizeof(char*)
 
-struct BufferAllocator_onFreeJob;
+struct Job;
+struct Job {
+    void (* callback)(void* callbackContext);
+    void* callbackContext;
+    struct Job* next;
+};
 
 /** Internal state for Allocator. */
 struct BufferAllocator_context {
     char* basePointer;
     char* pointer;
     char* const endPointer;
-    struct BufferAllocator_onFreeJob* onFree;
+    struct Job* onFree;
+    struct Job onOOM;
 };
 
-struct BufferAllocator_onFreeJob {
-    void (* callback)(void* callbackContext);
-    void* callbackContext;
-    struct BufferAllocator_onFreeJob* next;
-};
-
-/* Internal Prototypes. */
-static void* allocatorMalloc(size_t length, const struct Allocator* allocator);
-static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator);
-static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone);
-static void* allocatorRealloc(const void* original, size_t length, const struct Allocator* allocator);
-static void freeAllocator(const struct Allocator* allocator);
-static struct Allocator* childAllocator(const struct Allocator* allocator);
-static void addOnFreeJob(void (* callback)(void* callbackContext),
-                         void* callbackContext,
-                         const struct Allocator* this);
-
-/** @see BufferAllocator.h */
-struct Allocator* BufferAllocator_new(void* buffer, size_t length)
-{
-    /* Write itself into it's own buffer :) */
-    struct BufferAllocator_context context = {
-        /* Align the pointer to do the first write manually. */
-        .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
-        .basePointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
-        .endPointer = ((char*)buffer) + length
-    };
-
-    if (context.endPointer < context.pointer) {
-        /* int64_t overflow. */
-        return NULL;
-    }
-
-    if (length + (char*) buffer < context.pointer + sizeof(struct BufferAllocator_context)) {
-        /* Not enough space to allocate the context. */
-        return NULL;
-    }
-
-    /* put the context into the buffer. */
-    memcpy(context.pointer, &context, sizeof(struct BufferAllocator_context));
-
-    struct Allocator allocator = {
-        .context = context.pointer,
-        .free = freeAllocator,
-        .malloc = allocatorMalloc,
-        .calloc = allocatorCalloc,
-        .clone = allocatorClone,
-        .realloc = allocatorRealloc,
-        .child = childAllocator,
-        .onFree = addOnFreeJob
-    };
-
-    /* Get the pointer to the context where it's written in the buffer. */
-    struct BufferAllocator_context* contextPtr = (struct BufferAllocator_context*) allocator.context;
-
-    /* have to advance the pointer so as not to clobber the context. */
-    contextPtr->pointer += sizeof(struct BufferAllocator_context);
-
-    /* Now that the context is in place we can begin using the allocater. */
-    struct Allocator* allocatorPtr = allocator.malloc(sizeof(struct Allocator), &allocator);
-    if (allocatorPtr == NULL) {
-        return NULL;
-    }
-
-    /* Reset the base pointer so as not to clobber the context on free() */
-    contextPtr->basePointer = contextPtr->pointer;
-
-    memcpy(allocatorPtr, &allocator, sizeof(struct Allocator));
-    return allocatorPtr;
-}
-
-/*--------------------Internal--------------------*/
 
 static void failure(const char* message)
 {
     fprintf(stderr, "Fatel error: %s\n", message);
     abort();
+}
+
+static void oom(struct BufferAllocator_context* context)
+{
+    if (context->onOOM.callback) {
+        context->onOOM.callback(context->onOOM.callbackContext);
+    }
 }
 
 /** @see Allocator->malloc() */
@@ -127,6 +68,7 @@ static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
 
     if (endOfAlloc >= context->endPointer) {
         /* out of bounds. */
+        oom(context);
         failure("BufferAllocator ran out of memory.");
     }
 
@@ -182,7 +124,7 @@ static void freeAllocator(const struct Allocator* allocator)
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;
 
-    struct BufferAllocator_onFreeJob* job = context->onFree;
+    struct Job* job = context->onFree;
     while (job != NULL) {
         job->callback(job->callbackContext);
         job = job->next;
@@ -204,12 +146,12 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) this->context;
 
-    struct BufferAllocator_onFreeJob* newJob =
-        this->calloc(sizeof(struct BufferAllocator_onFreeJob), 1, this);
+    struct Job* newJob =
+        this->calloc(sizeof(struct Job), 1, this);
     newJob->callback = callback;
     newJob->callbackContext = callbackContext;
 
-    struct BufferAllocator_onFreeJob* job = context->onFree;
+    struct Job* job = context->onFree;
     if (job == NULL) {
         context->onFree = newJob;
         return;
@@ -233,4 +175,68 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
         .child = childAllocator,
         .onFree = addOnFreeJob
     });
+}
+
+/** @see BufferAllocator.h */
+struct Allocator* BufferAllocator_new(void* buffer, size_t length)
+{
+    /* Write itself into it's own buffer :) */
+    struct BufferAllocator_context context = {
+        /* Align the pointer to do the first write manually. */
+        .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
+        .basePointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
+        .endPointer = ((char*)buffer) + length
+    };
+
+    if (context.endPointer < context.pointer) {
+        /* int64_t overflow. */
+        return NULL;
+    }
+
+    if (length + (char*) buffer < context.pointer + sizeof(struct BufferAllocator_context)) {
+        /* Not enough space to allocate the context. */
+        return NULL;
+    }
+
+    /* put the context into the buffer. */
+    memcpy(context.pointer, &context, sizeof(struct BufferAllocator_context));
+
+    struct Allocator allocator = {
+        .context = context.pointer,
+        .free = freeAllocator,
+        .malloc = allocatorMalloc,
+        .calloc = allocatorCalloc,
+        .clone = allocatorClone,
+        .realloc = allocatorRealloc,
+        .child = childAllocator,
+        .onFree = addOnFreeJob
+    };
+
+    /* Get the pointer to the context where it's written in the buffer. */
+    struct BufferAllocator_context* contextPtr = (struct BufferAllocator_context*) allocator.context;
+
+    /* have to advance the pointer so as not to clobber the context. */
+    contextPtr->pointer += sizeof(struct BufferAllocator_context);
+
+    /* Now that the context is in place we can begin using the allocater. */
+    struct Allocator* allocatorPtr = allocator.malloc(sizeof(struct Allocator), &allocator);
+    if (allocatorPtr == NULL) {
+        return NULL;
+    }
+
+    /* Reset the base pointer so as not to clobber the context on free() */
+    contextPtr->basePointer = contextPtr->pointer;
+
+    memcpy(allocatorPtr, &allocator, sizeof(struct Allocator));
+    return allocatorPtr;
+}
+
+void BufferAllocator_onOOM(const struct Allocator* bufferAllocator,
+                           void (* electronicThumb)(void* towel),
+                           void* towel)
+{
+    struct BufferAllocator_context* context =
+        (struct BufferAllocator_context*) bufferAllocator->context;
+    context->onOOM.callback = electronicThumb;
+    context->onOOM.callbackContext = towel;
 }

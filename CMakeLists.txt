@@ -123,3 +123,4 @@ target_link_libraries(cjdroute
 
 # Everything must be tested.
 enable_testing()
+add_subdirectory(test)

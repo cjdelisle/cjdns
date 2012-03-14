@@ -18,17 +18,39 @@
 #include "dht/dhtcore/RouterModule.h"
 #include "switch/SwitchCore.h"
 #include "memory/Allocator.h"
+#include "wire/Headers.h"
 
 #include <event2/event.h>
 
-int Ducttape_register(Dict* config,
-                      uint8_t privateKey[32],
-                      struct DHTModuleRegistry* registry,
-                      struct RouterModule* routerModule,
-                      struct Interface* routerIf,
-                      struct SwitchCore* switchCore,
-                      struct event_base* eventBase,
-                      struct Allocator* allocator,
-                      struct Log* logger);
+struct Ducttape;
+
+struct Ducttape* Ducttape_register(Dict* config,
+                                   uint8_t privateKey[32],
+                                   struct DHTModuleRegistry* registry,
+                                   struct RouterModule* routerModule,
+                                   struct Interface* routerIf,
+                                   struct SwitchCore* switchCore,
+                                   struct event_base* eventBase,
+                                   struct Allocator* allocator,
+                                   struct Log* logger);
+
+/**
+ * The structure of data which should be the beginning
+ * of the content in the message sent to injectIncomingForMe.
+ */
+struct Ducttape_IncomingForMe
+{
+    struct Headers_SwitchHeader switchHeader;
+    struct Headers_IP6Header ip6Header;
+};
+
+/**
+ * Inject a packet into the stream of packets destine for this node.
+ * The message must contain switch header, ipv6 header, then content.
+ * None of it should be encrypted and there should be no CryptoAuth headers.
+ */
+uint8_t Ducttape_injectIncomingForMe(struct Message* message,
+                                     struct Ducttape* ducttape,
+                                     uint8_t herPublicKey[32]);
 
 #endif
