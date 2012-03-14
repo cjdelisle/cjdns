@@ -249,5 +249,5 @@ struct TUNInterface* TUNInterface_new(String* interfaceName,
 
 struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunIf)
 {
-    return &tunIf->interface;
+    return (tunIf) ? &tunIf->interface : NULL;
 }

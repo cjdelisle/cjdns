@@ -59,6 +59,11 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
                               uint8_t address[16],
                               int prefixLen)
 {
+    if (!interface) {
+        // Nothing to do, that was easy.
+        return 0;
+    }
+
     /* stringify our IP address */
     char myIp[40];
     sprintf((char*)myIp, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
