@@ -14,8 +14,8 @@
 
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
+#include "interface/TUNInterface.h"
 #include "interface/TUNInterface_struct.h"
-
 
 #include <stdio.h>
 #include <sys/ioctl.h>
@@ -39,20 +39,23 @@
     #include <linux/if.h>
     #include <linux/if_tun.h>
     #include <linux/if_ether.h>
-    #include <linux/ipv6.h>
 
     /**
-     * We need to pull in linux/ipv6.h for in6_ifreq but a bunch
-     * of structures are defined in in6.h and also in in.h causing
-     * errors from redefinition. Declaring evutil_inet_pton() extern
-     * allows us to sidestep the problem without defining in6_ifreq ourselves.
+     * This hack exists because linux/in.h and linux/in6.h define
+     * the same structures, leading to redefinition errors.
      */
-    extern int evutil_inet_pton(int af, const char *src, void *dst);
+    #ifndef _LINUX_IN6_H
+        struct in6_ifreq
+        {
+            struct in6_addr ifr6_addr;
+            uint32_t ifr6_prefixlen;
+            int ifr6_ifindex;
+        };
+    #endif
 #endif
 
 
-int TUNConfigurator_configure(char* dev,
-                              struct Interface* interface,
+int TUNConfigurator_configure(struct TUNInterface* interface,
                               uint8_t address[16],
                               int prefixLen)
 {
@@ -82,7 +85,6 @@ int TUNConfigurator_configure(char* dev,
     }
 
 #ifdef __APPLE__
-    struct TUNInterface_struct* tun = (struct TUNInterface_struct*) interface->senderContext;
 
     /* set up the interface ip assignment request */
     struct in6_aliasreq in6_addreq;
@@ -120,17 +122,7 @@ int TUNConfigurator_configure(char* dev,
         *cp = 0xff << (8 - len);
     }
 
-    /* retrieve the assigned utun interface name and add it to the request */
-    char interfaceName[IFNAMSIZ];
-    uint32_t interfaceNameLen = sizeof(interfaceName);
-
-    if (getsockopt(tun->fileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
-                   interfaceName, &interfaceNameLen) < 0) {
-        perror("getsockopt");
-        return -1;
-    }
-
-    strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
+    strncpy(in6_addreq.ifra_name, interface->name->bytes, sizeof(in6_addreq.ifra_name));
 
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -145,7 +137,7 @@ int TUNConfigurator_configure(char* dev,
         return -1;
     }
 
-    fprintf(stderr, "Configured IPv6 (%s/%i) for %s\n", myIp, prefixLen, interfaceName);
+    fprintf(stderr, "Configured IPv6 (%s/%i) for %s\n", myIp, prefixLen, interface->name->bytes);
 
     close(s);
 
@@ -162,7 +154,7 @@ int TUNConfigurator_configure(char* dev,
         return -1;
     }
 
-    strncpy(ifRequest.ifr_name, dev, IFNAMSIZ);
+    strncpy(ifRequest.ifr_name, interface->name->bytes, IFNAMSIZ);
 
     if (ioctl(s, SIOGIFINDEX, &ifRequest) < 0)
     {

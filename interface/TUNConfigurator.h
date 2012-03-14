@@ -14,8 +14,18 @@
 #ifndef TUNConfigurator_H
 #define TUNConfigurator_H
 
-#include "interface/Interface.h"
+#include "interface/TUNInterface.h"
 
-int TUNConfigurator_configure(char* dev, struct Interface* interface, uint8_t *address/*16*/, int prefixLen);
+/**
+ * Configure a TUNInterface.
+ *
+ * @param interface to configure.
+ * @param address the ipv6 address in binary form.
+ * @param prefixLen the number of bits in the network mask.
+ * @return 0 if successful, non-zero otherwise.
+ */
+int TUNConfigurator_configure(struct TUNInterface* interface,
+                              uint8_t address[16],
+                              int prefixLen);
 
 #endif

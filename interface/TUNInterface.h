@@ -14,14 +14,35 @@
 #ifndef TUNInterface_H
 #define TUNInterface_H
 
-#include <event2/event.h>
-
 #include "interface/Interface.h"
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "memory/Allocator.h"
 
-struct Interface* TUNInterface_new(String* interfaceName,
-                                   struct event_base* base,
-                                   struct Allocator* allocator);
+#include <event2/event.h>
+
+/**
+ * An interface which connects to the TUN/TAP device for
+ * sending IPv6 traffic to the kernel network stack.
+ */
+struct TUNInterface;
+
+/**
+ * Create a new TUNInterface.
+ *
+ * @param interfaceName the desired name of the interface,
+ *                      if NULL, the kernel will be allowed to choose.
+ * @param base the libevent event base to use for listening for incoming packet events.
+ * @param allocator a means of getting memory.
+ * @return a TUNInterface structure.
+ */
+struct TUNInterface* TUNInterface_new(String* interfaceName,
+                                      struct event_base* base,
+                                      struct Allocator* allocator);
+
+/**
+ * @param a TUNInterface structure.
+ * @return the generic Interface structure represented by it.
+ */
+struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunif);
 
 #endif

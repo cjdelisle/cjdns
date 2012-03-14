@@ -11,6 +11,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "interface/Interface.h"
+#include "interface/TUNInterface.h"
+#include "interface/TUNInterface_struct.h"
+#include "benc/String.h"
+#include "util/Endian.h"
+
 #include <string.h>
 #include <event2/event.h>
 #include <net/if.h>
@@ -39,12 +46,6 @@
     #include <linux/if_ether.h>
 #endif
 
-#include "interface/Interface.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNInterface_struct.h"
-#include "benc/Object.h"
-#include "util/Endian.h"
-
 // Defined extra large so large MTU can be taken advantage of later.
 #define MAX_PACKET_SIZE 8192
 #define PADDING_SPACE (10240 - MAX_PACKET_SIZE)
@@ -53,9 +54,11 @@
 // to contain the type of packet.
 #define PACKET_INFO_SIZE 4
 
-#ifdef __APPLE__
 
-static int openTunnel(const char* interfaceName) {
+
+static int openTunnel(const char* interfaceName, char assignedInterfaceName[IFNAMSIZ])
+{
+#ifdef __APPLE__
     int tunUnit = 0; /* allocate dynamically by default */
 
     if (interfaceName) {
@@ -105,7 +108,6 @@ static int openTunnel(const char* interfaceName) {
     }
 
     /* retrieve the assigned utun interface name */
-    char assignedInterfaceName[IFNAMSIZ];
     uint32_t assignedInterfaceNameLength = sizeof(assignedInterfaceName);
 
     if (getsockopt(tunFileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
@@ -115,13 +117,9 @@ static int openTunnel(const char* interfaceName) {
         perror("getsockopt");
     }
 
-    return tunFileDescriptor;
-}
-
 #else /* __APPLE__ */
 
-static int openTunnel(const char* interfaceName)
-{
+    // Linux implementation
     fprintf(stderr, "Initializing tun device: ");
     if (interfaceName) {
         fprintf(stderr, "%s", interfaceName);
@@ -147,15 +145,15 @@ static int openTunnel(const char* interfaceName)
         close(tunFileDescriptor);
         return -1;
     }
+    strcpy(assignedInterfaceName, ifRequest.ifr_name);
 
+#endif /* __APPLE__ */
     return tunFileDescriptor;
 }
 
-#endif /* __APPLE__ */
-
 static void closeInterface(void* vcontext)
 {
-    struct TUNInterface_struct* tun = (struct TUNInterface_struct*) vcontext;
+    struct TUNInterface* tun = (struct TUNInterface*) vcontext;
     close(tun->fileDescriptor);
     event_del(tun->incomingEvent);
     event_free(tun->incomingEvent);
@@ -181,7 +179,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
     message.length = length - PACKET_INFO_SIZE;
 
-    struct Interface* iface = &((struct TUNInterface_struct*) vcontext)->interface;
+    struct Interface* iface = &((struct TUNInterface*) vcontext)->interface;
     if (iface->receiveMessage) {
         iface->receiveMessage(&message, iface);
     }
@@ -194,7 +192,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     const uint16_t packetInfo[2] = { 0, Endian_bigEndianToHost16(INET6_ETHERTYPE) };
     memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
-    struct TUNInterface_struct* tun = (struct TUNInterface_struct*) iface->senderContext;
+    struct TUNInterface* tun = (struct TUNInterface*) iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
     if (ret < 0) {
         printf("Error writing to TUN device %d\n", errno);
@@ -203,12 +201,14 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-struct Interface* TUNInterface_new(String* interfaceName,
-                                   struct event_base* base,
-                                   struct Allocator* allocator)
+struct TUNInterface* TUNInterface_new(String* interfaceName,
+                                      struct event_base* base,
+                                      struct Allocator* allocator)
 {
     errno = 0;
-    int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL);
+    String* ifName = String_newBinary(NULL, IFNAMSIZ, allocator);
+
+    int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL, ifName->bytes);
     if (tunFileDesc < 0) {
         if (errno == EPERM) {
             fprintf(stderr, "You don't have permission to open tunnel. "
@@ -221,9 +221,10 @@ struct Interface* TUNInterface_new(String* interfaceName,
 
     evutil_make_socket_nonblocking(tunFileDesc);
 
-    struct TUNInterface_struct* tun = allocator->malloc(sizeof(struct TUNInterface_struct), allocator);
+    struct TUNInterface* tun = allocator->malloc(sizeof(struct TUNInterface), allocator);
     tun->incomingEvent = event_new(base, tunFileDesc, EV_READ | EV_PERSIST, handleEvent, tun);
     tun->fileDescriptor = tunFileDesc;
+    tun->name = ifName;
 
     if (tun->incomingEvent == NULL) {
         abort();
@@ -243,5 +244,10 @@ struct Interface* TUNInterface_new(String* interfaceName,
 
     allocator->onFree(closeInterface, tun, allocator);
 
-    return &tun->interface;
+    return tun;
+}
+
+struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunIf)
+{
+    return &tunIf->interface;
 }

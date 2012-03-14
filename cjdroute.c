@@ -59,7 +59,8 @@ struct Context
 
     struct CryptoAuth* ca;
 
-    struct Interface* routerIf;
+    /** The TUN/TAP which the user will use to connect to the network. */
+    struct Interface* tunInterface;
 
     struct SwitchCore* switchCore;
 
@@ -214,12 +215,13 @@ static int genconf()
            ",\n"
            "\n"
            "            // The name of the TUN device to use.\n"
+           "            // *** This is OPTIONAL and only needed to start cjdroute as non-root ***\n"
            "            // This allows you to create a persistent TUN device with the cjdns user\n"
            "            // authorized to use it so that cjdns does not need to run as root.\n"
            "            // If this is commented out, cjdns will try to allocate a TUN on startup.\n"
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
-           "            \"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
+           "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
 #else
            "\n"
 #endif
@@ -283,7 +285,7 @@ static int usage(char* appName)
            "Usage: %s [--help] [--genconf] [--getcmds]\n"
            "  %s --genconf generate a new configuration file and write it to stdout.\n"
            "  %s --getcmds read a configuration file from stdin and output commands for\n"
-           "               setting up the network.\n"
+           "               setting up the network. Only needed if starting as non-root.\n"
            "  %s --pidfile read a configuration file from stdin and output the location\n"
            "               where the process id will be written.\n"
            "Examples:\n"
@@ -298,38 +300,9 @@ static int usage(char* appName)
            "    %s --genconf > cjdroute.conf\n"
            "\n"
            "Step 2:\n"
-           "  From a root shell or using sudo, run use these commands:\n"
-           "\n"
-           "  Create a cjdns user so it can run unprivileged.\n"
-           "    useradd cjdns\n"
-           "\n"
-           "  Create a new TUN device and give the cjdns user authority to access it:\n"
-           "    /sbin/ip tuntap add mode tun user cjdns\n"
-           "    /sbin/ip tuntap list | grep `id -u cjdns`\n"
-           "  The output of the last command will tell you the name of the new device.\n"
-           "  This is needed to edit the configuration file.\n"
-           "\n"
-           "Step 3:\n"
-           "  Edit the configuration file, fill in the key from the node to connect to and your\n"
-           "  password as well as the bind address to listen for UDP packets on and the\n"
-           "  passwords of other nodes who are allowed to connect to this node.\n"
-           "  Also replace \"tunDevice\": \"tun0\" with the name of the TUN device gotten\n"
-           "  in step 2\n"
-           "\n"
-           "Step 4:\n"
-           "  Get the commands to run in order to prepare your TUN device by running:\n"
-           "    %s --getcmds < cjdroute.conf\n"
-           "  These commands should be executed as root now every time the system restarts.\n"
-           "\n"
-           "Step 5:\n"
            "  Fire it up!\n"
-           "    sudo -u cjdns %s < cjdroute.conf\n"
-           "\n"
-           "Notes:\n"
-           "  To delete a tunnel, use this command:\n"
-           "    /sbin/ip tuntap del mode tun <name of tunnel>\n"
-           "\n",
-           appName, appName, appName, appName, appName, appName,
+           "    sudo %s < cjdroute.conf\n",
+           appName, appName, appName, appName, appName,
            appName, appName, appName, appName, appName, appName);
 
     return 0;
@@ -569,11 +542,11 @@ static void registerRouter(Dict* config, struct Address *addr, struct Context* c
     Dict* iface = Dict_getDict(config, BSTR("interface"));
     if (String_equals(Dict_getString(iface, BSTR("type")), BSTR("TUNInterface"))) {
         String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
-        context->routerIf = TUNInterface_new(tunPath, context->base, context->allocator);
-
-        if (TUNConfigurator_configure(tunPath->bytes, context->routerIf, addr->ip6.bytes, 8) < 0) {
+        struct TUNInterface* tun = TUNInterface_new(tunPath, context->base, context->allocator);
+        if (TUNConfigurator_configure(tun, addr->ip6.bytes, 8) != 0) {
             fprintf(stderr, "Couldn't configure TUN interface\n");
         }
+        context->tunInterface = TUNInterface_asGeneric(tun);
     }
     context->routerModule = RouterModule_register(context->registry,
                                                   context->allocator,
@@ -792,7 +765,7 @@ int main(int argc, char** argv)
                       privateKey,
                       context.registry,
                       context.routerModule,
-                      context.routerIf,
+                      context.tunInterface,
                       context.switchCore,
                       context.base,
                       context.allocator,

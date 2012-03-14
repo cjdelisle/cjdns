@@ -14,10 +14,16 @@
 #ifndef TUNInterface_struct_H
 #define TUNInterface_struct_H
 
-struct TUNInterface_struct
+#include "interface/Interface.h"
+#include "benc/String.h"
+
+#include <event2/event.h>
+
+struct TUNInterface
 {
     struct event* incomingEvent;
     int fileDescriptor;
+    String* name;
     struct Interface interface;
 };
 
