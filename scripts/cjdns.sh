@@ -45,7 +45,7 @@ PIDFILE="`${CJDROUTE} --pidfile < $CONF`"
 
 stop()
 {
-    if [ -f $PIDFILE && kill -0 `cat $PIDFILE` > /dev/null ]; then
+    if [ -f $PIDFILE ] && kill -0 `cat $PIDFILE` > /dev/null; then
         kill `cat $PIDFILE`
         rm $PIDFILE
     fi
@@ -91,7 +91,7 @@ case "$1" in
     ;;
 
 "check" )
-    if [ ! -f $PIDFILE || ! kill -0 `cat $PIDFILE` > /dev/null ]; then
+    if [ ! -f $PIDFILE ] || ! kill -0 `cat $PIDFILE` > /dev/null; then
         start
     fi
     ;;
