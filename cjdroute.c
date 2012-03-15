@@ -210,20 +210,13 @@ static int genconf()
            "        \"interface\":\n"
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
-           "            \"type\": \"TUNInterface\""
+           "            \"type\": \"TUNInterface\"\n"
 #ifndef __APPLE__
-           ",\n"
            "\n"
-           "            // The name of the TUN device to use.\n"
-           "            // *** This is OPTIONAL and only needed to start cjdroute as non-root ***\n"
-           "            // This allows you to create a persistent TUN device with the cjdns user\n"
-           "            // authorized to use it so that cjdns does not need to run as root.\n"
-           "            // If this is commented out, cjdns will try to allocate a TUN on startup.\n"
-           "            // If it can't do that (because it's not root?) then it will run as a\n"
-           "            // pure router, unable to send or receive traffic.\n"
+           "            // The name of a persistent TUN device to use.\n"
+           "            // This for starting cjdroute as it's own user.\n"
+           "            // *MOST USERS DON'T NEED THIS*\n"
            "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
-#else
-           "\n"
 #endif
            "        }\n"
            "    },\n"
@@ -281,35 +274,39 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
 
 static int usage(char* appName)
 {
-    printf(
-           "Usage: %s [--help] [--genconf] [--getcmds]\n"
-           "  %s --genconf generate a new configuration file and write it to stdout.\n"
-           "  %s --getcmds read a configuration file from stdin and output commands for\n"
-           "               setting up the network. Only needed if starting as non-root.\n"
-           "  %s --pidfile read a configuration file from stdin and output the location\n"
-           "               where the process id will be written.\n"
-           "Examples:\n"
-           "  %s --help\n"
-           "  %s (same as --help)\n"
-           "  %s --genconf > cjdroute.conf\n"
-           "  %s --getcmds < cjdroute.conf\n"
-           "  %s < cjdroute.conf\n"
+    printf("Usage: %s [--help] [--genconf] [--getcmds]\n"
            "\n"
+           "To get the router up and running.\n"
            "Step 1:\n"
            "  Generate a new configuration file.\n"
            "    %s --genconf > cjdroute.conf\n"
            "\n"
            "Step 2:\n"
+           "  Find somebody to connect to.\n"
+           "  Check out the IRC channel or http://hyperboria.net/\n"
+           "  for information about how to meet new people and make connect to them.\n"
+           "\n"
+           "Step 3:\n"
            "  Fire it up!\n"
-           "    sudo %s < cjdroute.conf\n",
-           appName, appName, appName, appName, appName,
-           appName, appName, appName, appName, appName, appName);
+           "    sudo %s < cjdroute.conf\n"
+           "\n"
+           "For more information about other functions and non-standard setups, see README.md\n",
+           appName, appName, appName);
 
     return 0;
 }
 
 static int getcmds(Dict* config)
 {
+#ifdef __APPLE__
+    printf("# The Apple implementation does not support persistent tunnels.\n"
+           "# Therefor this is not necessary.\n"
+           "# Just start the router and it will configure automatically.\n");
+
+    return 0;
+
+#else
+
     uint8_t privateKey[32];
     struct Address addr;
     parsePrivateKey(config, &addr, privateKey);
@@ -331,20 +328,21 @@ static int getcmds(Dict* config)
     }
 
     printf("#!/bin/bash\n"
-           "# Run these commands immediately after cjdns is initialized\n"
-           "# in order to get the interfaces setup properly.\n"
-           "# If you are using persistent tunnels (see README.md),\n"
-           "# you may run them once every time the system starts up.\n");
+           "# This is for starting cjdroute as it's own user. see README.md\n"
+           "# *MOST USERS DON'T NEED THIS*\n"
+           "# To setup a persistent tunnel, run these commands every reboot.\n"
+           "#\n"
+           "# NOTE: tun devices are destroyed when a system is rebooted.\n"
+           "# To create the tun device use this command.\n"
+           "# replace \"cjdns\" with the name of the user which the router will run as.\n"
+           "# /sbin/ip tuntap add dev %s mode tun user cjdns\n\n", tunDev);
 
-#ifdef __APPLE__
-    printf("ifconfig %s inet6 %s/8\n", tunDev, myIp);
-#else
-    printf("/sbin/ip addr add %s dev %s\n", myIp, tunDev);
-    printf("/sbin/ip -6 route add fc00::/8 dev %s\n", tunDev);
+    printf("/sbin/ip addr add %s/8 dev %s\n", myIp, tunDev);
     printf("/sbin/ip link set %s up\n", tunDev);
-#endif /* __APPLE__ */
 
     return 0;
+
+#endif /* __APPLE__ */
 }
 
 static void authorizedPassword(String* passwd,
