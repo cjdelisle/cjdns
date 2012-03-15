@@ -210,9 +210,8 @@ static int genconf()
            "        \"interface\":\n"
            "        {\n"
            "            // The type of interface (only TUNInterface is supported for now)\n"
-           "            \"type\": \"TUNInterface\""
+           "            \"type\": \"TUNInterface\"\n"
 #ifndef __APPLE__
-           ",\n"
            "\n"
            "            // The name of the TUN device to use.\n"
            "            // *** This is OPTIONAL and only needed to start cjdroute as non-root ***\n"
@@ -222,8 +221,6 @@ static int genconf()
            "            // If it can't do that (because it's not root?) then it will run as a\n"
            "            // pure router, unable to send or receive traffic.\n"
            "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
-#else
-           "\n"
 #endif
            "        }\n"
            "    },\n"
