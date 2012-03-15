@@ -119,7 +119,7 @@ Build
 How to compile cjdns:
 
   * Hint 1: You did a backup recently. ;)
-  * Hint 2: Created on Debian Squeeze, will work on Ubuntu/Mint just as well.
+  * Hint 2: Created on Debian will work on Ubuntu/Mint just as well.
   * Hint 3: By default the build process will try to find Libevent2 in your operating system
 and if it can't be found, default to compiling and *static linking* it's own. If you want to
 force it to use dynamic or static linking, see [Non-Standard Setups] below.
@@ -128,6 +128,12 @@ force it to use dynamic or static linking, see [Non-Standard Setups] below.
 -----------------------------------------
 
     # apt-get install cmake git build-essential
+
+Check your version of cmake.
+
+    # cmake --version
+
+Version 2.8 and newer is supported.
 
 1: Retrieve cjdns from GitHub.
 ------------------------------
@@ -145,10 +151,19 @@ Setup `build` directory and change to it:
     # mkdir build
     # cd build
 
-You Likely want DEBUG logs (this is VERY ALPHA after all), so set the
-`Log_LEVEL` environment variable:
+By default it will give you DEBUG logs, if you want less output and
+slightly better performance, change the log level:
 
-    # export Log_LEVEL=DEBUG
+    # export Log_LEVEL=INFO
+
+Valid log levels are:
+
+* KEYS The most info, this includes printing private keys into your logs!
+* DEBUG Lots of info.
+* INFO Things you might be interested in.
+* WARN Only a few oddities are logged at WARN level.
+* ERROR Nothing is logged at this level so far.
+* CRITICAL Only a few things are logged at this level and they system stops when they are.
 
 3: Build.
 ---------
@@ -236,8 +251,8 @@ You can meet people to peer with in the IRC channel:
   * irc://irc.EFNet.org/#cjdns
   * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
 
-NOTE: If you're just interested in setting up a local VPN between your computers, this step is
-  not necessary.
+NOTE: If you're just interested in setting up a local network between your own computers,
+this step is not necessary.
 
 3: Fill in your friend's info.
 ------------------------------
@@ -293,7 +308,18 @@ connect to you from over The Old Internet.
 4: Start it up!
 ---------------
 
-    sudo su -c "./cjdroute < cjdroute.conf >> cjdroute.log & ./cjdroute --getcmds < cjdroute.conf | bash"
+    sudo ./cjdroute < cjdroute.conf
+
+If you want to have your logs written to a file:
+
+    sudo ./cjdroute < cjdroute.conf > cjdroute.log
+
+If you want to be able to close your terminal and you don't use screen:
+
+    sudo ./cjdroute < cjdroute.conf &
+
+NOTE: when you use `&`, remember that you will have cjdroute processes running in the background
+if you are having problems use `killall cjdroute` to return to sanity.
 
 5: Get in IRC
 -------------
@@ -301,10 +327,8 @@ connect to you from over The Old Internet.
 Welcome to the network, you are now a real network administrator.
 There are responsibilities which come with being a network administrator which include
 being available in case there is something wrong with your equipment. You can connect to irc via
-irc.efnet.org or you can connect to irc inside of the network by going to
-fcec:cbd:3c03:1a2a:63f:c917:b1db:1695 or fce4:d261:d2d8:68df:c67d:11be:6cf6:3e09
-Either way, the channel to join is #cjdns and you should stay there so that we are able to reach
-you if something goes wrong.
+irc.efnet.org.
+The channel to join is #cjdns and you should stay there so that we are able to reach you.
 
 Notes
 -----
@@ -318,45 +342,10 @@ and anyone who connected to you will nolonger be able to connect. A *compromized
 file means that other people can impersonate you on the network.
 
     chmod 400 cjdroute.conf
-    mkdir /etc/cjdns ; cp ./cjdroute.conf /etc/cjdns/
+    mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
 
 
 --------------------------------------------------------------------------------
-
-
-Known Issues
-============
-
-Old versions of the IP utility do not work for creating tunnel devices.
------------------------------------------------------------------------
-
-    # ip -V
-    ip utility, iproute2-ss080725
-    # /sbin/ip tuntap add mode tun user cjdns
-    Object "tuntap" is unknown, try "ip help".
-
-    # /sbin/ip tuntap list
-    Object "tuntap" is unknown, try "ip help".
-
-    # ip -V
-    ip utility, iproute2-ss100519
-    # /sbin/ip tuntap list
-    tun0: tun user 1001
-
-The fix: for now grab a copy of a newer `ip` binary and copy it to your home
-directory. Replacing the system binaries is not likely a good idea.
-
-Currently we are still debugging some routing issues.
------------------------------------------------------
-
-If you want to help out, load up a few VMs or physical boxen,
-link them, see what happens, tell us!  :)
-
-Lots of bugs to fix yet, but hey, it's talking now!
-
-
---------------------------------------------------------------------------------
-
 
 Self-Check Your Network
 =======================
@@ -425,6 +414,45 @@ Non-Standard Setups
 
 Instructions for building or installing in non-default ways.
 
+Start cjdroute as non-root user.
+================================
+
+If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
+persistent tunnels.
+
+Create a cjdns user:
+
+    # useradd cjdns
+
+Create a new TUN device and give the cjdns user authority to access it:
+
+    # /sbin/ip tuntap add mode tun user cjdns
+    # /sbin/ip tuntap list | grep `id -u cjdns`
+
+The output of the last command will tell you the name of the new device.
+If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
+and change the line which says: `"tunDevice": "tun0"` to whatever it is.
+
+4b-1: Get commands.
+----------------
+
+Get the commands to run in order to prepare your TUN device by running:
+
+    # ./cjdroute --getcmds < cjdroute.conf
+
+These commands should be executed as root now every time the system restarts.
+
+4b-2: Fire it up!
+--------------
+
+    # sudo -u cjdns ./cjdroute < cjdroute.conf
+
+
+To delete a tunnel, use this command:
+
+    # /sbin/ip tuntap del mode tun <name of tunnel>
+
+
 Dynamically linking to Libevent2
 ================================
 
@@ -483,42 +511,34 @@ You can also force a static build even if you have libevent2 by using:
     # make
 
 
-Start cjdroute as non-root user.
-================================
+Known Issues
+============
 
-If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
-persistent tunnels.
+Old versions of the IP utility do not work for creating tunnel devices.
+-----------------------------------------------------------------------
 
-Create a cjdns user:
-
-    # useradd cjdns
-
-Create a new TUN device and give the cjdns user authority to access it:
-
+    # ip -V
+    ip utility, iproute2-ss080725
     # /sbin/ip tuntap add mode tun user cjdns
-    # /sbin/ip tuntap list | grep `id -u cjdns`
+    Object "tuntap" is unknown, try "ip help".
 
-The output of the last command will tell you the name of the new device.
-If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
-and change the line which says: `"tunDevice": "tun0"` to whatever it is.
+    # /sbin/ip tuntap list
+    Object "tuntap" is unknown, try "ip help".
 
-4b-1: Get commands.
-----------------
+    # ip -V
+    ip utility, iproute2-ss100519
+    # /sbin/ip tuntap list
+    tun0: tun user 1001
 
-Get the commands to run in order to prepare your TUN device by running:
+The fix: for now grab a copy of a newer `ip` binary and copy it to your home
+directory. Replacing the system binaries is not likely a good idea.
 
-    # ./cjdroute --getcmds < cjdroute.conf
+Currently we are still debugging some routing issues.
+-----------------------------------------------------
 
-These commands should be executed as root now every time the system restarts.
+If you want to help out, load up a few VMs or physical boxen,
+link them, see what happens, tell us!  :)
 
-4b-2: Fire it up!
---------------
-
-    # sudo -u cjdns ./cjdroute < cjdroute.conf
-
-
-To delete a tunnel, use this command:
-
-    # /sbin/ip tuntap del mode tun <name of tunnel>
+Lots of bugs to fix yet, but hey, it's talking now!
 
 Created on 2011-02-16.
