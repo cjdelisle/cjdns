@@ -70,11 +70,16 @@ How close is it to complete?
 ----------------------------
 
 A live testing network exists with at least 50 active nodes.
-The software has been tested and runs on x86, amd64, ARMv5, MIPS, and PowerPC64.
-It has run well on every type of Linux that it has been installed on.
+The software has been tested and is known to work on x86, amd64, ARMv5, ARMv7,
+MIPS, and PowerPC64 and is continually tested on Linux and Apple OSX systems.
 
-17:44 < _Hyper_> Mac user here: Just wanted to let you guys know that that
-commit did indeed make it so I could build cjdns. Thanky!
+You Can Help!
+-------------
+
+If you have a system based on an alternative architecture, join the IRC channel
+and ask about running a buildbot. We are specifically looking for buildbots
+running on MIPS and ARM based systems but bots running on PowerPC, Sparc,
+Itanium or any other esoteric architectures are also helpful.
 
 What about DNS?
 ---------------
