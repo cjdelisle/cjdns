@@ -302,6 +302,7 @@ int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface)
         }
     }
     assert(!"Couldn't find the interface in the list");
+    return -1;
 }
 
 /*--------------------Internals--------------------*/

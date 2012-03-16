@@ -520,6 +520,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
         return incomingFromRouter(message, context);
     }
     assert(false);
+    return 0;
 }
 
 static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
@@ -533,6 +534,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
         return sendToSwitch(message, context->switchHeader, context);
     }
     assert(false);
+    return 0;
 }
 
 static inline uint8_t* extractPublicKey(struct Message* message,
