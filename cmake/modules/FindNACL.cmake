@@ -31,6 +31,7 @@ if (NOT NACL_FOUND)
             nacl
         PATHS
             ${NACL_INCLUDE_DIRS}/../lib
+            ${NACL_INCLUDE_DIRS}/../../lib
         NO_DEFAULT_PATH
     )
 
