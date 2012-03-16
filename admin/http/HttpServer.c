@@ -161,7 +161,7 @@ static void fileHandler(struct evhttp_request* req, void* vcontext)
     memcpy(path + offset, charset, strlen(charset) + 1);
     evhttp_add_header(headers, "Content-Type", path);
 
-    struct evbuffer* buff;
+    struct evbuffer* buff = NULL;
     assert(buff = evbuffer_new());
     evbuffer_add(buff, html, fileSize);
     evhttp_send_reply(req, HTTP_OK, "OK", buff);
@@ -274,7 +274,7 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     struct evhttp_request* req = context->requests[txNum].request;
     context->requests[txNum].request = NULL;
 
-    struct evbuffer* buff;
+    struct evbuffer* buff = NULL;
     assert(buff = evbuffer_new());
     struct Writer* w = EvBufferWriter_new(buff, context->allocator);
     w->write(context->messageBuffer + 8, length - 8, w);

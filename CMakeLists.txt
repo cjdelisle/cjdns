@@ -124,6 +124,8 @@ target_link_libraries(cjdroute
     ${LIBEVENT2_LIBRARIES}
 )
 
+install_targets(/bin cjdroute)
+
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)
