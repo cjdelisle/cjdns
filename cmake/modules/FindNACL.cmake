@@ -19,6 +19,7 @@ if (NOT NACL_FOUND)
         PATHS
             ${NACL_PREFIX}/include
             /usr/include
+            /usr/include/nacl
             /usr/local/include
             /opt/local/include
             ${CMAKE_BINARY_DIR}/nacl/build/include/default
