@@ -12,9 +12,9 @@
 project(cjdns C)
 cmake_minimum_required(VERSION 2.4)
 
-if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR})
-    message( FATAL_ERROR "type: mkdir build ; cd build ; cmake .. ; make" )
-endif(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR})
+if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR} AND NOT OPENWRT)
+    message( FATAL_ERROR "type: git clean -df && mkdir build && cd build && cmake .. && make" )
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
