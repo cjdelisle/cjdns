@@ -55,6 +55,9 @@ endif()
 
 # allow position independent executable to be turned off with NO_PIE cmake ..
 if("$ENV{NO_PIE}" STREQUAL "")
+   set(NO_PIE TRUE)
+endif()
+if(NO_PIE)
     message("Building a position independent executable (ASLR security enabled).")
     message("NOTE: PIE executables cannot run in a debugger.")
     message("")
