@@ -18,21 +18,12 @@
 
 void printInfo()
 {
-    #if defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)
-        printf("This machine is defined as %s\n",
-               Endian_isBigEndian() ? "big endian" : "little endian");
-    #endif
-
     printf("According to testing this machine is %s\n",
-           Endian_checkIsBigEndian() ? "big endian" : "little endian");
+           Endian_isBigEndian() ? "big endian" : "little endian");
 
     printf("Endian_byteSwap64() uses " Endian_byteSwap64_uses "\n");
 
-    printf("Endian_hostToBigEndian64() uses " Endian_hostToBigEndian64_uses "\n");
-
     printf("Endian_byteSwap32() uses " Endian_byteSwap32_uses "\n");
-
-    printf("Endian_hostToLittleEndian32() uses " Endian_hostToLittleEndian32_uses "\n");
 }
 
 int main()

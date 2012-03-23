@@ -28,7 +28,7 @@
     #include <libkern/OSByteOrder.h>
 #endif
 
-static inline bool Endian_checkIsBigEndian()
+static inline bool Endian_isBigEndian()
 {
     union {
         uint32_t i;
@@ -37,29 +37,6 @@ static inline bool Endian_checkIsBigEndian()
 
     return bint.c[0] == 1;
 }
-#define Endian_isBigEndian() Endian_checkIsBigEndian()
-
-// Linux
-#if defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)
-    #undef Endian_isBigEndian
-    #if (__BYTE_ORDER == __BIG_ENDIAN)
-        #define Endian_isBigEndian() 1
-    #else
-        #define Endian_isBigEndian() 0
-    #endif
-#endif
-
-// Apple
-#ifdef __APPLE__
-    #ifdef __BIG_ENDIAN__
-        #undef Endian_isBigEndian
-        #define Endian_isBigEndian() 1
-    #endif
-    #ifdef __LITTLE_ENDIAN__
-        #undef Endian_isBigEndian
-        #define Endian_isBigEndian() 0
-    #endif
-#endif
 
 
 // htonl() and htons() are widely available
@@ -112,6 +89,22 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
     #define Endian_byteSwap64_uses "__bswap_64"
 #endif
 
+// BSD
+#ifdef bswap32
+    #undef Endian_byteSwap32
+    #undef Endian_byteSwap32_uses
+
+    #define Endian_byteSwap32(x) bswap32(x)
+    #define Endian_byteSwap32_uses "bswap32"
+#endif
+#ifdef bswap64
+    #undef Endian_byteSwap64
+    #undef Endian_byteSwap64_uses
+
+    #define Endian_byteSwap64(x) bswap64(x)
+    #define Endian_byteSwap64_uses "bswap64"
+#endif
+
 // Apple
 #ifdef OSSwapInt32
     #undef Endian_byteSwap32
@@ -128,39 +121,16 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
     #define Endian_byteSwap64_uses "OSSwapInt64"
 #endif
 
-
-#if (Endian_isBigEndian() == 0)
-    #define Endian_hostToLittleEndian32(x) (x)
-    #define Endian_hostToLittleEndian32_uses "nop"
-
-    #define Endian_hostToBigEndian64(x) Endian_byteSwap64(x)
-    #define Endian_hostToBigEndian64_uses Endian_byteSwap64_uses
-#elif (Endian_isBigEndian() == 1)
-    #define Endian_hostToLittleEndian32(x) Endian_byteSwap32(x)
-    #define Endian_hostToLittleEndian32_uses Endian_byteSwap32_uses
-
-    #define Endian_hostToBigEndian64(x) (x)
-    #define Endian_hostToBigEndian64_uses "nop"
-#else
-    static inline uint32_t Endian_hostToLittleEndian32(uint32_t input)
-    {
-        if (!Endian_isBigEndian()) {
-            return Endian_byteSwap32(input);
-        }
-        return input;
-    }
-
-    static inline uint64_t Endian_hostToBigEndian64(uint64_t input)
-    {
-        if (Endian_isBigEndian()) {
-            return Endian_byteSwap64(input);
-        }
-        return input;
-    }
-#endif
-
-
 #define Endian_littleEndianToHost32(x) Endian_hostToLittleEndian32(x)
+static inline uint32_t Endian_hostToLittleEndian32(uint32_t input)
+{
+    return (Endian_isBigEndian()) ? Endian_byteSwap32(input) : input;
+}
+
 #define Endian_bigEndianToHost64(x) Endian_hostToBigEndian64(x)
+static inline uint64_t Endian_hostToBigEndian64(uint64_t input)
+{
+    return (Endian_isBigEndian()) ? input : Endian_byteSwap64(input);
+}
 
 #endif
