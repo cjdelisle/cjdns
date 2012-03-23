@@ -300,7 +300,7 @@ static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
     if (fd < 0) {
         perror("acceptConn() fd < 0");
         return;
-    } else if (fd > FD_SETSIZE) {
+    } else if (fd > (evutil_socket_t) FD_SETSIZE) {
         EVUTIL_CLOSESOCKET(fd);
         return;
     }
