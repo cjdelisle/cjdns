@@ -28,6 +28,10 @@
     #include <libkern/OSByteOrder.h>
 #endif
 
+#ifdef __FreeBSD__
+    #include <sys/endian.h>
+#endif
+
 static inline bool Endian_isBigEndian()
 {
     union {
