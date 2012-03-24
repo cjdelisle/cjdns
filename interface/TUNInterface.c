@@ -38,6 +38,15 @@
     #include <sys/kern_event.h>
     #include <sys/errno.h>
     #include <netinet/if_ether.h>
+#elif __FreeBSD__
+    #include <sys/stat.h>
+    #include <stdlib.h>
+
+    #include <net/if.h>
+    #include <net/if_tun.h>
+    #include <net/ethernet.h>
+
+    #define INET6_ETHERTYPE ETHERTYPE_IPV6
 #else
     #define INET6_ETHERTYPE ETH_P_IPV6
 
@@ -117,6 +126,20 @@ static int openTunnel(const char* interfaceName, char assignedInterfaceName[IFNA
         perror("getsockopt");
     }
 
+#elif __FreeBSD__
+    // FreeBSD implementation
+    struct stat sb;
+
+    int tunFileDescriptor = open("/dev/tun", O_RDWR);
+    if (tunFileDescriptor < 0) {
+        return tunFileDescriptor;
+    }
+    if (fstat(tunFileDescriptor, &sb) == -1) {
+        close(tunFileDescriptor);
+        return -1;
+    }
+
+    fprintf(stderr, "Initialized tun device: %s\n", devname(sb.st_rdev, S_IFCHR));
 #else /* __APPLE__ */
 
     // Linux implementation
