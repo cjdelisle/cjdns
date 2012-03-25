@@ -363,13 +363,13 @@ static void authorizedPassword(String* passwd,
                 index);
         exit(-1);
     }
-    if (*trust < 0) {
+    if (trust && *trust < 0) {
         fprintf(stderr, "authorizedPasswords[%u] trust cannot be negative.\n", index);
         exit(-1);
     }
     printf("adding authorized password.\n");
     struct User* u = ctx->allocator->malloc(sizeof(struct User), ctx->allocator);
-    u->trust = (uint64_t) *trust;
+    u->trust = (trust) ? (uint64_t) *trust : 0;
     CryptoAuth_addUser(passwd, *authType, u, ctx->ca);
 }
 
