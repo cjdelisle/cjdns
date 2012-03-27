@@ -11,6 +11,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_subdirectory(http)
 
-add_library(cjdadmin Admin.c)
+add_library(cjdadmin
+    Admin.c
+    AuthorizedPasswords.c
+    Configurator.c
+)
 
 target_link_libraries(cjdadmin crypto)

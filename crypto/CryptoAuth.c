@@ -892,21 +892,45 @@ int32_t CryptoAuth_addUser(String* password,
                            struct CryptoAuth* context)
 {
     if (authType != 1) {
-        return -1;
+        return CryptoAuth_addUser_INVALID_AUTHTYPE;
     }
     if (context->passwordCount == context->passwordCapacity) {
         // TODO: realloc password space and increase buffer.
-        return -2;
+        return CryptoAuth_addUser_OUT_OF_SPACE;
     }
-    hashPassword_sha256(&context->passwords[context->passwordCount], password);
-    context->passwords[context->passwordCount].user = user;
+    struct Auth a;
+    hashPassword_sha256(&a, password);
+    for (uint32_t i = 0; i < context->passwordCount; i++) {
+        if (!memcmp(a.secret, context->passwords[i].secret, 32)) {
+            return CryptoAuth_addUser_DUPLICATE;
+        }
+    }
+    a.user = user;
+    memcpy(&context->passwords[context->passwordCount], &a, sizeof(struct Auth));
     context->passwordCount++;
     return 0;
 }
 
+void CryptoAuth_flushUsers(struct CryptoAuth* context)
+{
+    context->passwordCount = 0;
+}
+
 void* CryptoAuth_getUser(struct Interface* interface)
 {
-    return ((struct Wrapper*) interface->senderContext)->user;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
+    void* user = wrapper->user;
+    if (user) {
+        // If the user was lost in flushusers, then we need to return null.
+        for (uint32_t i = 0; i < wrapper->context->passwordCount; i++) {
+            if (user == wrapper->context->passwords[i].user) {
+                return user;
+            }
+        }
+        // Null it since it's been removed.
+        wrapper->user = NULL;
+    }
+    return NULL;
 }
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,

@@ -14,6 +14,7 @@
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "dht/CJDHTConstants.h"
@@ -59,6 +60,9 @@ struct Admin
     int functionCount;
     struct Allocator* allocator;
     String* password;
+
+    /** Becomes true after the admin process has sent it's first message. */
+    bool initialized;
 };
 
 static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, struct Admin* admin)
@@ -152,6 +156,13 @@ static void handleRequestFromChild(struct Admin* admin,
     if (noFunctionsCalled) {
         Dict* d = Dict_new(allocator);
         Dict_putString(d, BSTR("error"), BSTR("No functions matched your request."), allocator);
+        List* functions = NULL;
+        for (int i = 0; i < admin->functionCount; i++) {
+            functions = List_addString(functions, admin->functions[i].name, allocator);
+        }
+        if (functions) {
+            Dict_putList(d, BSTR("availableFunctions"), functions, allocator);
+        }
         Admin_sendMessage(d, txid, admin);
         return;
     }
@@ -176,6 +187,12 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
             }
             event_free(admin->pipeEv);
         }
+        return;
+    }
+
+    if (!admin->initialized) {
+        admin->initialized = true;
+        event_base_loopbreak(admin->eventBase);
         return;
     }
 
@@ -314,7 +331,10 @@ static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
 }
 
 // only in child
-static void child(Dict* config, struct ChildContext* context)
+static void child(struct sockaddr_storage* addr,
+                  int addrLen,
+                  char* user,
+                  struct ChildContext* context)
 {
     context->dataFromParent =
         event_new(context->eventBase,
@@ -325,27 +345,10 @@ static void child(Dict* config, struct ChildContext* context)
 
     event_add(context->dataFromParent, NULL);
 
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    char* bindTo = "127.0.0.1:9999";
-    String* bindStr = Dict_getString(config, BSTR("bind"));
-    if (bindStr) {
-        fprintf(stderr, "Admin: Binding to %s\n", bindStr->bytes);
-        if (evutil_parse_sockaddr_port(bindStr->bytes, (struct sockaddr*) &addr, &addrLen)) {
-            fprintf(stderr, "Admin: admin.bind parse failed, calling back on %s\n", bindTo);
-            bindStr = NULL;
-        }
-    }
-    if (!bindStr) {
-        fprintf(stderr, "Admin: Binding to %s\n", bindTo);
-        evutil_parse_sockaddr_port(bindTo, (struct sockaddr*) &addr, &addrLen);
-    }
-
-    evutil_socket_t listener = socket(addr.ss_family, SOCK_STREAM, 0);
-    evutil_make_socket_nonblocking(listener);
+    evutil_socket_t listener = socket(addr->ss_family, SOCK_STREAM, 0);
     evutil_make_listen_socket_reuseable(listener);
 
-    if (bind(listener, (struct sockaddr*)&addr, addrLen) < 0) {
+    if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
         perror("bind");
         return;
     }
@@ -354,6 +357,8 @@ static void child(Dict* config, struct ChildContext* context)
         return;
     }
 
+    evutil_make_socket_nonblocking(listener);
+
     context->socketEvent =
         event_new(context->eventBase, listener, EV_READ | EV_PERSIST, acceptConn, context);
     event_add(context->socketEvent, NULL);
@@ -361,6 +366,9 @@ static void child(Dict* config, struct ChildContext* context)
     if (!context->eventBase) {
         exit(-1);
     }
+
+    // Bump the router process to indicate that we're initialized.
+    write(context->outFd, "ready", strlen("ready"));
 
     event_base_dispatch(context->eventBase);
 }
@@ -413,7 +421,9 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     write(admin->outFd, buff, written);
 }
 
-struct Admin* Admin_new(Dict* config,
+struct Admin* Admin_new(struct sockaddr_storage* addr,
+                        int addrLen,
+                        String* password,
                         char* user,
                         struct event_base* eventBase,
                         struct ExceptionHandler* eh,
@@ -455,7 +465,7 @@ struct Admin* Admin_new(Dict* config,
         context.allocator = allocator;
         event_reinit(eventBase);
         context.eventBase = eventBase;
-        child(config, &context);
+        child(addr, addrLen, user, &context);
         exit(0);
     }
 
@@ -467,9 +477,11 @@ struct Admin* Admin_new(Dict* config,
     admin->allocator = allocator;
     admin->functionCount = 0;
     admin->eventBase = eventBase;
-    admin->password = Dict_getString(config, BSTR("password"));
+    admin->password = password;
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
+
+    event_base_dispatch(eventBase);
 
     return admin;
 }

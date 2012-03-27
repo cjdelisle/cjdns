@@ -55,6 +55,12 @@ static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, 
     va_start(args, format);
     vsnprintf(buff, Log_BUFFER_SZ, format, args);
     size_t length = strlen(buff);
+
+    // Some log lines end in \n, others don't.
+    if (length < Log_BUFFER_SZ && buff[length - 1] != '\n') {
+        buff[length++] = '\n';
+    }
+
     log->writer->write(buff, length > Log_BUFFER_SZ ? Log_BUFFER_SZ : length, log->writer);
     va_end(args);
     #undef Log_BUFFER_SZ

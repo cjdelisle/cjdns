@@ -12,6 +12,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
+#include "admin/AuthorizedPasswords.h"
+#include "admin/Configurator.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
@@ -148,14 +150,7 @@ static int genconf()
            "        {\n"
            "            // A unique string which is known to the client and server.\n"
            "            \"password\": \"%s\",\n", password);
-    printf("\n"
-           "            // the authentication type, currently only 1 is supported.\n"
-           "            \"authType\": 1,\n"
-           "\n"
-           "            // How much anti-flood trust to give a client\n"
-           "            // who connects with this password.\n"
-           "            \"trust\": 5000\n"
-           "        }\n"
+    printf("        }\n"
            "\n"
            "        /* These are your connection credentials\n"
            "           for people connecting to you with your default password.\n"
@@ -165,10 +160,8 @@ static int genconf()
            "            \"your.external.ip.goes.here:%u\":\n", port);
     printf("            {\n"
            "                \"password\": \"%s\",\n", password);
-    printf("                \"authType\": 1,\n"
-           "                \"publicKey\": \"%s.k\",\n", publicKeyBase32);
-    printf("                \"trust\": 10000\n"
-           "            }\n"
+    printf("                \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("            }\n"
            "        */\n"
            "    ],\n"
            "\n"
@@ -345,48 +338,26 @@ static int getcmds(Dict* config)
 #endif /* __APPLE__ */
 }
 
-static void authorizedPassword(String* passwd,
-                               int64_t* authType,
-                               int64_t* trust,
-                               uint32_t index,
-                               struct Context* ctx)
+static void reconf(struct Context* ctx, Dict* mainConf)
 {
-    if (!(passwd && authType && trust)) {
-        fprintf(stderr,
-                "authorizedPasswords[%u] is must specify authType, password, and trust.\n",
-                index);
-        exit(-1);
-    }
-    if (*authType < 1 || *authType > 255) {
-        fprintf(stderr,
-                "authorizedPasswords[%u] auth must be between 1 and 255 inclusive.\n",
-                index);
-        exit(-1);
-    }
-    if (trust && *trust < 0) {
-        fprintf(stderr, "authorizedPasswords[%u] trust cannot be negative.\n", index);
-        exit(-1);
-    }
-    printf("adding authorized password.\n");
-    struct User* u = ctx->allocator->malloc(sizeof(struct User), ctx->allocator);
-    u->trust = (trust) ? (uint64_t) *trust : 0;
-    CryptoAuth_addUser(passwd, *authType, u, ctx->ca);
-}
+    Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
+    String* address = Dict_getString(adminConf, String_CONST("bind"));
+    String* password = Dict_getString(adminConf, String_CONST("password"));
 
-static void authorizedPasswords(List* list, struct Context* ctx)
-{
-    uint32_t count = List_size(list);
-    for (uint32_t i = 0; i < count; i++) {
-        Dict* d = List_getDict(list, i);
-        if (!d) {
-            fprintf(stderr, "authorizedPasswords[%u] is not a dictionary type.\n", i);
-            exit(-1);
-        }
-        String* passwd = Dict_getString(d, BSTR("password"));
-        int64_t* authType = Dict_getInt(d, BSTR("authType"));
-        int64_t* trust = Dict_getInt(d, BSTR("trust"));
-        authorizedPassword(passwd, authType, trust, i, ctx);
+    if (!(address && password)) {
+        Log_critical(ctx->logger, "Can't get the admin address and password from conf file.");
+        exit(-1);
     }
+
+    struct sockaddr_storage addr;
+    int addrLen = sizeof(struct sockaddr_storage);
+    if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
+        Log_critical1(ctx->logger, "Unable to parse [%s] as an ip address port, "
+                                   "eg: 127.0.0.1:11234", address->bytes);
+        exit(-1);
+    }
+
+    Configurator_config(mainConf, &addr, addrLen, password, ctx->base, ctx->logger, ctx->allocator);
 }
 
 static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
@@ -429,9 +400,7 @@ static void udpConnectTo(String* connectToAddress,
                          struct Context* ctx)
 {
     String* password = Dict_getString(config, BSTR("password"));
-    int64_t* authType = Dict_getInt(config, BSTR("authType"));
     String* publicKey = Dict_getString(config, BSTR("publicKey"));
-    int64_t* trust = Dict_getInt(config, BSTR("trust"));
 
     #define FAIL_IF_NULL(cannotBeNull, fieldName) \
         if (!cannotBeNull) {                                                     \
@@ -443,24 +412,10 @@ static void udpConnectTo(String* connectToAddress,
         }
 
     FAIL_IF_NULL(password, "password")
-    FAIL_IF_NULL(authType, "authType")
     FAIL_IF_NULL(publicKey, "publicKey")
-    FAIL_IF_NULL(trust, "trust")
 
     #undef FAIL_IF_NULL
 
-    #define CHECK_RANGE(number, min, max) \
-        if (number < min || number > max) {                                           \
-        fprintf(stderr,                                                               \
-                "interfaces.UDPInterface['%s'].number must be between min and max\n", \
-                connectToAddress->bytes);                                             \
-        exit(-1);                                                                     \
-    }
-
-    CHECK_RANGE(*authType, 1, 255)
-    CHECK_RANGE(*trust, 0, INT64_MAX)
-
-    #undef CHECK_RANGE
 
     uint8_t pkBytes[32];
     if (publicKey->len < 52 || Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
@@ -483,10 +438,10 @@ static void udpConnectTo(String* connectToAddress,
     struct Interface* udp =
         UDPInterface_addEndpoint(udpContext, connectToAddress->bytes, ctx->eHandler);
     struct Interface* authedUdp = CryptoAuth_wrapInterface(udp, pkBytes, false, true, ctx->ca);
-    CryptoAuth_setAuth(password, *authType, authedUdp);
+    CryptoAuth_setAuth(password, 1, authedUdp);
 
     uint64_t switchAddr_be;
-    SwitchCore_addInterface(authedUdp, *trust, &switchAddr_be, ctx->switchCore);
+    SwitchCore_addInterface(authedUdp, 0, &switchAddr_be, ctx->switchCore);
     struct Address addr;
     memset(&addr, 0, sizeof(struct Address));
     memcpy(addr.key, pkBytes, 32);
@@ -616,13 +571,62 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
     Admin_sendMessage(d, txid, context->admin);
 }
 
-static void admin(Dict* adminConf, char* user, struct Context* context)
+static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context* context)
 {
-    context->admin =
-        Admin_new(adminConf, user, context->base, context->eHandler, context->allocator);
+    Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
 
+    if (!adminConf) {
+        uint8_t randomPass[32];
+        randomBase32(randomPass);
+        Log_critical1(logger, "cjdns now requires you to specify an admin port and password.\n"
+                              "add this to your configuration:\n"
+                              "    \"admin\": {\n"
+                              "        \"bind\": \"127.0.0.1:11234\",\n"
+                              "        \"password\": \"%s\"\n"
+                              "    }\n", randomPass);
+        exit(-1);
+    }
+
+    String* address = Dict_getString(adminConf, String_CONST("bind"));
+    String* password = Dict_getString(adminConf, String_CONST("password"));
+
+    if (!address) {
+        Log_critical(logger, "admin.bind not specified.");
+        exit(-1);
+    }
+    if (!password) {
+        Log_critical(logger, "admin.password not specified.");
+        exit(-1);
+    }
+
+    struct sockaddr_storage addr;
+    int addrLen = sizeof(struct sockaddr_storage);
+    if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
+        Log_critical1(logger, "Unable to parse [%s] as an ip address port, "
+                              "eg: 127.0.0.1:11234", address->bytes);
+        exit(-1);
+    }
+
+    context->admin = Admin_new(&addr,
+                               addrLen,
+                               password,
+                               user,
+                               context->base,
+                               context->eHandler,
+                               context->allocator);
+
+    // AuthorizedPasswords_get()
+    AuthorizedPasswords_init(context->admin, context->ca, context->allocator);
     Admin_registerFunction("ping", adminPing, context->admin, false, context->admin);
     Admin_registerFunction("memory", adminMemory, context, false, context->admin);
+
+    Configurator_config(mainConf,
+                        &addr,
+                        addrLen,
+                        password,
+                        context->base,
+                        logger,
+                        context->allocator);
 }
 
 static void pidfile(Dict* config)
@@ -641,17 +645,6 @@ int main(int argc, char** argv)
     Crypto_init();
     assert(argc > 0);
 
-    if (argc == 1) { // no arguments
-        if (isatty(STDIN_FILENO)) {
-            // We were started from a terminal
-            // The chances an user wants to type in a configuration
-            // bij hand are pretty slim so we show him the usage
-            return usage(argv[0]);
-        } else {
-            // We assume stdin is a configuration file and that we should
-            // start routing
-        }
-    }
     if (argc == 2) { // one argument
         if (strcmp(argv[1], "--help") == 0) {
             return usage(argv[0]);
@@ -661,16 +654,27 @@ int main(int argc, char** argv)
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
+        } else if (strcmp(argv[1], "--reconf") == 0) {
+            // Performed after reading the configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
         }
-    }
-    if (argc >  2) { // more than one argument?
+    } else if (argc >  2) { // more than one argument?
         fprintf(stderr, "%s: too many arguments\n", argv[0]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         return -1;
+    }
+
+    if (isatty(STDIN_FILENO)) {
+        // We were started from a terminal
+        // The chances an user wants to type in a configuration
+        // bij hand are pretty slim so we show him the usage
+        return usage(argv[0]);
+    } else {
+        // We assume stdin is a configuration file and that we should
+        // start routing
     }
 
     struct Context context;
@@ -694,27 +698,29 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    char* user = setUser(Dict_getList(&config, BSTR("security")));
-
-    // Admin
-    Dict* adminConf = Dict_getDict(&config, BSTR("admin"));
-    if (adminConf) {
-        admin(adminConf, user, &context);
-    }
-
-    // Logging
+    // Logging.
     struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
     struct Log logger = { .writer = logwriter };
     context.logger = &logger;
 
+    if (argc == 2 && strcmp(argv[1], "--reconf") == 0) {
+        reconf(&context, &config);
+        return 0;
+    }
+
+    // ca, needed for admin.
     struct Address myAddr;
     uint8_t privateKey[32];
     parsePrivateKey(&config, &myAddr, privateKey);
+    context.ca =
+        CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
+
+    // Admin
+    char* user = setUser(Dict_getList(&config, BSTR("security")));
+    admin(&config, user, &logger, &context);
 
     context.eHandler = AbortHandler_INSTANCE;
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
-    context.ca =
-        CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
     context.registry = DHTModules_new(context.allocator);
     ReplyModule_register(context.registry, context.allocator);
 
@@ -723,12 +729,6 @@ int main(int argc, char** argv)
     registerRouter(routerConf, &myAddr, &context);
 
     SerializationModule_register(context.registry, context.allocator);
-
-    // Authed passwords.
-    List* authedPasswords = Dict_getList(&config, BSTR("authorizedPasswords"));
-    if (authedPasswords) {
-        authorizedPasswords(authedPasswords, &context);
-    }
 
     // Interfaces.
     Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
@@ -780,7 +780,7 @@ int main(int argc, char** argv)
     security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
-
+abort();
     // Never reached.
     return 0;
 }

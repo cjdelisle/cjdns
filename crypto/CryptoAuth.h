@@ -38,13 +38,25 @@ struct CryptoAuth;
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
  *             If this is NULL and requireAuthentication is enabled, authentication will fail.
  * @param context The CryptoAuth context.
- * @return 0 if all goes well, -1 if the authentication method is not supported and -2 if there is
- *         not enough space to store the user.
+ * @return 0 if all goes well, 
+ *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
+ *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
+ *         CryptoAuth_addUser_DUPLICATE if the entry already exists.
  */
+#define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
+#define CryptoAuth_addUser_OUT_OF_SPACE      -2
+#define CryptoAuth_addUser_DUPLICATE         -3
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
                            void* user,
                            struct CryptoAuth* context);
+
+/**
+ * Remove all users registered with this CryptoAuth.
+ *
+ * @param context the context to remove users for.
+ */
+void CryptoAuth_flushUsers(struct CryptoAuth* context);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.

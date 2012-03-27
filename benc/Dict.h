@@ -160,4 +160,20 @@ Object* Dict_putList(Dict* putIntoThis,
  */
 Dict* Dict_new(const struct Allocator* allocator);
 
+/**
+ * Create a dictionary on the stack.
+ *
+ * @param entryKey the key which must be a string.
+ * @param value the value which must be an object.
+ * @param next another Dict, can be used to chain Dict_CONST() calls.
+ * @return a Dict. NOTE: This does *NOT* return a Dict*, just a Dict.
+ */
+#define Dict_CONST(entryKey, value, nextDict) \
+    (&(struct Dict_Entry) {                   \
+        .key = entryKey,                      \
+        .val = value,                         \
+        .next = nextDict                      \
+    })
+
+
 #endif

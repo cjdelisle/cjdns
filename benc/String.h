@@ -34,6 +34,13 @@ typedef struct {
 String* String_new(const char* bytes, const struct Allocator* allocator);
 
 /**
+ * Create a new bencoded constant string on the stack.
+ */
+#define String_CONST(x) (&(String) { .bytes = x, .len = strlen(x) })
+
+#define String_OBJ(x) (&(Object) { .type = Object_STRING, .as.string = x })
+
+/**
  * Create a new bencoded string from a set of bytes.
  * This implementation will make a copy of the string into the memory provided by the allocator.
  *

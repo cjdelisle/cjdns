@@ -32,7 +32,9 @@ void Admin_registerFunction(char* name,
 
 void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-struct Admin* Admin_new(Dict* config,
+struct Admin* Admin_new(struct sockaddr_storage* addr,
+                        int addrLen,
+                        String* password,
                         char* user,
                         struct event_base* eventBase,
                         struct ExceptionHandler* eh,
