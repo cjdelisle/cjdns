@@ -577,27 +577,18 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
     String* address = Dict_getString(adminConf, String_CONST("bind"));
     String* password = Dict_getString(adminConf, String_CONST("password"));
 
-    if (!password) {
+    if (!password || !address) {
         uint8_t randomPass[32];
         randomBase32(randomPass);
         Log_critical1(logger, "cjdns now requires you to specify an admin port and password.\n"
                               "if you don't have an \"admin\" section in your configuration, "
                               "add this.\n"
-                              "Otherwise amend it to add the password field:\n"
+                              "Otherwise add field so that it looks like this:\n"
                               "\n"
                               "    \"admin\": {\n"
                               "        \"bind\": \"127.0.0.1:11234\",\n"
                               "        \"password\": \"%s\"\n"
                               "    }\n", randomPass);
-        exit(-1);
-    }
-
-    if (!address) {
-        Log_critical(logger, "admin.bind not specified.");
-        exit(-1);
-    }
-    if (!password) {
-        Log_critical(logger, "admin.password not specified.");
         exit(-1);
     }
 
