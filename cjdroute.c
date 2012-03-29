@@ -574,21 +574,23 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
 static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context* context)
 {
     Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
+    String* address = Dict_getString(adminConf, String_CONST("bind"));
+    String* password = Dict_getString(adminConf, String_CONST("password"));
 
-    if (!adminConf) {
+    if (!password) {
         uint8_t randomPass[32];
         randomBase32(randomPass);
         Log_critical1(logger, "cjdns now requires you to specify an admin port and password.\n"
-                              "add this to your configuration:\n"
+                              "if you don't have an \"admin\" section in your configuration, "
+                              "add this.\n"
+                              "Otherwise amend it to add the password field:\n"
+                              "\n"
                               "    \"admin\": {\n"
                               "        \"bind\": \"127.0.0.1:11234\",\n"
                               "        \"password\": \"%s\"\n"
                               "    }\n", randomPass);
         exit(-1);
     }
-
-    String* address = Dict_getString(adminConf, String_CONST("bind"));
-    String* password = Dict_getString(adminConf, String_CONST("password"));
 
     if (!address) {
         Log_critical(logger, "admin.bind not specified.");
