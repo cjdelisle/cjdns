@@ -214,7 +214,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Log* logger,
                                            struct Admin* admin)
 {
-    struct RouterModule* const out = allocator->malloc(sizeof(struct RouterModule), allocator);
+    struct RouterModule* const out = allocator->calloc(sizeof(struct RouterModule), 1, allocator);
 
     DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
         .name = "RouterModule",
