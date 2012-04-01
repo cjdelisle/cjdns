@@ -160,7 +160,7 @@ static int genconf()
            "            \"your.external.ip.goes.here:%u\":\n", port);
     printf("            {\n"
            "                \"password\": \"%s\",\n", password);
-    printf("                \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("                \"publicKey\": \"%s.k\"\n", publicKeyBase32);
     printf("            }\n"
            "        */\n"
            "    ],\n"
