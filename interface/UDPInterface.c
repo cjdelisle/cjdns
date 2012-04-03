@@ -23,21 +23,10 @@
 #include <assert.h>
 #include <string.h>
 #include <event2/event.h>
-#ifndef WIN32
- #include <arpa/inet.h>
- #include <sys/types.h>
- #include <sys/socket.h>
- #include <netinet/in.h>
-#else
- #include <w32api.h>
- #define WINVER WindowsXP
- #include <ws2tcpip.h>
- #ifdef _MSC_VER
-  #define sa_family_t ADDRESS_FAMILY
- #else
-  #define sa_family_t USHORT
- #endif
-#endif
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192
