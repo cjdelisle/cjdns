@@ -149,7 +149,7 @@ static int genconf()
            "    [\n"
            "        {\n"
            "            // A unique string which is known to the client and server.\n"
-           "            \"password\": \"%s\",\n", password);
+           "            \"password\": \"%s\"\n", password);
     printf("        }\n"
            "\n"
            "        /* These are your connection credentials\n"

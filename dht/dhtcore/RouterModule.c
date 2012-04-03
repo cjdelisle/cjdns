@@ -1043,7 +1043,11 @@ static void pingTimeoutCallback(void* vping)
                 Address_print(addr, &ping->node->address);
                 Log_debug1(module->logger, "Ping timeout %s\n", addr);
             #endif
-            RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
+            // If this node has already been invalidated by another ping timeout then
+            // it's addr is 0 and calling brokenpath on it flushes one-hop nodes out.
+            if (ping->node->address.networkAddress_be != 0) {
+                RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
+            }
             module->pings[i] = NULL;
         } else if (module->pings[i] != NULL) {
             freeAlloc = false;

@@ -35,15 +35,6 @@
     #include <netinet/in.h>
 
     #define UTUN_OPT_IFNAME 2
-#elif __FreeBSD__
-    #include <net/if.h>
-    #include <net/if_types.h>
-    #include <net/if_tun.h>
-    #include <net/if_var.h>
-    #include <netinet/in.h>
-    #include <netinet/in_var.h>
-    #include <netinet/if_ether.h>
-    #include <net/ethernet.h>
 #else
     #include <linux/if.h>
     #include <linux/if_tun.h>
@@ -154,28 +145,6 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
     fprintf(stderr, "Configured IPv6 (%s/%i) for %s\n", myIp, prefixLen, interface->name->bytes);
 
     close(s);
-
-    return 0;
-
-#elif __FreeBSD__
-
-    /* XXX: Discover the correct way to set an address and route via ioctl() */
-    #if 0
-    int s;
-    struct ifaliasreq ifr;
-
-    if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-        perror("socket");
-        return -1;
-    }
-
-    strncpy(ifr.ifr_name, interface->name->bytes, IFNAMSIZ);
-
-    if (ioctl(s, SIOCSIFADDR, &ifr) < 0) {
-        perror("SIOCSIFADDR");
-        return -1;
-    }
-    #endif
 
     return 0;
 
