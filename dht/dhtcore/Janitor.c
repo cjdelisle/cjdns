@@ -59,9 +59,6 @@ struct Janitor
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
-    uint8_t recentLocalSearchTarget[Address_SEARCH_TARGET_SIZE];
-    bool hasRecentLocalSearchTarget;
-
     struct event_base* eventBase;
 };
 
@@ -76,9 +73,15 @@ static void maintanenceCycle(void* vcontext)
 
     struct Address targetAddr;
 
-    if (janitor->hasRecentLocalSearchTarget) {
-        memcpy(&targetAddr.ip6.bytes, janitor->recentLocalSearchTarget, Address_SEARCH_TARGET_SIZE);
-        janitor->hasRecentLocalSearchTarget = false;
+    // Ping a random node.
+    struct Node* randomNode = RouterModule_getNode(0, janitor->routerModule);
+    if (randomNode) {
+        RouterModule_pingNode(randomNode, janitor->routerModule, NULL);
+    }
+
+    // If the node's reach is zero, run a search for it, otherwise run a random search.
+    if (randomNode && randomNode->reach == 0) {
+        memcpy(&targetAddr, &randomNode->address, Address_SIZE);
     } else {
         randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
@@ -122,12 +125,6 @@ static void maintanenceCycle(void* vcontext)
                    (unsigned int) bytes);
     #endif
 
-    // Ping a random node shorter half of route distance and lower half of link state.
-    struct Node* toPing = RouterModule_getNode(0, janitor->routerModule);
-    if (toPing) {
-        RouterModule_pingNode(toPing, janitor->routerModule, NULL);
-    }
-
     if (now > janitor->timeOfNextGlobalMaintainence) {
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
@@ -160,11 +157,4 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     janitor->timeOfNextGlobalMaintainence = now + globalMaintainenceMilliseconds;
     janitor->allocator = allocator;
     return janitor;
-}
-
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                       struct Janitor* janitor)
-{
-    memcpy(janitor->recentLocalSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
-    janitor->hasRecentLocalSearchTarget = true;
 }

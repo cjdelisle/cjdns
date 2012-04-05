@@ -47,6 +47,8 @@ struct Address
 
     uint64_t networkAddress_be;
 };
+#define Address_SIZE (Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
+Assert_assertTrue(sizeof(struct Address) == Address_SIZE);
 
 static inline uint32_t Address_getPrefix(struct Address* addr)
 {

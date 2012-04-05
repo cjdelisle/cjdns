@@ -31,7 +31,4 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct Allocator* allocator,
                             struct event_base* eventBase);
 
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                       struct Janitor* janitor);
-
 #endif
