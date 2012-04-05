@@ -156,7 +156,7 @@
 #define NODE_STORE_SIZE 8192
 
 /** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 5000
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
 
 /**
  * The number of milliseconds to pass between global maintainence searches.
@@ -820,7 +820,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         }
 
         struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
-        SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
+        SearchStore_addNodeToSearch(parent, (n) ? &n->address : &addr, evictTime, search);
     }
 
     // Ask the callback if we should continue.

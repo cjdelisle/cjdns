@@ -227,7 +227,7 @@ uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
  * @param allocator the allocator to use for allocating the memory to store the output.
  * @return the node which is copied from the storage to the allocated space.
  */
-struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search* search,
+struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* search,
                                                  const struct Allocator* allocator);
 
 /**

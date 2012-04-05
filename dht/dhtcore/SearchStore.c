@@ -39,7 +39,7 @@ struct SearchNode
     uint32_t delayUntilReply;
 
     /** The address of this node. */
-    struct Address* address;
+    struct Address address;
 };
 
 /** An outstanding search for a target. */
@@ -115,7 +115,7 @@ struct SearchStore_Search* SearchStore_newSearch(
 
     struct Allocator* allocator = store->allocator->child(store->allocator);
     struct SearchStore_Search* search =
-        allocator->malloc(sizeof(struct SearchStore_Search), allocator);
+        allocator->calloc(sizeof(struct SearchStore_Search), 1, allocator);
     search->searchIndex = i;
     search->nodeCount = 0;
     memcpy(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
@@ -272,7 +272,7 @@ struct SearchStore_Node* SearchStore_getNode(const String* tid,
 
     struct SearchNode* node = &search->nodes[index.node];
 
-    out->address = node->address;
+    out->address = &node->address;
     out->searchIndex = index.search;
     out->nodeIndex = index.node;
 
@@ -323,7 +323,7 @@ int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
     node->parent = (parent != NULL) ? &search->nodes[parent->nodeIndex] : NULL;
     node->timeOfRequest = 0;
     node->delayUntilReply = 0;
-    node->address = addr;
+    memcpy(&node->address, addr, Address_SIZE);
 
     return 0;
 }
@@ -352,7 +352,7 @@ uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
 }
 
 /** See: SearchStore.h */
-struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search* search,
+struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* search,
                                                  const struct Allocator* allocator)
 {
     uint16_t index = search->indexOfLastInsertedNode;
@@ -361,7 +361,7 @@ struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search
             // Found the next node.
             struct SearchStore_Node* out =
                 allocator->malloc(sizeof(struct SearchStore_Node), allocator);
-            out->address = search->nodes[index].address;
+            out->address = &search->nodes[index].address;
             out->searchIndex = search->searchIndex;
             out->nodeIndex = index;
             return out;
@@ -390,7 +390,7 @@ struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_
 
     for (;;) {
         element->delayUntilReply = searchNode->delayUntilReply;
-        element->address = searchNode->address;
+        element->address = &searchNode->address;
         searchNode = searchNode->parent;
         if (searchNode == NULL) {
             element->next = NULL;
