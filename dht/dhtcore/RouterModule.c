@@ -820,7 +820,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         }
 
         struct Node* n = NodeStore_getBest(&addr, module->nodeStore);
-        SearchStore_addNodeToSearch(parent, &n->address, evictTime, search);
+        SearchStore_addNodeToSearch(parent, (n) ? &n->address : &addr, evictTime, search);
     }
 
     // Ask the callback if we should continue.
