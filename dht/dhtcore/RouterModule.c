@@ -254,6 +254,7 @@ struct RouterModule_Ping
     uint8_t txid[4];
     bool isFromAdmin;
     uint32_t timeSent;
+    struct Allocator* allocator;
 };
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
@@ -1035,7 +1036,6 @@ static void pingTimeoutCallback(void* vping)
     struct RouterModule_Ping* ping = (struct RouterModule_Ping*) vping;
     struct RouterModule* module = ping->module;
 
-    bool freeAlloc = true;
     for (int i = 0; i < RouterModule_MAX_CONCURRENT_PINGS; i++) {
         if (ping == module->pings[i]) {
             #ifdef Log_DEBUG
@@ -1049,8 +1049,7 @@ static void pingTimeoutCallback(void* vping)
                 RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
             }
             module->pings[i] = NULL;
-        } else if (module->pings[i] != NULL) {
-            freeAlloc = false;
+            break;
         }
     }
 
@@ -1058,18 +1057,13 @@ static void pingTimeoutCallback(void* vping)
         pingResponse(ping, true, UINT32_MAX, module);
     }
 
-    if (freeAlloc) {
-        module->pingAllocator->free(module->pingAllocator);
-        module->pingAllocator = NULL;
-    }
+    ping->allocator->free(ping->allocator);
 }
 
 /** See: RouterModule.h */
 int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid)
 {
-    if (module->pingAllocator == NULL) {
-        module->pingAllocator = module->allocator->child(module->allocator);
-    }
+    struct Allocator* pingAllocator = module->allocator->child(module->allocator);
 
     struct RouterModule_Ping** location = NULL;
     uint8_t index;
@@ -1091,10 +1085,11 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String
     #endif
 
     struct RouterModule_Ping* ping =
-        module->pingAllocator->malloc(sizeof(struct RouterModule_Ping), module->pingAllocator);
+        pingAllocator->malloc(sizeof(struct RouterModule_Ping), pingAllocator);
     *location = ping;
     ping->node = node;
     ping->module = module;
+    ping->allocator = pingAllocator;
 
     uint64_t milliseconds =
         AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
@@ -1106,7 +1101,7 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String
                                        ping,
                                        milliseconds,
                                        module->eventBase,
-                                       module->pingAllocator);
+                                       pingAllocator);
 
     ping->timeSent = Time_currentTimeMilliseconds(module->eventBase);
 
