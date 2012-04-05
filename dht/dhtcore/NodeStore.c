@@ -272,7 +272,9 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         Address_getPrefix(store->thisNodeAddress) ^ collector.targetPrefix;
 
     for (uint32_t i = 0; i < store->size; i++) {
-        LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
+        if (store->headers[i].reach != 0) {
+            LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
+        }
     }
 
     return element.node ? nodeForHeader(element.node, store) : NULL;
