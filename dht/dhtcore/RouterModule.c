@@ -156,7 +156,7 @@
 #define NODE_STORE_SIZE 8192
 
 /** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 7500
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 5000
 
 /**
  * The number of milliseconds to pass between global maintainence searches.
