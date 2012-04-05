@@ -704,6 +704,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                 pingResponse(module->pings[index], false, lag, module);
             }
 
+            struct Allocator* pa = module->pings[index]->allocator;
+            pa->free(pa);
             module->pings[index] = NULL;
 
         } else {
