@@ -151,22 +151,48 @@ static inline void Address_print(uint8_t output[60], struct Address* addr)
     Address_printNetworkAddress(output + 40, addr);
 }
 
-static inline int Address_parseNetworkAddress(uint64_t* out_be, uint8_t netAddr[20])
+/**
+ * Parse out a path.
+ *
+ * @param out a pointer to a number which will be set to the path in HOST BYTE ORDER.
+ * @param netAddr a string representation of the path such as "0000.1111.2222.3333" in Big Endian.
+ * @return 0 if successful, -1 if the netAddr is malformed.
+ */
+static inline int Address_parsePath(uint64_t* out, uint8_t netAddr[20])
 {
     if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
         return -1;
     }
-    uint8_t hex[16];
-    memcpy(hex, netAddr, 4);
-    memcpy(hex + 4, netAddr + 5, 4);
-    memcpy(hex + 8, netAddr + 10, 4);
-    memcpy(hex + 12, netAddr + 15, 4);
 
-    uint8_t numberBytes_be[8];
-    if (Hex_decode(numberBytes_be, 8, hex, 16) != 8) {
+    // Endian swapping happens here.
+    uint8_t hex[16] = {
+        netAddr[18],
+        netAddr[17],
+        netAddr[16],
+        netAddr[15],
+
+        netAddr[13],
+        netAddr[12],
+        netAddr[11],
+        netAddr[10],
+
+        netAddr[ 8],
+        netAddr[ 7],
+        netAddr[ 6],
+        netAddr[ 5],
+
+        netAddr[ 3],
+        netAddr[ 2],
+        netAddr[ 1],
+        netAddr[ 0]
+    };
+
+    uint8_t numberBytes[8];
+    if (Hex_decode(numberBytes, 8, hex, 16) != 8) {
         return -1;
     }
-    memcpy(out_be, numberBytes_be, 8);
+    memcpy(out, numberBytes, 8);
+
     return 0;
 }
 
