@@ -263,13 +263,13 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
 
     struct Allocator* epAllocator =
         externalInterface->allocator->child(externalInterface->allocator);
-    epAllocator->onFree(closeInterface, &ep, epAllocator);
+    epAllocator->onFree(closeInterface, ep, epAllocator);
 
     externalInterface->receiverContext = ic;
     externalInterface->receiveMessage = receiveMessage;
 
     ep->external = externalInterface;
-    memcpy(&ep->key, key, InterfaceController_KEY_SIZE);
+    memcpy(ep->key, key, InterfaceController_KEY_SIZE);
     InterfaceMap_put(key, &ep->internal, 0, ic->imap);
 
     // Outgoing:   switch -> cryptoAuth -> sendMessage() -> external
