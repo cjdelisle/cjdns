@@ -120,10 +120,37 @@ void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
                         struct Interface* wrappedInterface);
 
+/** Make a copy of our public key. */
 void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
+/** @return a pointer to the other party's public key. */
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
 
+/** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 void CryptoAuth_reset(struct Interface* interface);
+
+
+/** New CryptoAuth session, has not sent or received anything. */
+#define CryptoAuth_NEW         0
+
+/** Sent a hello message, waiting for reply. */
+#define CryptoAuth_HANDSHAKE1  1
+
+/** Received a hello message, sent a key message, waiting for the session to complete. */
+#define CryptoAuth_HANDSHAKE2  2
+
+/** The CryptoAuth session has successfully done a handshake and received at least one message. */
+#define CryptoAuth_ESTABLISHED 3
+
+/**
+ * Get the state of the CryptoAuth session.
+ *
+ * @param interface a CryptoAuth wrapper.
+ * @return one of CryptoAuth_NEW,
+ *                CryptoAuth_HANDSHAKE1,
+ *                CryptoAuth_HANDSHAKE2 or
+ *                CryptoAuth_ESTABLISHED
+ */
+int CryptoAuth_getState(struct Interface* interface);
 
 #endif

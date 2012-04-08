@@ -54,7 +54,7 @@ else()
 endif()
 
 # allow position independent executable to be turned off with NO_PIE cmake ..
-if("$ENV{NO_PIE}" STREQUAL "")
+if(NOT "$ENV{NO_PIE}" STREQUAL "")
    set(NO_PIE TRUE)
 endif()
 if(NOT NO_PIE)

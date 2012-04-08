@@ -106,19 +106,19 @@ static void freeAllocator(const struct Allocator* allocator)
 {
     struct Context* context = (struct Context*) allocator->context;
 
+    // Do the onFree jobs.
+    struct OnFreeJob* job = context->onFree;
+    while (job != NULL) {
+        job->callback(job->callbackContext);
+        job = job->next;
+    }
+
     // Free all of the child allocators.
     struct Context* child = context->firstChild;
     while (child != NULL) {
         struct Context* nextChild = child->nextSibling;
         freeAllocator(&child->allocator);
         child = nextChild;
-    }
-
-    // Do the onFree jobs.
-    struct OnFreeJob* job = context->onFree;
-    while (job != NULL) {
-        job->callback(job->callbackContext);
-        job = job->next;
     }
 
     // Remove this allocator from the sibling list.

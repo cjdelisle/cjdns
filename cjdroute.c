@@ -360,136 +360,6 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     Configurator_config(mainConf, &addr, addrLen, password, ctx->base, ctx->logger, ctx->allocator);
 }
 
-static uint8_t serverFirstIncoming(struct Message* msg, struct Interface* iface)
-{
-    struct UDPInterfaceContext* uictx = (struct UDPInterfaceContext*) iface->receiverContext;
-
-    struct Interface* udpDefault = UDPInterface_getDefaultInterface(uictx->udpContext);
-    assert(udpDefault);
-    UDPInterface_bindToCurrentEndpoint(udpDefault);
-
-    struct User* u = CryptoAuth_getUser(iface);
-    assert(u);
-    // Add it to the switch, this will change the receiveMessage for this interface.
-    struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
-    SwitchCore_addInterface(iface, u->trust, &addr.networkAddress_be, uictx->context->switchCore);
-
-    uint8_t* herKey = CryptoAuth_getHerPublicKey(iface);
-    memcpy(addr.key, herKey, 32);
-    uint8_t printedAddr[60];
-    Address_print(printedAddr, &addr);
-    Log_info1(uictx->context->logger,
-              "Node %s has connected to us.\n",
-              printedAddr);
-
-    // Prepare for the next connection.
-    struct Interface* newUdpDefault = UDPInterface_getDefaultInterface(uictx->udpContext);
-    struct Interface* newAuthedUdpDefault =
-        CryptoAuth_wrapInterface(newUdpDefault, NULL, true, true, uictx->context->ca);
-    newAuthedUdpDefault->receiveMessage = serverFirstIncoming;
-    newAuthedUdpDefault->receiverContext = uictx;
-
-    // Send the message on to the switch so the first message isn't lost.
-    return iface->receiveMessage(msg, iface);
-}
-
-static void udpConnectTo(String* connectToAddress,
-                         Dict* config,
-                         struct UDPInterface* udpContext,
-                         struct Context* ctx)
-{
-    String* password = Dict_getString(config, BSTR("password"));
-    String* publicKey = Dict_getString(config, BSTR("publicKey"));
-
-    #define FAIL_IF_NULL(cannotBeNull, fieldName) \
-        if (!cannotBeNull) {                                                     \
-            fprintf(stderr,                                                      \
-                    "interfaces.UDPInterface['%s']." fieldName " is not set, "   \
-                    "this field is mandatory.\n",                                \
-                    connectToAddress->bytes);                                    \
-            exit(-1);                                                            \
-        }
-
-    FAIL_IF_NULL(password, "password")
-    FAIL_IF_NULL(publicKey, "publicKey")
-
-    #undef FAIL_IF_NULL
-
-
-    uint8_t pkBytes[32];
-    if (publicKey->len < 52 || Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
-        fprintf(stderr,
-                "interfaces.UDPInterface['%s'].publicKey could not be parsed.\n",
-                connectToAddress->bytes);
-        exit(-1);
-    }
-    uint8_t addressBytes[16];
-    AddressCalc_addressForPublicKey(addressBytes, pkBytes);
-    if (addressBytes[0] != 0xFC) {
-        fprintf(stderr,
-                "interfaces.UDPInterface['%s'].publicKey\n( %s )\nis not in FC00/8 range, "
-                "it was probably mistranscribed.\n",
-                connectToAddress->bytes,
-                publicKey->bytes);
-        exit(-1);
-    }
-
-    struct Interface* udp =
-        UDPInterface_addEndpoint(udpContext, connectToAddress->bytes, ctx->eHandler);
-    struct Interface* authedUdp = CryptoAuth_wrapInterface(udp, pkBytes, false, true, ctx->ca);
-    CryptoAuth_setAuth(password, 1, authedUdp);
-
-    uint64_t switchAddr_be;
-    SwitchCore_addInterface(authedUdp, 0, &switchAddr_be, ctx->switchCore);
-    struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
-    memcpy(addr.key, pkBytes, 32);
-    addr.networkAddress_be = switchAddr_be;
-    RouterModule_addNode(&addr, ctx->routerModule);
-}
-
-static void configureUDP(Dict* config, struct Context* ctx)
-{
-    String* bindStr = Dict_getString(config, BSTR("bind"));
-    char* bindAddress = bindStr ? bindStr->bytes : NULL;
-
-    struct UDPInterface* udpContext =
-        UDPInterface_new(ctx->base, bindAddress, ctx->allocator, ctx->eHandler, ctx->logger);
-
-    if (bindStr) {
-        struct Interface* udpDefault = UDPInterface_getDefaultInterface(udpContext);
-        struct Interface* authedDef =
-            CryptoAuth_wrapInterface(udpDefault, NULL, true, true, ctx->ca);
-
-        struct UDPInterfaceContext* uictx =
-            ctx->allocator->malloc(sizeof(struct UDPInterfaceContext), ctx->allocator);
-        uictx->context = ctx;
-        uictx->udpContext = udpContext;
-        authedDef->receiveMessage = serverFirstIncoming;
-        authedDef->receiverContext = uictx;
-    }
-
-    Dict* connectTo = Dict_getDict(config, BSTR("connectTo"));
-    if (connectTo) {
-        struct Dict_Entry* entry = *connectTo;
-        while (entry != NULL) {
-            String* key = (String*) entry->key;
-            if (entry->val->type != Object_DICT) {
-                fprintf(stderr,
-                        "interfaces.UDPInterface.connectTo: entry %s is not a dictionary type.\n",
-                        key->bytes);
-                abort();
-            }
-            Dict* value = entry->val->as.dictionary;
-
-            udpConnectTo(key, value, udpContext, ctx);
-
-            entry = entry->next;
-        }
-    }
-}
-
 static void registerRouter(Dict* config, struct Address *addr, struct Context* context)
 {
     Dict* iface = Dict_getDict(config, BSTR("interface"));
@@ -612,14 +482,6 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
     AuthorizedPasswords_init(context->admin, context->ca, context->allocator);
     Admin_registerFunction("ping", adminPing, context->admin, false, context->admin);
     Admin_registerFunction("memory", adminMemory, context, false, context->admin);
-
-    Configurator_config(mainConf,
-                        &addr,
-                        addrLen,
-                        password,
-                        context->base,
-                        logger,
-                        context->allocator);
 }
 
 static void pidfile(Dict* config)
@@ -724,11 +586,26 @@ int main(int argc, char** argv)
     SerializationModule_register(context.registry, context.allocator);
 
     // Interfaces.
-    Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
-    Dict* udpConf = Dict_getDict(interfaces, BSTR("UDPInterface"));
+    struct InterfaceController* ifController =
+        InterfaceController_new(context.ca,
+                                context.switchCore,
+                                context.routerModule,
+                                context.logger,
+                                context.base,
+                                context.allocator);
 
+    Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
+
+    Dict* udpConf = Dict_getDict(interfaces, BSTR("UDPInterface"));
     if (udpConf) {
-        configureUDP(udpConf, &context);
+        String* bindStr = Dict_getString(udpConf, BSTR("bind"));
+        UDPInterface_new(context.base,
+                         (bindStr) ? bindStr->bytes : NULL,
+                         context.allocator,
+                         context.eHandler,
+                         context.logger,
+                         ifController,
+                         context.admin);
     }
 
     if (udpConf == NULL) {
@@ -751,6 +628,18 @@ int main(int argc, char** argv)
         fprintf(pf, "%d", getpid());
         fclose(pf);
     }
+
+    struct sockaddr_storage* adminAddr;
+    int adminAddrLen;
+    String* adminPassword;
+    Admin_getConnectInfo(&adminAddr, &adminAddrLen, &adminPassword, context.admin);
+    Configurator_config(&config,
+                        adminAddr,
+                        adminAddrLen,
+                        adminPassword,
+                        context.base,
+                        &logger,
+                        context.allocator);
 
     Ducttape_register(&config,
                       privateKey,

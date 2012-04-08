@@ -59,6 +59,8 @@ struct Admin
     struct Function* functions;
     int functionCount;
     struct Allocator* allocator;
+    struct sockaddr_storage address;
+    int addressLength;
     String* password;
 
     /** Becomes true after the admin process has sent it's first message. */
@@ -478,10 +480,22 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     admin->functionCount = 0;
     admin->eventBase = eventBase;
     admin->password = password;
+    memcpy(&admin->address, addr, sizeof(struct sockaddr_storage));
+    admin->addressLength = addrLen;
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
 
     event_base_dispatch(eventBase);
 
     return admin;
+}
+
+void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
+                          int* addrLenPtr,
+                          String** passwordPtr,
+                          struct Admin* admin)
+{
+    *addrPtr = &admin->address;
+    *addrLenPtr = admin->addressLength;
+    *passwordPtr = admin->password;
 }

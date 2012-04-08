@@ -21,6 +21,7 @@
 #define CryptoAuth_getSession Exports_CryptoAuth_getSession
 #define CryptoAuth_reset Exports_CryptoAuth_reset
 #define CryptoAuth_flushUsers Exports_CryptoAuth_flushUsers
+#define CryptoAuth_getState Exports_CryptoAuth_getState
 
 #include "crypto/CryptoAuth.c"
 
@@ -40,7 +41,7 @@ int Exports_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secr
     return decryptRndNonce(nonce, msg, secret);
 }
 
-uint8_t Exports_encryptHandshake(struct Message* message, struct Wrapper* wrapper)
+uint8_t Exports_encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
 {
     return encryptHandshake(message, wrapper);
 }

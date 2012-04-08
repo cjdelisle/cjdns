@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <event2/event.h>
 
-struct Auth {
+struct CryptoAuth_Auth {
     union Headers_AuthChallenge challenge;
 
     uint8_t secret[32];
@@ -39,7 +39,7 @@ struct CryptoAuth
 
     uint8_t publicKey[32];
 
-    struct Auth* passwords;
+    struct CryptoAuth_Auth* passwords;
     uint32_t passwordCount;
     uint32_t passwordCapacity;
 
@@ -64,7 +64,7 @@ struct CryptoAuth
  * | tmpPvtA  | tmpPubA | <--dupe key---- |  tmpPvtB | tmpPubA | prmPvtB-tmpPubA-passB
  * | finalSec |    0    | ---- data ----->|+finalSec |    0    | tmpPvtA-tmpPubB
  */
-struct Wrapper
+struct CryptoAuth_Wrapper
 {
     /** The public key of the other node. */
     uint8_t herPerminentPubKey[32];

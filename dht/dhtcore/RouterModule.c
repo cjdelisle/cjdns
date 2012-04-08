@@ -262,7 +262,7 @@ static void pingNode(Dict* input, void* vrouter, String* txid)
 {
     struct RouterModule* router = (struct RouterModule*) vrouter;
     Dict* args = Dict_getDict(input, BSTR("args"));
-    String* path = Dict_getString(args, BSTR("path"));
+    String* pathStr = Dict_getString(args, BSTR("path"));
 
     #define ERROR_DICT(x) \
         struct Dict_Entry entry = {                                           \
@@ -272,26 +272,26 @@ static void pingNode(Dict* input, void* vrouter, String* txid)
         };                                                                    \
         Dict err = &entry
 
-    if (!path) {
+    if (!pathStr) {
         ERROR_DICT("no path argument or path arg was not of type 'String'");
         Admin_sendMessage(&err, txid, router->admin);
         return;
     }
 
-    if (path->len != 19) {
+    if (pathStr->len != 19) {
         ERROR_DICT("path argument was not 19 characters long.");
         Admin_sendMessage(&err, txid, router->admin);
         return;
     }
 
-    uint64_t netAddr_be;
-    if (Address_parseNetworkAddress(&netAddr_be, (uint8_t*) path->bytes)) {
+    uint64_t path;
+    if (Address_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         ERROR_DICT("could not parse path, expected form is '0123.abcd.ef01.0011'");
         Admin_sendMessage(&err, txid, router->admin);
         return;
     }
 
-    struct Node* n = RouterModule_getNode(netAddr_be, router);
+    struct Node* n = RouterModule_getNode(path, router);
     if (!n) {
         ERROR_DICT("could not find node to ping");
         Admin_sendMessage(&err, txid, router->admin);

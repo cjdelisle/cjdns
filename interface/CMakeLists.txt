@@ -16,9 +16,10 @@ add_library(interface
     TUNInterface.c
     TUNConfigurator.c
     InterfaceConnector.c
+    InterfaceController.c
     SessionManager.c
 )
-target_link_libraries(interface ${LIBEVENT2_LIBRARIES})
+target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})
 
 enable_testing()
 #add_subdirectory(test)
