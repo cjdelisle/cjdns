@@ -152,7 +152,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     }
     if (!ep->authenticated) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
-            moveEndpointIfNeeded(&ep, ic);
+            //moveEndpointIfNeeded(&ep, ic);
             ep->authenticated = true;
         }
     }
