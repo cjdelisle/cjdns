@@ -166,7 +166,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         }
     }
 
-    if (destIndex >= core->interfaceCount) {
+    if (destIndex >= core->interfaceCount || core->interfaces[destIndex].iface == NULL) {
         Log_debug(sourceIf->core->logger, "Dropped packet because there is no interface "
                                           "where the bits specify.\n");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
@@ -211,10 +211,11 @@ static void removeInterface(void* vcontext)
 {
     struct SwitchInterface* si =
         (struct SwitchInterface*) ((struct Interface*)vcontext)->receiverContext;
-    struct SwitchCore* core = si->core;
-    core->interfaceCount--;
-    memcpy(si, &core->interfaces[core->interfaceCount], sizeof(struct SwitchInterface));
-    si->iface->receiverContext = si;
+
+    // This will not be true if the interface has been swapped for another one.
+    if (si) {
+        memset(si, 0, sizeof(struct SwitchInterface));
+    }
 }
 
 /**
@@ -235,6 +236,14 @@ int SwitchCore_addInterface(struct Interface* iface,
         ifIndex++;
     } else if (ifIndex == 1) {
         ifIndex--;
+    }
+
+    // If there's a vacent spot where another iface was before it was removed, use that.
+    for (uint32_t i = 0; i < ifIndex; i++) {
+        if (core->interfaces[i].iface == NULL && i != 1) {
+            ifIndex = i;
+            break;
+        }
     }
 
     if (ifIndex == SwitchCore_MAX_INTERFACES) {

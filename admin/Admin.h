@@ -39,4 +39,9 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
                         struct event_base* eventBase,
                         struct ExceptionHandler* eh,
                         struct Allocator* allocator);
+
+void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
+                          int* addrLenPtr,
+                          String** passwordPtr,
+                          struct Admin* admin);
 #endif

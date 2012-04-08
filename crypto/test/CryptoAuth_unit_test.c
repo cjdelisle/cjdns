@@ -94,7 +94,7 @@ void randombytes(unsigned char* buffer,unsigned long long size)
     memset(buffer, 0xFF, size);
 }
 
-struct Wrapper* setUp(uint8_t* myPrivateKey,
+struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
                       uint8_t* herPublicKey,
                       uint8_t* authPassword,
                       struct Message** resultMessage)
@@ -110,8 +110,8 @@ struct Wrapper* setUp(uint8_t* myPrivateKey,
             .senderContext = resultMessage
         });
 
-    struct Wrapper* wrapper =
-        allocator->clone(sizeof(struct Wrapper), allocator, &(struct Wrapper) {
+    struct CryptoAuth_Wrapper* wrapper =
+        allocator->clone(sizeof(struct CryptoAuth_Wrapper), allocator, &(struct CryptoAuth_Wrapper) {
             .context = ca,
             .wrappedInterface = iface
         });
@@ -136,7 +136,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
 {
     assert(strlen((char*)expectedOutput) == 264);
     struct Message* outMessage;
-    struct Wrapper* wrapper =
+    struct CryptoAuth_Wrapper* wrapper =
         setUp(NULL, (uint8_t*) "wxyzabcdefghijklmnopqrstuv987654", password, &outMessage);
 
     uint8_t msgBuff[Headers_CryptoAuth_SIZE + 12];
@@ -200,7 +200,7 @@ void receiveHelloWithNoAuth()
         .bytes = message
     };
 
-    struct Wrapper* wrapper = setUp(privateKey, NULL, NULL, NULL);
+    struct CryptoAuth_Wrapper* wrapper = setUp(privateKey, NULL, NULL, NULL);
 
     struct Message* finalOut = NULL;
     wrapper->externalInterface.receiveMessage = receiveMessage;
@@ -228,7 +228,7 @@ void repeatHello()
         .senderContext = &out
     };
 
-    struct Wrapper wrapper = {
+    struct CryptoAuth_Wrapper wrapper = {
         .context = ca,
         .wrappedInterface = &iface
     };
@@ -255,7 +255,7 @@ void repeatHello()
 
     ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
     struct Message* finalOut = NULL;
-    struct Wrapper wrapper2 = {
+    struct CryptoAuth_Wrapper wrapper2 = {
         .context = ca,
         .externalInterface = {
             .receiveMessage = receiveMessage,

@@ -11,12 +11,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "admin/Admin.h"
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
+#include "interface/InterfaceController.h"
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "util/Endian.h"
+#include "util/Base32.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 
@@ -43,17 +47,10 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
 /*--------------------Structs--------------------*/
 
-struct Endpoint
-{
-    /** The ip address where messages to this endpoint should go. */
-    struct sockaddr_storage addr;
-
-    /** the public api. */
-    struct Interface interface;
-};
-
 struct UDPInterface
 {
+    struct Interface interface;
+
     evutil_socket_t socket;
 
     /**
@@ -65,62 +62,29 @@ struct UDPInterface
     /** Used to tell what address type is being used. */
     int addrLen;
 
-    /**
-     * The ip address / interface mapping.
-     * Although this is 4 bytes, it compares the full sockaddr so this will work with ip6.
-     */
-    uint32_t addresses[MAX_INTERFACES];
-    struct Endpoint endpoints[MAX_INTERFACES];
-    uint32_t endpointCount;
-
-    struct Allocator* allocator;
-
-    /** The interface which will get all traffic for which there is no endpoint. */
-    struct Interface* defaultInterface;
-
-    /**
-     * This will be set while receiveMessage() is being called by the default interface.
-     * It is used by UDPInterface_bindToCurrentEndpoint(), the rest of the time it is NULL.
-     */
-    struct sockaddr_storage* defaultInterfaceSender;
-
-    uint8_t* messageBuff;
+    uint8_t messageBuff[MAX_PACKET_SIZE];
 
     struct Log* logger;
-};
 
-static void closeInterface(void* vcontext)
-{
-    struct Interface* toClose = (struct Interface*) vcontext;
-    struct UDPInterface* context = toClose->senderContext;
-    for (uint32_t i = 0; i < context->endpointCount; i++) {
-        if (&context->endpoints[i].interface == toClose)
-        {
-            context->addresses[i] = context->addresses[context->endpointCount - 1];
-            memcpy(&context->endpoints[i],
-                   &context->endpoints[context->endpointCount - 1],
-                   sizeof(struct Endpoint));
-            context->endpointCount--;
-            return;
-        }
-    }
-    assert(!"Tried to close an interface which wasn't found.");
-}
+    struct InterfaceController* ic;
+
+    struct Admin* admin;
+};
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
-    struct UDPInterface* context = (struct UDPInterface*) iface->senderContext;
-    assert(context->defaultInterface != iface
-        || !"Error: can't send traffic to the default interface");
+    struct UDPInterface* context = iface->senderContext;
+    assert(&context->interface == iface);
 
-    struct Endpoint* ep =
-        (struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, interface));
+    struct sockaddr_in sin;
+    memcpy(&sin, message->bytes, InterfaceController_KEY_SIZE);
+    Message_shift(message, -InterfaceController_KEY_SIZE);
 
     if (sendto(context->socket,
                message->bytes,
                message->length,
                0,
-               (struct sockaddr*) &ep->addr,
+               (struct sockaddr*) &sin,
                context->addrLen) < 0)
     {
         switch (errno) {
@@ -135,23 +99,143 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_debug1(context->logger, "Got error sending to socket errno=%d", errno);
-        };
+                Log_info1(context->logger, "Got error sending to socket errno=%d", errno);
+        }
     }
     return 0;
+}
+
+/**
+ * Release the event used by this module.
+ *
+ * @param vevent a void pointer cast of the event structure.
+ */
+static void freeEvent(void* vevent)
+{
+    event_del((struct event*) vevent);
+    event_free((struct event*) vevent);
+}
+
+static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
+{
+    struct UDPInterface* context = (struct UDPInterface*) vcontext;
+
+    struct Message message =
+        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
+
+    struct sockaddr_storage addrStore;
+    memset(&addrStore, 0, sizeof(struct sockaddr_storage));
+    int addrLen = sizeof(struct sockaddr_storage);
+    int rc = recvfrom(socket,
+                      message.bytes + InterfaceController_KEY_SIZE,
+                      MAX_PACKET_SIZE - InterfaceController_KEY_SIZE,
+                      0,
+                      (struct sockaddr*) &addrStore,
+                      (socklen_t*) &addrLen);
+    /*
+    Log_debug1(context->logger,
+               "Got message from peer on port %u\n",
+               Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
+    */
+    if (addrLen != context->addrLen) {
+        return;
+    }
+    if (rc < 0) {
+        return;
+    }
+    message.length = rc + InterfaceController_KEY_SIZE;
+
+    memcpy(message.bytes, &addrStore, InterfaceController_KEY_SIZE);
+
+    context->interface.receiveMessage(&message, &context->interface);
+}
+
+int UDPInterface_beginConnection(const char* address,
+                                 uint8_t cryptoKey[32],
+                                 String* password,
+                                 struct UDPInterface* udpif)
+{
+    struct sockaddr_storage addr;
+    int addrLen = sizeof(struct sockaddr_storage);
+    memset(&addr, 0, addrLen);
+    if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, &addrLen)) {
+        return -2;
+    }
+    if (addrLen != udpif->addrLen) {
+        return -3;
+    }
+
+    uint8_t key[InterfaceController_KEY_SIZE];
+    memcpy(key, &addr, InterfaceController_KEY_SIZE);
+    return InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+}
+
+static void beginConnectionAdmin(Dict* ap, void* vcontext, String* txid)
+{
+    struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
+
+    Dict* args = Dict_getDict(ap, String_CONST("args"));
+    String* password = Dict_getString(args, String_CONST("password"));
+    String* publicKey = Dict_getString(args, String_CONST("publicKey"));
+    String* address = Dict_getString(args, String_CONST("address"));
+    String* error = NULL;
+
+    uint8_t pkBytes[32];
+
+    if (!address) {
+        error = String_CONST("address unspecified or not a string.");
+
+    } else if (!publicKey) {
+        error = String_CONST("publicKey unspecified or not a string.");
+
+    } else if (publicKey->len < 52) {
+        error = String_CONST("publicKey is too short, must be 52 characters long.");
+
+    } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
+        error = String_CONST("failed to parse publicKey.");
+
+    } else {
+        switch (UDPInterface_beginConnection(address->bytes, pkBytes, password, udpif)) {
+            case -1:
+                error = String_CONST("no more space to register with the switch.");
+                break;
+            case -2:
+                error = String_CONST("unable to parse ip address and port.");
+                break;
+            case -3:
+                error = String_CONST("different address type than this socket is bound to.");
+                break;
+            case 0:
+                error = String_CONST("none");
+                break;
+            default:
+                error = String_CONST("unknown error");
+        }
+    }
+
+    Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
+    Admin_sendMessage(&out, txid, udpif->admin);
 }
 
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
-                                      struct Log* logger)
+                                      struct Log* logger,
+                                      struct InterfaceController* ic,
+                                      struct Admin* admin)
 {
-    struct UDPInterface* context = allocator->calloc(sizeof(struct UDPInterface), 1, allocator);
-
-    context->messageBuff = allocator->calloc(MAX_PACKET_SIZE + PADDING, 1, allocator);
-    context->logger = logger;
-    context->allocator = allocator;
+    struct UDPInterface* context = allocator->malloc(sizeof(struct UDPInterface), allocator);
+    memcpy(context, (&(struct UDPInterface) {
+        .interface = {
+            .sendMessage = sendMessage,
+            .senderContext = context,
+            .allocator = allocator
+        },
+        .logger = logger,
+        .ic = ic,
+        .admin = admin
+    }), sizeof(struct UDPInterface));
 
     sa_family_t addrFam;
     struct sockaddr_storage addr;
@@ -163,6 +247,16 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
             return NULL;
         }
         addrFam = addr.ss_family;
+
+        // This is because the key size is only 8 bytes.
+        // Expanding the key size just for IPv6 doesn't make a lot of sense
+        // when ethernet, 802.11 and ipv4 are ok with a shorter key size
+        if (addr.ss_family == AF_INET6) {
+            exHandler->exception(__FILE__ " UDPInterface_new() IPv6 transport not supported.",
+                                 -4,
+                                 exHandler);
+        }
+
     } else {
         addrFam = AF_INET;
         context->addrLen = sizeof(struct sockaddr);
@@ -197,164 +291,11 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
 
+    Admin_registerFunction("UDPInterface_beginConnection",
+                           beginConnectionAdmin,
+                           context,
+                           true,
+                           admin);
+
     return context;
-}
-
-/**
- * This is a trick to speed up lookup of addresses.
- * For ipv4 addresses it will match the whole address
- * For ipv6 and other addresses, it will be a match but the user must check that the whole
- * sockaddr matches before using it.
- */
-static inline uint32_t getAddr(struct sockaddr_storage* addr)
-{
-    uint32_t out;
-    memcpy(&out, ((uint8_t*)addr) + 4, 4);
-    return out;
-}
-
-static struct Interface* insertEndpoint(struct sockaddr_storage* addr,
-                                        struct UDPInterface* context)
-{
-    if (context->endpointCount >= MAX_INTERFACES) {
-        return NULL;
-    }
-
-    struct Allocator* epAllocator = context->allocator->child(context->allocator);
-    struct Endpoint* ep = &context->endpoints[context->endpointCount];
-    memcpy(&ep->addr, addr, sizeof(struct sockaddr_storage));
-
-    struct Interface iface = {
-        .senderContext = context,
-        .sendMessage = sendMessage,
-        .allocator = epAllocator,
-        .maxMessageLength = MAX_PACKET_SIZE,
-        .requiredPadding = 0
-    };
-    memcpy(&ep->interface, &iface, sizeof(struct Interface));
-
-    epAllocator->onFree(closeInterface, &ep->interface, epAllocator);
-
-    context->addresses[context->endpointCount] = getAddr(addr);
-    context->endpointCount++;
-
-    return &ep->interface;
-}
-
-struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
-                                           const char* endpointSockAddr,
-                                           struct ExceptionHandler* exHandler)
-{
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    if (0 != evutil_parse_sockaddr_port(endpointSockAddr, (struct sockaddr*) &addr, &addrLen)) {
-        exHandler->exception(__FILE__ " UDPInterface_addEndpoint() failed to parse address.",
-                             -1, exHandler);
-        return NULL;
-    }
-    if (addrLen != context->addrLen) {
-        // You can't just bind to an ip4 address then start sending ip6 traffic
-        exHandler->exception(__FILE__ " UDPInterface_addEndpoint() address of different type "
-                             "then interface.", -1, exHandler);
-        return NULL;
-    }
-
-    return insertEndpoint(&addr, context);
-}
-
-struct Interface* UDPInterface_getDefaultInterface(struct UDPInterface* context)
-{
-    if (context->defaultInterface == NULL) {
-        struct sockaddr_storage sockaddrZero;
-        memset(&sockaddrZero, 0, sizeof(struct sockaddr_storage));
-        context->defaultInterface = insertEndpoint(&sockaddrZero, context);
-    }
-    return context->defaultInterface;
-}
-
-int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface)
-{
-    struct UDPInterface* context = (struct UDPInterface*) defaultInterface->senderContext;
-    if (context->defaultInterface != defaultInterface
-        || context->defaultInterfaceSender == NULL)
-    {
-        return -1;
-    }
-    for (uint32_t i = 0; i < context->endpointCount; i++) {
-        // TODO this can be faster
-        if (defaultInterface == &context->endpoints[i].interface) {
-            struct Endpoint* ep = &context->endpoints[i];
-            memcpy(&ep->addr, context->defaultInterfaceSender, sizeof(struct sockaddr_storage));
-            context->addresses[i] = getAddr(&ep->addr);
-            context->defaultInterface = NULL;
-            return 0;
-        }
-    }
-    assert(!"Couldn't find the interface in the list");
-    return -1;
-}
-
-/*--------------------Internals--------------------*/
-
-/**
- * Release the event used by this module.
- *
- * @param vevent a void pointer cast of the event structure.
- */
-static void freeEvent(void* vevent)
-{
-    event_del((struct event*) vevent);
-    event_free((struct event*) vevent);
-}
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct UDPInterface* context = (struct UDPInterface*) vcontext;
-
-    struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
-
-    struct sockaddr_storage addrStore;
-    memset(&addrStore, 0, sizeof(struct sockaddr_storage));
-    int addrLen = sizeof(struct sockaddr_storage);
-    int rc = recvfrom(socket,
-                      message.bytes,
-                      MAX_PACKET_SIZE,
-                      0,
-                      (struct sockaddr*) &addrStore,
-                      (socklen_t*) &addrLen);
-    /*
-    Log_debug1(context->logger,
-               "Got message from peer on port %u\n",
-               Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
-    */
-    if (addrLen != context->addrLen) {
-        return;
-    }
-    if (rc < 0) {
-        return;
-    }
-    message.length = rc;
-
-    uint32_t addr = getAddr(&addrStore);
-    for (uint32_t i = 0; i < context->endpointCount; i++) {
-        if (addr == context->addresses[i]
-              && memcmp(&context->endpoints[i].addr,
-                        &addrStore,
-                        sizeof(struct sockaddr_storage)) == 0)
-        {
-            struct Interface* iface = &context->endpoints[i].interface;
-            if (iface->receiveMessage != NULL) {
-                iface->receiveMessage(&message, iface);
-            }
-            return;
-        }
-    }
-
-    // Otherwise just send it to the default interface.
-    if (context->defaultInterface != NULL && context->defaultInterface->receiveMessage != NULL) {
-        context->defaultInterfaceSender = &addrStore;
-        context->defaultInterface->receiveMessage(&message, context->defaultInterface);
-        context->defaultInterfaceSender = NULL;
-    }
 }

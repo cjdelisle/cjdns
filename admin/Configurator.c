@@ -132,46 +132,6 @@ static void sendMessage(Dict* message, struct Context* ctx)
     evtimer_del(timeoutEvent);
 }
 
-static void authorizedPasswords(List* list, struct Context* ctx)
-{
-    uint32_t count = List_size(list);
-    for (uint32_t i = 0; i < count; i++) {
-        Dict* d = List_getDict(list, i);
-        Log_info1(ctx->logger, "Checking authorized password %d.", i);
-        if (!d) {
-            Log_critical1(ctx->logger, "Not a dictionary type.", i);
-            exit(-1);
-        }
-        String* passwd = Dict_getString(d, String_CONST("password"));
-        if (!passwd) {
-            Log_critical1(ctx->logger, "Must specify a password.", i);
-            exit(-1);
-        }
-    }
-
-    Log_info(ctx->logger, "Flushing existing authorized passwords");
-    Dict message = Dict_CONST(
-        String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
-        String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_flush")), NULL
-    ));
-    sendMessage(&message, ctx);
-
-    for (uint32_t i = 0; i < count; i++) {
-        Dict* d = List_getDict(list, i);
-        String* passwd = Dict_getString(d, String_CONST("password"));
-        Log_info1(ctx->logger, "Adding authorized password %d.", i);
-
-        Dict message = Dict_CONST(
-            String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
-            String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_add")), Dict_CONST(
-            String_CONST("authType"), Int_OBJ(1), Dict_CONST(
-            String_CONST("password"), String_OBJ(passwd), NULL
-        ))));
-
-        sendMessage(&message, ctx);
-    }
-}
-
 static void incoming(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct Context* ctx = (struct Context*) vcontext;
@@ -224,6 +184,81 @@ static void incoming(evutil_socket_t socket, short eventType, void* vcontext)
     event_base_loopexit(ctx->eventBase, NULL);
 }
 
+static void rpcCall(String* function, Dict* args, struct Context* ctx)
+{
+    Dict message = Dict_CONST(
+        String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
+        String_CONST("aq"), String_OBJ(function), Dict_CONST(
+        String_CONST("args"), Dict_OBJ(args), NULL
+    )));
+    sendMessage(&message, ctx);
+}
+
+static void authorizedPasswords(List* list, struct Context* ctx)
+{
+    uint32_t count = List_size(list);
+    for (uint32_t i = 0; i < count; i++) {
+        Dict* d = List_getDict(list, i);
+        Log_info1(ctx->logger, "Checking authorized password %d.", i);
+        if (!d) {
+            Log_critical1(ctx->logger, "Not a dictionary type.", i);
+            exit(-1);
+        }
+        String* passwd = Dict_getString(d, String_CONST("password"));
+        if (!passwd) {
+            Log_critical1(ctx->logger, "Must specify a password.", i);
+            exit(-1);
+        }
+    }
+
+    Log_info(ctx->logger, "Flushing existing authorized passwords");
+    Dict message = Dict_CONST(
+        String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
+        String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_flush")), NULL
+    ));
+    sendMessage(&message, ctx);
+
+    for (uint32_t i = 0; i < count; i++) {
+        Dict* d = List_getDict(list, i);
+        String* passwd = Dict_getString(d, String_CONST("password"));
+        Log_info1(ctx->logger, "Adding authorized password %d.", i);
+
+        Dict message = Dict_CONST(
+            String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
+            String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_add")), Dict_CONST(
+            String_CONST("authType"), Int_OBJ(1), Dict_CONST(
+            String_CONST("password"), String_OBJ(passwd), NULL
+        ))));
+
+        sendMessage(&message, ctx);
+    }
+}
+
+static void udpInterface(Dict* config, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    Dict* udp = Dict_getDict(config, String_CONST("UDPInterface"));
+    Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
+    if (connectTo) {
+        struct Dict_Entry* entry = *connectTo;
+        while (entry != NULL) {
+            String* key = (String*) entry->key;
+            if (entry->val->type != Object_DICT) {
+                fprintf(stderr,
+                        "interfaces.UDPInterface.connectTo: entry [%s] is not a dictionary type.\n",
+                        key->bytes);
+                abort();
+            }
+            Dict* value = entry->val->as.dictionary;
+
+            Log_info1(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+            Dict_putString(value, String_CONST("address"), key, tempAlloc);
+            rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx);
+
+            entry = entry->next;
+        }
+    }
+}
+
 void Configurator_config(Dict* config,
                          struct sockaddr_storage* addr,
                          int addrLen,
@@ -251,10 +286,17 @@ void Configurator_config(Dict* config,
         event_new(context.eventBase, context.socket, EV_READ | EV_PERSIST, incoming, &context);
     event_add(context.socketEvent, NULL);
 
+    uint8_t buffer[256];
+    struct Allocator* tmpAlloc = BufferAllocator_new(buffer, 256);
+
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &context);
     }
+
+    Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
+
+    udpInterface(ifaces, tmpAlloc, &context);
 
     close(context.socket);
     event_del(context.socketEvent);
