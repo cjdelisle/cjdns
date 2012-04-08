@@ -126,7 +126,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
         if (thisEp >= ep) {
-            assert(i == 0);
+            assert(i == 0 || thisEp == ep);
             return;
         }
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
