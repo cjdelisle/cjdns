@@ -17,6 +17,7 @@
 #include <event2/event.h>
 
 #include "interface/Interface.h"
+#include "interface/InterfaceController.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
 
@@ -28,48 +29,32 @@ struct UDPInterface;
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
  * @param logger
+ * @param admin the administration module which will have UDPInterface_beginConnection()
+ *              registered with it.
+ * @param ic the controller which this interface should register with
+ *           and use when starting connections.
  * @return a new UDPInterface.
  */
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
-                                      struct Log* logger);
+                                      struct Log* logger,
+                                      struct InterfaceController* ic,
+                                      struct Admin* admin);
 
 /**
- * Add an endpoint.
+ * Begin an outgoing connection.
  *
- * @param context the tunnel context.
- * @param endpointSockAddr a string representation of the endpoint address EG: 1.2.3.4:56789
- * @param exHandler the handler to handle whatever exception may arise.
- * @return the interface object or null if error.
+ * @param address the ipv4 address and udp port to connect to, expressed as address:port.
+ * @param cryptoKey the node's public key, this is required to send it traffic.
+ * @param password if specified, the password for authenticating with the other node.
+ * @param udpif the UDP interface.
+ * @return 0 on success and -1 if there is no free switch slot.
  */
-struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
-                                           const char* endpointSockAddr,
-                                           struct ExceptionHandler* exHandler);
-
-/**
- * Get an interface which will return all packets for which there is no interface.
- * This interface has no send functions and there is only one default interface per tunnel
- * so calling this function multiple times will yield the same object.
- * If a successful call is made to UDPInterface_bindToCurrentEndpoint(), this will no longer be
- * the default interface and you will need to call getDefaultInterface again.
- *
- * @param context the tunnel context.
- * @return the default interface.
- */
-struct Interface* UDPInterface_getDefaultInterface(struct UDPInterface* context);
-
-/**
- * Bind the default endpoint to whatever node just sent us data.
- * If called from inside of recieveMessage() which is handling incoming data from the
- * default endpoint, this will make the default endpoint nolonger default and bind it to the
- * ip address which last sent data and return 0, if called at any other time or with any
- * other interface, it will return -1.
- *
- * @param defaultInterface the interface returned by UDPInterface_getDefaultEndpoint()
- * @return 0 if all goes well, -1 if improperly used.
- */
-int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface);
+int UDPInterface_beginConnection(const char* address,
+                                 uint8_t cryptoKey[32],
+                                 String* password,
+                                 struct UDPInterface* udpif);
 
 #endif

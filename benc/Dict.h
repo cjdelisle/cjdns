@@ -175,5 +175,6 @@ Dict* Dict_new(const struct Allocator* allocator);
         .next = nextDict                      \
     })
 
+#define Dict_OBJ(x) (&(Object) { .type = Object_DICT, .as.dictionary = x })
 
 #endif
