@@ -125,12 +125,12 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
-        if (thisEp == ep) {
+        if (thisEp >= ep) {
+            assert(i == 0);
             return;
         }
-        if (thisEp->authenticated
-            && !memcmp(CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf), key, 32))
-        {
+        uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
+        if (thisEp->authenticated && !memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
             memcpy(thisEp->key, ep->key, InterfaceController_KEY_SIZE);
