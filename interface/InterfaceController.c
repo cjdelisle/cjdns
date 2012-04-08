@@ -122,7 +122,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
 {
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
     struct Endpoint* ep = *epPtr;
-    struct Allocator* epAlloc = ep->cryptoAuthIf->allocator;
+    struct Allocator* epAlloc = ep->internal.allocator;
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
@@ -179,6 +179,7 @@ static void closeInterface(void* vendpoint)
     struct InterfaceController* ic = toClose->internal.senderContext;
 
     int index = InterfaceMap_indexOf(toClose->key, ic->imap);
+    assert(index > 0);
     InterfaceMap_remove(index, ic->imap);
 
     // flag the entry as nolonger used.
