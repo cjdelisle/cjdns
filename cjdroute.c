@@ -591,6 +591,7 @@ int main(int argc, char** argv)
                                 context.switchCore,
                                 context.routerModule,
                                 context.logger,
+                                context.base,
                                 context.allocator);
 
     Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));

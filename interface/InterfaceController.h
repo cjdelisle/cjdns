@@ -33,6 +33,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
                                                     struct RouterModule* routerModule,
                                                     struct Log* logger,
+                                                    struct event_base* eventBase,
                                                     struct Allocator* allocator);
 
 /**

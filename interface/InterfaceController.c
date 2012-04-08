@@ -96,6 +96,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
                                                     struct RouterModule* routerModule,
                                                     struct Log* logger,
+                                                    struct event_base* eventBase,
                                                     struct Allocator* allocator)
 {
     struct InterfaceController* ic =
@@ -106,6 +107,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
     ic->switchCore = switchCore;
     ic->routerModule = routerModule;
     ic->logger = logger;
+    ic->eventBase = eventBase;
     return ic;
 }
 
@@ -274,7 +276,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     // Incoming:   external -> receiveMessage() -> cryptoAuth -> postCryptoAuth() -> switch
 
     memcpy(&ep->internal, (&(struct Interface) {
-        .senderContext = ep,
+        .senderContext = ic,
         .sendMessage = sendMessage,
         .allocator = epAllocator,
         .maxMessageLength = externalInterface->maxMessageLength,
