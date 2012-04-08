@@ -951,7 +951,8 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                 .context = context,
                 .wrappedInterface = toWrap,
                 .requireAuth = requireAuth,
-                .authenticatePackets = authenticatePackets
+                .authenticatePackets = authenticatePackets,
+                .timeOfLastPacket = Time_currentTimeSeconds(context->eventBase)
             });
 
     toWrap->receiverContext = wrapper;
