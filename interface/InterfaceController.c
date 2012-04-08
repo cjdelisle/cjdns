@@ -126,6 +126,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
             && thisEp->authenticated
             && !memcmp(CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf), key, 32))
         {
+            Log_info(ic->logger, "Moving endpoint to merge new session with old.");
             memcpy(thisEp->key, ep->key, InterfaceController_KEY_SIZE);
 
             // This is a mess.
@@ -136,7 +137,10 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
                    sizeof(struct CryptoAuth_Wrapper));
 
             *epPtr = thisEp;
-            ep->cryptoAuthIf->allocator->free(ep->cryptoAuthIf->allocator);
+
+            // This is probably causing the crash bug.
+            //ep->cryptoAuthIf->allocator->free(ep->cryptoAuthIf->allocator);
+            return;
         }
     }
 }
