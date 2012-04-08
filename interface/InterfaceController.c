@@ -122,11 +122,14 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
-        if (thisEp != ep
-            && thisEp->authenticated
+        if (thisEp == ep) {
+            return;
+        }
+        if (thisEp->authenticated
             && !memcmp(CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf), key, 32))
         {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
+            /* just pretending, trying to isolate a segfault bug.
             memcpy(thisEp->key, ep->key, InterfaceController_KEY_SIZE);
 
             // This is a mess.
@@ -136,7 +139,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
                    ep->cryptoAuthIf->receiverContext,
                    sizeof(struct CryptoAuth_Wrapper));
 
-            *epPtr = thisEp;
+            *epPtr = thisEp;*/
 
             // This is probably causing the crash bug.
             //ep->cryptoAuthIf->allocator->free(ep->cryptoAuthIf->allocator);
