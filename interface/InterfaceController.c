@@ -122,6 +122,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
 {
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
     struct Endpoint* ep = *epPtr;
+    struct Allocator* epAlloc = ep->cryptoAuthIf->allocator;
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
@@ -142,7 +143,7 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
                    ep->cryptoAuthIf->receiverContext,
                    sizeof(struct CryptoAuth_Wrapper));
 
-            ep->cryptoAuthIf->allocator->free(ep->cryptoAuthIf->allocator);
+            epAlloc->free(epAlloc);
 
             *epPtr = thisEp;
             return;
