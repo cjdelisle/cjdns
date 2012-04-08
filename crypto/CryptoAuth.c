@@ -116,7 +116,7 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
     #endif
 }
 
-static inline void hashPassword_sha256(struct CryptoAuth_Auth* auth, const String* password)
+static inline void hashPassword_sha256(struct Auth* auth, const String* password)
 {
     uint8_t tempBuff[32];
     crypto_hash_sha256(auth->secret, (uint8_t*) password->bytes, password->len);
@@ -126,7 +126,7 @@ static inline void hashPassword_sha256(struct CryptoAuth_Auth* auth, const Strin
     auth->challenge.challenge.type = 1;
 }
 
-static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
+static inline uint8_t* hashPassword(struct Auth* auth,
                                     const String* password,
                                     const uint8_t authType)
 {
@@ -144,8 +144,7 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
  * @param context the CryptoAuth engine to search in.
  * @return an Auth struct with a if one is found, otherwise NULL.
  */
-static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
-                                              struct CryptoAuth* context)
+static inline struct Auth* getAuth(union Headers_AuthChallenge auth, struct CryptoAuth* context)
 {
     if (auth.challenge.type != 1) {
         return NULL;
@@ -158,9 +157,7 @@ static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
     return NULL;
 }
 
-static inline void getPasswordHash(uint8_t output[32],
-                                   uint8_t derivations,
-                                   struct CryptoAuth_Auth* auth)
+static inline void getPasswordHash(uint8_t output[32], uint8_t derivations, struct Auth* auth)
 {
     uint8_t tempBuff[32];
     memcpy(output, auth->secret, 32);
@@ -172,10 +169,10 @@ static inline void getPasswordHash(uint8_t output[32],
 
 static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
                                uint8_t hashOutput[32],
-                               struct CryptoAuth_Wrapper* wrapper,
+                               struct Wrapper* wrapper,
                                void** userPtr)
 {
-    struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
+    struct Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
     if (auth != NULL) {
         uint16_t deriv = Headers_getAuthChallengeDerivations(&cauth->handshake.auth);
         getPasswordHash(hashOutput, deriv, auth);
@@ -318,7 +315,7 @@ static inline void encrypt(uint32_t nonce,
     }
 }
 
-static inline void setRequiredPadding(struct CryptoAuth_Wrapper* wrapper)
+static inline void setRequiredPadding(struct Wrapper* wrapper)
 {
     uint32_t padding = (wrapper->nextNonce < 4) ? 36 : sizeof(union Headers_CryptoAuth) + 32;
     wrapper->externalInterface.requiredPadding =
@@ -327,7 +324,7 @@ static inline void setRequiredPadding(struct CryptoAuth_Wrapper* wrapper)
         wrapper->wrappedInterface->maxMessageLength - padding;
 }
 
-static inline bool knowHerKey(struct CryptoAuth_Wrapper* wrapper)
+static inline bool knowHerKey(struct Wrapper* wrapper)
 {
     return !Bits_isZero(wrapper->herPerminentPubKey, 32);
 }
@@ -337,7 +334,7 @@ static inline bool knowHerKey(struct CryptoAuth_Wrapper* wrapper)
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
  */
 static uint8_t genReverseHandshake(struct Message* message,
-                                   struct CryptoAuth_Wrapper* wrapper,
+                                   struct Wrapper* wrapper,
                                    union Headers_CryptoAuth* header)
 {
     wrapper->nextNonce = 0;
@@ -371,7 +368,7 @@ static uint8_t genReverseHandshake(struct Message* message,
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
 
-static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
+static uint8_t encryptHandshake(struct Message* message, struct Wrapper* wrapper)
 {
     assert(message->padding >= sizeof(union Headers_CryptoAuth) || !"not enough padding");
 
@@ -390,7 +387,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     // Password auth
     uint8_t* passwordHash = NULL;
     if (wrapper->password != NULL) {
-        struct CryptoAuth_Auth auth;
+        struct Auth auth;
         passwordHash = hashPassword(&auth, wrapper->password, wrapper->authType);
         memcpy(header->handshake.auth.bytes, &auth.challenge, sizeof(union Headers_AuthChallenge));
     }
@@ -511,7 +508,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 }
 
 static inline uint8_t encryptMessage(struct Message* message,
-                                     struct CryptoAuth_Wrapper* wrapper)
+                                     struct Wrapper* wrapper)
 {
     assert(message->padding >= 36 || !"not enough padding");
 
@@ -532,7 +529,7 @@ static inline uint8_t encryptMessage(struct Message* message,
 
 static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
-    struct CryptoAuth_Wrapper* wrapper = (struct CryptoAuth_Wrapper*) interface->senderContext;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
 
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
@@ -575,8 +572,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 }
 
 /** Call the external interface and tell it that a message has been received. */
-static inline uint8_t callReceivedMessage(struct CryptoAuth_Wrapper* wrapper,
-                                          struct Message* message)
+static inline uint8_t callReceivedMessage(struct Wrapper* wrapper, struct Message* message)
 {
     uint8_t ret = 0;
     if (wrapper->externalInterface.receiveMessage != NULL) {
@@ -592,7 +588,7 @@ static inline uint8_t callReceivedMessage(struct CryptoAuth_Wrapper* wrapper,
     return ret;
 }
 
-static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
+static inline bool decryptMessage(struct Wrapper* wrapper,
                                   uint32_t nonce,
                                   struct Message* content,
                                   uint8_t secret[32])
@@ -624,7 +620,7 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
     return true;
 }
 
-static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
+static uint8_t decryptHandshake(struct Wrapper* wrapper,
                                 const uint32_t nonce,
                                 struct Message* message,
                                 union Headers_CryptoAuth* header)
@@ -803,7 +799,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
 static uint8_t receiveMessage(struct Message* received, struct Interface* interface)
 {
-    struct CryptoAuth_Wrapper* wrapper = (struct CryptoAuth_Wrapper*) interface->receiverContext;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->requireAuth ? 20 : 4)) {
@@ -857,7 +853,7 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
     struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
     ca->allocator = allocator;
 
-    ca->passwords = allocator->calloc(sizeof(struct CryptoAuth_Auth), 256, allocator);
+    ca->passwords = allocator->calloc(sizeof(struct Auth), 256, allocator);
     ca->passwordCount = 0;
     ca->passwordCapacity = 256;
     ca->eventBase = eventBase;
@@ -902,7 +898,7 @@ int32_t CryptoAuth_addUser(String* password,
         // TODO: realloc password space and increase buffer.
         return CryptoAuth_addUser_OUT_OF_SPACE;
     }
-    struct CryptoAuth_Auth a;
+    struct Auth a;
     hashPassword_sha256(&a, password);
     for (uint32_t i = 0; i < context->passwordCount; i++) {
         if (!memcmp(a.secret, context->passwords[i].secret, 32)) {
@@ -910,7 +906,7 @@ int32_t CryptoAuth_addUser(String* password,
         }
     }
     a.user = user;
-    memcpy(&context->passwords[context->passwordCount], &a, sizeof(struct CryptoAuth_Auth));
+    memcpy(&context->passwords[context->passwordCount], &a, sizeof(struct Auth));
     context->passwordCount++;
     return 0;
 }
@@ -922,7 +918,7 @@ void CryptoAuth_flushUsers(struct CryptoAuth* context)
 
 void* CryptoAuth_getUser(struct Interface* interface)
 {
-    struct CryptoAuth_Wrapper* wrapper = (struct CryptoAuth_Wrapper*) interface->senderContext;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
     void* user = wrapper->user;
     if (user) {
         // If the user was lost in flushusers, then we need to return null.
@@ -943,16 +939,15 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context)
 {
-    struct CryptoAuth_Wrapper* wrapper =
-        toWrap->allocator->clone(sizeof(struct CryptoAuth_Wrapper), toWrap->allocator,
-            &(struct CryptoAuth_Wrapper) {
-                .user = NULL,
-                .nextNonce = 0,
-                .context = context,
-                .wrappedInterface = toWrap,
-                .requireAuth = requireAuth,
-                .authenticatePackets = authenticatePackets
-            });
+    struct Wrapper* wrapper =
+        toWrap->allocator->clone(sizeof(struct Wrapper), toWrap->allocator, &(struct Wrapper) {
+            .user = NULL,
+            .nextNonce = 0,
+            .context = context,
+            .wrappedInterface = toWrap,
+            .requireAuth = requireAuth,
+            .authenticatePackets = authenticatePackets
+        });
 
     toWrap->receiverContext = wrapper;
     toWrap->receiveMessage = receiveMessage;
@@ -975,7 +970,7 @@ void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
                         struct Interface* wrappedInterface)
 {
-    struct CryptoAuth_Wrapper* wrapper = wrappedInterface->senderContext;
+    struct Wrapper* wrapper = (struct Wrapper*) wrappedInterface->senderContext;
     wrapper->password = (password != NULL)
         ? String_newBinary(password->bytes, password->len, wrappedInterface->allocator)
         : NULL;
@@ -989,32 +984,13 @@ void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 {
-    return ((struct CryptoAuth_Wrapper*) interface->senderContext)->herPerminentPubKey;
+    return ((struct Wrapper*) interface->senderContext)->herPerminentPubKey;
 }
 
 void CryptoAuth_reset(struct Interface* interface)
 {
-    struct CryptoAuth_Wrapper* wrapper = interface->senderContext;
+    struct Wrapper* wrapper = (struct Wrapper*) interface->senderContext;
     wrapper->nextNonce = 0;
     wrapper->isInitiator = false;
     memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
-}
-
-int CryptoAuth_getState(struct Interface* interface)
-{
-    struct CryptoAuth_Wrapper* wrapper = interface->senderContext;
-    switch (wrapper->nextNonce) {
-        case 0:
-            return CryptoAuth_NEW;
-        case 1:
-            return CryptoAuth_HANDSHAKE1;
-        case 2:
-        case 3:
-        case 4:
-            // a bit of an oversimplification.
-            // state 4 = waiting for first data packet to prove the handshake succeeded.
-            return CryptoAuth_HANDSHAKE2;
-        default:
-            return CryptoAuth_ESTABLISHED;
-    }
 }
