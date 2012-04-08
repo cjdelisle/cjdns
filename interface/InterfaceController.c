@@ -142,9 +142,9 @@ static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
                    ep->cryptoAuthIf->receiverContext,
                    sizeof(struct CryptoAuth_Wrapper));
 
-            *epPtr = thisEp;
-
             ep->cryptoAuthIf->allocator->free(ep->cryptoAuthIf->allocator);
+
+            *epPtr = thisEp;
             return;
         }
     }
