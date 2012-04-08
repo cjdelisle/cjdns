@@ -181,8 +181,8 @@ static void closeInterface(void* vendpoint)
     int index = InterfaceMap_indexOf(toClose->key, ic->imap);
     InterfaceMap_remove(index, ic->imap);
 
-    // make sure not to reorder the entries because InterfaceMap points to them.
-    memset(toClose, 0, sizeof(struct Endpoint));
+    // flag the entry as nolonger used.
+    toClose->external = NULL;
 }
 
 /**
