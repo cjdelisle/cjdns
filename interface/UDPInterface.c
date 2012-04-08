@@ -39,14 +39,6 @@
 
 #define MAX_INTERFACES 256
 
-
-/*--------------------Prototypes--------------------*/
-static void freeEvent(void* vevent);
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext);
-
-/*--------------------Structs--------------------*/
-
 struct UDPInterface
 {
     struct Interface interface;
@@ -290,6 +282,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     event_add(context->incomingMessageEvent, NULL);
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
+
+    InterfaceController_registerInterface(&context->interface, ic);
 
     Admin_registerFunction("UDPInterface_beginConnection",
                            beginConnectionAdmin,

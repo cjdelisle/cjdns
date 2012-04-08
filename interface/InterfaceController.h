@@ -55,4 +55,14 @@ int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
                                        struct Interface* externalInterface,
                                        struct InterfaceController* ic);
 
+/**
+ * Setup an external interface to forward to this InterfaceController.
+ * This always succeeds.
+ *
+ * @param externalInterface the network facing interface to register.
+ * @param ic the InterfaceController.
+ */
+void InterfaceController_registerInterface(struct Interface* externalInterface,
+                                           struct InterfaceController* ic);
+
 #endif

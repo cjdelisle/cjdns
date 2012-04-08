@@ -354,3 +354,10 @@ int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
 {
     return (insertEndpoint(key, herPublicKey, false, password, externalInterface, ic)) ? 0 : -1;
 }
+
+void InterfaceController_registerInterface(struct Interface* externalInterface,
+                                           struct InterfaceController* ic)
+{
+    externalInterface->receiverContext = ic;
+    externalInterface->receiveMessage = receiveMessage;
+}
