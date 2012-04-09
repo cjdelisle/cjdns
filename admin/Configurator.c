@@ -234,7 +234,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
-static void udpInterface(Dict* config, struct Allocator* tempAlloc, struct Context* ctx)
+static void udpInterface(Dict* config, struct Context* ctx)
 {
     Dict* udp = Dict_getDict(config, String_CONST("UDPInterface"));
     Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
@@ -251,7 +251,11 @@ static void udpInterface(Dict* config, struct Allocator* tempAlloc, struct Conte
             Dict* value = entry->val->as.dictionary;
 
             Log_info1(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
-            Dict_putString(value, String_CONST("address"), key, tempAlloc);
+
+            uint8_t buffer[256];
+            struct Allocator* tmpAlloc = BufferAllocator_new(buffer, 256);
+            Dict_putString(value, String_CONST("address"), key, tmpAlloc);
+
             rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx);
 
             entry = entry->next;
@@ -286,9 +290,6 @@ void Configurator_config(Dict* config,
         event_new(context.eventBase, context.socket, EV_READ | EV_PERSIST, incoming, &context);
     event_add(context.socketEvent, NULL);
 
-    uint8_t buffer[256];
-    struct Allocator* tmpAlloc = BufferAllocator_new(buffer, 256);
-
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &context);
@@ -296,7 +297,7 @@ void Configurator_config(Dict* config,
 
     Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
 
-    udpInterface(ifaces, tmpAlloc, &context);
+    udpInterface(ifaces, &context);
 
     close(context.socket);
     event_del(context.socketEvent);
