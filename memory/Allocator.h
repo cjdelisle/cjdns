@@ -15,6 +15,7 @@
 #define Allocator_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 struct Allocator;
 
@@ -42,10 +43,20 @@ struct Allocator
      * @param callback the function to call.
      * @param callbackContext the data to pass the function when calling it.
      * @param this the memory allocator.
+     * @return a pointer which can be passed to notOnFree() to remove the job.
      */
-    void (* const onFree)(void (*callback)(void* callbackContext),
-                          void* callbackContext,
-                          const struct Allocator* this);
+    void* (* const onFree)(void (*callback)(void* callbackContext),
+                           void* callbackContext,
+                           const struct Allocator* this);
+
+    /**
+     * Remove a function which was registered with onFree().
+     *
+     * @param job the return value from calling onFree().
+     * @param alloc the memory allocator.
+     * @return true if the job was found and removed, false otherwise.
+     */
+    bool (* const notOnFree)(void* job, struct Allocator* alloc);
 
     /**
      * Allocate some memory from this memory allocator.

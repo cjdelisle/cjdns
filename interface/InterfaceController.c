@@ -29,20 +29,16 @@
 
 struct Endpoint
 {
+    struct Interface switchIf;
+
+    struct Interface* cryptoAuthIf;
+
     /**
      * The internal interface, this is on the external side of the CryptoAuth.
      * This is wrapped by CryptoAuth and incoming packets from the CryptoAuth go to
      * receivedAfterCryptoAuth() then to the switch.
      */
     struct Interface internal;
-
-    /** The switch's receiverMessage callback, needed for adding receivedAfterCryptoAuth(). */
-    Interface_CALLBACK(switchReceiveMessage);
-
-    /** The switch's receiverContext, needed for adding receivedAfterCryptoAuth(). */
-    void* switchReceiverContext;
-
-    struct Interface* cryptoAuthIf;
 
     /**
      * The external (network side) interface,
@@ -117,38 +113,29 @@ static inline struct Endpoint* endpointForInternalInterface(struct Interface* if
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
-static inline void moveEndpointIfNeeded(struct Endpoint** epPtr,
-                                        struct InterfaceController* ic)
+static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
+                                                    struct InterfaceController* ic)
 {
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
-    struct Endpoint* ep = *epPtr;
-    struct Allocator* epAlloc = ep->internal.allocator;
+
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
         if (thisEp >= ep) {
             assert(i == 0 || thisEp == ep);
-            return;
+            break;
         }
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
-        if (thisEp->authenticated && !memcmp(thisKey, key, 32)) {
+        if (!memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
-            memcpy(thisEp->key, ep->key, InterfaceController_KEY_SIZE);
+            SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
+            thisEp->internal.allocator->free(thisEp->internal.allocator);
 
-            // This is a mess.
-            // We copy the CryptoAuth session over so the user is able to `hijack'
-            // their old session seamlessly.
-            memcpy(thisEp->cryptoAuthIf->receiverContext,
-                   ep->cryptoAuthIf->receiverContext,
-                   sizeof(struct CryptoAuth_Wrapper));
-
-            epAlloc->free(epAlloc);
-
-            *epPtr = thisEp;
-            return;
+            return ep;
         }
     }
+    return ep;
 }
 
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
@@ -162,15 +149,18 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     }
     if (!ep->authenticated) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
-            //not working. moveEndpointIfNeeded(&ep, ic);
+            ep = moveEndpointIfNeeded(ep, ic);
             ep->authenticated = true;
         }
     }
 
-    // yet another hack to make this asymmetric flow thing work.
-    return ep->switchReceiveMessage(msg, &(struct Interface) {
-        .receiverContext = ep->switchReceiverContext
-    });
+    return ep->switchIf.receiveMessage(msg, &ep->switchIf);
+}
+
+static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
+{
+    struct Endpoint* ep = switchIf->senderContext;
+    return ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
 }
 
 static void closeInterface(void* vendpoint)
@@ -179,7 +169,7 @@ static void closeInterface(void* vendpoint)
     struct InterfaceController* ic = toClose->internal.senderContext;
 
     int index = InterfaceMap_indexOf(toClose->key, ic->imap);
-    assert(index > 0);
+    assert(index >= 0);
     InterfaceMap_remove(index, ic->imap);
 
     // flag the entry as nolonger used.
@@ -293,21 +283,20 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     }
     ep->cryptoAuthIf = authedIf;
 
+    memcpy(&ep->switchIf, (&(struct Interface) {
+        .sendMessage = sendFromSwitch,
+        .senderContext = ep,
+        .allocator = epAllocator
+    }), sizeof(struct Interface));
+
     struct Address addr;
     memset(&addr, 0, sizeof(struct Address));
-    if (SwitchCore_addInterface(authedIf, 0, &addr.networkAddress_be, ic->switchCore)) {
+    if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.networkAddress_be, ic->switchCore)) {
         return NULL;
     }
 
-
-    // Hack:
-    // Store switchReceiverContext and switchReceiveMessage in the ep and change them to add
-    // another level of indirection on the incoming side but not on the outgoing side.
-    ep->switchReceiveMessage = authedIf->receiveMessage;
-    ep->switchReceiverContext = authedIf->receiverContext;
     authedIf->receiveMessage = receivedAfterCryptoAuth;
     authedIf->receiverContext = ep;
-
 
     if (herPublicKey) {
         memcpy(addr.key, herPublicKey, 32);
@@ -331,18 +320,16 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct InterfaceController* ic = iface->receiverContext;
     struct Endpoint* ep = getEndpoint(msg->bytes, ic);
-    if (ep) {
-        Message_shift(msg, -InterfaceController_KEY_SIZE);
-        return ep->internal.receiveMessage(msg, &ep->internal);
-    }
-
-    // Not a known peer, add them.
-    ep = insertEndpoint(msg->bytes, NULL, requiresAuth(iface, ic), NULL, iface, ic);
 
     if (!ep) {
-        Log_warn(ic->logger, "Could not insert endpoint, out of space in switch.");
-        return Error_NONE;
-    } else {
+        // Not a known peer, add them.
+        ep = insertEndpoint(msg->bytes, NULL, requiresAuth(iface, ic), NULL, iface, ic);
+
+        if (!ep) {
+            Log_warn(ic->logger, "Could not insert endpoint, out of space in switch.");
+            return Error_NONE;
+        }
+
         #ifdef Log_KEYS
             uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
             Hex_encode(keyHex, sizeof(keyHex), msg->bytes, InterfaceController_KEY_SIZE);
@@ -352,7 +339,6 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         #endif
     }
 
-    // Send the message on to the switch so the first message isn't lost.
     Message_shift(msg, -InterfaceController_KEY_SIZE);
     return ep->internal.receiveMessage(msg, &ep->internal);
 }
