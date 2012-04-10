@@ -1,3 +1,17 @@
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -61,10 +75,10 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         memcpy(outgoing->bytes, "hello world", 12);
 
         Message_shift(outgoing, Headers_SwitchHeader_SIZE);
-        memcpy(outgoing->bytes, &(struct Headers_SwitchHeader) {
+        memcpy(outgoing->bytes, (&(struct Headers_SwitchHeader) {
             .label_be = Endian_hostToBigEndian64(1),
             .lowBits_be = 0
-        }, Headers_SwitchHeader_SIZE);
+        }), Headers_SwitchHeader_SIZE);
 
         wrapped->sendMessage(outgoing, wrapped);
 
@@ -82,12 +96,6 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
 
         Hex_encode(hexBuffer, 1025, message->bytes, message->length);
         printf("%s\n", hexBuffer);
-
-/*
-        // The switch label is 0 because it was sent from slot 0.
-        assert(!memcmp(message->bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-                                       "hello world", 24));
-*/
 
         // Need to bounce the packets back when connecting after the first try.
         // This is needed to establish the CryptoAuth session and make the InterfaceController
