@@ -167,6 +167,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
     assert(ep->switchIf.senderContext == ep);
+    assert(ep->internal.sendMessage);
     return ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
 }
 
