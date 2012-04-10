@@ -125,6 +125,10 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
             assert(i == 0 || thisEp == ep);
             break;
         }
+        if (thisEp->external == NULL) {
+            // Removed endpoint.
+            continue;
+        }
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (!memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
@@ -187,6 +191,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     Message_shift(message, InterfaceController_KEY_SIZE);
     memcpy(message->bytes, ep->key, InterfaceController_KEY_SIZE);
 
+    assert(ep->external);
     return ep->external->sendMessage(message, ep->external);
 }
 
