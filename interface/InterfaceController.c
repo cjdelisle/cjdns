@@ -69,23 +69,23 @@ struct Endpoint
 struct InterfaceController
 {
     /** Used to get an endpoint by it's lookup key, endpoint.internal is entered into the map. */
-    struct InterfaceMap* imap;
+    struct InterfaceMap* const imap;
 
     struct Endpoint endpoints[MAX_INTERFACES];
 
-    struct Allocator* allocator;
+    struct Allocator* const allocator;
 
-    struct CryptoAuth* ca;
+    struct CryptoAuth* const ca;
 
     /** Switch for adding nodes when they are discovered. */
-    struct SwitchCore* switchCore;
+    struct SwitchCore* const switchCore;
 
     /** Router needed to inject newly added nodes to bootstrap the system. */
-    struct RouterModule* routerModule;
+    struct RouterModule* const routerModule;
 
-    struct Log* logger;
+    struct Log* const logger;
 
-    struct event_base* eventBase;
+    struct event_base* const eventBase;
 };
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
@@ -95,16 +95,18 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct event_base* eventBase,
                                                     struct Allocator* allocator)
 {
-    struct InterfaceController* ic =
-        allocator->calloc(sizeof(struct InterfaceController), 1, allocator);
-    ic->imap = InterfaceMap_new(InterfaceController_KEY_SIZE, allocator);
-    ic->allocator = allocator;
-    ic->ca = ca;
-    ic->switchCore = switchCore;
-    ic->routerModule = routerModule;
-    ic->logger = logger;
-    ic->eventBase = eventBase;
-    return ic;
+    return allocator->clone(sizeof(struct InterfaceController),
+                            allocator,
+                            &(struct InterfaceController)
+        {
+            .imap = InterfaceMap_new(InterfaceController_KEY_SIZE, allocator),
+            .allocator = allocator,
+            .ca = ca,
+            .switchCore = switchCore,
+            .routerModule = routerModule,
+            .logger = logger,
+            .eventBase = eventBase
+        });
 }
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
@@ -164,6 +166,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
+    assert(ep->switchIf.senderContext == ep);
     return ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
 }
 
@@ -203,6 +206,7 @@ static inline struct Endpoint* getEndpoint(uint8_t key[InterfaceController_KEY_S
         struct Endpoint* ep = endpointForInternalInterface(ic->imap->interfaces[index]);
         #ifdef Log_DEBUG
             assert(ep->external || !"Entry was not removed from the map but was null.");
+            assert(&ep->internal == ic->imap->interfaces[index]);
             assert(!memcmp(key, ep->key, InterfaceController_KEY_SIZE));
         #endif
         return ep;
@@ -257,19 +261,18 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         return NULL;
     }
 
+    // This is the same no matter what endpoint.
+    externalInterface->receiverContext = ic;
+    externalInterface->receiveMessage = receiveMessage;
+
+
     struct Allocator* epAllocator =
         externalInterface->allocator->child(externalInterface->allocator);
     epAllocator->onFree(closeInterface, ep, epAllocator);
 
-    externalInterface->receiverContext = ic;
-    externalInterface->receiveMessage = receiveMessage;
-
     ep->external = externalInterface;
     memcpy(ep->key, key, InterfaceController_KEY_SIZE);
     InterfaceMap_put(key, &ep->internal, 0, ic->imap);
-
-    // Outgoing:   switch -> cryptoAuth -> sendMessage() -> external
-    // Incoming:   external -> receiveMessage() -> cryptoAuth -> postCryptoAuth() -> switch
 
     memcpy(&ep->internal, (&(struct Interface) {
         .senderContext = ic,
@@ -321,6 +324,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     return ep;
 }
 
+// Get an incoming message from a network interface, doesn't matter what interface or what endpoint.
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct InterfaceController* ic = iface->receiverContext;
