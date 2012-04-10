@@ -121,6 +121,10 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
+        if (thisEp->external == NULL) {
+            // Removed endpoint.
+            continue;
+        }
         if (thisEp >= ep) {
             assert(i == 0 || thisEp == ep);
             break;
@@ -187,6 +191,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     Message_shift(message, InterfaceController_KEY_SIZE);
     memcpy(message->bytes, ep->key, InterfaceController_KEY_SIZE);
 
+    assert(ep->external);
     return ep->external->sendMessage(message, ep->external);
 }
 
