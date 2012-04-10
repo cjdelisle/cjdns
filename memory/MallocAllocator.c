@@ -17,6 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/Log.h"
 
 struct OnFreeJob;
 struct OnFreeJob {
@@ -138,6 +139,9 @@ static void freeAllocator(const struct Allocator* allocator)
     while (loc != NULL) {
         *(context->spaceAvailable) += loc->size;
         struct Allocation* nextLoc = loc->next;
+        #ifdef Log_DEBUG
+            memset(loc, 0xff, loc->size);
+        #endif
         free(loc);
         loc = nextLoc;
     }
@@ -235,9 +239,9 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
 }
 
 /** @see Allocator->onFree() */
-static void addOnFreeJob(void (* callback)(void* callbackContext),
-                         void* callbackContext,
-                         const struct Allocator* this)
+static void* addOnFreeJob(void (* callback)(void* callbackContext),
+                          void* callbackContext,
+                          const struct Allocator* this)
 {
     struct Context* context =
         (struct Context*) this->context;
@@ -250,12 +254,27 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
     struct OnFreeJob* job = context->onFree;
     if (job == NULL) {
         context->onFree = newJob;
-        return;
+    } else {
+        while (job->next != NULL) {
+            job = job->next;
+        }
+        job->next = newJob;
     }
-    while (job->next != NULL) {
-        job = job->next;
+    return newJob;
+}
+
+static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
+{
+    struct Context* context = alloc->context;
+    struct OnFreeJob** jobPtr = &(context->onFree);
+    while (*jobPtr != NULL) {
+        if (*jobPtr == toRemove) {
+            *jobPtr = (*jobPtr)->next;
+            return true;
+        }
+        jobPtr = &(*jobPtr)->next;
     }
-    job->next = newJob;
+    return false;
 }
 
 /** @see MallocAllocator.h */
@@ -281,7 +300,8 @@ struct Allocator* MallocAllocator_new(size_t sizeLimit)
         .clone = allocatorClone,
         .realloc = allocatorRealloc,
         .child = childAllocator,
-        .onFree = addOnFreeJob
+        .onFree = addOnFreeJob,
+        .notOnFree = removeOnFreeJob
     };
 
     memcpy(&context->allocator, &allocator, sizeof(struct Allocator));

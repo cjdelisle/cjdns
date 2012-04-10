@@ -22,4 +22,4 @@ add_library(interface
 target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})
 
 enable_testing()
-#add_subdirectory(test)
+add_subdirectory(test)

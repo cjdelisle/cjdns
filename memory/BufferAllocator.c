@@ -139,9 +139,9 @@ static void doNothing(const struct Allocator* allocator)
 }
 
 /** @see Allocator->onFree() */
-static void addOnFreeJob(void (* callback)(void* callbackContext),
-                         void* callbackContext,
-                         const struct Allocator* this)
+static void* addOnFreeJob(void (* callback)(void* callbackContext),
+                          void* callbackContext,
+                          const struct Allocator* this)
 {
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) this->context;
@@ -154,12 +154,28 @@ static void addOnFreeJob(void (* callback)(void* callbackContext),
     struct Job* job = context->onFree;
     if (job == NULL) {
         context->onFree = newJob;
-        return;
+
+    } else {
+        while (job->next != NULL) {
+            job = job->next;
+        }
+        job->next = newJob;
     }
-    while (job->next != NULL) {
-        job = job->next;
+    return newJob;
+}
+
+static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
+{
+    struct BufferAllocator_context* context = alloc->context;
+    struct Job** jobPtr = &(context->onFree);
+    while (*jobPtr != NULL) {
+        if (*jobPtr == toRemove) {
+            *jobPtr = (*jobPtr)->next;
+            return true;
+        }
+        jobPtr = &(*jobPtr)->next;
     }
-    job->next = newJob;
+    return false;
 }
 
 /** @see Allocator->child() */
@@ -173,7 +189,8 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
         .clone = allocatorClone,
         .realloc = allocatorRealloc,
         .child = childAllocator,
-        .onFree = addOnFreeJob
+        .onFree = addOnFreeJob,
+        .notOnFree = removeOnFreeJob
     });
 }
 

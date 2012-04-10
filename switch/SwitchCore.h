@@ -64,4 +64,6 @@ int SwitchCore_addInterface(struct Interface* iface,
  */
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core);
 
+void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2);
+
 #endif
