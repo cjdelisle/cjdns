@@ -254,6 +254,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     struct Endpoint* ep = NULL;
     for (int i = 0; i < MAX_INTERFACES; i++) {
         if (ic->endpoints[i].external == NULL) {
+            Log_debug1(ic->logger, "Using connection slot [%d]", i);
             ep = &ic->endpoints[i];
             break;
         }
