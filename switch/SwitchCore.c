@@ -126,6 +126,9 @@ static inline void sendError(struct SwitchInterface* interface,
     sendMessage(interface, cause, logger);
 }
 
+#define DEBUG_SRC_DST(logger, message) \
+    Log_debug2(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
+
 /** This never returns an error, it sends an error packet instead. */
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
@@ -153,30 +156,30 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         // way for a node to know the size of the representation of it's source label.
         if (destIndex == 1) {
             if (label >> bits & (UINT64_MAX >> (64 - sourceBits))) {
-                Log_debug(sourceIf->core->logger,
-                          "Dropped packet for this router because there is no way to "
-                          "represent the return path.");
+                DEBUG_SRC_DST(sourceIf->core->logger,
+                              "Dropped packet for this router because there is no way to "
+                              "represent the return path.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
             }
             bits = sourceBits;
         } else {
-            Log_debug(sourceIf->core->logger, "Dropped packet because source address is "
-                                              "larger than destination address.\n");
+            DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                                                  "larger than destination address.");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
         }
     }
 
     if (destIndex >= core->interfaceCount || core->interfaces[destIndex].iface == NULL) {
-        Log_debug(sourceIf->core->logger, "Dropped packet because there is no interface "
-                                          "where the bits specify.\n");
+        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because there is no interface "
+                                              "where the bits specify.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
 
     if (sourceIndex == destIndex) {
-        Log_debug(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
+        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
         return Error_NONE;
     }
 
@@ -198,7 +201,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be = Endian_hostToBigEndian64((label >> bits) | sourceLabel);
 
-    Log_debug2(sourceIf->core->logger, "Forwarding packet from [%u] to [%u]", sourceIndex,destIndex);
+    DEBUG_SRC_DST(sourceIf->core->logger, "Forwarding packet.");
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
