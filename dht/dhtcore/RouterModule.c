@@ -543,15 +543,6 @@ static void searchRequestTimeout(void* vcontext)
                                                    16,
                                                    SearchStore_getAllocator(scc->search),
                                                    scc->routerModule->nodeStore);
-
-    if (nl->size > 0) {
-        int i = rand();
-        RouterModule_pingNode(nl->nodes[i % nl->size], scc->routerModule, NULL);
-        if (nl->size > 1) {
-            RouterModule_pingNode(nl->nodes[(i + 1) % nl->size], scc->routerModule, NULL);
-        }
-    }
-
     searchStep(scc);
 }
 
