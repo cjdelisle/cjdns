@@ -539,10 +539,6 @@ static void searchRequestTimeout(void* vcontext)
         NodeStore_updateReach(n, scc->routerModule->nodeStore);
     }
 
-    struct NodeList* nl = NodeStore_getNodesByAddr(scc->lastNodeCalled->address,
-                                                   16,
-                                                   SearchStore_getAllocator(scc->search),
-                                                   scc->routerModule->nodeStore);
     searchStep(scc);
 }
 
