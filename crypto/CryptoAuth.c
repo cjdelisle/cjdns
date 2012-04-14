@@ -162,12 +162,10 @@ static inline void getPasswordHash_typeOne(uint8_t output[32],
                                            uint8_t derivations,
                                            struct CryptoAuth_Auth* auth)
 {
-    uint8_t tempBuff[32];
     memcpy(output, auth->secret, 32);
     if (derivations) {
-        crypto_hash_sha256(tempBuff, output, 32);
-        tempBuff[0] ^= derivations;
-        crypto_hash_sha256(output, tempBuff, 32);
+        output[0] ^= derivations;
+        crypto_hash_sha256(output, output, 32);
     }
 }
 
