@@ -159,12 +159,19 @@ static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
 }
 
 static inline void getPasswordHash_typeOne(uint8_t output[32],
-                                           uint8_t derivations,
+                                           uint16_t derivations,
                                            struct CryptoAuth_Auth* auth)
 {
     memcpy(output, auth->secret, 32);
     if (derivations) {
-        output[0] ^= derivations;
+        union {
+            uint8_t bytes[2];
+            uint8_t asShort;
+        } deriv = { .asShort = derivations };
+
+        output[0] ^= deriv.bytes[0];
+        output[1] ^= deriv.bytes[1];
+
         crypto_hash_sha256(output, output, 32);
     }
 }
