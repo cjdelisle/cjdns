@@ -153,11 +153,11 @@ static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallen
  *                       1               2               3
  *       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    0 |                          System State                         |
+ *    0 |                         Session State                         |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *    4 |                                                               |
  *      +                                                               +
- *    8 |                   Obfuscated Auth Challenge                   |
+ *    8 |                         Auth Challenge                        |
  *      +                                                               +
  *   12 |                                                               |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -217,35 +217,27 @@ static inline void Headers_setAuthChallengeDerivations(union Headers_AuthChallen
  *      +        Variable Length Encrypted/Authenticated Content        +
  *      |                                                               |
  *
- * If "System State" is equal to zero, the sender is requesting that the recipient begin a
- * connection with him, this is done in cases when the initiator of the connection does
- * not know the key for the recipient. If the entire header is not present the recipient
- * MUST drop the packet silently, the only field which is read in the packet is the
- * "Permanent Public Key" field, all others SHOULD be ignored, specifically, content
- * MUST not be passed on because it cannot be authenticated. The recipient of such a
+ * If "Session State" is equal to the bitwise complement of zero, the sender is requesting
+ * that the recipient begin a connection with him, this is done in cases when the initiator
+ * of the connection does not know the key for the recipient. If the entire header is not
+ * present the recipient MUST drop the packet silently, the only field which is read in the
+ * packet is the "Permanent Public Key" field, all others SHOULD be ignored, specifically,
+ * content MUST not be passed on because it cannot be authenticated. The recipient of such a
  * packet SHOULD send back a "hello" packet if there is no established connection.
  * If there is already a connection over the interface, the recipient SHOULD NOT respond
  * but MAY allow the connection to time out faster.
  *
- * If the "System State" field is equal to the obfuscated value of zero or one, the packet
- * is a "hello" packet. If no connection is present, one should be established and the
+ * If the "Session State" field is equal to the one or two, the packet is a "hello" packet.
+ * or a repeated hello packet. If no connection is present, one should be established and the
  * recipient MAY send a "key" packet in response but it is RECOMMENDED that he wait until
  * he has data to send first. A node who has sent a hello packet and gotten no response and
- * now wishes to send more data MUST send that data as more hello packets.
+ * now wishes to send more data MUST send that data as more (repeat) hello packets.
  *
- * If the "System State" field is equal to the obfuscated value of two or three, the packet
- * is a "key" packet. Key packets are responses to hello packets. Once a node receives a key
- * packet it may begin sending data packets. A node who has received a hello packet, sent a
- * key packet and gotten no further response who now wishes to send more data MUST send that
- * data as more key packets.
- *
- * All hello and key packets have an obfuscated auth challenge, this is obfuscated using the
- * same method as the nonce obfuscation, 4 bytes at a time. The last 4 bytes of the auth
- * challenge is obfuscated first using the first 4 bytes of the 24 byte random nonce, then
- * the second 4 bytes, the first 4 bytes, and finally the session state, each are obfuscated
- * using the last as a salt.
- * Deobfuscation is the reverse process, starting with the session state and proceeding through
- * to the last 4 bytes of the auth challenge.
+ * If the "Session State" field is equal to two or three, the packet is a "key" packet.
+ * Key packets are responses to hello packets. Once a node receives a key packet it may begin
+ * sending data packets. A node who has received a hello packet, sent a key packet and gotten
+ * no further response who now wishes to send more data MUST send that data as more (repeat)
+ * key packets.
  */
 union Headers_CryptoAuth
 {
