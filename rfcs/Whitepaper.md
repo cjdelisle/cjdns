@@ -291,6 +291,28 @@ right. This means that shifting by the log base 2 leaves 1 bit of overlap, this
 along with the XORing of the second part (`routeBC`) against `1` causes the
 highest bit in the first part to be overwritten.
 
+Given two routes, it is possible to determine whether one route is an extension
+of another one, this is similar to the reverse of the the splicing routine. To
+determine that routeAC "routes through" the node at the end of by routeAB, one
+simply takes the bitwise complement of zero, shifted right by 64 minus the log
+base 2 of routeAB, bitwise ANDs it against routeAB and routeAC and compares the
+results, if they are equal then routeAC begins with routeAB.
+
+    routeAC =        0000000000000000000000000000000000110101010100011101110101011001
+    routeAB =        0000000000000000000000000000000000000000000001011101110101011001
+
+    g = 64 - log2(routeAC)
+
+    ~0 =             1111111111111111111111111111111111111111111111111111111111111111
+    >> g             0000000000000000000000000000000000000000000000111111111111111111
+
+    h = ~0 >> g
+
+    h & routeAB      0000000000000000000000000000000000000000000000011101110101011001
+    h & routeAC      0000000000000000000000000000000000000000000000011101110101011001
+
+
+
 In order to allow a switch to add more interfaces without knowing how many it
 will use in advance, switches should be able to add new interfaces whose
 discriminators use more bits than the ones for the old interfaces. However, when
@@ -311,9 +333,9 @@ the "redundant route" may be resolved.
 
 Since label space is most efficiently used when a switch's largest
 discriminator is closest in size to it's smallest discriminator, renumbering
-interfaces is encouraged, especially right after start up when all interfaces have
-just been registered. However, switches SHOULD NOT re-number more than necessary as
-it breaks existing routes which run through them.
+interfaces is encouraged, especially right after start up when all interfaces
+have just been registered. However, switches SHOULD NOT re-number more than
+necessary as it breaks existing routes which run through them.
 
 
 ## The Router
@@ -349,7 +371,9 @@ yielding a route to the final destination through them.
 Router messages are sent as normal UDP/IPv6 packets except that their UDP source
 and destination port numbers are zero and the hop limit (TTL) field in the IPv6
 header is set to zero. Any packet which meets these characteristics is to be
-considered a router message and any packet which doesn't is not.
+considered a router message and any packet which doesn't is not. It is critical
+that inter-router communications are themselves, not routed because it would
+break the label splicing for search responses.
 
 The content of the inter-router messages is [bEncoded][bEncode] dictionaries.
 Routers send search queries which have a key called "q", and replies which
@@ -389,7 +413,255 @@ the last entry in the reply.
 
 Routers choose the node to forward a packet to in a similar way to how they
 answer search queries. They select nodes from their of their routing table
-except in this case the selection contains only a single node.
+except in this case the selection contains only a single node. The packet is
+sent through the CryptoAuth session for the next hop and the label for that
+hop is applied to the packet and it is sent to the switch.
+
+
+## The CryptoAuth
+
+The CryptoAuth is a mechanism for wrapping interfaces, you supply it with an
+interface and optionally a key, and it gives you a new interface which allows
+you to send packets to someone who has that key. Like the rest of cjdns, it is
+designed to function with best effort data transit. The CryptoAuth handshake
+is based on piggybacking headers on top of regular data packets and while the
+traffic in handshake packets is encrypted and authenticated, it is not secure
+against replay attacks and has no forward secrecy if the private key is
+compromised. The CryptoAuth header adds takes 120 bytes of overhead to the
+packet, causing a fluctuating MTU.
+
+There are 5 types of CryptoAuth header:
+
+1. Connect To Me - Used to start a session without knowing the other node's key.
+2. Hello Packet  - The first message in beginning a session.
+3. Key Packet    - The second message in a session.
+4. Data Packet   - A normal traffic packet.
+5. Authenticated - A traffic packet with Poly1305 authentication.
+
+All CryptoAuth headers are 120 bytes long except for the Data Packet header
+which is 4 bytes and the Authenticated header which is 20 bytes. The first 4
+bytes of any CryptoAuth header is a big endian number which is used to determine
+it's type, this is the so-called "Session State" number. If it is the inverse of
+zero, it is a Connect To Me header, if it is zero, it is a Hello Packet, if one
+or two, it is a Hello Packet or repeated Hello Packet, if it is three or four,
+it is a Key Packet or repeated Key Packet. If it is any number larger than four,
+it is either a Data Packet or an Authenticated packet, depending on whether
+authentication was requested during the handshake.
+
+Handshake packet structure:
+
+                          1               2               3
+          0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       0 |                         Session State                         |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       4 |                                                               |
+         +                                                               +
+       8 |                         Auth Challenge                        |
+         +                                                               +
+      12 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      16 |                                                               |
+         +                                                               +
+      20 |                                                               |
+         +                                                               +
+      24 |                                                               |
+         +                         Random Nonce                          +
+      28 |                                                               |
+         +                                                               +
+      32 |                                                               |
+         +                                                               +
+      36 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      40 |                                                               |
+         +                                                               +
+      44 |                                                               |
+         +                                                               +
+      48 |                                                               |
+         +                                                               +
+      52 |                                                               |
+         +                     Permanent Public Key                      +
+      56 |                                                               |
+         +                                                               +
+      60 |                                                               |
+         +                                                               +
+      64 |                                                               |
+         +                                                               +
+      68 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      72 |                                                               |
+         +                                                               +
+      76 |                                                               |
+         +                     Poly1305 Authenticator                    +
+      80 |                                                               |
+         +                                                               +
+      84 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      88 |                                                               |
+         +                                                               +
+      92 |                                                               |
+         +                                                               +
+      96 |                                                               |
+         +                                                               +
+     100 |                                                               |
+         +          Encrypted/Authenticated Temporary Public Key         +
+     104 |                                                               |
+         +                                                               +
+     108 |                                                               |
+         +                                                               +
+     112 |                                                               |
+         +                                                               +
+     116 |                                                               |
+         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+         |                                                               |
+         +        Variable Length Encrypted/Authenticated Content        +
+         |                                                               |
+
+
+### 1) Connect To Me Packet
+
+If "Session State" is equal to the bitwise complement of zero, the sender is
+requesting that the recipient begin a connection with him, this is done in cases
+when the initiator of the connection does not know the key for the recipient.
+If the entire header is not present the recipient MUST drop the packet silently,
+the only field which is read in the packet is the "Permanent Public Key" field,
+all others SHOULD be ignored, specifically, content MUST not be passed on
+because it cannot be authenticated. The recipient of such a packet SHOULD send
+back a "hello" packet if there is no established connection. If there is already
+a connection over the interface, the recipient SHOULD NOT respond but MAY allow
+the connection to time out faster.
+
+
+### 2) Hello Packet
+
+If the "Session State" field is equal to the one or two, the packet is a Hello
+Packet or a repeated Hello Packet. If no connection is present, one MAY be
+established and the recipient MAY send a Key Packet in response but it is
+RECOMMENDED that he wait until he has data to send first. A node who has sent a
+Hello Packet, has gotten no response and now wishes to send more data MUST send
+that data as more (repeat) Hello Packets. The temporary public key and the
+content are encrypted and authenticated using the permanent public keys of the
+two nodes and "Random Nonce" in the header. The content and temporary key is
+encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20()
+function.
+
+
+### 3) Key Packet
+
+If the "Session State" field is equal to two or three, the packet is a Key
+Packet. Key Packets are responses to Hello Packets and like Hello Packets, they
+contain a temporary public key encrypted and authenticated along with the data.
+Once a node receives a Key Packet it may begin sending data packets. A node who
+has received a Hello Packet, sent a Key Packet, gotten no further response, and
+now wishes to send more data MUST send that data as more (repeat) key packets.
+
+
+### 4) Data Packet
+
+The traditional data packet has only 4 bytes of header, these 4 bytes are the
+nonce which is used for the cipher, the packet is enciphered using
+crypto_stream_salsa20_xor() with the nonce, converted to little endian encoding,
+and copied to the first four bytes of the 8 byte nonce required by 
+crypto_stream_salsa20_xor() unless the node is the initiator of the connection
+(the sender of the hello packet), in which case it is copied over the second
+four bytes of the space, thus allowing for a single session to handle 2^32
+packets in either direction.
+
+
+### 5) Authenticated Packet
+
+The Authenticated Packet is sent if Poly1305 authentication was requested by
+either node during the handshake. Like the Data Packet, the first 4 bytes is
+used as the nonce, in this case it is a 24 byte nonce and
+crypto_box_curve25519poly1305xsalsa20() is used to encrypt and decrypt the data,
+but the methodology is exactly the same. If a packet is not authenticated, it
+MUST be silently dropped.
+
+
+#### ReplayProtector
+
+When packet authentication is enabled, the packet is checked for replay attacks
+(intentional or accidental) the replay protection method is to use a 32 bit
+offset and a 32 bit bitfield to create a sliding window. When a packet comes in,
+it's nonce is compared to the offset, if it is less then the offset, it is
+discarded. If when subtracted from the offset, the result is less than or equal
+to 32, 1 is shifted left by the result, bitwise ANDed against the bitfield and
+compared to zero, if it is not zero then the packet is a duplicate and is
+discarded. If it is zero then it is OR'd against the bitfield to set the same
+bit is set and the packet is passed along. If the result of subtraction is
+greater than 32, 32 is subtracted from it, this result is added to the offset,
+the bitfield is shifted left by this amount, then the least significant bit in
+the bitfield is set. This is obviously only available when packets are
+authenticated but provides a secure protection against replay attacks and
+accidentally duplicated packets EG: from 802.11 noise.
+
+This solution is limited in that packets which are more then 32 "slots" out of
+order will be discarded. In some cases, this could be a benefit since in best
+effort networking, never is often better than late.
+
+
+### Authentication field:
+
+This field allows a node to connect using a password or other shared secret,
+the AuthType field specifies how the secret should be used to connect.
+
+                       1               2               3
+       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    0 |   AuthType    |                                               |
+      +-+-+-+-+-+-+-+-+        AuthType Specific                      +
+    4 |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    8 |A|                      AuthType Specific                      |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The "A" flag is used to indicate that the node is requesting the session use
+Poly1305 authentication for all of it's packets. The "AuthType Specific" fields
+specific to the authentication type.
+
+
+#### AuthType Zero
+
+AuthType Zero is no authentication at all. If the AuthType is set to zero, all
+AuthType Specific fields are disregarded and SHOULD be set to random numbers.
+
+
+#### AuthType One
+
+AuthType One is a SHA-256 based authentication method.
+
+                       1               2               3
+       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    0 |   Auth Type   |                                               |
+      +-+-+-+-+-+-+-+-+           Hash Code                           +
+    4 |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    8 |A|        Derivations          |           Additional          |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+With AuthType One, the shared secret (password) is hashed once and the result is
+appended to the 32 byte output from scalar multiplication of the curve25519 keys
+these 64 bytes are hashed again with SHA-256 to make the symmetric key to be
+used for the session. It is also hashed a second time and the result copied over
+the first 8 bytes of the authentication header before the AuthType field is set.
+The effect being that the "Hash Code" field contains bytes 2 through 8 the hash
+of the hash of the password. This is used as a sort of username so that the
+other end knows which password to try using in the handshake.
+
+If Derivations is non-zero, an additional step is included, the two most
+significant bytes of the password hash are ZORed against the two bytes of the
+network representation of Derivations and it is hashed using SHA-256 once
+again before being included in the generation of the symmetric key. This form is
+notibly NOT used in the Hash Code field.
+
+This allows a node Alice, to give a secret to Charlie, which he can use to start
+a CryptoAuth session with Bob, without leaking Alice's shared secret. This
+allows nodes to generate, share and derive secrets through trusted connections,
+creating new trusted connections and use them to share more secrets, adding a
+measure of forward secrecy in the event of a cryptographic weakness found in
+the asymmetric cryptography.
+
 
 
 ................more to come
@@ -434,77 +706,8 @@ The Switch sees an incoming packet and, not caring which interface it came
    *and* authenticated, adding either 20 bytes for traffic or 136 bytes for a
    handshake packet.
 
-## CryptoAuth:
-
-There are 5 types of CryptoAuth header:
-
-1. "connect to me"
-2. handshake1
-3. handshake2
-4. data
-5. authenticatedData
-
-All cryptoAuth headers are 120 bytes long except for the data header which is
-4 bytes and the authenticatedData header which is 20 bytes. The first 4 bytes
-of a CryptoAuth header is used to determine it's type, if they are zero, it is
-a "connect to me" header, if they are equal to the obfuscated value of zero or
-one, it is a handshake1 packet and if they are the obfuscated value of two or
-three, it is a handshake2 packet. if it is the obfuscated value of a number
-exceeding three, it is a data or authenticated data packet.
-
-### 1) "connect to me" packets:
-
-When a node receives a connect to me packet from a node which it does not
-know, it should establish a session and send back a handshake1 packet, if it
-already has a session, it should drop the packet silently. The connect to me
-packet has no useful information except for it's system state and "Permanent
-Public Key" field, the rest of the packet should be filled with random.
-
-### 2) handshake1:
-
-A handshake1 packet contains an authentication field, a random nonce, the
-node's perminent public key, a poly1305 authenticator field, and the temporary
-public key followed by the content, all encrypted and authenticated using the
-perminent public keys of the two nodes and the random nonce contained in the
-packet. The content and temporary key is encrypted using
-crypto_box_curve25519poly1305xsalsa20() function.
-
-### 3) handshake2:
-
-A handshake2 packet likewise contains an authentication field, a random nonce,
-a perminent public key field (which is not used but still must be present) a
-poly1305 authenticator, and an encrypted temporary key and content. this time
-the temporary key and content is encrypted using the perminent key of the
-sending node and the temporary public key of the other party (which was sent
-in the handshake1 packet).
-
-### 4) Data packets
 
 
-### 5) Authentication field:
-
-This field allows a node to connect using a password or other shared secret,
-the authtype subfield specifies how the password should be hashed, the auth-
-derivations field specifies how many times the shared secret hash function
-must be run and the authentication hash code is the 5 bytes of the sha256 of
-the result from the hash function. Auth type of 0 indicates that the node is
-not offering authentication credentials in the handshake, auth type 1 is a
-trivial sha256 of the password to create the hash (TODO: improve this). When a
-client presents authentication credencials, the result of doing the number of
-derivations given on the password is then appended to the key generated by
-point multiplication of the public and private keys and sha256'd to generate
-the shared secret.
-
-This authentication scheme is designed to be resistant to MiTM attacks as well
-as attacks on the underlying asymmetric cryptography which protects the
-connection. Basicly it is using a password as what it is, a shared secret. If
-the auth type field is set to 0, the key generated by scalar multiplication
-will not be fed to sha256, it will instead be hashed using hsalsa20 as
-normally used in crypto_box_curve25519xsalsa20. If the A bit (at 14 byte
-offset) is set, the connection will use poly1305 to authenticate all packets,
-regardless of whether auth-type is 0.
-
-# References
 
 [OSLR]: http://tools.ietf.org/html/rfc3626
 
