@@ -1,8 +1,4 @@
-*This is a work in progress*
-
-# cjd's Networking Suite -- Everyone Still Thinks It's A Nameserver
-
-## What?
+# What?
 
 Imagine an Internet where every packet is cryptographically
 protected from source to destination against espionage and forgery, getting
@@ -14,7 +10,7 @@ a wireless device.
 
 This is the vision of cjdns. 
 
-## Why?
+# Why?
 
 The Internet is built on protocols which largely date back to the late 80's
 or earlier. At a time when it was a network of anarchistic academics and
@@ -63,7 +59,7 @@ bar of entry into traditional routing and have developed a menu of alternative,
 self-configuring protocols such as [OSLR], [HSLS], and [BATMAN].
 
 
-### So the problems are already solved?
+## So the problems are already solved?
 
 Not every problem listed has an existing solution and of the ones which do,
 many of the solutions are based on incompatible technology. For example: OSLR
@@ -90,7 +86,7 @@ way that will be fast, secure, and most importantly, *easy* for the next
 generation of ISPs to deploy and use.
 
 
-### What is this denial of service?
+## What is this denial of service?
 
 Usage of a service can be interrupted by sending a flood of unwanted packets
 to a host from a large number of infected "zombie" machines. This, known as
@@ -113,7 +109,7 @@ to essentially be their own ISP and to peer with a multitude of other ISPs
 making it very difficult to threaten anyone but them.
 
 
-### What is the routing table and why does it keep getting bigger?
+## What is the routing table and why does it keep getting bigger?
 
 A more technical issue with the Internet, and one of which many people are
 unaware, is address space deaggregation. Every computer connected to the
@@ -147,7 +143,7 @@ one must look up the "real location" of a server before forwarding a packet,
 why not simply look up the fastest path?
 
 
-### I don't care, it's their problem.
+## I don't care, it's their problem.
 
 Each of these problems is a tragedy of the commons problem. The users of virus
 infected computers are incentivized to save money rather than purchasing a
@@ -174,7 +170,7 @@ difficulty of operating a router and getting a block of IP addresses hurts
 competition in the ISP sphere, thus increasing prices and impeding progress.
 
 
-## How?
+# How?
 
 cjdns is made of three major components which are woven together.
 There is a switch, a router, and a CryptoAuth module. With total disregard for
@@ -184,7 +180,7 @@ by the switch, the switch is blind and dumb without the router to command it,
 and without the router and switch, the CryptoAuth has nothing to protect.
 
 
-### The Switch
+## The Switch
 
 *He doesn't think about his actions; they flow from the core of his being.*
 
@@ -341,7 +337,7 @@ have just been registered. However, switches SHOULD NOT re-number more than
 necessary as it breaks existing routes which run through them.
 
 
-### The Router
+## The Router
 
 A router has 3 functions, it periodically searches for things, responds to
 searches, and forwards packets. When a router responds to a search, it responds
@@ -426,7 +422,7 @@ hop is applied to the packet and it is sent to the switch. The "search target"
 for forwarding a packet is the IPv6 destination address of the packet.
 
 
-### The CryptoAuth
+## The CryptoAuth
 
 The CryptoAuth is a mechanism for wrapping interfaces, you supply it with an
 interface and optionally a key, and it gives you a new interface which allows
@@ -526,7 +522,7 @@ Handshake packet structure:
          |                                                               |
 
 
-#### 1) Connect To Me Packet
+### 1) Connect To Me Packet
 
 If "Session State" is equal to the bitwise complement of zero, the sender is
 requesting that the recipient begin a connection with him, this is done in cases
@@ -540,7 +536,7 @@ a connection over the interface, the recipient SHOULD NOT respond but MAY allow
 the connection to time out faster.
 
 
-#### 2) Hello Packet
+### 2) Hello Packet
 
 If the "Session State" field is equal to the one or two, the packet is a Hello
 Packet or a repeated Hello Packet. If no connection is present, one MAY be
@@ -554,7 +550,7 @@ encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20()
 function.
 
 
-#### 3) Key Packet
+### 3) Key Packet
 
 If the "Session State" field is equal to two or three, the packet is a Key
 Packet. Key Packets are responses to Hello Packets and like Hello Packets, they
@@ -564,7 +560,7 @@ has received a Hello Packet, sent a Key Packet, gotten no further response, and
 now wishes to send more data MUST send that data as more (repeat) key packets.
 
 
-#### 4) Data Packet
+### 4) Data Packet
 
 The traditional data packet has only 4 bytes of header, these 4 bytes are the
 nonce which is used for the cipher, the packet is enciphered using
@@ -576,7 +572,7 @@ four bytes of the space, thus allowing for a single session to handle 2^32
 packets in either direction.
 
 
-#### 5) Authenticated Packet
+### 5) Authenticated Packet
 
 The Authenticated Packet is sent if Poly1305 authentication was requested by
 either node during the handshake. Like the Data Packet, the first 4 bytes is
@@ -586,7 +582,7 @@ but the methodology is exactly the same. If a packet is not authenticated, it
 MUST be silently dropped.
 
 
-##### ReplayProtector
+#### ReplayProtector
 
 When packet authentication is enabled, the packet is checked for replay attacks
 (intentional or accidental) the replay protection method is to use a 32 bit
@@ -608,7 +604,7 @@ order will be discarded. In some cases, this could be a benefit since in best
 effort networking, never is often better than late.
 
 
-#### Authentication field:
+### Authentication field:
 
 This field allows a node to connect using a password or other shared secret,
 the AuthType field specifies how the secret should be used to connect.
@@ -628,13 +624,13 @@ Poly1305 authentication for all of its packets. The "AuthType Specific" fields
 specific to the authentication type.
 
 
-##### AuthType Zero
+#### AuthType Zero
 
 AuthType Zero is no authentication at all. If the AuthType is set to zero, all
 AuthType Specific fields are disregarded and SHOULD be set to random numbers.
 
 
-##### AuthType One
+#### AuthType One
 
 AuthType One is a SHA-256 based authentication method.
 
@@ -671,7 +667,7 @@ measure of forward secrecy in the event of a cryptographic weakness found in
 the asymmetric cryptography.
 
 
-### Pulling It All Together
+## Pulling It All Together
 
 The journey of a packet begins at the user interface device (TUN or similar).
 The user sends an IPv6 packet which comes in to the TUN device and enters the
@@ -766,11 +762,3 @@ packet is written out to the TUN device.
 [BitTorrent]: http://en.wikipedia.org/wiki/BitTorrent_(protocol) "A peer-to-peer file sharing protocol used for distributing large amounts of data over the Internet. "
 
 [Kademlia]: http://pdos.csail.mit.edu/~petar/papers/maymounkov-kademlia-lncs.pdf
-
-[Tor]: https://www.torproject.org/ "Tor is free software and an open network that helps you defend against a form of network surveillance that threatens personal freedom and privacy, confidential business activities and relationships, and state security known as traffic analysis."
-
-[I2P]: http://www.i2p2.de/ "An anonymizing network, offering a simple layer that identity-sensitive applications can use to securely communicate. All data is wrapped with several layers of encryption, and the network is both distributed and dynamic, with no trusted parties."
-
-[Freenet]: https://freenetproject.org/ "Free software which lets you anonymously share files, browse and publish "freesites" (web sites accessible only through Freenet) and chat on forums, without fear of censorship. Freenet is decentralised to make it less vulnerable to attack, and if used in "darknet" mode, where users only connect to their friends, is very difficult to detect."
-
-[Phantom]: http://en.wikipedia.org/wiki/Phantom_Anonymity_Protocol "A system for decentralized anonymization of generic network traffic."
