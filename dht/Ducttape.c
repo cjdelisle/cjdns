@@ -94,6 +94,9 @@ struct Ducttape
 
     /** whether we are encrypting/decrypting the inner layer or the outer layer. */
     int layer;
+
+    /** The IPv6 address of the router from which the packet we are handling was sent. */
+    uint8_t* routerAddress;
 };
 
 /** Used as a sanity check on the layer code. */
@@ -409,14 +412,8 @@ static inline int core(struct Message* message, struct Ducttape* context)
 
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
-        // Checking the hop limit is the old solution which ruins the packets as they are sent.
-        // the new solution is to compare the length of the packet to the reported length to
-        // decide whether the packet has another layer of encryption.
-        bool thirdLayer = context->ip6Header->hopLimit != 0;
-        thirdLayer |=
-            (Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) != message->length);
 
-        if (thirdLayer) {
+        if (memcmp(context->routerAddress, context->ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
             context->layer = INNER_LAYER;
@@ -491,6 +488,8 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* c
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
         memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
         memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
+        // It came from me...
+        context->routerAddress = context->myAddr.ip6.bytes;
     }
 
     // Forward this call to core() which will check it's validity
@@ -617,13 +616,15 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             }
         }
     }
-    uint8_t* herAddr = context->addrMap.addresses[herAddrIndex];
+
+    // If the source address is the same as the router address, no third layer of crypto.
+    context->routerAddress = context->addrMap.addresses[herAddrIndex];
 
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
     context->switchHeader = switchHeader;
 
-    context->session = SessionManager_getSession(herAddr, herKey, context->sm);
+    context->session = SessionManager_getSession(context->routerAddress, herKey, context->sm);
 
     // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()
