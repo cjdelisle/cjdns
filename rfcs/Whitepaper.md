@@ -7,7 +7,7 @@
 Imagine an Internet where every packet is cryptographically
 protected from source to destination against espionage and forgery, getting
 an IP address is as simple as generating a cryptographic key, core routers
-move data without a single memory look up, and denail of service is a term
+move data without a single memory look up, and denial of service is a term
 read about in history books. Finally, becoming an ISP is no longer confined
 to the mighty telecoms, anyone can do it by running some wires or turning on
 a wireless device.
@@ -50,7 +50,7 @@ many computers so that they can handle an enormous amount of traffic.
 Finally, the existing protocols are difficult to use, we cannot reasonably
 assign blame to anyone for this, many of these protocols are over thirty years
 old and demonstrate a level of craftsmanship which I can only hope to one day
-achieve. However, thirty years takes it's toll on the best of us and as the
+achieve. However, thirty years takes its toll on the best of us and as the
 Internet grew and became more complex, the administration interface of the
 typical router has grown a thicket of knobs, buttons and switches to match the
 proliferation of use cases and failure modes. As a result, network operation
@@ -107,7 +107,7 @@ Another form of denial of service which is even more insidious is intimidation
 by threat of faux court action. This form of denial of service is especially
 effective since most people get their IP addresses from their ISP, when their
 ISP is threatened, they need to make a judgment call as to the validity of the
-claim and they often act as judge an jury, turning off a customer in order to
+claim and they often act as judge and jury, disconnecting a customer in order to
 avoid conflict. Those who have their own IP addresses assigned to them, are able
 to essentially be their own ISP and to peer with a multitude of other ISPs
 making it very difficult to threaten anyone but them.
@@ -119,7 +119,7 @@ A more technical issue with the Internet, and one of which many people are
 unaware, is address space deaggregation. Every computer connected to the
 Internet needs an address, a number which uniquely identifies it and which is
 attached to every piece of data which is to be sent to that computer. At every
-stop along it's path through the Internet, a packet (unit of data) has it's
+stop along its path through the Internet, a packet (unit of data) has its
 address field examined by a router so it can decide which wire that packet
 should be sent down. Routers have an easier time if addresses are in big blocks
 so that a router can look quickly at the first numbers in the address and know,
@@ -142,7 +142,7 @@ reasons, and the routers to see the Internet as they want it, centralized
 hierarchical pyramid of addresses emanating from some arbitrary center point.
 This design works well in existing routers since they are designed to get
 packets with a universally unique address and look that address up in a table.
-This is advertised as a design feature but LISP is limited in it's vision, if
+This is advertised as a design feature but LISP is limited in its vision, if
 one must look up the "real location" of a server before forwarding a packet,
 why not simply look up the fastest path?
 
@@ -163,14 +163,15 @@ by this type of attack, and he is the least able to prevent it. Address space
 deaggregation benefits the edge ISPs who gain more flexibility in how their
 network is organized at the cost of the core ISPs whose only defense is the
 "we will not route that" nuclear option which would no doubt bring about a
-revolt from the edge ISPs. Each of these problems hurts everyone, DDoS forces
-ISPs to over prevision their lines, denial of service through faux legal action
-increases the cost of running a community website or ISP since each accusation
-must be reviewed and it's validity assessed, and address deaggregation means
-everyone must pay more to have their packets routed through increasingly high
-power routers, and difficulty of operating a router and getting a block of IP
-addresses hurts competition in the ISP sphere, thus increasing prices and
-impeding progress.
+revolt from the edge ISPs.
+
+Each of these problems hurts everyone, DDoS forces ISPs to over prevision their
+lines, denial of service through faux legal action increases the cost of running
+a community website or ISP since each accusation must be reviewed and its
+validity assessed, and address deaggregation means everyone must pay more to
+have their packets routed through increasingly high power routers, and
+difficulty of operating a router and getting a block of IP addresses hurts
+competition in the ISP sphere, thus increasing prices and impeding progress.
 
 
 ## How?
@@ -183,7 +184,9 @@ by the switch, the switch is blind and dumb without the router to command it,
 and without the router and switch, the CryptoAuth has nothing to protect.
 
 
-## The Switch
+### The Switch
+
+*He doesn't think about his actions; they flow from the core of his being.*
 
 Switches use an internal numeric compression scheme to compress the interface
 index into a few bits of the 64-bit label. How they compress the number is an
@@ -258,7 +261,7 @@ bit reversing the entire label.
 Dave can then send the packet back to Charlie who need not know what it is in
 order to forward it correctly on to Bob and then to Alice. If the packet had
 reached Fred, he would be able to use the same technique of reversing the label
-in order to determine it's origin.
+in order to determine its origin.
 
 In order for labels to be able to be spliced together, the most significant bit
 in a label must always be `1` so that we know where it ends. Since all routes
@@ -332,13 +335,13 @@ which it came SHOULD be dropped and an error packet SHOULD be sent back so that
 the "redundant route" may be resolved.
 
 Since label space is most efficiently used when a switch's largest
-discriminator is closest in size to it's smallest discriminator, renumbering
+discriminator is closest in size to its smallest discriminator, renumbering
 interfaces is encouraged, especially right after start up when all interfaces
 have just been registered. However, switches SHOULD NOT re-number more than
 necessary as it breaks existing routes which run through them.
 
 
-## The Router
+### The Router
 
 A router has 3 functions, it periodically searches for things, responds to
 searches, and forwards packets. When a router responds to a search, it responds
@@ -353,7 +356,7 @@ rule. The node doing the searching adds the newly discovered nodes to their
 routing table and to the search, then continues the search by asking them.
 
 Upon receiving a search response containing one's own address, a node SHOULD
-purge all entries from it's table whose routes begin with that route. This will
+purge all entries from its table whose routes begin with that route. This will
 control the proliferation of redundant routes.
 
 The "address space distance" between any two given addresses is defined as the
@@ -415,10 +418,11 @@ Routers choose the node to forward a packet to in a similar way to how they
 answer search queries. They select nodes from their of their routing table
 except in this case the selection contains only a single node. The packet is
 sent through the CryptoAuth session for the next hop and the label for that
-hop is applied to the packet and it is sent to the switch.
+hop is applied to the packet and it is sent to the switch. The "search target"
+for forwarding a packet is the IPv6 destination address of the packet.
 
 
-## The CryptoAuth
+### The CryptoAuth
 
 The CryptoAuth is a mechanism for wrapping interfaces, you supply it with an
 interface and optionally a key, and it gives you a new interface which allows
@@ -441,7 +445,7 @@ There are 5 types of CryptoAuth header:
 All CryptoAuth headers are 120 bytes long except for the Data Packet header
 which is 4 bytes and the Authenticated header which is 20 bytes. The first 4
 bytes of any CryptoAuth header is a big endian number which is used to determine
-it's type, this is the so-called "Session State" number. If it is the inverse of
+its type, this is the so-called "Session State" number. If it is the inverse of
 zero, it is a Connect To Me header, if it is zero, it is a Hello Packet, if one
 or two, it is a Hello Packet or repeated Hello Packet, if it is three or four,
 it is a Key Packet or repeated Key Packet. If it is any number larger than four,
@@ -518,7 +522,7 @@ Handshake packet structure:
          |                                                               |
 
 
-### 1) Connect To Me Packet
+#### 1) Connect To Me Packet
 
 If "Session State" is equal to the bitwise complement of zero, the sender is
 requesting that the recipient begin a connection with him, this is done in cases
@@ -532,7 +536,7 @@ a connection over the interface, the recipient SHOULD NOT respond but MAY allow
 the connection to time out faster.
 
 
-### 2) Hello Packet
+#### 2) Hello Packet
 
 If the "Session State" field is equal to the one or two, the packet is a Hello
 Packet or a repeated Hello Packet. If no connection is present, one MAY be
@@ -546,7 +550,7 @@ encrypted and authenticated using crypto_box_curve25519poly1305xsalsa20()
 function.
 
 
-### 3) Key Packet
+#### 3) Key Packet
 
 If the "Session State" field is equal to two or three, the packet is a Key
 Packet. Key Packets are responses to Hello Packets and like Hello Packets, they
@@ -556,7 +560,7 @@ has received a Hello Packet, sent a Key Packet, gotten no further response, and
 now wishes to send more data MUST send that data as more (repeat) key packets.
 
 
-### 4) Data Packet
+#### 4) Data Packet
 
 The traditional data packet has only 4 bytes of header, these 4 bytes are the
 nonce which is used for the cipher, the packet is enciphered using
@@ -568,7 +572,7 @@ four bytes of the space, thus allowing for a single session to handle 2^32
 packets in either direction.
 
 
-### 5) Authenticated Packet
+#### 5) Authenticated Packet
 
 The Authenticated Packet is sent if Poly1305 authentication was requested by
 either node during the handshake. Like the Data Packet, the first 4 bytes is
@@ -578,12 +582,12 @@ but the methodology is exactly the same. If a packet is not authenticated, it
 MUST be silently dropped.
 
 
-#### ReplayProtector
+##### ReplayProtector
 
 When packet authentication is enabled, the packet is checked for replay attacks
 (intentional or accidental) the replay protection method is to use a 32 bit
 offset and a 32 bit bitfield to create a sliding window. When a packet comes in,
-it's nonce is compared to the offset, if it is less then the offset, it is
+its nonce is compared to the offset, if it is less then the offset, it is
 discarded. If when subtracted from the offset, the result is less than or equal
 to 32, 1 is shifted left by the result, bitwise ANDed against the bitfield and
 compared to zero, if it is not zero then the packet is a duplicate and is
@@ -600,7 +604,7 @@ order will be discarded. In some cases, this could be a benefit since in best
 effort networking, never is often better than late.
 
 
-### Authentication field:
+#### Authentication field:
 
 This field allows a node to connect using a password or other shared secret,
 the AuthType field specifies how the secret should be used to connect.
@@ -616,17 +620,17 @@ the AuthType field specifies how the secret should be used to connect.
       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 The "A" flag is used to indicate that the node is requesting the session use
-Poly1305 authentication for all of it's packets. The "AuthType Specific" fields
+Poly1305 authentication for all of its packets. The "AuthType Specific" fields
 specific to the authentication type.
 
 
-#### AuthType Zero
+##### AuthType Zero
 
 AuthType Zero is no authentication at all. If the AuthType is set to zero, all
 AuthType Specific fields are disregarded and SHOULD be set to random numbers.
 
 
-#### AuthType One
+##### AuthType One
 
 AuthType One is a SHA-256 based authentication method.
 
@@ -653,7 +657,7 @@ If Derivations is non-zero, an additional step is included, the two most
 significant bytes of the password hash are ZORed against the two bytes of the
 network representation of Derivations and it is hashed using SHA-256 once
 again before being included in the generation of the symmetric key. This form is
-notibly NOT used in the Hash Code field.
+notably NOT used in the Hash Code field.
 
 This allows a node Alice, to give a secret to Charlie, which he can use to start
 a CryptoAuth session with Bob, without leaking Alice's shared secret. This
@@ -663,50 +667,64 @@ measure of forward secrecy in the event of a cryptographic weakness found in
 the asymmetric cryptography.
 
 
+### Pulling It All Together
 
-................more to come
+The journey of a packet begins at the user interface device (TUN or similar).
+The user sends an IPv6 packet which comes in to the TUN device and enters the
+engine, it is checked to make sure its source and destination addresses are
+valid and then a router lookup is made on the destination address. cjdns
+addresses are the first 16 bytes of the SHA-512 of the SHA-512 of the public
+key. All addresses must begin with the byte `0xFC` otherwise they are invalid,
+generating a key is done by brute force key generation until the result of the
+double SHA-256 begins with `0xFC`.
 
-----
+After the router lookup, the node compares the destination address to the
+address of the next router, if they are the same, the inner layer of
+encryption is skipped. Assuming they are different, the IPv6 header is copied
+to a safe place and a CryptoAuth session is selected for the destination
+address, or created if there is none, and the packet content is passed through
+it. The IPv6 header is re-applied on top of the CryptoAuth header for the
+content, the packet length field in the IPv6 header is notably *not* altered to
+reflect the headers which are now under it.
 
-# Addenda
+The packet is now ready to send to the selected router. For sending the packet
+to the router, a CryptoAuth session is selected for the router's address and
+the packet, from IPv6 header down, is passed through it. A switch header is
+applied to the resulting encrypted structure and it is sent down to the switch
+for routing.
 
-------------------- Some material to fit into the paper somewhere... -----------------
+The switch takes the packet and sends it to a network module which uses yet
+another CryptoAuth session to encipher and authenticate the packet from the
+switch header down. The resulting data is packaged in a network packet and sent
+to the switch at the next node.
 
-## Packet lifecycle:
+Upon receiving the packet, the next node sends the packet through its
+CryptoAuth session thus revealing the switch header and it sends the packet to
+its switch. The switch most likely will send the packet out to another endpoint
+as per the dictate of the packet label but may send it to its router, eventually
+the node for which the packet is destine will receive it.
 
-RouterModule sends search,
+The router, upon receiving the packet will examine it to see if it appears to be
+a CryptoAuth Connect To Me packet, Hello packet, or Key packet. If it is one of
+these, it will insert the IPv6 address, as derived from the public key in the
+header, into a hashtable so it can be looked up by the switch label. Otherwise
+it will do a lookup. If the Address cannot be found in its hashtable, it will
+try asking the router if it knows of a node by that label and if all fails, the
+packet will be dropped.
 
-SerializationModule bencodes the structures for the wire,
+From the IPv6 address, it will lookup the CryptoAuth session or create one if
+necessary, then pass the opaque data through the CryptoAuth session to get the
+decrypted IPv6 header.
 
-Ducttape.c takes the packet and gets the public key of the node which it is
-   sending to and gets a CryptoAuth session associated with that key from it's
-   pool, or creates one if there is none. Packet is cryptoauthed which adds a
-   4 byte nonce header for all traffic packets or a 120 byte handshake header
-   for the first 2 packets.
+If the source address for the packet is the same as the double SHA-512 of the
+public key for the router from which it came, it's assumed to have no inner
+layer of encryption and it is written to the TUN device as it is. If its source
+address is different, it is passed back through a CryptoAuth session as selected
+based on the source IPv6 address. The IPv6 header is then moved up to meet the
+content (into the place where the CryptoAuth header had been) and the final
+packet is written out to the TUN device.
 
-Ducttape takes the encrypted packet and applies the ipv6 header to it (if
-   it was a data packet, the ipv6 header would have been copied out of the way
-   before adding the cryptoauth header), the length of the ipv6 header is
-   increased to take into account the cryptoauth header, (this is so the packet
-   could theoretically be handled by commodity routing equipment).
-
-SwitchConnectorModule gets a CryptoAuth session for the router it's sending to
-   from it's pool, if there isn't any, it creates one. The packet is
-   cryptoauthed, protecting the ipv6 header and adding another crypto header
-   (again, 120 bytes unless the handshake is complete in which case it is 4).
-
-Ducttape does not lookup the switch label to forward to because the router
-   module already knows it so Ducttape uses what the router module proscribed.
-
-The Switch sees an incoming packet and, not caring which interface it came
-   from, sends it on to the interface which the bits dictate, shifting and
-   applying the source interface as it is sent. When the packet exits through a
-   UDP based interface, the UDPInterface chooses a CryptoAuth session which
-   corrisponds to the destination IP address, this time the packet is encrypted
-   *and* authenticated, adding either 20 bytes for traffic or 136 bytes for a
-   handshake packet.
-
-
+![illustration](flowchart.png)
 
 
 [OSLR]: http://tools.ietf.org/html/rfc3626
