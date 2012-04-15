@@ -390,6 +390,7 @@ which is a binary string containing the 32 byte public keys and 8 byte switch
 labels for the responses.
 
 Example fn query in JSON:
+
     {
         "q":    "fn",
         "tar":  "abcdefghhijklmno",
@@ -397,17 +398,20 @@ Example fn query in JSON:
     }
 
 Same query bEncoded as the routers use:
+
     d1:q2:fn3:tar16:abcdefghhijklmno4:txid5:12345e
 
 Example fn reply in JSON:
 NOTE: this reply only shows 2 nodes returned and is for illustration purposes
 in most cases the number would be an implementation specific constant around 8.
+
     {
         "n": "cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678"
         "txid": "12345"
     }
 
 Same reply bEncoded
+
     d1:n80:cdefghijklmnopqrstuvwxyzabcdefghi1234567qponmlkjihgzyxwvutsrstuvwxyzabcde2345678e
 
 
