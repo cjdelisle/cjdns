@@ -86,11 +86,17 @@ foreach my $fileName (split("\n", $files))
         $lineInfo = "$fileName:$lineNum";
         if ($fileName =~ /\.h$/) {
 
-            if ($line =~ /^struct / && !($line =~ /^struct ${name}/) && !($line =~ /\(/)) {
+            my $n = $name;
+            # If the name is CryptoAuth_struct.h, it's ok to make a structure called CryptoAuth
+            if ($name =~ /^(.*)_struct$/) {
+                $n = $1;
+            }
+
+            if ($line =~ /^struct / && !($line =~ /^struct ${n}/) && !($line =~ /\(/)) {
                 error("all structures must begin with the name of the file.");
             }
 
-            if ($line =~ /#define / && $line !~ /#define $name/) {
+            if ($line =~ /#define / && $line !~ /#define $n/) {
                 error("all defines must begin with the name of the file.");
             }
         }

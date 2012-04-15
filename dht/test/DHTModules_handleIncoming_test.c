@@ -11,7 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "dht/DHTModules.h"
+
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 
@@ -63,14 +65,14 @@ int testInputHandler()
 
     struct Allocator* allocator = MallocAllocator_new(2048);
 
-    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
-    DHTModules_register(&module, reg);
-    DHTModules_register(&module2, reg);
+    struct DHTModuleRegistry* reg = DHTModuleRegistry_new(allocator);
+    DHTModuleRegistry_register(&module, reg);
+    DHTModuleRegistry_register(&module2, reg);
 
-    DHTModules_handleIncoming(&theMessage, reg);
+    DHTModuleRegistry_handleIncoming(&theMessage, reg);
 
     /* This should be ignored. */
-    DHTModules_handleOutgoing(&theMessage, reg);
+    DHTModuleRegistry_handleOutgoing(&theMessage, reg);
 
     if (context.ret == -1) {
         printf("message not received");

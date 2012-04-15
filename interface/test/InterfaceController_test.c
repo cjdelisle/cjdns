@@ -150,7 +150,7 @@ int main()
     SwitchCore_setRouterInterface(&iface, switchCore);
 
     // These are unused.
-    struct DHTModuleRegistry* registry = DHTModules_new(alloc);
+    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     struct RouterModule* rm =
         RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL);
 

@@ -14,7 +14,9 @@
 #include <string.h>
 
 #include "dht/CJDHTConstants.h"
-#include "dht/DHTModules.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "benc/Object.h"
 
 /**
@@ -39,7 +41,10 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  */
 void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
 {
-    DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+    DHTModuleRegistry_register(allocator->clone(sizeof(struct DHTModule),
+                                                allocator,
+                                                &(struct DHTModule)
+    {
         .name = "ReplyModule",
         // We use the registry itself as the context
         .context = registry,
@@ -63,7 +68,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
             .allocator = message->allocator
         });
 
-    DHTModules_handleOutgoing(reply, registry);
+    DHTModuleRegistry_handleOutgoing(reply, registry);
 
     return 0;
 }

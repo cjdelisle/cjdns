@@ -20,7 +20,7 @@
 
 #include "admin/Admin.h"
 #include "dht/Address.h"
-#include "dht/DHTModules.h"
+#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "benc/Object.h"
 #include "util/Log.h"

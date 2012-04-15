@@ -16,6 +16,8 @@ string(REPLACE ${CMAKE_SOURCE_DIR} ${main_dir_name} this_dir ${CMAKE_CURRENT_SOU
 message("-- Tests to run for " ${this_dir})
 add_definitions(-g)
 
+# don't ask
+
 # Anything in this dir which ends with "test.c" is considered a test.
 file(GLOB tests "*test.c")
 foreach(test_source_fullpath ${tests})

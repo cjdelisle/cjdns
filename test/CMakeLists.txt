@@ -25,6 +25,7 @@ target_link_libraries(TestFramework
     dhtcore
     cjdbenc
     cjdbenc_JsonBencSerializer
+    cjdbenc_StandardBencSerializer
     cjdmemory
     cjdadmin
     ${LIBEVENT2_LIBRARIES}

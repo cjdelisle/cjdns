@@ -43,7 +43,7 @@ struct Ducttape* TestFramework_setUp()
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
     //struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, base, logger);
 
-    struct DHTModuleRegistry* registry = DHTModules_new(allocator);
+    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
     struct RouterModule* routerModule =

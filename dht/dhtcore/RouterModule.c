@@ -11,6 +11,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -20,7 +21,9 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/SearchStore.h"
 #include "dht/CJDHTConstants.h"
-#include "dht/DHTModules.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "benc/Object.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
@@ -216,7 +219,10 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 {
     struct RouterModule* const out = allocator->calloc(sizeof(struct RouterModule), 1, allocator);
 
-    DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+    DHTModuleRegistry_register(allocator->clone(sizeof(struct DHTModule),
+                                                allocator,
+                                                &(struct DHTModule)
+    {
         .name = "RouterModule",
         .context = out,
         .handleIncoming = handleIncoming,
@@ -422,7 +428,7 @@ static inline void sendRequest(struct Address* address,
 
     message.address = address;
 
-    DHTModules_handleOutgoing(&message, registry);
+    DHTModuleRegistry_handleOutgoing(&message, registry);
 }
 
 /**

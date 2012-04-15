@@ -576,7 +576,7 @@ int main(int argc, char** argv)
 
     context.eHandler = AbortHandler_INSTANCE;
     context.switchCore = SwitchCore_new(context.logger, context.allocator);
-    context.registry = DHTModules_new(context.allocator);
+    context.registry = DHTModuleRegistry_new(context.allocator);
     ReplyModule_register(context.registry, context.allocator);
 
     // Router

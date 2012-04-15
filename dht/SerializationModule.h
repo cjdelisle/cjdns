@@ -14,7 +14,7 @@
 #ifndef SerializationModule_H
 #define SerializationModule_H
 
-#include "DHTModules.h"
+#include "DHTModuleRegistry.h"
 
 /**
  * Register a new SerializationModule.
@@ -22,9 +22,7 @@
  * @param registry the module registry to register with.
  * @param allocator the means of aquiring memory for the serialization module.
  */
-#ifdef __GNUC__
-__attribute__((nonnull))
-#endif
-void SerializationModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator);
+void SerializationModule_register(struct DHTModuleRegistry* registry,
+                                  const struct Allocator* allocator);
 
 #endif

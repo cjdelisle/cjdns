@@ -11,11 +11,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "crypto/CryptoAuth.h"
 #include "util/Log.h"
 #include "dht/Address.h"
 #include "dht/AddressMapper.h"
-#include "dht/DHTModules.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/Ducttape.h"
@@ -128,9 +131,9 @@ static inline uint8_t incomingDHT(struct Message* message,
     memset(&dht, 0, sizeof(struct DHTMessage));
 
     // TODO: These copies are not necessary at all.
-    const uint32_t length = (message->length < DHTModules_MAX_MESSAGE_SIZE)
+    const uint32_t length = (message->length < DHTMessage_MAX_SIZE)
         ? message->length
-        : DHTModules_MAX_MESSAGE_SIZE;
+        : DHTMessage_MAX_SIZE;
     memcpy(dht.bytes, message->bytes, length);
 
     dht.address = addr;
@@ -142,7 +145,7 @@ static inline uint8_t incomingDHT(struct Message* message,
     if (!setjmp(towel)) {
         BufferAllocator_onOOM(dht.allocator, outOfMemory, &towel);
 
-        DHTModules_handleIncoming(&dht, context->registry);
+        DHTModuleRegistry_handleIncoming(&dht, context->registry);
     }
     // TODO: return something meaningful.
     return Error_NONE;
@@ -680,7 +683,7 @@ struct Ducttape* Ducttape_register(Dict* config,
         .allocator = allocator
     }), sizeof(struct Interface));
 
-    if (DHTModules_register(&context->module, context->registry)
+    if (DHTModuleRegistry_register(&context->module, context->registry)
         || SwitchCore_setRouterInterface(&context->switchInterface, switchCore))
     {
         return NULL;

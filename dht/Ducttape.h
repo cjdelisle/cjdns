@@ -14,7 +14,7 @@
 #ifndef Ducttape_H
 #define Ducttape_H
 
-#include "dht/DHTModules.h"
+#include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "switch/SwitchCore.h"
 #include "memory/Allocator.h"

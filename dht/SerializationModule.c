@@ -11,15 +11,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "DHTModules.h"
 
-#include <benc/Object.h>
-#include <memory/Allocator.h>
-#include <memory/BufferAllocator.h>
-#include <io/Reader.h>
-#include <io/ArrayReader.h>
-#include <io/Writer.h>
-#include <io/ArrayWriter.h>
+#include "benc/Object.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
+#include "memory/Allocator.h"
+#include "memory/BufferAllocator.h"
+#include "io/Reader.h"
+#include "io/ArrayReader.h"
+#include "io/Writer.h"
+#include "io/ArrayWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 
@@ -53,7 +55,7 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
         }
     }), sizeof(struct SerializationModule_context));
 
-    DHTModules_register(&(context->module), registry);
+    DHTModuleRegistry_register(&(context->module), registry);
 }
 
 /*--------------------Internals--------------------*/
@@ -67,7 +69,7 @@ static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
     struct Writer* writer =
-        ArrayWriter_new(message->bytes, DHTModules_MAX_MESSAGE_SIZE, message->allocator);
+        ArrayWriter_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
     SERIALIZER->serializeDictionary(writer, message->asDict);
     message->length = writer->bytesWritten(writer);
@@ -86,7 +88,7 @@ static int handleIncoming(struct DHTMessage* message,
     message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
 
     struct Reader* reader =
-        ArrayReader_new(message->bytes, DHTModules_MAX_MESSAGE_SIZE, message->allocator);
+        ArrayReader_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
     if (SERIALIZER->parseDictionary(reader, message->allocator, message->asDict) != 0) {
         return -2;

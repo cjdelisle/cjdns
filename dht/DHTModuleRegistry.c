@@ -11,9 +11,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <assert.h>
-#include <string.h>
 
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Reader.h"
@@ -21,7 +21,9 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "DHTModules.h"
+
+#include <assert.h>
+#include <string.h>
 
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
@@ -29,17 +31,8 @@
 /** This defines what format the registry will be serialized in. */
 #define SERIALIZER StandardBencSerializer_get()
 
-/*--------------------Prototypes--------------------*/
-static void forEachModule(int (*doThis)(struct DHTModule* module, struct DHTMessage* message),
-                          struct DHTMessage* message,
-                          const struct DHTModuleRegistry* registry);
-static inline void deserializeContext(struct DHTModule* module,
-                                      struct DHTModuleRegistry* registry);
 
-/*--------------------Interface--------------------*/
-
-/** @see DHTModules.h */
-struct DHTModuleRegistry* DHTModules_new(struct Allocator* allocator)
+struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator)
 {
     struct DHTModuleRegistry* reg =
         allocator->calloc(sizeof(struct DHTModuleRegistry), 1, allocator);
@@ -48,12 +41,9 @@ struct DHTModuleRegistry* DHTModules_new(struct Allocator* allocator)
     return reg;
 }
 
-/** @see DHTModules.h */
-int DHTModules_register(struct DHTModule* module,
-                        struct DHTModuleRegistry* registry)
+int DHTModuleRegistry_register(struct DHTModule* module,
+                               struct DHTModuleRegistry* registry)
 {
-    deserializeContext(module, registry);
-
     registry->members = registry->allocator->realloc(registry->members,
                                                      sizeof(char*) * (registry->memberCount + 2),
                                                      registry->allocator);
@@ -65,9 +55,8 @@ int DHTModules_register(struct DHTModule* module,
     return 0;
 }
 
-/** @see DHTModules.h */
-void DHTModules_handleIncoming(struct DHTMessage* message,
-                               const struct DHTModuleRegistry* registry)
+void DHTModuleRegistry_handleIncoming(struct DHTMessage* message,
+                                      const struct DHTModuleRegistry* registry)
 {
     if (!(message && registry && registry->members && registry->memberCount)) {
         return;
@@ -104,77 +93,6 @@ static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* 
     return 0;
 }
 
-/** @see DHTModules.h */
-void DHTModules_handleOutgoing(struct DHTMessage* message,
-                               const struct DHTModuleRegistry* registry)
-{
-    forEachModule(dhtModuleHandleOutgoing, message, registry);
-}
-
-/** @see DHTModules.h */
-void DHTModules_serialize(const struct DHTModuleRegistry* registry,
-                          const struct Writer* writer)
-{
-    char buffer[1024];
-    struct Allocator* allocator = BufferAllocator_new(buffer, 1024);
-    Dict* dictionary = Dict_new(allocator);
-
-    struct DHTModule** modulePtr = registry->members;
-    struct DHTModule* module = *modulePtr;
-    while (module) {
-        if (module->serialize != NULL) {
-            Dict_putDict(dictionary,
-                               String_new(module->name, allocator),
-                               module->serialize(module->context),
-                               allocator);
-        }
-        modulePtr++;
-        module = *modulePtr;
-    }
-    SERIALIZER->serializeDictionary(writer, dictionary);
-}
-
-/** @see DHTModules.h */
-struct DHTModuleRegistry* DHTModules_deserialize(const struct Reader* reader,
-                                                 struct Allocator* allocator)
-{
-    Dict* dictionary = Dict_new(allocator);
-    if (SERIALIZER->parseDictionary(reader, allocator, dictionary) != 0) {
-        return NULL;
-    }
-
-    struct DHTModuleRegistry* reg = DHTModules_new(allocator);
-    reg->serializedContexts = dictionary;
-    return reg;
-
-    return NULL;
-}
-
-/*----------------------Internals----------------------*/
-
-/**
- * Deserialize the context for this module.
- * First the registry is deserialized then the modules are registered.
- * When the modules are registered, if they have serialized contexts,
- * those are deserialized by this function which calls their own
- * deserialization functions.
- *
- * @param module the module to deserialize the context for.
- * @param registry the DHT module registry.
- */
-static inline void deserializeContext(struct DHTModule* module,
-                                      struct DHTModuleRegistry* registry)
-{
-    char* name = (char*) module->name;
-    if (module && registry && registry->serializedContexts) {
-        Dict* serContext = Dict_getDict(registry->serializedContexts,
-                                                 &(String) { .len = strlen(name), .bytes = name } );
-        if (module->deserialize && module->context && serContext) {
-            module->deserialize(serContext, module->context);
-        }
-    }
-}
-
 /**
  * Do something to every module which is registered.
  * @param doThis the callback.
@@ -193,4 +111,10 @@ static void forEachModule(int (*doThis)(struct DHTModule* module, struct DHTMess
         modulePtr++;
         module = *modulePtr;
     }
+}
+
+void DHTModuleRegistry_handleOutgoing(struct DHTMessage* message,
+                                      const struct DHTModuleRegistry* registry)
+{
+    forEachModule(dhtModuleHandleOutgoing, message, registry);
 }

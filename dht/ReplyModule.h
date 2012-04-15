@@ -14,7 +14,7 @@
 #ifndef ReplyModule_H
 #define ReplyModule_H
 
-#include "dht/DHTModules.h"
+#include "dht/DHTModuleRegistry.h"
 
 /**
  * The reply module replies to all incoming queries.

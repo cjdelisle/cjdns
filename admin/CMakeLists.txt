@@ -17,4 +17,4 @@ add_library(cjdadmin
     Configurator.c
 )
 
-target_link_libraries(cjdadmin crypto)
+target_link_libraries(cjdadmin crypto cjdbenc_StandardBencSerializer)

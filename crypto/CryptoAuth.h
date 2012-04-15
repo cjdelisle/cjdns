@@ -38,7 +38,7 @@ struct CryptoAuth;
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
  *             If this is NULL and requireAuthentication is enabled, authentication will fail.
  * @param context The CryptoAuth context.
- * @return 0 if all goes well, 
+ * @return 0 if all goes well,
  *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
  *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
  *         CryptoAuth_addUser_DUPLICATE if the entry already exists.
