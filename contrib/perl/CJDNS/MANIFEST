@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/CJDNS.t
+lib/CJDNS.pm
