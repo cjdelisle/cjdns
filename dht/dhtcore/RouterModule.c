@@ -247,7 +247,10 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                allocator,
                                eventBase);
 
-    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, admin);
+    struct Admin_FunctionArg adma[1] = {
+        { .name = "path", .required = 1, .type = "String" }
+    };
+    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, adma, admin);
 
     return out;
 }
@@ -264,10 +267,9 @@ struct RouterModule_Ping
 };
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
-static void pingNode(Dict* input, void* vrouter, String* txid)
+static void pingNode(Dict* args, void* vrouter, String* txid)
 {
     struct RouterModule* router = (struct RouterModule*) vrouter;
-    Dict* args = Dict_getDict(input, BSTR("args"));
     String* pathStr = Dict_getString(args, BSTR("path"));
 
     #define ERROR_DICT(x) \

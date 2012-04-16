@@ -480,8 +480,8 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
 
     // AuthorizedPasswords_get()
     AuthorizedPasswords_init(context->admin, context->ca, context->allocator);
-    Admin_registerFunction("ping", adminPing, context->admin, false, context->admin);
-    Admin_registerFunction("memory", adminMemory, context, false, context->admin);
+    Admin_registerFunction("ping", adminPing, context->admin, false, NULL, context->admin);
+    Admin_registerFunction("memory", adminMemory, context, false, NULL, context->admin);
 }
 
 static void pidfile(Dict* config)

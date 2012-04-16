@@ -11,10 +11,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
 
 #include "memory/Allocator.h"
 #include "benc/String.h"
+
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /** @see Object.h */
 String* String_new(const char* bytes, const struct Allocator* allocator)
@@ -37,6 +40,18 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
     string->len = length;
     string->bytes = copy;
     return string;
+}
+
+String* String_printf(const struct Allocator* allocator, const char* format, ...)
+{
+    #define String_BUFFER_SZ 1024
+    char buff[String_BUFFER_SZ];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buff, String_BUFFER_SZ, format, args);
+    size_t length = strlen(buff);
+    return String_newBinary(buff, length, allocator);
+    #undef String_BUFFER_SZ
 }
 
 int String_compare(const String* a, const String* b)

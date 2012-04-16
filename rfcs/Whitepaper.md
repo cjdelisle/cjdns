@@ -54,7 +54,7 @@ has become a science where students receive degrees and certificates for knowing
 the meanings of the plethora of knobs and switches, it has also become, like the
 tuning of the race car, an art, passed from master to apprentice and shared on
 mailing lists. Suffice to say, the bar of entry into the ISP realm is too high.
-Users, particularly in the ad-hawk wireless network arena have observed the high
+Users, particularly in the ad-hoc wireless network arena have observed the high
 bar of entry into traditional routing and have developed a menu of alternative,
 self-configuring protocols such as [OSLR], [HSLS], and [BATMAN].
 

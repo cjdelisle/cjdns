@@ -14,21 +14,44 @@
 #ifndef Admin_H
 #define Admin_H
 
-#include <event2/event.h>
-
 #include "benc/Dict.h"
 #include "exception/ExceptionHandler.h"
 #include "memory/Allocator.h"
+
+#include <event2/event.h>
+#include <stdbool.h>
 
 #define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)
 
 struct Admin;
 
-void Admin_registerFunction(char* name,
-                            Admin_FUNCTION(callback),
-                            void* callbackContext,
-                            bool needsAuth,
-                            struct Admin* admin);
+struct Admin_FunctionArg
+{
+    char* name;
+    char* type;
+    bool required;
+};
+
+/**
+ * @param arguments an array of struct Admin_FunctionArg specifying what functions are available
+ *                  and of those, which are required.
+ *        Example C code:
+ *            struct Admin_FunctionArg adma[2] = {
+ *                { .name = "password", .required = 1, .type = "String" },
+ *                { .name = "authType", .required = 0, .type = "Int" }
+ *            };
+ *            Admin_registerFunction("AuthorizedPasswords_add", add, context, true, adma, admin);
+ */
+void Admin_registerFunctionWithArgCount(char* name,
+                                        Admin_FUNCTION(callback),
+                                        void* callbackContext,
+                                        bool needsAuth,
+                                        struct Admin_FunctionArg* arguments,
+                                        int argCount,
+                                        struct Admin* admin);
+#define Admin_registerFunction(name, cb, ctx, needsAuth, args, admin) \
+    Admin_registerFunctionWithArgCount(                                                           \
+        name, cb, ctx, needsAuth, args, (sizeof(args) / sizeof(struct Admin_FunctionArg)), admin)
 
 void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 

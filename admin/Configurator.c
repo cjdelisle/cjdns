@@ -186,10 +186,11 @@ static void incoming(evutil_socket_t socket, short eventType, void* vcontext)
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx)
 {
+    Dict a = (args) ? *args : NULL;
     Dict message = Dict_CONST(
         String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
         String_CONST("aq"), String_OBJ(function), Dict_CONST(
-        String_CONST("args"), Dict_OBJ(args), NULL
+        String_CONST("args"), Dict_OBJ(&a), NULL
     )));
     sendMessage(&message, ctx);
 }
@@ -212,25 +213,18 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 
     Log_info(ctx->logger, "Flushing existing authorized passwords");
-    Dict message = Dict_CONST(
-        String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
-        String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_flush")), NULL
-    ));
-    sendMessage(&message, ctx);
+    rpcCall(String_CONST("AuthorizedPasswords_flush"), NULL, ctx);
 
     for (uint32_t i = 0; i < count; i++) {
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
         Log_info1(ctx->logger, "Adding authorized password %d.", i);
 
-        Dict message = Dict_CONST(
-            String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
-            String_CONST("aq"), String_OBJ(String_CONST("AuthorizedPasswords_add")), Dict_CONST(
+        Dict args = Dict_CONST(
             String_CONST("authType"), Int_OBJ(1), Dict_CONST(
             String_CONST("password"), String_OBJ(passwd), NULL
-        ))));
-
-        sendMessage(&message, ctx);
+        ));
+        rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx);
     }
 }
 

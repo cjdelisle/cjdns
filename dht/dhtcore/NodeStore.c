@@ -52,7 +52,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->admin = admin;
     out->labelSum = 0;
 
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, admin);
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, NULL, admin);
 
     return out;
 }

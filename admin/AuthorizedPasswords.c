@@ -13,6 +13,7 @@
  */
 
 #include "admin/AuthorizedPasswords.h"
+#include "benc/Int.h"
 #include "memory/BufferAllocator.h"
 
 struct Context
@@ -37,12 +38,12 @@ static void sendResponse(String* msg, struct Admin* admin, String* txid)
     Admin_sendMessage(output, txid, admin);
 }
 
-static void add(Dict* ap, void* vcontext, String* txid)
+static void add(Dict* args, void* vcontext, String* txid)
 {
     struct Context* context = (struct Context*) vcontext;
 
-    String* passwd = Dict_getString(ap, String_CONST("password"));
-    int64_t* authType = Dict_getInt(ap, String_CONST("authType"));
+    String* passwd = Dict_getString(args, String_CONST("password"));
+    int64_t* authType = Dict_getInt(args, String_CONST("authType"));
 
     String* msg = NULL;
     if (!(passwd && authType)) {
@@ -76,7 +77,7 @@ static void add(Dict* ap, void* vcontext, String* txid)
     sendResponse(msg, context->admin, txid);
 }
 
-static void flush(Dict* ap, void* vcontext, String* txid)
+static void flush(Dict* args, void* vcontext, String* txid)
 {
     struct Context* context = (struct Context*) vcontext;
     CryptoAuth_flushUsers(context->ca);
@@ -91,6 +92,10 @@ void AuthorizedPasswords_init(struct Admin* admin,
     context->admin = admin;
     context->allocator = allocator;
     context->ca = ca;
-    Admin_registerFunction("AuthorizedPasswords_add", add, context, true, admin);
-    Admin_registerFunction("AuthorizedPasswords_flush", flush, context, true, admin);
+    struct Admin_FunctionArg adma[2] = {
+        { .name = "password", .required = 1, .type = "String" },
+        { .name = "authType", .required = 0, .type = "Int" }
+    };
+    Admin_registerFunction("AuthorizedPasswords_add", add, context, true, adma, admin);
+    Admin_registerFunction("AuthorizedPasswords_flush", flush, context, true, NULL, admin);
 }

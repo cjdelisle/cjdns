@@ -13,6 +13,7 @@
  */
 
 #include "admin/Admin.h"
+#include "crypto/Crypto.h"
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
@@ -39,6 +40,10 @@
 
 #define MAX_INTERFACES 256
 
+#ifdef Log_DEBUG
+    #define SCRAMBLE_KEYS
+#endif
+
 struct UDPInterface
 {
     struct Interface interface;
@@ -61,7 +66,53 @@ struct UDPInterface
     struct InterfaceController* ic;
 
     struct Admin* admin;
+
+    #ifdef SCRAMBLE_KEYS
+        uint8_t xorValue[InterfaceController_KEY_SIZE];
+    #endif
 };
+
+#define EFFECTIVE_KEY_SIZE \
+    ((InterfaceController_KEY_SIZE > sizeof(struct sockaddr_in)) \
+        ? sizeof(struct sockaddr_in) : InterfaceController_KEY_SIZE)
+
+/**
+ * This exists entirely for testing, it allows a call to be made which will alter all keys,
+ * effectively the same as making everyone's ip address change.
+ */
+#ifdef SCRAMBLE_KEYS
+    static inline void xorkey(uint8_t key[InterfaceController_KEY_SIZE],
+                         struct UDPInterface* udpif)
+    {
+        for (int i = 0; i < InterfaceController_KEY_SIZE; i++) {
+            key[i] ^= udpif->xorValue[i];
+        }
+    }
+#else
+    #define xorkey(a, b)
+#endif
+
+static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
+                                  uint8_t key[InterfaceController_KEY_SIZE],
+                                  struct UDPInterface* udpif)
+{
+    if (EFFECTIVE_KEY_SIZE < sizeof(struct sockaddr_in)) {
+        memset(sockaddr, 0, sizeof(struct sockaddr_in));
+    }
+    memcpy(sockaddr, key, EFFECTIVE_KEY_SIZE);
+    xorkey(key, udpif);
+}
+
+static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
+                                  struct sockaddr_in* sockaddr,
+                                  struct UDPInterface* udpif)
+{
+    if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
+        memset(key, 0, InterfaceController_KEY_SIZE);
+    }
+    memcpy(key, sockaddr, EFFECTIVE_KEY_SIZE);
+    xorkey(key, udpif);
+}
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
@@ -69,6 +120,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     assert(&context->interface == iface);
 
     struct sockaddr_in sin;
+    sockaddrForKey(&sin, message->bytes, context);
     memcpy(&sin, message->bytes, InterfaceController_KEY_SIZE);
     Message_shift(message, -InterfaceController_KEY_SIZE);
 
@@ -118,6 +170,9 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
+
+    // Start writing InterfaceController_KEY_SIZE after the beginning,
+    // keyForSockaddr() will write the key there.
     int rc = recvfrom(socket,
                       message.bytes + InterfaceController_KEY_SIZE,
                       MAX_PACKET_SIZE - InterfaceController_KEY_SIZE,
@@ -137,7 +192,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
     message.length = rc + InterfaceController_KEY_SIZE;
 
-    memcpy(message.bytes, &addrStore, InterfaceController_KEY_SIZE);
+    keyForSockaddr(message.bytes, (struct sockaddr_in*) &addrStore, context);
 
     context->interface.receiveMessage(&message, &context->interface);
 }
@@ -158,15 +213,14 @@ int UDPInterface_beginConnection(const char* address,
     }
 
     uint8_t key[InterfaceController_KEY_SIZE];
-    memcpy(key, &addr, InterfaceController_KEY_SIZE);
+    keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
     return InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
 }
 
-static void beginConnectionAdmin(Dict* ap, void* vcontext, String* txid)
+static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
 {
     struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
 
-    Dict* args = Dict_getDict(ap, String_CONST("args"));
     String* password = Dict_getString(args, String_CONST("password"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
     String* address = Dict_getString(args, String_CONST("address"));
@@ -174,13 +228,7 @@ static void beginConnectionAdmin(Dict* ap, void* vcontext, String* txid)
 
     uint8_t pkBytes[32];
 
-    if (!address) {
-        error = String_CONST("address unspecified or not a string.");
-
-    } else if (!publicKey) {
-        error = String_CONST("publicKey unspecified or not a string.");
-
-    } else if (publicKey->len < 52) {
+    if (!publicKey || publicKey->len < 52) {
         error = String_CONST("publicKey is too short, must be 52 characters long.");
 
     } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
@@ -208,6 +256,27 @@ static void beginConnectionAdmin(Dict* ap, void* vcontext, String* txid)
     Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
     Admin_sendMessage(&out, txid, udpif->admin);
 }
+
+#ifdef SCRAMBLE_KEYS
+static void scrambleKeys(Dict* args, void* vcontext, String* txid)
+{
+    struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
+
+    String* xorVal = Dict_getString(args, String_CONST("xorValue"));
+    String* error = String_CONST("none");
+    if (!xorVal) {
+        error = String_CONST("need to specify xorValue.");
+
+    } else if (xorVal->len != InterfaceController_KEY_SIZE) {
+        error = String_CONST("xorValue is wrong length.");
+
+    } else {
+        memcpy(udpif->xorValue, xorVal, InterfaceController_KEY_SIZE);
+    }
+    Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
+    Admin_sendMessage(&out, txid, udpif->admin);
+}
+#endif
 
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
@@ -249,6 +318,14 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                  exHandler);
         }
 
+        // This could easily be ported to non-IPv4 but I'm not willing to claim support until
+        // there's some actual testing.
+        if (context->addrLen != sizeof(struct sockaddr_in)) {
+            exHandler->exception(__FILE__ " UDPInterface_new() Unexpected address length.",
+                                 -5,
+                                 exHandler);
+        }
+
     } else {
         addrFam = AF_INET;
         context->addrLen = sizeof(struct sockaddr);
@@ -285,11 +362,29 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     InterfaceController_registerInterface(&context->interface, ic);
 
+    struct Admin_FunctionArg adma[3] = {
+        { .name = "password", .required = 0, .type = "String" },
+        { .name = "publicKey", .required = 1, .type = "String" },
+        { .name = "address", .required = 1, .type = "String" },
+    };
     Admin_registerFunction("UDPInterface_beginConnection",
                            beginConnectionAdmin,
                            context,
                            true,
+                           adma,
                            admin);
+
+    #ifdef SCRAMBLE_KEYS
+        struct Admin_FunctionArg scrambleArgs[1] = {
+            { .name = "xorValue", .required = 1, .type = "String" }
+        };
+        Admin_registerFunction("UDPInterface_scrambleKeys",
+                               scrambleKeys,
+                               context,
+                               true,
+                               scrambleArgs,
+                               admin);
+    #endif
 
     return context;
 }

@@ -108,7 +108,7 @@ add_subdirectory(io)
 add_subdirectory(memory)
 add_subdirectory(util)
 add_subdirectory(switch)
-
+add_subdirectory(contrib)
 
 add_executable(cjdroute cjdroute.c)
 target_link_libraries(cjdroute

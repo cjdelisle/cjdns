@@ -1,3 +1,4 @@
+// See d3.LICENSE.txt for license.
 (function(){if (!Date.now) Date.now = function() {
   return +new Date;
 };

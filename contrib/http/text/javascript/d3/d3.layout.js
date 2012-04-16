@@ -1,3 +1,4 @@
+// See d3.LICENSE.txt for license.
 (function(){d3.layout = {};
 // Implements hierarchical edge bundling using Holten's algorithm. For each
 // input link, a path is computed that travels through the tree, up the parent

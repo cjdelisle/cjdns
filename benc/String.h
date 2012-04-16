@@ -53,6 +53,17 @@ String* String_new(const char* bytes, const struct Allocator* allocator);
 String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator);
 
 /**
+ * Create a new bencoded string from a format and arguments.
+ * EG: String_printf("this is on line number %d!", allocator, __LINE__);
+ *
+ * @param allocator a means of getting the memory to store the string object.
+ * @param format standard printf formatting.
+ * @params arguments to the printf() function.
+ * @return a bencoded string.
+ */
+String* String_printf(const struct Allocator* allocator, const char* format, ...);
+
+/**
  * Compare 2 bencoded strings.
  * If the first differing character is numerically smaller for input a then
  * a negative number is returned, if the first differing character is numerically

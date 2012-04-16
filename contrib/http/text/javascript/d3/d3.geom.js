@@ -1,3 +1,4 @@
+// See d3.LICENSE.txt for license.
 (function(){d3.geom = {};
 /**
  * Computes a contour for a given input grid function using the <a

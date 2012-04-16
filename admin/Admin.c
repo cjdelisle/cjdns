@@ -31,6 +31,7 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 
+#include <assert.h>
 #include <crypto_hash_sha256.h>
 #include <event2/event.h>
 #include <errno.h>
@@ -42,12 +43,20 @@
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 
+static String* TYPE = String_CONST("type");
+static String* REQUIRED = String_CONST("required");
+static String* STRING = String_CONST("String");
+static String* INT = String_CONST("Int");
+static String* DICT = String_CONST("Dict");
+static String* LIST = String_CONST("List");
+
 struct Function
 {
     String* name;
     Admin_FUNCTION(call);
     void* context;
     bool needsAuth;
+    Dict* args;
 };
 
 struct Admin
@@ -92,6 +101,40 @@ static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, st
     crypto_hash_sha256(hash, buffer, length);
     Hex_encode(hashPtr, 64, hash, 32);
     return memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+}
+
+static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Admin* admin)
+{
+    struct Dict_Entry* entry = *func->args;
+    String* error = NULL;
+    uint8_t buffer[1024];
+    struct Allocator* alloc = BufferAllocator_new(buffer, 1024);
+    while (entry != NULL) {
+        String* key = (String*) entry->key;
+        assert(entry->val->type == Object_DICT);
+        Dict* value = entry->val->as.dictionary;
+        entry = entry->next;
+        if (*Dict_getInt(value, String_CONST("required")) == 0) {
+            continue;
+        }
+        String* type = Dict_getString(value, String_CONST("type"));
+        if ((type == STRING && !Dict_getString(args, key))
+            || (type == DICT && !Dict_getDict(args, key))
+            || (type == INT && !Dict_getInt(args, key))
+            || (type == LIST && !Dict_getList(args, key)))
+        {
+            error = String_printf(alloc,
+                                  "Entry [%s] is required and must be of type [%s]",
+                                  key->bytes,
+                                  type->bytes);
+            break;
+        }
+    }
+    if (error) {
+        Dict d = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
+        Admin_sendMessage(&d, txid, admin);
+    }
+    return !error;
 }
 
 static void handleRequestFromChild(struct Admin* admin,
@@ -145,12 +188,15 @@ static void handleRequestFromChild(struct Admin* admin,
         authed = true;
     }
 
+    Dict* args = Dict_getDict(&message, String_CONST("args"));
     bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
-            admin->functions[i].call(&message, admin->functions[i].context, txid);
+            if (checkArgs(args, &admin->functions[i], txid, admin)) {
+                admin->functions[i].call(args, admin->functions[i].context, txid);
+            }
             noFunctionsCalled = false;
         }
     }
@@ -158,12 +204,12 @@ static void handleRequestFromChild(struct Admin* admin,
     if (noFunctionsCalled) {
         Dict* d = Dict_new(allocator);
         Dict_putString(d, BSTR("error"), BSTR("No functions matched your request."), allocator);
-        List* functions = NULL;
+        Dict* functions = Dict_new(allocator);
         for (int i = 0; i < admin->functionCount; i++) {
-            functions = List_addString(functions, admin->functions[i].name, allocator);
+            Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, allocator);
         }
         if (functions) {
-            Dict_putList(d, BSTR("availableFunctions"), functions, allocator);
+            Dict_putDict(d, BSTR("availableFunctions"), functions, allocator);
         }
         Admin_sendMessage(d, txid, admin);
         return;
@@ -375,11 +421,13 @@ static void child(struct sockaddr_storage* addr,
     event_base_dispatch(context->eventBase);
 }
 
-void Admin_registerFunction(char* name,
-                            Admin_FUNCTION(callback),
-                            void* callbackContext,
-                            bool needsAuth,
-                            struct Admin* admin)
+void Admin_registerFunctionWithArgCount(char* name,
+                                        Admin_FUNCTION(callback),
+                                        void* callbackContext,
+                                        bool needsAuth,
+                                        struct Admin_FunctionArg* arguments,
+                                        int argCount,
+                                        struct Admin* admin)
 {
     if (!admin) {
         return;
@@ -400,6 +448,27 @@ void Admin_registerFunction(char* name,
     fu->call = callback;
     fu->context = callbackContext;
     fu->needsAuth = needsAuth;
+    fu->args = Dict_new(admin->allocator);
+    for (int i = 0; arguments && i < argCount; i++) {
+        // "type" must be one of: [ "String", "Int", "Dict", "List" ]
+        String* type = NULL;
+        if (!strcmp(arguments[i].type, STRING->bytes)) {
+            type = STRING;
+        } else if (!strcmp(arguments[i].type, INT->bytes)) {
+            type = INT;
+        } else if (!strcmp(arguments[i].type, DICT->bytes)) {
+            type = DICT;
+        } else if (!strcmp(arguments[i].type, LIST->bytes)) {
+            type = LIST;
+        } else {
+            abort();
+        }
+        Dict* arg = Dict_new(admin->allocator);
+        Dict_putString(arg, TYPE, type, admin->allocator);
+        Dict_putInt(arg, REQUIRED, arguments[i].required, admin->allocator);
+        String* name = String_new(arguments[i].name, admin->allocator);
+        Dict_putDict(fu->args, name, arg, admin->allocator);
+    }
 }
 
 void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
