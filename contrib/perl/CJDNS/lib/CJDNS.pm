@@ -175,8 +175,6 @@ sub s {
     return $self->{s};
 }
 
-# Preloaded methods go here.
-
 1;
 __END__
 
@@ -187,7 +185,8 @@ CJDNS - Perl interface to the CJDNS Administration Interface
 =head1 SYNOPSIS
 
   use CJDNS;
-  blah blah blah
+  my $cjdns = CJDNS->new('localhost', '12345', 'abc123');
+  printf("CJDNS' routing table is using %d bytes of memory!\n", $cjdns->memory->{bytes});
 
 =head1 DESCRIPTION
 
