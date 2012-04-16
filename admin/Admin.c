@@ -43,12 +43,12 @@
 
 #define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 
-static String* TYPE = String_CONST("type");
-static String* REQUIRED = String_CONST("required");
-static String* STRING = String_CONST("String");
-static String* INT = String_CONST("Int");
-static String* DICT = String_CONST("Dict");
-static String* LIST = String_CONST("List");
+static String* TYPE =     &(String) { .bytes = "type",     .len = 4 };
+static String* REQUIRED = &(String) { .bytes = "required", .len = 8 };
+static String* STRING =   &(String) { .bytes = "String",   .len = 6 };
+static String* INT =      &(String) { .bytes = "Int",      .len = 3 };
+static String* DICT =     &(String) { .bytes = "Dict",     .len = 4 };
+static String* LIST =     &(String) { .bytes = "List",     .len = 4 };
 
 struct Function
 {
