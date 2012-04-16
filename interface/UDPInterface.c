@@ -262,16 +262,21 @@ static void scrambleKeys(Dict* args, void* vcontext, String* txid)
 {
     struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
 
+    uint8_t key[InterfaceController_KEY_SIZE];
     String* xorVal = Dict_getString(args, String_CONST("xorValue"));
     String* error = String_CONST("none");
-    if (!xorVal) {
-        error = String_CONST("need to specify xorValue.");
-
-    } else if (xorVal->len != InterfaceController_KEY_SIZE) {
-        error = String_CONST("xorValue is wrong length.");
+    #define WRONG_LENGTH(x) String_CONST("xorValue length needs to be " #x " characters long")
+    if (!xorVal || xorVal->len != InterfaceController_KEY_SIZE * 2) {
+        error = WRONG_LENGTH((InterfaceController_KEY_SIZE * 2));
 
     } else {
-        memcpy(udpif->xorValue, xorVal, InterfaceController_KEY_SIZE);
+        int ret =
+            Hex_decode(key, InterfaceController_KEY_SIZE, (uint8_t*) xorVal->bytes, xorVal->len);
+        if (ret < 0) {
+            error = String_CONST("Failed to parse hex");
+        } else {
+            memcpy(udpif->xorValue, key, InterfaceController_KEY_SIZE);
+        }
     }
     Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
     Admin_sendMessage(&out, txid, udpif->admin);
