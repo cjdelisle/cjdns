@@ -1,0 +1,6 @@
+Revision history for Perl extension CJDNS.
+
+0.01  Mon Apr 16 11:47:52 2012
+	- original version; created by h2xs 1.23 with options
+		-AX --skip-exporter --use-new-tests -n CJDNS
+
