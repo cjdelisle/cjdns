@@ -415,11 +415,11 @@ The nodes in an fn reply are ordered from worst to best so the best answer is
 the last entry in the reply.
 
 Routers choose the node to forward a packet to in a similar way to how they
-answer search queries. They select nodes from their of their routing table
-except in this case the selection contains only a single node. The packet is
-sent through the CryptoAuth session for the next hop and the label for that
-hop is applied to the packet and it is sent to the switch. The "search target"
-for forwarding a packet is the IPv6 destination address of the packet.
+answer search queries. They select nodes from their routing table except in this
+case the selection contains only one node. The packet is sent through the
+CryptoAuth session corresponding to this node and the label for getting to it is
+applied to the packet before sending to the switch. The "search target" for
+forwarding a packet is the IPv6 destination address of the packet.
 
 
 ## The CryptoAuth
