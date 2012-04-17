@@ -12,6 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
+#include "benc/Int.h"
 #include "benc/List.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
@@ -52,7 +53,10 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->admin = admin;
     out->labelSum = 0;
 
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, NULL, admin);
+    struct Admin_FunctionArg adma[1] = {
+        { .name = "page", .required = 1, .type = "Int" },
+    };
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, adma, admin);
 
     return out;
 }
@@ -435,25 +439,15 @@ static void sendEntries(struct NodeStore* store,
                         bool isMore,
                         String* txid)
 {
-    struct Dict_Entry tableEntry = {
-        .next = NULL,
-        .key = &(String) { .len = 12, .bytes = "routingTable" },
-        .val = &(Object) { .type = Object_LIST, .as.list = &last }
-    };
-    Dict d;
+    Dict table = Dict_CONST(String_CONST("routingTable"), List_OBJ(&last), NULL);
+
     if (isMore) {
-        struct Dict_Entry more = {
-            .next = &tableEntry,
-            .key = &(String) { .len = 4, .bytes = "more" },
-            .val = &(Object) { .type = Object_INTEGER, .as.number = 1 }
-        };
-        d = &more;
-    } else {
-        d = &tableEntry;
+        table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
     }
-    Admin_sendMessage(&d, txid, store->admin);
+    Admin_sendMessage(&table, txid, store->admin);
 }
 
+#define ENTRIES_PER_PAGE 500
 static void addRoutingTableEntries(struct NodeStore* store,
                                    uint32_t i,
                                    uint32_t j,
@@ -461,60 +455,38 @@ static void addRoutingTableEntries(struct NodeStore* store,
                                    String* txid)
 {
     uint8_t path[20];
-    String pathStr = { .len = 19, .bytes = (char*)path };
-    struct Dict_Entry pathEntry = {
-        .next = NULL,
-        .key = &(String) { .len = 4, .bytes = "path" },
-        .val = &(Object) { .type = Object_STRING, .as.string = &pathStr }
-    };
-
-    struct Dict_Entry linkStateEntry = {
-        .next = &pathEntry,
-        .key = &(String) { .len = 4, .bytes = "linkState" },
-        .val = &(Object) { .type = Object_INTEGER }
-    };
-
     uint8_t ip[40];
-    String ipStr = { .len = 39, .bytes = (char*)ip };
-    struct Dict_Entry entry = {
-        .next = &linkStateEntry,
-        .key = &(String) { .len = 2, .bytes = "ip" },
-        .val = &(Object) { .type = Object_STRING, .as.string = &ipStr }
-    };
-    Dict d = &entry;
+    Dict entry = Dict_CONST(
+        String_CONST("ip"), String_OBJ((&(String) { .len = 39, .bytes = (char*)ip })), Dict_CONST(
+        String_CONST("link"), Int_OBJ(0xFFFFFFFF), Dict_CONST(
+        String_CONST("path"), String_OBJ((&(String) { .len = 19, .bytes = (char*)path })), NULL
+    )));
 
-    struct List_Item next = {
-        .next = last,
-        .elem = &(Object) { .type = Object_DICT, .as.dictionary = &d }
-    };
+    struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
 
-    if (i >= store->size || j > 500) {
+    if (i >= store->size || j > ENTRIES_PER_PAGE) {
         if (i > j) {
-            sendEntries(store, last, (j > 500), txid);
+            sendEntries(store, last, (j > ENTRIES_PER_PAGE), txid);
             return;
         }
 
-        linkStateEntry.val->as.number = 0xFFFFFFFF;
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
-        sendEntries(store, &next, (j > 500), txid);
+        sendEntries(store, &next, (j > ENTRIES_PER_PAGE), txid);
         return;
     }
 
-    linkStateEntry.val->as.number = store->headers[i].reach;
+    entry->next->val->as.number = store->headers[i].reach;
     Address_printIp(ip, &store->nodes[i].address);
     Address_printNetworkAddress(path, &store->nodes[i].address);
 
     addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }
 
-static void dumpTable(Dict* message, void* vnodeStore, String* txid)
+static void dumpTable(Dict* args, void* vnodeStore, String* txid)
 {
     struct NodeStore* store = (struct NodeStore*) vnodeStore;
-    uint32_t i = 0;
-    int64_t* iPtr = Dict_getInt(message, &(String) { .len = 5, .bytes = "start" });
-    if (iPtr && *iPtr > 0 && *iPtr < UINT32_MAX) {
-        i = *iPtr;
-    }
+    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
     addRoutingTableEntries(store, i, 0, NULL, txid);
 }

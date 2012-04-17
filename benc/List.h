@@ -114,4 +114,6 @@ Dict* List_getDict(const List* list, uint32_t index);
  */
 List* List_getList(const List* list, uint32_t index);
 
+#define List_OBJ(x) (&(Object) { .type = Object_LIST, .as.list = x })
+
 #endif
