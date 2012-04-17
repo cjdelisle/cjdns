@@ -14,7 +14,7 @@ import socket;
 import hashlib;
 from bencode import *;
 
-BUFFER_SIZE = 1024;
+BUFFER_SIZE = 69632;
 
 def callfunc(cjdns, funcName, password, args):
     sock = cjdns.socket;
@@ -34,7 +34,12 @@ def callfunc(cjdns, funcName, password, args):
     reqBenc = bencode(req);
     sock.send(reqBenc);
     data = sock.recv(BUFFER_SIZE);
-    return bdecode(data);
+    try:
+        return bdecode(data);
+    except ValueError:
+        print("Failed to parse:\n" + data);
+        print("Length: " + str(len(data)));
+        raise;
 
 def cjdns_connect(ipAddr, port, password):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
@@ -50,23 +55,42 @@ def cjdns_connect(ipAddr, port, password):
     sock.send('d1:q7:invalide');
     data = sock.recv(BUFFER_SIZE);
     benc = bdecode(data);
+    argLists = {};
     cc = ("class Cjdns:\n"
         + "    def __init__(self, socket):\n"
         + "        self.socket = socket;\n"
         + "    def disconnect(self):\n"
         + "        self.socket.close();\n");
     for func in benc['availableFunctions']:
+        argList = [];
+        argLists[func] = argList;
         funcDict = benc['availableFunctions'][func];
         cc += "    def " + func + "(self";
+
+        # If the arg is required, put it first,
+        # otherwise put it after and use a default
+        # value of a type which will be ignored by the core.
         for arg in funcDict:
-            cc += ", " + arg;
+            if (funcDict[arg]['required'] == 1):
+                argList.append(arg);
+                cc += ", " + arg;
+        for arg in funcDict:
+            argDict = funcDict[arg];
+            if (argDict['required'] == 0):
+                argList.append(arg);
+                cc += ", " + arg + "=";
+                if (argDict['type'] == 'Int'):
+                    cc += "''";
+                else:
+                    cc += "0";
+
         cc += ("):\n"
              + "        args = {");
-        for arg in funcDict:
+        for arg in argList:
            cc += "\"" + arg + "\": " + arg + ", ";
         cc += ("};\n"
              + "        return callfunc(self, \"" + func + "\", \"" + password + "\", args);\n");
-    exec cc;
+    exec(cc);
 
     cjdns = Cjdns(sock);
 
@@ -82,7 +106,7 @@ def cjdns_connect(ipAddr, port, password):
         cjdns.functions += nl + func + "(";
         nl = "\n";
         sep = "";
-        for arg in funcDict:
+        for arg in argLists[func]:
             cjdns.functions += sep;
             sep = ", ";
             argDict = funcDict[arg];
