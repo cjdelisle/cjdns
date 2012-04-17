@@ -1,0 +1,29 @@
+CJDNS version 0.01
+==================
+
+This is a Perl implementation of the dynamic cjdns administration suite.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+Digest::SHA2, Bencode
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2012 by Michael Gregorowicz
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.14.2 or,
+at your option, any later version of Perl 5 you may have available.
+
+
