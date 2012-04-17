@@ -447,7 +447,7 @@ static void sendEntries(struct NodeStore* store,
     Admin_sendMessage(&table, txid, store->admin);
 }
 
-#define ENTRIES_PER_PAGE 500
+#define ENTRIES_PER_PAGE 150
 static void addRoutingTableEntries(struct NodeStore* store,
                                    uint32_t i,
                                    uint32_t j,

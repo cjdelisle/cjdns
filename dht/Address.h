@@ -197,6 +197,38 @@ static inline int Address_parsePath(uint64_t* out, uint8_t netAddr[20])
 }
 
 /**
+ * Parse out an address.
+ *
+ * @param out a pointer to a byte array which will be set to the bytes of the ipv6 address.
+ * @param hexAddr a string representation of the ipv6 address such as:
+ *                "fc4f:630d:e499:8f5b:c49f:6e6b:01ae:3120".
+ * @return 0 if successful, -1 if the hexAddr is malformed.
+ */
+static inline int Address_parseIp(uint8_t out[16], uint8_t hexAddr[40])
+{
+    for (int i = 4; i < 39; i += 5) {
+        if (hexAddr[i] != ':') {
+            return -1;
+        }
+    }
+
+    uint8_t hex[32];
+    int j = 0;
+    for (int i = 0; i < 40; i++) {
+        hex[j++] = hexAddr[i++];
+        hex[j++] = hexAddr[i++];
+        hex[j++] = hexAddr[i++];
+        hex[j++] = hexAddr[i++];
+    }
+
+    if (Hex_decode(out, 16, hex, 32) != 16) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Detect a redundant (looping) route.
  *
  * @param addrA

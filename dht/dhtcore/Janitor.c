@@ -76,7 +76,7 @@ static void maintanenceCycle(void* vcontext)
     // Ping a random node.
     struct Node* randomNode = RouterModule_getNode(0, janitor->routerModule);
     if (randomNode) {
-        RouterModule_pingNode(randomNode, janitor->routerModule, NULL);
+        RouterModule_pingNode(randomNode, janitor->routerModule, 0, NULL);
     }
 
     // If the node's reach is zero, run a search for it, otherwise run a random search.

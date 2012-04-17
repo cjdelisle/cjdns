@@ -101,11 +101,16 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module);
  *
  * @param node the node to ping.
  * @param module the router module.
+ * @param timeoutMilliseconds the number of milliseconds to wait beforwe calling a ping timed out
+ *                            if zero, it will be calculated based on the mean response time.
  * @param txid a number which will be bounced back in the ping,
  *             not useful outside of RouterModule so NULL is acceptable.
  * @return 0 if the ping was sent, -1 if there was no more space to store state.
  */
-int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid);
+int RouterModule_pingNode(struct Node* node,
+                          struct RouterModule* module,
+                          uint32_t timeoutMilliseconds,
+                          String* txid);
 
 int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module);
 

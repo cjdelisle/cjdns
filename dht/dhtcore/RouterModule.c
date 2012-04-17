@@ -197,7 +197,6 @@ struct RouterModule_Search
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
 
-int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid);
 static void pingNode(Dict* input, void* vrouter, String* txid);
 
 /*--------------------Interface--------------------*/
@@ -247,8 +246,9 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                allocator,
                                eventBase);
 
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "path", .required = 1, .type = "String" }
+    struct Admin_FunctionArg adma[2] = {
+        { .name = "path", .required = 1, .type = "String" },
+        { .name = "timeout", .required = 0, .type = "Int" },
     };
     Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, adma, admin);
 
@@ -271,45 +271,42 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
 {
     struct RouterModule* router = (struct RouterModule*) vrouter;
     String* pathStr = Dict_getString(args, BSTR("path"));
+    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
-    #define ERROR_DICT(x) \
-        struct Dict_Entry entry = {                                           \
-            .next = NULL,                                                     \
-            .key = BSTR("error"),                                             \
-            .val = &(Object) { .type = Object_STRING, .as.string = BSTR(x) }  \
-        };                                                                    \
-        Dict err = &entry
+    #define ERROR_DICT(x) Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(x)), NULL)
+    Dict err = NULL;
+    struct Address addr;
+    struct Node* n = NULL;
 
-    if (!pathStr) {
-        ERROR_DICT("no path argument or path arg was not of type 'String'");
-        Admin_sendMessage(&err, txid, router->admin);
-        return;
+    if (pathStr->len == 19) {
+        if (Address_parsePath(&addr.networkAddress_be, (uint8_t*) pathStr->bytes)) {
+            err = ERROR_DICT("parse path failed");
+        } else {
+            n = RouterModule_getNode(addr.networkAddress_be, router);
+        }
+    } else if (pathStr->len == 39) {
+        if (Address_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
+            err = ERROR_DICT("parsing address failed");
+        } else {
+            n = RouterModule_getBest(addr.ip6.bytes, router);
+        }
+    } else {
+        err = ERROR_DICT("Unexpected length, must be either 39 char ipv6 address "
+                         "(with leading zeros) eg: 'fc4f:000d:e499:8f5b:c49f:6e6b:01ae:3120' "
+                         "or 19 char path eg: '0123.4567.89ab.cdef'");
     }
 
-    if (pathStr->len != 19) {
-        ERROR_DICT("path argument was not 19 characters long.");
-        Admin_sendMessage(&err, txid, router->admin);
-        return;
+    if (!err) {
+        if (!n) {
+            err = ERROR_DICT("could not find node to ping");
+        } else if (RouterModule_pingNode(n, router, timeout, txid)) {
+            err = ERROR_DICT("no open slots to store ping, try later.");
+        }
     }
 
-    uint64_t path;
-    if (Address_parsePath(&path, (uint8_t*) pathStr->bytes)) {
-        ERROR_DICT("could not parse path, expected form is '0123.abcd.ef01.0011'");
+    if (err) {
         Admin_sendMessage(&err, txid, router->admin);
-        return;
-    }
-
-    struct Node* n = RouterModule_getNode(path, router);
-    if (!n) {
-        ERROR_DICT("could not find node to ping");
-        Admin_sendMessage(&err, txid, router->admin);
-        return;
-    }
-
-    if (RouterModule_pingNode(n, router, txid)) {
-        ERROR_DICT("no open slots to store ping, try later.");
-        Admin_sendMessage(&err, txid, router->admin);
-        return;
     }
 }
 
@@ -1052,7 +1049,10 @@ static void pingTimeoutCallback(void* vping)
 }
 
 /** See: RouterModule.h */
-int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String* txid)
+int RouterModule_pingNode(struct Node* node,
+                          struct RouterModule* module,
+                          uint32_t timeoutMilliseconds,
+                          String* txid)
 {
     struct Allocator* pingAllocator = module->allocator->child(module->allocator);
 
@@ -1082,15 +1082,17 @@ int RouterModule_pingNode(struct Node* node, struct RouterModule* module, String
     ping->module = module;
     ping->allocator = pingAllocator;
 
-    uint64_t milliseconds =
-        AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
-    if (milliseconds < PING_TIMEOUT_MINIMUM) {
-        milliseconds = PING_TIMEOUT_MINIMUM;
+    if (timeoutMilliseconds == 0) {
+        timeoutMilliseconds =
+            AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
+    }
+    if (timeoutMilliseconds < PING_TIMEOUT_MINIMUM) {
+        timeoutMilliseconds = PING_TIMEOUT_MINIMUM;
     }
 
     ping->timeout = Timeout_setTimeout(pingTimeoutCallback,
                                        ping,
-                                       milliseconds,
+                                       timeoutMilliseconds,
                                        module->eventBase,
                                        pingAllocator);
 
@@ -1122,7 +1124,7 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module)
     NodeStore_addNode(module->nodeStore, address, 0);
     struct Node* best = RouterModule_getBest(address->ip6.bytes, module);
     if (best && best->address.networkAddress_be != address->networkAddress_be) {
-        RouterModule_pingNode(best, module, NULL);
+        RouterModule_pingNode(best, module, 0, NULL);
     }
 }
 

@@ -49,6 +49,7 @@ static String* STRING =   &(String) { .bytes = "String",   .len = 6 };
 static String* INT =      &(String) { .bytes = "Int",      .len = 3 };
 static String* DICT =     &(String) { .bytes = "Dict",     .len = 4 };
 static String* LIST =     &(String) { .bytes = "List",     .len = 4 };
+static String* NONE =     &(String) { .bytes = "none",     .len = 4 };
 
 struct Function
 {
@@ -142,7 +143,7 @@ static void handleRequestFromChild(struct Admin* admin,
                                    size_t amount,
                                    struct Allocator* allocator)
 {
-    String* txid = NULL;
+    String* txid = NONE;
     int skip = 0;
 
     if (!memcmp(buffer, "0123", 4)) {
@@ -475,6 +476,10 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 {
     if (!admin) {
         return;
+    }
+    // TODO: fix this right
+    if (String_equals(txid, NONE)) {
+        txid = NULL;
     }
     uint8_t buff[MAX_API_REQUEST_SIZE];
     uint8_t allocBuff[256];
