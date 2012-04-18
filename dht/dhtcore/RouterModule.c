@@ -1083,9 +1083,9 @@ int RouterModule_pingNode(struct Node* node,
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds =
             AverageRoller_getAverage(module->gmrtRoller) * PING_TIMEOUT_GMRT_MULTIPLIER;
-    }
-    if (timeoutMilliseconds < PING_TIMEOUT_MINIMUM) {
-        timeoutMilliseconds = PING_TIMEOUT_MINIMUM;
+        if (timeoutMilliseconds < PING_TIMEOUT_MINIMUM) {
+            timeoutMilliseconds = PING_TIMEOUT_MINIMUM;
+        }
     }
 
     ping->timeout = Timeout_setTimeout(pingTimeoutCallback,
