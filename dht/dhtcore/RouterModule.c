@@ -1054,8 +1054,6 @@ int RouterModule_pingNode(struct Node* node,
                           uint32_t timeoutMilliseconds,
                           String* txid)
 {
-    struct Allocator* pingAllocator = module->allocator->child(module->allocator);
-
     struct RouterModule_Ping** location = NULL;
     uint8_t index;
     for (index = 0; index < RouterModule_MAX_CONCURRENT_PINGS; index++) {
@@ -1075,6 +1073,7 @@ int RouterModule_pingNode(struct Node* node,
         Log_debug1(module->logger, "Ping %s\n", addr);
     #endif
 
+    struct Allocator* pingAllocator = module->allocator->child(module->allocator);
     struct RouterModule_Ping* ping =
         pingAllocator->malloc(sizeof(struct RouterModule_Ping), pingAllocator);
     *location = ping;
