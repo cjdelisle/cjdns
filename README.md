@@ -516,6 +516,59 @@ You can also force a static build even if you have libevent2 by using:
     # make
 
 
+
+Accessing the CJDNS admin interface
+===================================
+
+When cjdnroute is up and running, an administrative interface will listen on localhost:11234
+(this can be changed in the cjdroute.conf configuration file).
+
+You can access this api using the following tools, to get interesting information.
+
+
+
+Webbased JavaScript GUI
+-----------------------
+
+cjdns comes with a HttpServer, that can be fired up to access information using a web browser
+the following command will start it on port 10080:
+
+     $ cd cjdns
+     $ ./build/admin/http/HttpServer 127.0.0.1:11234 admin/http/ 127.0.0.1 8080
+
+you can now access the interface using this link in your webbrowser
+
+    http://127.0.0.1:8080
+
+
+cjdns-tool
+----------
+
+[cjdns-tool](https://github.com/kechagia/cjdns-tool) is a toolset for querying the admin api using the command line.
+It is written in ruby and maintained by [kris kechagia](https://github.com/kechagia/). To install it, simply type
+
+    $ sudo gem install cjdns-tool
+
+cjdns-tool can dump the local routing table in a traceroute-like fashion, as count routes as well as doing a ping sweep to see which nodes are alive and what their response time is. For usage information you can either type
+
+    $ cjdns-tool help
+
+and expore for yourself, or visit the [readme](https://github.com/kechagia/cjdns-tool/blob/master/README.md)
+
+
+python library
+--------------
+
+cjdns comes with a python library to access the api. For more information, read the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/python/README.md)
+
+
+perl library
+------------
+
+the perl port of the python api library is maintained by Mikey. For usage instructions, head over to the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/perl/CJDNS/README)
+
+
+
 Known Issues
 ============
 
