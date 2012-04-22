@@ -631,6 +631,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             }
         } else if (ctrl->type_be == Control_PONG_be) {
             pong = true;
+        } else if (ctrl->type_be == Control_PING_be) {
+            ctrl->type_be = Control_PONG_be;
+            Message_shift(message, Headers_SwitchHeader_SIZE);
+            switchIf->receiveMessage(message, switchIf);
+        } else {
+            Log_info2(context->logger,
+                      "control packet of unknown type from [%s], type [%d]",
+                      labelStr, Endian_bigEndianToHost16(ctrl->type_be));
         }
 
         if (pong) {
