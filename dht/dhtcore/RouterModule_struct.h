@@ -57,6 +57,9 @@ struct RouterModule
     struct Allocator* pingAllocator;
 
     struct Admin* admin;
+
+    uint8_t gitVersionBytes[20];
+    String gitVersion;
 };
 
 #endif

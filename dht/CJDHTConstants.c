@@ -30,3 +30,6 @@ String* const CJDHTConstants_NODES =      &(String) { .len = 1, .bytes = "n"    
 
 // Transaction id
 String* const CJDHTConstants_TXID =       &(String) { .len = 4, .bytes = "txid" };
+
+// Version which is in ping responses.
+String* const CJDHTConstants_VERSION =    &(String) { .len = 1, .bytes = "v" };

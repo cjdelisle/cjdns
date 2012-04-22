@@ -34,4 +34,7 @@ String* const CJDHTConstants_NODES;
 // Transaction id
 String* const CJDHTConstants_TXID;
 
+// Version which is in ping responses.
+String* const CJDHTConstants_VERSION;
+
 #endif

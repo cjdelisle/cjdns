@@ -228,6 +228,10 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
         .handleOutgoing = handleOutgoing
     }), registry);
 
+    Hex_decode(out->gitVersionBytes, 20, (uint8_t*) GIT_VERSION, 40);
+    out->gitVersion.len = 20;
+    out->gitVersion.bytes = (char*) out->gitVersionBytes;
+
     Address_forKey(&out->address, myAddress);
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
@@ -619,28 +623,30 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
 static inline void pingResponse(struct RouterModule_Ping* ping,
                                 bool timeout,
                                 uint32_t lag,
+                                String* versionBin,
                                 struct RouterModule* module)
 {
     uint8_t lagStr[12];
     snprintf((char*)lagStr, 12, "%u", lag);
 
-    struct Dict_Entry result = {
-       .next = NULL,
-       .key = BSTR("result"),
-       .val = &(Object) { .type = Object_STRING, .as.string = NULL }
-    };
-    if (timeout) {
-        result.val->as.string = BSTR("timeout");
-    } else {
-        result.val->as.string = BSTR("pong");
+    Dict versionDict = NULL;
+    if (!timeout) {
+        String* version = String_CONST("old");
+        versionDict = Dict_CONST(String_CONST("version"), String_OBJ(version), NULL);
+        if (versionBin && versionBin->len == 20) {
+            uint8_t versionStr[40];
+            Hex_encode(versionStr, 40, (uint8_t*) versionBin->bytes, 20);
+            version = &(String) { .bytes = (char*) versionStr, .len = 40 };
+        }
     }
 
-    struct Dict_Entry entry = {
-       .next = &result,
-       .key = BSTR("ms"),
-       .val = &(Object) { .type = Object_STRING, .as.string = BSTR((char*)lagStr) }
-    };
-    Dict response = &entry;
+    String* result = (timeout) ? String_CONST("timeout") : String_CONST("pong");
+
+    Dict response = Dict_CONST(
+        String_CONST("ms"), String_OBJ(String_CONST((char*)lagStr)), Dict_CONST(
+        String_CONST("result"), String_OBJ(result), versionDict
+    ));
+
     String txid = { .len = 4, .bytes = (char*)ping->txid };
     Admin_sendMessage(&response, &txid, module->admin);
 }
@@ -693,7 +699,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             responseFromNode(node, lag, module);
 
             if (module->pings[index]->isFromAdmin) {
-                pingResponse(module->pings[index], false, lag, module);
+                String* version = Dict_getString(message->asDict, CJDHTConstants_VERSION);
+                pingResponse(module->pings[index], false, lag, version, module);
             }
 
             struct Allocator* pa = module->pings[index]->allocator;
@@ -862,6 +869,11 @@ static inline int handleQuery(struct DHTMessage* message,
     // get the target
     String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
     if (target == NULL || target->len != Address_SEARCH_TARGET_SIZE) {
+        // No target, probably a ping, tell them the version.
+        Dict_putString(message->asDict,
+                       CJDHTConstants_VERSION,
+                       &module->gitVersion,
+                       message->allocator);
         return 0;
     }
 
@@ -1042,7 +1054,7 @@ static void pingTimeoutCallback(void* vping)
     }
 
     if (ping->isFromAdmin) {
-        pingResponse(ping, true, UINT32_MAX, module);
+        pingResponse(ping, true, UINT32_MAX, NULL, module);
     }
 
     ping->allocator->free(ping->allocator);
