@@ -81,7 +81,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
             ping->onResponseContext =
                 ping->pingAlloc->clone(sizeof(struct Ping), ping->pingAlloc, &(struct Ping) {
                     .context = context,
-                    .txid = String_clone(data, ping->pingAlloc)
+                    .txid = String_clone(txid, ping->pingAlloc),
                 });
         }
     }

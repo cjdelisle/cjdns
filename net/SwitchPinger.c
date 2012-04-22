@@ -107,7 +107,7 @@ static void sendPing(String* data, void* sendPingContext)
     struct Message msg = {
         .length = data->len,
         // Make it aligned along an 8 byte boundry (assuming the buffer is)
-        .bytes = &buffer[BUFFER_SZ - (data->len + (data->len % 8))]
+        .bytes = &buffer[BUFFER_SZ - (data->len + 8 - (data->len % 8))]
     };
     msg.padding = msg.bytes - buffer;
     assert(data->len < (BUFFER_SZ / 2));
