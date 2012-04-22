@@ -60,7 +60,6 @@ endif()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^i.86$")
     message("Position independent executable on x86 is broken, disabling.")
-message(${CMAKE_SYSTEM_PROCESSOR})
     set(NO_PIE TRUE)
 endif()
 
