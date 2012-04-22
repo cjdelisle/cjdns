@@ -38,8 +38,12 @@ static void lookup(Dict* args, void* vcontext, String* txid)
         err = String_CONST("failed to parse address");
     } else {
         struct Node* n = RouterModule_lookup(addr, ctx->routerModule);
-        if (!n || memcmp(addr, n->address.ip6.bytes, 16)) {
+        if (!n) {
             result = String_CONST("not found");
+        } else if (memcmp(addr, n->address.ip6.bytes, 16)) {
+            uint8_t closest[60];
+            Address_print(closest, &n->address);
+            result = &(String) { .bytes = (char*) closest, .len = 59 };
         } else {
             uint8_t path[20];
             Address_printPath(path, Endian_bigEndianToHost64(n->address.networkAddress_be));
