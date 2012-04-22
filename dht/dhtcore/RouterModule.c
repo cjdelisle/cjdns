@@ -626,21 +626,22 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
                                 String* versionBin,
                                 struct RouterModule* module)
 {
-    uint8_t lagStr[12];
-    snprintf((char*)lagStr, 12, "%u", lag);
-
     Dict versionDict = NULL;
+    String* result = String_CONST("timeout");
     if (!timeout) {
         String* version = String_CONST("old");
+        result = String_CONST("pong");
         versionDict = Dict_CONST(String_CONST("version"), String_OBJ(version), NULL);
         if (versionBin && versionBin->len == 20) {
             uint8_t versionStr[40];
             Hex_encode(versionStr, 40, (uint8_t*) versionBin->bytes, 20);
-            version = &(String) { .bytes = (char*) versionStr, .len = 40 };
+            version->bytes = (char*) versionStr;
+            version->len = 40;
         }
     }
 
-    String* result = (timeout) ? String_CONST("timeout") : String_CONST("pong");
+    uint8_t lagStr[12];
+    snprintf((char*)lagStr, 12, "%u", lag);
 
     Dict response = Dict_CONST(
         String_CONST("ms"), String_OBJ(String_CONST((char*)lagStr)), Dict_CONST(
