@@ -593,11 +593,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 Log_info1(context->logger, "dropped runt error packet from [%s]", labelStr);
                 return Error_NONE;
             }
-            uint32_t errType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
             Log_info2(context->logger,
                       "error packet from [%s], error type [%d]",
                       labelStr,
-                      errType);
+                      Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
 
             RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
 
