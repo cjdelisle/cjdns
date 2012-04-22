@@ -46,11 +46,13 @@ static void adminPingOnResponse(enum SwitchPinger_Result result,
     String* pathStr = &(String) { .bytes = (char*) path, .len = 19 };
 
     Dict response = Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
-        String_CONST("ms"), Int_OBJ(millisecondsLag), Dict_CONST(
-        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
         String_CONST("result"), String_OBJ(resultStr), NULL
-    ))));
+    );
+    if (result != SwitchPinger_Result_TIMEOUT) {
+        response = Dict_CONST(String_CONST("path"), String_OBJ(pathStr), response);
+    }
+
+    response = Dict_CONST(String_CONST("ms"), Int_OBJ(millisecondsLag), response);
 
     if (data) {
         response = Dict_CONST(String_CONST("data"), String_OBJ(data), response);
