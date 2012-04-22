@@ -114,7 +114,6 @@ struct Control
         uint8_t bytes[4];
     } content;
 };
-
 // Control_Error is the largest structure and thus defines the length of the "content" union.
 Assert_assertTrue(sizeof(struct Control) == Control_HEADER_SIZE + Control_Error_MIN_SIZE);
 
