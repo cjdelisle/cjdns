@@ -11,6 +11,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "benc/Int.h"
+#include "benc/Object.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -23,7 +25,6 @@
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
-#include "benc/Object.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
@@ -640,11 +641,8 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
         }
     }
 
-    uint8_t lagStr[12];
-    snprintf((char*)lagStr, 12, "%u", lag);
-
     Dict response = Dict_CONST(
-        String_CONST("ms"), String_OBJ(String_CONST((char*)lagStr)), Dict_CONST(
+        String_CONST("ms"), Int_OBJ(lag), Dict_CONST(
         String_CONST("result"), String_OBJ(result), versionDict
     ));
 
@@ -1054,8 +1052,10 @@ static void pingTimeoutCallback(void* vping)
         }
     }
 
+    uint32_t lag = Time_currentTimeMilliseconds(module->eventBase) - ping->timeSent;
+
     if (ping->isFromAdmin) {
-        pingResponse(ping, true, UINT32_MAX, NULL, module);
+        pingResponse(ping, true, lag, NULL, module);
     }
 
     ping->allocator->free(ping->allocator);
