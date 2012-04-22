@@ -137,12 +137,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.\n");
+        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.");
         return Error_NONE;
     }
 
     if (message->length < sizeof(struct Headers_SwitchHeader)) {
-        Log_debug(sourceIf->core->logger, "Dropped runt packet.\n");
+        Log_debug(sourceIf->core->logger, "Dropped runt packet.");
         return Error_NONE;
     }
 
@@ -182,7 +182,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (sourceIndex == destIndex) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.\n");
+        DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
     }
 
     // If this happens to be an Error_FLOOD packet, we will react by
@@ -207,7 +207,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
-        Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u\n", err);
+        Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
