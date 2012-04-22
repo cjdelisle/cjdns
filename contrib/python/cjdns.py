@@ -18,6 +18,13 @@ BUFFER_SIZE = 69632;
 
 def callfunc(cjdns, funcName, password, args):
     sock = cjdns.socket;
+
+    # empty the socket if there's anything on it.
+    try:
+        sock.recv(BUFFER_SIZE, socket.MSG_DONTWAIT);
+    except:
+        pass;
+
     sock.send('d1:q6:cookiee');
     data = sock.recv(BUFFER_SIZE);
     benc = bdecode(data);
