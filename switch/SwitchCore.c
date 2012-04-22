@@ -182,8 +182,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (sourceIndex == destIndex) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because the route was redundant.\n");
-        return Error_NONE;
+        DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.\n");
     }
 
     // If this happens to be an Error_FLOOD packet, we will react by
