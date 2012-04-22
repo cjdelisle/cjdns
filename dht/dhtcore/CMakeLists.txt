@@ -24,6 +24,7 @@ add_definitions(-DGIT_VERSION=\"${GIT_VERSION}\")
 add_library(dhtcore
     NodeStore.c
     RouterModule.c
+    RouterModule_admin.c
     SearchStore.c
     Janitor.c
 )

@@ -20,6 +20,7 @@
 #include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
+#include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
 #include "interface/Interface.h"
@@ -377,6 +378,8 @@ static void registerRouter(Dict* config, struct Address *addr, struct Context* c
                                                   context->base,
                                                   context->logger,
                                                   context->admin);
+
+    RouterModule_admin_register(context->routerModule, context->admin, context->allocator);
 }
 
 static char* setUser(List* config)

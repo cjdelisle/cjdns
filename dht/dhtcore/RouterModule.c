@@ -303,7 +303,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
     }
 
     if (!err) {
-        if (!n) {
+        if (!n || memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
             err = ERROR_DICT("could not find node to ping");
         } else if (RouterModule_pingNode(n, router, timeout, txid)) {
             err = ERROR_DICT("no open slots to store ping, try later.");
