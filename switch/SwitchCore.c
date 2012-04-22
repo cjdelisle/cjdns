@@ -24,7 +24,6 @@
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
-#include "wire/MessageType.h"
 
 struct SwitchInterface
 {
@@ -96,6 +95,7 @@ struct ErrorPacket {
     struct Headers_SwitchHeader switchHeader;
     struct Control ctrl;
 };
+Assert_assertTrue(sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
 
 static inline void sendError(struct SwitchInterface* interface,
                              struct Message* cause,
@@ -103,25 +103,28 @@ static inline void sendError(struct SwitchInterface* interface,
                              struct Log* logger)
 {
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
-    struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
-    if (Headers_getMessageType(header) == MessageType_CONTROL
-        && err->ctrl.type_be == Control_ERROR_be)
+    if (Headers_getMessageType(header) == Headers_SwitchHeader_TYPE_CONTROL
+        && ((struct ErrorPacket*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
     {
         // Errors never cause other errors to be sent.
         return;
     }
 
-    int errLength =
-        (cause->length >= Control_Error_MAX_LENGTH) ? cause->length : Control_Error_MAX_LENGTH;
+    // limit of 256 bytes
+    cause->length =
+        (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
 
-    memmove(&err->ctrl.content.error.cause, cause->bytes, errLength);
-    cause->length = ((uint8_t*) &err->ctrl.content.error.cause) - cause->bytes + errLength;
+    // Shift back so we can add another header.
+    Message_shift(cause,
+                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE);
+    struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
     Headers_setPriorityAndMessageType(&err->switchHeader,
                                       Headers_getPriority(header),
-                                      MessageType_CONTROL);
+                                      Headers_SwitchHeader_TYPE_CONTROL);
+    err->ctrl.type_be = Control_ERROR_be;
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
     sendMessage(interface, cause, logger);
 }
@@ -171,7 +174,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         }
     }
 
-    if (destIndex >= core->interfaceCount || core->interfaces[destIndex].iface == NULL) {
+    if (core->interfaces[destIndex].iface == NULL) {
         DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because there is no interface "
                                               "where the bits specify.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
@@ -185,7 +188,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     // If this happens to be an Error_FLOOD packet, we will react by
     // increasing the congestion for the source interface to make flooding harder.
-    if (Headers_getMessageType(header) == MessageType_CONTROL) {
+    if (Headers_getMessageType(header) == Headers_SwitchHeader_TYPE_CONTROL) {
         struct Control* ctrl = &((struct ErrorPacket*) header)->ctrl;
         if (ctrl->type_be == Control_ERROR_be
             && ctrl->content.error.errorType_be == Endian_hostToBigEndian32(Error_FLOOD))

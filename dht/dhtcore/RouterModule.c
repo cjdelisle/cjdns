@@ -30,6 +30,7 @@
 #include "switch/LabelSplicer.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
+#include "util/Pinger.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
 

@@ -32,6 +32,9 @@
  *  8 |      Type     |                  Priority                     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
+#define Headers_SwitchHeader_TYPE_DATA 0
+#define Headers_SwitchHeader_TYPE_CONTROL 1
+
 #pragma pack(4)
 struct Headers_SwitchHeader
 {

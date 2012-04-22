@@ -9,20 +9,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-project(util C)
-cmake_minimum_required(VERSION 2.4)
 
-find_package(Libevent2 REQUIRED)
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
-
-add_library(util
-    AverageRoller.c
-    Timeout.c
-    Hex.c
-    Pinger.c
+add_library(cjdnet
+    Ducttape.c
+    SwitchPinger.c
+    SwitchPinger_admin.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
 
-# Everything must be tested.
-enable_testing()
-add_subdirectory(test)
+target_link_libraries(cjdnet
+    cjdbenc
+    crypto
+    interface
+)
+
+
+#enable_testing()
+#add_subdirectory(test)

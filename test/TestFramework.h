@@ -11,6 +11,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "dht/Ducttape.h"
+#include "net/Ducttape.h"
 
 struct Ducttape* TestFramework_setUp();

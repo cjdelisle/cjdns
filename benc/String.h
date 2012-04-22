@@ -52,6 +52,9 @@ String* String_new(const char* bytes, const struct Allocator* allocator);
  */
 String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator);
 
+#define String_clone(string, alloc) \
+    ((string) ? String_newBinary(string->bytes, string->len, alloc) : NULL)
+
 /**
  * Create a new bencoded string from a format and arguments.
  * EG: String_printf("this is on line number %d!", allocator, __LINE__);

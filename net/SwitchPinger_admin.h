@@ -11,12 +11,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MessageType_H
-#define MessageType_H
+#include "admin/Admin.h"
+#include "benc/String.h"
+#include "benc/Dict.h"
+#include "benc/Int.h"
+#include "dht/Address.h"
+#include "net/SwitchPinger.h"
+#include "util/Endian.h"
 
-#include "wire/Headers.h"
-
-#define MessageType_TRAFFIC 0
-#define MessageType_CONTROL 1
-
-#endif
+void SwitchPinger_admin_register(struct SwitchPinger* sp,
+                                 struct Admin* admin,
+                                 struct Allocator* alloc);

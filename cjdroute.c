@@ -20,7 +20,6 @@
 #include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
-#include "dht/Ducttape.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
 #include "interface/Interface.h"
@@ -37,6 +36,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
+#include "net/Ducttape.h"
 #include "switch/SwitchCore.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
@@ -649,7 +649,8 @@ int main(int argc, char** argv)
                       context.switchCore,
                       context.base,
                       context.allocator,
-                      context.logger);
+                      context.logger,
+                      context.admin);
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

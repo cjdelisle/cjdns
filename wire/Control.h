@@ -16,6 +16,13 @@
 
 #include "wire/Headers.h"
 
+/**
+ * Type one, error.
+ */
+#define Control_ERROR_be Endian_hostToBigEndian16(2)
+#define Control_Error_HEADER_SIZE 4
+#define Control_Error_MIN_SIZE (Control_Error_HEADER_SIZE + Headers_SwitchHeader_SIZE)
+#define Control_Error_MAX_SIZE 256
 struct Control_Error
 {
     /** The type of error, see Error.h */
@@ -24,8 +31,48 @@ struct Control_Error
     /** The header of the packet which caused the error. */
     struct Headers_SwitchHeader cause;
 };
-#define Control_ERROR_be Endian_hostToBigEndian16(2)
-#define Control_Error_MAX_LENGTH 256
+Assert_assertTrue(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
+
+
+/**
+ * Type two, ping.
+ */
+#define Control_PING_be Endian_hostToBigEndian16(3)
+#define Control_Ping_MIN_SIZE 4
+#define Control_Ping_MAX_SIZE 256
+struct Control_Ping
+{
+    /**
+     * Between 4 and 256 bytes of opaque data.
+     * Since a ping is inherently a message to one's self,
+     * the format is only of interest to the sender and thus undefined.
+     */
+    uint8_t data[Control_Ping_MIN_SIZE];
+};
+Assert_assertTrue(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE);
+
+
+/**
+ * Type three, pong.
+ * A pong is identical to a ping.
+ */
+#define Control_PONG_be Endian_hostToBigEndian16(4)
+#define Control_Pong_MIN_SIZE Control_Ping_MIN_SIZE
+#define Control_Pong_MAX_SIZE Control_Ping_MAX_SIZE
+
+static inline char* Control_typeString(uint16_t type_be)
+{
+    if (type_be == Control_ERROR_be) {
+        return "error";
+    } else if (type_be == Control_PING_be) {
+        return "ping";
+    } else if (type_be == Control_PONG_be) {
+        return "pong";
+    } else {
+        return "unknown";
+    }
+}
+
 
 /**
  * A return message which is treated specially by switches.
@@ -40,6 +87,7 @@ struct Control_Error
  *  8 |                                                               |
  *
  */
+#define Control_HEADER_SIZE 4
 struct Control
 {
     /**
@@ -56,9 +104,18 @@ struct Control
         /** Type one, error. */
         struct Control_Error error;
 
+        /** Type two, ping. */
+        struct Control_Ping ping;
+
+        /** Type three, pong. */
+        struct Control_Ping pong;
+
         /** The control packet content. */
         uint8_t bytes[4];
     } content;
 };
+
+// Control_Error is the largest structure and thus defines the length of the "content" union.
+Assert_assertTrue(sizeof(struct Control) == Control_HEADER_SIZE + Control_Error_MIN_SIZE);
 
 #endif

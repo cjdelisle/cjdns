@@ -53,6 +53,11 @@ else()
     )
 endif()
 
+check_c_compiler_flag(-fcatch-undefined-behavior HAS_CATCH_UNDEFINED)
+if(HAS_CATCH_UNDEFINED)
+    add_definitions(-fcatch-undefined-behavior)
+endif()
+
 # allow position independent executable to be turned off with NO_PIE cmake ..
 if(NOT "$ENV{NO_PIE}" STREQUAL "")
    set(NO_PIE TRUE)
@@ -89,7 +94,7 @@ else()
     add_definitions("-D Log_DEBUG")
 endif()
 
-#add_definitions(-O3 -funroll-loops)
+add_definitions(-O3 -funroll-loops -fomit-frame-pointer)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -109,6 +114,7 @@ add_subdirectory(memory)
 add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(contrib)
+add_subdirectory(net)
 
 add_executable(cjdroute cjdroute.c)
 target_link_libraries(cjdroute
@@ -121,6 +127,7 @@ target_link_libraries(cjdroute
     cjdbenc_JsonBencSerializer
     cjdmemory
     cjdadmin
+    cjdnet
     ${LIBEVENT2_LIBRARIES}
 )
 

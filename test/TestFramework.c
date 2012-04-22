@@ -14,13 +14,13 @@
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
-#include "dht/Ducttape.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
+#include "test/TestFramework.h"
 
 struct Ducttape* TestFramework_setUp()
 {
@@ -51,5 +51,5 @@ struct Ducttape* TestFramework_setUp()
     SerializationModule_register(registry, allocator);
 
     return Ducttape_register(NULL, privateKey, registry, routerModule,
-                             NULL, switchCore, base, allocator, logger);
+                             NULL, switchCore, base, allocator, logger, NULL);
 }

@@ -151,6 +151,34 @@ static inline void Address_print(uint8_t output[60], struct Address* addr)
     Address_printNetworkAddress(output + 40, addr);
 }
 
+/** Takes the path in host byte order. */
+static inline void Address_printPath(uint8_t out[20], uint64_t path)
+{
+    uint64_t path_be = Endian_hostToBigEndian64(path);
+    uint8_t bytes[16];
+    Hex_encode(bytes, 16, (uint8_t*) &path_be, 8);
+    out[ 0] = bytes[ 0];
+    out[ 1] = bytes[ 1];
+    out[ 2] = bytes[ 2];
+    out[ 3] = bytes[ 3];
+    out[ 4] = '.';
+    out[ 5] = bytes[ 4];
+    out[ 6] = bytes[ 5];
+    out[ 7] = bytes[ 6];
+    out[ 8] = bytes[ 7];
+    out[ 9] = '.';
+    out[10] = bytes[ 8];
+    out[11] = bytes[ 9];
+    out[12] = bytes[10];
+    out[13] = bytes[11];
+    out[14] = '.';
+    out[15] = bytes[12];
+    out[16] = bytes[13];
+    out[17] = bytes[14];
+    out[18] = bytes[15];
+    out[19] = '\0';
+}
+
 /**
  * Parse out a path.
  *
@@ -164,34 +192,35 @@ static inline int Address_parsePath(uint64_t* out, uint8_t netAddr[20])
         return -1;
     }
 
-    // Endian swapping happens here.
     uint8_t hex[16] = {
-        netAddr[18],
-        netAddr[17],
-        netAddr[16],
-        netAddr[15],
-
-        netAddr[13],
-        netAddr[12],
-        netAddr[11],
-        netAddr[10],
-
-        netAddr[ 8],
-        netAddr[ 7],
-        netAddr[ 6],
-        netAddr[ 5],
-
-        netAddr[ 3],
-        netAddr[ 2],
+        netAddr[ 0],
         netAddr[ 1],
-        netAddr[ 0]
+        netAddr[ 2],
+        netAddr[ 3],
+
+        netAddr[ 5],
+        netAddr[ 6],
+        netAddr[ 7],
+        netAddr[ 8],
+
+        netAddr[10],
+        netAddr[11],
+        netAddr[12],
+        netAddr[13],
+
+        netAddr[15],
+        netAddr[16],
+        netAddr[17],
+        netAddr[18]
     };
 
     uint8_t numberBytes[8];
     if (Hex_decode(numberBytes, 8, hex, 16) != 8) {
         return -1;
     }
-    memcpy(out, numberBytes, 8);
+    uint64_t out_be;
+    memcpy(&out_be, numberBytes, 8);
+    *out = Endian_bigEndianToHost64(out_be);
 
     return 0;
 }

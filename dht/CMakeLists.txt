@@ -22,7 +22,6 @@ add_library(dht
     DHTModuleRegistry.c
     SerializationModule.c
     ReplyModule.c
-    Ducttape.c
 )
 
 # This is needed because NACL must be built first because header files are generated.
