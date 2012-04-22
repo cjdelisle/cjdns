@@ -85,7 +85,7 @@ static void maintanenceCycle(void* vcontext)
         randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
-    struct Node* n = RouterModule_getBest(targetAddr.ip6.bytes, janitor->routerModule);
+    struct Node* n = RouterModule_lookup(targetAddr.ip6.bytes, janitor->routerModule);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || n->reach == 0) {

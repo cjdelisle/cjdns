@@ -368,7 +368,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
 
     context->switchHeader = NULL;
 
-    struct Node* bestNext = RouterModule_getBest(header->destinationAddr, context->routerModule);
+    struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
     if (bestNext) {
         context->forwardTo = &bestNext->address;
         if (!memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
@@ -444,7 +444,7 @@ static inline int core(struct Message* message, struct Ducttape* context)
     context->forwardTo = NULL;
     if (!ft) {
         struct Node* bestNext =
-            RouterModule_getBest(context->ip6Header->destinationAddr, context->routerModule);
+            RouterModule_lookup(context->ip6Header->destinationAddr, context->routerModule);
         if (bestNext) {
             ft = &bestNext->address;
         }

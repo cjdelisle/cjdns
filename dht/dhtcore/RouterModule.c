@@ -294,7 +294,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
         if (Address_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
             err = ERROR_DICT("parsing address failed");
         } else {
-            n = RouterModule_getBest(addr.ip6.bytes, router);
+            n = RouterModule_lookup(addr.ip6.bytes, router);
         }
     } else {
         err = ERROR_DICT("Unexpected length, must be either 39 char ipv6 address "
@@ -1134,14 +1134,14 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module)
 {
     Address_getPrefix(address);
     NodeStore_addNode(module->nodeStore, address, 0);
-    struct Node* best = RouterModule_getBest(address->ip6.bytes, module);
+    struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.networkAddress_be != address->networkAddress_be) {
         RouterModule_pingNode(best, module, 0, NULL);
     }
 }
 
-struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                  struct RouterModule* module)
+struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                 struct RouterModule* module)
 {
     struct Address addr;
     memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);

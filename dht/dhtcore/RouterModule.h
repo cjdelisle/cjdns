@@ -119,7 +119,7 @@ int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModul
  */
 struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 
-struct Node* RouterModule_getBest(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                  struct RouterModule* module);
+struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                 struct RouterModule* module);
 
 #endif
