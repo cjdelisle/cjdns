@@ -14,6 +14,10 @@
 #ifndef AddressMapper_H
 #define AddressMapper_H
 
+#include <assert.h>
+#include <inttypes.h>
+#include <string.h>
+
 #define AddressMapper_MAX_ENTRIES 128
 struct AddressMapper
 {
@@ -94,3 +98,4 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
 }
 
 #endif
+

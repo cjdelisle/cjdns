@@ -123,12 +123,14 @@ static void freeAllocator(const struct Allocator* allocator)
     }
 
     // Remove this allocator from the sibling list.
-    if (context->lastSibling->nextSibling == context) {
+    if (context->lastSibling != NULL &&
+        context->lastSibling->nextSibling == context) {
         context->lastSibling->nextSibling = context->nextSibling;
-    } else if (context->lastSibling->firstChild == context) {
+    } else if (context->lastSibling != NULL &&
+               context->lastSibling->firstChild == context) {
         context->lastSibling->firstChild = context->nextSibling;
-    } else {
-        failure("The last sibling of this allocator has no reference to it.");
+    } else if(context->lastSibling != NULL) {
+            failure("The last sibling of this allocator has no reference to it.");
     }
     if (context->nextSibling != NULL) {
         context->nextSibling->lastSibling = context->lastSibling;
@@ -281,7 +283,8 @@ static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
 struct Allocator* MallocAllocator_new(size_t sizeLimit)
 {
     struct FirstContext stackContext = {
-        .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit
+        .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit +
+            sizeof(struct FirstContext) + sizeof(struct Allocator)
     };
     stackContext.context.spaceAvailable = &stackContext.spaceAvailable;
 
