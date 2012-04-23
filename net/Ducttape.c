@@ -584,7 +584,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             Log_info1(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
             return Error_NONE;
         } else {
-            Log_info1(context->logger, "ctrl packet from [%s]", labelStr);
+            Log_debug1(context->logger, "ctrl packet from [%s]", labelStr);
         }
         struct Control* ctrl = (struct Control*) message->bytes;
         bool pong = false;
