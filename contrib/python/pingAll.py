@@ -35,10 +35,13 @@ while True:
 i = 0;
 responses = 0;
 for addr in addresses:
+    path = cjdns.RouterModule_lookup(addr);
+    if (len(path['result']) != 19):
+        continue;
     result = cjdns.RouterModule_pingNode(addr, 2000);
     if ('result' in result and result['result'] == 'pong'):
         responses += 1;
-    print(addr + ' - ' + str(result));
+    print(addr + '@' + path['result'] + ' - ' + str(result));
     i += 1;
 
 print(str(i) + ' total ' + str(responses) + ' respond.');
