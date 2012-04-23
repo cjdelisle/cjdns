@@ -162,13 +162,11 @@ struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
                                             String* data,
                                             uint32_t timeoutMilliseconds,
                                             SwitchPinger_ON_RESPONSE(onResponse),
-                                            struct SwitchPinger* sp)
+                                            struct SwitchPinger* ctx)
 {
     if (data && data->len > Control_Ping_MAX_SIZE) {
         return NULL;
     }
-
-    struct SwitchPinger* ctx = (struct SwitchPinger*) sp;
 
     struct Pinger_Ping* pp =
         Pinger_ping(data, onPingResponse, sendPing, timeoutMilliseconds, ctx->pinger);
