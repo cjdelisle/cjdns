@@ -244,7 +244,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
             }
             Dict* value = entry->val->as.dictionary;
 
-            Log_info1(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+            Log_keys1(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
             uint8_t buffer[256];
             struct Allocator* tmpAlloc = BufferAllocator_new(buffer, 256);

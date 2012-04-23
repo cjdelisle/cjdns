@@ -313,7 +313,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         #ifdef Log_INFO
             uint8_t printAddr[60];
             Address_print(printAddr, &addr);
-            Log_info1(ic->logger, "Adding direct peer %s.", printAddr);
+            Log_info1(ic->logger, "Adding peer [%s]", printAddr);
         #endif
         #ifdef Log_KEYS
             uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
