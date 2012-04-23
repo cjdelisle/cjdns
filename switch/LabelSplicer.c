@@ -28,7 +28,7 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
     uint64_t viaHere = Endian_bigEndianToHost64(viaHere_be);
     uint64_t log2ViaHere = Bits_log2x64(viaHere);
 
-    if (Bits_log2x64(goHere) + log2ViaHere > 61) {
+    if (Bits_log2x64(goHere) + log2ViaHere > 60) {
         // Too big, can't splice.
         return UINT64_MAX;
     }
