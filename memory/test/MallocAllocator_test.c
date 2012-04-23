@@ -26,6 +26,7 @@ int main()
 {
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
+
     assert((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
     alloc->malloc(25, alloc);
     bytesUsed += 25 + ALLOCATION_SIZE;
