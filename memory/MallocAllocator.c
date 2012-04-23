@@ -129,8 +129,8 @@ static void freeAllocator(const struct Allocator* allocator)
     } else if (context->lastSibling != NULL &&
                context->lastSibling->firstChild == context) {
         context->lastSibling->firstChild = context->nextSibling;
-    } else if(context->lastSibling != NULL) {
-            failure("The last sibling of this allocator has no reference to it.");
+    } else if (context->lastSibling != NULL) {
+        failure("The last sibling of this allocator has no reference to it.");
     }
     if (context->nextSibling != NULL) {
         context->nextSibling->lastSibling = context->lastSibling;
