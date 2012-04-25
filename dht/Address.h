@@ -294,7 +294,7 @@ static inline bool Address_routesThrough(uint64_t destination, uint64_t midPath)
     if (midPath > destination) {
         return false;
     }
-    uint64_t mask = (1 << Bits_log2x64(destination)) - 1;
+    uint64_t mask = (1 << Bits_log2x64(midPath)) - 1;
     return (destination & mask) == (midPath & mask);
 }
 
