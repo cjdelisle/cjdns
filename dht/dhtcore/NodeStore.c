@@ -369,12 +369,10 @@ void NodeStore_updateReach(const struct Node* const node,
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
         if (Address_routesThrough(dest, path)) {
-            // If we go through this node to get to the one we're updating, decrease this one.
             if (store->headers[i].reach > node->reach) {
                 store->headers[i].reach = node->reach;
             }
         } else if (Address_routesThrough(path, dest)) {
-            // If we go through the node we're updating to get to this one, increase this one.
             if (store->headers[i].reach < node->reach) {
                 store->headers[i].reach = node->reach;
             }
