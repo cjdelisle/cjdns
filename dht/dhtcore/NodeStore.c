@@ -150,7 +150,9 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
             if (store->headers[i].addressPrefix == pfx
                 && Address_isSameIp(&store->nodes[i].address, addr))
             {
-                if (LabelSplicer_routesThrough(store->nodes[i].address.path, addr->path)) {
+                if (store->nodes[i].address.path == addr->path) {
+                    // same address...
+                } else if (LabelSplicer_routesThrough(store->nodes[i].address.path, addr->path)) {
                     #ifdef Log_DEBUG
                         uint8_t nodeAddr[60];
                         Address_print(nodeAddr, &store->nodes[i].address);
