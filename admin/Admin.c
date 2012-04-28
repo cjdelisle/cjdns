@@ -84,6 +84,10 @@ static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, st
 {
     String* cookieStr = Dict_getString(message, BSTR("cookie"));
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
+    if (!cookie) {
+        int64_t* cookieInt = Dict_getInt(message, BSTR("cookie"));
+        cookie = (cookieInt) ? *cookieInt : 0;
+    }
     uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
     String* submittedHash = Dict_getString(message, BSTR("hash"));
     if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
