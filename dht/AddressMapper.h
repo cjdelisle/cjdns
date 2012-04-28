@@ -51,7 +51,7 @@ struct AddressMapper
     uint8_t canary[3];
 };
 
-//#define LL_LRU_VALIDATE
+#define LL_LRU_VALIDATE
 #ifdef LL_LRU_VALIDATE
 #include <stdio.h> /* XXX: removeme */
 
@@ -76,6 +76,7 @@ static void printLinkedList(struct AddressMapper *map)
         }
     } while(entry != map->head);
     printf("]>\n");
+    printf("total: %u\n", n);
 
     entry = map->head->prev;
 
@@ -112,18 +113,23 @@ static void validateLinkedList(struct AddressMapper* map)
 {
     uint8_t hitlist[AddressMapper_MAX_ENTRIES];
     struct AddressMapperEntry *entry;
+    unsigned int count;
 
     /* validate forwards */
 
     memset(hitlist, 0, AddressMapper_MAX_ENTRIES);
 
     entry = map->head;
+    count = 0;
 
     do {
         hitlist[Entry_indexOf(map, entry)] = 1;
 
         entry = entry->next;
+        count++;
     } while(entry != map->head);
+
+    assert(count == AddressMapper_MAX_ENTRIES);
 
     for(unsigned int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
         if(hitlist[i] == 0) {
