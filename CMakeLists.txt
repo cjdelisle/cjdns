@@ -99,7 +99,16 @@ else()
     add_definitions("-D Log_DEBUG")
 endif()
 
-add_definitions(-O3 -funroll-loops -fomit-frame-pointer)
+# vrooooooom
+add_definitions(-O3 -funroll-loops)
+
+
+if(NOT "$ENV{LTO}" STREQUAL "")
+    message("Building with link time optimization.")
+    add_definitions(-flto)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -flto -fuse-linker-plugin -fwhole-program")
+endif()
+
 
 include_directories(${CMAKE_SOURCE_DIR})
 
