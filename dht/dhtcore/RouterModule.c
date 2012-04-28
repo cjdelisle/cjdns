@@ -754,9 +754,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     // If this node has sent us any entries which are further from the target than it is,
     // garbage the whole response.
-    uint32_t targetPrefix = Address_getPrefix(&scc->targetAddress);
-    uint32_t parentDistance = Address_getPrefix(parent->address) ^ targetPrefix;
-    uint32_t ourAddressPrefix = Address_getPrefix(&module->address);
+    const uint32_t targetPrefix = Address_getPrefix(&scc->targetAddress);
+    const uint32_t parentDistance = Address_getPrefix(parent->address) ^ targetPrefix;
 
     uint64_t evictTime = evictUnrepliedIfOlderThan(module);
     for (uint32_t i = 0; i < nodes->len; i += Address_SERIALIZED_SIZE) {
@@ -765,18 +764,11 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         }
         struct Address addr;
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
-        uint32_t newNodePrefix = Address_getPrefix(&addr);
 
-        if (newNodePrefix == ourAddressPrefix
-            && memcmp(module->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE) == 0)
-        {
-            // This happens constantly.
-            //Log_debug(module->logger, "They just told us about ourselves.\n");
+        if (Address_isSameIp(&module->address, &addr)) {
+            // Any path which loops back through us is necessarily a dead route.
+            NodeStore_brokenPath(addr.path, module->nodeStore);
             continue;
-        } else if (addr.ip6.bytes[0] != 0xfc) {
-            Log_debug(module->logger, "Was told garbage.\n");
-            // This should never happen, badnode.
-            break;
         }
 
         /*#ifdef Log_DEBUG
@@ -803,6 +795,13 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         if (addr.path == UINT64_MAX) {
             Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
             continue;
+        }
+
+        uint32_t newNodePrefix = Address_getPrefix(&addr);
+        if (addr.ip6.bytes[0] != 0xfc) {
+            Log_debug(module->logger, "Was told garbage.\n");
+            // This should never happen, badnode.
+            break;
         }
 
         // Nodes we are told about are inserted with 0 reach.
