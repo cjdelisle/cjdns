@@ -134,6 +134,10 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
     switch (authType) {
         case 1:
             hashPassword_sha256(auth, password);
+            break;
+        default:
+            // Unsupported auth type.
+            abort();
     };
     return auth->secret;
 }
@@ -396,8 +400,8 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 
     // Password auth
     uint8_t* passwordHash = NULL;
+    struct CryptoAuth_Auth auth;
     if (wrapper->password != NULL) {
-        struct CryptoAuth_Auth auth;
         passwordHash = hashPassword(&auth, wrapper->password, wrapper->authType);
         memcpy(header->handshake.auth.bytes, &auth.challenge, sizeof(union Headers_AuthChallenge));
     }
