@@ -58,11 +58,6 @@ if(HAS_CATCH_UNDEFINED)
     add_definitions(-fcatch-undefined-behavior)
 endif()
 
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^i.86$")
-    message("Position independent executable on x86 is broken, disabling.")
-    set(NO_PIE TRUE)
-endif()
-
 # allow position independent executable to be turned off with NO_PIE cmake ..
 if(NOT "$ENV{NO_PIE}" STREQUAL "")
    set(NO_PIE TRUE)
