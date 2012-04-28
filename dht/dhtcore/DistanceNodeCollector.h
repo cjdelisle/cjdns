@@ -67,7 +67,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             }
             if (i == 0) {
                 reachAndPath =
-                    (header->reach << 7) | (64 - Bits_log2x64_be(body->address.networkAddress_be));
+                    (header->reach << 7) | (64 - Bits_log2x64(body->address.path));
             }
             if (nodeDistance < nodes[i].distance) {
                 // smaller distance.

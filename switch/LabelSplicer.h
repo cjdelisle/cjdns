@@ -22,7 +22,7 @@
  * Splice a label and a label fragment together.
  *
  */
-uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be);
+uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere);
 
 /**
  * Get the label for a particular destination from a given source.
@@ -30,18 +30,18 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be);
  * represented using more bits than the destination interface, the destination interface
  * must be padded out so that the switch will find the source and destination labels compatable.
  *
- * @param target_be the label for the location to send to in big endian.
- * @param whoIsAsking_be the label for the node which we are sending the target to in big endian.
- * @return the modified target for that node in big endian.
+ * @param target the label for the location to send to in host byte order.
+ * @param whoIsAsking the label for the node which we are sending the target to in host byte order.
+ * @return the modified target for that node in host byte order.
  */
-uint64_t LabelSplicer_getLabelFor(uint64_t target_be, uint64_t whoIsAsking_be);
+uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsAsking);
 
 /**
  * Determine if the node at the end of the given label is one hop away.
  *
- * @param label_be the label to test.
+ * @param label the label to test in host byte order.
  * @return true if the node is 1 hop away, false otherwise.
  */
-bool LabelSplicer_isOneHop(uint64_t label_be);
+bool LabelSplicer_isOneHop(uint64_t label);
 
 #endif

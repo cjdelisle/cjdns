@@ -46,7 +46,7 @@ struct Address
 
     uint8_t key[Address_KEY_SIZE];
 
-    uint64_t networkAddress_be;
+    uint64_t path;
 };
 #define Address_SIZE (Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
 Assert_assertTrue(sizeof(struct Address) == Address_SIZE);
@@ -74,6 +74,10 @@ static inline void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE],
                                      const struct Address* addr)
 {
     memcpy(output, addr->key, Address_SERIALIZED_SIZE);
+    if (!Endian_isBigEndian()) {
+        uint64_t path_be = Endian_hostToBigEndian64(addr->path);
+        memcpy(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
+    }
 }
 
 static inline void Address_parse(struct Address* addr,
@@ -81,6 +85,7 @@ static inline void Address_parse(struct Address* addr,
 {
     memset(addr->ip6.bytes, 0, 16);
     memcpy(addr->key, input, Address_SERIALIZED_SIZE);
+    addr->path = Endian_bigEndianToHost64(addr->path);
 }
 
 static inline bool Address_isSame(const struct Address* addr,
@@ -110,8 +115,9 @@ static inline void Address_forKey(struct Address* out, const uint8_t key[Address
 
 static inline void Address_printNetworkAddress(uint8_t output[20], struct Address* input)
 {
+    uint64_t path_be = Endian_bigEndianToHost64(input->path);
     uint8_t addr[8];
-    memcpy(addr, &input->networkAddress_be, 8);
+    memcpy(addr, &path_be, 8);
     sprintf((char*)output, "%.2x%.2x.%.2x%.2x.%.2x%.2x.%.2x%.2x",
             addr[0],
             addr[1],
@@ -268,18 +274,12 @@ static inline int Address_parseIp(uint8_t out[16], uint8_t hexAddr[40])
  */
 static inline int Address_checkRedundantRoute(struct Address* addrA, struct Address* addrB)
 {
-    if (addrA->networkAddress_be == addrB->networkAddress_be) {
-        return 0;
-    }
-    uint64_t addrANet = Endian_bigEndianToHost64(addrA->networkAddress_be);
-    uint64_t addrBNet = Endian_bigEndianToHost64(addrB->networkAddress_be);
-
-    if (addrANet > addrBNet) {
-        uint64_t mask = (1 << Bits_log2x64(addrBNet)) - 1;
-        return (addrANet & mask) == (addrBNet & mask);
+    if (addrA->path > addrB->path) {
+        uint64_t mask = (1 << Bits_log2x64(addrB->path)) - 1;
+        return (addrA->path & mask) == (addrB->path & mask);
     } else {
-        uint64_t mask = (1 << Bits_log2x64(addrANet)) - 1;
-        return -((addrANet & mask) == (addrBNet & mask));
+        uint64_t mask = (1 << Bits_log2x64(addrA->path)) - 1;
+        return -((addrA->path & mask) == (addrB->path & mask));
     }
 }
 

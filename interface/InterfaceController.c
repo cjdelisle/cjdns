@@ -301,7 +301,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
 
     struct Address addr;
     memset(&addr, 0, sizeof(struct Address));
-    if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.networkAddress_be, ic->switchCore)) {
+    if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.path, ic->switchCore)) {
         return NULL;
     }
 

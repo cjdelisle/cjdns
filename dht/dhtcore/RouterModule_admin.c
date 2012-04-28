@@ -47,7 +47,7 @@ static void lookup(Dict* args, void* vcontext, String* txid)
             result = &(String) { .bytes = (char*) closest, .len = 59 };
         } else {
             uint8_t path[20];
-            Address_printPath(path, Endian_bigEndianToHost64(n->address.networkAddress_be));
+            Address_printPath(path, n->address.path);
             result = &(String) { .bytes = (char*) path, .len = 19 };
         }
     }

@@ -286,10 +286,10 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
     struct Node* n = NULL;
 
     if (pathStr->len == 19) {
-        if (Address_parsePath(&addr.networkAddress_be, (uint8_t*) pathStr->bytes)) {
+        if (Address_parsePath(&addr.path, (uint8_t*) pathStr->bytes)) {
             err = "parse path failed";
         } else {
-            n = RouterModule_getNode(addr.networkAddress_be, router);
+            n = RouterModule_getNode(addr.path, router);
         }
     } else if (pathStr->len == 39) {
         if (Address_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
@@ -503,8 +503,8 @@ static void searchStep(struct SearchCallbackContext* scc)
     // Get the node from the nodestore because there might be a much better path to the same node.
     struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
     if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address->ip6.bytes, 16)) {
-        uint64_t nlabel = Endian_bigEndianToHost64(n->address.networkAddress_be);
-        uint64_t nsn = Endian_bigEndianToHost64(nextSearchNode->address->networkAddress_be);
+        uint64_t nlabel = n->address.path;
+        uint64_t nsn = nextSearchNode->address->path;
         if (nlabel < nsn) {
             nextSearchNode->address = &n->address;
         }
@@ -532,7 +532,7 @@ static void searchStep(struct SearchCallbackContext* scc)
 static void searchRequestTimeout(void* vcontext)
 {
     struct SearchCallbackContext* scc = (struct SearchCallbackContext*) vcontext;
-    struct Node* n = NodeStore_getNodeByNetworkAddr(scc->lastNodeCalled->address->networkAddress_be,
+    struct Node* n = NodeStore_getNodeByNetworkAddr(scc->lastNodeCalled->address->path,
                                                     scc->routerModule->nodeStore);
 
     // Search timeout -> set to 0 reach.
@@ -792,8 +792,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
-        addr.networkAddress_be = LabelSplicer_splice(addr.networkAddress_be,
-                                                     message->address->networkAddress_be);
+        addr.path = LabelSplicer_splice(addr.path, message->address->path);
 
         /*#ifdef Log_DEBUG
             uint8_t splicedAddr[60];
@@ -801,7 +800,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             Log_debug1(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
         #endif*/
 
-        if (addr.networkAddress_be == UINT64_MAX) {
+        if (addr.path == UINT64_MAX) {
             Log_debug(module->logger, "Dropping node because route could not be spliced.\n");
             continue;
         }
@@ -899,8 +898,7 @@ static inline int handleQuery(struct DHTMessage* message,
         struct Address addr;
         memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
 
-        addr.networkAddress_be = LabelSplicer_getLabelFor(addr.networkAddress_be,
-                                                          query->address->networkAddress_be);
+        addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
     }
@@ -1022,9 +1020,8 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel)
     SearchStore_freeSearch(toCancel->search);
 }
 
-int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module)
+int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
-    uint64_t path = Endian_bigEndianToHost64(networkAddress_be);
     return NodeStore_brokenPath(path, module->nodeStore);
 }
 
@@ -1042,8 +1039,8 @@ static void pingTimeoutCallback(void* vping)
             #endif
             // If this node has already been invalidated by another ping timeout then
             // it's addr is 0 and calling brokenpath on it flushes one-hop nodes out.
-            if (ping->node->address.networkAddress_be != 0) {
-                RouterModule_brokenPath(ping->node->address.networkAddress_be, module);
+            if (ping->node->address.path != 0) {
+                RouterModule_brokenPath(ping->node->address.path, module);
             }
             module->pings[i] = NULL;
             break;
@@ -1133,7 +1130,7 @@ void RouterModule_addNode(struct Address* address, struct RouterModule* module)
     Address_getPrefix(address);
     NodeStore_addNode(module->nodeStore, address, 0);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
-    if (best && best->address.networkAddress_be != address->networkAddress_be) {
+    if (best && best->address.path != address->path) {
         RouterModule_pingNode(best, module, 0, NULL);
     }
 }

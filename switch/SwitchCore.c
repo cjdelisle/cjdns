@@ -247,13 +247,13 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
 /**
  * @param trust a positive integer representing how much you trust the
  *              connected node not to send a flood.
- * @param labelOut_be a buffer which will be filled with the label part for getting
- *                    to the newly added node. It will be set to the big endian value.
+ * @param labelOut an integer pointer which will be set to the path to the newly added node
+ *                 in host endian order.
  * @return 0 if all goes well, -1 if the list is full.
  */
 int SwitchCore_addInterface(struct Interface* iface,
                             const uint64_t trust,
-                            uint64_t* labelOut_be,
+                            uint64_t* labelOut,
                             struct SwitchCore* core)
 {
     // This is some hackery to make sure the router interface is always index 1.
@@ -292,8 +292,7 @@ int SwitchCore_addInterface(struct Interface* iface,
     iface->receiveMessage = receiveMessage;
 
     uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
-    uint64_t label = NumberCompress_getCompressed(ifIndex, bits) | (1 << bits);
-    *labelOut_be = Endian_hostToBigEndian64(label);
+    *labelOut = NumberCompress_getCompressed(ifIndex, bits) | (1 << bits);
 
     core->interfaceCount++;
 

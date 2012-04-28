@@ -168,7 +168,7 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
     } else {
         memset(&header, 0, Headers_SwitchHeader_SIZE);
     }
-    header.label_be = sendTo->networkAddress_be;
+    header.label_be = Endian_hostToBigEndian64(sendTo->path);
     context->switchHeader = &header;
     struct Interface* session =
         SessionManager_getSession(sendTo->ip6.bytes, sendTo->key, context->sm);
@@ -274,7 +274,7 @@ static inline uint8_t incomingForMe(struct Message* message,
     if (isRouterTraffic(message, context->ip6Header)) {
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
-        addr.networkAddress_be = context->switchHeader->label_be;
+        addr.path = Endian_bigEndianToHost64(context->switchHeader->label_be);
         memcpy(addr.key, herPubKey, 32);
         return incomingDHT(message, &addr, context);
     }
@@ -599,7 +599,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                       labelStr,
                       Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
 
-            RouterModule_brokenPath(switchHeader->label_be, context->routerModule);
+            RouterModule_brokenPath(Endian_bigEndianToHost64(switchHeader->label_be),
+                                    context->routerModule);
 
             uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
             if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
@@ -672,9 +673,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             } else {
                 #ifdef Log_DEBUG
                     uint8_t switchAddr[20];
-                    struct Address addr;
-                    addr.networkAddress_be = switchHeader->label_be;
-                    Address_printNetworkAddress(switchAddr, &addr);
+                    Address_printPath(switchAddr, Endian_bigEndianToHost64(switchHeader->label_be));
                     Log_debug1(context->logger,
                                "Dropped traffic packet from unknown node. (%s)\n",
                                &switchAddr);

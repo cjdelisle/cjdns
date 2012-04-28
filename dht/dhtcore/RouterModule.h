@@ -113,7 +113,7 @@ int RouterModule_pingNode(struct Node* node,
                           uint32_t timeoutMilliseconds,
                           String* txid);
 
-int RouterModule_brokenPath(const uint64_t networkAddress_be, struct RouterModule* module);
+int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
 
 /**
  * Get a node from the NodeStore, see: NodeStore_getNodeByNetworkAddr() of which this is a clone.

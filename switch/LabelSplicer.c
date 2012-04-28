@@ -23,10 +23,8 @@
  * Splice a label and a label fragment together.
  *
  */
-uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
+uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere)
 {
-    uint64_t goHere = Endian_bigEndianToHost64(goHere_be);
-    uint64_t viaHere = Endian_bigEndianToHost64(viaHere_be);
     uint64_t log2ViaHere = Bits_log2x64(viaHere);
 
     if (Bits_log2x64(goHere) + log2ViaHere > 60) {
@@ -34,37 +32,22 @@ uint64_t LabelSplicer_splice(uint64_t goHere_be, uint64_t viaHere_be)
         return UINT64_MAX;
     }
 
-    return Endian_hostToBigEndian64(((goHere ^ 1) << log2ViaHere) ^ viaHere);
+    return ((goHere ^ 1) << log2ViaHere) ^ viaHere;
 }
 
-/**
- * Get the label for a particular destination from a given source.
- * This needs to be called before handing out a label because if a source interface is
- * represented using more bits than the destination interface, the destination interface
- * must be padded out so that the switch will find the source and destination labels compatable.
- *
- * @param target_be the label for the location to send to in big endian.
- * @param whoIsAsking_be the label for the node which we are sending the target to in big endian.
- * @return the modified target for that node in big endian.
- */
-uint64_t LabelSplicer_getLabelFor(uint64_t target_be, uint64_t whoIsAsking_be)
+uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsAsking)
 {
-    uint64_t target = Endian_bigEndianToHost64(target_be);
-    uint64_t whoIsAsking = Endian_bigEndianToHost64(whoIsAsking_be);
-
     uint32_t targetBits = NumberCompress_bitsUsedForLabel(target);
     uint32_t whoIsAskingBits = NumberCompress_bitsUsedForLabel(whoIsAsking);
 
     if (targetBits >= whoIsAskingBits) {
-        return target_be;
+        return target;
     }
 
     uint32_t targetIfaceNum = NumberCompress_getDecompressed(target, targetBits);
 
-    uint64_t out = ((target & (UINT64_MAX << targetBits)) << (whoIsAskingBits - targetBits))
+    return ((target & (UINT64_MAX << targetBits)) << (whoIsAskingBits - targetBits))
         | NumberCompress_getCompressed(targetIfaceNum, whoIsAskingBits);
-
-    return Endian_hostToBigEndian64(out);
 }
 
 /**

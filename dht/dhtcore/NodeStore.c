@@ -91,9 +91,8 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* ad
 
 static inline uint32_t getSwitchIndex(struct Address* addr)
 {
-    uint64_t label = Endian_bigEndianToHost64(addr->networkAddress_be);
-    uint32_t bits = NumberCompress_bitsUsedForLabel(label);
-    return NumberCompress_getDecompressed(label, bits);
+    uint32_t bits = NumberCompress_bitsUsedForLabel(addr->path);
+    return NumberCompress_getDecompressed(addr->path, bits);
 }
 
 static inline void replaceNode(struct Node* const nodeToReplace,
@@ -104,8 +103,8 @@ static inline void replaceNode(struct Node* const nodeToReplace,
     headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
     headerToReplace->switchIndex = getSwitchIndex(addr);
-    store->labelSum -= Bits_log2x64_be(nodeToReplace->address.networkAddress_be);
-    store->labelSum += Bits_log2x64_be(addr->networkAddress_be);
+    store->labelSum -= Bits_log2x64(nodeToReplace->address.path);
+    store->labelSum += Bits_log2x64(addr->path);
     assert(store->labelSum > 0);
     memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
 }
@@ -163,9 +162,9 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                    newAddr);
                     #endif
 
-                    store->nodes[i].address.networkAddress_be = addr->networkAddress_be;
+                    store->nodes[i].address.path = addr->path;
                 } else if (red == 0
-                    && store->nodes[i].address.networkAddress_be != addr->networkAddress_be)
+                    && store->nodes[i].address.path != addr->path)
                 {
                     // Completely different routes, store seperately.
                     continue;
@@ -365,9 +364,9 @@ void NodeStore_updateReach(const struct Node* const node,
                            const struct NodeStore* const store)
 {
     store->headers[node - store->nodes].reach = node->reach;
-    uint64_t path = Endian_bigEndianToHost64(node->address.networkAddress_be);
+    uint64_t path = node->address.path;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
-        uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
+        uint64_t dest = store->nodes[i].address.path;
         if (Address_routesThrough(dest, path)) {
             if (store->headers[i].reach > node->reach) {
                 store->headers[i].reach = node->reach;
@@ -392,9 +391,8 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* sto
         return (store->size > 0) ? &store->nodes[rand() % store->size] : NULL;
     }
 
-    uint64_t networkAddress_be = Endian_hostToBigEndian64(path);
     for (uint32_t i = 0; i < store->size; i++) {
-        if (networkAddress_be == store->nodes[i].address.networkAddress_be) {
+        if (path == store->nodes[i].address.path) {
             return &store->nodes[i];
         }
     }
@@ -417,15 +415,14 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
 
     // This is needed because otherwise replaceNode will cause the labelSum to skew.
-    store->nodes[store->size].address.networkAddress_be = 0;
+    store->nodes[store->size].address.path = 0;
 }
 
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
 {
     int out = 0;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
-        uint64_t dest = Endian_bigEndianToHost64(store->nodes[i].address.networkAddress_be);
-        if (Address_routesThrough(dest, path)) {
+        if (Address_routesThrough(store->nodes[i].address.path, path)) {
             store->headers[i].reach = 0;
             out++;
         }

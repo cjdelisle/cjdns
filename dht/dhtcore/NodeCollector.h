@@ -133,7 +133,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         uint64_t value = 0;
         #define NodeCollector_getValue(value, header, body, nodeDistance) \
             if (value == 0) {                                                            \
-                value = 64 - Bits_log2x64_be(body->address.networkAddress_be);           \
+                value = 64 - Bits_log2x64(body->address.path);                           \
                 value |= (uint64_t) (UINT32_MAX - nodeDistance) * header->reach * value; \
             }
 
