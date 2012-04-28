@@ -36,7 +36,7 @@ static void lookup(Dict* args, void* vcontext, String* txid)
     char* result = (char*) resultBuff;
     if (addrStr->len != 39) {
         err = "address wrong length";
-    } else if (Address_parseIp(addr, (uint8_t*) addrStr->bytes)) {
+    } else if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
         err = "failed to parse address";
     } else {
         struct Node* n = RouterModule_lookup(addr, ctx->routerModule);
@@ -45,7 +45,7 @@ static void lookup(Dict* args, void* vcontext, String* txid)
         } else if (memcmp(addr, n->address.ip6.bytes, 16)) {
             Address_print(resultBuff, &n->address);
         } else {
-            Address_printPath(resultBuff, n->address.path);
+            AddrTools_printPath(resultBuff, n->address.path);
         }
     }
     Dict response = Dict_CONST(

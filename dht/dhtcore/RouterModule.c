@@ -286,13 +286,13 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
     struct Node* n = NULL;
 
     if (pathStr->len == 19) {
-        if (Address_parsePath(&addr.path, (uint8_t*) pathStr->bytes)) {
+        if (AddrTools_parsePath(&addr.path, (uint8_t*) pathStr->bytes)) {
             err = "parse path failed";
         } else {
             n = RouterModule_getNode(addr.path, router);
         }
     } else if (pathStr->len == 39) {
-        if (Address_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
+        if (AddrTools_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
             err = "parsing address failed";
         } else {
             n = RouterModule_lookup(addr.ip6.bytes, router);

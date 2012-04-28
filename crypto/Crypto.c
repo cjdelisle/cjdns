@@ -33,7 +33,6 @@ void Crypto_init()
 /**
  * This is used by libnacl which requires us to provide it with a randombytes() function.
  */
-__attribute__((externally_visible))
 void randombytes(unsigned char* buffer,unsigned long long size) // CHECKFILES_IGNORE
 {
     evutil_secure_rng_get_bytes(buffer, size);

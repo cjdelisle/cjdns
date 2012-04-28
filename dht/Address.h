@@ -16,6 +16,7 @@
 #define Address_H
 
 #include "crypto/AddressCalc.h"
+#include "util/AddrTools.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
@@ -116,155 +117,14 @@ static inline void Address_forKey(struct Address* out, const uint8_t key[Address
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)
 {
     Address_getPrefix(addr);
-    sprintf((char*)output, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
-            addr->ip6.bytes[ 0],
-            addr->ip6.bytes[ 1],
-            addr->ip6.bytes[ 2],
-            addr->ip6.bytes[ 3],
-            addr->ip6.bytes[ 4],
-            addr->ip6.bytes[ 5],
-            addr->ip6.bytes[ 6],
-            addr->ip6.bytes[ 7],
-            addr->ip6.bytes[ 8],
-            addr->ip6.bytes[ 9],
-            addr->ip6.bytes[10],
-            addr->ip6.bytes[11],
-            addr->ip6.bytes[12],
-            addr->ip6.bytes[13],
-            addr->ip6.bytes[14],
-            addr->ip6.bytes[15]);
-}
-
-/** Takes the path in host byte order. */
-static inline void Address_printPath(uint8_t out[20], uint64_t path)
-{
-    uint64_t path_be = Endian_hostToBigEndian64(path);
-    uint8_t bytes[16];
-    Hex_encode(bytes, 16, (uint8_t*) &path_be, 8);
-    out[ 0] = bytes[ 0];
-    out[ 1] = bytes[ 1];
-    out[ 2] = bytes[ 2];
-    out[ 3] = bytes[ 3];
-    out[ 4] = '.';
-    out[ 5] = bytes[ 4];
-    out[ 6] = bytes[ 5];
-    out[ 7] = bytes[ 6];
-    out[ 8] = bytes[ 7];
-    out[ 9] = '.';
-    out[10] = bytes[ 8];
-    out[11] = bytes[ 9];
-    out[12] = bytes[10];
-    out[13] = bytes[11];
-    out[14] = '.';
-    out[15] = bytes[12];
-    out[16] = bytes[13];
-    out[17] = bytes[14];
-    out[18] = bytes[15];
-    out[19] = '\0';
+    AddrTools_printIp(output, addr->ip6.bytes);
 }
 
 static inline void Address_print(uint8_t output[60], struct Address* addr)
 {
     Address_printIp(output, addr);
     output[39] = '@';
-    Address_printPath(output + 40, addr->path);
-}
-
-/**
- * Parse out a path.
- *
- * @param out a pointer to a number which will be set to the path in HOST BYTE ORDER.
- * @param netAddr a string representation of the path such as "0000.1111.2222.3333" in Big Endian.
- * @return 0 if successful, -1 if the netAddr is malformed.
- */
-static inline int Address_parsePath(uint64_t* out, uint8_t netAddr[20])
-{
-    if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
-        return -1;
-    }
-
-    uint8_t hex[16] = {
-        netAddr[ 0],
-        netAddr[ 1],
-        netAddr[ 2],
-        netAddr[ 3],
-
-        netAddr[ 5],
-        netAddr[ 6],
-        netAddr[ 7],
-        netAddr[ 8],
-
-        netAddr[10],
-        netAddr[11],
-        netAddr[12],
-        netAddr[13],
-
-        netAddr[15],
-        netAddr[16],
-        netAddr[17],
-        netAddr[18]
-    };
-
-    uint8_t numberBytes[8];
-    if (Hex_decode(numberBytes, 8, hex, 16) != 8) {
-        return -1;
-    }
-    uint64_t out_be;
-    memcpy(&out_be, numberBytes, 8);
-    *out = Endian_bigEndianToHost64(out_be);
-
-    return 0;
-}
-
-/**
- * Parse out an address.
- *
- * @param out a pointer to a byte array which will be set to the bytes of the ipv6 address.
- * @param hexAddr a string representation of the ipv6 address such as:
- *                "fc4f:630d:e499:8f5b:c49f:6e6b:01ae:3120".
- * @return 0 if successful, -1 if the hexAddr is malformed.
- */
-static inline int Address_parseIp(uint8_t out[16], uint8_t hexAddr[40])
-{
-    for (int i = 4; i < 39; i += 5) {
-        if (hexAddr[i] != ':') {
-            return -1;
-        }
-    }
-
-    uint8_t hex[32];
-    int j = 0;
-    for (int i = 0; i < 40; i++) {
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-    }
-
-    if (Hex_decode(out, 16, hex, 32) != 16) {
-        return -1;
-    }
-
-    return 0;
-}
-
-/**
- * Detect a redundant (looping) route.
- *
- * @param addrA
- * @param addrB
- * @return 1 if addrA is a redundant version of addrB, -1 if addrB is a redundant version of
- *         addrA, 0 if neither is a redundant version of the other.
- */
-static inline int Address_checkRedundantRoute(struct Address* addrA, struct Address* addrB)
-{
-    if (addrA->path > addrB->path) {
-        uint64_t mask = (1 << Bits_log2x64(addrB->path)) - 1;
-        return (addrA->path & mask) == (addrB->path & mask);
-    } else {
-        uint64_t mask = (1 << Bits_log2x64(addrA->path)) - 1;
-        return -((addrA->path & mask) == (addrB->path & mask));
-    }
+    AddrTools_printPath(output + 40, addr->path);
 }
 
 #endif

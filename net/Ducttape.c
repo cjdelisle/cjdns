@@ -580,7 +580,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL) {
         uint8_t labelStr[20];
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        Address_printPath(labelStr, label);
+        AddrTools_printPath(labelStr, label);
         if (message->length < Control_HEADER_SIZE) {
             Log_info1(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
             return Error_NONE;
@@ -673,7 +673,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             } else {
                 #ifdef Log_DEBUG
                     uint8_t switchAddr[20];
-                    Address_printPath(switchAddr, Endian_bigEndianToHost64(switchHeader->label_be));
+                    AddrTools_printPath(switchAddr, Endian_bigEndianToHost64(switchHeader->label_be));
                     Log_debug1(context->logger,
                                "Dropped traffic packet from unknown node. (%s)\n",
                                &switchAddr);

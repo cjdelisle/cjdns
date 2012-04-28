@@ -16,6 +16,7 @@
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNInterface_struct.h"
+#include "util/AddrTools.h"
 
 #include <stdio.h>
 #include <sys/ioctl.h>
@@ -66,23 +67,7 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
 
     /* stringify our IP address */
     char myIp[40];
-    sprintf((char*)myIp, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
-               address[ 0],
-               address[ 1],
-               address[ 2],
-               address[ 3],
-               address[ 4],
-               address[ 5],
-               address[ 6],
-               address[ 7],
-               address[ 8],
-               address[ 9],
-               address[10],
-               address[11],
-               address[12],
-               address[13],
-               address[14],
-               address[15]);
+    AddrTools_printIp((uint8_t*)myIp, address);
 
     if ((prefixLen < 0) || (prefixLen > 128)) {
         fprintf(stderr, "Invalid prefix length: %i", prefixLen);

@@ -155,7 +155,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                         uint8_t nodeAddr[60];
                         Address_print(nodeAddr, &store->nodes[i].address);
                         uint8_t newAddr[20];
-                        Address_printPath(newAddr, addr->path);
+                        AddrTools_printPath(newAddr, addr->path);
                         Log_debug2(store->logger,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
@@ -472,7 +472,7 @@ static void addRoutingTableEntries(struct NodeStore* store,
 
     entry->next->val->as.number = store->headers[i].reach;
     Address_printIp(ip, &store->nodes[i].address);
-    Address_printPath(path, store->nodes[i].address.path);
+    AddrTools_printPath(path, store->nodes[i].address.path);
 
     addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }

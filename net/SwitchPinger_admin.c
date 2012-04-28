@@ -43,7 +43,7 @@ static void adminPingOnResponse(enum SwitchPinger_Result result,
     struct Ping* ping = vping;
     String* resultStr = SwitchPinger_resultString(result);
     uint8_t path[20];
-    Address_printPath(path, label);
+    AddrTools_printPath(path, label);
     String* pathStr = &(String) { .bytes = (char*) path, .len = 19 };
 
     Dict response = Dict_CONST(
@@ -71,7 +71,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     String* err = NULL;
-    if (pathStr->len != 19 || Address_parsePath(&path, (uint8_t*) pathStr->bytes)) {
+    if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         err = String_CONST("path was not parsable.");
     } else {
         struct SwitchPinger_Ping* ping =
