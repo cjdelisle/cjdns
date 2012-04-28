@@ -244,10 +244,9 @@ static int genconf()
     return 0;
 }
 
-#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
 static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateKey[32])
 {
-    String* privateKeyStr = Dict_getString(config, BSTR("privateKey"));
+    String* privateKeyStr = Dict_getString(config, String_CONST("privateKey"));
     if (privateKeyStr == NULL) {
         fprintf(stderr, "Could not extract private key from configuration.\n");
     } else if (privateKeyStr->len != 64) {
@@ -309,11 +308,11 @@ static int getcmds(Dict* config)
     uint8_t myIp[40];
     Address_printIp(myIp, &addr);
 
-    Dict* router = Dict_getDict(config, BSTR("router"));
-    Dict* iface = Dict_getDict(router, BSTR("interface"));
-    String* type = Dict_getString(iface, BSTR("type"));
-    String* tunDevice = Dict_getString(iface, BSTR("tunDevice"));
-    if (!String_equals(type, BSTR("TUNInterface"))) {
+    Dict* router = Dict_getDict(config, String_CONST("router"));
+    Dict* iface = Dict_getDict(router, String_CONST("interface"));
+    String* type = Dict_getString(iface, String_CONST("type"));
+    String* tunDevice = Dict_getString(iface, String_CONST("tunDevice"));
+    if (!String_equals(type, String_CONST("TUNInterface"))) {
         fprintf(stderr, "router.interface.type is not recognized.\n");
         return -1;
     }
@@ -364,9 +363,9 @@ static void reconf(struct Context* ctx, Dict* mainConf)
 
 static void registerRouter(Dict* config, struct Address *addr, struct Context* context)
 {
-    Dict* iface = Dict_getDict(config, BSTR("interface"));
-    if (String_equals(Dict_getString(iface, BSTR("type")), BSTR("TUNInterface"))) {
-        String* tunPath = Dict_getString(iface, BSTR("tunDevice"));
+    Dict* iface = Dict_getDict(config, String_CONST("interface"));
+    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
+        String* tunPath = Dict_getString(iface, String_CONST("tunDevice"));
         struct TUNInterface* tun = TUNInterface_new(tunPath, context->base, context->allocator);
         if (TUNConfigurator_configure(tun, addr->ip6.bytes, 8) != 0) {
             fprintf(stderr, "Couldn't configure TUN interface\n");
@@ -388,7 +387,7 @@ static char* setUser(List* config)
     for (int i = 0; i < List_size(config); i++) {
         Dict* d = List_getDict(config, i);
         if (d) {
-            String* uname = Dict_getString(d, BSTR("setuser"));
+            String* uname = Dict_getString(d, String_CONST("setuser"));
             if (uname) {
                 return uname->bytes;
             }
@@ -405,7 +404,7 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
     bool nofiles = false;
     for (int i = 0; i < List_size(config); i++) {
         String* s = List_getString(config, i);
-        if (s && String_equals(s, BSTR("nofiles"))) {
+        if (s && String_equals(s, String_CONST("nofiles"))) {
             nofiles = true;
         }
     }
@@ -425,7 +424,7 @@ static void adminPing(Dict* input, void* vadmin, String* txid)
     uint8_t buffer[256];
     struct Allocator* alloc = BufferAllocator_new(buffer, 256);
 
-    String* pong = BSTR("pong");
+    String* pong = String_CONST("pong");
     Dict* d = Dict_new(alloc);
     Dict_putString(d, CJDHTConstants_QUERY, pong, alloc);
 
@@ -438,7 +437,7 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
     uint8_t buffer[256];
     struct Allocator* alloc = BufferAllocator_new(buffer, 256);
 
-    String* bytes = BSTR("bytes");
+    String* bytes = String_CONST("bytes");
     Dict* d = Dict_new(alloc);
     Dict_putInt(d, bytes, MallocAllocator_bytesAllocated(context->allocator), alloc);
 
@@ -491,7 +490,7 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
 
 static void pidfile(Dict* config)
 {
-    String* pidFile = Dict_getString(config, BSTR("pidFile"));
+    String* pidFile = Dict_getString(config, String_CONST("pidFile"));
     if (pidFile) {
         printf("%s", pidFile->bytes);
     }
@@ -576,7 +575,7 @@ int main(int argc, char** argv)
         CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
 
     // Admin
-    char* user = setUser(Dict_getList(&config, BSTR("security")));
+    char* user = setUser(Dict_getList(&config, String_CONST("security")));
     admin(&config, user, &logger, &context);
 
     context.eHandler = AbortHandler_INSTANCE;
@@ -585,7 +584,7 @@ int main(int argc, char** argv)
     ReplyModule_register(context.registry, context.allocator);
 
     // Router
-    Dict* routerConf = Dict_getDict(&config, BSTR("router"));
+    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
     registerRouter(routerConf, &myAddr, &context);
 
     SerializationModule_register(context.registry, context.allocator);
@@ -599,11 +598,11 @@ int main(int argc, char** argv)
                                 context.base,
                                 context.allocator);
 
-    Dict* interfaces = Dict_getDict(&config, BSTR("interfaces"));
+    Dict* interfaces = Dict_getDict(&config, String_CONST("interfaces"));
 
-    Dict* udpConf = Dict_getDict(interfaces, BSTR("UDPInterface"));
+    Dict* udpConf = Dict_getDict(interfaces, String_CONST("UDPInterface"));
     if (udpConf) {
-        String* bindStr = Dict_getString(udpConf, BSTR("bind"));
+        String* bindStr = Dict_getString(udpConf, String_CONST("bind"));
         UDPInterface_new(context.base,
                          (bindStr) ? bindStr->bytes : NULL,
                          context.allocator,
@@ -619,7 +618,7 @@ int main(int argc, char** argv)
     }
 
     // pid file
-    String* pidFile = Dict_getString(&config, BSTR("pidFile"));
+    String* pidFile = Dict_getString(&config, String_CONST("pidFile"));
     if (pidFile) {
         Log_info1(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
         FILE* pf = fopen(pidFile->bytes, "w");
@@ -665,7 +664,7 @@ int main(int argc, char** argv)
     Log_info1(context.logger, "Your IPv6 address is: %s\n", myIp);
 
     // Security.
-    security(Dict_getList(&config, BSTR("security")), context.logger, context.eHandler);
+    security(Dict_getList(&config, String_CONST("security")), context.logger, context.eHandler);
 
     event_base_loop(context.base, 0);
 abort();

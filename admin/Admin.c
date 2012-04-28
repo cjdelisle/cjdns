@@ -43,15 +43,13 @@
 
 #define MAX_API_REQUEST_SIZE (1<<16)
 
-#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
-
-static String* TYPE =     &(String) { .bytes = "type",     .len = 4 };
-static String* REQUIRED = &(String) { .bytes = "required", .len = 8 };
-static String* STRING =   &(String) { .bytes = "String",   .len = 6 };
-static String* INT =      &(String) { .bytes = "Int",      .len = 3 };
-static String* DICT =     &(String) { .bytes = "Dict",     .len = 4 };
-static String* LIST =     &(String) { .bytes = "List",     .len = 4 };
-static String* NONE =     &(String) { .bytes = "none",     .len = 4 };
+static String* TYPE =     String_CONST_SO("type");
+static String* REQUIRED = String_CONST_SO("required");
+static String* STRING =   String_CONST_SO("String");
+static String* INT =      String_CONST_SO("Int");
+static String* DICT =     String_CONST_SO("Dict");
+static String* LIST =     String_CONST_SO("List");
+static String* NONE =     String_CONST_SO("none");
 
 struct Function
 {
@@ -82,14 +80,14 @@ struct Admin
 
 static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, struct Admin* admin)
 {
-    String* cookieStr = Dict_getString(message, BSTR("cookie"));
+    String* cookieStr = Dict_getString(message, String_CONST("cookie"));
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
     if (!cookie) {
-        int64_t* cookieInt = Dict_getInt(message, BSTR("cookie"));
+        int64_t* cookieInt = Dict_getInt(message, String_CONST("cookie"));
         cookie = (cookieInt) ? *cookieInt : 0;
     }
     uint64_t nowSecs = Time_currentTimeSeconds(admin->eventBase);
-    String* submittedHash = Dict_getString(message, BSTR("hash"));
+    String* submittedHash = Dict_getString(message, String_CONST("hash"));
     if (cookie >  nowSecs || cookie < nowSecs - 20 || !submittedHash || submittedHash->len != 64) {
         return false;
     }
@@ -174,7 +172,7 @@ static void handleRequestFromChild(struct Admin* admin,
     }
 
     // If they're asking for a cookie then lets give them one.
-    String* cookie = BSTR("cookie");
+    String* cookie = String_CONST("cookie");
     if (String_equals(query, cookie)) {
         Dict* d = Dict_new(allocator);
         char bytes[32];
@@ -186,16 +184,16 @@ static void handleRequestFromChild(struct Admin* admin,
     }
 
     // If this is a permitted query, make sure the cookie is right.
-    String* auth = BSTR("auth");
+    String* auth = String_CONST("auth");
     bool authed = false;
     if (String_equals(query, auth)) {
         if (!authValid(&message, buffer + skip, reader->bytesRead(reader), admin)) {
             Dict* d = Dict_new(allocator);
-            Dict_putString(d, BSTR("error"), BSTR("Auth failed."), allocator);
+            Dict_putString(d, String_CONST("error"), String_CONST("Auth failed."), allocator);
             Admin_sendMessage(d, txid, admin);
             return;
         }
-        query = Dict_getString(&message, BSTR("aq"));
+        query = Dict_getString(&message, String_CONST("aq"));
         authed = true;
     }
 
@@ -214,13 +212,16 @@ static void handleRequestFromChild(struct Admin* admin,
 
     if (noFunctionsCalled) {
         Dict* d = Dict_new(allocator);
-        Dict_putString(d, BSTR("error"), BSTR("No functions matched your request."), allocator);
+        Dict_putString(d,
+                       String_CONST("error"),
+                       String_CONST("No functions matched your request."),
+                       allocator);
         Dict* functions = Dict_new(allocator);
         for (int i = 0; i < admin->functionCount; i++) {
             Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, allocator);
         }
         if (functions) {
-            Dict_putDict(d, BSTR("availableFunctions"), functions, allocator);
+            Dict_putDict(d, String_CONST("availableFunctions"), functions, allocator);
         }
         Admin_sendMessage(d, txid, admin);
         return;

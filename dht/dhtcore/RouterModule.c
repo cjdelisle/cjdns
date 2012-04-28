@@ -272,11 +272,11 @@ struct RouterModule_Ping
     struct Allocator* allocator;
 };
 
-#define BSTR(x) (&(String) { .bytes = x, .len = strlen(x) })
+
 static void pingNode(Dict* args, void* vrouter, String* txid)
 {
     struct RouterModule* router = (struct RouterModule*) vrouter;
-    String* pathStr = Dict_getString(args, BSTR("path"));
+    String* pathStr = Dict_getString(args, String_CONST("path"));
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
