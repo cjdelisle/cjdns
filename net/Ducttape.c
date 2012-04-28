@@ -374,7 +374,6 @@ static inline uint8_t ip6FromTun(struct Message* message,
         context->forwardTo = &bestNext->address;
         if (!memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
             // Direct send, skip the innermost layer of encryption.
-            header->hopLimit = 0;
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
                 Address_print(nhAddr, &bestNext->address);
@@ -409,14 +408,6 @@ static inline int core(struct Message* message, struct Ducttape* context)
 {
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
-    // Do this here and check for 1 hop, not 0 because we want to differentiate between single
-    // hop traffic and routed traffic as single hop traffic doesn't need 2 layers of crypto.
-    if (context->ip6Header->hopLimit == 1) {
-        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
-        // TODO: send back an error message in response.
-        return Error_UNDELIVERABLE;
-    }
-
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
@@ -436,8 +427,9 @@ static inline int core(struct Message* message, struct Ducttape* context)
     }
 
     if (context->ip6Header->hopLimit == 0) {
-        Log_debug(context->logger, "0 hop message not addressed to us, broken route.\n");
-        return 0;
+        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        // TODO: send back an error message in response.
+        return Error_UNDELIVERABLE;
     }
     context->ip6Header->hopLimit--;
 
