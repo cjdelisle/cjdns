@@ -19,11 +19,13 @@ if (len(sys.argv) < 4):
 
 cjdns = cjdns_connect(sys.argv[1], int(sys.argv[2]), sys.argv[3]);
 addresses = {};
+allRoutes = [];
 
 i = 0;
 while True:
     table = cjdns.NodeStore_dumpTable(i);
     routes = table['routingTable'];
+    allRoutes += routes;
     for entry in routes:
         if (entry['link'] != 0):
             addresses[entry['ip']] = entry['path'];
@@ -35,6 +37,8 @@ while True:
 i = 0;
 responses = 0;
 for addr in addresses:
+    if (len(sys.argv) > 4 and addr != sys.argv[4]):
+        continue;
     path = cjdns.RouterModule_lookup(addr);
     if (len(path['result']) != 19):
         continue;
@@ -42,6 +46,9 @@ for addr in addresses:
     if ('result' in result and result['result'] == 'pong'):
         responses += 1;
     print(addr + '@' + path['result'] + ' - ' + str(result));
+    for entry in allRoutes:
+        if (entry['ip'] == addr):
+            print(entry['path'] + '  ' + str(entry['link']));
     i += 1;
 
 print(str(i) + ' total ' + str(responses) + ' respond.');
