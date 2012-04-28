@@ -19,18 +19,135 @@
 #include <inttypes.h>
 #include <string.h>
 
+/** Address mapper doubly linked list LRU.
+ * The most recently used item is on the head.
+ * The least recently used item is on the tail.
+ *
+ * When an item is used, it is relocated to the head. Searching from the
+ * head therefore means items will be checked in most-recently-used order.
+ *
+ * When inserting a new item, the item to replace - the least-recently-used item - is simply the tail.
+ * Then the tail is made the head, because it is the most recently used item.
+ */
+struct AddressMapperEntry
+{
+    uint64_t label;
+    uint8_t address[16];
+    struct AddressMapperEntry *next;
+    struct AddressMapperEntry *prev;
+};
+
+/* macro gets the index of a linked list entry (with respect to the
+ * start of the element array)
+ */
+#define Entry_indexOf(map, entry) ((entry) - &(map)->entries[0])
+
 #define AddressMapper_MAX_ENTRIES 128
 struct AddressMapper
 {
-    uint64_t labels[AddressMapper_MAX_ENTRIES];
-    uint8_t addresses[AddressMapper_MAX_ENTRIES][16];
+    struct AddressMapperEntry entries[AddressMapper_MAX_ENTRIES];
+    struct AddressMapperEntry *head;
     uint8_t accessNumber;
     uint8_t canary[3];
 };
 
+#ifdef LL_LRU_VALIDATE
+#include <stdio.h> /* XXX: removeme */
+
+#define validate() validateLinkedList(map)
+
+static void validateError(unsigned int idx)
+{
+    fprintf(stderr, "Validation error: %u\n", idx);
+}
+
+static void validateLinkedList(struct AddressMapper* map)
+{
+    uint8_t hitlist[AddressMapper_MAX_ENTRIES];
+    struct AddressMapperEntry *entry;
+
+    memset(hitlist, 0, AddressMapper_MAX_ENTRIES);
+
+    entry = map->head;
+
+    do {
+        hitlist[Entry_indexOf(map, entry)] = 1;
+
+        entry = entry->next;
+    } while(entry != map->head);
+
+    for(unsigned int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
+        if(hitlist[i] == 0) {
+            validateError(i);
+        }
+    }
+}
+#else
+#define validate()
+#endif
+
+#if 0
+static void printLinkedList(struct AddressMapper *map)
+{
+    unsigned int entryList[AddressMapper_MAX_ENTRIES];
+    struct AddressMapperEntry *entry;
+    unsigned int n = 0;
+
+    entry = map->head;
+
+    do {
+           entryList[n] = Entry_indexOf(map, entry);
+        n++;
+        entry = entry->next;
+    } while(entry != map->head);
+
+    printf("[");
+    for(unsigned int i = 0; i < n; i++) {
+        printf("%u", entryList[i]);
+        if(i < (n - 1)) {
+            printf(", ");
+        }
+    }
+    printf("]\n");
+}
+#endif
+
 static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
 {
-    return allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
+    struct AddressMapper* map;
+
+    map = allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
+
+    /* initialise the doubly linked list */
+
+    map->entries[0].prev = &map->entries[AddressMapper_MAX_ENTRIES - 1];
+    map->entries[0].next = &map->entries[1];
+
+    int i;
+    for(i = 1; i < AddressMapper_MAX_ENTRIES - 1; i++) {
+        map->entries[i].prev = &map->entries[i - 1];
+        map->entries[i].next = &map->entries[i + 1];
+    }
+
+    map->entries[AddressMapper_MAX_ENTRIES - 1].prev = &map->entries[AddressMapper_MAX_ENTRIES - 2];
+    map->entries[AddressMapper_MAX_ENTRIES - 1].next = &map->entries[0];
+
+    /* set the initial head */
+    map->head = &map->entries[0];
+
+    validate();
+
+    return map;
+}
+
+static inline void Entry_detach(struct AddressMapperEntry *entry, struct AddressMapper *map)
+{
+        /* detach entry */
+        entry->prev->next = entry->next;
+        entry->next->prev = entry->prev;
+        if(entry == map->head) {
+            map->head = map->head->next;
+        }
 }
 
 /**
@@ -39,24 +156,28 @@ static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocato
  */
 static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
 {
-    for (uint32_t i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
-        if (map->labels[i] == 0L) {
-            break;
-        } else if (map->labels[i] == label) {
-            if (!(map->accessNumber % 8) && i > 0) {
-                map->labels[i] = map->labels[i - 1];
-                map->labels[i - 1] = label;
-                uint8_t address[16];
-                memcpy(address, map->addresses[i], 16);
-                memcpy(map->addresses[i], map->addresses[i - 1], 16);
-                memcpy(map->addresses[i - 1], address, 16);
-                i--;
-            }
-            assert(!memcmp(map->canary, "\0\0\0", 3));
-            map->accessNumber++;
-            return i;
+    struct AddressMapperEntry* entry;
+
+    /* search from head to tail */
+    entry = &map->head[0];
+
+    do {
+        if(entry->label == label) {
+            Entry_detach(entry, map);
+
+            /* move to head */
+            entry->prev = map->head->prev;
+            entry->next = map->head;
+            map->head->prev->next = entry;
+            map->head = entry;
+
+            validate();
+            return Entry_indexOf(map, entry);
         }
-    }
+        entry = entry->next;
+    } while(entry != map->head);
+
+    validate();
     return -1;
 }
 
@@ -67,35 +188,41 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
  */
 static inline int AddressMapper_remove(int index, struct AddressMapper* map)
 {
-    if (index >= 0 && index < AddressMapper_MAX_ENTRIES) {
-        for (int i = index + 1; i < AddressMapper_MAX_ENTRIES; i++) {
-            if (map->labels[i] == 0L) {
-                i--;
-                memcpy(map->addresses[index], map->addresses[i], 16);
-                map->labels[index] = map->labels[i];
-                map->labels[i] = 0L;
-                assert(!memcmp(map->canary, "\0\0\0", 3));
-                return 0;
-            }
-        }
-        map->labels[index] = 0;
+    if((index >= 0) && (index < AddressMapper_MAX_ENTRIES)) {
+        struct AddressMapperEntry* entry;
+
+        entry = &map->entries[index];
+        Entry_detach(entry, map);
+
+        /* move to tail */
+        entry->next = map->head;
+        entry->prev = map->head->prev;
+        map->head->prev->next = entry;
+        map->head->prev = entry;
+
+        /* invalidate the entry */
+        entry->label = 0L;
+
+        validate();
         return 0;
     }
+
+    validate();
     return -1;
 }
 
 static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
 {
-    int i;
-    for (i = 0; i < AddressMapper_MAX_ENTRIES - 1; i++) {
-        if (map->labels[i] == 0L || map->labels[i] == label) {
-            break;
-        }
-    }
-    memcpy(map->addresses[i], address, 16);
-    map->labels[i] = label;
+    struct AddressMapperEntry *tail;
+
+    tail = map->head->prev;
+    memcpy(tail->address, address, 16);
+    tail->label = label;
+    map->head = tail;
+
     assert(!memcmp(map->canary, "\0\0\0", 3));
-    return i;
+    validate();
+    return Entry_indexOf(map, tail);
 }
 
 #endif

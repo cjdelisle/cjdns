@@ -684,7 +684,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     // If the source address is the same as the router address, no third layer of crypto.
-    context->routerAddress = context->addrMap.addresses[herAddrIndex];
+    context->routerAddress = context->addrMap.entries[herAddrIndex].address;
 
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
