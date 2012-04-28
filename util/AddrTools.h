@@ -100,11 +100,46 @@ static inline void AddrTools_printIp(uint8_t output[40], uint8_t binIp[16])
     uint8_t hex[32];
     Hex_encode(hex, 32, binIp, 16);
 
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 4; j++) {
-            output[(i * j) + j] = hex[i * j];
-        }
-    }
+    output[ 0] = hex[ 0];
+    output[ 1] = hex[ 1];
+    output[ 2] = hex[ 2];
+    output[ 3] = hex[ 3];
+    output[ 4] = ':';
+    output[ 5] = hex[ 4];
+    output[ 6] = hex[ 5];
+    output[ 7] = hex[ 6];
+    output[ 8] = hex[ 7];
+    output[ 9] = ':';
+    output[10] = hex[ 8];
+    output[11] = hex[ 9];
+    output[12] = hex[10];
+    output[13] = hex[11];
+    output[14] = ':';
+    output[15] = hex[12];
+    output[16] = hex[13];
+    output[17] = hex[14];
+    output[18] = hex[15];
+    output[19] = ':';
+    output[20] = hex[16];
+    output[21] = hex[17];
+    output[22] = hex[18];
+    output[23] = hex[19];
+    output[24] = ':';
+    output[25] = hex[20];
+    output[26] = hex[21];
+    output[27] = hex[22];
+    output[28] = hex[23];
+    output[29] = ':';
+    output[30] = hex[24];
+    output[31] = hex[25];
+    output[32] = hex[26];
+    output[33] = hex[27];
+    output[34] = ':';
+    output[35] = hex[28];
+    output[36] = hex[29];
+    output[37] = hex[30];
+    output[38] = hex[31];
+    output[39] = '\0';
 }
 
 /**
