@@ -280,39 +280,40 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
 
-    #define ERROR_DICT(x) Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(x)), NULL)
-    Dict err = NULL;
+    char* err = NULL;
+
     struct Address addr;
     struct Node* n = NULL;
 
     if (pathStr->len == 19) {
         if (Address_parsePath(&addr.networkAddress_be, (uint8_t*) pathStr->bytes)) {
-            err = ERROR_DICT("parse path failed");
+            err = "parse path failed";
         } else {
             n = RouterModule_getNode(addr.networkAddress_be, router);
         }
     } else if (pathStr->len == 39) {
         if (Address_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
-            err = ERROR_DICT("parsing address failed");
+            err = "parsing address failed";
         } else {
             n = RouterModule_lookup(addr.ip6.bytes, router);
         }
     } else {
-        err = ERROR_DICT("Unexpected length, must be either 39 char ipv6 address "
-                         "(with leading zeros) eg: 'fc4f:000d:e499:8f5b:c49f:6e6b:01ae:3120' "
-                         "or 19 char path eg: '0123.4567.89ab.cdef'");
+        err = "Unexpected length, must be either 39 char ipv6 address (with leading zeros) "
+              "eg: 'fc4f:000d:e499:8f5b:c49f:6e6b:01ae:3120' or 19 char path eg: "
+              "'0123.4567.89ab.cdef'";
     }
 
     if (!err) {
         if (!n || memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
-            err = ERROR_DICT("could not find node to ping");
+            err = "could not find node to ping";
         } else if (RouterModule_pingNode(n, router, timeout, txid)) {
-            err = ERROR_DICT("no open slots to store ping, try later.");
+            err = "no open slots to store ping, try later.";
         }
     }
 
     if (err) {
-        Admin_sendMessage(&err, txid, router->admin);
+        Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
+        Admin_sendMessage(&errDict, txid, router->admin);
     }
 }
 
@@ -628,24 +629,20 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
                                 String* versionBin,
                                 struct RouterModule* module)
 {
-    Dict versionDict = NULL;
-    String* result = String_CONST("timeout");
-    if (!timeout) {
-        String* version = String_CONST("old");
-        result = String_CONST("pong");
-        versionDict = Dict_CONST(String_CONST("version"), String_OBJ(version), NULL);
-        if (versionBin && versionBin->len == 20) {
-            uint8_t versionStr[40];
-            Hex_encode(versionStr, 40, (uint8_t*) versionBin->bytes, 20);
-            version->bytes = (char*) versionStr;
-            version->len = 40;
-        }
+    String* result = (timeout) ? String_CONST("timeout") : String_CONST("pong");
+    uint8_t versionStr[40] = "old";
+    String* version = String_CONST((char*)versionStr);
+
+    if (!timeout && versionBin && versionBin->len == 20) {
+        Hex_encode(versionStr, 40, (uint8_t*) versionBin->bytes, 20);
+        version->len = 40;
     }
 
     Dict response = Dict_CONST(
         String_CONST("ms"), Int_OBJ(lag), Dict_CONST(
-        String_CONST("result"), String_OBJ(result), versionDict
-    ));
+        String_CONST("result"), String_OBJ(result), Dict_CONST(
+        String_CONST("version"), String_OBJ(version), NULL
+    )));
 
     String txid = { .len = 4, .bytes = (char*)ping->txid };
     Admin_sendMessage(&response, &txid, module->admin);
