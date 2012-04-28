@@ -17,6 +17,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 static void splice()
 {
@@ -31,7 +32,8 @@ static void splice()
 
     uint64_t out = LabelSplicer_splice(goHere, viaHere);
 
-    printf("Splicing %lu with %lu yields %lu, expecting %lu\n", goHere, viaHere, out, expected);
+    printf("Splicing %" PRIu64 " with %" PRIu64 " yields %" PRIu64 ", expecting %" PRIu64 "\n",
+           goHere, viaHere, out, expected);
 
     assert(expected == out);
 }
