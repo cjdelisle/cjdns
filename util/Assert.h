@@ -12,16 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Assert_H
-#define Assert_H
 
 /**
  * Prevent compilation if assertion is false.
  * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
  */
-#define Assert_UNIQUE_NAME Assert_MAKE_NAME(__LINE__)
-#define Assert_MAKE_NAME(x) Assert_MAKE_NAME2(x)
-#define Assert_MAKE_NAME2(x) Assert_testStruct_ ## x
-#define Assert_assertTrue(isTrue) struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
-
+#ifdef Assert_COUNTER
+    #define Assert_COUNTER2 Assert_COUNTER
+    #undef Assert_COUNTER
+    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
+#else
+    #define Assert_COUNTER x
+    #define Assert_UNIQUE_NAME Assert_MAKE_NAME(Assert_COUNTER, __LINE__)
+    #define Assert_MAKE_NAME(x, y) Assert_MAKE_NAME2(x, y)
+    #define Assert_MAKE_NAME2(x, y) Assert_testStruct_ ## x ## y
+    #define Assert_GLUE(x, y) x ## y
+    #define Assert_assertTrue(isTrue) \
+        struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
 #endif
