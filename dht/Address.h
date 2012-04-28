@@ -113,22 +113,6 @@ static inline void Address_forKey(struct Address* out, const uint8_t key[Address
     AddressCalc_addressForPublicKey(out->ip6.bytes, key);
 }
 
-static inline void Address_printNetworkAddress(uint8_t output[20], struct Address* input)
-{
-    uint64_t path_be = Endian_bigEndianToHost64(input->path);
-    uint8_t addr[8];
-    memcpy(addr, &path_be, 8);
-    sprintf((char*)output, "%.2x%.2x.%.2x%.2x.%.2x%.2x.%.2x%.2x",
-            addr[0],
-            addr[1],
-            addr[2],
-            addr[3],
-            addr[4],
-            addr[5],
-            addr[6],
-            addr[7]);
-}
-
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)
 {
     Address_getPrefix(addr);
@@ -149,13 +133,6 @@ static inline void Address_printIp(uint8_t output[40], struct Address* addr)
             addr->ip6.bytes[13],
             addr->ip6.bytes[14],
             addr->ip6.bytes[15]);
-}
-
-static inline void Address_print(uint8_t output[60], struct Address* addr)
-{
-    Address_printIp(output, addr);
-    output[39] = '@';
-    Address_printNetworkAddress(output + 40, addr);
 }
 
 /** Takes the path in host byte order. */
@@ -184,6 +161,13 @@ static inline void Address_printPath(uint8_t out[20], uint64_t path)
     out[17] = bytes[14];
     out[18] = bytes[15];
     out[19] = '\0';
+}
+
+static inline void Address_print(uint8_t output[60], struct Address* addr)
+{
+    Address_printIp(output, addr);
+    output[39] = '@';
+    Address_printPath(output + 40, addr->path);
 }
 
 /**
@@ -281,22 +265,6 @@ static inline int Address_checkRedundantRoute(struct Address* addrA, struct Addr
         uint64_t mask = (1 << Bits_log2x64(addrA->path)) - 1;
         return -((addrA->path & mask) == (addrB->path & mask));
     }
-}
-
-/**
- * Determine if the route to one node passes through another node.
- *
- * @param destination the node to route to.
- * @param midPath the node which might be in the middle of the route.
- * @return true if midPath is in the middle of the route to destination.
- */
-static inline bool Address_routesThrough(uint64_t destination, uint64_t midPath)
-{
-    if (midPath > destination) {
-        return false;
-    }
-    uint64_t mask = (1 << Bits_log2x64(midPath)) - 1;
-    return (destination & mask) == (midPath & mask);
 }
 
 #endif

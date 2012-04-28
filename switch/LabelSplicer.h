@@ -15,14 +15,29 @@
 #ifndef LabelSplicer_H
 #define LabelSplicer_H
 
+#include "switch/NumberCompress.h"
+#include "util/Bits.h"
+#include "util/Endian.h"
+
 #include <stdint.h>
 #include <stdbool.h>
+
 
 /**
  * Splice a label and a label fragment together.
  *
  */
-uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere);
+static inline uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere)
+{
+    uint64_t log2ViaHere = Bits_log2x64(viaHere);
+
+    if (Bits_log2x64(goHere) + log2ViaHere > 60) {
+        // Too big, can't splice.
+        return UINT64_MAX;
+    }
+
+    return ((goHere ^ 1) << log2ViaHere) ^ viaHere;
+}
 
 /**
  * Get the label for a particular destination from a given source.
@@ -34,7 +49,20 @@ uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere);
  * @param whoIsAsking the label for the node which we are sending the target to in host byte order.
  * @return the modified target for that node in host byte order.
  */
-uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsAsking);
+static inline uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsAsking)
+{
+    uint32_t targetBits = NumberCompress_bitsUsedForLabel(target);
+    uint32_t whoIsAskingBits = NumberCompress_bitsUsedForLabel(whoIsAsking);
+
+    if (targetBits >= whoIsAskingBits) {
+        return target;
+    }
+
+    uint32_t targetIfaceNum = NumberCompress_getDecompressed(target, targetBits);
+
+    return ((target & (UINT64_MAX << targetBits)) << (whoIsAskingBits - targetBits))
+        | NumberCompress_getCompressed(targetIfaceNum, whoIsAskingBits);
+}
 
 /**
  * Determine if the node at the end of the given label is one hop away.
@@ -42,6 +70,26 @@ uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsAsking);
  * @param label the label to test in host byte order.
  * @return true if the node is 1 hop away, false otherwise.
  */
-bool LabelSplicer_isOneHop(uint64_t label);
+static inline bool LabelSplicer_isOneHop(uint64_t label_be)
+{
+    uint64_t label = Endian_bigEndianToHost64(label_be);
+    return (int)NumberCompress_bitsUsedForLabel(label) == Bits_log2x64(label);
+}
+
+/**
+ * Determine if the route to one node passes through another node.
+ *
+ * @param destination the node to route to.
+ * @param midPath the node which might be in the middle of the route.
+ * @return true if midPath is in the middle of the route to destination.
+ */
+static inline bool LabelSplicer_routesThrough(uint64_t destination, uint64_t midPath)
+{
+    if (midPath > destination) {
+        return false;
+    }
+    uint64_t mask = (1 << Bits_log2x64(midPath)) - 1;
+    return (destination & mask) == (midPath & mask);
+}
 
 #endif

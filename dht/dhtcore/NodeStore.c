@@ -30,6 +30,7 @@
 #include "dht/dhtcore/NodeList.h"
 #include "util/Log.h"
 #include "switch/NumberCompress.h"
+#include "switch/LabelSplicer.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -149,13 +150,12 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
             if (store->headers[i].addressPrefix == pfx
                 && Address_isSameIp(&store->nodes[i].address, addr))
             {
-                int red = Address_checkRedundantRoute(&store->nodes[i].address, addr);
-                if (red == 1) {
+                if (LabelSplicer_routesThrough(store->nodes[i].address.path, addr->path)) {
                     #ifdef Log_DEBUG
                         uint8_t nodeAddr[60];
                         Address_print(nodeAddr, &store->nodes[i].address);
                         uint8_t newAddr[20];
-                        Address_printNetworkAddress(newAddr, addr);
+                        Address_printPath(newAddr, addr->path);
                         Log_debug2(store->logger,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
@@ -163,9 +163,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                     #endif
 
                     store->nodes[i].address.path = addr->path;
-                } else if (red == 0
-                    && store->nodes[i].address.path != addr->path)
-                {
+                } else if (!LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path)) {
                     // Completely different routes, store seperately.
                     continue;
                 }
@@ -367,11 +365,11 @@ void NodeStore_updateReach(const struct Node* const node,
     uint64_t path = node->address.path;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         uint64_t dest = store->nodes[i].address.path;
-        if (Address_routesThrough(dest, path)) {
+        if (LabelSplicer_routesThrough(dest, path)) {
             if (store->headers[i].reach > node->reach) {
                 store->headers[i].reach = node->reach;
             }
-        } else if (Address_routesThrough(path, dest)) {
+        } else if (LabelSplicer_routesThrough(path, dest)) {
             if (store->headers[i].reach < node->reach) {
                 store->headers[i].reach = node->reach;
             }
@@ -422,7 +420,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
 {
     int out = 0;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
-        if (Address_routesThrough(store->nodes[i].address.path, path)) {
+        if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
             store->headers[i].reach = 0;
             out++;
         }
@@ -474,7 +472,7 @@ static void addRoutingTableEntries(struct NodeStore* store,
 
     entry->next->val->as.number = store->headers[i].reach;
     Address_printIp(ip, &store->nodes[i].address);
-    Address_printNetworkAddress(path, &store->nodes[i].address);
+    Address_printPath(path, store->nodes[i].address.path);
 
     addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
 }
