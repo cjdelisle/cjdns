@@ -45,11 +45,10 @@ static void add(Dict* args, void* vcontext, String* txid)
     String* passwd = Dict_getString(args, String_CONST("password"));
     int64_t* authType = Dict_getInt(args, String_CONST("authType"));
 
-    String* msg = NULL;
     if (!(passwd && authType)) {
-        msg = String_CONST("Must specify authType, and password.");
+        sendResponse(String_CONST("Must specify authType, and password."), context->admin, txid);
     } else if (*authType < 1 || *authType > 255) {
-        msg = String_CONST("Auth must be between 1 and 255 inclusive.");
+        sendResponse(String_CONST("Auth must be between 1 and 255 inclusive."), context->admin, txid);
     } else {
         struct User* u = context->allocator->malloc(sizeof(struct User), context->allocator);
         // At some point this will be implemented...
@@ -58,23 +57,23 @@ static void add(Dict* args, void* vcontext, String* txid)
 
         switch (ret) {
             case 0:
-                msg = String_CONST("none");
+                sendResponse(String_CONST("none"), context->admin, txid);
                 break;
             case CryptoAuth_addUser_INVALID_AUTHTYPE:
-                msg = String_CONST("Specified auth type is not supported.");
+                sendResponse(String_CONST("Specified auth type is not supported."),
+                             context->admin,
+                             txid);
                 break;
             case CryptoAuth_addUser_OUT_OF_SPACE:
-                msg = String_CONST("Out of memory to store password.");
+                sendResponse(String_CONST("Out of memory to store password."), context->admin, txid);
                 break;
             case CryptoAuth_addUser_DUPLICATE:
-                msg = String_CONST("Password already added.");
+                sendResponse(String_CONST("Password already added."), context->admin, txid);
                 break;
             default:
-                msg = String_CONST("Unknown error.");
+                sendResponse(String_CONST("Unknown error."), context->admin, txid);
         };
     }
-
-    sendResponse(msg, context->admin, txid);
 }
 
 static void flush(Dict* args, void* vcontext, String* txid)

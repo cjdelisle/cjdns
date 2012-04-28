@@ -17,25 +17,27 @@
 
 #include "benc/Object.h"
 
+#define BSTR_SIZEOF(x) &(String) { .bytes = x, .len = sizeof(x) - 1 }
+
 // Signifying that this message is a query and defining the query type.
-String* const CJDHTConstants_QUERY;
+static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
 
 // Find nodes query. "fn"
-String* const CJDHTConstants_QUERY_FN;
+static String* const CJDHTConstants_QUERY_FN = String_CONST_SO("fn");
 
 // Ping query
-String* const CJDHTConstants_QUERY_PING;
+static String* const CJDHTConstants_QUERY_PING = String_CONST_SO("pn");
 
 // A search target (address)
-String* const CJDHTConstants_TARGET;
+static String* const CJDHTConstants_TARGET = String_CONST_SO("tar");
 
 // Response with nodes. "n"
-String* const CJDHTConstants_NODES;
+static String* const CJDHTConstants_NODES = String_CONST_SO("n");
 
 // Transaction id
-String* const CJDHTConstants_TXID;
+static String* const CJDHTConstants_TXID = String_CONST_SO("txid");
 
 // Version which is in ping responses.
-String* const CJDHTConstants_VERSION;
+static String* const CJDHTConstants_VERSION = String_CONST_SO("v");
 
 #endif

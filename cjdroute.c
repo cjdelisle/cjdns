@@ -480,6 +480,7 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
                                user,
                                context->base,
                                context->eHandler,
+                               context->logger,
                                context->allocator);
 
     // AuthorizedPasswords_get()

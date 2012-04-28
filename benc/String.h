@@ -39,6 +39,9 @@ String* String_new(const char* bytes, const struct Allocator* allocator);
  */
 #define String_CONST(x) (&(String) { .bytes = x, .len = strlen(x) })
 
+/** For use outside of functions with compile time constant strings. */
+#define String_CONST_SO(x) (&(String) { .bytes = x, .len = sizeof(x) - 1 })
+
 #define String_OBJ(x) (&(Object) { .type = Object_STRING, .as.string = x })
 
 /**

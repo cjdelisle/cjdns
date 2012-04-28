@@ -105,12 +105,6 @@ int init(const uint8_t* privateKey,
 
     struct event_base* base = event_base_new();
 
-    String* passStr = NULL;
-    if (password) {
-        String passStrStorage = {.bytes=(char*)password,.len=strlen((char*)password)};
-        passStr = &passStrStorage;
-    }
-
     ca1 = CryptoAuth_new(NULL, allocator, NULL, base, logger);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
@@ -123,8 +117,9 @@ int init(const uint8_t* privateKey,
 
     ca2 = CryptoAuth_new(NULL, allocator, privateKey, base, logger);
     if (password) {
-        CryptoAuth_setAuth(passStr, 1, cif1);
-        CryptoAuth_addUser(passStr, 1, userObj, ca2);
+        String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
+        CryptoAuth_setAuth(&passStr, 1, cif1);
+        CryptoAuth_addUser(&passStr, 1, userObj, ca2);
     }
     if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf1,

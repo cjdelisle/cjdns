@@ -18,7 +18,6 @@ find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})
 
 add_library(dht
-    CJDHTConstants.c
     DHTModuleRegistry.c
     SerializationModule.c
     ReplyModule.c

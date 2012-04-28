@@ -28,6 +28,7 @@
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "util/Hex.h"
+#include "util/Log.h"
 #include "util/Security.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
@@ -73,6 +74,7 @@ struct Admin
     struct sockaddr_storage address;
     int addressLength;
     String* password;
+    struct Log* logger;
 
     /** Becomes true after the admin process has sent it's first message. */
     bool initialized;
@@ -147,20 +149,23 @@ static void handleRequestFromChild(struct Admin* admin,
     String* txid = NONE;
     int skip = 0;
 
+    String oobtxid = { .len = 4, .bytes = (char*) buffer + 4 };
     if (!memcmp(buffer, "0123", 4)) {
         // out of band txid
-        txid = &(String) { .len = 4, .bytes = (char*) buffer + 4 };
+        txid = &oobtxid;
         skip = 8;
     }
 
     struct Reader* reader = ArrayReader_new(buffer + skip, amount - skip, allocator);
     Dict message;
     if (StandardBencSerializer_get()->parseDictionary(reader, allocator, &message)) {
+        Log_info(admin->logger, "Got unparsable data from admin interface.");
         return;
     }
 
     String* query = Dict_getString(&message, CJDHTConstants_QUERY);
     if (!query) {
+        Log_info(admin->logger, "Got a non-query from admin interface.");
         return;
     }
 
@@ -504,6 +509,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
                         char* user,
                         struct event_base* eventBase,
                         struct ExceptionHandler* eh,
+                        struct Log* logger,
                         struct Allocator* allocator)
 {
     errno = 0;
@@ -552,6 +558,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     admin->inFd = inFd;
     admin->outFd = outFd;
     admin->allocator = allocator;
+    admin->logger = logger;
     admin->functionCount = 0;
     admin->eventBase = eventBase;
     admin->password = password;

@@ -18,6 +18,7 @@
 #include "benc/Dict.h"
 #include "exception/ExceptionHandler.h"
 #include "memory/Allocator.h"
+#include "util/Log.h"
 
 #include <event2/event.h>
 #include <stdbool.h>
@@ -62,6 +63,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
                         char* user,
                         struct event_base* eventBase,
                         struct ExceptionHandler* eh,
+                        struct Log* logger,
                         struct Allocator* allocator);
 
 void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
