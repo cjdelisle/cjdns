@@ -30,30 +30,28 @@ static void lookup(Dict* args, void* vcontext, String* txid)
 {
     struct Context* ctx = vcontext;
     String* addrStr = Dict_getString(args, String_CONST("address"));
-    String* err = NULL;
-    String* result = NULL;
+    char* err = NULL;
     uint8_t addr[16];
+    uint8_t resultBuff[60];
+    char* result = (char*) resultBuff;
     if (addrStr->len != 39) {
-        err = String_CONST("address wrong length");
+        err = "address wrong length";
     } else if (Address_parseIp(addr, (uint8_t*) addrStr->bytes)) {
-        err = String_CONST("failed to parse address");
+        err = "failed to parse address";
     } else {
         struct Node* n = RouterModule_lookup(addr, ctx->routerModule);
         if (!n) {
-            result = String_CONST("not found");
+            result = "not found";
         } else if (memcmp(addr, n->address.ip6.bytes, 16)) {
-            uint8_t closest[60];
-            Address_print(closest, &n->address);
-            result = &(String) { .bytes = (char*) closest, .len = 59 };
+            Address_print(resultBuff, &n->address);
         } else {
-            uint8_t path[20];
-            Address_printPath(path, n->address.path);
-            result = &(String) { .bytes = (char*) path, .len = 19 };
+            Address_printPath(resultBuff, n->address.path);
         }
     }
-    Dict response = (err)
-        ? Dict_CONST(String_CONST("error"), String_OBJ(err), NULL)
-        : Dict_CONST(String_CONST("result"), String_OBJ(result), NULL);
+    Dict response = Dict_CONST(
+        String_CONST("error"), String_OBJ(String_CONST((err) ? err : "none")), Dict_CONST(
+        String_CONST("result"), String_OBJ(String_CONST(result)), NULL
+    ));
     Admin_sendMessage(&response, txid, ctx->admin);
 }
 
