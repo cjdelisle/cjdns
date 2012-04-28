@@ -936,6 +936,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
 {
     struct SearchStore_Search* search = SearchStore_newSearch(searchTarget, module->searchStore);
     if (!search) {
+        Log_debug(module->logger, "Can't run search because SearchStore is full.");
         return NULL;
     }
     struct Allocator* searchAllocator = SearchStore_getAllocator(search);
@@ -952,7 +953,8 @@ struct RouterModule_Search* RouterModule_beginSearch(
                                   searchAllocator);
 
     if (nodes->size == 0) {
-        // no nodes found!
+        Log_debug(module->logger, "Can't find any nodes to begin search.");
+        SearchStore_freeSearch(search);
         return NULL;
     }
 
