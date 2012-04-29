@@ -2,7 +2,7 @@ Results of benchmarking cjdns on different systems:
 To make your own benchmark:
 ./cjdroute --bench
 cat /proc/cpuinfo
-git log -n 1
+git log | head -n 1
 
 Paste results to https://ezcrypt.it/ and tell us about it in the IRC channel!
 Weird processors wanted :D
@@ -84,4 +84,41 @@ Revision	: 0000
 Serial		: 0000000000000000
 cjdns@abacus:~/cjdns/build$ git log -n 1
 commit c2cfff7b4ef1339942f3e98eb0d99a093d307a9b
+
+
+
+
+cjdns@ks397481:~/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 3420ms. 149 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 3491ms. 3437 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 3413ms. 150 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 3465ms. 3462 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 103ms. 497087 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1581ms. 759013 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 724ms. 70718 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 4257ms. 281888 Kb/s
+
+cjdns@ks397481:~/cjdns/build$ cat /proc/cpuinfo | head
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 28
+model name	: Intel(R) Atom(TM) CPU D425   @ 1.80GHz
+stepping	: 10
+cpu MHz		: 1799.735
+cache size	: 512 KB
+physical id	: 0
+siblings	: 2
+cjdns@ks397481:~/cjdns/build$ git log | head -n 1
+commit fd4964634de971c888bb079d0e62b411c471803a
 
