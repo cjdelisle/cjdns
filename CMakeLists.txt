@@ -130,7 +130,6 @@ add_subdirectory(io)
 add_subdirectory(memory)
 add_subdirectory(util)
 add_subdirectory(switch)
-add_subdirectory(contrib)
 add_subdirectory(net)
 
 add_executable(cjdroute cjdroute.c)
