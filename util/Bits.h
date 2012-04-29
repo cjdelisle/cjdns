@@ -106,7 +106,7 @@ static inline void* Bits_memcpyDebug(void* out,
  * @param length the number of bytes to copy.
  */
 #ifdef Log_DEBUG
-    #define Bits_memcpy(a, b, c) Bits_memcpy_debug(a, b, c, __FILE__, __LINE__)
+    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
 #else
     static inline void* Bits_memcpy(void* restrict out, const void* restrict in, size_t length)
     {
