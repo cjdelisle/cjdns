@@ -28,6 +28,7 @@
 #include "dht/dhtcore/test/TestFramework.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Bits.h"
 
 #define MY_ADDRESS "hgzyxwvutsrqponmlkji           3"
 // This key converts to address: fc39:c3ba:c711:00aa:666d:90b0:1ab6:e8c3
@@ -50,15 +51,15 @@ void testQuery(struct DHTMessage** outMessagePtr,
 
     struct Address addr;
     memset(&addr, 0, sizeof(struct Address));
-    memcpy(&addr.key, "ponmlkjihgzyxwvutsrq           \0", 32);
-    memcpy(&addr.networkAddress_be, " 00011  ", 8);
+    Bits_memcpyConst(&addr.key, "ponmlkjihgzyxwvutsrq           \0", 32);
+    Bits_memcpyConst(&addr.networkAddress_be, " 00011  ", 8);
     struct DHTMessage message =
     {
         .length = strlen(requestMessage),
         .address = &addr,
         .allocator = allocator,
     };
-    memcpy(message.bytes, requestMessage, message.length);
+    Bits_memcpyConst(message.bytes, requestMessage, message.length);
 
     DHTModules_handleIncoming(&message, registry);
 
@@ -158,7 +159,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
     struct Address address = {
         .key = "ponmlkjihgzyxwvutsrq           \0"
     };
-    memcpy(&address.networkAddress_be, " 00011  ", 8);
+    Bits_memcpyConst(&address.networkAddress_be, " 00011  ", 8);
 
     struct DHTMessage message =
     {
@@ -166,8 +167,8 @@ void testSearch(struct DHTMessage** outMessagePtr,
         .allocator = allocator,
         .address = &address
     };
-    memcpy(message.bytes, CRAFTED_REPLY("8\x00"), message.length);
-   // memcpy(message.peerAddress, peerAddress, 18);
+    Bits_memcpyConst(message.bytes, CRAFTED_REPLY("8\x00"), message.length);
+   // Bits_memcpyConst(message.peerAddress, peerAddress, 18);
 
     *outMessagePtr = NULL;
 
@@ -178,8 +179,8 @@ void testSearch(struct DHTMessage** outMessagePtr,
 
     // Make sure the node was promoted for it's fine service :P
     struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
-    memcpy(&addr.key, "ponmlkjihgzyxwvutsrq           \0", 32);
+    Bits_memcpyConst(&addr, 0, sizeof(struct Address));
+    Bits_memcpyConst(&addr.key, "ponmlkjihgzyxwvutsrq           \0", 32);
     struct Node* node1 =
         NodeStore_getNode(routerModule->nodeStore, &addr);
     //printf("node reach = %d", node1->reach);
@@ -211,9 +212,9 @@ int main()
 
     // damn this \0, was a mistake but to fix it would break all of the hashes :(
     #define ADD_NODE(address, netAddr) \
-        memset(&addr, 0, sizeof(struct Address));                             \
-        memcpy(&addr.networkAddress_be, netAddr "  ", 8);                     \
-        memcpy(&addr.key, (uint8_t*) address "           \0", 32);            \
+        memset(&addr, 0, sizeof(struct Address));                                       \
+        Bits_memcpyConst(&addr.networkAddress_be, netAddr "  ", 8);                     \
+        Bits_memcpyConst(&addr.key, (uint8_t*) address "           \0", 32);            \
         RouterModule_addNode(&addr, routerModule)
 
 //                                             most significant byte --vv

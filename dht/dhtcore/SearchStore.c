@@ -16,6 +16,7 @@
 
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"
+#include "util/Bits.h"
 #include "util/Log.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
@@ -119,7 +120,7 @@ struct SearchStore_Search* SearchStore_newSearch(
         allocator->calloc(sizeof(struct SearchStore_Search), 1, allocator);
     search->searchIndex = i;
     search->nodeCount = 0;
-    memcpy(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
     search->timeOfLastRequest = 0;
     search->externalContext = NULL;
     search->store = store;
@@ -227,7 +228,7 @@ static struct SearchNodeIndex searchNodeIndexForTid(const String* tid)
 
     uint32_t number = 0;
 
-    memcpy((char*) &number, tid->bytes, (tid->len > 4) ? 4 : tid->len);
+    Bits_memcpy(&number, tid->bytes, (tid->len > 4) ? 4 : tid->len);
 
     if (Endian_isBigEndian()) {
         number >>= (32 - maxNodesBits - maxSearchBits);
@@ -324,7 +325,7 @@ int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
     node->parent = (parent != NULL) ? &search->nodes[parent->nodeIndex] : NULL;
     node->timeOfRequest = 0;
     node->delayUntilReply = 0;
-    memcpy(&node->address, addr, Address_SIZE);
+    Bits_memcpyConst(&node->address, addr, Address_SIZE);
 
     return 0;
 }

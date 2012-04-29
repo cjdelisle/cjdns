@@ -24,6 +24,7 @@
 #include "io/ArrayWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "util/Bits.h"
 
 #include <string.h>
 
@@ -46,7 +47,7 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
 {
     struct SerializationModule_context* context =
         allocator->malloc(sizeof(struct SerializationModule_context), allocator);
-    memcpy(context, (&(struct SerializationModule_context) {
+    Bits_memcpyConst(context, (&(struct SerializationModule_context) {
         .module = {
             .name = "SerializationModule",
             .context = context,

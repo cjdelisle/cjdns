@@ -15,8 +15,8 @@
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 
-#include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -89,7 +89,7 @@ struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
         .skip = skip,
         .bytesRead = bytesRead
     };
-    memcpy(&context->reader, &localReader, sizeof(struct Reader));
+    Bits_memcpyConst(&context->reader, &localReader, sizeof(struct Reader));
 
     return &context->reader;
 }

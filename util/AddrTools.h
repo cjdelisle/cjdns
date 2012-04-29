@@ -15,10 +15,10 @@
 #ifndef AddrTools_H
 #define AddrTools_H
 
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
 
-#include <string.h>
 #include <stdint.h>
 
 /** Takes the path in host byte order. */
@@ -89,7 +89,7 @@ static inline int AddrTools_parsePath(uint64_t* out, uint8_t netAddr[20])
         return -1;
     }
     uint64_t out_be;
-    memcpy(&out_be, numberBytes, 8);
+    Bits_memcpyConst(&out_be, numberBytes, 8);
     *out = Endian_bigEndianToHost64(out_be);
 
     return 0;

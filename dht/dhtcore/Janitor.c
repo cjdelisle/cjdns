@@ -27,6 +27,7 @@
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Timeout.h"
 #include "util/Time.h"
@@ -81,7 +82,7 @@ static void maintanenceCycle(void* vcontext)
 
     // If the node's reach is zero, run a search for it, otherwise run a random search.
     if (randomNode && randomNode->reach == 0) {
-        memcpy(&targetAddr, &randomNode->address, Address_SIZE);
+        Bits_memcpyConst(&targetAddr, &randomNode->address, Address_SIZE);
     } else {
         randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }

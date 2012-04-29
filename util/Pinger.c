@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/Bits.h"
 #include "util/Pinger.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
@@ -78,9 +79,9 @@ struct Pinger_Ping* Pinger_ping(String* data,
 
     // Prefix the data with the slot number.
     String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 4, alloc);
-    memcpy(toSend->bytes, &index, 4);
+    Bits_memcpyConst(toSend->bytes, &index, 4);
     if (data) {
-        memcpy(toSend->bytes + 4, data->bytes, data->len);
+        Bits_memcpy(toSend->bytes + 4, data->bytes, data->len);
     }
 
     struct Ping* ping = alloc->clone(sizeof(struct Ping), alloc, &(struct Ping) {

@@ -14,6 +14,7 @@
  */
 #include "memory/Allocator.h"
 #include "benc/String.h"
+#include "util/Bits.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -32,7 +33,7 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
     // Make the string null terminated so it will print nicely.
     copy[length] = '\0';
     if (bytes != NULL) {
-        memcpy(copy, bytes, length);
+        Bits_memcpy(copy, bytes, length);
     } else {
         memset(copy, '\0', length);
     }

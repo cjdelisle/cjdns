@@ -12,12 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "memory/AllocatorTools.h"
 #include "memory/BufferAllocator.h"
+#include "util/Bits.h"
 
 /**
  * TODO: addOnFreeJob adds a job which is only run when the root allocator is freed
@@ -94,7 +94,7 @@ static void* allocatorCalloc(size_t length, size_t count, const struct Allocator
 static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone)
 {
     void* pointer = allocator->malloc(length, allocator);
-    memcpy(pointer, toClone, length);
+    Bits_memcpy(pointer, toClone, length);
     return pointer;
 }
 
@@ -115,7 +115,7 @@ static void* allocatorRealloc(const void* original, size_t length, const struct 
     // The likelyhood of nothing having been allocated since is almost 0 so we will always create a new
     // allocation and copy into it.
     void* newAlloc = allocator->malloc(length, allocator);
-    memcpy(newAlloc, original, amountToClone);
+    Bits_memcpy(newAlloc, original, amountToClone);
     return newAlloc;
 }
 
@@ -217,7 +217,7 @@ struct Allocator* BufferAllocator_new(void* buffer, size_t length)
     }
 
     /* put the context into the buffer. */
-    memcpy(context.pointer, &context, sizeof(struct BufferAllocator_context));
+    Bits_memcpyConst(context.pointer, &context, sizeof(struct BufferAllocator_context));
 
     struct Allocator allocator = {
         .context = context.pointer,
@@ -245,7 +245,7 @@ struct Allocator* BufferAllocator_new(void* buffer, size_t length)
     /* Reset the base pointer so as not to clobber the context on free() */
     contextPtr->basePointer = contextPtr->pointer;
 
-    memcpy(allocatorPtr, &allocator, sizeof(struct Allocator));
+    Bits_memcpyConst(allocatorPtr, &allocator, sizeof(struct Allocator));
     return allocatorPtr;
 }
 

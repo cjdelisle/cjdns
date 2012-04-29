@@ -13,9 +13,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "io/EvBufferWriter.h"
+#include "util/Bits.h"
 
 #include <event2/buffer.h>
-#include <string.h>
 
 struct Context {
     struct evbuffer* buffer;
@@ -41,7 +41,7 @@ struct Writer* EvBufferWriter_new(struct evbuffer* buffer, const struct Allocato
         .write = write,
         .bytesWritten = bytesWritten
     };
-    memcpy(&context->writer, &localWriter, sizeof(struct Writer));
+    Bits_memcpyConst(&context->writer, &localWriter, sizeof(struct Writer));
 
     return &context->writer;
 }

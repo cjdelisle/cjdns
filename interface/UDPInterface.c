@@ -20,13 +20,13 @@
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Base32.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 
 #include <assert.h>
-#include <string.h>
 #include <event2/event.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -99,7 +99,7 @@ static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
     if (EFFECTIVE_KEY_SIZE < sizeof(struct sockaddr_in)) {
         memset(sockaddr, 0, sizeof(struct sockaddr_in));
     }
-    memcpy(sockaddr, key, EFFECTIVE_KEY_SIZE);
+    Bits_memcpyConst(sockaddr, key, EFFECTIVE_KEY_SIZE);
     xorkey(key, udpif);
 }
 
@@ -110,7 +110,7 @@ static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
     if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
         memset(key, 0, InterfaceController_KEY_SIZE);
     }
-    memcpy(key, sockaddr, EFFECTIVE_KEY_SIZE);
+    Bits_memcpyConst(key, sockaddr, EFFECTIVE_KEY_SIZE);
     xorkey(key, udpif);
 }
 
@@ -121,7 +121,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
     struct sockaddr_in sin;
     sockaddrForKey(&sin, message->bytes, context);
-    memcpy(&sin, message->bytes, InterfaceController_KEY_SIZE);
+    Bits_memcpyConst(&sin, message->bytes, InterfaceController_KEY_SIZE);
     Message_shift(message, -InterfaceController_KEY_SIZE);
 
     if (sendto(context->socket,
@@ -275,7 +275,7 @@ static void scrambleKeys(Dict* args, void* vcontext, String* txid)
         if (ret < 0) {
             error = String_CONST("Failed to parse hex");
         } else {
-            memcpy(udpif->xorValue, key, InterfaceController_KEY_SIZE);
+            Bits_memcpyConst(udpif->xorValue, key, InterfaceController_KEY_SIZE);
         }
     }
     Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
@@ -292,7 +292,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       struct Admin* admin)
 {
     struct UDPInterface* context = allocator->malloc(sizeof(struct UDPInterface), allocator);
-    memcpy(context, (&(struct UDPInterface) {
+    Bits_memcpyConst(context, (&(struct UDPInterface) {
         .interface = {
             .sendMessage = sendMessage,
             .senderContext = context,

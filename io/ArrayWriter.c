@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ArrayWriter.h"
-#include <string.h>
+#include "util/Bits.h"
 
 struct ArrayWriter_context {
     char* beginPointer;
@@ -48,7 +48,7 @@ struct Writer* ArrayWriter_new(void* writeToBuffer,
         .write = write,
         .bytesWritten = bytesWritten
     };
-    memcpy(writer, &localWriter, sizeof(struct Writer));
+    Bits_memcpyConst(writer, &localWriter, sizeof(struct Writer));
 
     return writer;
 }
@@ -72,7 +72,7 @@ static int write(const void* toWrite, size_t length, const struct Writer* writer
         return -1;
     }
 
-    memcpy(context->pointer, toWrite, length);
+    Bits_memcpy(context->pointer, toWrite, length);
     context->pointer += length;
 
     return 0;

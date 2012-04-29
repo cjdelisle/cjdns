@@ -138,7 +138,7 @@ static inline uint8_t incomingDHT(struct Message* message,
     const uint32_t length = (message->length < DHTMessage_MAX_SIZE)
         ? message->length
         : DHTMessage_MAX_SIZE;
-    memcpy(dht.bytes, message->bytes, length);
+    Bits_memcpy(dht.bytes, message->bytes, length);
 
     dht.address = addr;
 
@@ -164,7 +164,7 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
     if (context->switchHeader) {
-        memcpy(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
+        Bits_memcpyConst(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
     } else {
         memset(&header, 0, Headers_SwitchHeader_SIZE);
     }
@@ -201,13 +201,13 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     header->hopLimit = 0;
     header->payloadLength_be = Endian_hostToBigEndian16(payloadLength);
 
-    memcpy(header->sourceAddr,
-           context->myAddr.ip6.bytes,
-           Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(header->sourceAddr,
+                     context->myAddr.ip6.bytes,
+                     Address_SEARCH_TARGET_SIZE);
 
-    memcpy(header->destinationAddr,
-           dmessage->address->ip6.bytes,
-           Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(header->destinationAddr,
+                     dmessage->address->ip6.bytes,
+                     Address_SEARCH_TARGET_SIZE);
 
     context->ip6Header = header;
     context->switchHeader = NULL;
@@ -245,7 +245,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         #ifdef Log_DEBUG
             uint8_t keyAddr[40];
             Address_printIp(keyAddr, &addr);
-            memcpy(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
+            Bits_memcpyConst(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
             uint8_t srcAddr[40];
             Address_printIp(srcAddr, &addr);
             Log_debug2(context->logger,
@@ -275,7 +275,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
         addr.path = Endian_bigEndianToHost64(context->switchHeader->label_be);
-        memcpy(addr.key, herPubKey, 32);
+        Bits_memcpyConst(addr.key, herPubKey, 32);
         return incomingDHT(message, &addr, context);
     }
 
@@ -307,12 +307,12 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
                                      uint8_t herPublicKey[32])
 {
     struct Headers_SwitchHeader sh;
-    memcpy(&sh, message->bytes, Headers_SwitchHeader_SIZE);
+    Bits_memcpyConst(&sh, message->bytes, Headers_SwitchHeader_SIZE);
     context->switchHeader = &sh;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
 
     struct Headers_IP6Header ip6;
-    memcpy(&ip6, message->bytes, Headers_IP6Header_SIZE);
+    Bits_memcpyConst(&ip6, message->bytes, Headers_IP6Header_SIZE);
     context->ip6Header = &ip6;
     Message_shift(message, -Headers_IP6Header_SIZE);
 
@@ -385,7 +385,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
 
     // Grab out the header so it doesn't get clobbered.
     struct Headers_IP6Header headerStore;
-    memcpy(&headerStore, header, Headers_IP6Header_SIZE);
+    Bits_memcpyConst(&headerStore, header, Headers_IP6Header_SIZE);
     context->ip6Header = &headerStore;
 
     // Shift over the content.
@@ -450,7 +450,7 @@ static inline int core(struct Message* message, struct Ducttape* context)
             if (memcmp(context->ip6Header->destinationAddr, ft->ip6.bytes, 16)) {
                 // Potentially forwarding for ourselves.
                 struct Address destination;
-                memcpy(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+                Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
                 uint8_t ipAddr[40];
                 Address_printIp(ipAddr, &destination);
                 Log_debug2(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
@@ -478,15 +478,15 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* c
     context->ip6Header->payloadLength_be = Endian_hostToBigEndian16(message->length);
 
     Message_shift(message, Headers_IP6Header_SIZE);
-    memcpy(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+    Bits_memcpyConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
 
     // If this message is addressed to us, it means the cryptoauth kicked back a response
     // message when we asked it to decrypt a message for us and the ipv6 addresses need to
     // be flipped to send it back to the other node.
     if (isForMe(message, context)) {
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
-        memcpy(ip6->destinationAddr, ip6->sourceAddr, 16);
-        memcpy(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
+        Bits_memcpyConst(ip6->destinationAddr, ip6->sourceAddr, 16);
+        Bits_memcpyConst(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
         // It came from me...
         context->routerAddress = context->myAddr.ip6.bytes;
     }
@@ -733,13 +733,13 @@ struct Ducttape* Ducttape_register(Dict* config,
         routerIf->receiverContext = context;
     }
 
-    memcpy(&context->module, (&(struct DHTModule) {
+    Bits_memcpyConst(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
         .context = context,
         .handleOutgoing = handleOutgoing
     }), sizeof(struct DHTModule));
 
-    memcpy(&context->switchInterface, (&(struct Interface) {
+    Bits_memcpyConst(&context->switchInterface, (&(struct Interface) {
         .sendMessage = incomingFromSwitch,
         .senderContext = context,
         .allocator = allocator

@@ -27,6 +27,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Log.h"
 #include "util/Security.h"
@@ -502,8 +503,8 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     StandardBencSerializer_get()->serializeDictionary(w, message);
     size_t written = w->bytesWritten(w) + skip;
     if (txid) {
-        memcpy(buff, "4567", 4);
-        memcpy(buff + 4, txid->bytes, 4);
+        Bits_memcpyConst(buff, "4567", 4);
+        Bits_memcpyConst(buff + 4, txid->bytes, 4);
     }
     write(admin->outFd, buff, written);
 }
@@ -567,7 +568,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     admin->functionCount = 0;
     admin->eventBase = eventBase;
     admin->password = password;
-    memcpy(&admin->address, addr, sizeof(struct sockaddr_storage));
+    Bits_memcpyConst(&admin->address, addr, sizeof(struct sockaddr_storage));
     admin->addressLength = addrLen;
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);

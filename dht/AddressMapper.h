@@ -15,6 +15,8 @@
 #ifndef AddressMapper_H
 #define AddressMapper_H
 
+#include "util/Bits.h"
+
 #include <assert.h>
 #include <inttypes.h>
 #include <string.h>
@@ -47,9 +49,9 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
                 map->labels[i] = map->labels[i - 1];
                 map->labels[i - 1] = label;
                 uint8_t address[16];
-                memcpy(address, map->addresses[i], 16);
-                memcpy(map->addresses[i], map->addresses[i - 1], 16);
-                memcpy(map->addresses[i - 1], address, 16);
+                Bits_memcpyConst(address, map->addresses[i], 16);
+                Bits_memcpyConst(map->addresses[i], map->addresses[i - 1], 16);
+                Bits_memcpyConst(map->addresses[i - 1], address, 16);
                 i--;
             }
             assert(!memcmp(map->canary, "\0\0\0", 3));
@@ -71,7 +73,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
         for (int i = index + 1; i < AddressMapper_MAX_ENTRIES; i++) {
             if (map->labels[i] == 0L) {
                 i--;
-                memcpy(map->addresses[index], map->addresses[i], 16);
+                Bits_memcpyConst(map->addresses[index], map->addresses[i], 16);
                 map->labels[index] = map->labels[i];
                 map->labels[i] = 0L;
                 assert(!memcmp(map->canary, "\0\0\0", 3));
@@ -92,7 +94,7 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
             break;
         }
     }
-    memcpy(map->addresses[i], address, 16);
+    Bits_memcpyConst(map->addresses[i], address, 16);
     map->labels[i] = label;
     assert(!memcmp(map->canary, "\0\0\0", 3));
     return i;

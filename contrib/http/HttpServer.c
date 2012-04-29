@@ -42,6 +42,7 @@
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/Bits.h"
 
 #define LIBSRVR_INDEX "text/html/index.html"
 #define SECOND_SLASH_INDEX 9
@@ -157,9 +158,9 @@ static void fileHandler(struct evhttp_request* req, void* vcontext)
     struct evkeyvalq* headers = evhttp_request_get_output_headers(req);
 
     int offset = slash - uri;
-    memcpy(path, uri, offset);
-    char* charset = "; charset=UTF-8";
-    memcpy(path + offset, charset, strlen(charset) + 1);
+    Bits_memcpy(path, uri, offset);
+    #define CHARSET "; charset=UTF-8"
+    Bits_memcpyConst(path + offset, CHARSET, sizeof(CHARSET));
     evhttp_add_header(headers, "Content-Type", path);
 
     struct evbuffer* buff = NULL;
@@ -188,7 +189,7 @@ static void apiHandler(struct evhttp_request* req, void* vcontext)
         return;
     }
 
-    memcpy((char*)context->messageBuffer + 8, content, strlen(content));
+    Bits_memcpy((char*)context->messageBuffer + 8, content, strlen(content));
 
     struct timeval now;
     event_base_gettimeofday_cached(context->eventBase, &now);
@@ -213,8 +214,8 @@ static void apiHandler(struct evhttp_request* req, void* vcontext)
             context->requests[i].request = req;
             context->requests[i].time = now.tv_sec;
             uint32_t txNum = context->txidBaseline + i;
-            memcpy(context->messageBuffer, "0123", 4);
-            memcpy(context->messageBuffer + 4, &txNum, 4);
+            Bits_memcpyConst(context->messageBuffer, "0123", 4);
+            Bits_memcpyConst(context->messageBuffer + 4, &txNum, 4);
             write(context->apiSocket, context->messageBuffer, 8 + strlen(content));
             fwrite(context->messageBuffer, 8 + strlen(content), 1, stdout);
             printf("\n");
@@ -265,7 +266,7 @@ static void handleApiEvent(evutil_socket_t socket, short eventType, void* vconte
     }
 
     uint32_t txNum;
-    memcpy(&txNum, context->messageBuffer + 4, 4);
+    Bits_memcpyConst(&txNum, context->messageBuffer + 4, 4);
 
     txNum -= context->txidBaseline;
     if (txNum >= MAX_CONCURRENT_REQUESTS || !context->requests[txNum].request) {

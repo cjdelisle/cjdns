@@ -16,6 +16,7 @@
 #include "interface/InterfaceController.h"
 #include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 #include "util/Time.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
@@ -193,7 +194,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     struct Endpoint* ep = endpointForInternalInterface(iface);
 
     Message_shift(message, InterfaceController_KEY_SIZE);
-    memcpy(message->bytes, ep->key, InterfaceController_KEY_SIZE);
+    Bits_memcpyConst(message->bytes, ep->key, InterfaceController_KEY_SIZE);
 
     assert(ep->external);
     return ep->external->sendMessage(message, ep->external);
@@ -273,10 +274,10 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     epAllocator->onFree(closeInterface, ep, epAllocator);
 
     ep->external = externalInterface;
-    memcpy(ep->key, key, InterfaceController_KEY_SIZE);
+    Bits_memcpyConst(ep->key, key, InterfaceController_KEY_SIZE);
     InterfaceMap_put(key, &ep->internal, 0, ic->imap);
 
-    memcpy(&ep->internal, (&(struct Interface) {
+    Bits_memcpyConst(&ep->internal, (&(struct Interface) {
         .senderContext = ic,
         .sendMessage = sendMessage,
         .allocator = epAllocator,
@@ -293,7 +294,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     }
     ep->cryptoAuthIf = authedIf;
 
-    memcpy(&ep->switchIf, (&(struct Interface) {
+    Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
         .sendMessage = sendFromSwitch,
         .senderContext = ep,
         .allocator = epAllocator
@@ -309,7 +310,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     authedIf->receiverContext = ep;
 
     if (herPublicKey) {
-        memcpy(addr.key, herPublicKey, 32);
+        Bits_memcpyConst(addr.key, herPublicKey, 32);
         RouterModule_addNode(&addr, ic->routerModule);
         #ifdef Log_INFO
             uint8_t printAddr[60];

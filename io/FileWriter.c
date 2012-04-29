@@ -13,9 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "FileWriter.h"
-
-/* For memcpy. */
-#include <string.h>
+#include "util/Bits.h"
 
 struct FileWriter_context {
     FILE* writeTo;
@@ -44,7 +42,7 @@ struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator)
         .write = write,
         .bytesWritten = bytesWritten
     };
-    memcpy(&context->writer, &localWriter, sizeof(struct Writer));
+    Bits_memcpyConst(&context->writer, &localWriter, sizeof(struct Writer));
 
     return &context->writer;
 }

@@ -17,6 +17,7 @@
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
 #include "wire/Error.h"
@@ -47,10 +48,10 @@ static struct Message msg;
 static uint8_t* textBuff;
 #define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
 #define MK_MSG(x) \
-    memset(textBuff, 0, BUFFER_SIZE);                                 \
-    memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));    \
-    msg.length = strlen(x);                                           \
-    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);              \
+    memset(textBuff, 0, BUFFER_SIZE);                                           \
+    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
+    msg.length = strlen(x);                                                     \
+    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
     msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 
 static uint8_t* if1Msg;

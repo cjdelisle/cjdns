@@ -20,6 +20,7 @@
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
@@ -127,7 +128,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     }
 
     if (herPublicKey) {
-        memcpy(wrapper->herPerminentPubKey, herPublicKey, 32);
+        Bits_memcpyConst(wrapper->herPerminentPubKey, herPublicKey, 32);
     }
 
     return wrapper;
@@ -146,7 +147,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
         .padding = Headers_CryptoAuth_SIZE,
         .bytes = msgBuff + Headers_CryptoAuth_SIZE
     };
-    memcpy(msg.bytes, hello, 12);
+    Bits_memcpyConst(msg.bytes, hello, 12);
     Exports_encryptHandshake(&msg, wrapper);
 
     uint8_t actual[265];
@@ -233,7 +234,7 @@ void repeatHello()
         .context = ca,
         .wrappedInterface = &iface
     };
-    memcpy(wrapper.herPerminentPubKey, publicKey, 32);
+    Bits_memcpyConst(wrapper.herPerminentPubKey, publicKey, 32);
 
     uint8_t* hello = (uint8_t*) "Hello World";
     uint8_t msgBuff[Headers_CryptoAuth_SIZE + 12];
@@ -243,12 +244,12 @@ void repeatHello()
         .bytes = msgBuff + Headers_CryptoAuth_SIZE
     };
     struct Message msg2;
-    memcpy(&msg2, &msg, sizeof(struct Message));
+    Bits_memcpyConst(&msg2, &msg, sizeof(struct Message));
 
-    memcpy(msg2.bytes, hello, 12);
+    Bits_memcpyConst(msg2.bytes, hello, 12);
     Exports_encryptHandshake(&msg, &wrapper);
 
-    memcpy(msg2.bytes, hello, 12);
+    Bits_memcpyConst(msg2.bytes, hello, 12);
     Exports_encryptHandshake(&msg2, &wrapper);
 
     // Check the nonce

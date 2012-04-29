@@ -58,6 +58,13 @@ if(HAS_CATCH_UNDEFINED)
     add_definitions(-fcatch-undefined-behavior)
 endif()
 
+# __builtin_constant_p()
+include(CheckCSourceCompiles)
+check_c_source_compiles("int main() { return __builtin_constant_p(0);}" HAS_BUILTIN_CONSTANT_P)
+if (HAS_BUILTIN_CONSTANT_P)
+    add_definitions("-D HAS_BUILTIN_CONSTANT_P")
+endif()
+
 # allow position independent executable to be turned off with NO_PIE cmake ..
 if(NOT "$ENV{NO_PIE}" STREQUAL "")
    set(NO_PIE TRUE)
@@ -83,6 +90,7 @@ else()
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
 endif()
 
+# logging
 if(NOT $ENV{Log_LEVEL} STREQUAL "")
     string(TOUPPER $ENV{Log_LEVEL} LEVEL)
     message("Log_LEVEL = ${LEVEL}")
@@ -95,7 +103,7 @@ else()
 endif()
 
 # vrooooooom
-add_definitions(-O3 -funroll-loops)
+add_definitions(-O2 -funroll-loops)
 
 
 if(NOT "$ENV{LTO}" STREQUAL "")
