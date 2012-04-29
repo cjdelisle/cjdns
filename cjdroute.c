@@ -18,6 +18,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/CryptoAuth_benchmark.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
@@ -268,7 +269,7 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--getcmds]\n"
+    printf("Usage: %s [--help] [--genconf] [--getcmds] [--bench]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -496,6 +497,16 @@ static void pidfile(Dict* config)
     }
 }
 
+static int benchmark()
+{
+    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct event_base* base = event_base_new();
+    struct Writer* logwriter = FileWriter_new(stdout, alloc);
+    struct Log logger = { .writer = logwriter };
+    CryptoAuth_benchmark(base, &logger, alloc);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -515,6 +526,8 @@ int main(int argc, char** argv)
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--reconf") == 0) {
             // Performed after reading the configuration
+        } else if (strcmp(argv[1], "--bench") == 0) {
+            return benchmark();
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);

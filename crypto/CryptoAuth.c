@@ -965,7 +965,7 @@ void* CryptoAuth_getUser(struct Interface* interface)
 }
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
-                                           uint8_t herPublicKey[32],
+                                           const uint8_t herPublicKey[32],
                                            const bool requireAuth,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context)
