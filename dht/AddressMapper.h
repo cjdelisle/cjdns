@@ -51,7 +51,7 @@ struct AddressMapper
     uint8_t canary[3];
 };
 
-#define LL_LRU_VALIDATE
+//#define LL_LRU_VALIDATE
 #ifdef LL_LRU_VALIDATE
 #include <stdio.h> /* XXX: removeme */
 
