@@ -568,6 +568,13 @@ perl library
 the perl port of the python api library is maintained by Mikey. For usage instructions, head over to the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/perl/CJDNS/README)
 
 
+ruby library
+------------
+
+[cjdns-tool](https://github.com/kechagia/cjdns-tool) uses [cjdns-lib](https://github.com/kechagia/cjdns-lib), which is a port of the python library to ruby. You can install it using
+
+    gem install cjdns-lib
+
 
 Known Issues
 ============
