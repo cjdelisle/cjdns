@@ -122,3 +122,45 @@ siblings	: 2
 cjdns@ks397481:~/cjdns/build$ git log | head -n 1
 commit fd4964634de971c888bb079d0e62b411c471803a
 
+
+
+
+
+
+
+
+
+user@ubntfusion2:~/cjdns/build$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 916ms. 558 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 939ms. 12778 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1341ms. 381 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1368ms. 8771 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 134ms. 382089 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2291ms. 523788 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 526ms. 97338 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 3386ms. 354400 Kb/s
+
+user@ubntfusion2:~/cjdns/build$ cat /proc/cpuinfo | head
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 20
+model		: 1
+model name	: AMD E-350 Processor
+stepping	: 0
+microcode	: 0x5000028
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+user@ubntfusion2:~/cjdns/build$ git log | head -n 1
+commit 3d2ce46d3c9df964ddf37dbdb03dccbcac862d5a
+user@ubntfusion2:~/cjdns/build$
