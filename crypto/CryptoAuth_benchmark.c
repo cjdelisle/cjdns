@@ -54,7 +54,7 @@ struct Context
     struct event_base* base;
 };
 
-static uint8_t transferMessage(struct Message* message, struct Interface* iface)
+static inline uint8_t transferMessage(struct Message* message, struct Interface* iface)
 {
     struct Interface* otherIface = iface->senderContext;
     return otherIface->receiveMessage(message, otherIface);
@@ -69,17 +69,16 @@ static inline void setupMessage(struct Context* ctx, uint16_t length)
 
 static const char* KEY = "key";
 static const char* HELLO = "hello";
-static const char* TRAFFIC = "traffic";
+static const char* TRAFFIC = "data";
 
 static inline void sendMessages(struct Context* ctx,
-                               struct Log* logger,
-                               int count,
-                               int size,
-                               const char* type,
-                               bool authPackets)
+                                int count,
+                                int size,
+                                const char* type,
+                                bool authPackets)
 {
-    Log_info4(logger, "Test sending %d %s packets of %d size. packet auth %s",
-              count, type, size, ((authPackets) ? "enabled." : "disabled."));
+    printf("Test sending %d %d byte\t%s packets.\tpacket auth %s",
+           count, size, type, ((authPackets) ? "enabled." : "disabled."));
 
     ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, false, authPackets, ctx->ca2);
     ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, false, authPackets, ctx->ca1);
@@ -107,7 +106,7 @@ static inline void sendMessages(struct Context* ctx,
     // same as kbSent / (time / 1024) (converting time to seconds)
     uint64_t kbps = (kbSent * 1024) / time;
 
-    Log_info2(logger, "Finished in %dms. %d Kb/s\n\n", (int)time, (int)kbps);
+    printf("\tFinished in %dms. %d Kb/s\n\n", (int)time, (int)kbps);
 }
 
 void CryptoAuth_benchmark(struct event_base* base,
@@ -129,16 +128,20 @@ void CryptoAuth_benchmark(struct event_base* base,
         },
         .base = base
     };
-    sendMessages(&ctx, logger, 1000, 64, HELLO, true);
-    sendMessages(&ctx, logger, 1000, 1500, HELLO, true);
+    printf("These metrics are speed of encryption and decryption similar to the usage pattern\n"
+           "when decrypting a packet, switching it, and re-encrypting it with another key.\n");
 
-    sendMessages(&ctx, logger, 1000, 64, KEY, true);
-    sendMessages(&ctx, logger, 1000, 1500, KEY, true);
+    sendMessages(&ctx, 1000, 64, HELLO, true);
+    sendMessages(&ctx, 1000, 1500, HELLO, true);
 
-    sendMessages(&ctx, logger, 100000, 64, TRAFFIC, false);
-    sendMessages(&ctx, logger, 100000, 1500, TRAFFIC, false);
+    sendMessages(&ctx, 1000, 64, KEY, true);
+    sendMessages(&ctx, 1000, 1500, KEY, true);
 
-    sendMessages(&ctx, logger, 100000, 64, TRAFFIC, true);
-    Log_info(logger, "This is the most important metric:");
-    sendMessages(&ctx, logger, 100000, 1500, TRAFFIC, true);
+    sendMessages(&ctx, 100000, 64, TRAFFIC, false);
+    sendMessages(&ctx, 100000, 1500, TRAFFIC, false);
+
+    sendMessages(&ctx, 100000, 64, TRAFFIC, true);
+
+    printf("This is the switch configuration so this indicates expected switch throughput:\n");
+    sendMessages(&ctx, 100000, 1500, TRAFFIC, true);
 }
