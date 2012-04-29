@@ -44,13 +44,22 @@
 
 #define MAX_API_REQUEST_SIZE (1<<16)
 
+/**
+ * This txid is the inter-process communication txid.
+ * the txid which is passed to the functions is these bytes followed by the bytes
+ * that the user supplied in their "txid" entry. If the user didn't supply a txid
+ * the txid which the function gets will be just these bytes and when it is sent back
+ * the user will not get a txid back.
+ */
+#define TXID_LEN 4
+
 static String* TYPE =     String_CONST_SO("type");
 static String* REQUIRED = String_CONST_SO("required");
 static String* STRING =   String_CONST_SO("String");
 static String* INT =      String_CONST_SO("Int");
 static String* DICT =     String_CONST_SO("Dict");
 static String* LIST =     String_CONST_SO("List");
-static String* NONE =     String_CONST_SO("none");
+static String* TXID =     String_CONST_SO("txid");
 
 struct Function
 {
@@ -149,17 +158,7 @@ static void handleRequestFromChild(struct Admin* admin,
                                    size_t amount,
                                    struct Allocator* allocator)
 {
-    String* txid = NONE;
-    int skip = 0;
-
-    String oobtxid = { .len = 4, .bytes = (char*) buffer + 4 };
-    if (!memcmp(buffer, "0123", 4)) {
-        // out of band txid
-        txid = &oobtxid;
-        skip = 8;
-    }
-
-    struct Reader* reader = ArrayReader_new(buffer + skip, amount - skip, allocator);
+    struct Reader* reader = ArrayReader_new(buffer + TXID_LEN, amount - TXID_LEN, allocator);
     Dict message;
     if (StandardBencSerializer_get()->parseDictionary(reader, allocator, &message)) {
         Log_info(admin->logger, "Got unparsable data from admin interface.");
@@ -170,6 +169,14 @@ static void handleRequestFromChild(struct Admin* admin,
     if (!query) {
         Log_info(admin->logger, "Got a non-query from admin interface.");
         return;
+    }
+
+    // txid becomes the user supplied txid combined with the inter-process txid.
+    String* userTxid = Dict_getString(&message, TXID);
+    String* txid =
+        String_newBinary((char*)buffer, ((userTxid) ? userTxid->len : 0) + TXID_LEN, allocator);
+    if (userTxid) {
+        Bits_memcpy(txid->bytes + TXID_LEN, userTxid->bytes, userTxid->len);
     }
 
     // If they're asking for a cookie then lets give them one.
@@ -188,7 +195,7 @@ static void handleRequestFromChild(struct Admin* admin,
     String* auth = String_CONST("auth");
     bool authed = false;
     if (String_equals(query, auth)) {
-        if (!authValid(&message, buffer + skip, reader->bytesRead(reader), admin)) {
+        if (!authValid(&message, buffer + TXID_LEN, reader->bytesRead(reader), admin)) {
             Dict* d = Dict_new(allocator);
             Dict_putString(d, String_CONST("error"), String_CONST("Auth failed."), allocator);
             Admin_sendMessage(d, txid, admin);
@@ -242,9 +249,9 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
     if (amount < 1) {
         if (amount == 0 || errno != EAGAIN) {
             if (amount < 0) {
-                perror("broken pipe");
+                Log_error1(admin->logger, "Broken pipe to admin process, errno=%d", errno);
             } else {
-                fprintf(stderr, "connection closed unexpectedly\n");
+                Log_error(admin->logger, "Connection to admin process closed unexpectedly");
             }
             event_free(admin->pipeEv);
         }
@@ -273,7 +280,7 @@ struct Connection {
 #define MAX_CONNECTIONS 64
 struct ChildContext
 {
-    uint8_t buffer[MAX_API_REQUEST_SIZE];
+    uint8_t buffer[MAX_API_REQUEST_SIZE + TXID_LEN];
     struct Connection connections[MAX_CONNECTIONS];
 
     /** The event which listens for new connections. */
@@ -292,7 +299,7 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
 {
     struct ChildContext* context = (struct ChildContext*) vcontext;
     errno = 0;
-    ssize_t amount = read(context->inFd, context->buffer, MAX_API_REQUEST_SIZE);
+    ssize_t amount = read(context->inFd, context->buffer, MAX_API_REQUEST_SIZE + TXID_LEN);
 
     if (amount < 1) {
         if (errno == EAGAIN) {
@@ -301,36 +308,58 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
         if (amount < 0) {
             perror("broken pipe");
         } else {
-            fprintf(stderr, "connection closed unexpectedly\n");
+            fprintf(stderr, "admin connection closed\n");
         }
         exit(0);
         return;
+    } else if (amount < 4) {
+        return;
     }
 
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        if (context->connections[i].read != NULL) {
-            struct Connection* conn = &context->connections[i];
-            ssize_t sent = send(conn->socket, context->buffer, amount, 0);
-            if (sent != amount) {
-                // All errors lead to closing the socket.
-                EVUTIL_CLOSESOCKET(conn->socket);
-                event_free(conn->read);
-                conn->read = NULL;
-            }
-        }
+    Assert_assertTrue(TXID_LEN == 4);
+    uint32_t connNumber;
+    Bits_memcpyConst(&connNumber, context->buffer, TXID_LEN);
+
+    if (connNumber >= MAX_CONNECTIONS) {
+        fprintf(stderr, "got message for connection #%u, max connections is %d\n",
+                connNumber, MAX_CONNECTIONS);
+        return;
+    }
+
+    struct Connection* conn = &context->connections[connNumber];
+    if (!conn->read) {
+        fprintf(stderr, "got message for closed #%u", connNumber);
+        return;
+    }
+
+    amount -= TXID_LEN;
+    ssize_t sent = send(conn->socket, context->buffer + TXID_LEN, amount, 0);
+    if (sent != amount) {
+        // All errors lead to closing the socket.
+        EVUTIL_CLOSESOCKET(conn->socket);
+        event_free(conn->read);
+        conn->read = NULL;
     }
 }
 
+// Only happens in Admin process.
 static void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
     errno = 0;
-    char buf[MAX_API_REQUEST_SIZE];
-    ssize_t result = recv(socket, buf, MAX_API_REQUEST_SIZE, 0);
+    uint8_t buf[MAX_API_REQUEST_SIZE + TXID_LEN];
+    ssize_t result = recv(socket, buf + TXID_LEN, MAX_API_REQUEST_SIZE, 0);
+
     if (result > 0) {
-        size_t amountWritten = write(context->outFd, buf, result);
-        if (amountWritten != (size_t)result) {
+
+        Assert_assertTrue(TXID_LEN == 4);
+        uint32_t connNumber = conn - context->connections;
+        Bits_memcpyConst(buf, &connNumber, TXID_LEN);
+
+        size_t amountWritten = write(context->outFd, buf, result + TXID_LEN);
+        if (amountWritten != (size_t)result + TXID_LEN) {
+            printf("Admin process failed to write data across pipe to main process.");
             exit(0);
         }
     } else if (result < 0 && errno == EAGAIN) {
@@ -368,6 +397,7 @@ static struct Connection* newConnection(struct ChildContext* context, evutil_soc
     return conn;
 }
 
+// Happens only in the admin process.
 static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct ChildContext* context = (struct ChildContext*) vcontext;
@@ -489,24 +519,26 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     if (!admin) {
         return;
     }
-    // TODO: fix this right
-    if (String_equals(txid, NONE)) {
-        txid = NULL;
-    }
-    uint8_t buff[MAX_API_REQUEST_SIZE];
+    assert(txid);
+
+    uint8_t buff[MAX_API_REQUEST_SIZE + TXID_LEN];
+
+    // Write the inter-process txid.
+    Bits_memcpyConst(buff, txid->bytes, TXID_LEN);
+
     uint8_t allocBuff[256];
     struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
 
-    int skip = (txid) ? 8 : 0;
-
-    struct Writer* w = ArrayWriter_new(buff + skip, MAX_API_REQUEST_SIZE - skip, allocator);
-    StandardBencSerializer_get()->serializeDictionary(w, message);
-    size_t written = w->bytesWritten(w) + skip;
-    if (txid) {
-        Bits_memcpyConst(buff, "4567", 4);
-        Bits_memcpyConst(buff + 4, txid->bytes, 4);
+    // Bounce back the user-supplied txid.
+    String userTxid = { .bytes = txid->bytes + TXID_LEN, .len = txid->len - TXID_LEN };
+    if (txid->len > TXID_LEN) {
+        Dict_putString(message, TXID, &userTxid, allocator);
     }
-    write(admin->outFd, buff, written);
+
+    struct Writer* w = ArrayWriter_new(buff + TXID_LEN, MAX_API_REQUEST_SIZE, allocator);
+    StandardBencSerializer_get()->serializeDictionary(w, message);
+
+    write(admin->outFd, buff, w->bytesWritten(w) + TXID_LEN);
 }
 
 struct Admin* Admin_new(struct sockaddr_storage* addr,
@@ -538,7 +570,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     int outFd = pipes[!isChild][1];
     close(pipes[isChild][1]);
 
-    if (isChild) {
+    if (!isChild) {
         // Set the process group so that children will not
         // become orphaned if the parent gets signal 11 err um 9.
         setpgid(0, pgid);
@@ -555,6 +587,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
         event_reinit(eventBase);
         context.eventBase = eventBase;
         child(addr, addrLen, user, &context);
+        fprintf(stderr, "Admin process exiting.");
         exit(0);
     }
 
