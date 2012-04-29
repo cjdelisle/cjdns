@@ -136,6 +136,7 @@ add_subdirectory(net)
 add_executable(cjdroute cjdroute.c)
 target_link_libraries(cjdroute
     crypto
+    crypto_benchmark
     interface
     switch
     dht
