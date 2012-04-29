@@ -722,6 +722,7 @@ struct Ducttape* Ducttape_register(Dict* config,
     context->routerModule = routerModule;
     context->logger = logger;
     context->forwardTo = NULL;
+    AddressMapper_init(&context->addrMap);
 
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, cryptoAuth);

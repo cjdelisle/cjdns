@@ -27,7 +27,7 @@
  * head therefore means items will be checked in most-recently-used order.
  *
  * When inserting a new item, the item to replace - the least-recently-used item - is simply the tail.
- * Then the tail is made the head, because it is the most recently used item.
+ * Then the tail is set to be the head, because it is the most recently used item.
  */
 struct AddressMapperEntry
 {
@@ -51,7 +51,7 @@ struct AddressMapper
     uint8_t canary[3];
 };
 
-//#define LL_LRU_VALIDATE
+#define LL_LRU_VALIDATE
 #ifdef LL_LRU_VALIDATE
 #include <stdio.h> /* XXX: removeme */
 
@@ -159,12 +159,8 @@ static void validateLinkedList(struct AddressMapper* map)
 #define validate()
 #endif
 
-static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
+static inline void AddressMapper_init(struct AddressMapper *map)
 {
-    struct AddressMapper* map;
-
-    map = allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
-
     /* initialise the doubly linked list */
 
     map->entries[0].prev = &map->entries[AddressMapper_MAX_ENTRIES - 1];
@@ -186,6 +182,15 @@ static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocato
 #ifdef LL_LRU_VALIDATE
     printLinkedList(map);
 #endif
+
+}
+
+static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
+{
+    struct AddressMapper* map;
+
+    map = allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
+    AddressMapper_init(map);
 
     return map;
 }
