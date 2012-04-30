@@ -684,7 +684,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     // If the source address is the same as the router address, no third layer of crypto.
-    context->routerAddress = context->addrMap.addresses[herAddrIndex];
+    context->routerAddress = context->addrMap.entries[herAddrIndex].address;
 
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
@@ -722,6 +722,7 @@ struct Ducttape* Ducttape_register(Dict* config,
     context->routerModule = routerModule;
     context->logger = logger;
     context->forwardTo = NULL;
+    AddressMapper_init(&context->addrMap);
 
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, cryptoAuth);
