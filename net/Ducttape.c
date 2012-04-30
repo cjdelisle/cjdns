@@ -478,17 +478,19 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* c
     context->ip6Header->payloadLength_be = Endian_hostToBigEndian16(message->length);
 
     Message_shift(message, Headers_IP6Header_SIZE);
-    Bits_memcpyConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
 
     // If this message is addressed to us, it means the cryptoauth kicked back a response
     // message when we asked it to decrypt a message for us and the ipv6 addresses need to
     // be flipped to send it back to the other node.
     if (isForMe(message, context)) {
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
+        assert(context->ip6Header == ip6);
         Bits_memcpyConst(ip6->destinationAddr, ip6->sourceAddr, 16);
         Bits_memcpyConst(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
         // It came from me...
         context->routerAddress = context->myAddr.ip6.bytes;
+    } else {
+        Bits_memcpyConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
 
     // Forward this call to core() which will check it's validity
