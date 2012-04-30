@@ -107,8 +107,19 @@ static inline void Entry_insertAtTail(struct AddressMapperEntry *entry, struct A
  */
 static inline void Entry_moveToTail(struct AddressMapperEntry *entry, struct AddressMapper *map)
 {
-    Entry_detach(entry, map);
-    Entry_insertAtTail(entry, map);
+    if(entry == map->head) {
+        map->head = map->head->next;
+    } else {
+        /* detach entry */
+        entry->prev->next = entry->next;
+        entry->next->prev = entry->prev;
+
+        /* insert at the tail */
+        map->head->prev->next = entry;
+        entry->prev = map->head->prev;
+        entry->next = map->head;
+        map->head->prev = entry;
+    }
 }
 
 /**
@@ -126,12 +137,7 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
         if(entry->label == label) {
             /* move entry to head */
 
-            /* detach entry */
-            entry->prev->next = entry->next;
-            entry->next->prev = entry->prev;
-
-            Entry_insertAtTail(entry, map);
-
+            Entry_moveToTail(entry, map);
             map->head = entry;
 
             return Entry_indexOf(map, entry);
@@ -153,18 +159,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
         struct AddressMapperEntry* entry;
 
         entry = &map->entries[index];
-
-        /* detach entry */
-        entry->prev->next = entry->next;
-        entry->next->prev = entry->prev;
-
-        if(entry == map->head) {
-            map->head = map->head->next;
-        }
-
-        Entry_insertAtTail(entry, map);
-
-        map->head = entry;
+        Entry_moveToTail(entry, map);
 
         /* invalidate the entry */
         entry->label = 0L;
