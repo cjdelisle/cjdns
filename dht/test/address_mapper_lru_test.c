@@ -1,8 +1,11 @@
 #include "memory/BufferAllocator.h"
-#include "dht/AddressMapper.h.lru"
+#include "dht/AddressMapper.h"
 
 #include <stdio.h>
 #include <time.h>
+
+/* repeat each test this many times to guard against an occasional pass */
+#define NUM_REPEAT 100
 
 /* structure used by tests to report back their information */
 struct TestInfo {
@@ -447,29 +450,33 @@ int main(int argc, char** argv)
 
     int testNum = 0;
     while(testRunList[testNum] != NULL) {
-        struct TestInfo info;
+        for(int rpt = 0; rpt < NUM_REPEAT; rpt++) {
+            struct TestInfo info;
+            int testErr;
 
-        memset(&info, 0, sizeof(info));
-        err = testRunList[testNum](state.map, &info);
+            memset(&info, 0, sizeof(info));
+            testErr = testRunList[testNum](state.map, &info);
 
-        if(err != 0) {
-            fprintf(stderr, "Failed to initialise test: %s\n", info.name);
-            goto errorExitTest;
-        }
-
-        /* print the test status */
-        printf("%s: ", info.name);
-        if(info.pass == true) {
-            printf("OK");
-        } else {
-            printf("Failed");
-            if(info.failMessage != NULL) {
-                printf(" - %s", info.failMessage);
+            if(testErr != 0) {
+                fprintf(stderr, "Failed to initialise test: %s\n", info.name);
+                goto errorExitTest;
             }
 
-            /* nonzero exit code if a test has failed */
-            err = -1;
+            /* if the test failed then print its error message now and move on to the next test */
+            if(info.pass == false) {
+                printf("Failed");
+                if(info.failMessage != NULL) {
+                    printf(" - %s.", info.failMessage);
+                }
+                /* nonzero exit code if a test has failed */
+                err = -1;
+                goto nextTest;
+            }
         }
+
+        printf("OK");
+
+        nextTest:
         printf("\n\n");
         testNum++;
     }
