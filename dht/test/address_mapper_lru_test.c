@@ -37,7 +37,7 @@ static uint8_t* getDummyAddress(void)
     return address;
 }
 
-/* runTest_ReplaceLeastRecentlyUsed:
+/* runTest_ReplaceLeastRecentlyUsed
  *
  * Tests that the address mapper replaces the last recently used item
  * when adding a new item to a full address map.
@@ -186,7 +186,7 @@ static int runTest_removeAndPut(struct AddressMapper *map, struct TestInfo *info
  * when adding a new item to a full address map
  *
  * 1. Fill address map with labels 1 .. N
- * 2. Query the index of the least recently used item, in order to promote it to
+ * 2. Query the index of the least recently used item (label=1) in order to promote it to
  *    being the most recently used item
  * 3. Add a new entry to the address map
  * 4. Ensure it is entry with label==2 which has been removed
@@ -203,7 +203,10 @@ static int runTest_dontReplaceMostRecentlyUsed(struct AddressMapper *map, struct
     /* touch item #1. #2 is now the least recently used */
     int index;
     index = AddressMapper_indexOf(1, map);
-    assert(index != -1);
+
+    if(index == -1) {
+        info->failMessage = "Failed to fill address map - first item was dropped";
+    }
 
     /* add a new entry and check that #1 was not replaced.
      * check that #2 was replaced.
@@ -360,6 +363,7 @@ out:
     return 0;
 }
 
+/* collection of data required to run tests */
 struct AppState {
     void *buffer;
     struct AddressMapper* map;
@@ -407,6 +411,9 @@ static void deinitAppState(struct AppState *state)
     free(state->buffer);
 }
 
+/* if the user passed an unsigned integer then use that as a seed,
+ * otherwise use the current time
+ */
 static void applySeed(int argc, char **argv)
 {
     unsigned int seedValue;
@@ -429,8 +436,8 @@ static void applySeed(int argc, char **argv)
 static int (*testRunList[])(struct AddressMapper *map, struct TestInfo *info) = {
                     runTest_replaceLeastRecentlyUsed,
                     runTest_dontReplaceMostRecentlyUsed,
-                    runTest_orderCheck,
                     runTest_removeAndPut,
+                    runTest_orderCheck,
                     NULL
 };
 
