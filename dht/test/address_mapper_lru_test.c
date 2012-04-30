@@ -1,5 +1,5 @@
 #include "memory/BufferAllocator.h"
-#include "dht/AddressMapper.h"
+#include "dht/AddressMapper.h.lru"
 
 #include <stdio.h>
 #include <time.h>
@@ -34,8 +34,7 @@ static uint8_t* getDummyAddress(void)
     return address;
 }
 
-
-/* runTest_ReplaceLRU:
+/* runTest_ReplaceLeastRecentlyUsed:
  *
  * Tests that the address mapper replaces the last recently used item
  * when adding a new item to a full address map.
@@ -46,6 +45,8 @@ static uint8_t* getDummyAddress(void)
  */
 static int runTest_replaceLeastRecentlyUsed(struct AddressMapper *map, struct TestInfo *info)
 {
+    info->name = "Replace least recently used";
+
     /* fill the address map */
     for(unsigned int label = 1; label <= AddressMapper_MAX_ENTRIES; label++) {
         AddressMapper_put(label, getDummyAddress(), map);
@@ -86,6 +87,96 @@ static int runTest_replaceLeastRecentlyUsed(struct AddressMapper *map, struct Te
     return 0;
 }
 
+/* runTest_removeAndPut
+ *
+ * Tets the "remove" functionality of the address mapper is optimal by checking
+ * that the address mapper replaces "removed" entries when new entries are added,
+ * rather than enties that are still valid.
+ *
+ * 1. Fill the address map
+ * 2. Remove a random selection of entries
+ * 3. Add new entries to replace the previously removed entries
+ * 4. Check that only the removed entries were replaced
+ */
+static int runTest_removeAndPut(struct AddressMapper *map, struct TestInfo *info)
+{
+    /* the labels to remove - a maximum of 8 */
+    uint64_t removeLabels[2];
+    info->name = "Remove and put";
+
+    /* fill the address map */
+    for(unsigned int label = 1; label <= AddressMapper_MAX_ENTRIES; label++) {
+            AddressMapper_put(label, getDummyAddress(), map);
+    }
+
+    /* remove a random number (between 1 and 8) of labels, at random */
+    unsigned int numToRemove = (rand() % 2) + 1;
+
+    for(unsigned int i = 0; i < numToRemove; i++) {
+        generateRandomLabel:
+        removeLabels[i] = (rand() % AddressMapper_MAX_ENTRIES) + 1;
+        /* check the label is unique */
+        for(unsigned int j = 0; j < i; j++) {
+            if(removeLabels[j] == removeLabels[i])
+                goto generateRandomLabel;
+        }
+
+
+        int index;
+        index = AddressMapper_indexOf(removeLabels[i], map);
+
+        if(index == -1) {
+            info->failMessage = "Could not find item which should have been "
+                                                            "present in map";
+            return 0;
+        }
+
+        int result;
+        result = AddressMapper_remove(index, map);
+
+        if(result != 0) {
+            info->failMessage = "Could not remove item which should have been "
+                                                            "present in map";
+            return 0;
+        }
+    }
+
+    /* put some new items in the map to replace the removed ones */
+    for(unsigned int i = 1; i <= numToRemove; i++) {
+        AddressMapper_put(AddressMapper_MAX_ENTRIES + i, getDummyAddress(), map);
+    }
+
+    /* check that the map contents is as expected.
+     * check that all of the original items are present apart from the ones
+     * that were removed
+     */
+    for(unsigned int label = 1; label <= AddressMapper_MAX_ENTRIES; label++) {
+        /* find out if this item should have been removed */
+        bool wasRemoved = false;
+
+        for(unsigned int i = 0; i < numToRemove; i++) {
+            if(label == removeLabels[i]) {
+                wasRemoved = true;
+            }
+        }
+
+        int index;
+
+        index = AddressMapper_indexOf(label, map);
+
+        if((wasRemoved == true) && (index != -1)) {
+            info->failMessage = "Removed item still exists in the map";
+            return 0;
+        } else if((wasRemoved == false) && (index == -1)) {
+            info->failMessage = "Non-removed item is missing from the map";
+            return 0;
+        }
+    }
+
+    info->pass = true;
+    return 0;
+}
+
 /* runTest_dontReplaceMostRecentlyUsed
  *
  * Tests that the address mapper does not replace the most recently used item
@@ -99,6 +190,8 @@ static int runTest_replaceLeastRecentlyUsed(struct AddressMapper *map, struct Te
  */
 static int runTest_dontReplaceMostRecentlyUsed(struct AddressMapper *map, struct TestInfo *info)
 {
+    info->name = "Don't replace most recently used";
+
     /* fill the address map such that the item with label==1 is the least recently used */
     for(unsigned int label = 1; label <= AddressMapper_MAX_ENTRIES; label++) {
         AddressMapper_put(label, getDummyAddress(), map);
@@ -145,25 +238,33 @@ static uint64_t rand64(void)
     return r;
 }
 
-/* runTest_OrderCheck
+/* runTest_orderCheck
  *
  * Tests that the address mapper properly maintains its entries in order of most
- * recently used.
+ * recently used and replaces entries in order of least recently used.
  *
  * 1. Fill address mapper
  * 2. Shuffle the contents of the address map
  * 2. Queries the address mapper in a random order
- * 3. Add new entries to the map until it is full, each time testing to make
- *    sure that only the least recently used item was removed
+ * 3. Add new entries to the map such that only the most recently used
+ *    of the previously entries should still be presnt.
+ * 4. Query the address map to see if only the most recently used item remains.
  */
-static int runTest_OrderCheck(struct AddressMapper *map, struct TestInfo *info)
+static int runTest_orderCheck(struct AddressMapper *map, struct TestInfo *info)
 {
+    info->name = "Order check";
+
     /* the labels used for this test, stored in a random order */
     uint64_t *labels;
     const uint64_t labelMin = 0xF000000000000000;
     const uint64_t labelMax = 0xFFFFFFFFFFFFFFFF;
 
     labels = calloc(AddressMapper_MAX_ENTRIES, sizeof(uint64_t));
+
+    if(labels == NULL) {
+        fprintf(stderr, "Failed to allocate memory\n");
+        return -1;
+    }
 
     /* now generate random unique labels and add each one to the map */
 
@@ -190,7 +291,7 @@ static int runTest_OrderCheck(struct AddressMapper *map, struct TestInfo *info)
 
         if(index == -1) {
             info->failMessage = "Map has lost an element";
-            return 0;
+            goto out;
         }
     }
 
@@ -215,62 +316,163 @@ static int runTest_OrderCheck(struct AddressMapper *map, struct TestInfo *info)
 
         if(index == -1) {
             info->failMessage = "Map has lost an element";
-            return 0;
+            goto out;
         }
     }
 
     /* now check the items are replaced in the correct order.
      * The new labels are guaranteed to be unique from the labels already
-     * in the map
+     * in the map.
+     * After this action there should be just one item left,
+     * the most recently used item from above - this is the
+     * last item in the shuffled array.
      */
-    for(int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
+    for(int i = 0; i < AddressMapper_MAX_ENTRIES - 1; i++) {
         /* add a new entry */
         uint64_t newLabel = labels[i] - labelMin;
         AddressMapper_put(newLabel, getDummyAddress(), map);
+    }
 
-        /* test that only the least recently used label was removed */
-        for(int j = 0; j < AddressMapper_MAX_ENTRIES; j++) {
-            int index;
-            index = AddressMapper_indexOf(labels[j], map);
+    /* verify that only most recently used item remains, as expected */
+    for(int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
+        int index;
+        index = AddressMapper_indexOf(labels[i], map);
 
-            /* items <=i should have been replaced as least used */
-            if((j <= i) && (index != -1)) {
-                info->failMessage = "Element was not removed as expected";
-                return 0;
-            }
+        /* items < (AddressMapper_MAX_ENTRIES - 1) should have been replaced as least used */
+        if((i < (AddressMapper_MAX_ENTRIES - 1)) && (index != -1)) {
+            info->failMessage = "Element was not removed as expected";
+            goto out;
+        }
 
-            /* items > i should not have been replaced yet */
-            if((j > i) && (index == -1)) {
-                info->failMessage = "Unexpected item was lost";
-                return 0;
-            }
+        /* item == (AddressMapper_MAX_ENTRIES - 1) should not have been replaced */
+        if((i == (AddressMapper_MAX_ENTRIES - 1)) && (index == -1)) {
+            info->failMessage = "Unexpected item was lost";
+            goto out;
         }
     }
 
     info->pass = true;
-    return 1;
+out:
+    free(labels);
+    return 0;
+}
 
+struct AppState {
+    void *buffer;
+    struct AddressMapper* map;
+    struct Allocator* allocator;
+};
+
+static int initAppState(struct AppState *state)
+{
+    const size_t bufferSize = 64 * 1024;
+
+    state->buffer = malloc(bufferSize);
+
+    if(state->buffer == NULL) {
+        fprintf(stderr, "Failed to allocate buffer\n");
+        goto errorExitMalloc;
+    }
+
+    state->allocator = BufferAllocator_new(state->buffer, bufferSize);
+
+    if(state->allocator == NULL) {
+        fprintf(stderr, "Failed to create allocator\n");
+        goto errorExitAllocator;
+    }
+
+    state->map = AddressMapper_new(state->allocator);
+
+    if(state->map == NULL) {
+        fprintf(stderr, "Failed to create address map\n");
+        goto errorExitMap;
+    }
+
+    return 0;
+
+errorExitMap:
+    state->allocator->free(state->allocator);
+errorExitAllocator:
+    free(state->buffer);
+errorExitMalloc:
+    return -1;
+}
+
+static void deinitAppState(struct AppState *state)
+{
+    state->allocator->free(state->allocator);
+    free(state->buffer);
+}
+
+static void applySeed(int argc, char **argv)
+{
+    unsigned int seedValue;
+
+    if(argc <= 1) {
+        seedValue = time(NULL);
+    } else {
+        int n;
+        n = sscanf(argv[1], "%u", &seedValue);
+        if(n != 1) {
+            fprintf(stderr, "Invalid seed value: %s\n", argv[1]);
+            abort();
+        }
+    }
+
+    srand(seedValue);
 }
 
 /* list of tests to run */
 static int (*testRunList[])(struct AddressMapper *map, struct TestInfo *info) = {
-                    &runTest_replaceLeastRecentlyUsed,
+                    runTest_replaceLeastRecentlyUsed,
                     runTest_dontReplaceMostRecentlyUsed,
-                    runTest_OrderCheck,
+                    runTest_orderCheck,
+                    runTest_removeAndPut,
                     NULL
 };
 
 
 int main(int argc, char** argv)
 {
-    int testNum = 0;
+    int err = 0;
+    struct AppState state;
 
-    srand(time(NULL));
+    err = initAppState(&state);
 
-    while(testRunList[testNum] != NULL) {
-        testRunList[testNum](NULL, NULL);
+    if(err != 0) {
+        goto errorExitAppState;
     }
 
+    applySeed(argc, argv);
 
-    return 0;
+    int testNum = 0;
+    while(testRunList[testNum] != NULL) {
+        struct TestInfo info;
+
+        memset(&info, 0, sizeof(info));
+        err = testRunList[testNum](state.map, &info);
+
+        if(err != 0) {
+            fprintf(stderr, "Failed to initialise test: %s\n", info.name);
+            goto errorExitTest;
+        }
+
+        /* print the test status */
+        printf("%s: ", info.name);
+        if(info.pass == true) {
+            printf("OK");
+        } else {
+            printf("Failed");
+            if(info.failMessage != NULL) {
+                printf(" - %s", info.failMessage);
+            }
+        }
+        printf("\n\n");
+        testNum++;
+    }
+
+errorExitTest:
+    deinitAppState(&state);
+errorExitAppState:
+    return err;
 }
