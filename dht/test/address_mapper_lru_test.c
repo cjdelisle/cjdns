@@ -466,6 +466,9 @@ int main(int argc, char** argv)
             if(info.failMessage != NULL) {
                 printf(" - %s", info.failMessage);
             }
+
+            /* nonzero exit code if a test has failed */
+            err = -1;
         }
         printf("\n\n");
         testNum++;
