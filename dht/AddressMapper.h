@@ -37,8 +37,8 @@ struct AddressMapperEntry
     struct AddressMapperEntry *prev;
 };
 
-/* macro gets the index of a linked list entry (with respect to the
- * start of the element array)
+/* gets the index of a linked list entry with respect to the
+ * start of the element array
  */
 #define Entry_indexOf(map, entry) ((entry) - &(map)->entries[0])
 
@@ -47,7 +47,6 @@ struct AddressMapper
 {
     struct AddressMapperEntry entries[AddressMapper_MAX_ENTRIES];
     struct AddressMapperEntry *head;
-    uint8_t accessNumber;
     uint8_t canary[3];
 };
 
@@ -76,31 +75,6 @@ static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocato
 
     return map;
 }
-/**
- * Detach the given entry from the linked list
- */
-static inline void Entry_detach(struct AddressMapperEntry *entry, struct AddressMapper *map)
-{
-        /* detach entry */
-        entry->prev->next = entry->next;
-        entry->next->prev = entry->prev;
-
-        if(entry == map->head) {
-            map->head = map->head->next;
-        }
-}
-
-/**
- * Attach the given entry at the tail of the linked list
- */
-static inline void Entry_insertAtTail(struct AddressMapperEntry *entry, struct AddressMapper *map)
-{
-            map->head->prev->next = entry;
-            entry->prev = map->head->prev;
-
-            entry->next = map->head;
-            map->head->prev = entry;
-}
 
 /**
  * Move the given entry to the tail of the linked list
@@ -123,6 +97,30 @@ static inline void Entry_moveToTail(struct AddressMapperEntry *entry, struct Add
 }
 
 /**
+ * Move the given entry to the head of the linked list.
+ *
+ * Unlike Entry_moveToTail, this function has an optimisation for
+ * moving the tail entry to the head, since this is a common case
+ */
+static inline void Entry_moveToHead(struct AddressMapperEntry *entry, struct AddressMapper *map)
+{
+    if(entry != map->head) {
+        if(entry != map->head->prev) {
+            /* detach entry */
+            entry->prev->next = entry->next;
+            entry->next->prev = entry->prev;
+
+            /* insert at the tail */
+            map->head->prev->next = entry;
+            entry->prev = map->head->prev;
+            entry->next = map->head;
+            map->head->prev = entry;
+        }
+        map->head = entry;
+    }
+}
+
+/**
  * This is a very hot loop,
  * a large amount of code relies on this being fast so it is a good target for optimization.
  */
@@ -131,15 +129,12 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
     struct AddressMapperEntry* entry;
 
     /* search from head to tail */
-    entry = &map->head[0];
+    entry = map->head;
 
     do {
         if(entry->label == label) {
             /* move entry to head */
-
-            Entry_moveToTail(entry, map);
-            map->head = entry;
-
+            Entry_moveToHead(entry, map);
             return Entry_indexOf(map, entry);
         }
         entry = entry->next;
@@ -157,7 +152,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
 {
     if((index >= 0) && (index < AddressMapper_MAX_ENTRIES)) {
         struct AddressMapperEntry* entry;
-
+        /* move entry to tail */
         entry = &map->entries[index];
         Entry_moveToTail(entry, map);
 
@@ -170,6 +165,12 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
     return -1;
 }
 
+/**
+ * Put a new element in the map
+ * @param label the label of the new element
+ * @param address the address of the new element
+ * @param map the map to add to
+ */
 static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
 {
     struct AddressMapperEntry *tail;
