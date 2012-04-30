@@ -51,138 +51,20 @@ struct AddressMapper
     uint8_t canary[3];
 };
 
-#define LL_LRU_VALIDATE
-#ifdef LL_LRU_VALIDATE
-#include <stdio.h> /* XXX: removeme */
-
-#define validate() validateLinkedList(map)
-
-static void printLinkedList(struct AddressMapper *map)
-{
- //   unsigned int entryList[AddressMapper_MAX_ENTRIES];
-    struct AddressMapperEntry *entry;
-    unsigned int n = 0;
-
-    entry = map->head;
-
-    printf("lbl>[");
-    do {
-//           entryList[n] = Entry_indexOf(map, entry);
-           printf("%llu", (unsigned long long) entry->label);
-        n++;
-        entry = entry->next;
-        if(entry != map->head) {
-            printf(", ");
-        }
-    } while(entry != map->head);
-    printf("]>\n");
-    printf("total: %u\n", n);
-
-    entry = map->head->prev;
-
-    printf("lbl<[");
-    do {
-           printf("%llu", (unsigned long long) entry->label);
-        n++;
-        entry = entry->prev;
-        if(entry != map->head->prev) {
-            printf(", ");
-        }
-    } while(entry != map->head->prev);
-    printf("]<\n");
-
-#if 0
-    printf("idx>[");
-    for(unsigned int i = 0; i < n; i++) {
-        printf("%u", entryList[i]);
-        if(i < (n - 1)) {
-            printf(", ");
-        }
-    }
-    printf("]>\n");
-#endif
-}
-
-static void validateError(unsigned int idx)
-{
-    fprintf(stderr, "Validation error: %u\n", idx);
-    abort();
-}
-
-static void validateLinkedList(struct AddressMapper* map)
-{
-    uint8_t hitlist[AddressMapper_MAX_ENTRIES];
-    struct AddressMapperEntry *entry;
-    unsigned int count;
-
-    /* validate forwards */
-
-    memset(hitlist, 0, AddressMapper_MAX_ENTRIES);
-
-    entry = map->head;
-    count = 0;
-
-    do {
-        hitlist[Entry_indexOf(map, entry)] = 1;
-
-        entry = entry->next;
-        count++;
-    } while(entry != map->head);
-
-    assert(count == AddressMapper_MAX_ENTRIES);
-
-    for(unsigned int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
-        if(hitlist[i] == 0) {
-            validateError(i);
-        }
-    }
-
-    /* validate backwards */
-
-    memset(hitlist, 0, AddressMapper_MAX_ENTRIES);
-
-    entry = map->head->prev;
-
-    do {
-        hitlist[Entry_indexOf(map, entry)] = 1;
-
-        entry = entry->prev;
-    } while(entry != map->head->prev);
-
-    for(unsigned int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
-        if(hitlist[i] == 0) {
-            validateError(i);
-        }
-    }
-}
-#else
-#define validate()
-#endif
-
 static inline void AddressMapper_init(struct AddressMapper *map)
 {
     /* initialise the doubly linked list */
 
-    map->entries[0].prev = &map->entries[AddressMapper_MAX_ENTRIES - 1];
-    map->entries[0].next = &map->entries[1];
-
-    int i;
-    for(i = 1; i < AddressMapper_MAX_ENTRIES - 1; i++) {
+    for(int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
         map->entries[i].prev = &map->entries[i - 1];
         map->entries[i].next = &map->entries[i + 1];
     }
 
-    map->entries[AddressMapper_MAX_ENTRIES - 1].prev = &map->entries[AddressMapper_MAX_ENTRIES - 2];
+    map->entries[0].prev = &map->entries[AddressMapper_MAX_ENTRIES - 1];
     map->entries[AddressMapper_MAX_ENTRIES - 1].next = &map->entries[0];
 
     /* set the initial head */
     map->head = &map->entries[0];
-
-    validate();
-#ifdef LL_LRU_VALIDATE
-    printLinkedList(map);
-#endif
-
 }
 
 static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
@@ -194,15 +76,39 @@ static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocato
 
     return map;
 }
-
+/**
+ * Detach the given entry from the linked list
+ */
 static inline void Entry_detach(struct AddressMapperEntry *entry, struct AddressMapper *map)
 {
         /* detach entry */
         entry->prev->next = entry->next;
         entry->next->prev = entry->prev;
+
         if(entry == map->head) {
             map->head = map->head->next;
         }
+}
+
+/**
+ * Attach the given entry at the tail of the linked list
+ */
+static inline void Entry_insertAtTail(struct AddressMapperEntry *entry, struct AddressMapper *map)
+{
+            map->head->prev->next = entry;
+            entry->prev = map->head->prev;
+
+            entry->next = map->head;
+            map->head->prev = entry;
+}
+
+/**
+ * Move the given entry to the tail of the linked list
+ */
+static inline void Entry_moveToTail(struct AddressMapperEntry *entry, struct AddressMapper *map)
+{
+    Entry_detach(entry, map);
+    Entry_insertAtTail(entry, map);
 }
 
 /**
@@ -218,25 +124,21 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
 
     do {
         if(entry->label == label) {
-            Entry_detach(entry, map);
+            /* move entry to head */
 
-            /* move to head */
+            /* detach entry */
+            entry->prev->next = entry->next;
+            entry->next->prev = entry->prev;
 
-            map->head->prev->next = entry;
-            entry->prev = map->head->prev;
-
-            entry->next = map->head;
-            map->head->prev = entry;
+            Entry_insertAtTail(entry, map);
 
             map->head = entry;
 
-            validate();
             return Entry_indexOf(map, entry);
         }
         entry = entry->next;
     } while(entry != map->head);
 
-    validate();
     return -1;
 }
 
@@ -251,24 +153,25 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
         struct AddressMapperEntry* entry;
 
         entry = &map->entries[index];
-        Entry_detach(entry, map);
 
-        /* move to tail */
+        /* detach entry */
+        entry->prev->next = entry->next;
+        entry->next->prev = entry->prev;
 
-        map->head->prev->next = entry;
-        entry->prev = map->head->prev;
+        if(entry == map->head) {
+            map->head = map->head->next;
+        }
 
-        entry->next = map->head;
-        map->head->prev = entry;
+        Entry_insertAtTail(entry, map);
+
+        map->head = entry;
 
         /* invalidate the entry */
         entry->label = 0L;
 
-        validate();
         return 0;
     }
 
-    validate();
     return -1;
 }
 
@@ -282,7 +185,6 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
     map->head = tail;
 
     assert(!memcmp(map->canary, "\0\0\0", 3));
-    validate();
     return Entry_indexOf(map, tail);
 }
 
