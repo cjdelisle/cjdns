@@ -23,6 +23,7 @@ if (NOT NACL_FOUND)
             /usr/local/include
             /opt/local/include
             ${CMAKE_BINARY_DIR}/nacl/build/include/default
+            ${CMAKE_BINARY_DIR}/nacl/include
         NO_DEFAULT_PATH
     )
 
@@ -30,6 +31,7 @@ if (NOT NACL_FOUND)
         NAMES
             nacl
         PATHS
+            ${NACL_INCLUDE_DIRS}/..
             ${NACL_INCLUDE_DIRS}/../lib
             ${NACL_INCLUDE_DIRS}/../../lib
         NO_DEFAULT_PATH
@@ -50,7 +52,8 @@ if(NOT NACL_FOUND)
 
     ExternalProject_Add(NACL
         GIT_REPOSITORY git://github.com/cjdelisle/nacl.git
-        GIT_TAG c737ed821164f397a1a0639b9361c66edf2d4000
+        GIT_TAG da8e59a1008764ec51b1d6e54fdd3fd64cd8b708
+        CMAKE_ARGS -DNACL_CFLAGS:STRING=-O3,-fomit-frame-pointer,-funroll-loops,-fPIC
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
         INSTALL_COMMAND ""
@@ -58,8 +61,8 @@ if(NOT NACL_FOUND)
         PATCH_COMMAND ""
     )
 
-    set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
-    set(NACL_LIBRARIES    "${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a")
+    set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/include/")
+    set(NACL_LIBRARIES    "${CMAKE_BINARY_DIR}/nacl/libnacl.a")
     message("libnacl not found, will be downloaded and compiled.")
     set(NACL_FOUND TRUE)
 
