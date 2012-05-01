@@ -449,6 +449,7 @@ static void child(struct sockaddr_storage* addr,
     event_add(context->dataFromParent, NULL);
 
     if (!addr->ss_family) {
+printf("using af_inet\n");
         addr->ss_family = AF_INET;
     }
 
@@ -461,8 +462,9 @@ static void child(struct sockaddr_storage* addr,
     evutil_make_listen_socket_reuseable(listener);
 
     // mac test
-    if (addr->ss_family == AF_INET && !((struct sockaddr_in*) addr)->sin_port == 0) {
-        ((struct sockaddr_in*) addr)->sin_port = 9000;
+    if (addr->ss_family == AF_INET && ((struct sockaddr_in*) addr)->sin_port == 0) {
+printf("using port 9000\n");
+        ((struct sockaddr_in*) addr)->sin_port = Endian_hostToBigEndian16(9000);
     }
 
     if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
