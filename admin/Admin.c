@@ -468,7 +468,7 @@ printf("using port 9000\n");
     }
 
     if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
-        perror("bind");
+        perror("bind " __FILE__);
         return;
     }
 
