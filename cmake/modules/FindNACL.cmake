@@ -52,7 +52,7 @@ if(NOT NACL_FOUND)
 
     ExternalProject_Add(NACL
         GIT_REPOSITORY git://github.com/cjdelisle/nacl.git
-        GIT_TAG 105367ec475f7e176a33b1720bc89d41e679ad07
+        GIT_TAG da8e59a1008764ec51b1d6e54fdd3fd64cd8b708
         CMAKE_ARGS -DNACL_CFLAGS:STRING=-O3,-fomit-frame-pointer,-funroll-loops,-fPIC
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
