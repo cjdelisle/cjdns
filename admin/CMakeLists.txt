@@ -12,8 +12,12 @@
 
 add_library(cjdadmin
     Admin.c
+    AdminClient.c
     AuthorizedPasswords.c
     Configurator.c
 )
 
 target_link_libraries(cjdadmin crypto cjdbenc_StandardBencSerializer)
+
+enable_testing()
+add_subdirectory(test)

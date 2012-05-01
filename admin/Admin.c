@@ -259,7 +259,19 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
     }
 
     if (!admin->initialized) {
-        admin->initialized = true;
+        if (amount != sizeof(struct sockaddr_storage) + sizeof(int) + 8) {
+            Log_error(admin->logger, "unexpected length");
+        } else if (memcmp(buffer, "abcd", 4)) {
+            Log_error(admin->logger, "bad magic");
+        } else if (memcmp(&buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 4], "wxyz", 4)) {
+            Log_error(admin->logger, "bad magic");
+        } else {
+            Bits_memcpyConst(&admin->addressLength, &buffer[4], sizeof(int));
+            Bits_memcpyConst(&admin->address,
+                             &buffer[4 + sizeof(int)],
+                             sizeof(struct sockaddr_storage));
+            admin->initialized = true;
+        }
         event_base_loopbreak(admin->eventBase);
         return;
     }
@@ -436,13 +448,27 @@ static void child(struct sockaddr_storage* addr,
 
     event_add(context->dataFromParent, NULL);
 
+    if (!addr->ss_family) {
+        addr->ss_family = AF_INET;
+    }
+
     evutil_socket_t listener = socket(addr->ss_family, SOCK_STREAM, 0);
+
+    if (listener < 0) {
+        perror("socket()");
+    }
+
     evutil_make_listen_socket_reuseable(listener);
 
     if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
         perror("bind");
         return;
     }
+
+    if (getsockname(listener, (struct sockaddr*) addr, (socklen_t*) &addrLen)) {
+        perror("getsockname()");
+    }
+
     if (listen(listener, 16)<0) {
         perror("listen");
         return;
@@ -458,8 +484,13 @@ static void child(struct sockaddr_storage* addr,
         exit(-1);
     }
 
-    // Bump the router process to indicate that we're initialized.
-    write(context->outFd, "ready", strlen("ready"));
+    // Write back the sockaddr_storage struct so the other end knows our port.
+    uint8_t buff[sizeof(struct sockaddr_storage) + sizeof(int) + 8];
+    Bits_memcpyConst(buff, "abcd", 4);
+    Bits_memcpyConst(&buff[4], &addrLen, sizeof(int));
+    Bits_memcpyConst(&buff[4 + sizeof(int)], addr, sizeof(struct sockaddr_storage));
+    Bits_memcpyConst(&buff[4 + sizeof(int) + sizeof(struct sockaddr_storage)], "wxyz", 4);
+    write(context->outFd, buff, sizeof(buff));
 
     event_base_dispatch(context->eventBase);
 }
@@ -570,7 +601,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     int outFd = pipes[!isChild][1];
     close(pipes[isChild][1]);
 
-    if (!isChild) {
+    if (isChild) {
         // Set the process group so that children will not
         // become orphaned if the parent gets signal 11 err um 9.
         setpgid(0, pgid);
