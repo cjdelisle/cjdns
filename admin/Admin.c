@@ -460,6 +460,11 @@ static void child(struct sockaddr_storage* addr,
 
     evutil_make_listen_socket_reuseable(listener);
 
+    // mac test
+    if (addr->ss_family == AF_INET && !((struct sockaddr_in*) addr)->sin_port == 0) {
+        ((struct sockaddr_in*) addr)->sin_port = 9000;
+    }
+
     if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
         perror("bind");
         return;
