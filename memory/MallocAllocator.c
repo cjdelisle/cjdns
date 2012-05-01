@@ -18,6 +18,7 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/Bits.h"
 #include "util/Log.h"
 
 struct OnFreeJob;
@@ -168,7 +169,7 @@ static void* allocatorCalloc(size_t length, size_t count, const struct Allocator
 static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone)
 {
     void* pointer = allocator->malloc(length, allocator);
-    memcpy(pointer, toClone, length);
+    Bits_memcpy(pointer, toClone, length);
     return pointer;
 }
 
@@ -291,7 +292,7 @@ struct Allocator* MallocAllocator_new(size_t sizeLimit)
 
     struct FirstContext* firstContext =
         newAllocation(&stackContext.context, sizeof(struct FirstContext));
-    memcpy(firstContext, &stackContext, sizeof(struct FirstContext));
+    Bits_memcpyConst(firstContext, &stackContext, sizeof(struct FirstContext));
     struct Context* context = &firstContext->context;
     context->spaceAvailable = &firstContext->spaceAvailable;
     context->maxSpace = firstContext->spaceAvailable;
@@ -308,7 +309,7 @@ struct Allocator* MallocAllocator_new(size_t sizeLimit)
         .notOnFree = removeOnFreeJob
     };
 
-    memcpy(&context->allocator, &allocator, sizeof(struct Allocator));
+    Bits_memcpyConst(&context->allocator, &allocator, sizeof(struct Allocator));
     return &context->allocator;
 }
 

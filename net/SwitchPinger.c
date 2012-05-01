@@ -15,6 +15,7 @@
 #include "benc/String.h"
 #include "net/SwitchPinger.h"
 #include "dht/Address.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "wire/Headers.h"
@@ -112,7 +113,7 @@ static void sendPing(String* data, void* sendPingContext)
     };
     msg.padding = msg.bytes - buffer;
     assert(data->len < (BUFFER_SZ / 2));
-    memcpy(msg.bytes, data->bytes, data->len);
+    Bits_memcpy(msg.bytes, data->bytes, data->len);
 
     Message_shift(&msg, Control_HEADER_SIZE);
     struct Control* ctrl = (struct Control*) msg.bytes;
@@ -198,7 +199,7 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct Allocator* alloc)
 {
     struct SwitchPinger* sp = alloc->malloc(sizeof(struct SwitchPinger), alloc);
-    memcpy(sp, (&(struct SwitchPinger) {
+    Bits_memcpyConst(sp, (&(struct SwitchPinger) {
         .iface = iface,
         .pinger = Pinger_new(eventBase, logger, alloc),
         .logger = logger,

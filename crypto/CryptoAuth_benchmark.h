@@ -12,15 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto_hash_sha512.h"
-#include "util/Bits.h"
+#ifndef CryptoAuth_benchmark_H
+#define CryptoAuth_benchmark_H
 
-#include <stdint.h>
+#include "memory/Allocator.h"
+#include "util/Log.h"
 
-void AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
-{
-    uint8_t hash[crypto_hash_sha512_BYTES];
-    crypto_hash_sha512(hash, key, 32);
-    crypto_hash_sha512(hash, hash, crypto_hash_sha512_BYTES);
-    Bits_memcpyConst(addressOut, hash, 16);
-}
+#include <event2/event.h>
+
+void CryptoAuth_benchmark(struct event_base* base,
+                          struct Log* logger,
+                          struct Allocator* alloc);
+
+#endif

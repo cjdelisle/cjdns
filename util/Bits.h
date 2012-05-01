@@ -15,7 +15,9 @@
 #ifndef Bits_H
 #define Bits_H
 
+#include "util/Assert.h"
 #include "util/Endian.h"
+#include "util/Log.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -70,5 +72,70 @@ static inline bool Bits_isZero(void* buffer, size_t length)
     }
     return true;
 }
+
+/**
+ * @param out buffer to write to.
+ * @param in buffer to read from.
+ * @param length number of bytes to copy.
+ * @param file name of the file calling this, for logging.
+ * @param line the line number of the calling file, for logging.
+ * @param constant true if the length should be checked for being constant.
+ * @return out
+ */
+static inline void* Bits_memcpyDebug(void* out,
+                                     const void* in,
+                                     size_t length,
+                                     char* file,
+                                     int line)
+{
+    const char* inc = in;
+    const char* outc = out;
+    if (outc >= inc && outc < inc + length) {
+        fprintf(stderr, "Bits_memcpy() output and input alias eachother at %s:%d", file, line);
+        abort();
+    }
+    return memcpy(out, in, length);
+}
+
+/**
+ * Bits_memcpy()
+ * Alias to POSIX memcpy(), allows for extra debugging checks.
+ *
+ * @param out the buffer to write to.
+ * @param in the buffer to read from.
+ * @param length the number of bytes to copy.
+ */
+#ifdef Log_DEBUG
+    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
+#else
+    static inline void* Bits_memcpy(void* restrict out, const void* restrict in, size_t length)
+    {
+        return memcpy(out, in, length);
+    }
+#endif
+
+/**
+ * Bits_memcpyConst()
+ * Alias to POSIX memcpy(), will not compile unless the number of bytes to be copied
+ * is known at compile time. This allows for defensive development by declaring intent to copy
+ * either a static number of bytes of an unknown number of bytes.
+ *
+ * @param out the buffer to write to.
+ * @param in the buffer to read from.
+ * @param length the number of bytes to copy.
+ */
+#ifdef HAS_BUILTIN_CONSTANT_P
+    #define Bits_memcpyConst(a, b, c) \
+        Assert_assertTrue(__builtin_constant_p(c) == 1); \
+        Bits_memcpy(a, b, c)
+#else
+    #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)
+#endif
+
+/** Stop the user from calling memcpy() directly. */
+#ifdef memcpy
+    #undef memcpy
+#endif
+#define memcpy "do not use memcpy directly, see Bits.h"
 
 #endif

@@ -28,6 +28,7 @@
 #include "dht/dhtcore/NodeStore_struct.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
+#include "util/Bits.h"
 #include "util/Log.h"
 #include "switch/NumberCompress.h"
 #include "switch/LabelSplicer.h"
@@ -107,7 +108,7 @@ static inline void replaceNode(struct Node* const nodeToReplace,
     store->labelSum -= Bits_log2x64(nodeToReplace->address.path);
     store->labelSum += Bits_log2x64(addr->path);
     assert(store->labelSum > 0);
-    memcpy(&nodeToReplace->address, addr, sizeof(struct Address));
+    Bits_memcpyConst(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
 static inline void adjustReach(struct NodeHeader* header,
@@ -410,9 +411,9 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     #endif
 
     store->size--;
-    memcpy(node, &store->nodes[store->size], sizeof(struct Node));
+    Bits_memcpyConst(node, &store->nodes[store->size], sizeof(struct Node));
     struct NodeHeader* header = &store->headers[node - store->nodes];
-    memcpy(header, &store->headers[store->size], sizeof(struct NodeHeader));
+    Bits_memcpyConst(header, &store->headers[store->size], sizeof(struct NodeHeader));
 
     // This is needed because otherwise replaceNode will cause the labelSum to skew.
     store->nodes[store->size].address.path = 0;

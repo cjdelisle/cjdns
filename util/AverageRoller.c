@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/AverageRoller.h"
+#include "util/Bits.h"
 #include "util/Time.h"
 
 #include <event2/event.h>
@@ -78,7 +79,7 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
         .lastUpdateTime = (uint32_t) Time_currentTimeSeconds(eventBase)
     };
 
-    memcpy(roller, &tempRoller, sizeof(struct AverageRoller));
+    Bits_memcpyConst(roller, &tempRoller, sizeof(struct AverageRoller));
 
     return roller;
 }

@@ -190,7 +190,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
     Message_shift(message, PACKET_INFO_SIZE);
     const uint16_t packetInfo[2] = { 0, Endian_bigEndianToHost16(INET6_ETHERTYPE) };
-    memcpy(message->bytes, packetInfo, PACKET_INFO_SIZE);
+    Bits_memcpyConst(message->bytes, packetInfo, PACKET_INFO_SIZE);
 
     struct TUNInterface* tun = (struct TUNInterface*) iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
@@ -238,7 +238,7 @@ struct TUNInterface* TUNInterface_new(String* interfaceName,
         .maxMessageLength = MAX_PACKET_SIZE
     };
 
-    memcpy(&tun->interface, &iface, sizeof(struct Interface));
+    Bits_memcpyConst(&tun->interface, &iface, sizeof(struct Interface));
 
     event_add(tun->incomingEvent, NULL);
 

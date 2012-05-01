@@ -15,6 +15,8 @@
 #ifndef AddressMapper_H
 #define AddressMapper_H
 
+#include "util/Bits.h"
+
 #include <assert.h>
 #include <inttypes.h>
 #include <string.h>
@@ -176,7 +178,7 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
     struct AddressMapperEntry *tail;
 
     tail = map->head->prev;
-    memcpy(tail->address, address, 16);
+    Bits_memcpyConst(tail->address, address, 16);
     tail->label = label;
     map->head = tail;
 

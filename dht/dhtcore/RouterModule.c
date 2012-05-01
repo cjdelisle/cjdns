@@ -31,6 +31,7 @@
 #include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"
 #include "util/AverageRoller.h"
+#include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "util/Time.h"
@@ -873,7 +874,7 @@ static inline int handleQuery(struct DHTMessage* message,
     }
 
     struct Address targetAddr;
-    memcpy(targetAddr.ip6.bytes, target->bytes, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(targetAddr.ip6.bytes, target->bytes, Address_SEARCH_TARGET_SIZE);
 
     // send the closest nodes
     struct NodeList* nodeList = NodeStore_getClosestNodes(module->nodeStore,
@@ -895,7 +896,7 @@ static inline int handleQuery(struct DHTMessage* message,
         // in our switch than it's target address, the target address *must* have the same
         // length or longer.
         struct Address addr;
-        memcpy(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
+        Bits_memcpyConst(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
@@ -941,7 +942,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     struct Allocator* searchAllocator = SearchStore_getAllocator(search);
 
     struct Address targetAddr;
-    memcpy(targetAddr.ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(targetAddr.ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
 
     struct NodeList* nodes =
         NodeStore_getClosestNodes(module->nodeStore,
@@ -1003,8 +1004,8 @@ struct RouterModule_Search* RouterModule_beginSearch(
         .targetKey = CJDHTConstants_TARGET,
         .lastNodeCalled = firstSearchNode,
     };
-    memcpy(scc, &sccLocal, sizeof(struct SearchCallbackContext));
-    memcpy(&scc->targetAddress, &targetAddr, sizeof(struct Address));
+    Bits_memcpyConst(scc, &sccLocal, sizeof(struct SearchCallbackContext));
+    Bits_memcpyConst(&scc->targetAddress, &targetAddr, sizeof(struct Address));
 
     SearchStore_setContext(scc, search);
 
@@ -1110,7 +1111,7 @@ int RouterModule_pingNode(struct Node* node,
     txidBuff[0] = 'p';
     txidBuff[1] = index;
     if (txid) {
-        memcpy(ping->txid, txid->bytes, 4);
+        Bits_memcpyConst(ping->txid, txid->bytes, 4);
     }
 
     // Assume that if the ping has a txid, then it's from the admin interface.
@@ -1140,7 +1141,7 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module)
 {
     struct Address addr;
-    memcpy(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+    Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }

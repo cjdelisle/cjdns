@@ -16,6 +16,7 @@
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
 #include "wire/Error.h"
@@ -121,7 +122,7 @@ struct SessionManager* SessionManager_new(uint16_t keySize,
                                           struct Allocator* allocator)
 {
     struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
-    memcpy(sm, (&(struct SessionManager) {
+    Bits_memcpyConst(sm, (&(struct SessionManager) {
         .decryptedIncoming = decryptedIncoming,
         .encryptedOutgoing = encryptedOutgoing,
         .interfaceContext = interfaceContext,

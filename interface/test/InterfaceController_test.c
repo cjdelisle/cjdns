@@ -72,10 +72,10 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         outgoing->padding = 512;
         outgoing->bytes = buffer + 512;
         Message_shift(outgoing, 12);
-        memcpy(outgoing->bytes, "hello world", 12);
+        Bits_memcpyConst(outgoing->bytes, "hello world", 12);
 
         Message_shift(outgoing, Headers_SwitchHeader_SIZE);
-        memcpy(outgoing->bytes, (&(struct Headers_SwitchHeader) {
+        Bits_memcpyConst(outgoing->bytes, (&(struct Headers_SwitchHeader) {
             .label_be = Endian_hostToBigEndian64(1),
             .lowBits_be = 0
         }), Headers_SwitchHeader_SIZE);
@@ -84,7 +84,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
 
         // add the id tag
         Message_shift(outgoing, InterfaceController_KEY_SIZE);
-        memcpy(outgoing->bytes, majic, InterfaceController_KEY_SIZE);
+        Bits_memcpyConst(outgoing->bytes, majic, InterfaceController_KEY_SIZE);
 
         *fromSwitchPtr = NULL;
 
@@ -103,9 +103,9 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         if (i > 0) {
             // Reverse the bits to reverse the path:
             uint64_t path;
-            memcpy(&path, message->bytes, 8);
+            Bits_memcpyConst(&path, message->bytes, 8);
             path = Bits_bitReverse64(path);
-            memcpy(message->bytes, &path, 8);
+            Bits_memcpyConst(message->bytes, &path, 8);
 
             printf("sending back response.\n");
             routerIf->receiveMessage(message, routerIf);

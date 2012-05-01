@@ -18,9 +18,9 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "memory/Allocator.h"
+#include "util/Bits.h"
 
 struct Message
 {
@@ -38,7 +38,7 @@ static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
     uint8_t* allocation = allocator->malloc(toClone->length + toClone->padding, allocator);
-    memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
+    Bits_memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
     return allocator->clone(sizeof(struct Message), allocator, &(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
@@ -56,7 +56,7 @@ static inline void Message_copyOver(struct Message* output,
     if (inTotalLength > outTotalLength) {
         allocation = allocator->realloc(allocation, inTotalLength, allocator);
     }
-    memcpy(allocation, input->bytes - input->padding, inTotalLength);
+    Bits_memcpy(allocation, input->bytes - input->padding, inTotalLength);
     output->bytes = allocation + input->padding;
     output->length = input->length;
     output->padding = input->padding;

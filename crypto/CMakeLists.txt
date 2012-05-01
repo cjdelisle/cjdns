@@ -29,6 +29,9 @@ target_link_libraries(crypto
     util
 )
 
+add_library(crypto_benchmark CryptoAuth_benchmark.c)
+target_link_libraries(crypto_benchmark crypto)
+
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)

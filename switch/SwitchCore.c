@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
-
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/Log.h"
@@ -232,9 +230,9 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     assert(if2->allocator->notOnFree(si2->onFree, if2->allocator));
 
     struct SwitchInterface si3;
-    memcpy(&si3, si1, sizeof(struct SwitchInterface));
-    memcpy(si1, si2, sizeof(struct SwitchInterface));
-    memcpy(si2, &si3, sizeof(struct SwitchInterface));
+    Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));
+    Bits_memcpyConst(si1, si2, sizeof(struct SwitchInterface));
+    Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
 
     // Now the if#'s are in reverse order :)
     si1->onFree = if2->allocator->onFree(removeInterface, si1, if2->allocator);
@@ -278,7 +276,7 @@ int SwitchCore_addInterface(struct Interface* iface,
 
     struct SwitchInterface* newIf = &core->interfaces[ifIndex];
 
-    memcpy(newIf, (&(struct SwitchInterface) {
+    Bits_memcpyConst(newIf, (&(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
@@ -301,7 +299,7 @@ int SwitchCore_addInterface(struct Interface* iface,
 
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
 {
-    memcpy(&core->interfaces[1], (&(struct SwitchInterface) {
+    Bits_memcpyConst(&core->interfaces[1], (&(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
