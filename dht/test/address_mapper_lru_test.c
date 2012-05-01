@@ -457,8 +457,8 @@ int main(int argc, char** argv)
 
     int testNum = 0;
     while(testRunList[testNum] != NULL) {
+        struct TestInfo info;
         for(int rpt = 0; rpt < NUM_REPEAT; rpt++) {
-            struct TestInfo info;
             int testErr;
 
             memset(&info, 0, sizeof(info));
@@ -471,7 +471,7 @@ int main(int argc, char** argv)
 
             /* if the test failed then print its error message now and move on to the next test */
             if(info.pass == false) {
-                printf("Failed");
+                printf("%s: Failed", info.name);
                 if(info.failMessage != NULL) {
                     printf(" - %s.", info.failMessage);
                 }
@@ -481,7 +481,7 @@ int main(int argc, char** argv)
             }
         }
 
-        printf("OK");
+        printf("%s: OK", info.name);
 
         nextTest:
         printf("\n\n");
