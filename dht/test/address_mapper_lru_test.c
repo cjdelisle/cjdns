@@ -10,11 +10,11 @@
 /* structure used by tests to report back their information */
 struct TestInfo {
     /* test name */
-    const char *name;
+    const char* name;
     /* set to true if the test passed (default=false) */
     bool pass;
     /* if the test failed then the failure message is given here (default=NULL) */
-    const char *failMessage;
+    const char* failMessage;
 };
 
 /* generates an incremental number for a dummy address */
@@ -46,7 +46,7 @@ static uint8_t* getDummyAddress(void)
  * 2. Add another entry
  * 3. Check that only the least recent entry was removed
  */
-static int runTest_replaceLeastRecentlyUsed(struct AddressMapper *map, struct TestInfo *info)
+static int runTest_replaceLeastRecentlyUsed(struct AddressMapper* map, struct TestInfo* info)
 {
     info->name = "Replace least recently used";
 
@@ -101,7 +101,7 @@ static int runTest_replaceLeastRecentlyUsed(struct AddressMapper *map, struct Te
  * 3. Add new entries to replace the previously removed entries
  * 4. Check that only the removed entries were replaced
  */
-static int runTest_removeAndPut(struct AddressMapper *map, struct TestInfo *info)
+static int runTest_removeAndPut(struct AddressMapper* map, struct TestInfo* info)
 {
     /* the labels to remove - a maximum of 8 */
     uint64_t removeLabels[2];
@@ -191,7 +191,7 @@ static int runTest_removeAndPut(struct AddressMapper *map, struct TestInfo *info
  * 3. Add a new entry to the address map
  * 4. Ensure it is entry with label==2 which has been removed
  */
-static int runTest_dontReplaceMostRecentlyUsed(struct AddressMapper *map, struct TestInfo *info)
+static int runTest_dontReplaceMostRecentlyUsed(struct AddressMapper* map, struct TestInfo* info)
 {
     info->name = "Don't replace most recently used";
 
@@ -256,12 +256,12 @@ static uint64_t rand64(void)
  *    of the previously entries should still be presnt.
  * 4. Query the address map to see if only the most recently used item remains.
  */
-static int runTest_orderCheck(struct AddressMapper *map, struct TestInfo *info)
+static int runTest_orderCheck(struct AddressMapper* map, struct TestInfo* info)
 {
     info->name = "Order check";
 
     /* the labels used for this test, stored in a random order */
-    uint64_t *labels;
+    uint64_t* labels;
     const uint64_t labelMin = 0xF000000000000000;
     const uint64_t labelMax = 0xFFFFFFFFFFFFFFFF;
 
@@ -365,12 +365,12 @@ out:
 
 /* collection of data required to run tests */
 struct AppState {
-    void *buffer;
+    void* buffer;
     struct AddressMapper* map;
     struct Allocator* allocator;
 };
 
-static int initAppState(struct AppState *state)
+static int initAppState(struct AppState* state)
 {
     const size_t bufferSize = 64 * 1024;
 
@@ -405,7 +405,7 @@ errorExitMalloc:
     return -1;
 }
 
-static void deinitAppState(struct AppState *state)
+static void deinitAppState(struct AppState* state)
 {
     state->allocator->free(state->allocator);
     free(state->buffer);
@@ -414,7 +414,7 @@ static void deinitAppState(struct AppState *state)
 /* if the user passed an unsigned integer then use that as a seed,
  * otherwise use the current time
  */
-static void applySeed(int argc, char **argv)
+static void applySeed(int argc, char** argv)
 {
     unsigned int seedValue;
 
@@ -433,7 +433,7 @@ static void applySeed(int argc, char **argv)
 }
 
 /* list of tests to run */
-static int (*testRunList[])(struct AddressMapper *map, struct TestInfo *info) = {
+static int (*testRunList[])(struct AddressMapper* map, struct TestInfo* info) = {
                     runTest_replaceLeastRecentlyUsed,
                     runTest_dontReplaceMostRecentlyUsed,
                     runTest_removeAndPut,
