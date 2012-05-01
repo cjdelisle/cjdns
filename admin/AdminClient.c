@@ -254,6 +254,11 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
 
     evutil_make_listen_socket_reuseable(context->socket);
 
+    if (addr->ss_family == AF_INET && !((struct sockaddr_in*) addr)->sin_addr.s_addr) {
+        // 127.0.0.1
+        ((struct sockaddr_in*) addr)->sin_addr.s_addr = Endian_hostToBigEndian32(0x7f000001);
+    }
+
     if (connect(context->socket, (struct sockaddr*)addr, addrLen)) {
         Log_error1(logger, "Failed to connect, errno=%d", errno);
         return NULL;
