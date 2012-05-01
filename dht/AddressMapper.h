@@ -21,7 +21,7 @@
 #include <inttypes.h>
 #include <string.h>
 
-/** Address mapper doubly linked list LRU.
+/** Address mapper doubly linked list LRU cache.
  * The most recently used item is on the head.
  * The least recently used item is on the tail.
  *
@@ -35,8 +35,8 @@ struct AddressMapper_Entry
 {
     uint64_t label;
     uint8_t address[16];
-    struct AddressMapper_Entry *next;
-    struct AddressMapper_Entry *prev;
+    struct AddressMapper_Entry* next;
+    struct AddressMapper_Entry* prev;
 };
 
 /* gets the index of a linked list entry with respect to the
@@ -48,11 +48,11 @@ struct AddressMapper_Entry
 struct AddressMapper
 {
     struct AddressMapper_Entry entries[AddressMapper_MAX_ENTRIES];
-    struct AddressMapper_Entry *head;
+    struct AddressMapper_Entry* head;
     uint8_t canary[3];
 };
 
-static inline void AddressMapper_init(struct AddressMapper *map)
+static inline void AddressMapper_init(struct AddressMapper* map)
 {
     /* initialise the doubly linked list */
 
@@ -81,7 +81,7 @@ static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocato
 /**
  * Move the given entry to the tail of the linked list
  */
-static inline void AddressMapper_moveEntryToTail(struct AddressMapper_Entry *entry, struct AddressMapper *map)
+static inline void AddressMapper_moveEntryToTail(struct AddressMapper_Entry* entry, struct AddressMapper* map)
 {
     if (entry == map->head) {
         map->head = map->head->next;
@@ -104,7 +104,7 @@ static inline void AddressMapper_moveEntryToTail(struct AddressMapper_Entry *ent
  * Unlike AddressMapper_moveEntryToTail, this function has an optimisation for
  * moving the tail entry to the head, since this is a common case
  */
-static inline void AddressMapper_moveEntryToHead(struct AddressMapper_Entry *entry, struct AddressMapper *map)
+static inline void AddressMapper_moveEntryToHead(struct AddressMapper_Entry* entry, struct AddressMapper* map)
 {
     if (entry != map->head) {
         if (entry != map->head->prev) {
@@ -175,7 +175,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
  */
 static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
 {
-    struct AddressMapper_Entry *tail;
+    struct AddressMapper_Entry* tail;
 
     tail = map->head->prev;
     Bits_memcpyConst(tail->address, address, 16);
