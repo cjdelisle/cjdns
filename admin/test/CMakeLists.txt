@@ -26,10 +26,6 @@ foreach(test_source_fullpath ${tests})
   add_executable(${test_bin} ${test_source})
   target_link_libraries(${test_bin} cjdadmin)
   add_test(${test_bin} ${test_bin})
-  add_custom_target(${test_bin}_run ALL
-      COMMAND ${test_bin}
-  )
-
 endforeach()
 # Add an empty line after tests.
 message("")

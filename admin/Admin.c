@@ -449,8 +449,8 @@ static void child(struct sockaddr_storage* addr,
     event_add(context->dataFromParent, NULL);
 
     if (!addr->ss_family) {
-printf("using af_inet\n");
         addr->ss_family = AF_INET;
+        // Apple gets mad if the length is wrong.
         addrLen = sizeof(struct sockaddr_in);
     }
 
@@ -462,16 +462,8 @@ printf("using af_inet\n");
 
     evutil_make_listen_socket_reuseable(listener);
 
-    // mac test
-    if (addr->ss_family == AF_INET && ((struct sockaddr_in*) addr)->sin_port == 0) {
-printf("using port 9000\n");
-        ((struct sockaddr_in*) addr)->sin_port = Endian_hostToBigEndian16(9000);
-    }
-uint8_t bufferHex[2 * sizeof(struct sockaddr_storage) + 1];
-Hex_encode(bufferHex, 2 * sizeof(struct sockaddr_storage) + 1, (uint8_t*) addr, sizeof(struct sockaddr_storage));
-printf("calling bind(%d, %s, %d)", listener, bufferHex, addrLen);
     if (bind(listener, (struct sockaddr*) addr, addrLen) < 0) {
-        perror("bind " __FILE__);
+        perror("bind()");
         return;
     }
 
