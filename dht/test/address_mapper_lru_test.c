@@ -475,16 +475,14 @@ int main(int argc, char** argv)
                 if(info.failMessage != NULL) {
                     printf(" - %s.", info.failMessage);
                 }
+                printf("\n");
                 /* nonzero exit code if a test has failed */
                 err = -1;
                 goto nextTest;
             }
         }
 
-        printf("%s: OK", info.name);
-
         nextTest:
-        printf("\n\n");
         testNum++;
     }
 
