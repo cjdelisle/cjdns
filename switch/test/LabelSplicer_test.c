@@ -40,7 +40,7 @@ static void splice()
 
 static void isOneHop()
 {
-    assert(!LabelSplicer_isOneHop(4));
+    assert(LabelSplicer_isOneHop(4));
 }
 
 int main()

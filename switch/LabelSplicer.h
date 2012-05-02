@@ -70,9 +70,8 @@ static inline uint64_t LabelSplicer_getLabelFor(uint64_t target, uint64_t whoIsA
  * @param label the label to test in host byte order.
  * @return true if the node is 1 hop away, false otherwise.
  */
-static inline bool LabelSplicer_isOneHop(uint64_t label_be)
+static inline bool LabelSplicer_isOneHop(uint64_t label)
 {
-    uint64_t label = Endian_bigEndianToHost64(label_be);
     return (int)NumberCompress_bitsUsedForLabel(label) == Bits_log2x64(label);
 }
 
