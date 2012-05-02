@@ -183,7 +183,7 @@ Build cjbdns:
 
 Look for:
 
-    [100%] Built target LabelSplicer_test
+    [100%] Built target .............<what's here changes often>
 
 ALL DONE! Wanna test? Sure.
 
