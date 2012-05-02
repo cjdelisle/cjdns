@@ -164,3 +164,222 @@ physical id	: 0
 user@ubntfusion2:~/cjdns/build$ git log | head -n 1
 commit 3d2ce46d3c9df964ddf37dbdb03dccbcac862d5a
 user@ubntfusion2:~/cjdns/build$
+
+
+
+
+
+
+
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 1361ms. 376 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 1551ms. 7736 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1334ms. 383 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1365ms. 8790 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 323ms. 158513 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1893ms. 633914 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 708ms. 72316 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 2805ms. 427807 Kb/s
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 15
+model		: 4
+model name	: Intel(R) Pentium(R) 4 CPU 3.00GHz
+stepping	: 3
+cpu MHz		: 2994.307
+cache size	: 2048 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 1
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe lm constant_tsc pebs bts pni dtes64 monitor ds_cpl est cid cx16 xtpr
+bogomips	: 5988.61
+clflush size	: 64
+cache_alignment	: 128
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 15
+model		: 4
+model name	: Intel(R) Pentium(R) 4 CPU 3.00GHz
+stepping	: 3
+.....
+
+cjdns@xubuntu-27-120:~/cjdns$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
+
+
+
+
+
+
+
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 9996ms. 51 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 10459ms. 1147 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 10429ms. 49 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 10982ms. 1092 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 3588ms. 14269 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 34265ms. 35021 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 8723ms. 5869 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 46702ms. 25694 Kb/s
+
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 5
+model name	: Pentium II (Deschutes)
+stepping	: 2
+cpu MHz		: 267.274
+cache size	: 512 KB
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 2
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 sep mtrr pge mca cmov pse36 mmx fxsr up
+bogomips	: 534.54
+clflush size	: 32
+cache_alignment	: 32
+address sizes	: 36 bits physical, 32 bits virtual
+power management:
+
+cjdns@wl-4-253:~/cjdns$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
+
+
+
+
+
+
+
+$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 334ms. 1532 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 342ms. 35085 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 547ms. 936 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 507ms. 23667 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 51ms. 1003921 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 618ms. 1941747 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 226ms. 226548 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 1068ms. 1123595 Kb/s
+
+
+$ cat /proc/cpuinfo
+processor       : 0
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 26
+model name      : Intel(R) Xeon(R) CPU           E5520  @ 2.27GHz
+stepping        : 5
+microcode       : 0x11
+cpu MHz         : 2261.000
+cache size      : 8192 KB
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 11
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts nopl xtopology tsc_reliable nonstop_tsc aperfmperf pni ssse3 cx16 sse4_1 sse4_2 popcnt hypervisor lahf_lm ida dts
+bogomips        : 4522.00
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 40 bits physical, 48 bits virtual
+power management:
+
+......
+
+$ git log | head -n 1
+commit 65204735fac8a27a1057f100b0a1285633eaf29e
+
+
+
+
+
+
+
+
+
+[user@ps3 build]$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 54330ms. 9 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 54805ms. 218 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 54304ms. 9 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 54792ms. 218 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 607ms. 84349 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 8470ms. 141676 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3224ms. 15880 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 54903ms. 21856 Kb/s
+
+[user@ps3 build]$ cat /proc/cpuinfo
+processor	: 0
+cpu		: Cell Broadband Engine, altivec supported
+clock		: 3192.000000MHz
+revision	: 5.1 (pvr 0070 0501)
+
+processor	: 1
+cpu		: Cell Broadband Engine, altivec supported
+clock		: 3192.000000MHz
+revision	: 5.1 (pvr 0070 0501)
+
+timebase	: 79800000
+platform	: PS3
+[user@ps3 build]$ git log | head -n 1
+commit 06522239acde31a01633033d9c4229baa7fad229
+
