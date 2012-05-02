@@ -20,6 +20,7 @@ add_library(util
     Timeout.c
     Hex.c
     Pinger.c
+    Checksum.c
 )
 target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
 
