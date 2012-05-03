@@ -383,3 +383,85 @@ platform	: PS3
 [user@ps3 build]$ git log | head -n 1
 commit 06522239acde31a01633033d9c4229baa7fad229
 
+
+
+
+
+
+
+Linux 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+
+893ac7148b76bed44c589617f0655a857b05b9e4
+
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.090
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5590.46
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.090
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5586.38
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 704ms. 727 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 670ms. 17909 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 700ms. 731 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 709ms. 16924 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 105ms. 487619 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 639ms. 1877934 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 316ms. 162025 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1159ms. 1035375 Kb/s
