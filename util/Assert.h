@@ -12,21 +12,51 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-/**
- * Prevent compilation if assertion is false.
- * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
- */
-#ifdef Assert_COUNTER
+#ifdef Assert_H
+    // This is needed every time the file is pulled in to prevent struct name collisions.
     #define Assert_COUNTER2 Assert_COUNTER
     #undef Assert_COUNTER
     #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
 #else
-    #define Assert_COUNTER x
-    #define Assert_UNIQUE_NAME Assert_MAKE_NAME(Assert_COUNTER, __LINE__)
-    #define Assert_MAKE_NAME(x, y) Assert_MAKE_NAME2(x, y)
-    #define Assert_MAKE_NAME2(x, y) Assert_testStruct_ ## x ## y
-    #define Assert_GLUE(x, y) x ## y
-    #define Assert_assertTrue(isTrue) \
-        struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
+#define Assert_H
+
+#include "util/Log.h"
+#include <stdio.h>
+
+/* Internals */
+#define Assert_COUNTER x
+#define Assert_UNIQUE_NAME Assert_MAKE_NAME(Assert_COUNTER, __LINE__)
+#define Assert_MAKE_NAME(x, y) Assert_MAKE_NAME2(x, y)
+#define Assert_MAKE_NAME2(x, y) Assert_testStruct_ ## x ## y
+#define Assert_GLUE(x, y) x ## y
+#define Assert_STRING(x) #x
+
+static inline void Assert_internal(const char* expr, int isTrue, const char* file, int line)
+{
+    if (!isTrue) {
+        fprintf(stderr, "%s:%d Assertion failed: %s", file, line, expr);
+        abort();
+    }
+}
+
+/**
+ * Assert_compileTime()
+ *
+ * Prevent compilation if assertion is false or not a compile time constant.
+ * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
+ */
+#define Assert_compileTime(isTrue) struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
+
+
+/** Runtime assertion which is always applied. */
+#define Assert_always(expr) Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
+
+/** Include normal assertions if debug logging is enabled since it has a preformance hit already. */
+#ifndef Log_DEBUG
+    #define Assert_true(expr)
+#else
+    #define Assert_true(expr) Assert_always(expr)
+#endif
+
+
 #endif

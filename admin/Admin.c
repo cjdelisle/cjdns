@@ -34,7 +34,7 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <crypto_hash_sha256.h>
 #include <event2/event.h>
 #include <errno.h>
@@ -127,7 +127,7 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
     struct Allocator* alloc = BufferAllocator_new(buffer, 1024);
     while (entry != NULL) {
         String* key = (String*) entry->key;
-        assert(entry->val->type == Object_DICT);
+        Assert_true(entry->val->type == Object_DICT);
         Dict* value = entry->val->as.dictionary;
         entry = entry->next;
         if (*Dict_getInt(value, String_CONST("required")) == 0) {
@@ -328,7 +328,7 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
         return;
     }
 
-    Assert_assertTrue(TXID_LEN == 4);
+    Assert_compileTime(TXID_LEN == 4);
     uint32_t connNumber;
     Bits_memcpyConst(&connNumber, context->buffer, TXID_LEN);
 
@@ -365,7 +365,7 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 
     if (result > 0) {
 
-        Assert_assertTrue(TXID_LEN == 4);
+        Assert_compileTime(TXID_LEN == 4);
         uint32_t connNumber = conn - context->connections;
         Bits_memcpyConst(buf, &connNumber, TXID_LEN);
 
@@ -552,7 +552,7 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     if (!admin) {
         return;
     }
-    assert(txid);
+    Assert_true(txid);
 
     uint8_t buff[MAX_API_REQUEST_SIZE + TXID_LEN];
 

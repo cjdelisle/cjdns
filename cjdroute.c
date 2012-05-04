@@ -49,7 +49,7 @@
 #include "crypto_scalarmult_curve25519.h"
 
 #include <stdint.h>
-#include <assert.h>
+#include "util/Assert.h"
 #include <unistd.h>
 #include <stdio.h>
 
@@ -498,7 +498,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
     Crypto_init();
-    assert(argc > 0);
+    Assert_true(argc > 0);
 
     if (argc == 2) { // one argument
         if (strcmp(argv[1], "--help") == 0) {

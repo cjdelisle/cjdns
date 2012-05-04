@@ -17,7 +17,7 @@
 #include "util/Hex.h"
 #include "util/Checksum.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 
 
@@ -45,7 +45,7 @@ void checksumAlgorithmTest()
 
     uint16_t calcatedSum = Checksum_engine(packet, 20);
     //printf("%2x == %2x", checksum, calcatedSum);
-    assert(checksum == calcatedSum);
+    Assert_always(checksum == calcatedSum);
 }
 
 
@@ -78,7 +78,7 @@ void udp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_udpIp6(&packet[8], &packet[40], 25);
     //printf("%2x == %2x", udp6Checksum, calcatedSum);
-    assert(udp6Checksum == calcatedSum);
+    Assert_always(udp6Checksum == calcatedSum);
 }
 
 
@@ -113,7 +113,7 @@ void icmp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_icmp6(&packet[8], &packet[40], 64);
     //printf("%2x == %2x", checksum, calcatedSum);
-    assert(checksum == calcatedSum);
+    Assert_always(checksum == calcatedSum);
 }
 
 

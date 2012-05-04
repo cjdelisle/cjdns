@@ -16,7 +16,7 @@
 #include "util/Base32.h"
 
 #include <stdio.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 int main()
 {
@@ -26,12 +26,12 @@ int main()
     uint8_t base32[64];
     memset(base32, 0, 64);
 
-    assert(Base32_encode(base32, 64, bytes, 32) == 52);
+    Assert_always(Base32_encode(base32, 64, bytes, 32) == 52);
 
     //printf("base32 encoded: %s\n", base32);
 
     uint8_t bytes2[32];
-    assert(Base32_decode(bytes2, 32, base32, 52) == 32);
+    Assert_always(Base32_decode(bytes2, 32, base32, 52) == 32);
 
-    assert(memcmp(bytes, bytes2, 32) == 0);
+    Assert_always(memcmp(bytes, bytes2, 32) == 0);
 }

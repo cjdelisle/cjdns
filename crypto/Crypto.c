@@ -16,7 +16,7 @@
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 #include <event2/util.h>
 

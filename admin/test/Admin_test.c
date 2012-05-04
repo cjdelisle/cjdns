@@ -25,7 +25,7 @@
 #include "exception/AbortHandler.h"
 
 #include <event2/event.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 struct Context {
     struct Admin* admin;
@@ -65,17 +65,17 @@ int main()
     String* retPassword;
     Admin_getConnectInfo(&addrPtr, &addrLen, &retPassword, admin);
 
-    assert(String_equals(password, retPassword));
+    Assert_always(String_equals(password, retPassword));
 
     struct AdminClient* client =
         AdminClient_new(addrPtr, addrLen, retPassword, eventBase, &logger, alloc);
 
-    assert(client);
+    Assert_always(client);
 
     struct AdminClient_Result* res =
         AdminClient_rpcCall(String_CONST("adminFunc"), NULL, client, alloc);
 
-    assert(!res->err);
-    assert(Dict_getInt(res->responseDict, String_CONST("called!")));
-    assert(ctx.called);
+    Assert_always(!res->err);
+    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
+    Assert_always(ctx.called);
 }

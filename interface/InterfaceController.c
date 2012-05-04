@@ -125,7 +125,7 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
     for (int i = 0; i < MAX_INTERFACES; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
         if (thisEp >= ep) {
-            assert(i == 0 || thisEp == ep);
+            Assert_true(i == 0 || thisEp == ep);
             break;
         }
         if (thisEp->external == NULL) {
@@ -167,8 +167,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
-    assert(ep->switchIf.senderContext == ep);
-    assert(ep->internal.sendMessage);
+    Assert_true(ep->switchIf.senderContext == ep);
+    Assert_true(ep->internal.sendMessage);
     return ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
 }
 
@@ -178,7 +178,7 @@ static void closeInterface(void* vendpoint)
     struct InterfaceController* ic = toClose->internal.senderContext;
 
     int index = InterfaceMap_indexOf(toClose->key, ic->imap);
-    assert(index >= 0);
+    Assert_true(index >= 0);
     InterfaceMap_remove(index, ic->imap);
 
     // flag the entry as nolonger used.
@@ -196,7 +196,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     Message_shift(message, InterfaceController_KEY_SIZE);
     Bits_memcpyConst(message->bytes, ep->key, InterfaceController_KEY_SIZE);
 
-    assert(ep->external);
+    Assert_true(ep->external);
     return ep->external->sendMessage(message, ep->external);
 }
 
@@ -207,9 +207,9 @@ static inline struct Endpoint* getEndpoint(uint8_t key[InterfaceController_KEY_S
     if (index > -1) {
         struct Endpoint* ep = endpointForInternalInterface(ic->imap->interfaces[index]);
         #ifdef Log_DEBUG
-            assert(ep->external || !"Entry was not removed from the map but was null.");
-            assert(&ep->internal == ic->imap->interfaces[index]);
-            assert(!memcmp(key, ep->key, InterfaceController_KEY_SIZE));
+            Assert_true(ep->external || !"Entry was not removed from the map but was null.");
+            Assert_true(&ep->internal == ic->imap->interfaces[index]);
+            Assert_true(!memcmp(key, ep->key, InterfaceController_KEY_SIZE));
         #endif
         return ep;
     }

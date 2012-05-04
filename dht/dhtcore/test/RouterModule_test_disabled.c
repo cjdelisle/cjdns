@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdbool.h>
-#include <assert.h>
+#include "util/Assert.h"
 #include <string.h>
 #include <stdio.h>
 #include <event2/event.h>
@@ -64,8 +64,8 @@ void testQuery(struct DHTMessage** outMessagePtr,
     DHTModules_handleIncoming(&message, registry);
 
     struct DHTMessage* outMessage = *outMessagePtr;
-    assert(outMessage != NULL);
-    assert(outMessage->replyTo != NULL);
+    Assert_always(outMessage != NULL);
+    Assert_always(outMessage->replyTo != NULL);
 
     // Another hack because the output contains nulls, see: #define ADD_NODE()
     for (int i = 0; i < outMessage->length; i++) {
@@ -92,8 +92,8 @@ void testQuery(struct DHTMessage** outMessagePtr,
           "4:txid" "2:aa"
         "e";
 
-    assert(outMessage->length == strlen(expectedResponse));
-    assert(memcmp(outMessage->bytes, expectedResponse, strlen(expectedResponse)) == 0);
+    Assert_always(outMessage->length == strlen(expectedResponse));
+    Assert_always(memcmp(outMessage->bytes, expectedResponse, strlen(expectedResponse)) == 0);
 }
 
 bool testSearch_callback(void* context, struct DHTMessage* message)
@@ -119,7 +119,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
                              routerModule);
 
     struct DHTMessage* outMessage = *outMessagePtr;
-    assert(outMessage != NULL);
+    Assert_always(outMessage != NULL);
 
     // Need to be able to work around the fact that the string contains nulls.
     #define EXPECTED_OUTPUT(tid) \
@@ -135,13 +135,13 @@ void testSearch(struct DHTMessage** outMessagePtr,
     //printf("\n%s\n", outMessage->bytes);
     //printf("\n%s\n", outMessage->peerAddress);
 
-    assert(outMessage->length == strlen(EXPECTED_OUTPUT("xx")));
-    assert(memcmp(outMessage->bytes, EXPECTED_OUTPUT("8\x00"), outMessage->length) == 0);
-    //assert(strcmp(outMessage->address->networkAddress, " 00014  ") == 0);
+    Assert_always(outMessage->length == strlen(EXPECTED_OUTPUT("xx")));
+    Assert_always(memcmp(outMessage->bytes, EXPECTED_OUTPUT("8\x00"), outMessage->length) == 0);
+    //Assert_always(strcmp(outMessage->address->networkAddress, " 00014  ") == 0);
     // In a normal DHT, 00014 is the closest node, however, 00011 has sent us a message in
     // testQuery() and thus his reach is 1 and he beats all other nodes which are 0-reach.
     // Search queries are allowed to select nodes which are further from the target than us.
-    assert(strcmp((char*) &outMessage->address->networkAddress_be, " 00011  ") == 0);
+    Assert_always(strcmp((char*) &outMessage->address->networkAddress_be, " 00011  ") == 0);
 
     #undef EXPECTED_OUTPUT
 
@@ -175,7 +175,7 @@ void testSearch(struct DHTMessage** outMessagePtr,
     DHTModules_handleIncoming(&message, registry);
 
     // Make sure the callback was called.
-    assert(callbackMessage != NULL);
+    Assert_always(callbackMessage != NULL);
 
     // Make sure the node was promoted for it's fine service :P
     struct Address addr;
@@ -184,12 +184,12 @@ void testSearch(struct DHTMessage** outMessagePtr,
     struct Node* node1 =
         NodeStore_getNode(routerModule->nodeStore, &addr);
     //printf("node reach = %d", node1->reach);
-    assert(node1->reach == 1601894175);
+    Assert_always(node1->reach == 1601894175);
 
  /*   outMessage = *outMessagePtr;
-    assert(outMessage != NULL);
+    Assert_always(outMessage != NULL);
 
-    assert(strcmp("000022", outMessage->peerAddress) == 0);*/
+    Assert_always(strcmp("000022", outMessage->peerAddress) == 0);*/
 }
 
 int main()

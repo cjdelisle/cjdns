@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 2.4)
 string(REGEX REPLACE "^.*/" "" main_dir_name ${CMAKE_SOURCE_DIR})
 string(REPLACE ${CMAKE_SOURCE_DIR} ${main_dir_name} this_dir ${CMAKE_CURRENT_SOURCE_DIR})
 message("-- Tests to run for " ${this_dir})
-add_definitions(-g)
+add_definitions(-g -DTEST)
 
 add_library(TestFramework TestFramework.c)
 target_link_libraries(TestFramework

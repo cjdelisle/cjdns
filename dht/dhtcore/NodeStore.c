@@ -33,7 +33,7 @@
 #include "switch/NumberCompress.h"
 #include "switch/LabelSplicer.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -107,7 +107,7 @@ static inline void replaceNode(struct Node* const nodeToReplace,
     headerToReplace->switchIndex = getSwitchIndex(addr);
     store->labelSum -= Bits_log2x64(nodeToReplace->address.path);
     store->labelSum += Bits_log2x64(addr->path);
-    assert(store->labelSum > 0);
+    Assert_true(store->labelSum > 0);
     Bits_memcpyConst(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
@@ -142,7 +142,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         Log_critical1(store->logger,
                       "tried to insert address %s which does not begin with 0xFC.\n",
                       address);
-        assert(false);
+        Assert_true(false);
     }
 
     uint32_t pfx = Address_getPrefix(addr);
@@ -198,7 +198,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                 else if (store->headers[i].addressPrefix == pfx) {
                     uint8_t realAddr[16];
                     AddressCalc_addressForPublicKey(realAddr, addr->key);
-                    assert(!memcmp(realAddr, addr->ip6.bytes, 16));
+                    Assert_true(!memcmp(realAddr, addr->ip6.bytes, 16));
                 }
             #endif
         }
@@ -402,7 +402,7 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* sto
 
 void NodeStore_remove(struct Node* node, struct NodeStore* store)
 {
-    assert(node >= store->nodes && node < store->nodes + store->size);
+    Assert_true(node >= store->nodes && node < store->nodes + store->size);
 
     #ifdef Log_DEBUG
         uint8_t addr[60];

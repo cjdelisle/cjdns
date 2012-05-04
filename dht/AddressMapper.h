@@ -17,7 +17,7 @@
 
 #include "util/Bits.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <inttypes.h>
 #include <string.h>
 
@@ -54,7 +54,7 @@ static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* ma
                 Bits_memcpyConst(map->addresses[i - 1], address, 16);
                 i--;
             }
-            assert(!memcmp(map->canary, "\0\0\0", 3));
+            Assert_true(!memcmp(map->canary, "\0\0\0", 3));
             map->accessNumber++;
             return i;
         }
@@ -76,7 +76,7 @@ static inline int AddressMapper_remove(int index, struct AddressMapper* map)
                 Bits_memcpyConst(map->addresses[index], map->addresses[i], 16);
                 map->labels[index] = map->labels[i];
                 map->labels[i] = 0L;
-                assert(!memcmp(map->canary, "\0\0\0", 3));
+                Assert_true(!memcmp(map->canary, "\0\0\0", 3));
                 return 0;
             }
         }
@@ -96,7 +96,7 @@ static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct 
     }
     Bits_memcpyConst(map->addresses[i], address, 16);
     map->labels[i] = label;
-    assert(!memcmp(map->canary, "\0\0\0", 3));
+    Assert_true(!memcmp(map->canary, "\0\0\0", 3));
     return i;
 }
 

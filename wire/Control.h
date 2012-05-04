@@ -32,7 +32,7 @@ struct Control_Error
     /** The header of the packet which caused the error. */
     struct Headers_SwitchHeader cause;
 };
-Assert_assertTrue(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
 
 
 /**
@@ -50,7 +50,7 @@ struct Control_Ping
      */
     uint8_t data[Control_Ping_MIN_SIZE];
 };
-Assert_assertTrue(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE);
 
 
 /**
@@ -116,6 +116,6 @@ struct Control
     } content;
 };
 // Control_Error is the largest structure and thus defines the length of the "content" union.
-Assert_assertTrue(sizeof(struct Control) == Control_HEADER_SIZE + Control_Error_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_Error_MIN_SIZE);
 
 #endif
