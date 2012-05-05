@@ -51,12 +51,8 @@ static inline void Assert_internal(const char* expr, int isTrue, const char* fil
 /** Runtime assertion which is always applied. */
 #define Assert_always(expr) Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
 
-/** Include normal assertions if debug logging is enabled since it has a preformance hit already. */
-#ifndef Log_DEBUG
-    #define Assert_true(expr)
-#else
-    #define Assert_true(expr) Assert_always(expr)
-#endif
+// Turn off assertions when the code is more stable.
+#define Assert_true(expr) Assert_always(expr)
 
 
 #endif
