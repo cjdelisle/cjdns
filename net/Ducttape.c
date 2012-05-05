@@ -366,6 +366,11 @@ static inline uint8_t ip6FromTun(struct Message* message,
                                   "and the source address was different.\n");
         return Error_INVALID;
     }
+    if (memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
+        // I'm Gonna Sit Right Down and Write Myself a Letter
+        interface->sendMessage(message, interface);
+        return Error_NONE;
+    }
 
     context->switchHeader = NULL;
 
