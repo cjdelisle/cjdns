@@ -15,6 +15,7 @@ string(REGEX REPLACE "^.*/" "" main_dir_name ${CMAKE_SOURCE_DIR})
 string(REPLACE ${CMAKE_SOURCE_DIR} ${main_dir_name} this_dir ${CMAKE_CURRENT_SOURCE_DIR})
 message("-- Tests to run for " ${this_dir})
 remove_definitions(-Werror)
+add_definitions(-DTEST)
 
 #allow us to test internal CryptoAuth.c functions.
 add_library(exports Exports.c)

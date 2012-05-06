@@ -54,7 +54,7 @@ struct Headers_SwitchHeader
     uint32_t lowBits_be;
 };
 #define Headers_SwitchHeader_SIZE 12
-Assert_assertTrue(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
+Assert_compileTime(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
 
 
 static inline uint32_t Headers_getMessageType(const struct Headers_SwitchHeader* header)
@@ -117,7 +117,7 @@ union Headers_AuthChallenge
 };
 /** Total size of the auth structure. */
 #define Headers_AuthChallenge_SIZE 12
-Assert_assertTrue(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_SIZE);
+Assert_compileTime(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_SIZE);
 
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define Headers_AuthChallenge_KEYSIZE 8
@@ -278,7 +278,7 @@ union Headers_CryptoAuth
     } handshake;
 };
 #define Headers_CryptoAuth_SIZE 120
-Assert_assertTrue(sizeof(union Headers_CryptoAuth) == Headers_CryptoAuth_SIZE);
+Assert_compileTime(sizeof(union Headers_CryptoAuth) == Headers_CryptoAuth_SIZE);
 
 struct Headers_IP6Header
 {
@@ -296,7 +296,7 @@ struct Headers_IP6Header
     uint8_t destinationAddr[16];
 };
 #define Headers_IP6Header_SIZE 40
-Assert_assertTrue(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
+Assert_compileTime(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
 
 struct Headers_UDPHeader {
     uint32_t sourceAndDestPorts;
@@ -304,6 +304,6 @@ struct Headers_UDPHeader {
     uint16_t checksum_be;
 };
 #define Headers_UDPHeader_SIZE 8
-Assert_assertTrue(sizeof(struct Headers_UDPHeader) == Headers_UDPHeader_SIZE);
+Assert_compileTime(sizeof(struct Headers_UDPHeader) == Headers_UDPHeader_SIZE);
 
 #endif

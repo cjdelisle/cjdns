@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <assert.h>
+#include "util/Assert.h"
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -28,21 +28,21 @@ int main()
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
 
-    assert((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
+    Assert_always((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
     alloc->malloc(25, alloc);
     bytesUsed += 25 + ALLOCATION_SIZE;
-    assert(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     struct Allocator* child = alloc->child(alloc);
     bytesUsed += ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    assert(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     child->malloc(30, child);
     bytesUsed += 30 + ALLOCATION_SIZE;
-    assert(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     child->free(child);
     bytesUsed -= 30 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    assert(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 }

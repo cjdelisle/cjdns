@@ -38,7 +38,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <assert.h>
+#include "util/Assert.h"
 #include <event2/event.h>
 
 /** The constant used in nacl. */
@@ -215,7 +215,7 @@ static inline int decryptRndNonce(uint8_t nonce[24],
     if (msg->length < 16) {
         return -1;
     }
-    assert(msg->padding >= 16);
+    Assert_true(msg->padding >= 16);
     uint8_t* startAt = msg->bytes - 16;
     uint8_t paddingSpace[16];
     Bits_memcpyConst(paddingSpace, startAt, 16);
@@ -243,7 +243,7 @@ static inline void encryptRndNonce(uint8_t nonce[24],
                                    struct Message* msg,
                                    uint8_t secret[32])
 {
-    assert(msg->padding >= 32);
+    Assert_true(msg->padding >= 32);
     uint8_t* startAt = msg->bytes - 32;
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
@@ -359,14 +359,14 @@ static uint8_t genReverseHandshake(struct Message* message,
         Log_debug(wrapper->context->logger, "Buffered a message.\n");
         wrapper->bufferedMessage =
             Message_clone(message, wrapper->externalInterface.allocator);
-        assert(wrapper->nextNonce == 0);
+        Assert_true(wrapper->nextNonce == 0);
     } else {
         Log_debug(wrapper->context->logger,
                   "Expelled a message because a session has not yet been setup.\n");
         Message_copyOver(wrapper->bufferedMessage,
                          message,
                          wrapper->externalInterface.allocator);
-        assert(wrapper->nextNonce == 0);
+        Assert_true(wrapper->nextNonce == 0);
     }
     wrapper->hasBufferedMessage = true;
 
@@ -384,7 +384,7 @@ static uint8_t genReverseHandshake(struct Message* message,
 
 static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
 {
-    assert(message->padding >= sizeof(union Headers_CryptoAuth) || !"not enough padding");
+    Assert_true(message->padding >= sizeof(union Headers_CryptoAuth) || !"not enough padding");
 
     Message_shift(message, sizeof(union Headers_CryptoAuth));
 
@@ -433,8 +433,8 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
             Bits_memcpyConst(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
         }
         #ifdef Log_DEBUG
-            assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
-            assert(!Bits_isZero(wrapper->secret, 32));
+            Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+            Assert_true(!Bits_isZero(wrapper->secret, 32));
         #endif
     } else if (wrapper->nextNonce == 3) {
         // Dupe key
@@ -473,10 +473,10 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
         #ifdef Log_DEBUG
-            assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+            Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
             uint8_t myTempPubKey[32];
             crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
-            assert(!memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
+            Assert_true(!memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
         #endif
     } else {
         if (wrapper->nextNonce == 2) {
@@ -523,7 +523,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
                   nonceHex, sharedSecretHex, cipherHex);
     #endif
     #ifdef Log_DEBUG
-        assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+        Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
     #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
@@ -535,7 +535,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 static inline uint8_t encryptMessage(struct Message* message,
                                      struct CryptoAuth_Wrapper* wrapper)
 {
-    assert(message->padding >= 36 || !"not enough padding");
+    Assert_true(message->padding >= 36 || !"not enough padding");
 
     encrypt(wrapper->nextNonce,
             message,
@@ -569,7 +569,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     }
 
     #ifdef Log_DEBUG
-        assert(!((uintptr_t)message->bytes % 4) || !"alignment fault");
+        Assert_true(!((uintptr_t)message->bytes % 4) || !"alignment fault");
     #endif
 
     // nextNonce 0: sending hello, we are initiating connection.
@@ -788,7 +788,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     Bits_memcpyConst(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
 
     #ifdef Log_DEBUG
-        assert(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+        Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
     #endif
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
@@ -834,9 +834,9 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         Log_debug(wrapper->context->logger, "Dropped runt");
         return Error_UNDERSIZE_MESSAGE;
     }
-    assert(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
+    Assert_true(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
     #ifdef Log_DEBUG
-        assert(!((uintptr_t)received->bytes % 4) || !"alignment fault");
+        Assert_true(!((uintptr_t)received->bytes % 4) || !"alignment fault");
     #endif
     Message_shift(received, -4);
 

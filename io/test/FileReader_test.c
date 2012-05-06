@@ -44,13 +44,13 @@ int main()
     r->skip(300, r);
     r->read(buffer2+128+128+256, 128, r);
 
-    assert(r->bytesRead(r) == 128+128+128+512+256+300+128);
+    Assert_always(r->bytesRead(r) == 128+128+128+512+256+300+128);
 
     uint8_t* ptr1 = buffer1;
     uint8_t* ptr2 = buffer2;
 
     #define SKIP(x) ptr1 += x
-    #define CMP(x) assert(!memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
+    #define CMP(x) Assert_always(!memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
 
     CMP(128);
     SKIP(128);

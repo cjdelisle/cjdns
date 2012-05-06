@@ -17,7 +17,7 @@
 #include "util/Time.h"
 
 #include <stdio.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 int main()
 {

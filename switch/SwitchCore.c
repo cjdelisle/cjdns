@@ -94,7 +94,7 @@ struct ErrorPacket {
     struct Headers_SwitchHeader switchHeader;
     struct Control ctrl;
 };
-Assert_assertTrue(sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
+Assert_compileTime(sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
 
 static inline void sendError(struct SwitchInterface* interface,
                              struct Message* cause,
@@ -226,8 +226,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     struct SwitchInterface* si1 = (struct SwitchInterface*) if1->receiverContext;
     struct SwitchInterface* si2 = (struct SwitchInterface*) if2->receiverContext;
 
-    assert(if1->allocator->notOnFree(si1->onFree, if1->allocator));
-    assert(if2->allocator->notOnFree(si2->onFree, if2->allocator));
+    Assert_true(if1->allocator->notOnFree(si1->onFree, if1->allocator));
+    Assert_true(if2->allocator->notOnFree(si2->onFree, if2->allocator));
 
     struct SwitchInterface si3;
     Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));

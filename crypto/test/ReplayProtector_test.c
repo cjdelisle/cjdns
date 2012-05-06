@@ -15,7 +15,7 @@
 #include "crypto/ReplayProtector.h"
 #include "crypto/Crypto.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdint.h>
 
 int main()
@@ -36,7 +36,7 @@ int main()
 
     for (uint32_t i = 0; i < outIdx; i++) {
         for (uint32_t j = i + 1; j < outIdx; j++) {
-            assert(out[i] != out[j]);
+            Assert_always(out[i] != out[j]);
         }
     }
 

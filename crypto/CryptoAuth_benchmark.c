@@ -23,7 +23,7 @@
 #include "util/Time.h"
 #include "wire/Error.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 #include <event2/event.h>
 

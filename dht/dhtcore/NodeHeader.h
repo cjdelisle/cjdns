@@ -37,6 +37,6 @@ struct NodeHeader
     /** The number interface of the next hop to get to this node. */
     uint32_t switchIndex;
 };
-Assert_assertTrue(sizeof(struct NodeHeader) == 12);
+Assert_compileTime(sizeof(struct NodeHeader) == 12);
 
 #endif

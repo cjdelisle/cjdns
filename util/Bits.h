@@ -126,7 +126,7 @@ static inline void* Bits_memcpyDebug(void* out,
  */
 #ifdef HAS_BUILTIN_CONSTANT_P
     #define Bits_memcpyConst(a, b, c) \
-        Assert_assertTrue(__builtin_constant_p(c) == 1); \
+        Assert_compileTime(__builtin_constant_p(c) == 1); \
         Bits_memcpy(a, b, c)
 #else
     #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)

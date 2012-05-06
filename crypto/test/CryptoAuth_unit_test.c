@@ -25,7 +25,7 @@
 #include "wire/Error.h"
 #include "wire/Message.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 #include <event2/event.h>
 
@@ -61,10 +61,10 @@ void encryptRndNonceTest()
     Hex_encode(output, 57, m.bytes, m.length);
 
     //printf("\n%s\n%s\n", (char*) expected, (char*) output);
-    assert(!memcmp(expected, output, 56));
+    Assert_always(!memcmp(expected, output, 56));
 
-    assert(!Exports_decryptRndNonce(nonce, &m, secret));
-    assert(m.length == 12 && !memcmp(m.bytes, "hello world", m.length));
+    Assert_always(!Exports_decryptRndNonce(nonce, &m, secret));
+    Assert_always(m.length == 12 && !memcmp(m.bytes, "hello world", m.length));
 }
 
 void createNew()
@@ -75,7 +75,7 @@ void createNew()
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
-    assert(memcmp(ca->publicKey, publicKey, 32) == 0);
+    Assert_always(memcmp(ca->publicKey, publicKey, 32) == 0);
 }
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
@@ -136,7 +136,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
 
 void testHello(uint8_t* password, uint8_t* expectedOutput)
 {
-    assert(strlen((char*)expectedOutput) == 264);
+    Assert_always(strlen((char*)expectedOutput) == 264);
     struct Message* outMessage;
     struct CryptoAuth_Wrapper* wrapper =
         setUp(NULL, (uint8_t*) "wxyzabcdefghijklmnopqrstuv987654", password, &outMessage);
@@ -151,7 +151,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
     Exports_encryptHandshake(&msg, wrapper);
 
     uint8_t actual[265];
-    assert(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
+    Assert_always(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
     //printf("%s", actual);
     if (memcmp(actual, expectedOutput, 264)) {
         printf("Test failed.\n"
@@ -195,7 +195,7 @@ void receiveHelloWithNoAuth()
         "29ea3e12";
 
     uint8_t message[132];
-    assert(Hex_decode(message, 132, messageHex, strlen((char*)messageHex)) > 0);
+    Assert_always(Hex_decode(message, 132, messageHex, strlen((char*)messageHex)) > 0);
     struct Message incoming = {
         .length = 132,
         .padding = 0,
@@ -210,9 +210,9 @@ void receiveHelloWithNoAuth()
 
     Exports_receiveMessage(&incoming, &(struct Interface) { .receiverContext = wrapper } );
 
-    assert(finalOut);
-    assert(finalOut->length == 12);
-    assert(memcmp(hello, finalOut->bytes, 12) == 0);
+    Assert_always(finalOut);
+    Assert_always(finalOut->length == 12);
+    Assert_always(memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
 
@@ -253,7 +253,7 @@ void repeatHello()
     Exports_encryptHandshake(&msg2, &wrapper);
 
     // Check the nonce
-    assert(!memcmp(msg2.bytes, "\0\0\0\1", 4));
+    Assert_always(!memcmp(msg2.bytes, "\0\0\0\1", 4));
 
     ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
     struct Message* finalOut = NULL;
@@ -268,9 +268,9 @@ void repeatHello()
 
     Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
 
-    assert(finalOut);
-    assert(finalOut->length == 12);
-    assert(memcmp(hello, finalOut->bytes, 12) == 0);
+    Assert_always(finalOut);
+    Assert_always(finalOut->length == 12);
+    Assert_always(memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
 

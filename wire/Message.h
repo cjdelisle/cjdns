@@ -15,7 +15,7 @@
 #ifndef Message_H
 #define Message_H
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -68,13 +68,13 @@ static inline void Message_copyOver(struct Message* output,
  */
 static inline bool Message_shift(struct Message* toShift, int32_t amount)
 {
-    assert(toShift->padding >= amount);
-    assert((amount >= 0) ? (UINT16_MAX - toShift->length >= amount) : (toShift->length >= -amount));
-assert(toShift->length < 60000);
+    Assert_true(toShift->padding >= amount);
+    Assert_true((amount >= 0) ? (UINT16_MAX - toShift->length >= amount) : (toShift->length >= -amount));
+Assert_true(toShift->length < 60000);
     toShift->length += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
-assert(toShift->length < 60000);
+Assert_true(toShift->length < 60000);
     return true;
 }
 

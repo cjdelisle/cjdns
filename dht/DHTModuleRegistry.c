@@ -22,7 +22,7 @@
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <string.h>
 
 #define DEBUG2(x, y)
@@ -83,7 +83,7 @@ void DHTModuleRegistry_handleIncoming(struct DHTMessage* message,
 
 static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* message)
 {
-    assert(module != NULL);
+    Assert_true(module != NULL);
     if (module->handleOutgoing) {
         DEBUG2(">> calling: %s->handleOutgoing\n", module->name);
         return module->handleOutgoing(message, module->context);

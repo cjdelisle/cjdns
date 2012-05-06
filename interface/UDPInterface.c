@@ -26,7 +26,7 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <event2/event.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -117,7 +117,7 @@ static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct UDPInterface* context = iface->senderContext;
-    assert(&context->interface == iface);
+    Assert_true(&context->interface == iface);
 
     struct sockaddr_in sin;
     sockaddrForKey(&sin, message->bytes, context);

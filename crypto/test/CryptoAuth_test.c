@@ -22,7 +22,7 @@
 #include "util/Endian.h"
 #include "wire/Error.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 #include <event2/event.h>
 
@@ -64,7 +64,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message -->  nonce=%d\n", nonce);
-    assert(message->length + message->padding <= BUFFER_SIZE);
+    Assert_always(message->length + message->padding <= BUFFER_SIZE);
     if2->receiveMessage(message, if2);
     return Error_NONE;
 }
@@ -73,7 +73,7 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message <--  nonce=%d\n", nonce);
-    assert(message->length + message->padding <= BUFFER_SIZE);
+    Assert_always(message->length + message->padding <= BUFFER_SIZE);
     if1->receiveMessage(message, if1);
     return Error_NONE;
 }
@@ -142,7 +142,7 @@ static int sendToIf1(const char* x)
     if1Msg = NULL;
     MK_MSG(x);
     cif2->sendMessage(&msg, cif2);
-    assert(if1Msg);
+    Assert_always(if1Msg);
     if (strcmp((char*)if1Msg, x) != 0) {
         printf("expected %s, got %s\n", x, (char*)if1Msg);
         return -1;
@@ -155,7 +155,7 @@ static int sendToIf2(const char* x)
     if2Msg = NULL;
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
-    assert(if2Msg);
+    Assert_always(if2Msg);
     if (strcmp((char*)if2Msg, x) != 0) {
         printf("expected %s, got %s\n", x, (char*)if2Msg);
         return -1;

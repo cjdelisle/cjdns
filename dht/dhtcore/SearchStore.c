@@ -200,7 +200,7 @@ static String* tidForSearchNodeIndex(const struct SearchNodeIndex* index,
 
     // Make sure the above computations are run at compile time.
     // Only works if using -O3 and obviously not platform independent.
-    //assert(__builtin_constant_p(totalBytes));
+    //Assert_true(__builtin_constant_p(totalBytes));
 
     uint32_t out = (index->node << maxSearchBits) | index->search;
 

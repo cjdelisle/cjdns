@@ -15,7 +15,7 @@
 #include "util/Endian.h"
 
 #include <stdio.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 void printInfo()
 {
@@ -41,17 +41,17 @@ int main()
     volatile uint16_t sc = 0xbeca;
 
     if (!Endian_isBigEndian()) {
-        assert(c == Endian_bigEndianToHost16(sc));
-        assert(a == Endian_bigEndianToHost32(sa));
-        assert(a == Endian_littleEndianToHost32(a));
-        assert(b == Endian_bigEndianToHost64(sb));
+        Assert_always(c == Endian_bigEndianToHost16(sc));
+        Assert_always(a == Endian_bigEndianToHost32(sa));
+        Assert_always(a == Endian_littleEndianToHost32(a));
+        Assert_always(b == Endian_bigEndianToHost64(sb));
     } else {
-        assert(c == Endian_bigEndianToHost16(c));
-        assert(a == Endian_bigEndianToHost32(a));
-        assert(a == Endian_littleEndianToHost32(sa));
-        assert(b == Endian_bigEndianToHost64(b));
+        Assert_always(c == Endian_bigEndianToHost16(c));
+        Assert_always(a == Endian_bigEndianToHost32(a));
+        Assert_always(a == Endian_littleEndianToHost32(sa));
+        Assert_always(b == Endian_bigEndianToHost64(b));
     }
 
-    assert(b == Endian_byteSwap64(sb));
-    assert(a == Endian_byteSwap32(sa));
+    Assert_always(b == Endian_byteSwap64(sb));
+    Assert_always(a == Endian_byteSwap32(sa));
 }

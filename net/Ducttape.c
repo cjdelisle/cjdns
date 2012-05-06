@@ -38,7 +38,7 @@
 
 #include "crypto_stream_salsa20.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdint.h>
 #include <event2/event.h>
 #include <setjmp.h>
@@ -366,6 +366,11 @@ static inline uint8_t ip6FromTun(struct Message* message,
                                   "and the source address was different.\n");
         return Error_INVALID;
     }
+    if (!memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
+        // I'm Gonna Sit Right Down and Write Myself a Letter
+        interface->sendMessage(message, interface);
+        return Error_NONE;
+    }
 
     context->switchHeader = NULL;
 
@@ -484,7 +489,7 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* c
     // be flipped to send it back to the other node.
     if (isForMe(message, context)) {
         struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) message->bytes;
-        assert(context->ip6Header == ip6);
+        Assert_true(context->ip6Header == ip6);
         Bits_memcpyConst(ip6->destinationAddr, ip6->sourceAddr, 16);
         Bits_memcpyConst(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
         // It came from me...
@@ -519,7 +524,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     } else if (layer == OUTER_LAYER) {
         return incomingFromRouter(message, context);
     }
-    assert(false);
+    Assert_true(false);
     return 0;
 }
 
@@ -533,7 +538,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     } else if (layer == OUTER_LAYER) {
         return sendToSwitch(message, context->switchHeader, context);
     }
-    assert(false);
+    Assert_true(false);
     return 0;
 }
 

@@ -15,6 +15,7 @@
 #include "admin/Admin.h"
 #include "admin/AuthorizedPasswords.h"
 #include "admin/Configurator.h"
+#include "benc/Int.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
@@ -48,7 +49,7 @@
 #include "crypto_scalarmult_curve25519.h"
 
 #include <stdint.h>
-#include <assert.h>
+#include "util/Assert.h"
 #include <unistd.h>
 #include <stdio.h>
 
@@ -422,27 +423,17 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
 
 static void adminPing(Dict* input, void* vadmin, String* txid)
 {
-    uint8_t buffer[256];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 256);
-
-    String* pong = String_CONST("pong");
-    Dict* d = Dict_new(alloc);
-    Dict_putString(d, CJDHTConstants_QUERY, pong, alloc);
-
-    Admin_sendMessage(d, txid, (struct Admin*) vadmin);
+    Dict d = Dict_CONST(CJDHTConstants_QUERY, String_OBJ(String_CONST("pong")), NULL);
+    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
 static void adminMemory(Dict* input, void* vcontext, String* txid)
 {
     struct Context* context = (struct Context*) vcontext;
-    uint8_t buffer[256];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 256);
-
-    String* bytes = String_CONST("bytes");
-    Dict* d = Dict_new(alloc);
-    Dict_putInt(d, bytes, MallocAllocator_bytesAllocated(context->allocator), alloc);
-
-    Admin_sendMessage(d, txid, context->admin);
+    Dict d = Dict_CONST(
+        String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
+    );
+    Admin_sendMessage(&d, txid, context->admin);
 }
 
 static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context* context)
@@ -451,27 +442,21 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
     String* address = Dict_getString(adminConf, String_CONST("bind"));
     String* password = Dict_getString(adminConf, String_CONST("password"));
 
-    if (!password || !address) {
-        uint8_t randomPass[32];
-        randomBase32(randomPass);
-        Log_critical1(logger, "cjdns now requires you to specify an admin port and password.\n"
-                              "if you don't have an \"admin\" section in your configuration, "
-                              "add this.\n"
-                              "Otherwise add field so that it looks like this:\n"
-                              "\n"
-                              "    \"admin\": {\n"
-                              "        \"bind\": \"127.0.0.1:11234\",\n"
-                              "        \"password\": \"%s\"\n"
-                              "    }\n", randomPass);
-        exit(-1);
-    }
-
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
-    if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-        Log_critical1(logger, "Unable to parse [%s] as an ip address port, "
-                              "eg: 127.0.0.1:11234", address->bytes);
-        exit(-1);
+    memset(&addr, 0, sizeof(struct sockaddr_storage));
+    if (address) {
+        if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
+            Log_critical1(logger, "Unable to parse [%s] as an ip address port, "
+                                  "eg: 127.0.0.1:11234", address->bytes);
+            exit(-1);
+        }
+    }
+
+    if (!password) {
+        uint8_t buff[32];
+        randomBase32(buff);
+        password = String_new((char*)buff, context->allocator);
     }
 
     context->admin = Admin_new(&addr,
@@ -513,7 +498,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
     Crypto_init();
-    assert(argc > 0);
+    Assert_true(argc > 0);
 
     if (argc == 2) { // one argument
         if (strcmp(argv[1], "--help") == 0) {

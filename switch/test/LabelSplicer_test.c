@@ -15,7 +15,7 @@
 #include "switch/LabelSplicer.h"
 #include "util/Endian.h"
 
-#include <assert.h>
+#include "util/Assert.h"
 #include <stdio.h>
 #include <inttypes.h>
 
@@ -35,12 +35,12 @@ static void splice()
     printf("Splicing %" PRIu64 " with %" PRIu64 " yields %" PRIu64 ", expecting %" PRIu64 "\n",
            goHere, viaHere, out, expected);
 
-    assert(expected == out);
+    Assert_always(expected == out);
 }
 
 static void isOneHop()
 {
-    assert(!LabelSplicer_isOneHop(4));
+    Assert_always(LabelSplicer_isOneHop(4));
 }
 
 int main()

@@ -60,7 +60,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct SwitchPinger* ctx = iface->receiverContext;
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
-    assert(Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL);
+    Assert_true(Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL);
     Message_shift(msg, -Headers_SwitchHeader_SIZE);
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->type_be == Control_PONG_be) {
@@ -112,7 +112,7 @@ static void sendPing(String* data, void* sendPingContext)
         .bytes = &buffer[BUFFER_SZ - (data->len + 8 - (data->len % 8))]
     };
     msg.padding = msg.bytes - buffer;
-    assert(data->len < (BUFFER_SZ / 2));
+    Assert_true(data->len < (BUFFER_SZ / 2));
     Bits_memcpy(msg.bytes, data->bytes, data->len);
 
     Message_shift(&msg, Control_HEADER_SIZE);

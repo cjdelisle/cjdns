@@ -47,8 +47,29 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
         NO_DEFAULT_PATH
     )
 
+    # Check that we can link against it first (x86/amd64 wowes)
     if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-        set(LIBEVENT2_FOUND TRUE)
+        message("Found libevent @ ${LIBEVENT2_INCLUDE_DIRS} & ${LIBEVENT2_LIBRARIES}")
+        message("    Attempting to link a trivial program.")
+        set(srcfile "${CMAKE_BINARY_DIR}/libevent2/linktest.c")
+        file(WRITE
+            ${CMAKE_BINARY_DIR}/libevent2/linktest.c
+            "int main() { event_base_new(); return 0; }"
+        )
+        try_compile(success ${CMAKE_BINARY_DIR}/libevent2 ${srcfile}
+            CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=${LIBEVENT2_LIBRARIES}"
+            OUTPUT_VARIABLE error
+        )
+        if(success)
+            message("    Success!")
+            set(LIBEVENT2_FOUND TRUE)
+        else()
+            message("    Failed to compile/link, building another copy of libevent.")
+        endif()
+        message("")
+    endif()
+
+    if(LIBEVENT2_FOUND)
         if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2-bin/include")
             add_library(event2 STATIC IMPORTED)
             set_property(TARGET event2 PROPERTY IMPORTED_LOCATION ${LIBEVENT2_LIBRARIES})
