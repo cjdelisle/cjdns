@@ -37,7 +37,7 @@
 #define AddressMapper_entryIndexOf(map, entry) ((entryGet(entry, map)) - &(map)->entries[0])
 
 
-inline void AddressMapper_init(struct AddressMapper* map)
+void AddressMapper_init(struct AddressMapper* map)
 {
     /* initialize the doubly linked list */
 
@@ -53,7 +53,7 @@ inline void AddressMapper_init(struct AddressMapper* map)
     map->head = &map->entries[0];
 }
 
-inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
+struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
 {
     struct AddressMapper* map;
 
@@ -131,7 +131,7 @@ static inline void moveEntryToHead(struct AddressMapper_Entry* entry, struct Add
  * This is a very hot loop,
  * a large amount of code relies on this being fast so it is a good target for optimization.
  */
-inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
+int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
 {
     struct AddressMapper_Entry* entry;
 
@@ -150,7 +150,7 @@ inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
     return -1;
 }
 
-inline int AddressMapper_remove(int index, struct AddressMapper* map)
+int AddressMapper_remove(int index, struct AddressMapper* map)
 {
     if ((index >= 0) && (index < AddressMapper_MAX_ENTRIES)) {
         struct AddressMapper_Entry* entry;
@@ -167,7 +167,7 @@ inline int AddressMapper_remove(int index, struct AddressMapper* map)
     return -1;
 }
 
-inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
+int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
 {
     struct AddressMapper_Entry* tail;
 
