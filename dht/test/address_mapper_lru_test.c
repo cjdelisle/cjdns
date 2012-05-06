@@ -1,8 +1,15 @@
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "dht/AddressMapper.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
+
+/* collection of data required to run tests */
+struct AppState {
+    struct AddressMapper* map;
+    struct Allocator* allocator;
+};
 
 /* repeat each test this many times to guard against an occasional pass */
 #define NUM_REPEAT 100
@@ -46,7 +53,9 @@ static uint8_t* getDummyAddress(void)
  * 2. Add another entry
  * 3. Check that only the least recent entry was removed
  */
-static int runTest_replaceLeastRecentlyUsed(struct AddressMapper* map, struct TestInfo* info)
+static int runTest_replaceLeastRecentlyUsed(struct AppState* state,
+                                            struct AddressMapper* map,
+                                            struct TestInfo* info)
 {
     info->name = "Replace least recently used";
 
@@ -94,17 +103,19 @@ static int runTest_replaceLeastRecentlyUsed(struct AddressMapper* map, struct Te
  *
  * Tets the "remove" functionality of the address mapper is optimal by checking
  * that the address mapper replaces "removed" entries when new entries are added,
- * rather than enties that are still valid.
+ * rather than entries that are still valid.
  *
  * 1. Fill the address map
  * 2. Remove a random selection of entries
  * 3. Add new entries to replace the previously removed entries
  * 4. Check that only the removed entries were replaced
  */
-static int runTest_removeAndPut(struct AddressMapper* map, struct TestInfo* info)
+static int runTest_removeAndPut(struct AppState* state,
+                                struct AddressMapper* map,
+                                struct TestInfo* info)
 {
     /* the labels to remove - a maximum of 8 */
-    uint64_t removeLabels[2];
+    uint64_t removeLabels[8];
     info->name = "Remove and put";
 
     /* fill the address map */
@@ -113,7 +124,7 @@ static int runTest_removeAndPut(struct AddressMapper* map, struct TestInfo* info
     }
 
     /* remove a random number (between 1 and 8) of labels, at random */
-    unsigned int numToRemove = (rand() % 2) + 1;
+    unsigned int numToRemove = (rand() % 8) + 1;
 
     for(unsigned int i = 0; i < numToRemove; i++) {
         generateRandomLabel:
@@ -191,7 +202,9 @@ static int runTest_removeAndPut(struct AddressMapper* map, struct TestInfo* info
  * 3. Add a new entry to the address map
  * 4. Ensure it is entry with label==2 which has been removed
  */
-static int runTest_dontReplaceMostRecentlyUsed(struct AddressMapper* map, struct TestInfo* info)
+static int runTest_dontReplaceMostRecentlyUsed(struct AppState* state,
+                                               struct AddressMapper* map,
+                                               struct TestInfo* info)
 {
     info->name = "Don't replace most recently used";
 
@@ -256,7 +269,9 @@ static uint64_t rand64(void)
  *    of the previously entries should still be presnt.
  * 4. Query the address map to see if only the most recently used item remains.
  */
-static int runTest_orderCheck(struct AddressMapper* map, struct TestInfo* info)
+static int runTest_orderCheck(struct AppState* state,
+                              struct AddressMapper* map,
+                              struct TestInfo* info)
 {
     info->name = "Order check";
 
@@ -265,7 +280,8 @@ static int runTest_orderCheck(struct AddressMapper* map, struct TestInfo* info)
     const uint64_t labelMin = 0xF000000000000000;
     const uint64_t labelMax = 0xFFFFFFFFFFFFFFFF;
 
-    labels = calloc(AddressMapper_MAX_ENTRIES, sizeof(uint64_t));
+    labels = state->allocator->calloc(AddressMapper_MAX_ENTRIES, sizeof(uint64_t),
+                                                                state->allocator);
 
     if(labels == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
@@ -359,56 +375,29 @@ static int runTest_orderCheck(struct AddressMapper* map, struct TestInfo* info)
 
     info->pass = true;
 out:
-    free(labels);
     return 0;
 }
 
-/* collection of data required to run tests */
-struct AppState {
-    void* buffer;
-    struct AddressMapper* map;
-    struct Allocator* allocator;
-};
-
-static int initAppState(struct AppState* state)
+static void initAppState(struct AppState* state)
 {
-    const size_t bufferSize = 64 * 1024;
-
-    state->buffer = malloc(bufferSize);
-
-    if(state->buffer == NULL) {
-        fprintf(stderr, "Failed to allocate buffer\n");
-        goto errorExitMalloc;
-    }
-
-    state->allocator = BufferAllocator_new(state->buffer, bufferSize);
+    state->allocator = MallocAllocator_new(64 * 1024);
 
     if(state->allocator == NULL) {
         fprintf(stderr, "Failed to create allocator\n");
-        goto errorExitAllocator;
+        abort();
     }
 
     state->map = AddressMapper_new(state->allocator);
 
     if(state->map == NULL) {
         fprintf(stderr, "Failed to create address map\n");
-        goto errorExitMap;
+        abort();
     }
-
-    return 0;
-
-errorExitMap:
-    state->allocator->free(state->allocator);
-errorExitAllocator:
-    free(state->buffer);
-errorExitMalloc:
-    return -1;
 }
 
 static void deinitAppState(struct AppState* state)
 {
     state->allocator->free(state->allocator);
-    free(state->buffer);
 }
 
 /* if the user passed an unsigned integer then use that as a seed,
@@ -433,7 +422,8 @@ static void applySeed(int argc, char** argv)
 }
 
 /* list of tests to run */
-static int (*testRunList[])(struct AddressMapper* map, struct TestInfo* info) = {
+static int (*testRunList[])(struct AppState* state, struct AddressMapper* map,
+                                                        struct TestInfo* info) = {
                     runTest_replaceLeastRecentlyUsed,
                     runTest_dontReplaceMostRecentlyUsed,
                     runTest_removeAndPut,
@@ -447,12 +437,6 @@ int main(int argc, char** argv)
     int err = 0;
     struct AppState state;
 
-    err = initAppState(&state);
-
-    if(err != 0) {
-        goto errorExitAppState;
-    }
-
     applySeed(argc, argv);
 
     int testNum = 0;
@@ -462,7 +446,9 @@ int main(int argc, char** argv)
             int testErr;
 
             memset(&info, 0, sizeof(info));
-            testErr = testRunList[testNum](state.map, &info);
+            initAppState(&state);
+            testErr = testRunList[testNum](&state, state.map, &info);
+            deinitAppState(&state);
 
             if(testErr != 0) {
                 fprintf(stderr, "Failed to initialise test: %s\n", info.name);
@@ -481,13 +467,10 @@ int main(int argc, char** argv)
                 goto nextTest;
             }
         }
-
         nextTest:
         testNum++;
     }
 
 errorExitTest:
-    deinitAppState(&state);
-errorExitAppState:
     return err;
 }
