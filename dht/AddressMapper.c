@@ -19,8 +19,7 @@
 #include "memory/Allocator.h"
 #include "AddressMapper.h"
 
-#include <assert.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 
