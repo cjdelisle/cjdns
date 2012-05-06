@@ -39,7 +39,7 @@
 
 inline void AddressMapper_init(struct AddressMapper* map)
 {
-    /* initialise the doubly linked list */
+    /* initialize the doubly linked list */
 
     for (int i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
         map->entries[i].prev = &map->entries[i - 1];
