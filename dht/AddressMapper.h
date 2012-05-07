@@ -12,93 +12,74 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AddressMapper_H
-#define AddressMapper_H
 
-#include "util/Bits.h"
+/** Address mapper doubly linked list LRU cache.
+ * The most recently used item is on the head.
+ * The least recently used item is on the tail.
+ *
+ * When an item is used, it is relocated to the head. Searching from the
+ * head therefore means items will be checked in most-recently-used order.
+ *
+ * When inserting a new item, the item to replace - the least-recently-used item - is simply the tail.
+ * Then the tail is set to be the head, because it is the most recently used item.
+ */
 
-#include "util/Assert.h"
-#include <inttypes.h>
-#include <string.h>
+#include "memory/Allocator.h"
+#include <stdint.h>
+
+struct AddressMapper_Entry
+{
+    uint64_t label;
+    uint8_t address[16];
+    struct AddressMapper_Entry* next;
+    struct AddressMapper_Entry* prev;
+};
 
 #define AddressMapper_MAX_ENTRIES 128
 struct AddressMapper
 {
-    uint64_t labels[AddressMapper_MAX_ENTRIES];
-    uint8_t addresses[AddressMapper_MAX_ENTRIES][16];
-    uint8_t accessNumber;
-    uint8_t canary[3];
+    struct AddressMapper_Entry entries[AddressMapper_MAX_ENTRIES];
+    struct AddressMapper_Entry* head;
 };
 
-static inline struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
-{
-    return allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
-}
-
 /**
- * This is a very hot loop,
- * a large amount of code relies on this being fast so it is a good target for optimization.
+ * Allocate a new address map with the given allocator.
+ * The map is automatically initialized.
+ *
+ * @param allocator the allocator to allocate the map from.
+ * @return pointer to the newly created map.
  */
-static inline int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
-{
-    for (uint32_t i = 0; i < AddressMapper_MAX_ENTRIES; i++) {
-        if (map->labels[i] == 0L) {
-            break;
-        } else if (map->labels[i] == label) {
-            if (!(map->accessNumber % 8) && i > 0) {
-                map->labels[i] = map->labels[i - 1];
-                map->labels[i - 1] = label;
-                uint8_t address[16];
-                Bits_memcpyConst(address, map->addresses[i], 16);
-                Bits_memcpyConst(map->addresses[i], map->addresses[i - 1], 16);
-                Bits_memcpyConst(map->addresses[i - 1], address, 16);
-                i--;
-            }
-            Assert_true(!memcmp(map->canary, "\0\0\0", 3));
-            map->accessNumber++;
-            return i;
-        }
-    }
-    return -1;
-}
+struct AddressMapper* AddressMapper_new(struct Allocator* allocator);
 
 /**
+ * Initialize the given address map, ready for use.
+ *
+ * @param map pointer to an address map to initialize.
+ */
+void AddressMapper_init(struct AddressMapper* map);
+
+/* Searches for and returns the index of a map element with the the given label.
+ *
+ * @param label label to search for in the map.
+ * @param map the map to search in.
+ * @return the index of the element, or -1 if the label was not found.
+ */
+int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map);
+
+/**
+ * Remove the address map element with the given index.
+ *
  * @param index the index of the element to remove.
  * @param map the map to remove from.
  * @return 0 if the entry is removed, -1 if it could not be found.
  */
-static inline int AddressMapper_remove(int index, struct AddressMapper* map)
-{
-    if (index >= 0 && index < AddressMapper_MAX_ENTRIES) {
-        for (int i = index + 1; i < AddressMapper_MAX_ENTRIES; i++) {
-            if (map->labels[i] == 0L) {
-                i--;
-                Bits_memcpyConst(map->addresses[index], map->addresses[i], 16);
-                map->labels[index] = map->labels[i];
-                map->labels[i] = 0L;
-                Assert_true(!memcmp(map->canary, "\0\0\0", 3));
-                return 0;
-            }
-        }
-        map->labels[index] = 0;
-        return 0;
-    }
-    return -1;
-}
+int AddressMapper_remove(int index, struct AddressMapper* map);
 
-static inline int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map)
-{
-    int i;
-    for (i = 0; i < AddressMapper_MAX_ENTRIES - 1; i++) {
-        if (map->labels[i] == 0L || map->labels[i] == label) {
-            break;
-        }
-    }
-    Bits_memcpyConst(map->addresses[i], address, 16);
-    map->labels[i] = label;
-    Assert_true(!memcmp(map->canary, "\0\0\0", 3));
-    return i;
-}
-
-#endif
-
+/**
+ * Put a new element in the map.
+ *
+ * @param label the label of the new element.
+ * @param address the address of the new element.
+ * @param map the map to add to.
+ */
+int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map);

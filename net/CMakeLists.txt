@@ -20,6 +20,7 @@ target_link_libraries(cjdnet
     cjdbenc
     crypto
     interface
+    dht
 )
 
 
