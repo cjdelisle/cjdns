@@ -133,13 +133,13 @@ static int genconf()
     uint8_t privateKeyHex[65];
     genAddress(address, privateKeyHex, publicKeyBase32);
 
-    printf("{\n"
-           "    // Private key:\n"
-           "    // This key corresponds to the public key: %s.k\n", publicKeyBase32);
-    printf("    // And the ipv6 address: %s\n", address);
-    printf("    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
-           "    //\n"
-           "    \"privateKey\": \"%s\",\n", privateKeyHex);
+    printf("{\n");
+    printf("    // Private key:\n"
+           "    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
+           "    \"privateKey\": \"%s\",\n\n", privateKeyHex);
+    printf("    // This key corresponds to the public key and ipv6 address:\n"
+           "    \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("    \"ipv6\": \"%s\",\n", address);
     printf("\n"
            "    // Anyone connecting and offering these passwords on connection will be allowed.\n"
            "    //\n"
