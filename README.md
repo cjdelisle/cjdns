@@ -526,21 +526,6 @@ When cjdnroute is up and running, an administrative interface will listen on loc
 You can access this api using the following tools, to get interesting information.
 
 
-
-Webbased JavaScript GUI
------------------------
-
-cjdns comes with a HttpServer, that can be fired up to access information using a web browser
-the following command will start it on port 10080:
-
-     $ cd cjdns
-     $ ./build/admin/http/HttpServer 127.0.0.1:11234 admin/http/ 127.0.0.1 8080
-
-you can now access the interface using this link in your webbrowser
-
-    http://127.0.0.1:8080
-
-
 cjdns-tool
 ----------
 
