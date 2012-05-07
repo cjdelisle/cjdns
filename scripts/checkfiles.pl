@@ -57,7 +57,7 @@ foreach my $fileName (split("\n", $files))
     foreach my $line (split("\n", <FILE>)) {
         $lineNum++;
 
-        if ($lineNum < @headerArray.length) {
+        if ($lineNum < scalar(@headerArray)) {
             my $expectedLine = $headerArray[$lineNum - 2];
             if (index($line, $expectedLine) == -1) {
                 error("missing header\n$expectedLine\n$line");
