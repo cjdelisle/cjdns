@@ -465,3 +465,53 @@ Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 316ms
 
 This is the switch configuration so this indicates expected switch throughput:
 Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1159ms. 1035375 Kb/s
+
+
+
+
+
+
+
+
+OpenWRT on Linksys WRT54GL V1.1
+
+system type              : Broadcom BCM47XX
+processor             : 0
+cpu model             : Broadcom BMIPS3300 V0.8
+BogoMIPS              : 198.65
+wait instruction      : yes
+microsecond timers    : yes
+tlb_entries           : 32
+extra interrupt vector        : yes
+hardware watchpoint   : no
+ASEs implemented      :
+shadow register sets  : 1
+kscratch registers    : 0
+core                  : 0
+VCED exceptions               : not available
+VCEI exceptions               : not available
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte     hello packets.  packet auth enabled.    Finished in 687837ms. 0 Kb/s
+
+Test sending 1000 1500 byte   hello packets.  packet auth enabled.    Finished in 695086ms. 17 Kb/s
+
+Test sending 1000 64 byte     key packets.    packet auth enabled.    Finished in 688509ms. 0 Kb/s
+
+Test sending 1000 1500 byte   key packets.    packet auth enabled.    Finished in 695686ms. 17 Kb/s
+
+Test sending 100000 64 byte   data packets.   packet auth disabled.   Finished in 6485ms. 7895 Kb/s
+
+Test sending 100000 1500 byte data packets.   packet auth disabled.   Finished in 85105ms. 14100 Kb/s
+
+Test sending 100000 64 byte   data packets.   packet auth enabled.    Finished in 45765ms. 1118 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput
+Test sending 100000 1500 byte data packets.   packet auth enabled.    Finished in 764380ms. 1569 Kb/s
+
+real  59m 43.33s
+user  59m 39.59s
+sys   0m 2.98s
+
+ircerr@EFNet/#cjdns 20120506
