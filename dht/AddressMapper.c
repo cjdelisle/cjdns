@@ -34,7 +34,7 @@
 /* gets the index of a linked list entry with respect to the
  * start of the element array
  */
-#define AddressMapper_entryIndexOf(map, entry) ((entryGet(entry, map)) - &(map)->entries[0])
+#define entryIndexOf(map, entry) ((entryGet(entry, map)) - &(map)->entries[0])
 
 
 void AddressMapper_init(struct AddressMapper* map)
@@ -142,7 +142,7 @@ int AddressMapper_indexOf(uint64_t label, struct AddressMapper* map)
         if (entry->label == label) {
             /* move entry to head */
             moveEntryToHead(entry, map);
-            return AddressMapper_entryIndexOf(map, entry);
+            return entryIndexOf(map, entry);
         }
         entry = ENTRY(entry->next);
     } while (ENTRY(entry) != ENTRY(map->head));
@@ -176,7 +176,7 @@ int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper*
     ENTRY(tail)->label = label;
     map->head = tail;
 
-    return AddressMapper_entryIndexOf(map, tail);
+    return entryIndexOf(map, tail);
 }
 
 #endif
