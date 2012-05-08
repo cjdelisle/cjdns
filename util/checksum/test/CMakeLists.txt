@@ -30,13 +30,5 @@ endforeach()
 # Add an empty line after tests.
 message("")
 
-# Experimental benchmark target.
-file(GLOB tests "*_benchmark.c")
-foreach(test_source_fullpath ${tests})
-  string(REGEX REPLACE "^.*/" "" test_source ${test_source_fullpath})
-  string(REPLACE "benchmark.c" "benchmark" test_bin ${test_source})
-  message("     " ${test_source})
-  add_executable(${test_bin} ${test_source})
-  target_link_libraries(${test_bin} ${LIBEVENT2_LIBRARIES})
-  add_test(${test_bin} ${test_bin})
-endforeach()
+add_executable(Checksum_benchmark Checksum_benchmark.c)
+target_link_libraries(Checksum_benchmark checksum util crypto ${LIBEVENT2_LIBRARIES})

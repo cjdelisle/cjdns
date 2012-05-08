@@ -17,7 +17,7 @@
 #include "util/checksum/Checksum_impl0.h"
 #include "util/checksum/Checksum_impl1.h"
 
-#define CYCLES 10
+#define CYCLES 50
 #define MAX_SIZE 8192
 
 int main()
@@ -26,7 +26,7 @@ int main()
         uint8_t buffer[MAX_SIZE];
         uint16_t size;
         randombytes((uint8_t*) &size, 2);
-        size &= MAX_SIZE;
+        size %= MAX_SIZE;
         randombytes(buffer, size);
 
         uint16_t sum0 = Checksum_impl0_complete(Checksum_impl0_step(buffer, size, 0));
