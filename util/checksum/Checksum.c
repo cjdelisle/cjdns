@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Checksum.h"
+#include "util/checksum/Checksum.h"
 #include "util/checksum/Checksum_impl1.h"
 #include "util/Endian.h"
 #include "util/Assert.h"

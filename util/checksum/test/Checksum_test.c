@@ -15,7 +15,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
-#include "util/Checksum.h"
+#include "util/checksum/Checksum.h"
 
 #include "util/Assert.h"
 #include <stdio.h>
