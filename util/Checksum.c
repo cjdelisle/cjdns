@@ -12,9 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/Checksum.h"
 #include "util/Endian.h"
-#include <stdint.h>
 #include "util/Assert.h"
+
+#include <stdint.h>
 
 static uint32_t checksumStep(const uint8_t* buffer,
                              uint32_t length,

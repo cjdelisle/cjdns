@@ -19,6 +19,7 @@
 
 /**
  * Generate a checksum on a piece of data.
+ * buffer must be 2 byte aligned.
  *
  * @param buffer the bytes to checksum.
  * @param length the number of bytes in the buffer.
@@ -28,6 +29,7 @@ uint16_t Checksum_engine(const uint8_t* buffer, uint32_t length);
 
 /**
  * Generate a checksum for a UDP/IPv6 packet.
+ * sourceAndDestAddrs and udpHeaderAndContent must be 2 byte aligned.
  *
  * @param sourceAndDestAddrs the 16 byte source address followed
  *                           by the 16 byte destination address.
@@ -41,6 +43,7 @@ uint16_t Checksum_udpIp6(const uint8_t sourceAndDestAddrs[32],
 
 /**
  * Generate a checksum for an ICMP6/IPv6 packet.
+ * sourceAndDestAddrs and icmpHeaderAndContent must be 2 byte aligned.
  *
  * @param sourceAndDestAddrs the 16 byte source address followed
  *                           by the 16 byte destination address.
