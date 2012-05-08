@@ -15,6 +15,7 @@
 #include "util/Endian.h"
 #include <stdint.h>
 #include "util/Assert.h"
+
 static uint32_t checksumStep(const uint8_t* buffer,
                              uint32_t length,
                              uint32_t state)
@@ -62,6 +63,9 @@ static uint16_t ip6PacketChecksum(const uint8_t sourceAndDestAddrs[32],
                                   uint32_t length,
                                   uint32_t packetType_be)
 {
+    Assert_true(!((uintptr_t)sourceAndDestAddrs % 4));
+    Assert_true(!((uintptr_t)packetHeaderAndContent % 4));
+
     // http://tools.ietf.org/html/rfc2460#page-27
     uint32_t sum = checksumStep(sourceAndDestAddrs, 32, 0);
 
