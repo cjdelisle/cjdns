@@ -25,7 +25,7 @@
  * @param length the number of bytes in the buffer.
  * @return the 1's complement checksum.
  */
-uint16_t Checksum_engine(const uint8_t* buffer, uint32_t length);
+uint16_t Checksum_engine(const uint8_t* buffer, uint16_t length);
 
 /**
  * Generate a checksum for a UDP/IPv6 packet.
@@ -39,7 +39,7 @@ uint16_t Checksum_engine(const uint8_t* buffer, uint32_t length);
  */
 uint16_t Checksum_udpIp6(const uint8_t sourceAndDestAddrs[32],
                          const uint8_t udpHeaderAndContent[8],
-                         uint32_t length);
+                         uint16_t length);
 
 /**
  * Generate a checksum for an ICMP6/IPv6 packet.
@@ -54,6 +54,6 @@ uint16_t Checksum_udpIp6(const uint8_t sourceAndDestAddrs[32],
  */
 uint16_t Checksum_icmp6(const uint8_t sourceAndDestAddrs[32],
                         const uint8_t icmpHeaderAndContent[4],
-                        uint32_t length);
+                        uint16_t length);
 
 #endif

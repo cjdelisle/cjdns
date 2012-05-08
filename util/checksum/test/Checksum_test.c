@@ -67,11 +67,13 @@ const uint8_t* udp6PacketHex = (uint8_t*) UDP6_PACKET_HEX;
 
 void udp6ChecksumTest()
 {
-    uint8_t packet[UDP6_PACKET_SIZE + 1];
+    uint8_t packet[UDP6_PACKET_SIZE + 3];
     Hex_decode(packet, UDP6_PACKET_SIZE, udp6PacketHex, UDP6_PACKET_SIZE * 2);
 
     // add some evil at the end to check for buffer overrun
-    packet[UDP6_PACKET_SIZE] = 0xbe;
+    packet[UDP6_PACKET_SIZE] = 0x00;
+    packet[UDP6_PACKET_SIZE + 1] = 0x00;
+    packet[UDP6_PACKET_SIZE + 2] = 0x00;
 
     uint16_t udp6Checksum;
     Bits_memcpyConst(&udp6Checksum, &packet[46], 2);
@@ -80,7 +82,7 @@ void udp6ChecksumTest()
     packet[47] = 0;
 
     uint16_t calcatedSum = Checksum_udpIp6(&packet[8], &packet[40], 25);
-    //printf("%2x == %2x", udp6Checksum, calcatedSum);
+    printf("%2x == %2x", udp6Checksum, calcatedSum);
     Assert_always(udp6Checksum == calcatedSum);
 }
 

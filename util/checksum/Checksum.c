@@ -13,75 +13,51 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/Checksum.h"
+#include "util/checksum/Checksum_impl1.h"
 #include "util/Endian.h"
 #include "util/Assert.h"
 
 #include <stdint.h>
 
-static uint32_t checksumStep(const uint8_t* buffer,
-                             uint32_t length,
-                             uint32_t state)
+
+#ifndef Checksum_IMPLEMENTATION
+    #define Checksum_IMPLEMENTATION impl1
+#endif
+
+#define STEP GLUE3(Checksum_, Checksum_IMPLEMENTATION, _step)
+#define COMPLETE GLUE3(Checksum_, Checksum_IMPLEMENTATION, _complete)
+#define GLUE3(a,b,c) GLUE3b(a,b,c)
+#define GLUE3b(a,b,c) a ## b ## c
+
+
+
+uint16_t Checksum_engine(const uint8_t* buffer, uint16_t length)
 {
-    uint32_t i;
-
-    // Checksum pairs.
-    for (i = 0; i < length / 2; i++) {
-        state += (uint16_t) Endian_bigEndianToHost16( ((uint16_t*) buffer)[i] );
-        if (state > 0xFFFF) {
-            state -= 0xFFFF;
-        }
-    }
-
-    // Do the odd byte if there is one.
-    if (length % 2) {
-        state += buffer[length - 1] << 8;
-        if (state > 0xFFFF) {
-            state -= 0xFFFF;
-        }
-    }
-    return state;
-}
-
-static uint16_t completeChecksum(uint32_t state)
-{
-    return Endian_hostToBigEndian16(~state & 0xFFFF);
-}
-
-/**
- * Generate a checksum on a piece of data.
- *
- * @param buffer the bytes to checksum.
- * @param length the number of bytes in the buffer.
- * @return the checksum in host byte order.
- */
-uint16_t Checksum_engine(const uint8_t* buffer, uint32_t length)
-{
-    uint32_t sum = checksumStep(buffer, length, 0);
-    return completeChecksum(sum);
+    return COMPLETE(STEP(buffer, length, 0));
 }
 
 static uint16_t ip6PacketChecksum(const uint8_t sourceAndDestAddrs[32],
                                   const uint8_t packetHeaderAndContent[8],
-                                  uint32_t length,
+                                  uint16_t length,
                                   uint32_t packetType_be)
 {
     Assert_true(!((uintptr_t)sourceAndDestAddrs % 2));
     Assert_true(!((uintptr_t)packetHeaderAndContent % 2));
 
     // http://tools.ietf.org/html/rfc2460#page-27
-    uint32_t sum = checksumStep(sourceAndDestAddrs, 32, 0);
+    uint64_t sum = STEP(sourceAndDestAddrs, 32, 0);
 
     const uint32_t length_be = Endian_hostToBigEndian32(length);
-    sum = checksumStep((uint8_t*) &length_be, 4, sum);
-    sum = checksumStep((uint8_t*) &packetType_be, 4, sum);
-    sum = checksumStep(packetHeaderAndContent, length, sum);
+    sum = STEP((uint8_t*) &length_be, 4, sum);
+    sum = STEP((uint8_t*) &packetType_be, 4, sum);
+    sum = STEP(packetHeaderAndContent, length, sum);
 
-    return completeChecksum(sum);
+    return COMPLETE(sum);
 }
 
 uint16_t Checksum_udpIp6(const uint8_t sourceAndDestAddrs[32],
                          const uint8_t udpHeaderAndContent[8],
-                         uint32_t length)
+                         uint16_t length)
 {
     return ip6PacketChecksum(sourceAndDestAddrs,
                              udpHeaderAndContent,
@@ -91,7 +67,7 @@ uint16_t Checksum_udpIp6(const uint8_t sourceAndDestAddrs[32],
 
 uint16_t Checksum_icmp6(const uint8_t sourceAndDestAddrs[32],
                         const uint8_t icmpHeaderAndContent[4],
-                        uint32_t length)
+                        uint16_t length)
 {
     return ip6PacketChecksum(sourceAndDestAddrs,
                              icmpHeaderAndContent,
