@@ -67,8 +67,11 @@ const uint8_t* udp6PacketHex = (uint8_t*) UDP6_PACKET_HEX;
 
 void udp6ChecksumTest()
 {
-    uint8_t packet[UDP6_PACKET_SIZE];
+    uint8_t packet[UDP6_PACKET_SIZE + 1];
     Hex_decode(packet, UDP6_PACKET_SIZE, udp6PacketHex, UDP6_PACKET_SIZE * 2);
+
+    // add some evil at the end to check for buffer overrun
+    packet[UDP6_PACKET_SIZE] = 0xbe;
 
     uint16_t udp6Checksum;
     Bits_memcpyConst(&udp6Checksum, &packet[46], 2);

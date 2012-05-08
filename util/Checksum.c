@@ -14,31 +14,24 @@
  */
 #include "util/Endian.h"
 #include <stdint.h>
-
+#include "util/Assert.h"
 static uint32_t checksumStep(const uint8_t* buffer,
                              uint32_t length,
                              uint32_t state)
 {
     uint32_t i;
 
-    union {
-        uint8_t bytes[2];
-        uint16_t u16;
-    } converter;
-
     // Checksum pairs.
-    for (i = 0; i < (length & ~1u); i += 2) {
-        converter.bytes[0] = Endian_isBigEndian() ? buffer[i] : buffer[i + 1];
-        converter.bytes[1] = Endian_isBigEndian() ? buffer[i + 1] : buffer[i];
-        state += converter.u16;
+    for (i = 0; i < length / 2; i++) {
+        state += (uint16_t) Endian_bigEndianToHost16( ((uint16_t*) buffer)[i] );
         if (state > 0xFFFF) {
             state -= 0xFFFF;
         }
     }
 
     // Do the odd byte if there is one.
-    if (i < length) {
-        state += buffer[i] << 8;
+    if (length % 2) {
+        state += buffer[length - 1] << 8;
         if (state > 0xFFFF) {
             state -= 0xFFFF;
         }
