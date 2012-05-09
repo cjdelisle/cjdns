@@ -53,7 +53,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define DEFAULT_TUN_DEV "tun0"
+#define DEFAULT_TUN_DEV "cjdroute0"
 
 struct Context
 {
