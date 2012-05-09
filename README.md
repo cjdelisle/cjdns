@@ -431,23 +431,19 @@ Create a cjdns user:
 
 Create a new TUN device and give the cjdns user authority to access it:
 
-    # /sbin/ip tuntap add mode tun user cjdns
-    # /sbin/ip tuntap list | grep `id -u cjdns`
+    # /sbin/ip tuntap add mode tun user cjdns dev cjdroute0
 
-The output of the last command will tell you the name of the new device.
-If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
-and change the line which says: `"tunDevice": "tun0"` to whatever it is.
 
 4b-1: Setup the interface manually
 ----------------
 
 Run those commands to prepare your TUN device:
 
-    # /sbin/ip addr add <your ipv6 address>/8 dev tun0
-    # /sbin/ip link set tun0 up
+    # /sbin/ip addr add <your ipv6 address>/8 dev cjdroute0
+    # /sbin/ip link set cjdroute0 up
 
-Exchange tun0 with your device name, in case the previous step told you a different one.
 These commands should be executed as root now every time the system restarts.
+
 
 4b-2: Fire it up!
 --------------
