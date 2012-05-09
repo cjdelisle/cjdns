@@ -438,13 +438,15 @@ The output of the last command will tell you the name of the new device.
 If that name is not `"tun0"` then you will need to edit the cjdroute.conf file
 and change the line which says: `"tunDevice": "tun0"` to whatever it is.
 
-4b-1: Get commands.
+4b-1: Setup the interface manually
 ----------------
 
-Get the commands to run in order to prepare your TUN device by running:
+Run those commands to prepare your TUN device:
 
-    # ./cjdroute --getcmds < cjdroute.conf
+    # /sbin/ip addr add <your ipv6 address>/8 dev tun0
+    # /sbin/ip link set tun0 up
 
+Exchange tun0 with your device name, in case the previous step told you a different one.
 These commands should be executed as root now every time the system restarts.
 
 4b-2: Fire it up!

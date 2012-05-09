@@ -270,7 +270,7 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--getcmds] [--bench]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -290,55 +290,6 @@ static int usage(char* appName)
            appName, appName, appName);
 
     return 0;
-}
-
-static int getcmds(Dict* config)
-{
-#ifdef __APPLE__
-    printf("# The Apple implementation does not support persistent tunnels.\n"
-           "# Therefor this is not necessary.\n"
-           "# Just start the router and it will configure automatically.\n");
-
-    return 0;
-
-#else
-
-    uint8_t privateKey[32];
-    struct Address addr;
-    parsePrivateKey(config, &addr, privateKey);
-
-    uint8_t myIp[40];
-    Address_printIp(myIp, &addr);
-
-    Dict* router = Dict_getDict(config, String_CONST("router"));
-    Dict* iface = Dict_getDict(router, String_CONST("interface"));
-    String* type = Dict_getString(iface, String_CONST("type"));
-    String* tunDevice = Dict_getString(iface, String_CONST("tunDevice"));
-    if (!String_equals(type, String_CONST("TUNInterface"))) {
-        fprintf(stderr, "router.interface.type is not recognized.\n");
-        return -1;
-    }
-    char *tunDev = (tunDevice) ? tunDevice->bytes : DEFAULT_TUN_DEV;
-    if (strrchr(tunDev, '/') != NULL) {
-        tunDev = strrchr(tunDev, '/') + 1;
-    }
-
-    printf("#!/bin/bash\n"
-           "# This is for starting cjdroute as it's own user. see README.md\n"
-           "# *MOST USERS DON'T NEED THIS*\n"
-           "# To setup a persistent tunnel, run these commands every reboot.\n"
-           "#\n"
-           "# NOTE: tun devices are destroyed when a system is rebooted.\n"
-           "# To create the tun device use this command.\n"
-           "# replace \"cjdns\" with the name of the user which the router will run as.\n"
-           "# /sbin/ip tuntap add dev %s mode tun user cjdns\n\n", tunDev);
-
-    printf("/sbin/ip addr add %s/8 dev %s\n", myIp, tunDev);
-    printf("/sbin/ip link set %s up\n", tunDev);
-
-    return 0;
-
-#endif /* __APPLE__ */
 }
 
 static void reconf(struct Context* ctx, Dict* mainConf)
@@ -505,8 +456,6 @@ int main(int argc, char** argv)
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf();
-        } else if (strcmp(argv[1], "--getcmds") == 0) {
-            // Performed after reading the configuration
         } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--reconf") == 0) {
@@ -547,9 +496,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (argc == 2 && strcmp(argv[1], "--getcmds") == 0) {
-        return getcmds(&config);
-    }
     if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
         pidfile(&config);
         return 0;
