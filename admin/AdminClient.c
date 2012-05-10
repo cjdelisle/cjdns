@@ -131,7 +131,6 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
         }
     }
 
-    Log_keys1(res->ctx->logger, "Sending message: %s", buff);
     send(res->ctx->socket, res->public.messageBytes, writer->bytesWritten(writer), 0);
 
     struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res);
