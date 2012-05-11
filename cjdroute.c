@@ -52,6 +52,8 @@
 #include "util/Assert.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 
@@ -268,9 +270,30 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
     exit(-1);
 }
 
+/* initialize daemon mode */
+static int daemon_mode(void)
+{
+    int pid;
+
+    if ((pid = fork()) != 0)
+        _exit(0);
+
+    setsid();
+
+    signal(SIGHUP, SIG_IGN);
+    if ((pid = fork()) != 0)
+        _exit(0);
+
+    chdir("/");
+    umask(0);
+
+    return 0;
+}
+
+
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] [--daemon]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -462,6 +485,8 @@ int main(int argc, char** argv)
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
+        } else if (strcmp(argv[1], "--daemon") == 0) {
+            daemon_mode();
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
