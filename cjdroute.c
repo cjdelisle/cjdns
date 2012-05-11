@@ -314,12 +314,17 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     Configurator_config(mainConf, &addr, addrLen, password, ctx->base, ctx->logger, ctx->allocator);
 }
 
-static void registerRouter(Dict* config, struct Address *addr, struct Context* context)
+static int registerRouter(Dict* config, struct Address *addr, struct Context* context)
 {
     Dict* iface = Dict_getDict(config, String_CONST("interface"));
     if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
         String* tunPath = Dict_getString(iface, String_CONST("tunDevice"));
         struct TUNInterface* tun = TUNInterface_new(tunPath, context->base, context->allocator);
+
+        // abort unless creating tun was successfull
+        if (tun == NULL)
+          return -1;
+
         if (TUNConfigurator_configure(tun, addr->ip6.bytes, 8) != 0) {
             fprintf(stderr, "Couldn't configure TUN interface\n");
         }
@@ -333,6 +338,8 @@ static void registerRouter(Dict* config, struct Address *addr, struct Context* c
                                                   context->admin);
 
     RouterModule_admin_register(context->routerModule, context->admin, context->allocator);
+
+    return 0;
 }
 
 static char* setUser(List* config)
@@ -529,7 +536,8 @@ int main(int argc, char** argv)
 
     // Router
     Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
-    registerRouter(routerConf, &myAddr, &context);
+    if (registerRouter(routerConf, &myAddr, &context) == -1)
+        return -1;
 
     SerializationModule_register(context.registry, context.allocator);
 
