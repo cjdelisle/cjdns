@@ -44,7 +44,7 @@ static inline bool ReplayProtector_checkNonce(const uint32_t nonce, struct Repla
 
     if (offset > 20) {
         context->baseOffset += offset - 20;
-        context->bitfield = context->bitfield >> (offset - 20) | (1 << 20);
+        context->bitfield = ((offset > 51) ? 0 : context->bitfield >> (offset - 20)) | (1 << 20);
         return true;
     }
 
