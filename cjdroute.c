@@ -54,9 +54,13 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 #define DEFAULT_CONFIG_FILE "/etc/cjdns/cjdroute.conf"
+#define DEFAULT_LOG_FILE "/var/log/cjdroute.log"
+
 
 struct Context
 {
@@ -271,8 +275,26 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
     exit(-1);
 }
 
-/* initialize daemon mode */
-static int daemon_mode(void)
+// redirect stderr and stdout to logfile
+static int setup_logfile(int log_fd)
+{
+    if (dup2(log_fd, STDOUT_FILENO) == -1) {
+        perror("redirecting stdout to logfile failed");
+        return -1;
+    }
+
+    if (dup2(log_fd, STDERR_FILENO) == -1) {
+        perror("redirecting stderr to logfile failed");
+        return -1;
+    }
+
+    close(log_fd);
+    return 0;
+}
+
+
+// initialize daemon mode
+static int daemon_mode(int log_fd)
 {
     int pid;
 
@@ -288,13 +310,24 @@ static int daemon_mode(void)
     chdir("/");
     umask(0);
 
+    // close then reopen stdin
+    close(STDIN_FILENO);
+
+    if (open("/dev/null",O_RDONLY) == -1) {
+        perror("error reopening stdin");
+        return -1;
+    }
+
+    if (setup_logfile(log_fd) == -1)
+        return -1;
+
     return 0;
 }
 
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--daemon] [--config-file <file>]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] [--daemon] [--config-file <file>] [--log-file <file>]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -470,12 +503,13 @@ static int benchmark()
 int main(int argc, char** argv)
 {
     char configfile[1024];
+    char logfile[1024];
     FILE *config_fd;
+    int  log_fd;
 
     char flag_pidfile = 0;
     char flag_reconf = 0;
     char flag_daemon = 0;
-
 
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
@@ -483,8 +517,9 @@ int main(int argc, char** argv)
     Crypto_init();
     Assert_true(argc > 0);
 
-    // set the default configuration file (/etc/cjdns/cjdroute.conf)
-    strlcpy(configfile, DEFAULT_CONFIG_FILE, sizeof(configfile));
+    // set the default config and logfile
+    strncpy(configfile, DEFAULT_CONFIG_FILE, sizeof(configfile));
+    strncpy(logfile, DEFAULT_LOG_FILE, sizeof(logfile));
 
     // prase the command-line arguments
     for (int i = 1; i < argc; i++) {
@@ -496,9 +531,20 @@ int main(int argc, char** argv)
         // use another config-file
         else if (!strcmp(argv[i], "--config-file") || !strcmp(argv[i], "-c")) {
             if (argc > i + 1)
-                strlcpy(configfile, argv[++i], sizeof(configfile));
+                strncpy(configfile, argv[++i], sizeof(configfile));
             else {
                 fprintf(stderr, "--config-file error: no filename given\n");
+                fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                return -1;
+            }
+        }
+
+        // log to a file, instead of stdout
+        else if (!strcmp(argv[i], "--log-file") || !strcmp(argv[i], "-l")) {
+            if (argc > i + 1)
+                strncpy(logfile, argv[++i], sizeof(logfile));
+            else {
+                fprintf(stderr, "--log-file error: no filename given\n");
                 fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
                 return -1;
             }
@@ -533,12 +579,23 @@ int main(int argc, char** argv)
     }
 
     // open config file
-    if ((config_fd = fopen(configfile, "r")) == NULL) {
+    if ( (config_fd = fopen(configfile, "r")) == NULL) {
         fprintf(stderr, "couldn't open configuration file '%s'\n", configfile);
         perror("error");
         return -1;
     }
 
+    // daemon mode, open logfile and fork into background
+    if (flag_daemon) {
+        if ( (log_fd = open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0644)) == -1) {
+            fprintf(stderr, "couldn't open log file '%s'\n", logfile);
+            perror("error");
+            return -1;
+        }
+
+        if (daemon_mode(log_fd) == -1)
+            return -1;
+    }
 
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
@@ -633,10 +690,6 @@ int main(int argc, char** argv)
         fprintf(pf, "%d", getpid());
         fclose(pf);
     }
-
-
-    if (flag_daemon)
-        daemon_mode();
 
 
     struct sockaddr_storage* adminAddr;
