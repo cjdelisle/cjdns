@@ -294,7 +294,7 @@ static int setup_logfile(int log_fd)
 
 
 // initialize daemon mode
-static int daemon_mode(int log_fd)
+static int daemon_mode(void)
 {
     int pid;
 
@@ -317,9 +317,6 @@ static int daemon_mode(int log_fd)
         perror("error reopening stdin");
         return -1;
     }
-
-    if (setup_logfile(log_fd) == -1)
-        return -1;
 
     return 0;
 }
@@ -510,6 +507,8 @@ int main(int argc, char** argv)
     char flag_pidfile = 0;
     char flag_reconf = 0;
     char flag_daemon = 0;
+    char flag_logfile = 0;
+
 
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
@@ -541,8 +540,10 @@ int main(int argc, char** argv)
 
         // log to a file, instead of stdout
         else if (!strcmp(argv[i], "--log-file") || !strcmp(argv[i], "-l")) {
-            if (argc > i + 1)
+            if (argc > i + 1) {
                 strncpy(logfile, argv[++i], sizeof(logfile));
+                flag_logfile = 1;
+            }
             else {
                 fprintf(stderr, "--log-file error: no filename given\n");
                 fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -585,17 +586,23 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // daemon mode, open logfile and fork into background
-    if (flag_daemon) {
+    // open logfile if either --daemon or --log-file is specified
+    if (flag_daemon || flag_logfile) {
         if ( (log_fd = open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0644)) == -1) {
             fprintf(stderr, "couldn't open log file '%s'\n", logfile);
             perror("error");
             return -1;
         }
 
-        if (daemon_mode(log_fd) == -1)
+        // fork into background
+        if (flag_daemon)
+            if (daemon_mode() == -1)
+                return -1;
+
+        if (setup_logfile(log_fd) == -1)
             return -1;
     }
+
 
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
