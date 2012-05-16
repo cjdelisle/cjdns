@@ -31,7 +31,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
             /usr/include
             /usr/local/include
             /opt/local/include
-            ${CMAKE_BINARY_DIR}/libevent2-bin/include
+            ${CMAKE_BINARY_DIR}/libevent2/include
         NO_DEFAULT_PATH
     )
 
