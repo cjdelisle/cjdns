@@ -39,7 +39,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
         NAMES
             event
         PATHS
-            ${LIBEVENT2_INCLUDE_DIRS}/../lib
+            ${LIBEVENT2_INCLUDE_DIRS}/../.libs
             ${LIBEVENT2_PREFIX}/lib
             /usr/lib
             /usr/local/lib
@@ -70,7 +70,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
     endif()
 
     if(LIBEVENT2_FOUND)
-        if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2-bin/include")
+        if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2/include")
             add_library(event2 STATIC IMPORTED)
             set_property(TARGET event2 PROPERTY IMPORTED_LOCATION ${LIBEVENT2_LIBRARIES})
             includeLibrt()
@@ -86,6 +86,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     # Without this, the build doesn't happen until link time.
     include_directories(${LIBEVENT2_USE_FILES})
 
+    list(APPEND EVENT2_CONFIG --prefix=${CMAKE_BINARY_DIR}/libevent2)
     list(APPEND EVENT2_CONFIG --disable-openssl --disable-shared --with-pic)
 
     # https://sourceforge.net/tracker/?func=detail&aid=3527257&group_id=50884&atid=461322
@@ -119,7 +120,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     endif()
 
     set_property(TARGET event2
-        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2/lib/libevent.a)
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2/.libs/libevent.a)
 
     includeLibrt()
     set(LIBEVENT2_LIBRARIES event2)
