@@ -86,25 +86,27 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     # Without this, the build doesn't happen until link time.
     include_directories(${LIBEVENT2_USE_FILES})
 
+    list(APPEND EVENT2_CONFIG --disable-openssl --disable-shared --with-pic)
+
+    # https://sourceforge.net/tracker/?func=detail&aid=3527257&group_id=50884&atid=461322
+    if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+        list(APPEND EVENT2_CONFIG --disable-thread-support)
+    endif()
+
     ExternalProject_Add(Libevent2
-        URL "http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz"
-        URL_MD5 "899efcffccdb3d5111419df76e7dc8df"
+        URL "http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.19-stable.tar.gz"
+        URL_MD5 "91111579769f46055b0a438f5cc59572"
         SOURCE_DIR "${CMAKE_BINARY_DIR}/libevent2"
-        BINARY_DIR "${CMAKE_BINARY_DIR}/libevent2-build"
-        CONFIGURE_COMMAND ${CMAKE_BINARY_DIR}/libevent2/configure
-            --prefix=${CMAKE_BINARY_DIR}/libevent2-bin
-            --disable-openssl
-            --disable-shared
-            --with-pic
-            --disable-thread-support
+        BINARY_DIR "${CMAKE_BINARY_DIR}/libevent2"
+        CONFIGURE_COMMAND ${CMAKE_BINARY_DIR}/libevent2/configure "${EVENT2_CONFIG}"
         BUILD_COMMAND make
         TEST_COMMAND ""
-        INSTALL_COMMAND make install
+        INSTALL_COMMAND ""
         UPDATE_COMMAND ""
         PATCH_COMMAND ""
     )
 
-    set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2-bin/include/")
+    set(LIBEVENT2_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libevent2/include/")
 
     add_library(event2 STATIC IMPORTED)
 
@@ -117,7 +119,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     endif()
 
     set_property(TARGET event2
-        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2-bin/lib/libevent.a)
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2/lib/libevent.a)
 
     includeLibrt()
     set(LIBEVENT2_LIBRARIES event2)

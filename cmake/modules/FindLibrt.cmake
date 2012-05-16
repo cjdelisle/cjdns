@@ -9,7 +9,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-if(NOT LIBRT_FOUND)
+if(NOT LIBRT_FOUND AND NOT NO_LIBRT)
 
     find_path(LIBRT_INCLUDE_DIR
         NAMES
@@ -43,4 +43,4 @@ if(NOT LIBRT_FOUND)
         endif (Librt_FIND_REQUIRED)
     endif (LIBRT_FOUND)
 
-endif (NOT LIBRT_FOUND)
+endif()
