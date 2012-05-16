@@ -20,7 +20,6 @@ fi
 cd build
 
 CMAKE=`which cmake`
-CMAKE="zzz"
 if [ -d cmake-build ]; then
     CMAKE=`pwd`/cmake-build/bin/cmake
 fi
