@@ -43,24 +43,68 @@ if (NOT NACL_FOUND)
 endif()
 
 if(NOT NACL_FOUND)
+    message("libnacl not found, will be downloaded and compiled.")
     include(ExternalProject)
 
     # Without this, the build doesn't happen until link time.
     include_directories(${NACL_USE_FILES})
 
-    ExternalProject_Add(NACL
-        GIT_REPOSITORY git://github.com/cjdelisle/nacl.git
-        GIT_TAG c737ed821164f397a1a0639b9361c66edf2d4000
+    set(functions "")
+    list(APPEND functions crypto_verify_16)
+    list(APPEND functions crypto_stream_salsa20)
+    list(APPEND functions crypto_stream_hsalsa20)
+    list(APPEND functions crypto_auth_poly1305)
+    list(APPEND functions crypto_secretbox_xsalsa20poly1305)
+
+    list(APPEND functions crypto_scalarmult_curve25519)
+    list(APPEND functions crypto_box_curve25519xsalsa20poly1305)
+
+    list(APPEND functions crypto_hash_sha256)
+    list(APPEND functions crypto_hash_sha256)
+    list(APPEND functions crypto_hash_sha512)
+
+    string(REPLACE ";" "," func "${functions}")
+
+    # the name of the tag
+    set(tag "f3080eee8c79321a751d8f5e5d4ccf42776b1be3.tar.gz")
+
+    # the sha256 of the tar.gz file
+    set(hash "f7339f909117f61e8ed49061bb4fbcf773eae690460698b78d8b819653af7212")
+
+    set(check sha256sum ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag} | grep ${hash})
+    ExternalProject_Add(nacl_ep
+        URL "http://nodeload.github.com/cjdelisle/nacl/tarball/${tag}"
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
+        CONFIGURE_COMMAND ${check}
+        BUILD_COMMAND ./do "-primitives=${func}"
         INSTALL_COMMAND ""
         UPDATE_COMMAND ""
         PATCH_COMMAND ""
     )
 
+    add_library(nacl STATIC IMPORTED)
+
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/modules/TestNACL.cmake
+        DEPENDS nacl_ep
+    )
+    add_custom_target(nacl_test_output DEPENDS ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass)
+
+    if(CMAKE_VERSION VERSION_LESS 2.8.4)
+        message("Parallel building (-j) will not be available.")
+        message("To build in parallel, upgrade to cmake 2.8.4 or newer.")
+        message("see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395")
+    else()
+        add_dependencies(nacl nacl_ep)
+        add_dependencies(nacl nacl_test_output)
+    endif()
+
+    set_property(TARGET nacl
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a)
     set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
-    set(NACL_LIBRARIES    "${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a")
-    message("libnacl not found, will be downloaded and compiled.")
+    set(NACL_LIBRARIES nacl)
     set(NACL_FOUND TRUE)
 
 endif()
