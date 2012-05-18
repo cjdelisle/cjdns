@@ -17,7 +17,7 @@ CMAKE_SHA256=2b59897864d6220ff20aa8eac64cac8994e004898a1c0f899c8cb4d7b7570b46
 
 # get a sha256sum implementation.
 getsha256sum() {
-    testFile=`tempfile`
+    testFile=`mktemp`
     echo "test" > $testFile
     for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
     do
@@ -55,4 +55,9 @@ if [ "$needCMake" = 1 ]; then
     cd ..
 fi
 
-${CMAKE} .. && make
+[ -f cjdroute ] && mv cjdroute cjdroute.bak
+
+${CMAKE} .. && make &&
+    [ -f cjdroute ] &&
+    cp cjdroute ../cjdroute &&
+    echo "Build completed successfully, type ./cjdroute to begin setup."
