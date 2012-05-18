@@ -14,12 +14,12 @@
 CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.8.tar.gz
 CMAKE_SHA256=2b59897864d6220ff20aa8eac64cac8994e004898a1c0f899c8cb4d7b7570b46
 
-scriptPath=`dirname $0`
+[ `dirname $0` ] && cd `dirname $0`
 
 # get a sha256sum implementation.
 getsha256sum() {
     expected=4ee73c05d5158b0fdfec9f5e52cab3fa85b98d6992a221bbff28fdbd935e8afc
-    testFile=$scriptPath/test/$expected
+    testFile=test/$expected
     for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
     do
         #echo "trying ${hasher} ${testFile}"
@@ -36,13 +36,12 @@ fi
 cd build
 
 CMAKE=`which cmake`
-if [ -d cmake-build ]; then
+if [ -f cmake-build/bin/cmake ]; then
     CMAKE=`pwd`/cmake-build/bin/cmake
 fi
 
-[ "${CMAKE}" != "" ] && [ "`${CMAKE} --version | grep 2.8.[2-9]`" != "" ] || needCMake=1
-if [ "$needCMake" = 1 ]; then
-
+[ ${CMAKE} ] && ${CMAKE} --version | grep 2.8.[2-9] ||
+while true; do
     [ -d cmake-build ] && rm -r cmake-build
     mkdir cmake-build
     cd cmake-build
@@ -53,7 +52,8 @@ if [ "$needCMake" = 1 ]; then
     ./build/configure && make || exit -1
     CMAKE=`pwd`/bin/cmake
     cd ..
-fi
+    break
+done
 
 [ -f cjdroute ] && mv cjdroute cjdroute.bak
 
