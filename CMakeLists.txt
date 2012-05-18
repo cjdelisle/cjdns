@@ -12,6 +12,8 @@
 project(cjdns C)
 cmake_minimum_required(VERSION 2.4)
 
+message(${CMAKE_VERSION})
+
 if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR} AND NOT OPENWRT)
     message( FATAL_ERROR "type: git clean -df && mkdir build && cd build && cmake .. && make" )
 endif()

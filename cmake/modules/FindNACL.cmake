@@ -85,12 +85,10 @@ if(NOT NACL_FOUND)
         PATCH_COMMAND ""
     )
 
-    add_custom_command(
-        OUTPUT ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass
+    add_custom_target(nacl_test
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/modules/TestNACL.cmake
         DEPENDS nacl_ep
     )
-    add_custom_target(nacl_test_output DEPENDS ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass)
 
     add_library(nacl_imported STATIC IMPORTED)
     set_property(TARGET nacl_imported
@@ -98,7 +96,7 @@ if(NOT NACL_FOUND)
 
     add_library(nacl)
     set_target_properties(nacl PROPERTIES LINKER_LANGUAGE C)
-    add_dependencies(nacl nacl_ep nacl_test_output)
+    add_dependencies(nacl nacl_ep nacl_test)
     target_link_libraries(nacl nacl_imported)
 
     set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
