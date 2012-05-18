@@ -58,6 +58,7 @@ done
 [ -f cjdroute ] && mv cjdroute cjdroute.bak
 
 ${CMAKE} .. && make &&
+    make test || rm cjdroute &&
     [ -f cjdroute ] &&
     cp cjdroute ../cjdroute &&
-    echo "Build completed successfully, type ./cjdroute to begin setup."
+    echo "\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m"
