@@ -87,21 +87,19 @@ if(NOT NACL_FOUND)
 
     add_custom_target(nacl_test
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/modules/TestNACL.cmake
-        DEPENDS nacl_ep
     )
+    add_dependencies(nacl_test nacl_ep)
 
-    add_library(nacl_imported STATIC IMPORTED)
-    set_property(TARGET nacl_imported
+    add_library(nacl_test_dependency)
+    set_target_properties(nacl_test_dependency PROPERTIES LINKER_LANGUAGE C)
+    add_dependencies(nacl_test_dependency nacl_test)
+
+    add_library(nacl STATIC IMPORTED)
+    set_property(TARGET nacl
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a)
 
-    file(WRITE ${CMAKE_BINARY_DIR}/nacl/DoNothing.c "int DoNothing_inStyle() { return 0; }")
-    add_library(nacl ${CMAKE_BINARY_DIR}/nacl/DoNothing.c)
-    set_target_properties(nacl PROPERTIES LINKER_LANGUAGE C)
-    add_dependencies(nacl nacl_ep nacl_test)
-    target_link_libraries(nacl nacl_imported)
-
     set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
-    set(NACL_LIBRARIES nacl)
+    set(NACL_LIBRARIES nacl nacl_test_dependency)
     set(NACL_FOUND TRUE)
 
 endif()
