@@ -102,9 +102,6 @@ get in the channel on IRC:
   * irc://irc.EFNet.org/#cjdns
   * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
 
-Some raw pastes for the curious:
-
-  * http://cjdns.pastebay.org/
 
 
 Thank you for your time and interest,
@@ -114,31 +111,15 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 --------------------------------------------------------------------------------
 
 
-    Possibly outdated below.
-    Please check IRC for the latest info.
+How to install cjdns
+====================
 
-
-Build
-=====
-
-How to compile cjdns:
-
-  * Hint 1: You did a backup recently. ;)
-  * Hint 2: Created on Debian will work on Ubuntu/Mint just as well.
-  * Hint 3: By default the build process will try to find Libevent2 in your operating system
-and if it can't be found, default to compiling and *static linking* it's own. If you want to
-force it to use dynamic or static linking, see [Non-Standard Setups] below.
 
 0: Install the build tools you will need.
 -----------------------------------------
 
     # apt-get install cmake git build-essential
 
-Check your version of cmake.
-
-    # cmake --version
-
-Version 2.8 and newer is supported.
 
 1: Retrieve cjdns from GitHub.
 ------------------------------
@@ -148,56 +129,21 @@ Grab it from GitHub and change to the source directory:
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-2: Setup environment.
----------------------
-
-Setup `build` directory and change to it:
-
-    # mkdir build
-    # cd build
-
-By default it will give you DEBUG logs, if you want less output and
-slightly better performance, change the log level:
-
-    # export Log_LEVEL=INFO
-
-Valid log levels are:
-
-* KEYS The most info, this includes printing private keys into your logs!
-* DEBUG Lots of info.
-* INFO Things you might be interested in.
-* WARN Only a few oddities are logged at WARN level.
-* ERROR Nothing is logged at this level so far.
-* CRITICAL Only a few things are logged at this level and they system stops when they are.
-
-3: Build.
+2: Build.
 ---------
 
-Pre-build step with `cmake`:
+    # ./do
 
-    # cmake ..
+Look for this:
 
-Build cjbdns:
+    Build completed successfully, type ./cjdroute to begin setup.
 
-    # make
-
-Look for:
-
-    [100%] Built target .............<what's here changes often>
-
-ALL DONE! Wanna test? Sure.
-
-    # make test
 
 --------------------------------------------------------------------------------
 
 
-Installation
-============
-
-Use `screen` or such to get a few ttys, Xterms, pipe to log and bg, whatever.
-
-Change to the `cjdns/build` directory if you need to.
+Setup
+=====
 
 Run cjdroute without options for HELP:
 
@@ -418,6 +364,8 @@ Non-Standard Setups
 ===================
 
 Instructions for building or installing in non-default ways.
+
+# Most Users Don't Need To Read Below This Point
 
 Start cjdroute as non-root user.
 ================================
