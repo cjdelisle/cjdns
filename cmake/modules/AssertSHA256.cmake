@@ -1,7 +1,16 @@
 find_program(sha256sum sha256sum)
 if(NOT sha256sum)
-    find_program(sha256sum sha256)
+    find_program(sha256sum gsha256sum)
 endif()
+if(NOT sha256sum)
+    find_program(openssl openssl)
+    if (openssl)
+        set(sha256sum openssl sha256)
+    endif()
+endif()
+
+
+
 
 if(NOT sha256sum)
     message(FATAL_ERROR "could not find sha256 checksummer.")
@@ -16,8 +25,8 @@ execute_process(COMMAND ${sha256sum} "${FILE}"
     OUTPUT_VARIABLE hash
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-string(REGEX REPLACE " .*$" "" trimmedHash "${hash}")
-if(NOT "${trimmedHash}" STREQUAL "${EXPECTED}")
+
+if(NOT "${hash}" MATCHES ".*${EXPECTED}.*")
     message("expected: [${EXPECTED}] got: [${trimmedHash}]")
     message(FATAL_ERROR "${FILE} SHA-256 check failed")
 endif()
