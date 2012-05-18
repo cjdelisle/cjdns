@@ -71,7 +71,9 @@ if(NOT NACL_FOUND)
     # the sha256 of the tar.gz file
     set(hash "f7339f909117f61e8ed49061bb4fbcf773eae690460698b78d8b819653af7212")
 
-    set(check sha256sum ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag} | grep ${hash})
+    set(file ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
+    set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
+    set(check ${CMAKE_COMMAND} -DFILE=${file} -DEXPECTED=${hash} -P ${AssertSHA256})
     ExternalProject_Add(nacl_ep
         URL "http://nodeload.github.com/cjdelisle/nacl/tarball/${tag}"
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
@@ -83,8 +85,6 @@ if(NOT NACL_FOUND)
         PATCH_COMMAND ""
     )
 
-    add_library(nacl STATIC IMPORTED)
-
     add_custom_command(
         OUTPUT ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/modules/TestNACL.cmake
@@ -92,17 +92,15 @@ if(NOT NACL_FOUND)
     )
     add_custom_target(nacl_test_output DEPENDS ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass)
 
-    if(CMAKE_VERSION VERSION_LESS 2.8.4)
-        message("Parallel building (-j) will not be available.")
-        message("To build in parallel, upgrade to cmake 2.8.4 or newer.")
-        message("see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395")
-    else()
-        add_dependencies(nacl nacl_ep)
-        add_dependencies(nacl nacl_test_output)
-    endif()
-
-    set_property(TARGET nacl
+    add_library(nacl_imported STATIC IMPORTED)
+    set_property(TARGET nacl_imported
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a)
+
+    add_library(nacl)
+    set_target_properties(nacl PROPERTIES LINKER_LANGUAGE C)
+    add_dependencies(nacl nacl_ep nacl_test_output)
+    target_link_libraries(nacl nacl_imported)
+
     set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
     set(NACL_LIBRARIES nacl)
     set(NACL_FOUND TRUE)
