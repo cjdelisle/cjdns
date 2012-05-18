@@ -610,3 +610,48 @@ VCEI exceptions		: not available
 user@debian-mips:~/cjdns/build$ git log | head -n 1
 commit 929f4785dcd62b2dc4201ceb40e7bdb0d49462e5
 
+
+
+# after update to nacl
+
+git log | head -1~/cjdns$ time ./build/cjdroute --bench && cat /proc/cpuinfo &&  
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 242437ms. 2 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 298387ms. 40 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 325285ms. 1 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 300940ms. 39 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 3183ms. 16085 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 70822ms. 16943 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 21674ms. 2362 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 122875ms. 9766 Kb/s
+
+
+real	22m33.470s
+user	22m2.123s
+sys	0m28.946s
+system type		: MIPS Malta
+processor		: 0
+cpu model		: MIPS 24Kc V0.0  FPU V0.0
+BogoMIPS		: 550.91
+wait instruction	: yes
+microsecond timers	: yes
+tlb_entries		: 16
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0ff8]
+ASEs implemented	: mips16
+shadow register sets	: 1
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+commit 8562e4298a64a7b7aa9d05d03ab357b572940b71
+user@debian-mips:~/cjdns$ 
