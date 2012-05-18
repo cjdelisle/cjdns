@@ -14,8 +14,7 @@
 CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.8.tar.gz
 CMAKE_SHA256=2b59897864d6220ff20aa8eac64cac8994e004898a1c0f899c8cb4d7b7570b46
 
-scriptName=`readlink -f $0`
-scriptPath=`dirname "${scriptName}"`
+scriptPath=`dirname $0`
 
 # get a sha256sum implementation.
 getsha256sum() {
