@@ -86,6 +86,50 @@ cjdns@abacus:~/cjdns/build$ git log -n 1
 commit c2cfff7b4ef1339942f3e98eb0d99a093d307a9b
 
 
+# after the update to nacl
+
+cjdns@abacus:~/cjdns/build$ time ./cjdroute --bench && cat /proc/cpuinfo && git log | head -1
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 12076ms. 42 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 13298ms. 902 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 12304ms. 41 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 12752ms. 940 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 1034ms. 49516 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 20350ms. 58968 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3685ms. 13894 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 30179ms. 39762 Kb/s
+
+Processor	: Feroceon 88FR131 rev 1 (v5l)
+BogoMIPS	: 1196.85
+Features	: swp half thumb fastmult edsp 
+CPU implementer	: 0x56
+CPU architecture: 5TE
+CPU variant	: 0x2
+CPU part	: 0x131
+CPU revision	: 1
+
+Hardware	: Marvell OpenRD Client Board
+Revision	: 0000
+Serial		: 0000000000000000
+
+real	1m43.216s
+user	1m21.520s
+sys	0m1.000s
+cjdns@abacus:~/cjdns/build$ 
+
+
+
+
+
 
 
 cjdns@ks397481:~/cjdns/build$ ./cjdroute --bench
