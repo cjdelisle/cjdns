@@ -94,7 +94,8 @@ if(NOT NACL_FOUND)
     set_property(TARGET nacl_imported
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a)
 
-    add_library(nacl)
+    file(WRITE ${CMAKE_BINARY_DIR}/nacl/DoNothing.c "int DoNothing_inStyle() { return 0; }")
+    add_library(nacl ${CMAKE_BINARY_DIR}/nacl/DoNothing.c)
     set_target_properties(nacl PROPERTIES LINKER_LANGUAGE C)
     add_dependencies(nacl nacl_ep nacl_test)
     target_link_libraries(nacl nacl_imported)
