@@ -14,21 +14,22 @@
 CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.8.tar.gz
 CMAKE_SHA256=2b59897864d6220ff20aa8eac64cac8994e004898a1c0f899c8cb4d7b7570b46
 
+scriptName=`readlink -f $0`
+scriptPath=`dirname "${scriptName}"`
 
 # get a sha256sum implementation.
 getsha256sum() {
-    testFile=`mktemp`
-    echo "test" > $testFile
+    expected=4ee73c05d5158b0fdfec9f5e52cab3fa85b98d6992a221bbff28fdbd935e8afc
+    testFile=$scriptPath/test/$expected
     for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
     do
-        expected="f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
         #echo "trying ${hasher} ${testFile}"
         ${hasher} ${testFile} 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && break
     done
     [ ! "${SHA256SUM}" ] && echo "couldn't find working sha256 hasher." && exit 1
 }
 
-
+getsha256sum
 
 if [ ! -d build ]; then
     mkdir build;
@@ -42,7 +43,7 @@ fi
 
 [ "${CMAKE}" != "" ] && [ "`${CMAKE} --version | grep 2.8.[2-9]`" != "" ] || needCMake=1
 if [ "$needCMake" = 1 ]; then
-    getsha256sum
+
     [ -d cmake-build ] && rm -r cmake-build
     mkdir cmake-build
     cd cmake-build
