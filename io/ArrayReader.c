@@ -35,10 +35,6 @@ struct Reader* ArrayReader_new(const void* bufferToRead,
     struct ArrayReader_context* context =
         allocator->calloc(sizeof(struct ArrayReader_context), 1, allocator);
 
-    if (context == NULL || reader == NULL) {
-        return NULL;
-    }
-
     context->pointer = (char*) bufferToRead;
     context->endPointer = (char*) bufferToRead + length;
 
