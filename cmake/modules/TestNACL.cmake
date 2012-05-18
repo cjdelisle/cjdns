@@ -22,5 +22,5 @@ foreach(test ${tests})
         endif()
     endif()
 endforeach()
-file(WRITE ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.pass "yay!")
+file(WRITE ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.out "it passed, yay!")
 

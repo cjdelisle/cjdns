@@ -85,14 +85,22 @@ if(NOT NACL_FOUND)
         PATCH_COMMAND ""
     )
 
-    add_custom_target(nacl_test
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.out
         COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/modules/TestNACL.cmake
     )
+    add_custom_target(nacl_test DEPENDS ${CMAKE_BINARY_DIR}/nacl/build/nacl_test.out)
     add_dependencies(nacl_test nacl_ep)
 
-    add_library(nacl_test_dependency)
-    set_target_properties(nacl_test_dependency PROPERTIES LINKER_LANGUAGE C)
+    # The source of this uglyness is a limit on adding dependencies to imported libraries.
+    # see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395
+    # It's fixed in cmake 2.8.4 but it would be nice to continue supporting 2.8.2 and 2.8.3
+    if(NOT EXISTS ${CMAKE_BINARY_DIR}/DoNothing.c)
+        file(WRITE ${CMAKE_BINARY_DIR}/DoNothing.c "int DoNothing() { return 0; }")
+    endif()
+    add_library(nacl_test_dependency ${CMAKE_BINARY_DIR}/DoNothing.c)
     add_dependencies(nacl_test_dependency nacl_test)
+
 
     add_library(nacl STATIC IMPORTED)
     set_property(TARGET nacl
