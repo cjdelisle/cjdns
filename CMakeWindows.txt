@@ -29,3 +29,6 @@ set(NO_LIBRT TRUE)
 
 # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
 set(NO_PIE TRUE)
+
+# proceed with ifdef hell :(
+add_definitions(-DWIN32)
