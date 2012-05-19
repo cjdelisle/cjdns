@@ -133,7 +133,7 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
 
     return 0;
 
-#else
+#else // Not apple
 
     int s;
     struct ifreq ifRequest;
@@ -156,14 +156,14 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
     ifr6.ifr6_prefixlen = prefixLen;
     evutil_inet_pton(AF_INET6, myIp, &ifr6.ifr6_addr);
 
-    if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
-        perror("SIOCSIFADDR");
-        return -1;
-    }
-
     ifRequest.ifr_flags |= IFF_UP | IFF_RUNNING;
     if (ioctl(s, SIOCSIFFLAGS, &ifRequest) < 0) {
         perror("SIOCSIFFLAGS");
+        return -1;
+    }
+
+    if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
+        perror("SIOCSIFADDR");
         return -1;
     }
 
