@@ -41,6 +41,10 @@
 #include "util/Assert.h"
 #include <event2/event.h>
 
+#ifdef WIN32
+    #undef interface
+#endif
+
 /** The constant used in nacl. */
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
 static const uint8_t keyHashNonce[16] = {0};

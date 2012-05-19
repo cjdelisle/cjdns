@@ -24,6 +24,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 # validation
 add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 
+# ISO C does not support the ‘I64’ ms_printf length modifier
+# but PRId64 is #defined as "I64d"
+if(WIN32)
+    add_definitions(-Wno-error)
+endif()
+
 # This breaks logging since loggers are passed to functions
 # and only used if the log level is high.
 add_definitions(-Wno-unused-parameter)
@@ -85,7 +91,7 @@ else()
     add_definitions(-g)
 endif()
 
-if(NOT DEFINED APPLE)
+if(NOT DEFINED APPLE AND NOT WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
 else()
     # apple seems to set noexecstack by defualt and not support relro.
@@ -148,6 +154,7 @@ target_link_libraries(cjdroute
     cjdadmin
     cjdnet
     ${LIBEVENT2_LIBRARIES}
+    ${PLATFORM_LIBRARIES}
 )
 
 install_targets(/bin cjdroute)

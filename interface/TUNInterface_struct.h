@@ -20,6 +20,10 @@
 
 #include <event2/event.h>
 
+#ifdef WIN32
+    #undef interface
+#endif
+
 struct TUNInterface
 {
     struct event* incomingEvent;

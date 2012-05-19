@@ -68,7 +68,7 @@ void CryptoAuth_flushUsers(struct CryptoAuth* context);
  * @return the user object added by calling CryptoAuth_addUser() or NULL if this session is not
  *         authenticated.
  */
-void* CryptoAuth_getUser(struct Interface* interface);
+void* CryptoAuth_getUser(struct Interface* iface);
 
 /**
  * Create a new crypto authenticator.
@@ -125,10 +125,10 @@ void CryptoAuth_setAuth(const String* password,
 void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
 /** @return a pointer to the other party's public key. */
-uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
+uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
-void CryptoAuth_reset(struct Interface* interface);
+void CryptoAuth_reset(struct Interface* iface);
 
 
 /** New CryptoAuth session, has not sent or received anything. */
@@ -152,6 +152,6 @@ void CryptoAuth_reset(struct Interface* interface);
  *                CryptoAuth_HANDSHAKE2 or
  *                CryptoAuth_ESTABLISHED
  */
-int CryptoAuth_getState(struct Interface* interface);
+int CryptoAuth_getState(struct Interface* iface);
 
 #endif

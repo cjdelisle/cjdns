@@ -28,10 +28,20 @@
 
 #include "util/Assert.h"
 #include <event2/event.h>
-#include <arpa/inet.h>
+
+#ifdef WIN32
+    #include <winsock.h>
+    #undef interface
+    #define EMSGSIZE WSAEMSGSIZE
+    #define ENOBUFS WSAENOBUFS
+    #define EWOULDBLOCK WSAEWOULDBLOCK
+#else
+    #include <arpa/inet.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+#endif
+
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192
@@ -57,7 +67,7 @@ struct UDPInterface
     struct event* incomingMessageEvent;
 
     /** Used to tell what address type is being used. */
-    int addrLen;
+    ev_socklen_t addrLen;
 
     uint8_t messageBuff[MAX_PACKET_SIZE];
 
@@ -131,7 +141,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                (struct sockaddr*) &sin,
                context->addrLen) < 0)
     {
-        switch (errno) {
+        switch (EVUTIL_SOCKET_ERROR()) {
             case EMSGSIZE:
                 return Error_OVERSIZE_MESSAGE;
 
@@ -143,7 +153,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info1(context->logger, "Got error sending to socket errno=%d", errno);
+                Log_info1(context->logger, "Got error sending to socket errno=%d",
+                          EVUTIL_SOCKET_ERROR());
         }
     }
     return 0;
@@ -169,7 +180,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
-    int addrLen = sizeof(struct sockaddr_storage);
+    ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
     // keyForSockaddr() will write the key there.
@@ -178,7 +189,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       MAX_PACKET_SIZE - InterfaceController_KEY_SIZE,
                       0,
                       (struct sockaddr*) &addrStore,
-                      (socklen_t*) &addrLen);
+                      &addrLen);
     /*
     Log_debug1(context->logger,
                "Got message from peer on port %u\n",
@@ -203,9 +214,9 @@ int UDPInterface_beginConnection(const char* address,
                                  struct UDPInterface* udpif)
 {
     struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
+    ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
     memset(&addr, 0, addrLen);
-    if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, &addrLen)) {
+    if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, (int*) &addrLen)) {
         return -2;
     }
     if (addrLen != udpif->addrLen) {
@@ -303,11 +314,11 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         .admin = admin
     }), sizeof(struct UDPInterface));
 
-    sa_family_t addrFam;
+    int addrFam;
     struct sockaddr_storage addr;
     if (bindAddr != NULL) {
         context->addrLen = sizeof(struct sockaddr_storage);
-        if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, &context->addrLen)) {
+        if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, (int*) &context->addrLen)) {
             exHandler->exception(__FILE__ " UDPInterface_new() Failed to parse address.",
                                  -1, exHandler);
             return NULL;
@@ -345,7 +356,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     if (bindAddr != NULL) {
         if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
             exHandler->exception(__FILE__ " UDPInterface_new() Failed to bind socket.",
-                                 errno, exHandler);
+                                 EVUTIL_SOCKET_ERROR(), exHandler);
             return NULL;
         }
     }

@@ -25,7 +25,7 @@
  * @param prefixLen the number of bits in the network mask.
  * @return 0 if successful, non-zero otherwise.
  */
-int TUNConfigurator_configure(struct TUNInterface* interface,
+int TUNConfigurator_configure(struct TUNInterface* iface,
                               uint8_t address[16],
                               int prefixLen);
 

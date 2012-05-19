@@ -96,7 +96,7 @@ struct ErrorPacket {
 };
 Assert_compileTime(sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
 
-static inline void sendError(struct SwitchInterface* interface,
+static inline void sendError(struct SwitchInterface* iface,
                              struct Message* cause,
                              uint32_t code,
                              struct Log* logger)
@@ -125,7 +125,7 @@ static inline void sendError(struct SwitchInterface* interface,
                                       Headers_SwitchHeader_TYPE_CONTROL);
     err->ctrl.type_be = Control_ERROR_be;
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
-    sendMessage(interface, cause, logger);
+    sendMessage(iface, cause, logger);
 }
 
 #define DEBUG_SRC_DST(logger, message) \

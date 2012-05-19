@@ -11,14 +11,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 find_package(Libevent2 REQUIRED)
 
+if(WIN32)
+  set(tunif W32TUNInterface.c)
+  set(tunconf W32TUNConfigurator.c)
+else()
+  set(tunif TUNInterface.c)
+  set(tunconf TUNConfigurator.c)
+endif()
+
 add_library(interface
     UDPInterface.c
-    TUNInterface.c
-    TUNConfigurator.c
+    ${tunif}
+    ${tunconf}
     InterfaceConnector.c
     InterfaceController.c
     SessionManager.c
 )
+
 target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})
 
 enable_testing()

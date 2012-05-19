@@ -12,14 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Security_H
-#define Security_H
+#ifndef W32Security_H
+#define W32Security_H
 
 #include "exception/ExceptionHandler.h"
+#include "util/Security.h"
 #include "util/Log.h"
 
-void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh);
+// lol windows security
 
-void Security_noFiles(struct ExceptionHandler* eh);
+void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
+{
+}
+
+void Security_noFiles(struct ExceptionHandler* eh)
+{
+}
 
 #endif

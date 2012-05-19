@@ -52,6 +52,7 @@
 #include "util/Assert.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 

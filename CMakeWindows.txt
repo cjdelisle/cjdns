@@ -11,6 +11,7 @@
 
 # the name of the target operating system
 SET(CMAKE_SYSTEM_NAME Windows)
+set(WIN32 TRUE)
 
 # which compilers to use for C and C++
 SET(CMAKE_C_COMPILER i586-mingw32msvc-gcc)
@@ -32,3 +33,8 @@ set(NO_PIE TRUE)
 
 # proceed with ifdef hell :(
 add_definitions(-DWIN32)
+
+set(PLATFORM_LIBRARIES
+    ws2_32
+
+)

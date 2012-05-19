@@ -15,6 +15,10 @@
 #ifndef InterfaceMap_H
 #define InterfaceMap_H
 
+#ifdef WIN32
+    #undef interface
+#endif
+
 struct InterfaceMap_Entry;
 struct InterfaceMap
 {

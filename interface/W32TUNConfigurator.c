@@ -12,14 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Security_H
-#define Security_H
+#include "interface/TUNConfigurator.h"
+#include "interface/TUNInterface.h"
 
-#include "exception/ExceptionHandler.h"
-#include "util/Log.h"
-
-void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh);
-
-void Security_noFiles(struct ExceptionHandler* eh);
-
-#endif
+int TUNConfigurator_configure(struct TUNInterface* iface,
+                              uint8_t address[16],
+                              int prefixLen)
+{
+    return 0;
+}

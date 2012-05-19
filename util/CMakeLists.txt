@@ -17,11 +17,18 @@ add_subdirectory(checksum)
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
+if(WIN32)
+    set(sec W32Security.c)
+else()
+    set(sec Security.c)
+endif()
+
 add_library(util
     AverageRoller.c
     Timeout.c
     Hex.c
     Pinger.c
+    ${sec}
 )
 target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
 
