@@ -32,6 +32,7 @@
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
+#include "util/checksum/Checksum.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -209,6 +210,8 @@ static int handleOutgoing(struct DHTMessage* dmessage,
                      dmessage->address->ip6.bytes,
                      Address_SEARCH_TARGET_SIZE);
 
+    uh->checksum_be = Checksum_udpIp6(header->sourceAddr, message.bytes, message.length);
+
     context->ip6Header = header;
     context->switchHeader = NULL;
 
@@ -272,6 +275,19 @@ static inline uint8_t incomingForMe(struct Message* message,
     }
 
     if (isRouterTraffic(message, context->ip6Header)) {
+        // Check the checksum.
+        struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
+        uint16_t cs = uh->checksum_be;
+        uh->checksum_be = 0;
+        if (cs != 0) {
+            uint16_t computedCs = Checksum_udpIp6(context->ip6Header->sourceAddr,
+                                                  message->bytes,
+                                                  message->length);
+            if (computedCs != cs) {
+                return Error_INVALID;
+            }
+        }
+
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
         addr.path = Endian_bigEndianToHost64(context->switchHeader->label_be);

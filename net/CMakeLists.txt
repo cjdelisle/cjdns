@@ -21,6 +21,7 @@ target_link_libraries(cjdnet
     crypto
     interface
     dht
+    checksum
 )
 
 
