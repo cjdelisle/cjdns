@@ -304,6 +304,7 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     }
 
     struct sockaddr_storage addr;
+    memset(&addr, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
     if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
         Log_critical1(ctx->logger, "Unable to parse [%s] as an ip address port, "
