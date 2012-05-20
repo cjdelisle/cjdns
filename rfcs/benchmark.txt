@@ -655,3 +655,260 @@ VCEI exceptions		: not available
 
 commit 8562e4298a64a7b7aa9d05d03ab357b572940b71
 user@debian-mips:~/cjdns$ 
+
+
+
+
+
+
+
+
+
+commit 51c041d6b87f139e74ab31ca125cdfc9685900b4
+Linux sql.bt-chat.com 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.096
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5576.40
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.096
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5572.35
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 650ms. 787 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 706ms. 16996 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 698ms. 733 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 663ms. 18098 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 101ms. 506930 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 633ms. 1895734 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 310ms. 165161 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1155ms. 1038961 Kb/s
+
+
+
+
+
+
+
+
+
+
+commit a33af261e9ddbcd314ea28190b18b4a438af3532
+Linux web.bt-chat.com 2.6.32-5-686 #1 SMP Mon Mar 26 05:20:33 UTC 2012 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.605
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5587.21
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 CPU         E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2793.605
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni monitor tm2 ssse3 lahf_lm
+bogomips	: 5586.37
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 701ms. 730 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 660ms. 18180 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 700ms. 731 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 707ms. 16972 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 101ms. 506930 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 587ms. 2044293 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 365ms. 140273 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1156ms. 1038062 Kb/s
+
+
+
+
+
+
+
+
+
+
+
+commit ec8d1aac3e11e98b21e0bea6ad4af2463c99b14c
+Linux web2.bt-chat.com 2.6.26-2-686 #1 SMP Sat Jun 11 14:54:10 UTC 2011 i686 GNU/Linux
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.045
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5576.37
+clflush size	: 64
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 23
+model name	: Intel(R) Core(TM)2 Duo CPU     E7400  @ 2.80GHz
+stepping	: 10
+cpu MHz		: 2786.045
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts pni monitor ds_cpl est tm2 ssse3 cx16 xtpr sse4_1 lahf_lm
+bogomips	: 5572.35
+clflush size	: 64
+power management:
+
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 698ms. 733 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 705ms. 17020 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 659ms. 776 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 706ms. 16996 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 72ms. 711111 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 610ms. 1967213 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 282ms. 181560 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1127ms. 1064773 Kb/s
+
