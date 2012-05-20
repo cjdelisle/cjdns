@@ -152,19 +152,6 @@ Run cjdroute without options for HELP:
 0: Make sure you've got the stuff.
 ----------------------------------
 
-    # sudo modprobe tun
-
-If it says nothing, good.
-
-If it says: `FATAL: Module tun not found.` Bad.
-
-In this case, look up how to get the tun module installed for your platform.
-How to get TUN working is beyond the scope of this document, look up how to install
-openvpn on your particular platform.
-
-NOTE: TonidoPlug2 ships with a kernel which does not include TUN and does not
-offer the source code to build it yourself.
-
     # cat /dev/net/tun
 
 If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
@@ -173,9 +160,14 @@ If it says: `cat: /dev/net/tun: No such file or directory`
 
 Create it using:
 
-    # mkdir /dev/net ; mknod /dev/net/tun c 10 200 ; chmod 0666 /dev/net/tun
+    # sudo mkdir /dev/net ; sudo mknod /dev/net/tun c 10 200 && sudo chmod 0666 /dev/net/tun
 
 Then `cat /dev/net/tun` again.
+
+If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS based on the OpenVZ
+virtualization platform. Ask your provider to enable the TUN/TAP device, this is standard protocol
+so they should know exactly what you need.
+
 
 1: Generate a new configuration file.
 -------------------------------------
