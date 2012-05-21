@@ -189,17 +189,6 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
     }
 
-    // If this happens to be an Error_FLOOD packet, we will react by
-    // increasing the congestion for the source interface to make flooding harder.
-    if (Headers_getMessageType(header) == Headers_SwitchHeader_TYPE_CONTROL) {
-        struct Control* ctrl = &((struct ErrorPacket*) header)->ctrl;
-        if (ctrl->type_be == Control_ERROR_be
-            && ctrl->content.error.errorType_be == Endian_hostToBigEndian32(Error_FLOOD))
-        {
-            sourceIf->congestion += Headers_getPriority(header);
-        }
-    }
-
     // Sending from the router is a special case, all from-router messages have same label.
     uint64_t sourceLabel = (sourceIndex == 1)
         ? Bits_bitReverse64(NumberCompress_getCompressed(1, 2))
