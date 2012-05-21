@@ -18,6 +18,7 @@
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
+#include "util/checksum/Checksum.h"
 #include "util/Endian.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
@@ -125,6 +126,10 @@ static inline void sendError(struct SwitchInterface* iface,
                                       Headers_SwitchHeader_TYPE_CONTROL);
     err->ctrl.type_be = Control_ERROR_be;
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
+    err->ctrl.checksum_be = 0;
+
+    err->ctrl.checksum_be = Checksum_engine((uint8_t*) &err->ctrl, cause->length - Headers_SwitchHeader_SIZE);
+
     sendMessage(iface, cause, logger);
 }
 

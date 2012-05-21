@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef AddressMapper_H
+#define AddressMapper_H
 
 /** Address mapper doubly linked list LRU cache.
  * The most recently used item is on the head.
@@ -83,3 +85,5 @@ int AddressMapper_remove(int index, struct AddressMapper* map);
  * @param map the map to add to.
  */
 int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper* map);
+
+#endif

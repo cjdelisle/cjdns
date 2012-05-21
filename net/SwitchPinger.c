@@ -16,6 +16,7 @@
 #include "net/SwitchPinger.h"
 #include "dht/Address.h"
 #include "util/Bits.h"
+#include "util/checksum/Checksum.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "wire/Headers.h"
@@ -117,9 +118,9 @@ static void sendPing(String* data, void* sendPingContext)
 
     Message_shift(&msg, Control_HEADER_SIZE);
     struct Control* ctrl = (struct Control*) msg.bytes;
-    // TODO: Calculate the actual checksum.
     ctrl->checksum_be = 0;
     ctrl->type_be = Control_PING_be;
+    ctrl->checksum_be = Checksum_engine(msg.bytes, msg.length);
 
     Message_shift(&msg, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg.bytes;

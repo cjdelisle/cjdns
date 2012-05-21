@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AddressMapper_H
-#define AddressMapper_H
 
 #include "util/Bits.h"
 #include "memory/Allocator.h"
@@ -178,6 +176,3 @@ int AddressMapper_put(uint64_t label, uint8_t address[16], struct AddressMapper*
 
     return entryIndexOf(map, tail);
 }
-
-#endif
-
