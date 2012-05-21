@@ -298,14 +298,16 @@ static int daemon_mode(void)
 {
     int pid;
 
-    if ((pid = fork()) != 0)
+    if ((pid = fork()) != 0) {
         _exit(0);
+    }
 
     setsid();
 
     signal(SIGHUP, SIG_IGN);
-    if ((pid = fork()) != 0)
+    if ((pid = fork()) != 0) {
         _exit(0);
+    }
 
     chdir("/");
     umask(0);
@@ -524,13 +526,15 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; i++) {
 
         // display help
-        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             usage(argv[0]);
+        }
 
         // use another config-file
         else if (!strcmp(argv[i], "--config-file") || !strcmp(argv[i], "-c")) {
-            if (argc > i + 1)
+            if (argc > i + 1) {
                 strncpy(configfile, argv[++i], sizeof(configfile));
+            }
             else {
                 fprintf(stderr, "--config-file error: no filename given\n");
                 fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -552,24 +556,29 @@ int main(int argc, char** argv)
         }
 
         // generate new config file
-        else if (!strcmp(argv[i], "--genconf") || !strcmp(argv[i], "-g"))
+        else if (!strcmp(argv[i], "--genconf") || !strcmp(argv[i], "-g")) {
             return genconf();
+        }
 
         // pidfile
-        else if (!strcmp(argv[i], "--pidfile") || !strcmp(argv[i], "-p"))
+        else if (!strcmp(argv[i], "--pidfile") || !strcmp(argv[i], "-p")) {
             flag_pidfile = 1;
+        }
 
         // performed after reading the configuration
-        else if (!strcmp(argv[i], "--reconf") || !strcmp(argv[i], "-r"))
+        else if (!strcmp(argv[i], "--reconf") || !strcmp(argv[i], "-r")) {
             flag_reconf = 1;
+        }
 
         // run benchmark
-        else if (!strcmp(argv[i], "--bench") || !strcmp(argv[i], "-b"))
+        else if (!strcmp(argv[i], "--bench") || !strcmp(argv[i], "-b")) {
             return benchmark();
+        }
 
         // fork into background
-        else if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d"))
+        else if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d")) {
             flag_daemon = 1;
+        }
 
         // unknown option
         else {
@@ -595,12 +604,14 @@ int main(int argc, char** argv)
         }
 
         // fork into background
-        if (flag_daemon)
-            if (daemon_mode() == -1)
+        if (flag_daemon) {
+            if (daemon_mode() == -1) {
                 return -1;
-
-        if (setup_logfile(log_fd) == -1)
+            }
+        }
+        if (setup_logfile(log_fd) == -1) {
             return -1;
+        }
     }
 
 
