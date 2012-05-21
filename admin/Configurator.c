@@ -135,7 +135,7 @@ void Configurator_config(Dict* config,
         AdminClient_new(addr, addrLen, adminPassword, eventBase, logger, tempAlloc);
 
     struct Context ctx = { .logger = logger, .alloc = tempAlloc, .client = client };
-    
+
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
         authorizedPasswords(authedPasswords, &ctx);

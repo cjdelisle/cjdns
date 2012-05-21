@@ -159,6 +159,13 @@ target_link_libraries(cjdroute
 
 install_targets(/bin cjdroute)
 
+# check codestyle
+set(checker ${CMAKE_SOURCE_DIR}/cmake/modules/CheckCodestyle.cmake)
+add_custom_command(OUTPUT check.codestyle
+    COMMAND ${CMAKE_COMMAND} -DCSD=${CMAKE_SOURCE_DIR} -DSKIP=build,buildw32 -P ${checker}
+)
+add_custom_target(check_output ALL DEPENDS check.codestyle)
+
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)

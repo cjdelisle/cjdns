@@ -17,8 +17,6 @@
 
 #include "benc/Object.h"
 
-#define BSTR_SIZEOF(x) &(String) { .bytes = x, .len = sizeof(x) - 1 }
-
 // Signifying that this message is a query and defining the query type.
 static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
 

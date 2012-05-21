@@ -136,6 +136,6 @@ static inline void* Bits_memcpyDebug(void* out,
 #ifdef memcpy
     #undef memcpy
 #endif
-#define memcpy "do not use memcpy directly, see Bits.h"
+#define memcpy "do not use memcpy directly, see Bits.h" /* CHECKFILES_IGNORE */
 
 #endif

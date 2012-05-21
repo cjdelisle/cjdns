@@ -48,7 +48,6 @@ foreach my $fileName (split("\n", $files))
 {
     $fileName =~ /^.*\/(.*)\..*$/ or die;
     my $name = $1;
-
     open FILE, "$fileName" or die $!;
     my $lineNum = 1;
     my $parenthCount = 0;
@@ -74,9 +73,13 @@ foreach my $fileName (split("\n", $files))
         }
 
         if (!($fileName =~ /_test/)) {
+            my $n = $name;
+            if ($name =~ /^W32(.*)$/) {
+                $n = $1;
+            }
             if ($line =~ /^\w+\s.*\(/) {
                 if (!($line =~ /^int main\(/
-                    || $line =~ / ${name}_/
+                    || $line =~ / ${n}/
                     || $line =~ /^[ ]?static /))
                 {
                     error("all globally visible functions must begin with the name of the file.");
