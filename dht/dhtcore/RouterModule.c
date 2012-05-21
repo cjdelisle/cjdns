@@ -267,7 +267,7 @@ struct RouterModule_Ping
     struct RouterModule* module;
     struct Node* node;
     struct Timeout* timeout;
-    uint8_t txid[4];
+    String* txid;
     bool isFromAdmin;
     uint32_t timeSent;
     struct Allocator* allocator;
@@ -645,8 +645,7 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
         String_CONST("version"), String_OBJ(version), NULL
     )));
 
-    String txid = { .len = 4, .bytes = (char*)ping->txid };
-    Admin_sendMessage(&response, &txid, module->admin);
+    Admin_sendMessage(&response, ping->txid, module->admin);
 }
 
 static inline void responseFromNode(struct Node* node,
@@ -1085,7 +1084,7 @@ int RouterModule_pingNode(struct Node* node,
 
     struct Allocator* pingAllocator = module->allocator->child(module->allocator);
     struct RouterModule_Ping* ping =
-        pingAllocator->malloc(sizeof(struct RouterModule_Ping), pingAllocator);
+        pingAllocator->calloc(sizeof(struct RouterModule_Ping), 1, pingAllocator);
     *location = ping;
     ping->node = node;
     ping->module = module;
@@ -1111,7 +1110,7 @@ int RouterModule_pingNode(struct Node* node,
     txidBuff[0] = 'p';
     txidBuff[1] = index;
     if (txid) {
-        Bits_memcpyConst(ping->txid, txid->bytes, 4);
+        ping->txid = String_clone(txid, pingAllocator);
     }
 
     // Assume that if the ping has a txid, then it's from the admin interface.
