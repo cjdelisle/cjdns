@@ -158,11 +158,28 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
     const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
 
+    if (1 == destIndex) {
+        if (1 != (label & 0xf)) {
+            /* routing interface: must always be compressed as 0001 */
+            DEBUG_SRC_DST(sourceIf->core->logger,
+                            "Dropped packet for this router because the destination "
+                            "discriminator was wrong");
+            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+            return Error_NONE;
+        }
+        bits = 4;
+    }
+
     if (sourceBits > bits) {
-        // If the destination index is this router, don't drop the packet since there no
-        // way for a node to know the size of the representation of it's source label.
         if (destIndex == 1) {
-            if (label >> bits & (UINT64_MAX >> (64 - sourceBits))) {
+            // If the destination index is this router, don't drop the packet since there no
+            // way for a node to know the size of the representation of it's source label.
+            // - label ends in 0001; if there are enough zeroes at the end after removing the 1,
+            //   we can still fit in the source discriminator
+            // - the return path probably doesn't start with 3 zeroes, but it will still be working,
+            //   as the source discriminator is large enough to make space for 3 zeroes between
+            //   reverse return path and forward path (see below)
+            if (0 != ((label ^ 1) & (UINT64_MAX >> (64 - sourceBits)))) {
                 // This is a bug.
                 // https://github.com/cjdelisle/cjdns/issues/93
                 // The problem is that there is no way to splice a route and know for certain
@@ -178,6 +195,19 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 return Error_NONE;
             }
             bits = sourceBits;
+        } else if (1 == sourceIndex) {
+            // - we need at least 3 zeroes between reverse return path and forward path:
+            //   right now the label only contains the forward path
+            // - sourceBits == 4, bits < 4  ->  bits + 64 - sourceBits < 64
+            // - the reverse source discriminator "1000" and the target discriminator "0001"
+            //   can overlap as "10001" (or "100001" or ...)
+            if (0 != label >> (bits + 64 - sourceBits)) {
+                // not enough zeroes
+                DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                                                      "larger than destination address.");
+                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+                return Error_NONE;
+            }
         } else {
             DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
                                                   "larger than destination address.");
@@ -197,10 +227,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
     }
 
-    // Sending from the router is a special case, all from-router messages have same label.
-    uint64_t sourceLabel = (sourceIndex == 1)
-        ? Bits_bitReverse64(NumberCompress_getCompressed(1, 2))
-        : Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
+    uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
 
     header->label_be = Endian_hostToBigEndian64((label >> bits) | sourceLabel);
 

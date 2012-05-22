@@ -188,6 +188,8 @@ Switches use an internal numeric compression scheme to compress the interface
 index into a few bits of the 64-bit label. How they compress the number is an
 implementation detail as long as they can read a label number and know how many
 of the low bits "belong to them" as opposed to the next switch along the path.
+Also the routing interface of each node is always compressed as the 4 bits "0001".
+
 After determining the correct destination interface, the switch will bit shift
 the label to the right and add reversed bits to the now empty left side of the
 label such that if the entire label were reversed, the switch would send the
@@ -196,6 +198,10 @@ bitwise reversal of the entire label and sends the packet back where it came
 from. By doing a full bitwise reversal, the switches need not care how other
 switches encode the numbers or be able to reverse the order since they can
 reverse the the entire label.
+
+There are always at least 3 zero bits between the reversed return path and
+the forward path, but the zeroes from the reversed source routing interface
+and the target routing interface can overlap.
 
                         1               2               3
         0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
