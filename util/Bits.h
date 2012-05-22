@@ -39,6 +39,7 @@ static inline int Bits_log2x64_be(uint64_t number)
 
 /**
  * Bitwise reversal of the a number.
+ * This is endian safe.
  */
 static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
 {
