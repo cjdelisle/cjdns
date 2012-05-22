@@ -163,6 +163,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         // way for a node to know the size of the representation of it's source label.
         if (destIndex == 1) {
             if (label >> bits & (UINT64_MAX >> (64 - sourceBits))) {
+                // This is a bug.
+                // https://github.com/cjdelisle/cjdns/issues/93
+                // The problem is that there is no way to splice a route and know for certain
+                // that you've not spliced one which will end up in this if statement.
+                // Unfortunately there seems no clean way around this issue at the moment.
+                // If this router and switch communicated using labels with the largest number
                 DEBUG_SRC_DST(sourceIf->core->logger,
                               "Dropped packet for this router because there is no way to "
                               "represent the return path.");
