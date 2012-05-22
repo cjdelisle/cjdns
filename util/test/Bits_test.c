@@ -24,7 +24,7 @@ int main()
 {
     uint64_t x;
     randombytes((uint8_t*) &x, 8);
-    printf("x = %" PRIx64 "\n", x);
+    printf("x = 0x%016" PRIx64 "\n", x);
 
     Assert_always(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
     Assert_always(Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
