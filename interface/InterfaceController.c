@@ -21,10 +21,9 @@
 #include "wire/Error.h"
 #include "wire/Message.h"
 
-
-/** Maximum number of interfaces (should be same as number of switch slots). */
-#define MAX_INTERFACES 255
-
+#ifndef CJDNS_MAX_PEERS
+    #error CJDNS_MAX_PEERS needs to be defined.
+#endif
 
 /*--------------------Structs--------------------*/
 
@@ -72,7 +71,7 @@ struct InterfaceController
     /** Used to get an endpoint by it's lookup key, endpoint.internal is entered into the map. */
     struct InterfaceMap* const imap;
 
-    struct Endpoint endpoints[MAX_INTERFACES];
+    struct Endpoint endpoints[CJDNS_MAX_PEERS];
 
     struct Allocator* const allocator;
 
@@ -122,7 +121,7 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-    for (int i = 0; i < MAX_INTERFACES; i++) {
+    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
         struct Endpoint* thisEp = &ic->endpoints[i];
         if (thisEp >= ep) {
             Assert_true(i == 0 || thisEp == ep);
@@ -253,7 +252,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
 {
     // scan for an unused endpoint slot.
     struct Endpoint* ep = NULL;
-    for (int i = 0; i < MAX_INTERFACES; i++) {
+    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
         if (ic->endpoints[i].external == NULL) {
             Log_debug1(ic->logger, "Using connection slot [%d]", i);
             ep = &ic->endpoints[i];

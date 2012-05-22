@@ -24,12 +24,11 @@
  */
 
 #ifndef CJDNS_MAX_PEERS
-/* pick the dynamic implementation */
-# define CJDNS_MAX_PEERS 256
+    #error CJDNS_MAX_PEERS needs to be defined.
 #endif
 
 #if CJDNS_MAX_PEERS > 256
-# error "Not more than 256 peers supported"
+    #error "Not more than 256 peers supported"
 #endif
 
 /* public interface */

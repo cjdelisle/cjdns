@@ -113,6 +113,11 @@ if(WITH_LTO)
 endif()
 
 
+# Max direct connections to the switch.
+SET(CJDNS_MAX_PEERS 256 CACHE STRING "maximum number of peers")
+add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
+
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 find_package(Libevent2 REQUIRED)
