@@ -22,6 +22,7 @@
 #include "util/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
+#include "switch/NumberCompress.h"
 #include "switch/SwitchCore.h"
 #include "wire/Headers.h"
 
@@ -120,8 +121,16 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         majic = "\xC0\xFF\xEE\x00\x11\x22\x33\x44";
     }
 
-    // make sure the interface has been switched back into position 0.
-    Assert_always(!strcmp((char*)hexBuffer, "00000000000000000000000068656c6c6f20776f726c6400"));
+    // check everything except the label
+    Assert_always(!strcmp((char*)hexBuffer+16, "0000000068656c6c6f20776f726c6400"));
+    // check label: make sure the interface has been switched back into position 0.
+    uint64_t label_be;
+    Hex_decode((uint8_t*) &label_be, 8, hexBuffer, 16);
+    uint64_t rev_label = Bits_bitReverse64(Endian_bigEndianToHost64(label_be));
+    // check label is decoded to 0
+    Assert_always(0 == NumberCompress_getDecompressed(rev_label, NumberCompress_bitsUsedForLabel(rev_label)));
+    // check no other bits are set
+    Assert_always(rev_label == NumberCompress_getCompressed(0, NumberCompress_bitsUsedForLabel(rev_label)));
     return 0;
 }
 

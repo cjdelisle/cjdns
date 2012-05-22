@@ -21,12 +21,6 @@
 
 #include <stdint.h>
 
-/**
- * The maximum number of interfaces this switch implementation is capable of handling.
- * This is limited to <= 256 by the number encoding scheme.
- */
-#define SwitchCore_MAX_INTERFACES 256
-
 /** The switch core which is opaque to users. */
 struct SwitchCore;
 

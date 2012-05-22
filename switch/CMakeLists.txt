@@ -11,6 +11,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_library(switch SwitchCore.c)
 
+SET(CJDNS_MAX_PEERS 256 CACHE STRING "maximum number of peers")
+
+add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
+
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)

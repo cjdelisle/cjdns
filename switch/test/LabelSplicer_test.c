@@ -38,9 +38,14 @@ static void splice()
     Assert_always(expected == out);
 }
 
+static uint64_t routeToInterface(uint32_t number) {
+    uint32_t bits = NumberCompress_bitsUsedForNumber(number);
+    return (1 << bits) | NumberCompress_getCompressed(number, bits);
+}
+
 static void isOneHop()
 {
-    Assert_always(LabelSplicer_isOneHop(4));
+    Assert_always(LabelSplicer_isOneHop(routeToInterface(0)));
 }
 
 int main()

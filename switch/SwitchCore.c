@@ -58,7 +58,7 @@ struct SwitchInterface
 
 struct SwitchCore
 {
-    struct SwitchInterface interfaces[SwitchCore_MAX_INTERFACES];
+    struct SwitchInterface interfaces[NumberCompress_INTERFACES];
     uint32_t interfaceCount;
     bool routerAdded;
     struct Log* logger;
@@ -158,6 +158,9 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
     const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
 
+    Assert_true(destIndex < NumberCompress_INTERFACES);
+    Assert_true(sourceIndex < NumberCompress_INTERFACES);
+
     if (1 == destIndex) {
         if (1 != (label & 0xf)) {
             /* routing interface: must always be compressed as 0001 */
@@ -167,7 +170,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
         }
-        bits = 4;
+        Assert_true(bits == 4);
     }
 
     if (sourceBits > bits) {
@@ -299,7 +302,7 @@ int SwitchCore_addInterface(struct Interface* iface,
         }
     }
 
-    if (ifIndex == SwitchCore_MAX_INTERFACES) {
+    if (ifIndex == NumberCompress_INTERFACES) {
         return -1;
     }
 
