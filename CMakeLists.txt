@@ -73,11 +73,9 @@ if (HAS_BUILTIN_CONSTANT_P)
     add_definitions("-D HAS_BUILTIN_CONSTANT_P")
 endif()
 
-# allow position independent executable to be turned off with NO_PIE cmake ..
-if(NOT "$ENV{NO_PIE}" STREQUAL "")
-   set(NO_PIE TRUE)
-endif()
-if(NOT NO_PIE)
+OPTION(WITH_PIE "Build a position independent executable" ON)
+
+if(WITH_PIE)
     message("Building a position independent executable (ASLR security enabled).")
     message("NOTE: PIE executables cannot run in a debugger.")
     message("")
@@ -99,23 +97,17 @@ else()
 endif()
 
 # logging
-if(NOT $ENV{Log_LEVEL} STREQUAL "")
-    string(TOUPPER $ENV{Log_LEVEL} LEVEL)
-    message("Log_LEVEL = ${LEVEL}")
-    if ($ENV{Log_LEVEL} STREQUAL "KEYS")
-        message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
-    endif ($ENV{Log_LEVEL} STREQUAL "KEYS")
-    add_definitions("-D Log_${LEVEL}")
-else()
-    add_definitions("-D Log_DEBUG")
-endif()
+SET(Log_LEVEL INFO CACHE STRING "Log level (KEYS, DEBUG, INFO, WARN, ERROR, CRITICAL)")
+if (${Log_LEVEL} STREQUAL "KEYS")
+    message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
+endif (${Log_LEVEL} STREQUAL "KEYS")
+add_definitions("-D Log_${Log_LEVEL}")
 
 # vrooooooom
 add_definitions(-O2 -funroll-loops)
 
-
-if(NOT "$ENV{LTO}" STREQUAL "")
-    message("Building with link time optimization.")
+OPTION(WITH_LTO "Building with link time optimization.")
+if(WITH_LTO)
     add_definitions(-flto)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -flto -fuse-linker-plugin -fwhole-program")
 endif()
@@ -158,6 +150,8 @@ target_link_libraries(cjdroute
 )
 
 install_targets(/bin cjdroute)
+
+OPTION(NO_CODESYTLE "No codestyle checks")
 
 # check codestyle
 if(NOT NO_CODESTYLE)

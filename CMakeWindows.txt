@@ -29,7 +29,7 @@ set(EVENT2_CONFIG --prefix=/usr/i686-w64-mingw32 --host=i586-mingw32msvc)
 set(NO_LIBRT TRUE)
 
 # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
-set(NO_PIE TRUE)
+set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
 
 # proceed with ifdef hell :(
 add_definitions(-DWIN32)
