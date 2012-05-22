@@ -95,10 +95,10 @@ if(NOT NACL_FOUND)
     # The source of this uglyness is a limit on adding dependencies to imported libraries.
     # see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395
     # It's fixed in cmake 2.8.4 but it would be nice to continue supporting 2.8.2 and 2.8.3
-    if(NOT EXISTS ${CMAKE_BINARY_DIR}/nacl/DoNothing.c)
-        file(WRITE ${CMAKE_BINARY_DIR}/nacl/DoNothing.c "int DoNothing() { return 0; }\n")
+    if(NOT EXISTS ${CMAKE_BINARY_DIR}/DoNothing.c)
+        file(WRITE ${CMAKE_BINARY_DIR}/DoNothing.c "int DoNothing() { return 0; }\n")
     endif()
-    add_library(nacl_test_dependency ${CMAKE_BINARY_DIR}/nacl/DoNothing.c)
+    add_library(nacl_test_dependency ${CMAKE_BINARY_DIR}/DoNothing.c)
     add_dependencies(nacl_test_dependency nacl_test)
 
 
