@@ -128,19 +128,21 @@ static inline uint32_t NumberCompress_dyn_bitsUsedForNumber(const uint32_t numbe
     }
 }
 
-static inline uint64_t NumberCompress_dyn_getCompressed(uint32_t number, const uint32_t bitsUsed)
+static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number, const uint32_t bitsUsed)
 {
     if (1 == number) return 1;
     switch (bitsUsed) {
         case 4:
-            if (0 == number) number = 1;
+            if (0 == number) return 3;
             return (number << 1) | 1;
         case 7:
-            if (0 != number) --number; // skip the number 1
-            return (number << 2) | 2;
+            if (0 == number) return 2;
+            // skip the number 1
+            return ((number-1) << 2) | 2;
         case 10:
-            if (0 != number) --number; // skip the number 1
-            return (number << 2);
+            if (0 == number) return 0;
+            // skip the number 1
+            return ((number-1) << 2);
         default: return 0;
     }
 }
