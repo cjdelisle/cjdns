@@ -227,22 +227,33 @@ that causes the packet to be routed to Charlie then on to Dave.
 NOTE: Spaces between bits are for illustration only, switches do not know how
 many bits of a label are used by anyone other than themselves.
 
-Alice's original label:
+Alice's original label, before entering her switch:
 
-    00000000000000000000000000000000000000 101011 011010 100101101 10111
-    ^^^^^^^^^-- unused space --^^^^^^^^^^                          ^^^^^-- Bob's discriminator for routing to Charlie.
+    0000000000000000000000000 0001 101011 011010 100101101 10111 0100011
+    ^^^-- unused space --^^^^                                    ^^^^^^^-- Alice's discriminator for switching to Bob.
+
+The source discriminator for a routing interface is always "0001" (and gets
+prefixed with zeroes to match the length of "0100011"), so she sends this label
+to Bob:
+
+    1000000 0000000000000000000000000 0001 101011 011010 100101101 10111
+    ^^^^-- Alice's discriminator for herself (reversed)            ^^^^^-- Bob's discriminator for routing to Charlie.
 
 Bob shifts off his discriminator and applies to the top of the label the bit-
 reversed discriminator for the Bob->Alice interface.
 
-    11001 00000000000000000000000000000000000000 101011 011010 100101101
-    ^^^^^-- Bob's discriminator for Alice, bit-reversed.       ^^^^^^^^^-- Charlie's discriminator for Dave.
+    11001 1000000 0000000000000000000000000 0001 101011 011010 100101101
+    ^^^^^ ^^^^-- Alice's discriminator for herself (reversed)  ^^^^^^^^^-- Charlie's discriminator for Dave.
+        ^-- Bob's discriminator for Alice, bit-reversed.
+
 
 Charlie removes his discriminator and applies the reversed discriminator for
 sending to Bob then forwards to Dave.
 
-    110110011 11001 00000000000000000000000000000000000000 101011 011010
-    ^^^^^^^^^ ^^^^^-- Bob's discriminator for Alice (reversed).   ^^^^^^-- Dave's discriminator for Elinor.
+    110110011 11001 1000000 0000000000000000000000000 0001 101011 011010
+    ^^^^^^^^^ ^^^^^ ^^^^                                          ^^^^^^-- Dave's discriminator for Elinor.
+    ^^^^^^^^^ ^^^^^    ^-- Alice's discriminator for herself (reversed)
+    ^^^^^^^^^     ^-- Bob's discriminator for Alice (reversed).
             ^-- Charlie discriminator for Bob (reversed).
 
 Supposing Dave cannot forward the packet and needs to send an error, he does
@@ -250,9 +261,10 @@ not know where Charlie's discriminator ends and Bob's begins so he can't
 re-order them but because they are bit reversed, he can reverse the order by
 bit reversing the entire label.
 
-    010110 110101 00000000000000000000000000000000000000 10011 110011011
-                                                         ^^^^^ ^^^^^^^^^-- Charlie's discriminator for Bob.
-                                                         ^-- Bob's discriminator for Alice.
+    010110 110101 1000 0000000000000000000000000 0000001 10011 110011011
+                                                    ^^^^ ^^^^^ ^^^^^^^^^-- Charlie's discriminator for Bob.
+                                                    ^^^^ ^-- Bob's discriminator for Alice.
+                                                       ^ Alice's discriminator for herself.
 
 Dave can then send the packet back to Charlie who need not know what it is in
 order to forward it correctly on to Bob and then to Alice. If the packet had
@@ -263,11 +275,14 @@ In order for labels to be able to be spliced together, the most significant bit
 in a label must always be `1` so that we know where it ends. Since all routes
 must end at a router, this means that all switches must regard `1` as a
 reference to the router which sits atop them. Specifically, any label whose
-least significant 4 bits are `0001` MUST be regarded as a self reference and if
-splicing two labels together results in less than 3 `0`s between the highest set
-bit and the beginning of the label, the splice has failed. This is important so
-that the reverse route data applied by routers along the path is not mistaken
-for additional forward route.
+least significant 4 bits are `0001` MUST be regarded as a self reference and
+routers must never send a message with a label for which the highest 3 bits are
+not zero. This is important so that the reverse route data applied by routers
+along the path is not mistaken for additional forward route.
+
+Supposing a node uses 8 bits to represent 256 switch slots, the 16 of those slots
+ending in `0001` must point to it's own router in order for other nodes to be able
+to splice routes through it.
 
 Splicing is done by XORing the second part with `1` and shifting it left by the
 log base 2 of the first part, then XORing the result with the first part. 
