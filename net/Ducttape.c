@@ -430,8 +430,13 @@ static inline int core(struct Message* message, struct Ducttape* context)
         #endif
         return sendToRouter(ft, message, context);
     }
+
+    struct Address destination;
+    Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+    uint8_t ipAddr[40];
+    Address_printIp(ipAddr, &destination);
     Log_debug(context->logger, "Dropped message because this node is the closest known "
-                               "node to the destination.\n");
+                               "node to the destination %s.", ipAddr);
     return Error_UNDELIVERABLE;
 }
 
