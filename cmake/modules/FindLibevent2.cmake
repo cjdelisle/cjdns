@@ -54,7 +54,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
         set(srcfile "${CMAKE_BINARY_DIR}/libevent2/linktest.c")
         file(WRITE
             ${CMAKE_BINARY_DIR}/libevent2/linktest.c
-            "int main() { event_new(); return 0; }\n"
+            "int main() { event_neww(); return 0; }\n"
         )
         try_compile(success ${CMAKE_BINARY_DIR}/libevent2 ${srcfile}
             CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=${LIBEVENT2_LIBRARIES}"
@@ -94,12 +94,18 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
         list(APPEND EVENT2_CONFIG --disable-thread-support)
     endif()
 
+    set(url "http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.19-stable.tar.gz")
+    set(hash "1591fb411a67876a514a33df54b85417b31e01800284bcc6894fc410c3eaea21")
+
+    set(file ${CMAKE_BINARY_DIR}/Libevent2-prefix/src/libevent-2.0.19-stable.tar.gz)
+    set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
+    set(check ${CMAKE_COMMAND} -DFILE=${file} -DEXPECTED=${hash} -P ${AssertSHA256})
     ExternalProject_Add(Libevent2
-        URL "http://cloud.github.com/downloads/libevent/libevent/libevent-2.0.19-stable.tar.gz"
+        URL ${url}
         URL_MD5 "91111579769f46055b0a438f5cc59572"
         SOURCE_DIR "${CMAKE_BINARY_DIR}/libevent2"
         BINARY_DIR "${CMAKE_BINARY_DIR}/libevent2"
-        CONFIGURE_COMMAND ${CMAKE_BINARY_DIR}/libevent2/configure "${EVENT2_CONFIG}"
+        CONFIGURE_COMMAND ${check} && ${CMAKE_BINARY_DIR}/libevent2/configure "${EVENT2_CONFIG}"
         BUILD_COMMAND make
         TEST_COMMAND ""
         INSTALL_COMMAND ""
