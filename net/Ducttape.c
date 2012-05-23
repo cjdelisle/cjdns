@@ -148,6 +148,10 @@ static int handleOutgoing(struct DHTMessage* dmessage,
                      dmessage->address->ip6.bytes,
                      Address_SEARCH_TARGET_SIZE);
 
+    #ifdef Log_DEBUG
+        Assert_true(!((uintptr_t)dmessage->bytes % 4) || !"alignment fault");
+    #endif
+
     uh->checksum_be = Checksum_udpIp6(header->sourceAddr, message.bytes, message.length);
 
     context->ip6Header = header;
