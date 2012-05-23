@@ -308,7 +308,7 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     memset(&addr, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
     if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-        Log_critical1(ctx->logger, "Unable to parse [%s] as an ip address port, "
+        Log_critical(ctx->logger, "Unable to parse [%s] as an ip address port, "
                                    "eg: 127.0.0.1:11234", address->bytes);
         exit(-1);
     }
@@ -365,7 +365,7 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
     }
     char* user = setUser(config);
     if (user) {
-        Log_info1(logger, "Changing user to [%s]\n", user);
+        Log_info(logger, "Changing user to [%s]\n", user);
         Security_setUser(user, logger, eh);
     }
     if (nofiles) {
@@ -400,7 +400,7 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
     memset(&addr, 0, sizeof(struct sockaddr_storage));
     if (address) {
         if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-            Log_critical1(logger, "Unable to parse [%s] as an ip address port, "
+            Log_critical(logger, "Unable to parse [%s] as an ip address port, "
                                   "eg: 127.0.0.1:11234", address->bytes);
             exit(-1);
         }
@@ -566,10 +566,10 @@ int main(int argc, char** argv)
     // pid file
     String* pidFile = Dict_getString(&config, String_CONST("pidFile"));
     if (pidFile) {
-        Log_info1(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
+        Log_info(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
         FILE* pf = fopen(pidFile->bytes, "w");
         if (!pf) {
-            Log_critical2(context.logger,
+            Log_critical(context.logger,
                           "Failed to open pid file [%s] for writing, errno=%d\n",
                           pidFile->bytes,
                           errno);
@@ -604,10 +604,10 @@ int main(int argc, char** argv)
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);
-    Log_info1(context.logger, "Your address is: %s.k\n", address);
+    Log_info(context.logger, "Your address is: %s.k\n", address);
     uint8_t myIp[40];
     Address_printIp(myIp, &myAddr);
-    Log_info1(context.logger, "Your IPv6 address is: %s\n", myIp);
+    Log_info(context.logger, "Your IPv6 address is: %s\n", myIp);
 
     // Security.
     security(Dict_getList(&config, String_CONST("security")), context.logger, context.eHandler);

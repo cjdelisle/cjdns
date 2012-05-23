@@ -140,7 +140,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
     if (addr->ip6.bytes[0] != 0xfc) {
         uint8_t address[60];
         Address_print(address, addr);
-        Log_critical1(store->logger,
+        Log_critical(store->logger,
                       "tried to insert address %s which does not begin with 0xFC.\n",
                       address);
         Assert_true(false);
@@ -160,7 +160,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                         Address_print(nodeAddr, &store->nodes[i].address);
                         uint8_t newAddr[20];
                         AddrTools_printPath(newAddr, addr->path);
-                        Log_debug2(store->logger,
+                        Log_debug(store->logger,
                                    "Found a better route to %s via %s\n",
                                    nodeAddr,
                                    newAddr);
@@ -182,7 +182,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                     if (oldReach != store->headers[i].reach) {
                         uint8_t nodeAddr[60];
                         Address_print(nodeAddr, addr);
-                        Log_debug3(store->logger,
+                        Log_debug(store->logger,
                                    "Altering reach for node %s, old reach %u, new reach %u.\n",
                                    nodeAddr,
                                    oldReach,
@@ -207,7 +207,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         #ifdef Log_DEBUG
             uint8_t nodeAddr[60];
             Address_print(nodeAddr, addr);
-            Log_debug2(store->logger,
+            Log_debug(store->logger,
                        "Discovered node: %s reach %" PRIu64,
                        nodeAddr,
                        reachDifference);
@@ -408,7 +408,7 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     #ifdef Log_DEBUG
         uint8_t addr[60];
         Address_print(addr, &node->address);
-        Log_debug1(store->logger, "Removing route to %s\n", addr);
+        Log_debug(store->logger, "Removing route to %s\n", addr);
     #endif
 
     store->size--;

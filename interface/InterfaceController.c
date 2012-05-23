@@ -254,7 +254,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     struct Endpoint* ep = NULL;
     for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
         if (ic->endpoints[i].external == NULL) {
-            Log_debug1(ic->logger, "Using connection slot [%d]", i);
+            Log_debug(ic->logger, "Using connection slot [%d]", i);
             ep = &ic->endpoints[i];
             break;
         }
@@ -314,12 +314,12 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         #ifdef Log_INFO
             uint8_t printAddr[60];
             Address_print(printAddr, &addr);
-            Log_info1(ic->logger, "Adding peer [%s]", printAddr);
+            Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
         #ifdef Log_KEYS
             uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
             Hex_encode(keyHex, sizeof(keyHex), key, InterfaceController_KEY_SIZE);
-            Log_keys1(ic->logger, "With connection identifier [%s]", keyHex);
+            Log_keys(ic->logger, "With connection identifier [%s]", keyHex);
         #endif
     }
 
@@ -344,7 +344,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         #ifdef Log_KEYS
             uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
             Hex_encode(keyHex, sizeof(keyHex), msg->bytes, InterfaceController_KEY_SIZE);
-            Log_keys1(ic->logger, "Got incoming connection request from [%s]", keyHex);
+            Log_keys(ic->logger, "Got incoming connection request from [%s]", keyHex);
         #else
             Log_info(ic->logger, "Got incoming connection request.");
         #endif

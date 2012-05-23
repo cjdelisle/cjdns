@@ -190,7 +190,7 @@ static inline uint8_t incomingForMe(struct Message* message,
             Bits_memcpyConst(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
             uint8_t srcAddr[40];
             Address_printIp(srcAddr, &addr);
-            Log_debug2(context->logger,
+            Log_debug(context->logger,
                        "Dropped packet because source address is not same as key.\n"
                        "    %s source addr\n"
                        "    %s hash of key\n",
@@ -206,7 +206,7 @@ static inline uint8_t incomingForMe(struct Message* message,
             uint8_t ipv6Hex[80];
             Address_printIp(keyAddr, &addr);
             Hex_encode(ipv6Hex, 80, (uint8_t*) context->ip6Header, 40);
-            Log_warn2(context->logger,
+            Log_warn(context->logger,
                       "Got ipv6 packet from %s which has no content!\nIPv6 Header: [%s]",
                       keyAddr, ipv6Hex);
         #endif
@@ -339,7 +339,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
                 Address_print(nhAddr, &bestNext->address);
-                Log_debug1(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
+                Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
             return sendToRouter(&bestNext->address, message, context);
         }
@@ -415,10 +415,10 @@ static inline int core(struct Message* message, struct Ducttape* context)
                 Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
                 uint8_t ipAddr[40];
                 Address_printIp(ipAddr, &destination);
-                Log_debug2(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
+                Log_debug(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
             } else {
                 // Definitely forwarding on behalf of someone else.
-                Log_debug1(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
+                Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
         return sendToRouter(ft, message, context);
@@ -538,17 +538,17 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
         AddrTools_printPath(labelStr, label);
         if (message->length < Control_HEADER_SIZE) {
-            Log_info1(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
+            Log_info(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
             return Error_NONE;
         } else {
-            Log_debug1(context->logger, "ctrl packet from [%s]", labelStr);
+            Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
         }
         struct Control* ctrl = (struct Control*) message->bytes;
 
         uint16_t checksum = ctrl->checksum_be;
         ctrl->checksum_be = 0;
         if (checksum != Checksum_engine(message->bytes, message->length)) {
-            Log_info1(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
+            Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
             // TODO: return Error_NONE;
             // This will break error responses since they were
             // not sending proper checksums as of 5610464f7bc44ec09ffac81b3507d4df905d6d98
@@ -557,10 +557,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         bool pong = false;
         if (ctrl->type_be == Control_ERROR_be) {
             if (message->length < Control_Error_MIN_SIZE) {
-                Log_info1(context->logger, "dropped runt error packet from [%s]", labelStr);
+                Log_info(context->logger, "dropped runt error packet from [%s]", labelStr);
                 return Error_NONE;
             }
-            Log_info2(context->logger,
+            Log_info(context->logger,
                       "error packet from [%s], error type [%d]",
                       labelStr,
                       Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
@@ -571,20 +571,20 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
             if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
                 if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
-                    Log_info1(context->logger,
+                    Log_info(context->logger,
                               "error packet from [%s] containing runt cause packet",
                               labelStr);
                     return Error_NONE;
                 }
                 struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
                 if (causeCtrl->type_be != Control_PING_be) {
-                    Log_info3(context->logger,
+                    Log_info(context->logger,
                               "error packet from [%s] caused by [%s] packet ([%d])",
                               labelStr,
                               Control_typeString(causeCtrl->type_be),
                               Endian_bigEndianToHost16(causeCtrl->type_be));
                 } else {
-                    Log_debug2(context->logger,
+                    Log_debug(context->logger,
                                "error packet from [%s] in response to ping, length: [%d].",
                                labelStr,
                                message->length);
@@ -592,7 +592,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                     pong = true;
                 }
             } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
-                Log_info2(context->logger,
+                Log_info(context->logger,
                           "error packet from [%s] containing cause of unknown type [%d]",
                           labelStr, causeType);
             }
@@ -603,7 +603,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             Message_shift(message, Headers_SwitchHeader_SIZE);
             switchIf->receiveMessage(message, switchIf);
         } else {
-            Log_info2(context->logger,
+            Log_info(context->logger,
                       "control packet of unknown type from [%s], type [%d]",
                       labelStr, Endian_bigEndianToHost16(ctrl->type_be));
         }
@@ -641,7 +641,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                     uint8_t switchAddr[20];
                     AddrTools_printPath(switchAddr,
                                         Endian_bigEndianToHost64(switchHeader->label_be));
-                    Log_debug1(context->logger,
+                    Log_debug(context->logger,
                                "Dropped traffic packet from unknown node. (%s)\n",
                                switchAddr);
                 #endif

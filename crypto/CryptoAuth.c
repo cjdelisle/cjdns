@@ -111,7 +111,7 @@ static inline void getSharedSecret(uint8_t outputSecret[32],
         printHexKey(passwordHashHex, passwordHash);
         uint8_t outputSecretHex[65] = "NULL";
         printHexKey(outputSecretHex, outputSecret);
-        Log_keys4(logger,
+        Log_keys(logger,
                   "Generated a shared secret:\n"
                   "     myPublicKey=%s\n"
                   "    herPublicKey=%s\n"
@@ -428,7 +428,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
             Hex_encode(tempPrivateKeyHex, 65, wrapper->secret, 32);
             uint8_t tempPubKeyHex[65];
             Hex_encode(tempPubKeyHex, 65, header->handshake.encryptedTempKey, 32);
-            Log_keys2(wrapper->context->logger, "Generating temporary keypair\n"
+            Log_keys(wrapper->context->logger, "Generating temporary keypair\n"
                                                 "    myTempPrivateKey=%s\n"
                                                 "     myTempPublicKey=%s\n",
                       tempPrivateKeyHex, tempPubKeyHex);
@@ -456,7 +456,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
         Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
-        Log_keys1(wrapper->context->logger,
+        Log_keys(wrapper->context->logger,
                   "Wrapping temp public key:\n"
                   "    %s\n",
                   tempKeyHex);
@@ -465,9 +465,9 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
         if (wrapper->nextNonce == 0) {
-            Log_debug1(wrapper->context->logger, "@%p Sending hello packet\n", (void*) wrapper);
+            Log_debug(wrapper->context->logger, "@%p Sending hello packet\n", (void*) wrapper);
         } else {
-            Log_debug1(wrapper->context->logger, "@%p Sending repeat hello packet\n",
+            Log_debug(wrapper->context->logger, "@%p Sending repeat hello packet\n",
                        (void*) wrapper);
         }
         getSharedSecret(sharedSecret,
@@ -485,9 +485,9 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         #endif
     } else {
         if (wrapper->nextNonce == 2) {
-            Log_debug1(wrapper->context->logger, "@%p Sending key packet\n", (void*) wrapper);
+            Log_debug(wrapper->context->logger, "@%p Sending key packet\n", (void*) wrapper);
         } else {
-            Log_debug1(wrapper->context->logger, "@%p Sending repeat key packet\n",
+            Log_debug(wrapper->context->logger, "@%p Sending repeat key packet\n",
                        (void*) wrapper);
         }
         // Handshake2 wrapper->tempKey holds her public temp key.
@@ -502,7 +502,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         #ifdef Log_KEYS
             uint8_t tempKeyHex[65];
             Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
-            Log_keys1(wrapper->context->logger,
+            Log_keys(wrapper->context->logger,
                       "Using their temp public key:\n"
                       "    %s\n",
                       tempKeyHex);
@@ -521,7 +521,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
         uint8_t cipherHex[65];
         printHexKey(cipherHex, message->bytes);
-        Log_keys3(wrapper->context->logger,
+        Log_keys(wrapper->context->logger,
                   "Encrypting message with:\n"
                   "    nonce: %s\n"
                   "   secret: %s\n"
@@ -590,7 +590,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         if (wrapper->nextNonce < 4) {
             return encryptHandshake(message, wrapper);
         } else {
-            Log_debug1(wrapper->context->logger,
+            Log_debug(wrapper->context->logger,
                        "@%p Doing final step to send message. nonce=4\n", (void*) wrapper);
             uint8_t secret[32];
             getSharedSecret(secret,
@@ -632,7 +632,7 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
         // Decrypt with authentication and replay prevention.
         int ret = decrypt(nonce, content, secret, wrapper->isInitiator, true);
         if (ret) {
-            Log_debug1(wrapper->context->logger,
+            Log_debug(wrapper->context->logger,
                        "Authenticated decryption failed returning %u\n",
                        ret);
             return false;
@@ -647,7 +647,7 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
     }
     int ret = callReceivedMessage(wrapper, content);
     if (ret) {
-        Log_debug1(wrapper->context->logger,
+        Log_debug(wrapper->context->logger,
                    "Call received message failed returning %u\n",
                    ret);
         return false;
@@ -712,11 +712,11 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     uint8_t* herPermKey = NULL;
     if (nonce < 2) {
         if (nonce == 0) {
-            Log_debug2(wrapper->context->logger,
+            Log_debug(wrapper->context->logger,
                        "@%p Received a hello packet, using auth: %d\n",
                        (void*) wrapper, (passwordHash != NULL));
         } else {
-            Log_debug1(wrapper->context->logger, "@%p Received a repeat hello packet\n",
+            Log_debug(wrapper->context->logger, "@%p Received a repeat hello packet\n",
                        (void*) wrapper);
         }
 
@@ -744,12 +744,12 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         nextNonce = 2;
     } else {
         if (nonce == 2) {
-            Log_debug1(wrapper->context->logger, "@%p Received a key packet\n", (void*) wrapper);
+            Log_debug(wrapper->context->logger, "@%p Received a key packet\n", (void*) wrapper);
         } else if (nonce == 3) {
-            Log_debug1(wrapper->context->logger, "@%p Received a repeat key packet\n",
+            Log_debug(wrapper->context->logger, "@%p Received a repeat key packet\n",
                        (void*) wrapper);
         } else {
-            Log_debug1(wrapper->context->logger,
+            Log_debug(wrapper->context->logger,
                        "Received a packet of unknown type! nonce=%u\n", nonce);
         }
         if (memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
@@ -775,7 +775,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Hex_encode(nonceHex, 49, header->handshake.nonce, 24);
         uint8_t cipherHex[65];
         printHexKey(cipherHex, message->bytes);
-        Log_keys3(wrapper->context->logger,
+        Log_keys(wrapper->context->logger,
                   "Decrypting message with:\n"
                   "    nonce: %s\n"
                   "   secret: %s\n"
@@ -801,7 +801,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
         Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
-        Log_keys1(wrapper->context->logger,
+        Log_keys(wrapper->context->logger,
                   "Unwrapping temp public key:\n"
                   "    %s\n",
                   tempKeyHex);
@@ -852,7 +852,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
     if (wrapper->nextNonce < 5) {
         if (nonce > 3 && nonce != UINT32_MAX && knowHerKey(wrapper)) {
-            Log_debug2(wrapper->context->logger,
+            Log_debug(wrapper->context->logger,
                        "@%p Trying final handshake step, nonce=%u\n", (void*) wrapper, nonce);
             uint8_t secret[32];
             getSharedSecret(secret,
@@ -914,7 +914,7 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
         printHexKey(publicKeyHex, ca->publicKey);
         uint8_t privateKeyHex[65];
         printHexKey(privateKeyHex, ca->privateKey);
-        Log_keys2(logger,
+        Log_keys(logger,
                   "Initialized CryptoAuth:\n    myPrivateKey=%s\n     myPublicKey=%s\n",
                   privateKeyHex,
                   publicKeyHex);

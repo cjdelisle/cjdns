@@ -345,7 +345,7 @@ uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
     struct SearchNode* searchNode = &store->searches[node->searchIndex]->nodes[node->nodeIndex];
     uint32_t delay = Time_currentTimeMilliseconds(store->eventBase) - searchNode->timeOfRequest;
     AverageRoller_update(store->gmrtRoller, delay);
-    Log_debug2(store->logger,
+    Log_debug(store->logger,
                "Received response in %u milliseconds, gmrt now %u\n",
                delay,
                AverageRoller_getAverage(store->gmrtRoller));

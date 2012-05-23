@@ -108,7 +108,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
     uint32_t slot = *((uint32_t*) data->bytes);
     if (slot >= Pinger_MAX_CONCURRENT_PINGS) {
-        Log_debug1(pinger->logger, "Ping out of range [%d].", slot);
+        Log_debug(pinger->logger, "Ping out of range [%d].", slot);
     } else if (pinger->pings[slot] == NULL) {
         Log_debug(pinger->logger, "Got ping and slot value is null.");
     } else {

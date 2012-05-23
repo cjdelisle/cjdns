@@ -94,7 +94,7 @@ static void maintanenceCycle(void* vcontext)
         #ifdef Log_DEBUG
             uint8_t printable[40];
             Address_printIp(printable, &targetAddr);
-            Log_debug3(janitor->routerModule->logger,
+            Log_debug(janitor->routerModule->logger,
                        "Running search for %s, node count: %u total reach: %lu\n",
                        printable,
                        (unsigned int) NodeStore_size(janitor->nodeStore),
@@ -115,13 +115,13 @@ static void maintanenceCycle(void* vcontext)
         for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
             nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
         }
-        Log_debug2(janitor->routerModule->logger,
+        Log_debug(janitor->routerModule->logger,
                    "Global Mean Response Time: %u non-zero nodes: %u\n",
                    (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
                    (unsigned int) nonZeroNodes);
 
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
-        Log_debug1(janitor->routerModule->logger,
+        Log_debug(janitor->routerModule->logger,
                    "Using %u bytes of memory.\n",
                    (unsigned int) bytes);
     #endif
