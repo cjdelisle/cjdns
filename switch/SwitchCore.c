@@ -95,7 +95,8 @@ struct ErrorPacket {
     struct Headers_SwitchHeader switchHeader;
     struct Control ctrl;
 };
-Assert_compileTime(sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
+Assert_compileTime(
+    sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
 
 static inline void sendError(struct SwitchInterface* iface,
                              struct Message* cause,
@@ -128,7 +129,8 @@ static inline void sendError(struct SwitchInterface* iface,
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
     err->ctrl.checksum_be = 0;
 
-    err->ctrl.checksum_be = Checksum_engine((uint8_t*) &err->ctrl, cause->length - Headers_SwitchHeader_SIZE);
+    err->ctrl.checksum_be =
+        Checksum_engine((uint8_t*) &err->ctrl, cause->length - Headers_SwitchHeader_SIZE);
 
     sendMessage(iface, cause, logger);
 }

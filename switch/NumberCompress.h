@@ -34,8 +34,10 @@
 /* public interface */
 static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label);
 static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number);
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number, const uint32_t bitsUsed);
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label, const uint32_t bitsUsed);
+static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
+                                                    const uint32_t bitsUsed);
+static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
+                                                      const uint32_t bitsUsed);
 // also a constant NumberCompress_INTERFACES defining the maximum number of interfaces
 
 /* Number 1 is always encoded as the 4 bits 0001; and each label ending in 0001 is decoded as
@@ -59,10 +61,12 @@ static inline uint32_t NumberCompress_4_bitsUsedForLabel(const uint64_t label) {
 static inline uint32_t NumberCompress_4_bitsUsedForNumber(const uint32_t number) {
     return 4;
 }
-static inline uint64_t NumberCompress_4_getCompressed(const uint32_t number, const uint32_t bitsUsed) {
+static inline uint64_t NumberCompress_4_getCompressed(const uint32_t number,
+                                                      const uint32_t bitsUsed) {
     return number;
 }
-static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label, const uint32_t bitsUsed) {
+static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label,
+                                                        const uint32_t bitsUsed) {
     return label & 0xf;
 }
 
@@ -74,15 +78,21 @@ static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label, co
 // that way XXXX is never 1
 // so map numbers 16-239 -> 32-255, and 240 <-> 1, then swap nibbles
 # define NumberCompress_8_INTERFACES 241
-static inline uint32_t NumberCompress_8_bitsUsedForLabel(const uint64_t label) {
+static inline uint32_t NumberCompress_8_bitsUsedForLabel(const uint64_t label)
+{
     if (1 == (label & 0xf)) return 4;
     return 8;
 }
-static inline uint32_t NumberCompress_8_bitsUsedForNumber(const uint32_t number) {
+
+static inline uint32_t NumberCompress_8_bitsUsedForNumber(const uint32_t number)
+{
     if (1 == number) return 4;
     return 8;
 }
-static inline uint64_t NumberCompress_8_getCompressed(const uint32_t number, const uint32_t bitsUsed) {
+
+static inline uint64_t NumberCompress_8_getCompressed(const uint32_t number,
+                                                      const uint32_t bitsUsed)
+{
     if (1 == number) return 1;
     if (240 == number) return 0x10;
     uint32_t low = number & 0xf;
@@ -90,7 +100,10 @@ static inline uint64_t NumberCompress_8_getCompressed(const uint32_t number, con
     if (high > 0) ++high;
     return (low << 4) + high;
 }
-static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label, const uint32_t bitsUsed) {
+
+static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label,
+                                                        const uint32_t bitsUsed)
+{
     uint32_t low = label & 0xf;
     if (1 == low) return 1;
     if (0x10 == (label & 0xff)) return 240;
@@ -128,7 +141,8 @@ static inline uint32_t NumberCompress_dyn_bitsUsedForNumber(const uint32_t numbe
     }
 }
 
-static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number, const uint32_t bitsUsed)
+static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number,
+                                                        const uint32_t bitsUsed)
 {
     if (1 == number) return 1;
     switch (bitsUsed) {
@@ -147,7 +161,8 @@ static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number, c
     }
 }
 
-static inline uint32_t NumberCompress_dyn_getDecompressed(const uint64_t label, const uint32_t bitsUsed)
+static inline uint32_t NumberCompress_dyn_getDecompressed(const uint64_t label,
+                                                          const uint32_t bitsUsed)
 {
     uint32_t number;
     switch (bitsUsed) {
@@ -179,10 +194,14 @@ static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label) {
 static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number) {
     return NumberCompress_4_bitsUsedForNumber(number);
 }
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number, const uint32_t bitsUsed) {
+static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
+                                                    const uint32_t bitsUsed)
+{
     return NumberCompress_4_getCompressed(number, bitsUsed);
 }
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label, const uint32_t bitsUsed) {
+static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
+                                                      const uint32_t bitsUsed)
+{
     return NumberCompress_4_getDecompressed(label, bitsUsed);
 }
 
@@ -195,10 +214,14 @@ static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label) {
 static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number) {
     return NumberCompress_8_bitsUsedForNumber(number);
 }
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number, const uint32_t bitsUsed) {
+static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
+                                                    const uint32_t bitsUsed)
+{
     return NumberCompress_8_getCompressed(number, bitsUsed);
 }
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label, const uint32_t bitsUsed) {
+static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
+                                                      const uint32_t bitsUsed)
+{
     return NumberCompress_8_getDecompressed(label, bitsUsed);
 }
 
@@ -211,10 +234,14 @@ static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label) {
 static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number) {
     return NumberCompress_dyn_bitsUsedForNumber(number);
 }
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number, const uint32_t bitsUsed) {
+static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
+                                                    const uint32_t bitsUsed)
+{
     return NumberCompress_dyn_getCompressed(number, bitsUsed);
 }
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label, const uint32_t bitsUsed) {
+static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
+                                                      const uint32_t bitsUsed)
+{
     return NumberCompress_dyn_getDecompressed(label, bitsUsed);
 }
 

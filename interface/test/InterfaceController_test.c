@@ -128,9 +128,11 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
     Hex_decode((uint8_t*) &label_be, 8, hexBuffer, 16);
     uint64_t rev_label = Bits_bitReverse64(Endian_bigEndianToHost64(label_be));
     // check label is decoded to 0
-    Assert_always(0 == NumberCompress_getDecompressed(rev_label, NumberCompress_bitsUsedForLabel(rev_label)));
+    Assert_always(0 == NumberCompress_getDecompressed(rev_label,
+                                                      NumberCompress_bitsUsedForLabel(rev_label)));
     // check no other bits are set
-    Assert_always(rev_label == NumberCompress_getCompressed(0, NumberCompress_bitsUsedForLabel(rev_label)));
+    uint64_t out = NumberCompress_getCompressed(0, NumberCompress_bitsUsedForLabel(rev_label));
+    Assert_always(rev_label == out);
     return 0;
 }
 

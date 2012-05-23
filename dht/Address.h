@@ -99,8 +99,9 @@ static inline bool Address_isSameIp(const struct Address* addr,
     return memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
 }
 
-static inline bool Address_equalsSearchTarget(struct Address* addr,
-                                              const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
+static inline bool Address_equalsSearchTarget(
+    struct Address* addr,
+    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
 {
     Address_getPrefix(addr);
     return memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);

@@ -124,7 +124,9 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
     if (!getCookie) {
         calculateAuth(message, res->ctx->password, cookie, res->alloc);
 
-        writer = ArrayWriter_new(res->public.messageBytes, AdminClient_MAX_MESSAGE_SIZE, res->alloc);
+        writer = ArrayWriter_new(res->public.messageBytes,
+                                 AdminClient_MAX_MESSAGE_SIZE,
+                                 res->alloc);
         if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
             res->public.err = AdminClient_Error_SERIALIZATION_FAILED;
             return;

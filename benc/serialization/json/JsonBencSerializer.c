@@ -260,7 +260,8 @@ static inline int parseComment(const struct Reader* reader)
         case '/':;
             return readUntil('\n', reader);
         default:
-            printf("Warning: expected a comment starting with \"//\" or \"/*\", instead found \"/%c\"\n",chars[1]);
+            printf("Warning: expected a comment starting with \"//\" or \"/*\", "
+                   "instead found \"/%c\"\n",chars[1]);
             return UNPARSABLE;
     }
 }
@@ -509,7 +510,8 @@ static int32_t parseGeneric(const struct Reader* reader,
             break;
 
         default:
-            printf("While looking for something to parse: expected one of 0 1 2 3 4 5 6 7 8 9 [ { \", found '%c'\n", firstChar);
+            printf("While looking for something to parse: "
+                   "expected one of 0 1 2 3 4 5 6 7 8 9 [ { \", found '%c'\n", firstChar);
             return UNPARSABLE;
     }
 

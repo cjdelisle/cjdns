@@ -66,7 +66,8 @@ static int openTunnel(const char* interfaceName, char assignedInterfaceName[IFNA
 
         if (sscanf(interfaceName, "utun%i", &parsedUnit) != 1 || parsedUnit < 0) {
             fprintf(stderr, "Invalid utun device %s. "
-                "Remove this configuration parameter to use automatic assignment.\n", interfaceName);
+                    "Remove this configuration parameter to use automatic assignment.\n",
+                    interfaceName);
             return -1;
         }
 

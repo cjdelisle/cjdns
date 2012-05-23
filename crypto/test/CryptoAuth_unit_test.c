@@ -113,7 +113,10 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
         });
 
     struct CryptoAuth_Wrapper* wrapper =
-        allocator->clone(sizeof(struct CryptoAuth_Wrapper), allocator, &(struct CryptoAuth_Wrapper) {
+        allocator->clone(sizeof(struct CryptoAuth_Wrapper),
+                         allocator,
+                         &(struct CryptoAuth_Wrapper)
+        {
             .context = ca,
             .wrappedInterface = iface
         });

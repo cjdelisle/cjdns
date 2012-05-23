@@ -98,7 +98,8 @@ Dict* Dict_new(const struct Allocator* allocator)
  *       only add a pointer to it in the dictionary.
  * If dictionary is NULL then a new dictionary will be created and returned.
  *
- * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary is made.
+ * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary
+                     is made.
  * @param key the reference key to use for putting the entry in the dictionary.
  * @param value the value to insert with the key.
  * @param allocator the means to get memory for storing the dictionary entry wrapper.

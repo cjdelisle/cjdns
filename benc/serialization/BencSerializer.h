@@ -117,7 +117,8 @@ struct BencSerializer
      *               dictionary and will leave the read pointer on the first character AFTER
      *               the 'e' which ends the dictionary.
      * @param allocator a Allocator which will be used to store data.
-     * @param output a dictionary pointer which will be set to the output. Dict* out = NULL; is enough.
+     * @param output a dictionary pointer which will be set to the output. Dict* out = NULL;
+                     is enough.
      * @return 0 if everything goes well -2 if -1 returned by read indicating an array underflow,
      *           -3 if content unparsable.
      */

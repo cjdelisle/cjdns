@@ -171,7 +171,7 @@ static int genconf()
            "    ],\n"
            "\n"
            "    // Settings for administering and extracting information from your router.\n"
-           "    // This interface provides API functions which can be called through a TCP socket.\n"
+           "    // This interface provides functions which can be called through a TCP socket.\n"
            "    \"admin\":\n"
            "    {\n"
            "        // Port to bind the admin RPC server to.\n"

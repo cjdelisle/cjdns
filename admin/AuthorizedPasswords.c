@@ -48,7 +48,8 @@ static void add(Dict* args, void* vcontext, String* txid)
     if (!(passwd && authType)) {
         sendResponse(String_CONST("Must specify authType, and password."), context->admin, txid);
     } else if (*authType < 1 || *authType > 255) {
-        sendResponse(String_CONST("Auth must be between 1 and 255 inclusive."), context->admin, txid);
+        sendResponse(String_CONST("Auth must be between 1 and 255 inclusive."),
+                     context->admin, txid);
     } else {
         struct User* u = context->allocator->malloc(sizeof(struct User), context->allocator);
         // At some point this will be implemented...
@@ -65,7 +66,8 @@ static void add(Dict* args, void* vcontext, String* txid)
                              txid);
                 break;
             case CryptoAuth_addUser_OUT_OF_SPACE:
-                sendResponse(String_CONST("Out of memory to store password."), context->admin, txid);
+                sendResponse(String_CONST("Out of memory to store password."),
+                             context->admin, txid);
                 break;
             case CryptoAuth_addUser_DUPLICATE:
                 sendResponse(String_CONST("Password already added."), context->admin, txid);

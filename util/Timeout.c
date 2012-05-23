@@ -94,7 +94,12 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     timeout->event = (struct event*) &timeout[1];
 
     allocator->onFree(deleteEvent, timeout, allocator);
-    event_assign(timeout->event, eventBase, -1, ((interval) ? EV_PERSIST : 0), handleEvent, timeout);
+    event_assign(timeout->event,
+                 eventBase,
+                 -1,
+                 ((interval) ? EV_PERSIST : 0),
+                 handleEvent,
+                 timeout);
     struct timeval time = timeForMilliseconds(milliseconds);
     event_add(timeout->event, &time);
 

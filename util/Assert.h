@@ -45,11 +45,13 @@ static inline void Assert_internal(const char* expr, int isTrue, const char* fil
  * Prevent compilation if assertion is false or not a compile time constant.
  * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
  */
-#define Assert_compileTime(isTrue) struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
+#define Assert_compileTime(isTrue) \
+    struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
 
 
 /** Runtime assertion which is always applied. */
-#define Assert_always(expr) Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
+#define Assert_always(expr) \
+    Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
 
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)

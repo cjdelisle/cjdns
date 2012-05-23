@@ -22,7 +22,8 @@
  * When an item is used, it is relocated to the head. Searching from the
  * head therefore means items will be checked in most-recently-used order.
  *
- * When inserting a new item, the item to replace - the least-recently-used item - is simply the tail.
+ * When inserting a new item,
+ * the item to replace - the least-recently-used item - is simply the tail.
  * Then the tail is set to be the head, because it is the most recently used item.
  */
 

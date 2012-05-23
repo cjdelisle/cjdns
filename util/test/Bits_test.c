@@ -27,7 +27,8 @@ int main()
     printf("x = 0x%016" PRIx64 "\n", x);
 
     Assert_always(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
-    Assert_always(Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
+    Assert_always(
+        Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
     Assert_always(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
     Assert_always(Bits_bitReverse64(0) == 0);
 }

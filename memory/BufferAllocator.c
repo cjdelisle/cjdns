@@ -99,7 +99,9 @@ static void* allocatorClone(size_t length, const struct Allocator* allocator, co
 }
 
 /** @see Allocator->realloc() */
-static void* allocatorRealloc(const void* original, size_t length, const struct Allocator* allocator)
+static void* allocatorRealloc(const void* original,
+                              size_t length,
+                              const struct Allocator* allocator)
 {
     if (original == NULL) {
         return allocatorMalloc(length, allocator);
@@ -109,10 +111,12 @@ static void* allocatorRealloc(const void* original, size_t length, const struct 
     struct BufferAllocator_context* context =
         (struct BufferAllocator_context*) allocator->context;
     char* pointer = context->pointer;
-    size_t amountToClone =
-        length < (size_t)(pointer - (char*)original) ? length : (size_t)(pointer - (char*)original);
+    size_t amountToClone = (length < (size_t)(pointer - (char*)original))
+        ? length
+        : (size_t)(pointer - (char*)original);
 
-    // The likelyhood of nothing having been allocated since is almost 0 so we will always create a new
+    // The likelyhood of nothing having been allocated since is
+    // almost 0 so we will always create a new
     // allocation and copy into it.
     void* newAlloc = allocator->malloc(length, allocator);
     Bits_memcpy(newAlloc, original, amountToClone);
@@ -231,7 +235,7 @@ struct Allocator* BufferAllocator_new(void* buffer, size_t length)
     };
 
     /* Get the pointer to the context where it's written in the buffer. */
-    struct BufferAllocator_context* contextPtr = (struct BufferAllocator_context*) allocator.context;
+    struct BufferAllocator_context* contextPtr = allocator.context;
 
     /* have to advance the pointer so as not to clobber the context. */
     contextPtr->pointer += sizeof(struct BufferAllocator_context);

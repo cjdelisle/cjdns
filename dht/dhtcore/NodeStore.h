@@ -72,8 +72,9 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
  * @param requestorsAddress if not NULL no responses will be returned which are
  *                          closer to this node in physical space.
  * @param count the number of nodes to return.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
- *                                this is required for searches but unallowable for answering queries.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
+ *                                then we are. this is required for searches but unallowable
+ *                                for answering queries.
  * @param allocator the memory allocator to use for getting the memory to store the output.
  */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,

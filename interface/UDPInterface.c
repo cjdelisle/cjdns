@@ -225,7 +225,8 @@ int UDPInterface_beginConnection(const char* address,
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    return InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    return
+        InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
 }
 
 static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
@@ -318,7 +319,10 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     struct sockaddr_storage addr;
     if (bindAddr != NULL) {
         context->addrLen = sizeof(struct sockaddr_storage);
-        if (0 != evutil_parse_sockaddr_port(bindAddr, (struct sockaddr*) &addr, (int*) &context->addrLen)) {
+        if (0 != evutil_parse_sockaddr_port(bindAddr,
+                                            (struct sockaddr*) &addr,
+                                            (int*) &context->addrLen))
+        {
             exHandler->exception(__FILE__ " UDPInterface_new() Failed to parse address.",
                                  -1, exHandler);
             return NULL;
@@ -349,7 +353,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     context->socket = socket(addrFam, SOCK_DGRAM, 0);
     if (context->socket == -1) {
-        exHandler->exception(__FILE__ " UDPInterface_new() call to socket() failed.", -3, exHandler);
+        exHandler->exception(__FILE__ " UDPInterface_new() call to socket() failed.",
+                             -3, exHandler);
         return NULL;
     }
 

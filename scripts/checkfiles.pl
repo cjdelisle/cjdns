@@ -88,6 +88,11 @@ foreach my $fileName (split("\n", $files))
         }
 
         $lineInfo = "$fileName:$lineNum";
+
+        if (length($line) > 100) {
+            error("cjd's editor window is only 100 characters wide");
+        }
+
         if ($fileName =~ /\.h$/) {
 
             my $n = $name;

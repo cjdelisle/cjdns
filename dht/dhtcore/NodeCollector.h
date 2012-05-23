@@ -57,15 +57,16 @@ struct NodeCollector
 
 /**
  * Create a new NodeCollector.
- * This will create a collector which sifts through nodes and finds the best nodes to serve a request.
- * Nodes which have the lowest distance:reach ratio will be collected.
+ * This will create a collector which sifts through nodes and finds the best nodes to serve a
+ * request. Nodes which have the lowest distance:reach ratio will be collected.
  *
  * @param targetAddress the address we are searching for.
- * @param capacity the number of nodes to collect, if less than this number are added, some of the nodes
- *                 will remain NULL pointers.
+ * @param capacity the number of nodes to collect, if less than this number are added, some of
+ *                 the nodes will remain NULL pointers.
  * @param thisNodeAddress this node's address.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
- *                                this is required for searches but unallowable for answering queries.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
+ *                                then we are. this is required for searches but unallowable
+ *                                for answering queries.
  * @param logger
  * @param allocator the means of getting memory to store the collector.
  * @return a new collector.

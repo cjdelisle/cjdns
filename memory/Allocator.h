@@ -96,7 +96,8 @@ struct Allocator
      * @param numberOfBytes how much memory to allocate.
      * @param thisAllocator the memory allocator.
      * @param toClone a pointer to something which will be cloned into the newly allocated memory,
-     *                if this is NULL or is not as large as numberOfBytes, undefined behavior will result.
+     *                if this is NULL or is not as large as numberOfBytes, undefined behavior will
+     *                result.
      * @return a pointer to the newly allocated memory.
      */
     void* (* const clone)(size_t numberOfBytes,
@@ -108,7 +109,8 @@ struct Allocator
      * The allocation will be aligned on the size of a pointer, if you need further alignment then
      * you must handle it manually.
      *
-     * @param originalAllocation a pointer to the original memory allocation which is to be reallocated.
+     * @param originalAllocation a pointer to the original memory allocation which is to be
+     *                           reallocated.
      * @param numberOfBytes how much memory to allocate.
      * @param thisAllocator the memory allocator.
      * @return a pointer to the newly allocated memory.

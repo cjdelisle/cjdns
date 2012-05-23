@@ -168,7 +168,8 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     return message->length >= Headers_UDPHeader_SIZE
         && uh->sourceAndDestPorts == 0
-        && (int) Endian_bigEndianToHost16(uh->length_be) == message->length - Headers_UDPHeader_SIZE;
+        && (int) Endian_bigEndianToHost16(uh->length_be) ==
+            (message->length - Headers_UDPHeader_SIZE);
 }
 
 /**
@@ -638,7 +639,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             } else {
                 #ifdef Log_DEBUG
                     uint8_t switchAddr[20];
-                    AddrTools_printPath(switchAddr, Endian_bigEndianToHost64(switchHeader->label_be));
+                    AddrTools_printPath(switchAddr,
+                                        Endian_bigEndianToHost64(switchHeader->label_be));
                     Log_debug1(context->logger,
                                "Dropped traffic packet from unknown node. (%s)\n",
                                &switchAddr);
@@ -689,7 +691,8 @@ struct Ducttape* Ducttape_register(Dict* config,
     context->forwardTo = NULL;
     AddressMapper_init(&context->addrMap);
 
-    struct CryptoAuth* cryptoAuth = CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
+    struct CryptoAuth* cryptoAuth =
+        CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
     CryptoAuth_getPublicKey(context->myAddr.key, cryptoAuth);
     Address_getPrefix(&context->myAddr);
 

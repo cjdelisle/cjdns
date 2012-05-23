@@ -63,7 +63,10 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
 
     struct DHTMessage* reply =
-        message->allocator->clone(sizeof(struct DHTMessage), message->allocator, &(struct DHTMessage) {
+        message->allocator->clone(sizeof(struct DHTMessage),
+                                  message->allocator,
+                                  &(struct DHTMessage)
+        {
             .replyTo = message,
             .address = message->address,
             .allocator = message->allocator
