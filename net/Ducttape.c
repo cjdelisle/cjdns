@@ -216,15 +216,17 @@ static inline uint8_t incomingForMe(struct Message* message,
     if (isRouterTraffic(message, context->ip6Header)) {
         // Check the checksum.
         struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-        uint16_t cs = uh->checksum_be;
+        const uint16_t cs = uh->checksum_be;
         uh->checksum_be = 0;
         if (cs == 0) {
             // TODO: Stop supporting legacy nodes which leave checksum blank.
         } else {
-            if (cs != Checksum_udpIp6(context->ip6Header->sourceAddr,
-                                      message->bytes,
-                                      message->length))
-            {
+            const uint16_t computedCs =
+                Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*) uh, message->length);
+            if (cs != computedCs) {
+                Log_debug(context->logger,
+                          "Router packet with incorrect checksum, expected [%u] got [%u]",
+                          cs, computedCs);
                 return Error_INVALID;
             }
         }
