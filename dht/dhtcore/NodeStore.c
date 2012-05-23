@@ -49,8 +49,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 {
     struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
     out->thisNodeAddress = myAddress;
-    out->headers = allocator->malloc(sizeof(struct NodeHeader) * capacity, allocator);
-    out->nodes = allocator->malloc(sizeof(struct Node) * capacity, allocator);
+    out->headers = allocator->calloc(sizeof(struct NodeHeader), capacity, allocator);
+    out->nodes = allocator->calloc(sizeof(struct Node), capacity, allocator);
     out->capacity = capacity;
     out->logger = logger;
     out->size = 0;

@@ -53,7 +53,7 @@ int main()
     udp->sourceAndDestPorts = 0;
     udp->length_be = Endian_hostToBigEndian16(strlen(pingBenc));
 
-    strcpy((char*)(udp + 1), pingBenc);
+    strncpy((char*)(udp + 1), pingBenc, strlen(pingBenc));
 
     dt->switchInterface.receiveMessage = catchResponse;
     dt->switchInterface.receiverContext = NULL;
