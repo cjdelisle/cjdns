@@ -36,6 +36,7 @@
 #include "util/Assert.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 
@@ -207,7 +208,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
             uint8_t nodeAddr[60];
             Address_print(nodeAddr, addr);
             Log_debug2(store->logger,
-                       "Discovered node: %s reach %u\n",
+                       "Discovered node: %s reach %" PRIu64,
                        nodeAddr,
                        reachDifference);
         #endif

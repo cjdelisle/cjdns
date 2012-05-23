@@ -32,6 +32,18 @@ struct Log
     struct Writer* writer;
 };
 
+
+#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
+#define Log_GNUC_PRINTF( format_idx, arg_idx ) \
+    __attribute__((__format__ (__printf__, format_idx, arg_idx)))
+#else
+#define Log_GNUC_PRINTF( format_idx, arg_idx )
+#endif
+
+static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, char* format, ...)
+    Log_GNUC_PRINTF(4, 5);
+#undef Log_GNUC_PRINTF
+
 static inline void Log_logInternal(struct Log* log, char* logLevel, char* file, char* format, ...)
 {
     if (!log) {

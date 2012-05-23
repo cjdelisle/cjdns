@@ -67,12 +67,12 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         Dict* d = List_getDict(list, i);
         Log_info1(ctx->logger, "Checking authorized password %d.", i);
         if (!d) {
-            Log_critical1(ctx->logger, "Not a dictionary type.", i);
+            Log_critical1(ctx->logger, "Not a dictionary type %d.", i);
             exit(-1);
         }
         String* passwd = Dict_getString(d, String_CONST("password"));
         if (!passwd) {
-            Log_critical1(ctx->logger, "Must specify a password.", i);
+            Log_critical1(ctx->logger, "Must specify a password %d.", i);
             exit(-1);
         }
     }

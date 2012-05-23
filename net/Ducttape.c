@@ -592,9 +592,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                     pong = true;
                 }
             } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
-                Log_info1(context->logger,
+                Log_info2(context->logger,
                           "error packet from [%s] containing cause of unknown type [%d]",
-                          labelStr);
+                          labelStr, causeType);
             }
         } else if (ctrl->type_be == Control_PONG_be) {
             pong = true;
@@ -643,7 +643,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                                         Endian_bigEndianToHost64(switchHeader->label_be));
                     Log_debug1(context->logger,
                                "Dropped traffic packet from unknown node. (%s)\n",
-                               &switchAddr);
+                               switchAddr);
                 #endif
                 return 0;
             }
