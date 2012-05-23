@@ -54,7 +54,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
         set(srcfile "${CMAKE_BINARY_DIR}/libevent2/linktest.c")
         file(WRITE
             ${CMAKE_BINARY_DIR}/libevent2/linktest.c
-            "int main() { event_base_new(); return 0; }"
+            "int main() { event_new(); return 0; }\n"
         )
         try_compile(success ${CMAKE_BINARY_DIR}/libevent2 ${srcfile}
             CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=${LIBEVENT2_LIBRARIES}"
