@@ -97,7 +97,10 @@ else()
 endif()
 
 # logging
-SET(Log_LEVEL INFO CACHE STRING "Log level (KEYS, DEBUG, INFO, WARN, ERROR, CRITICAL)")
+SET(Log_LEVEL DEBUG CACHE STRING "Log level (KEYS, DEBUG, INFO, WARN, ERROR, CRITICAL)")
+if (NOT "$ENV{Log_LEVEL}" STREQUAL "")
+    set(Log_LEVEL "$ENV{Log_LEVEL}")
+endif()
 if (${Log_LEVEL} STREQUAL "KEYS")
     message("\n\nEXPECT TO SEE PRIVATE KEYS PRINTED IN YOUR LOGS!\n\n")
 endif (${Log_LEVEL} STREQUAL "KEYS")
