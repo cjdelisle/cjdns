@@ -25,6 +25,8 @@
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
+#include <inttypes.h>
+
 struct SwitchInterface
 {
     struct Interface* iface;
@@ -233,10 +235,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
+    uint64_t targetLabel = (label >> bits) | sourceLabel;
 
-    header->label_be = Endian_hostToBigEndian64((label >> bits) | sourceLabel);
+    header->label_be = Endian_hostToBigEndian64(targetLabel);
 
-    DEBUG_SRC_DST(sourceIf->core->logger, "Forwarding packet.");
+    Log_debug4(sourceIf->core->logger, "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]", sourceIndex, destIndex, label, targetLabel);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
