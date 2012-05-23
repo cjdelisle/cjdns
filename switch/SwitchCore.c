@@ -239,7 +239,9 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be = Endian_hostToBigEndian64(targetLabel);
 
-    Log_debug4(sourceIf->core->logger, "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]", sourceIndex, destIndex, label, targetLabel);
+    Log_debug4(sourceIf->core->logger,
+               "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
+               sourceIndex, destIndex, label, targetLabel);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
