@@ -229,8 +229,8 @@ static inline uint8_t incomingForMe(struct Message* message,
                 Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*) uh, message->length);
             if (cs != computedCs) {
                 Log_debug(context->logger,
-                          "Router packet with incorrect checksum, expected [%u] got [%u]",
-                          cs, computedCs);
+                          "Router packet with incorrect checksum, expected [%04x] got [%04x]",
+                          computedCs, cs);
                 return Error_INVALID;
             }
         }
