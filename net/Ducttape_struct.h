@@ -15,29 +15,14 @@
 #ifndef Ducttape_struct_H
 #define Ducttape_struct_H
 
-//#include "crypto/CryptoAuth.h"
 #include "dht/Address.h"
 #include "dht/AddressMapper.h"
-//#include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
-//#include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "interface/Interface.h"
-//#include "interface/InterfaceMap.h"
-//#include "interface/SessionManager.h"
 #include "util/Log.h"
-//#include "memory/Allocator.h"
-//#include "memory/BufferAllocator.h"
 #include "net/Ducttape.h"
-/*#include "net/SwitchPinger.h"
-#include "net/SwitchPinger_admin.h"
-#include "switch/SwitchCore.h"
-#include "util/Bits.h"
-#include "util/checksum/Checksum.h"
-#include "wire/Control.h"
-#include "wire/Error.h"
-#include "wire/Headers.h"*/
 
 #include <stdint.h>
 #include <event2/event.h>
