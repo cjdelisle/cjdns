@@ -542,7 +542,7 @@ static void searchRequestTimeout(void* vcontext)
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &n->address);
-            Log_debug2(scc->routerModule->logger,
+            Log_debug(scc->routerModule->logger,
                        "Search timeout for %s, after %lums. halving reach\n",
                        addr,
                        (unsigned long)scc->timeoutMilliseconds);
@@ -686,7 +686,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             #ifdef Log_DEBUG
                 uint8_t printedAddr[60];
                 Address_print(printedAddr, message->address);
-                Log_debug1(module->logger, "Got pong! %s\n", printedAddr);
+                Log_debug(module->logger, "Got pong! %s\n", printedAddr);
             #endif
 
             Timeout_clearTimeout(module->pings[index]->timeout);
@@ -705,7 +705,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             module->pings[index] = NULL;
 
         } else {
-            Log_debug1(module->logger,
+            Log_debug(module->logger,
                        "Looks like a ping but unrecognized slot. slot=%u\n",
                        (int) index);
         }
@@ -731,7 +731,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             Address_print(expectedAddr, parent->address);
             uint8_t receivedAddr[60];
             Address_print(receivedAddr, message->address);
-            Log_debug2(module->logger,
+            Log_debug(module->logger,
                        "Got return packet from different address than search was sent!\n"
                        "Expected:%s\n"
                        "     Got:%s\n",
@@ -776,7 +776,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             uint8_t newAddr[60];
             Address_print(fromAddr, message->address);
             Address_print(newAddr, &addr);
-            Log_debug2(module->logger,
+            Log_debug(module->logger,
                        "Discovered new node:\n    %s\nvia:%s\n",
                        newAddr,
                        fromAddr);
@@ -789,7 +789,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         /*#ifdef Log_DEBUG
             uint8_t splicedAddr[60];
             Address_print(splicedAddr, &addr);
-            Log_debug1(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
+            Log_debug(module->logger, "Spliced Address is now:\n    %s\n", splicedAddr);
         #endif*/
 
         if (addr.path == UINT64_MAX) {
@@ -969,7 +969,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     #ifdef Log_DEBUG
         uint8_t addr[60];
         Address_print(addr, firstSearchNode->address);
-        Log_debug1(module->logger, "Search %s\n", addr);
+        Log_debug(module->logger, "Search %s\n", addr);
     #endif
 
     // Send out the request.
@@ -1036,7 +1036,7 @@ static void pingTimeoutCallback(void* vping)
             #ifdef Log_DEBUG
                 uint8_t addr[60];
                 Address_print(addr, &ping->node->address);
-                Log_debug1(module->logger, "Ping timeout %s\n", addr);
+                Log_debug(module->logger, "Ping timeout %s\n", addr);
             #endif
             // If this node has already been invalidated by another ping timeout then
             // it's addr is 0 and calling brokenpath on it flushes one-hop nodes out.
@@ -1079,7 +1079,7 @@ int RouterModule_pingNode(struct Node* node,
     #ifdef Log_DEBUG
         uint8_t addr[60];
         Address_print(addr, &node->address);
-        Log_debug1(module->logger, "Ping %s\n", addr);
+        Log_debug(module->logger, "Ping %s\n", addr);
     #endif
 
     struct Allocator* pingAllocator = module->allocator->child(module->allocator);

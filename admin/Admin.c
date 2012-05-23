@@ -249,7 +249,7 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
     if (amount < 1) {
         if (amount == 0 || errno != EAGAIN) {
             if (amount < 0) {
-                Log_error1(admin->logger, "Broken pipe to admin process, errno=%d", errno);
+                Log_error(admin->logger, "Broken pipe to admin process, errno=%d", errno);
             } else {
                 Log_error(admin->logger, "Connection to admin process closed unexpectedly");
             }

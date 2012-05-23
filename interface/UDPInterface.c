@@ -153,7 +153,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info1(context->logger, "Got error sending to socket errno=%d",
+                Log_info(context->logger, "Got error sending to socket errno=%d",
                           EVUTIL_SOCKET_ERROR());
         }
     }
@@ -191,7 +191,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       (struct sockaddr*) &addrStore,
                       &addrLen);
     /*
-    Log_debug1(context->logger,
+    Log_debug(context->logger,
                "Got message from peer on port %u\n",
                Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
     */

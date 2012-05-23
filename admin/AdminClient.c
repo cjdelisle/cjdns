@@ -249,7 +249,7 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
     context->socket = socket(addr->ss_family, SOCK_STREAM, 0);
 
     if (context->socket < 0) {
-        Log_error1(logger, "Failed to allocate socket, errno=%d", errno);
+        Log_error(logger, "Failed to allocate socket, errno=%d", errno);
         return NULL;
     }
 
@@ -266,7 +266,7 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
     if (connect(context->socket, (struct sockaddr*)addr, addrLen)) {
         char printedAddr[128];
         evutil_inet_ntop (AF_INET, &((struct sockaddr_in*)addr)->sin_addr, printedAddr, 128);
-        Log_error3(logger, "Failed to connect to admin port at [%s:%u], errno=%d",
+        Log_error(logger, "Failed to connect to admin port at [%s:%u], errno=%d",
                    printedAddr, ((struct sockaddr_in*)addr)->sin_port, errno);
         return NULL;
     }

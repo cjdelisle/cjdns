@@ -32,7 +32,7 @@ struct Context
 
 static void showMsg(struct AdminClient_Result* res, struct Context* ctx)
 {
-    Log_keys1(ctx->logger, "message bytes = [%s]", res->messageBytes);
+    Log_keys(ctx->logger, "message bytes = [%s]", res->messageBytes);
     #ifndef Log_KEYS
         Log_critical(ctx->logger, "enable Log_LEVEL=KEYS to see message content.");
     #endif
@@ -42,7 +42,7 @@ static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Al
 {
     struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
     if (res->err) {
-        Log_critical2(ctx->logger,
+        Log_critical(ctx->logger,
                       "Failed to make function call [%s], error: [%s]",
                       AdminClient_errorString(res->err),
                       function->bytes);
@@ -51,7 +51,7 @@ static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Al
     }
     String* error = Dict_getString(res->responseDict, String_CONST("error"));
     if (error && !String_equals(error, String_CONST("none"))) {
-        Log_critical2(ctx->logger,
+        Log_critical(ctx->logger,
                       "Router responses with error: [%s]\nCalling function: [%s]",
                       error->bytes,
                       function->bytes);
@@ -65,14 +65,14 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     uint32_t count = List_size(list);
     for (uint32_t i = 0; i < count; i++) {
         Dict* d = List_getDict(list, i);
-        Log_info1(ctx->logger, "Checking authorized password %d.", i);
+        Log_info(ctx->logger, "Checking authorized password %d.", i);
         if (!d) {
-            Log_critical1(ctx->logger, "Not a dictionary type.", i);
+            Log_critical(ctx->logger, "Not a dictionary type %d.", i);
             exit(-1);
         }
         String* passwd = Dict_getString(d, String_CONST("password"));
         if (!passwd) {
-            Log_critical1(ctx->logger, "Must specify a password.", i);
+            Log_critical(ctx->logger, "Must specify a password %d.", i);
             exit(-1);
         }
     }
@@ -83,7 +83,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     for (uint32_t i = 0; i < count; i++) {
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
-        Log_info1(ctx->logger, "Adding authorized password #[%d].", i);
+        Log_info(ctx->logger, "Adding authorized password #[%d].", i);
 
         Dict args = Dict_CONST(
             String_CONST("authType"), Int_OBJ(1), Dict_CONST(
@@ -104,13 +104,13 @@ static void udpInterface(Dict* config, struct Context* ctx)
         while (entry != NULL) {
             String* key = (String*) entry->key;
             if (entry->val->type != Object_DICT) {
-                Log_critical1(ctx->logger, "interfaces.UDPInterface.connectTo: entry [%s] "
+                Log_critical(ctx->logger, "interfaces.UDPInterface.connectTo: entry [%s] "
                                            "is not a dictionary type.", key->bytes);
                 exit(-1);
             }
             Dict* value = entry->val->as.dictionary;
 
-            Log_keys1(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+            Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
             struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
             Dict_putString(value, String_CONST("address"), key, perCallAlloc);

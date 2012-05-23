@@ -138,7 +138,7 @@ static inline void sendError(struct SwitchInterface* iface,
 }
 
 #define DEBUG_SRC_DST(logger, message) \
-    Log_debug2(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
+    Log_debug(logger, message " ([%u] to [%u])", sourceIndex, destIndex)
 
 /** This never returns an error, it sends an error packet instead. */
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
@@ -239,13 +239,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be = Endian_hostToBigEndian64(targetLabel);
 
-    Log_debug4(sourceIf->core->logger,
+    Log_debug(sourceIf->core->logger,
                "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
                sourceIndex, destIndex, label, targetLabel);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
-        Log_debug1(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
+        Log_debug(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
