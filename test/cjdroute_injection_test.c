@@ -71,7 +71,7 @@ int main()
 
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
-    uint8_t* buff = allocator->malloc(buffLen, allocator);
+    uint8_t* buff = allocator->calloc(buffLen, 1, allocator);
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
     uint8_t* herPublicKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
@@ -83,7 +83,7 @@ int main()
     udp->sourceAndDestPorts = 0;
     udp->length_be = Endian_hostToBigEndian16(strlen(evilBenc));
 
-    strcpy((char*)(udp + 1), evilBenc);
+    strncpy((char*)(udp + 1), evilBenc, strlen(evilBenc));
 
     struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
 

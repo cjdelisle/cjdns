@@ -107,7 +107,14 @@ endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
 # vrooooooom
-add_definitions(-O2 -funroll-loops)
+add_definitions(-funroll-loops)
+
+IF(NOT CMAKE_BUILD_TYPE)
+# default to RelWithDebInfo (-g -O2)
+    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+        "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+        FORCE)
+ENDIF(NOT CMAKE_BUILD_TYPE)
 
 OPTION(WITH_LTO "Building with link time optimization.")
 if(WITH_LTO)

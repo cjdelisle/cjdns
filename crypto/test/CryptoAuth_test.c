@@ -80,14 +80,18 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
 
 static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
-    printf("if1 got message! %s\n", message->bytes);
+    fputs("if1 got message! ", stdout);
+    fwrite(message->bytes, 1, message->length, stdout);
+    puts("");
     if1Msg = message->bytes;
     return Error_NONE;
 }
 
 static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
-    printf("if2 got message! %s\n", message->bytes);
+    fputs("if2 got message! ", stdout);
+    fwrite(message->bytes, 1, message->length, stdout);
+    puts("");
     if2Msg = message->bytes;
     return Error_NONE;
 }
@@ -156,7 +160,7 @@ static int sendToIf2(const char* x)
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
     Assert_always(if2Msg);
-    if (strcmp((char*)if2Msg, x) != 0) {
+    if (strncmp((char*)if2Msg, x, strlen(x)) != 0) {
         printf("expected %s, got %s\n", x, (char*)if2Msg);
         return -1;
     }
