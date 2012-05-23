@@ -152,7 +152,8 @@ static int handleOutgoing(struct DHTMessage* dmessage,
         Assert_true(!((uintptr_t)dmessage->bytes % 4) || !"alignment fault");
     #endif
 
-    uh->checksum_be = Checksum_udpIp6(header->sourceAddr, message.bytes, message.length);
+    uh->checksum_be =
+        Checksum_udpIp6(header->sourceAddr, (uint8_t*) uh, message.length - Headers_IP6Header_SIZE);
 
     context->ip6Header = header;
     context->switchHeader = NULL;
