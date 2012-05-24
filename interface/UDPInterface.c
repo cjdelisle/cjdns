@@ -69,7 +69,7 @@ struct UDPInterface
     /** Used to tell what address type is being used. */
     ev_socklen_t addrLen;
 
-    uint8_t messageBuff[MAX_PACKET_SIZE];
+    uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
 
     struct Log* logger;
 
@@ -176,7 +176,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
     struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE - PADDING };
+        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
