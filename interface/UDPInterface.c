@@ -176,7 +176,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     struct UDPInterface* context = (struct UDPInterface*) vcontext;
 
     struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
+        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE - PADDING };
 
     struct sockaddr_storage addrStore;
     memset(&addrStore, 0, sizeof(struct sockaddr_storage));
@@ -186,7 +186,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     // keyForSockaddr() will write the key there.
     int rc = recvfrom(socket,
                       message.bytes + InterfaceController_KEY_SIZE,
-                      MAX_PACKET_SIZE - InterfaceController_KEY_SIZE,
+                      message.length - InterfaceController_KEY_SIZE,
                       0,
                       (struct sockaddr*) &addrStore,
                       &addrLen);
