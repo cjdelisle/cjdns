@@ -912,3 +912,34 @@ Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 282ms
 This is the switch configuration so this indicates expected switch throughput:
 Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1127ms. 1064773 Kb/s
 
+
+
+
+
+
+
+# Rasberry Pi -- Owner unknown (we would like to meet you!)
+
+./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 97759ms. 5 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 96319ms. 124 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 143077ms. 3 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 148158ms. 80 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 2172ms. 23572 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 33251ms. 36089 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 14356ms. 3566 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 163744ms. 7328 Kb/s
+
+version: bc41a54dc5d2a0ece5864671242184afbd46ba6e
+
+# This version is just post the NACL improvements.
