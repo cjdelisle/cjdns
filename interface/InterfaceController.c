@@ -25,6 +25,9 @@
     #error CJDNS_MAX_PEERS needs to be defined.
 #endif
 
+/** After this number of milliseconds, a node will be regarded as unresponsive. */
+#define UNRESPONSIVE_AFTER_MILLISECONDS 10000
+
 /*--------------------Structs--------------------*/
 
 struct Endpoint
@@ -61,7 +64,7 @@ struct Endpoint
 
     /**
      * The time of the last incoming message, used to clear out endpoints
-     * if they are not responsive. Only updated if removeIfExpires == true.
+     * if they are not responsive.
      */
     uint32_t timeOfLastMessage;
 };
@@ -86,6 +89,9 @@ struct InterfaceController
     struct Log* const logger;
 
     struct event_base* const eventBase;
+
+    /** After this number of milliseconds, a node will be regarded as unresponsive. */
+    uint32_t unresponsiveAfterMilliseconds;
 };
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
@@ -105,13 +111,19 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
             .switchCore = switchCore,
             .routerModule = routerModule,
             .logger = logger,
-            .eventBase = eventBase
+            .eventBase = eventBase,
+            .unresponsiveAfterMilliseconds = UNRESPONSIVE_AFTER_MILLISECONDS
         });
 }
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
 {
     return (struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal));
+}
+
+static inline struct InterfaceController* interfaceControllerForEndpoint(struct Endpoint* ep)
+{
+    return ep->internal.senderContext;
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -148,11 +160,9 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
     struct Endpoint* ep = cryptoAuthIf->receiverContext;
-    struct InterfaceController* ic = ep->internal.senderContext;
+    struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
 
-    if (ep->removeIfExpires) {
-        ep->timeOfLastMessage = Time_currentTimeSeconds(ic->eventBase);
-    }
+    ep->timeOfLastMessage = Time_currentTimeSeconds(ic->eventBase);
     if (!ep->authenticated) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
             ep = moveEndpointIfNeeded(ep, ic);
@@ -163,12 +173,24 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     return ep->switchIf.receiveMessage(msg, &ep->switchIf);
 }
 
+// This is directly called from SwitchCore, message is not encrypted.
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
     Assert_true(ep->switchIf.senderContext == ep);
     Assert_true(ep->internal.sendMessage);
-    return ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
+
+    uint8_t ret = ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
+
+    // If this node is unresponsive then return an error.
+    struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
+    if (Time_currentTimeSeconds(ic->eventBase) - ep->timeOfLastMessage >
+        ic->unresponsiveAfterMilliseconds)
+    {
+        return Error_UNDELIVERABLE;
+    }
+
+    return ret;
 }
 
 static void closeInterface(void* vendpoint)
