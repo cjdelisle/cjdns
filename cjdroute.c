@@ -54,7 +54,15 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
+
 #define DEFAULT_TUN_DEV "cjdroute0"
+#define DEFAULT_CONFIG_FILE "/etc/cjdns/cjdroute.conf"
+#define DEFAULT_LOG_FILE "/var/log/cjdroute.log"
+
 
 struct Context
 {
@@ -269,9 +277,59 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
     exit(-1);
 }
 
+// redirect stderr and stdout to logfile
+static int setup_logfile(int log_fd)
+{
+    if (dup2(log_fd, STDOUT_FILENO) == -1) {
+        perror("redirecting stdout to logfile failed");
+        return -1;
+    }
+
+    if (dup2(log_fd, STDERR_FILENO) == -1) {
+        perror("redirecting stderr to logfile failed");
+        return -1;
+    }
+
+    close(log_fd);
+    return 0;
+}
+
+
+// initialize daemon mode
+static int daemon_mode(void)
+{
+    int pid;
+
+    if ((pid = fork()) != 0) {
+        _exit(0);
+    }
+
+    setsid();
+
+    signal(SIGHUP, SIG_IGN);
+    if ((pid = fork()) != 0) {
+        _exit(0);
+    }
+
+    chdir("/");
+    umask(0);
+
+    // close then reopen stdin
+    close(STDIN_FILENO);
+
+    if (open("/dev/null",O_RDONLY) == -1) {
+        perror("error reopening stdin");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] "
+           "[--daemon] [--config-file <file>] [--log-file <file>]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -447,43 +505,119 @@ static int benchmark()
 
 int main(int argc, char** argv)
 {
+    char configfile[1024];
+    char logfile[1024];
+    FILE *config_fd;
+    int  log_fd;
+
+    char flag_pidfile = 0;
+    char flag_reconf = 0;
+    char flag_daemon = 0;
+    char flag_logfile = 0;
+
+
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
     Crypto_init();
     Assert_true(argc > 0);
 
-    if (argc == 2) { // one argument
-        if (strcmp(argv[1], "--help") == 0) {
-            return usage(argv[0]);
-        } else if (strcmp(argv[1], "--genconf") == 0) {
+    // set the default config and logfile
+    strncpy(configfile, DEFAULT_CONFIG_FILE, sizeof(configfile));
+    strncpy(logfile, DEFAULT_LOG_FILE, sizeof(logfile));
+
+    // prase the command-line arguments
+    for (int i = 1; i < argc; i++) {
+
+        // display help
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+            usage(argv[0]);
+        }
+
+        // use another config-file
+        else if (!strcmp(argv[i], "--config-file") || !strcmp(argv[i], "-c")) {
+            if (argc > i + 1) {
+                strncpy(configfile, argv[++i], sizeof(configfile));
+            }
+            else {
+                fprintf(stderr, "--config-file error: no filename given\n");
+                fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                return -1;
+            }
+        }
+
+        // log to a file, instead of stdout
+        else if (!strcmp(argv[i], "--log-file") || !strcmp(argv[i], "-l")) {
+            if (argc > i + 1) {
+                strncpy(logfile, argv[++i], sizeof(logfile));
+                flag_logfile = 1;
+            }
+            else {
+                fprintf(stderr, "--log-file error: no filename given\n");
+                fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+                return -1;
+            }
+        }
+
+        // generate new config file
+        else if (!strcmp(argv[i], "--genconf") || !strcmp(argv[i], "-g")) {
             return genconf();
-        } else if (strcmp(argv[1], "--pidfile") == 0) {
-            // Performed after reading the configuration
-        } else if (strcmp(argv[1], "--reconf") == 0) {
-            // Performed after reading the configuration
-        } else if (strcmp(argv[1], "--bench") == 0) {
+        }
+
+        // pidfile
+        else if (!strcmp(argv[i], "--pidfile") || !strcmp(argv[i], "-p")) {
+            flag_pidfile = 1;
+        }
+
+        // performed after reading the configuration
+        else if (!strcmp(argv[i], "--reconf") || !strcmp(argv[i], "-r")) {
+            flag_reconf = 1;
+        }
+
+        // run benchmark
+        else if (!strcmp(argv[i], "--bench") || !strcmp(argv[i], "-b")) {
             return benchmark();
-        } else {
-            fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+        }
+
+        // fork into background
+        else if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d")) {
+            flag_daemon = 1;
+        }
+
+        // unknown option
+        else {
+            fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[i]);
+            fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
         }
-    } else if (argc >  2) { // more than one argument?
-        fprintf(stderr, "%s: too many arguments\n", argv[0]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+    }
+
+    // open config file
+    if ( (config_fd = fopen(configfile, "r")) == NULL) {
+        fprintf(stderr, "couldn't open configuration file '%s'\n", configfile);
+        perror("error");
         return -1;
     }
 
-    if (isatty(STDIN_FILENO)) {
-        // We were started from a terminal
-        // The chances an user wants to type in a configuration
-        // bij hand are pretty slim so we show him the usage
-        return usage(argv[0]);
-    } else {
-        // We assume stdin is a configuration file and that we should
-        // start routing
+    // open logfile if either --daemon or --log-file is specified
+    if (flag_daemon || flag_logfile) {
+        if ( (log_fd = open(logfile, O_CREAT | O_WRONLY | O_APPEND, 0644)) == -1) {
+            fprintf(stderr, "couldn't open log file '%s'\n", logfile);
+            perror("error");
+            return -1;
+        }
+
+        // fork into background
+        if (flag_daemon) {
+            if (daemon_mode() == -1) {
+                return -1;
+            }
+        }
+        if (setup_logfile(log_fd) == -1) {
+            return -1;
+        }
     }
+
 
     struct Context context;
     memset(&context, 0, sizeof(struct Context));
@@ -491,14 +625,14 @@ int main(int argc, char** argv)
 
     // Allow it to allocate 4MB
     context.allocator = MallocAllocator_new(1<<22);
-    struct Reader* reader = FileReader_new(stdin, context.allocator);
+    struct Reader* reader = FileReader_new(config_fd, context.allocator);
     Dict config;
     if (JsonBencSerializer_get()->parseDictionary(reader, context.allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
 
-    if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
+    if (flag_pidfile) {
         pidfile(&config);
         return 0;
     }
@@ -508,7 +642,7 @@ int main(int argc, char** argv)
     struct Log logger = { .writer = logwriter };
     context.logger = &logger;
 
-    if (argc == 2 && strcmp(argv[1], "--reconf") == 0) {
+    if (flag_reconf) {
         reconf(&context, &config);
         return 0;
     }
@@ -578,6 +712,7 @@ int main(int argc, char** argv)
         fprintf(pf, "%d", getpid());
         fclose(pf);
     }
+
 
     struct sockaddr_storage* adminAddr;
     int adminAddrLen;
