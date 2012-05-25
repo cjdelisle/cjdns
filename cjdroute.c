@@ -326,7 +326,8 @@ static int daemon_mode(void)
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--daemon] [--config-file <file>] [--log-file <file>]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] "
+           "[--daemon] [--config-file <file>] [--log-file <file>]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
