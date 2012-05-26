@@ -35,16 +35,9 @@ struct InterfaceController;
     #define InterfaceController_IMPL DefaultInterfaceController
 #endif
 
-
-#define InterfaceController_insertEndpoint(first, ...) \
-    InterfaceController_FUNC(insertEndpoint, first, __VA_ARGS__)
-
-#define InterfaceController_registerInterface(first, ...) \
-    InterfaceController_FUNC(registerInterface, first, __VA_ARGS__)
-
-#define InterfaceController_FUNC(name, ...) \
-    InterfaceController_MK_FUNCTION(InterfaceController_IMPL, name) (__VA_ARGS__)
-#define InterfaceController_MK_FUNCTION(x, y) InterfaceController_GLUE(x, y)
+#define InterfaceController_FUNC(name) \
+    InterfaceController_FUNC2(InterfaceController_IMPL, name)
+#define InterfaceController_FUNC2(x, y) InterfaceController_GLUE(x, y)
 #define InterfaceController_GLUE(x, y) x ## _ ## y
 
 /**
@@ -61,6 +54,7 @@ struct InterfaceController;
  *           is freed, we would expect all of it's children to deregister.
  * @return -1 if there are no more slots to insert a node, otherwise zero.
  */
+#define InterfaceController_insertEndpoint InterfaceController_FUNC(insertEndpoint)
 int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
                                        uint8_t herPublicKey[32],
                                        String* password,
@@ -74,6 +68,7 @@ int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
  * @param externalInterface the network facing interface to register.
  * @param ic the InterfaceController.
  */
+#define InterfaceController_registerInterface InterfaceController_FUNC(registerInterface)
 void InterfaceController_registerInterface(struct Interface* externalInterface,
                                            struct InterfaceController* ic);
 
