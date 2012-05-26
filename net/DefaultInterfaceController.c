@@ -126,6 +126,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     #ifdef Log_DEBUG
         struct Endpoint* ep = onResponseContext;
         struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
+        // This will be false if it times out.
         //Assert_true(label == ep->switchLabel);
         uint8_t path[20];
         AddrTools_printPath(path, label);
@@ -279,8 +280,10 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
         return ret ? ret : Error_UNDELIVERABLE;
     } else {
+        /* Way way way too much noise
         Log_debug(ic->logger,  "Sending to neighbor, last message from this node was [%u] ms ago.",
                   (now - ep->timeOfLastMessage));
+        */
     }
 
     return Error_NONE;
