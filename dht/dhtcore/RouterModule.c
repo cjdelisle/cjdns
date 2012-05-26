@@ -648,7 +648,7 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
 
     Dict response = Dict_CONST(
         String_CONST("ms"), Int_OBJ(lag), Dict_CONST(
-        String_CONST("result"), String_OBJ(result), (timeout) ? versionDict : NULL
+        String_CONST("result"), String_OBJ(result), (!timeout) ? versionDict : NULL
     ));
 
     Admin_sendMessage(&response, ping->txid, module->admin);
