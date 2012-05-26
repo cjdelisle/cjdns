@@ -642,11 +642,14 @@ static inline void pingResponse(struct RouterModule_Ping* ping,
         version->len = 40;
     }
 
+    Dict versionDict = Dict_CONST(
+        String_CONST("version"), String_OBJ(version), NULL
+    );
+
     Dict response = Dict_CONST(
         String_CONST("ms"), Int_OBJ(lag), Dict_CONST(
-        String_CONST("result"), String_OBJ(result), Dict_CONST(
-        String_CONST("version"), String_OBJ(version), NULL
-    )));
+        String_CONST("result"), String_OBJ(result), (timeout) ? versionDict : NULL
+    ));
 
     Admin_sendMessage(&response, ping->txid, module->admin);
 }
