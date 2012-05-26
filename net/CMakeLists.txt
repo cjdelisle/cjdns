@@ -14,6 +14,7 @@ add_library(cjdnet
     Ducttape.c
     SwitchPinger.c
     SwitchPinger_admin.c
+    DefaultInterfaceController.c
 )
 
 target_link_libraries(cjdnet
@@ -25,5 +26,5 @@ target_link_libraries(cjdnet
 )
 
 
-#enable_testing()
-#add_subdirectory(test)
+enable_testing()
+add_subdirectory(test)

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/CryptoAuth_struct.h"
-#include "interface/InterfaceController.h"
+#include "net/DefaultInterfaceController.h"
 #include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
@@ -167,13 +167,13 @@ static void pingCallback(void* vic)
     }
 }
 
-struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
-                                                    struct SwitchCore* switchCore,
-                                                    struct RouterModule* routerModule,
-                                                    struct Log* logger,
-                                                    struct event_base* eventBase,
-                                                    struct SwitchPinger* switchPinger,
-                                                    struct Allocator* allocator)
+struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
+                                                           struct SwitchCore* switchCore,
+                                                           struct RouterModule* routerModule,
+                                                           struct Log* logger,
+                                                           struct event_base* eventBase,
+                                                           struct SwitchPinger* switchPinger,
+                                                           struct Allocator* allocator)
 {
     struct InterfaceController* out =
         allocator->malloc(sizeof(struct InterfaceController), allocator);
@@ -452,17 +452,19 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return ep->internal.receiveMessage(msg, &ep->internal);
 }
 
-int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                                       uint8_t herPublicKey[32],
-                                       String* password,
-                                       struct Interface* externalInterface,
-                                       struct InterfaceController* ic)
+/** Defined in InterfaceController.h */
+int DefaultInterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
+                                              uint8_t herPublicKey[32],
+                                              String* password,
+                                              struct Interface* externalInterface,
+                                              struct InterfaceController* ic)
 {
     return (insertEndpoint(key, herPublicKey, false, password, externalInterface, ic)) ? 0 : -1;
 }
 
-void InterfaceController_registerInterface(struct Interface* externalInterface,
-                                           struct InterfaceController* ic)
+/** Defined in InterfaceController.h */
+void DefaultInterfaceController_registerInterface(struct Interface* externalInterface,
+                                                  struct InterfaceController* ic)
 {
     externalInterface->receiverContext = ic;
     externalInterface->receiveMessage = receiveMessage;

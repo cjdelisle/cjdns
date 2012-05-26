@@ -31,13 +31,21 @@
 
 struct InterfaceController;
 
-struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
-                                                    struct SwitchCore* switchCore,
-                                                    struct RouterModule* routerModule,
-                                                    struct Log* logger,
-                                                    struct event_base* eventBase,
-                                                    struct SwitchPinger* switchPinger,
-                                                    struct Allocator* allocator);
+#ifndef InterfaceController_IMPL
+    #define InterfaceController_IMPL DefaultInterfaceController
+#endif
+
+
+#define InterfaceController_insertEndpoint(first, ...) \
+    InterfaceController_FUNC(insertEndpoint, first, __VA_ARGS__)
+
+#define InterfaceController_registerInterface(first, ...) \
+    InterfaceController_FUNC(registerInterface, first, __VA_ARGS__)
+
+#define InterfaceController_FUNC(name, ...) \
+    InterfaceController_MK_FUNCTION(InterfaceController_IMPL, name) (__VA_ARGS__)
+#define InterfaceController_MK_FUNCTION(x, y) InterfaceController_GLUE(x, y)
+#define InterfaceController_GLUE(x, y) x ## _ ## y
 
 /**
  * Add a new endpoint.

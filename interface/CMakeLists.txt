@@ -24,11 +24,7 @@ add_library(interface
     ${tunif}
     ${tunconf}
     InterfaceConnector.c
-    InterfaceController.c
     SessionManager.c
 )
 
-target_link_libraries(interface util cjdnet ${LIBEVENT2_LIBRARIES})
-
-enable_testing()
-add_subdirectory(test)
+target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})

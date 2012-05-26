@@ -16,7 +16,7 @@
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/SerializationModule.h"
-#include "interface/InterfaceController.h"
+#include "net/DefaultInterfaceController.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/Log.h"
@@ -166,7 +166,7 @@ int main()
         RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL);
 
     struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, rm, logger, eventBase, NULL, alloc);
+        DefaultInterfaceController_new(ca, switchCore, rm, logger, eventBase, NULL, alloc);
 
     ////////////////////////
 

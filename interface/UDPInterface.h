@@ -18,7 +18,7 @@
 #include <event2/event.h>
 
 #include "interface/Interface.h"
-#include "interface/InterfaceController.h"
+#include "net/InterfaceController.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
 

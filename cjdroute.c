@@ -41,6 +41,7 @@
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
+#include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
@@ -554,13 +555,13 @@ int main(int argc, char** argv)
 
     // Interfaces.
     struct InterfaceController* ifController =
-        InterfaceController_new(context.ca,
-                                context.switchCore,
-                                context.routerModule,
-                                context.logger,
-                                context.base,
-                                sp,
-                                context.allocator);
+        DefaultInterfaceController_new(context.ca,
+                                       context.switchCore,
+                                       context.routerModule,
+                                       context.logger,
+                                       context.base,
+                                       sp,
+                                       context.allocator);
 
     Dict* interfaces = Dict_getDict(&config, String_CONST("interfaces"));
 
