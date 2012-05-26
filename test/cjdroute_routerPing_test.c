@@ -33,7 +33,7 @@ int main()
 {
     char* pingBenc = "d1:q4:ping4:txid4:abcde";
 
-    struct Ducttape* dt = TestFramework_setUp();
+    struct Ducttape_Private* dt = (struct Ducttape_Private*) TestFramework_setUp();
 
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(pingBenc);
@@ -61,19 +61,19 @@ int main()
     // bad checksum
     udp->checksum_be = 1;
     struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
-    Ducttape_injectIncomingForMe(&m, dt, herPublicKey);
+    Ducttape_injectIncomingForMe(&m, &dt->public, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
     struct Message m2 = { .bytes = buff, .length = buffLen, .padding = 0 };
-    Ducttape_injectIncomingForMe(&m2, dt, herPublicKey);
+    Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
         Checksum_udpIp6(ip6->sourceAddr, (uint8_t*) udp, strlen(pingBenc) + Headers_UDPHeader_SIZE);
     struct Message m3 = { .bytes = buff, .length = buffLen, .padding = 0 };
-    Ducttape_injectIncomingForMe(&m3, dt, herPublicKey);
+    Ducttape_injectIncomingForMe(&m3, &dt->public, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
 }

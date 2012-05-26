@@ -16,8 +16,10 @@
 #include "interface/InterfaceController.h"
 #include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
+#include "net/SwitchPinger.h"
 #include "util/Bits.h"
 #include "util/Time.h"
+#include "util/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -27,6 +29,10 @@
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
 #define UNRESPONSIVE_AFTER_MILLISECONDS 10000
+
+#define PING_AFTER_MILLISECONDS 3000
+
+#define PING_INTERVAL 1000
 
 /*--------------------Structs--------------------*/
 
@@ -52,15 +58,15 @@ struct Endpoint
     /** The lookup key for this endpoint (ip/mac address) */
     uint8_t key[InterfaceController_KEY_SIZE];
 
+    /** The label for this endpoint, needed to ping the endpoint. */
+    uint64_t switchLabel;
+
     /**
      * True after the CryptoAuth handshake is completed.
      * This is used to check for a registeration of a node which is already registered in a
      * different switch slot, if there is one and the handshake completes, it will be moved.
      */
     bool authenticated : 1;
-
-    /** If true then the entry will be removed if it sits too long with no incoming message. */
-    bool removeIfExpires : 1;
 
     /**
      * The time of the last incoming message, used to clear out endpoints
@@ -90,30 +96,105 @@ struct InterfaceController
 
     struct event_base* const eventBase;
 
-    /** After this number of milliseconds, a node will be regarded as unresponsive. */
+    /** After this number of milliseconds, a neoghbor will be regarded as unresponsive. */
     uint32_t unresponsiveAfterMilliseconds;
+
+    /** The number of milliseconds to wait before pinging. */
+    uint32_t pingAfterMilliseconds;
+
+    /** The timeout event to use for pinging potentially unresponsive neighbors. */
+    struct Timeout* const pingInterval;
+
+    /** For pinging lazy/unresponsive nodes. */
+    struct SwitchPinger* const switchPinger;
 };
+
+//---------------//
+
+static inline struct InterfaceController* interfaceControllerForEndpoint(struct Endpoint* ep)
+{
+    return ep->internal.senderContext;
+}
+
+static void onPingResponse(enum SwitchPinger_Result result,
+                           uint64_t label,
+                           String* data,
+                           uint32_t millisecondsLag,
+                           void* onResponseContext)
+{
+    // Do nothing, the ping response is handled since it's incoming data.
+    #ifdef Log_DEBUG
+        struct Endpoint* ep = onResponseContext;
+        struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
+        Assert_true(label == ep->switchLabel);
+        uint8_t path[20];
+        AddrTools_printPath(path, label);
+        Log_debug(ic->logger, "Received pong from lazy endpoint [%s]", path);
+    #endif
+}
+
+// Called from the pingInteral timeout.
+static void pingCallback(void* vic)
+{
+    struct InterfaceController* ic = vic;
+    uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+
+    // scan for endpoints have not sent anything recently.
+    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
+        struct Endpoint* ep = &ic->endpoints[i];
+        if (ep->external != NULL && now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+            uint8_t path[20];
+            AddrTools_printPath(path, ep->switchLabel);
+            if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
+                // Lets skip 75% of pings when they're really down.
+                if (now % 4) {
+                    continue;
+                }
+                Log_debug(ic->logger, "Pinging unresponsive neighbor [%s].", path);
+            } else {
+                Log_debug(ic->logger, "Pinging lazy neighbor [%s].", path);
+            }
+
+            struct SwitchPinger_Ping* ping =
+                SwitchPinger_ping(ep->switchLabel,
+                                  String_CONST(""),
+                                  0,
+                                  onPingResponse,
+                                  ic->switchPinger);
+
+            ping->onResponseContext = ep;
+        }
+    }
+}
 
 struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct SwitchCore* switchCore,
                                                     struct RouterModule* routerModule,
                                                     struct Log* logger,
                                                     struct event_base* eventBase,
+                                                    struct SwitchPinger* switchPinger,
                                                     struct Allocator* allocator)
 {
-    return allocator->clone(sizeof(struct InterfaceController),
-                            allocator,
-                            &(struct InterfaceController)
-        {
-            .imap = InterfaceMap_new(InterfaceController_KEY_SIZE, allocator),
-            .allocator = allocator,
-            .ca = ca,
-            .switchCore = switchCore,
-            .routerModule = routerModule,
-            .logger = logger,
-            .eventBase = eventBase,
-            .unresponsiveAfterMilliseconds = UNRESPONSIVE_AFTER_MILLISECONDS
-        });
+    struct InterfaceController* out =
+        allocator->malloc(sizeof(struct InterfaceController), allocator);
+    Bits_memcpyConst(out, (&(struct InterfaceController) {
+        .imap = InterfaceMap_new(InterfaceController_KEY_SIZE, allocator),
+        .allocator = allocator,
+        .ca = ca,
+        .switchCore = switchCore,
+        .routerModule = routerModule,
+        .logger = logger,
+        .eventBase = eventBase,
+        .switchPinger = switchPinger,
+        .unresponsiveAfterMilliseconds = UNRESPONSIVE_AFTER_MILLISECONDS,
+        .pingAfterMilliseconds = PING_AFTER_MILLISECONDS,
+
+        .pingInterval = (switchPinger)
+            ? Timeout_setInterval(pingCallback, out, PING_INTERVAL, eventBase, allocator)
+            : NULL
+
+    }), sizeof(struct InterfaceController));
+    return out;
 }
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
@@ -121,14 +202,8 @@ static inline struct Endpoint* endpointForInternalInterface(struct Interface* if
     return (struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal));
 }
 
-static inline struct InterfaceController* interfaceControllerForEndpoint(struct Endpoint* ep)
-{
-    return ep->internal.senderContext;
-}
-
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
-static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
-                                                    struct InterfaceController* ic)
+static void moveEndpointIfNeeded(struct Endpoint* ep, struct InterfaceController* ic)
 {
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
@@ -147,13 +222,12 @@ static inline struct Endpoint* moveEndpointIfNeeded(struct Endpoint* ep,
         if (!memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
+            ep->switchLabel = thisEp->switchLabel;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
             thisEp->internal.allocator->free(thisEp->internal.allocator);
-
-            return ep;
+            return;
         }
     }
-    return ep;
 }
 
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
@@ -165,7 +239,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     ep->timeOfLastMessage = Time_currentTimeSeconds(ic->eventBase);
     if (!ep->authenticated) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
-            ep = moveEndpointIfNeeded(ep, ic);
+            moveEndpointIfNeeded(ep, ic);
             ep->authenticated = true;
         }
     }
@@ -326,6 +400,8 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.path, ic->switchCore)) {
         return NULL;
     }
+
+    ep->switchLabel = addr.path;
 
     authedIf->receiveMessage = receivedAfterCryptoAuth;
     authedIf->receiverContext = ep;

@@ -41,6 +41,8 @@
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
+#include "net/SwitchPinger.h"
+#include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
@@ -535,6 +537,21 @@ int main(int argc, char** argv)
 
     SerializationModule_register(context.registry, context.allocator);
 
+    struct Ducttape* dt = Ducttape_register(&config,
+                                            privateKey,
+                                            context.registry,
+                                            context.routerModule,
+                                            context.tunInterface,
+                                            context.switchCore,
+                                            context.base,
+                                            context.allocator,
+                                            context.logger,
+                                            context.admin);
+
+    struct SwitchPinger* sp =
+        SwitchPinger_new(&dt->switchPingerIf, context.base, context.logger, context.allocator);
+    SwitchPinger_admin_register(sp, context.admin, context.allocator);
+
     // Interfaces.
     struct InterfaceController* ifController =
         InterfaceController_new(context.ca,
@@ -542,6 +559,7 @@ int main(int argc, char** argv)
                                 context.routerModule,
                                 context.logger,
                                 context.base,
+                                sp,
                                 context.allocator);
 
     Dict* interfaces = Dict_getDict(&config, String_CONST("interfaces"));
@@ -590,17 +608,6 @@ int main(int argc, char** argv)
                         context.base,
                         &logger,
                         context.allocator);
-
-    Ducttape_register(&config,
-                      privateKey,
-                      context.registry,
-                      context.routerModule,
-                      context.tunInterface,
-                      context.switchCore,
-                      context.base,
-                      context.allocator,
-                      context.logger,
-                      context.admin);
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

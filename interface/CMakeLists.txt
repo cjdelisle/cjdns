@@ -28,7 +28,7 @@ add_library(interface
     SessionManager.c
 )
 
-target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})
+target_link_libraries(interface util cjdnet ${LIBEVENT2_LIBRARIES})
 
 enable_testing()
 add_subdirectory(test)

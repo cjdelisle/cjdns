@@ -166,7 +166,7 @@ int main()
         RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL);
 
     struct InterfaceController* ifController =
-        InterfaceController_new(ca, switchCore, rm, logger, eventBase, alloc);
+        InterfaceController_new(ca, switchCore, rm, logger, eventBase, NULL, alloc);
 
     ////////////////////////
 

@@ -23,7 +23,10 @@
 
 #include <event2/event.h>
 
-struct Ducttape;
+struct Ducttape
+{
+    struct Interface switchPingerIf;
+};
 
 struct Ducttape* Ducttape_register(Dict* config,
                                    uint8_t privateKey[32],

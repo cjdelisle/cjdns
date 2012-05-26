@@ -35,8 +35,11 @@
  * and send the message toward the DHT core.
  */
 
-struct Ducttape
+struct Ducttape_Private
 {
+    /** the public fields. */
+    struct Ducttape public;
+
     /** The network module for the DHT. */
     struct DHTModule module;
 

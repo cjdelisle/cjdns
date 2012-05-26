@@ -20,6 +20,7 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
+#include "net/SwitchPinger.h"
 #include "util/Log.h"
 
 #include <stdint.h>
@@ -35,6 +36,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
                                                     struct RouterModule* routerModule,
                                                     struct Log* logger,
                                                     struct event_base* eventBase,
+                                                    struct SwitchPinger* switchPinger,
                                                     struct Allocator* allocator);
 
 /**

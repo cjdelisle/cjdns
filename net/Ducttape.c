@@ -29,8 +29,6 @@
 #include "memory/BufferAllocator.h"
 #include "net/Ducttape.h"
 #include "net/Ducttape_struct.h"
-#include "net/SwitchPinger.h"
-#include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
 #include "util/checksum/Checksum.h"
@@ -68,7 +66,7 @@ static void outOfMemory(void* towel)
 
 static inline uint8_t incomingDHT(struct Message* message,
                                   struct Address* addr,
-                                  struct Ducttape* context)
+                                  struct Ducttape_Private* context)
 {
     struct DHTMessage dht;
     memset(&dht, 0, sizeof(struct DHTMessage));
@@ -97,7 +95,7 @@ static inline uint8_t incomingDHT(struct Message* message,
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
 static inline uint8_t sendToRouter(struct Address* sendTo,
                                    struct Message* message,
-                                   struct Ducttape* context)
+                                   struct Ducttape_Private* context)
 {
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
@@ -119,7 +117,7 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
 static int handleOutgoing(struct DHTMessage* dmessage,
                           void* vcontext)
 {
-    struct Ducttape* context = (struct Ducttape*) vcontext;
+    struct Ducttape_Private* context = (struct Ducttape_Private*) vcontext;
 
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
@@ -182,7 +180,7 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  * this is called from core() which calls through an interfaceMap.
  */
 static inline uint8_t incomingForMe(struct Message* message,
-                                    struct Ducttape* context,
+                                    struct Ducttape_Private* context,
                                     uint8_t herPubKey[32])
 {
     struct Address addr;
@@ -267,9 +265,10 @@ static inline uint8_t incomingForMe(struct Message* message,
 }
 
 uint8_t Ducttape_injectIncomingForMe(struct Message* message,
-                                     struct Ducttape* context,
+                                     struct Ducttape* dt,
                                      uint8_t herPublicKey[32])
 {
+    struct Ducttape_Private* context = (struct Ducttape_Private*) dt;
     struct Headers_SwitchHeader sh;
     Bits_memcpyConst(&sh, message->bytes, Headers_SwitchHeader_SIZE);
     context->switchHeader = &sh;
@@ -289,7 +288,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
  */
 static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
-                                   struct Ducttape* context)
+                                   struct Ducttape_Private* context)
 {
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
@@ -311,7 +310,7 @@ static inline bool validEncryptedIP6(struct Message* message)
         && header->destinationAddr[0] == 0xFC;
 }
 
-static inline bool isForMe(struct Message* message, struct Ducttape* context)
+static inline bool isForMe(struct Message* message, struct Ducttape_Private* context)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     return (memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
@@ -321,7 +320,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape* context)
 static inline uint8_t ip6FromTun(struct Message* message,
                                  struct Interface* interface)
 {
-    struct Ducttape* context = (struct Ducttape*) interface->receiverContext;
+    struct Ducttape_Private* context = (struct Ducttape_Private*) interface->receiverContext;
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
@@ -373,7 +372,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
  * they may come from us, or from another node and may be to us or to any other node.
  * Message is aligned on the beginning of the ipv6 header.
  */
-static inline int core(struct Message* message, struct Ducttape* context)
+static inline int core(struct Message* message, struct Ducttape_Private* context)
 {
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
@@ -445,7 +444,7 @@ static inline int core(struct Message* message, struct Ducttape* context)
  * for the content level crypto then it goes to outgoingFromCryptoAuth then comes here.
  * Message is aligned on the beginning of the crypto header, ip6 header must be reapplied.
  */
-static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* context)
+static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_Private* context)
 {
     // Need to set the length field to take into account
     // the crypto headers which are hidden under the ipv6 packet.
@@ -472,7 +471,7 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape* c
     return core(message, context);
 }
 
-static inline int incomingFromRouter(struct Message* message, struct Ducttape* context)
+static inline int incomingFromRouter(struct Message* message, struct Ducttape_Private* context)
 {
     if (!validEncryptedIP6(message)) {
         Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
@@ -485,7 +484,7 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape* c
 
 static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape* context = iface->receiverContext;
+    struct Ducttape_Private* context = iface->receiverContext;
     int layer = context->layer;
     context->layer = INVALID_LAYER;
     if (layer == INNER_LAYER) {
@@ -499,7 +498,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
 
 static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape* context = (struct Ducttape*) iface->senderContext;
+    struct Ducttape_Private* context = (struct Ducttape_Private*) iface->senderContext;
     int layer = context->layer;
     context->layer = INVALID_LAYER;
     if (layer == INNER_LAYER) {
@@ -537,7 +536,7 @@ static inline uint8_t* extractPublicKey(struct Message* message,
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-    struct Ducttape* context = switchIf->senderContext;
+    struct Ducttape_Private* context = switchIf->senderContext;
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
 
@@ -620,10 +619,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                       labelStr, Endian_bigEndianToHost16(ctrl->type_be));
         }
 
-        if (pong) {
+        if (pong && context->public.switchPingerIf.receiveMessage) {
             // Shift back over the header
             Message_shift(message, Headers_SwitchHeader_SIZE);
-            context->switchPingerIf->receiveMessage(message, context->switchPingerIf);
+            context->public.switchPingerIf.receiveMessage(
+                message, &context->public.switchPingerIf);
         }
         return Error_NONE;
     }
@@ -681,7 +681,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
 static uint8_t incomingFromPinger(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape* context = iface->senderContext;
+    struct Ducttape_Private* context = iface->senderContext;
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
@@ -696,7 +696,8 @@ struct Ducttape* Ducttape_register(Dict* config,
                                    struct Log* logger,
                                    struct Admin* admin)
 {
-    struct Ducttape* context = allocator->calloc(sizeof(struct Ducttape), 1, allocator);
+    struct Ducttape_Private* context =
+        allocator->calloc(sizeof(struct Ducttape_Private), 1, allocator);
     context->registry = registry;
     context->routerModule = routerModule;
     context->logger = logger;
@@ -740,15 +741,11 @@ struct Ducttape* Ducttape_register(Dict* config,
         return NULL;
     }
 
-    // setup the switch pinger.
-    context->switchPingerIf =
-        allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
-            .sendMessage = incomingFromPinger,
-            .senderContext = context
-        });
-    struct SwitchPinger* sp =
-        SwitchPinger_new(context->switchPingerIf, eventBase, logger, allocator);
-    SwitchPinger_admin_register(sp, admin, allocator);
+    // setup the switch pinger interface.
+    Bits_memcpyConst(&context->public.switchPingerIf, (&(struct Interface) {
+        .sendMessage = incomingFromPinger,
+        .senderContext = context
+    }), sizeof(struct Interface));
 
-    return context;
+    return &context->public;
 }
