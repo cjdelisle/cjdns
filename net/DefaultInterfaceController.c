@@ -453,18 +453,19 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 }
 
 /** Defined in InterfaceController.h */
-int DefaultInterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                                              uint8_t herPublicKey[32],
-                                              String* password,
-                                              struct Interface* externalInterface,
-                                              struct InterfaceController* ic)
+int InterfaceController_insertEndpoint( // CHECKFILES_IGNORE
+    uint8_t key[InterfaceController_KEY_SIZE],
+    uint8_t herPublicKey[32],
+    String* password,
+    struct Interface* externalInterface,
+    struct InterfaceController* ic)
 {
     return (insertEndpoint(key, herPublicKey, false, password, externalInterface, ic)) ? 0 : -1;
 }
 
 /** Defined in InterfaceController.h */
-void DefaultInterfaceController_registerInterface(struct Interface* externalInterface,
-                                                  struct InterfaceController* ic)
+void InterfaceController_registerInterface(struct Interface* externalInterface, // CHECKFILES_IGNORE
+                                           struct InterfaceController* ic)
 {
     externalInterface->receiverContext = ic;
     externalInterface->receiveMessage = receiveMessage;

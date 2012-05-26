@@ -35,10 +35,6 @@ struct InterfaceController;
     #define InterfaceController_IMPL DefaultInterfaceController
 #endif
 
-#define InterfaceController_FUNC(name) InterfaceController_FUNC2(InterfaceController_IMPL, name)
-#define InterfaceController_FUNC2(x, y) InterfaceController_GLUE(x, y)
-#define InterfaceController_GLUE(x, y) x ## _ ## y
-
 /**
  * Add a new endpoint.
  * Called from the network interface when it is asked to make a connection or it autoconnects.
@@ -53,7 +49,6 @@ struct InterfaceController;
  *           is freed, we would expect all of it's children to deregister.
  * @return -1 if there are no more slots to insert a node, otherwise zero.
  */
-#define InterfaceController_insertEndpoint InterfaceController_FUNC(insertEndpoint)
 int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
                                        uint8_t herPublicKey[32],
                                        String* password,
@@ -67,7 +62,6 @@ int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
  * @param externalInterface the network facing interface to register.
  * @param ic the InterfaceController.
  */
-#define InterfaceController_registerInterface InterfaceController_FUNC(registerInterface)
 void InterfaceController_registerInterface(struct Interface* externalInterface,
                                            struct InterfaceController* ic);
 
