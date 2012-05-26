@@ -44,37 +44,37 @@ static void add(Dict* args, void* vcontext, String* txid)
 
     String* passwd = Dict_getString(args, String_CONST("password"));
     int64_t* authType = Dict_getInt(args, String_CONST("authType"));
-
-    if (!(passwd && authType)) {
-        sendResponse(String_CONST("Must specify authType, and password."), context->admin, txid);
+    int64_t one = 1;
+    if (!authType) {
+        authType = &one;
     } else if (*authType < 1 || *authType > 255) {
-        sendResponse(String_CONST("Auth must be between 1 and 255 inclusive."),
-                     context->admin, txid);
-    } else {
-        struct User* u = context->allocator->malloc(sizeof(struct User), context->allocator);
-        // At some point this will be implemented...
-        u->trust = 0;
-        int32_t ret = CryptoAuth_addUser(passwd, *authType, u, context->ca);
+        sendResponse(String_CONST("Specified auth type is not supported."), context->admin, txid);
+        return;
+    }
 
-        switch (ret) {
-            case 0:
-                sendResponse(String_CONST("none"), context->admin, txid);
-                break;
-            case CryptoAuth_addUser_INVALID_AUTHTYPE:
-                sendResponse(String_CONST("Specified auth type is not supported."),
-                             context->admin,
-                             txid);
-                break;
-            case CryptoAuth_addUser_OUT_OF_SPACE:
-                sendResponse(String_CONST("Out of memory to store password."),
-                             context->admin, txid);
-                break;
-            case CryptoAuth_addUser_DUPLICATE:
-                sendResponse(String_CONST("Password already added."), context->admin, txid);
-                break;
-            default:
-                sendResponse(String_CONST("Unknown error."), context->admin, txid);
-        };
+    struct User* u = context->allocator->malloc(sizeof(struct User), context->allocator);
+    // At some point this will be implemented...
+    u->trust = 0;
+    int32_t ret = CryptoAuth_addUser(passwd, *authType, u, context->ca);
+
+    switch (ret) {
+        case 0:
+            sendResponse(String_CONST("none"), context->admin, txid);
+            break;
+        case CryptoAuth_addUser_INVALID_AUTHTYPE:
+            sendResponse(String_CONST("Specified auth type is not supported."),
+                         context->admin,
+                         txid);
+            break;
+        case CryptoAuth_addUser_OUT_OF_SPACE:
+            sendResponse(String_CONST("Out of memory to store password."),
+                         context->admin, txid);
+            break;
+        case CryptoAuth_addUser_DUPLICATE:
+            sendResponse(String_CONST("Password already added."), context->admin, txid);
+            break;
+        default:
+            sendResponse(String_CONST("Unknown error."), context->admin, txid);
     }
 }
 
