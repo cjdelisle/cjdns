@@ -35,8 +35,7 @@ struct InterfaceController;
     #define InterfaceController_IMPL DefaultInterfaceController
 #endif
 
-#define InterfaceController_FUNC(name) \
-    InterfaceController_FUNC2(InterfaceController_IMPL, name)
+#define InterfaceController_FUNC(name) InterfaceController_FUNC2(InterfaceController_IMPL, name)
 #define InterfaceController_FUNC2(x, y) InterfaceController_GLUE(x, y)
 #define InterfaceController_GLUE(x, y) x ## _ ## y
 
