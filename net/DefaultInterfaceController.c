@@ -69,7 +69,7 @@ struct Endpoint
     bool authenticated : 1;
 
     /**
-     * The time of the last incoming message, used to clear out endpoints
+     * The time of the last incoming message in milliseconds, used to clear out endpoints
      * if they are not responsive.
      */
     uint32_t timeOfLastMessage;
@@ -126,10 +126,13 @@ static void onPingResponse(enum SwitchPinger_Result result,
     #ifdef Log_DEBUG
         struct Endpoint* ep = onResponseContext;
         struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
-        Assert_true(label == ep->switchLabel);
+        //Assert_true(label == ep->switchLabel);
         uint8_t path[20];
         AddrTools_printPath(path, label);
-        Log_debug(ic->logger, "Received pong from lazy endpoint [%s]", path);
+        uint8_t sl[20];
+        AddrTools_printPath(sl, ep->switchLabel);
+        Log_debug(ic->logger, "Received [%s] from lazy endpoint [%s]  [%s]",
+                  SwitchPinger_resultString(result)->bytes, path, sl);
     #endif
 }
 
@@ -236,7 +239,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     struct Endpoint* ep = cryptoAuthIf->receiverContext;
     struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
 
-    ep->timeOfLastMessage = Time_currentTimeSeconds(ic->eventBase);
+    ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
     if (!ep->authenticated) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep, ic);
@@ -254,17 +257,33 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     Assert_true(ep->switchIf.senderContext == ep);
     Assert_true(ep->internal.sendMessage);
 
+    // This sucks but cryptoauth trashes the content when it encrypts
+    // and we need to be capable of sending back a coherent error message.
+    uint8_t top[255];
+    uint8_t* messageBytes = msg->bytes;
+    uint16_t padding = msg->padding;
+    uint16_t len = (msg->length < 255) ? msg->length : 255;
+    Bits_memcpy(top, msg->bytes, len);
+
     uint8_t ret = ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
 
     // If this node is unresponsive then return an error.
     struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
-    if (Time_currentTimeSeconds(ic->eventBase) - ep->timeOfLastMessage >
-        ic->unresponsiveAfterMilliseconds)
+    uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
     {
-        return Error_UNDELIVERABLE;
+        msg->bytes = messageBytes;
+        msg->padding = padding;
+        msg->length = len;
+        Bits_memcpy(msg->bytes, top, len);
+
+        return ret ? ret : Error_UNDELIVERABLE;
+    } else {
+        Log_debug(ic->logger,  "Sending to neighbor, last message from this node was [%u] ms ago.",
+                  (now - ep->timeOfLastMessage));
     }
 
-    return ret;
+    return Error_NONE;
 }
 
 static void closeInterface(void* vendpoint)
