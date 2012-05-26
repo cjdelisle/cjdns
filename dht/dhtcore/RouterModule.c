@@ -297,6 +297,9 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
             err = "parsing address failed";
         } else {
             n = RouterModule_lookup(addr.ip6.bytes, router);
+            if (n && memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
+                n = NULL;
+            }
         }
     } else {
         err = "Unexpected length, must be either 39 char ipv6 address (with leading zeros) "
@@ -305,7 +308,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
     }
 
     if (!err) {
-        if (!n || memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
+        if (!n) {
             err = "could not find node to ping";
         } else if (RouterModule_pingNode(n, router, timeout, txid)) {
             err = "no open slots to store ping, try later.";
