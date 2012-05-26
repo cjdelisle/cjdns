@@ -47,8 +47,12 @@ struct InterfaceController;
  *           will be used for the endpoint because we want to be able to free a single
  *           endpoint without freeing the whole network interface but if the network interface
  *           is freed, we would expect all of it's children to deregister.
- * @return -1 if there are no more slots to insert a node, otherwise zero.
+ * @return 0 if all goes well.
+ *     InterfaceController_registerInterface_BAD_KEY if the key is not a valid cjdns key.
+ *     InterfaceController_registerInterface_OUT_OF_SPACE if there is no space to store the entry.
  */
+#define InterfaceController_registerInterface_OUT_OF_SPACE -1
+#define InterfaceController_registerInterface_BAD_KEY -2
 int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
                                        uint8_t herPublicKey[32],
                                        String* password,

@@ -51,8 +51,18 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
  * @param cryptoKey the node's public key, this is required to send it traffic.
  * @param password if specified, the password for authenticating with the other node.
  * @param udpif the UDP interface.
- * @return 0 on success and -1 if there is no free switch slot.
+ * @return 0 on success
+ *     UDPInterface_beginConnection_OUT_OF_SPACE if there is no space to store the entry.
+ *     UDPInterface_beginConnection_BAD_KEY invalid (non-cjdns) cryptoKey
+ *     UDPInterface_beginConnection_BAD_ADDRESS failed to parse ip address and port.
+ *     UDPInterface_beginConnection_ADDRESS_MISMATCH address not same protocol as UDP socket.
+ *     UDPInterface_beginConnection_UNKNOWN_ERROR something failed in InterfaceController.
  */
+#define UDPInterface_beginConnection_OUT_OF_SPACE -1
+#define UDPInterface_beginConnection_BAD_KEY -2
+#define UDPInterface_beginConnection_BAD_ADDRESS -3
+#define UDPInterface_beginConnection_ADDRESS_MISMATCH -4
+#define UDPInterface_beginConnection_UNKNOWN_ERROR -5
 int UDPInterface_beginConnection(const char* address,
                                  uint8_t cryptoKey[32],
                                  String* password,

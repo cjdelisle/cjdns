@@ -368,6 +368,10 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
                                        struct Interface* externalInterface,
                                        struct InterfaceController* ic)
 {
+    if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
+        return NULL;
+    }
+
     // scan for an unused endpoint slot.
     struct Endpoint* ep = NULL;
     for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
@@ -482,7 +486,15 @@ int InterfaceController_insertEndpoint( // CHECKFILES_IGNORE
     struct Interface* externalInterface,
     struct InterfaceController* ic)
 {
-    return (insertEndpoint(key, herPublicKey, false, password, externalInterface, ic)) ? 0 : -1;
+    struct Endpoint* ep =
+        insertEndpoint(key, herPublicKey, false, password, externalInterface, ic);
+    if (!ep) {
+        if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
+            return InterfaceController_registerInterface_BAD_KEY;
+        }
+        return InterfaceController_registerInterface_OUT_OF_SPACE;
+    }
+    return 0;
 }
 
 /** Defined in InterfaceController.h */

@@ -217,16 +217,29 @@ int UDPInterface_beginConnection(const char* address,
     ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
     memset(&addr, 0, addrLen);
     if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, (int*) &addrLen)) {
-        return -2;
+        return UDPInterface_beginConnection_BAD_ADDRESS;
     }
     if (addrLen != udpif->addrLen) {
-        return -3;
+        return UDPInterface_beginConnection_ADDRESS_MISMATCH;
     }
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    return
+    int ret =
         InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    switch(ret) {
+        case 0:
+            return 0;
+
+        case InterfaceController_registerInterface_BAD_KEY:
+            return UDPInterface_beginConnection_BAD_KEY;
+
+        case InterfaceController_registerInterface_OUT_OF_SPACE:
+            return UDPInterface_beginConnection_OUT_OF_SPACE;
+
+        default:
+            return UDPInterface_beginConnection_UNKNOWN_ERROR;
+    }
 }
 
 static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
@@ -248,13 +261,16 @@ static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
 
     } else {
         switch (UDPInterface_beginConnection(address->bytes, pkBytes, password, udpif)) {
-            case -1:
+            case UDPInterface_beginConnection_OUT_OF_SPACE:
                 error = String_CONST("no more space to register with the switch.");
                 break;
-            case -2:
+            case UDPInterface_beginConnection_BAD_KEY:
+                error = String_CONST("invalid cjdns public key.");
+                break;
+            case UDPInterface_beginConnection_BAD_ADDRESS:
                 error = String_CONST("unable to parse ip address and port.");
                 break;
-            case -3:
+            case UDPInterface_beginConnection_ADDRESS_MISMATCH:
                 error = String_CONST("different address type than this socket is bound to.");
                 break;
             case 0:

@@ -63,12 +63,10 @@ static void add(Dict* args, void* vcontext, String* txid)
             break;
         case CryptoAuth_addUser_INVALID_AUTHTYPE:
             sendResponse(String_CONST("Specified auth type is not supported."),
-                         context->admin,
-                         txid);
+                         context->admin, txid);
             break;
         case CryptoAuth_addUser_OUT_OF_SPACE:
-            sendResponse(String_CONST("Out of memory to store password."),
-                         context->admin, txid);
+            sendResponse(String_CONST("Out of memory to store password."), context->admin, txid);
             break;
         case CryptoAuth_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid);
