@@ -34,6 +34,8 @@
 
 #define PING_INTERVAL 1000
 
+#define TIMEOUT_MILLISECONDS 2000
+
 /*--------------------Structs--------------------*/
 
 struct Endpoint
@@ -102,6 +104,9 @@ struct InterfaceController
     /** The number of milliseconds to wait before pinging. */
     uint32_t pingAfterMilliseconds;
 
+    /** The number of milliseconds to let a ping go before timing it out. */
+    uint32_t timeoutMilliseconds;
+
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -125,7 +130,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
                            uint32_t millisecondsLag,
                            void* onResponseContext)
 {
-    if (SwitchPinger_Result_TIMEOUT == result) {
+    if (SwitchPinger_Result_OK != result) {
         return;
     }
     struct Endpoint* ep = onResponseContext;
@@ -174,7 +179,7 @@ static void pingCallback(void* vic)
             struct SwitchPinger_Ping* ping =
                 SwitchPinger_ping(ep->switchLabel,
                                   String_CONST(""),
-                                  0,
+                                  ic->timeoutMilliseconds,
                                   onPingResponse,
                                   ic->switchPinger);
 
@@ -204,6 +209,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .switchPinger = switchPinger,
         .unresponsiveAfterMilliseconds = UNRESPONSIVE_AFTER_MILLISECONDS,
         .pingAfterMilliseconds = PING_AFTER_MILLISECONDS,
+        .timeoutMilliseconds = TIMEOUT_MILLISECONDS,
 
         .pingInterval = (switchPinger)
             ? Timeout_setInterval(pingCallback, out, PING_INTERVAL, eventBase, allocator)
