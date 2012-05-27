@@ -565,10 +565,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
     uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
-    uint64_t whenToReset =
-        (uint64_t) wrapper->timeOfLastPacket + wrapper->context->resetAfterInactivitySeconds;
-    if (nowSecs > whenToReset) {
-        Log_debug(wrapper->context->logger, "No traffic in a while, resetting connection.\n");
+
+    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->resetAfterInactivitySeconds) {
+        Log_debug(wrapper->context->logger, "No traffic in [%d] seconds, resetting connection.",
+                  (int) (nowSecs - wrapper->timeOfLastPacket));
+
         wrapper->timeOfLastPacket = nowSecs;
         CryptoAuth_reset(interface);
         return encryptHandshake(message, wrapper);
