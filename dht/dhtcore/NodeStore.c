@@ -412,9 +412,12 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store)
     #endif
 
     store->size--;
-    Bits_memcpyConst(node, &store->nodes[store->size], sizeof(struct Node));
-    struct NodeHeader* header = &store->headers[node - store->nodes];
-    Bits_memcpyConst(header, &store->headers[store->size], sizeof(struct NodeHeader));
+
+    if (node != &store->nodes[store->size]) {
+        Bits_memcpyConst(node, &store->nodes[store->size], sizeof(struct Node));
+        struct NodeHeader* header = &store->headers[node - store->nodes];
+        Bits_memcpyConst(header, &store->headers[store->size], sizeof(struct NodeHeader));
+    }
 
     // This is needed because otherwise replaceNode will cause the labelSum to skew.
     store->nodes[store->size].address.path = 0;
@@ -425,7 +428,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
     int out = 0;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
-            store->headers[i].reach = 0;
+            NodeStore_remove(&store->nodes[i], store);
             out++;
         }
     }

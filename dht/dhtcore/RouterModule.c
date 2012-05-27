@@ -1032,6 +1032,11 @@ int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
     return NodeStore_brokenPath(path, module->nodeStore);
 }
 
+static uint32_t reachAfterPingTimeout(const uint32_t oldReach)
+{
+    return oldReach / 32;
+}
+
 static void pingTimeoutCallback(void* vping)
 {
     struct RouterModule_Ping* ping = (struct RouterModule_Ping*) vping;
@@ -1044,10 +1049,10 @@ static void pingTimeoutCallback(void* vping)
                 Address_print(addr, &ping->node->address);
                 Log_debug(module->logger, "Ping timeout %s\n", addr);
             #endif
-            // If this node has already been invalidated by another ping timeout then
-            // it's addr is 0 and calling brokenpath on it flushes one-hop nodes out.
+            // If this node has been flushed by a brokenPath call then it's path is 0
             if (ping->node->address.path != 0) {
-                RouterModule_brokenPath(ping->node->address.path, module);
+                ping->node->reach = reachAfterPingTimeout(ping->node->reach);
+                NodeStore_updateReach(ping->node, module->nodeStore);
             }
             module->pings[i] = NULL;
             break;

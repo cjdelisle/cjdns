@@ -107,6 +107,9 @@ struct InterfaceController
 
     /** For pinging lazy/unresponsive nodes. */
     struct SwitchPinger* const switchPinger;
+
+    /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
+    uint32_t pingCount;
 };
 
 //---------------//
@@ -122,10 +125,18 @@ static void onPingResponse(enum SwitchPinger_Result result,
                            uint32_t millisecondsLag,
                            void* onResponseContext)
 {
-    // Do nothing, the ping response is handled since it's incoming data.
+    if (SwitchPinger_Result_TIMEOUT == result) {
+        return;
+    }
+    struct Endpoint* ep = onResponseContext;
+    struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
+    struct Address addr;
+    memset(&addr, 0, sizeof(struct Address));
+    Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+    addr.path = ep->switchLabel;
+    RouterModule_addNode(&addr, ic->routerModule);
+
     #ifdef Log_DEBUG
-        struct Endpoint* ep = onResponseContext;
-        struct InterfaceController* ic = interfaceControllerForEndpoint(ep);
         // This will be false if it times out.
         //Assert_true(label == ep->switchLabel);
         uint8_t path[20];
@@ -142,6 +153,7 @@ static void pingCallback(void* vic)
 {
     struct InterfaceController* ic = vic;
     uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
     for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
@@ -150,8 +162,8 @@ static void pingCallback(void* vic)
             uint8_t path[20];
             AddrTools_printPath(path, ep->switchLabel);
             if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
-                // Lets skip 75% of pings when they're really down.
-                if (now % 4) {
+                // Lets skip 87% of pings when they're really down.
+                if (ic->pingCount % 8) {
                     continue;
                 }
                 Log_debug(ic->logger, "Pinging unresponsive neighbor [%s].", path);
@@ -245,6 +257,11 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep, ic);
             ep->authenticated = true;
+        } else {
+            // prevent some kinds of nasty things which could be done with packet replay.
+            if (msg->length < 8 || memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
+                Log_info(ic->logger, "Dropping message because CA is not established.");
+            }
         }
     }
 

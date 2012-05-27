@@ -72,6 +72,17 @@ static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
 
+    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
+
+    if (NodeStore_size(janitor->nodeStore) == 0) {
+        if (now > janitor->timeOfNextGlobalMaintainence) {
+            Log_warn(janitor->routerModule->logger,
+                     "No nodes in routing table, check network connection and configuration.");
+            janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
+        }
+        return;
+    }
+
     struct Address targetAddr;
 
     // Ping a random node.
@@ -108,8 +119,6 @@ static void maintanenceCycle(void* vcontext)
         return;
     }
 
-    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
-
     #ifdef Log_DEBUG
         uint32_t nonZeroNodes = 0;
         for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
@@ -120,10 +129,12 @@ static void maintanenceCycle(void* vcontext)
                    (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
                    (unsigned int) nonZeroNodes);
 
+        /* Accessible via admin interface.
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
         Log_debug(janitor->routerModule->logger,
                    "Using %u bytes of memory.\n",
                    (unsigned int) bytes);
+        */
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
@@ -155,7 +166,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                                            allocator);
 
     janitor->globalMaintainenceMilliseconds = globalMaintainenceMilliseconds;
-    janitor->timeOfNextGlobalMaintainence = now + globalMaintainenceMilliseconds;
+    janitor->timeOfNextGlobalMaintainence = now;
     janitor->allocator = allocator;
     return janitor;
 }
