@@ -164,7 +164,7 @@ target_link_libraries(cjdroute
     ${PLATFORM_LIBRARIES}
 )
 
-install_targets(/bin cjdroute)
+INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 
 OPTION(NO_CODESYTLE "No codestyle checks")
 
