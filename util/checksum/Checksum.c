@@ -33,6 +33,7 @@
 
 uint16_t Checksum_engine(const uint8_t* buffer, uint16_t length)
 {
+    Assert_true(!((uintptr_t)buffer % 2));
     return COMPLETE(STEP(buffer, length, 0));
 }
 

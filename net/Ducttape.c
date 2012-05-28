@@ -611,6 +611,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             pong = true;
         } else if (ctrl->type_be == Control_PING_be) {
             ctrl->type_be = Control_PONG_be;
+            ctrl->checksum_be = 0;
+            ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
             Message_shift(message, Headers_SwitchHeader_SIZE);
             switchIf->receiveMessage(message, switchIf);
         } else {
