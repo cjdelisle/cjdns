@@ -10,6 +10,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+INCLUDE(CheckLibraryExists)
+
 # Need librt to be included if libevent is static linked.
 function(includeLibrt)
     # Apple includes librt in the standard system library.
@@ -49,18 +51,13 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
 
     # Check that we can link against it first (x86/amd64 wowes)
     if(LIBEVENT2_INCLUDE_DIRS AND LIBEVENT2_LIBRARIES)
-        message("Found libevent @ ${LIBEVENT2_INCLUDE_DIRS} & ${LIBEVENT2_LIBRARIES}")
+        get_filename_component(libdir "${LIBEVENT2_LIBRARIES}" PATH)
+        message("Found libevent @ ${LIBEVENT2_INCLUDE_DIRS} & ${LIBEVENT2_LIBRARIES} in ${libdir}")
         message("    Attempting to link a trivial program.")
-        set(srcfile "${CMAKE_BINARY_DIR}/libevent2/linktest.c")
-        file(WRITE
-            ${CMAKE_BINARY_DIR}/libevent2/linktest.c
-            "int main() { event_new(); return 0; }\n"
-        )
-        try_compile(success ${CMAKE_BINARY_DIR}/libevent2 ${srcfile}
-            CMAKE_FLAGS "-DLINK_LIBRARIES:STRING=${LIBEVENT2_LIBRARIES}"
-            OUTPUT_VARIABLE error
-        )
-        if(success)
+        unset(HAVE_LIBEVENT2_LIBRARY CACHE)
+        unset(HAVE_LIBEVENT2_LIBRARY)
+        CHECK_LIBRARY_EXISTS(event event_new "${libdir}" HAVE_LIBEVENT2_LIBRARY)
+        if(HAVE_LIBEVENT2_LIBRARY)
             message("    Success!")
             set(LIBEVENT2_FOUND TRUE)
         else()
