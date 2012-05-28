@@ -33,7 +33,8 @@ const uint8_t* udpPacketHex = (uint8_t*) UDP_PACKET_HEX;
 
 void checksumAlgorithmTest()
 {
-    uint8_t packet[UDP_PACKET_SIZE];
+    uint8_t packetBuff[UDP_PACKET_SIZE + 1];
+    uint8_t* packet = packetBuff + ((uintptr_t)packetBuff % 2);
     Hex_decode(packet, UDP_PACKET_SIZE, udpPacketHex, UDP_PACKET_SIZE * 2);
 
     //operating on the ip checksum which is easy to compute.
