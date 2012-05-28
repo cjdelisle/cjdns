@@ -128,6 +128,22 @@ SET(CJDNS_MAX_PEERS 256 CACHE STRING "maximum number of peers")
 add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
 
 
+if(NOT "$ENV{GIT_VERSION}" STREQUAL "")
+    SET(GIT_VERSION "$ENV{GIT_VERSION}")
+elseif(EXISTS .git_commit)
+    FILE(READ .git_commit GIT_VERSION)
+else()
+    find_package(Git)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} log -n 1
+        OUTPUT_VARIABLE GIT_LOG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REGEX MATCH "[0-9a-f]*\n" GIT_VERSION "${GIT_LOG}")
+    string(REPLACE "\n" "" GIT_VERSION "${GIT_VERSION}")
+endif()
+# GIT_VERSION is used in dht/dhtcore/CMakeLists.txt
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 find_package(Libevent2 REQUIRED)
