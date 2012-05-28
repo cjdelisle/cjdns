@@ -274,7 +274,7 @@ static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateK
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] [--version]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -467,6 +467,9 @@ int main(int argc, char** argv)
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
+        } else if (strcmp(argv[1], "--version") == 0) {
+            printf("Version ID: %s\n", RouterModule_gitVersion());
+            return 0;
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);

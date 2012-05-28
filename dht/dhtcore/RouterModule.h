@@ -123,4 +123,10 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module);
 
+/**
+ * return git commit id as hex (null terminated string with 40 chars)
+ */
+const char* RouterModule_gitVersion();
+
+
 #endif

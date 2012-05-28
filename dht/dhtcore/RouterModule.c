@@ -187,6 +187,9 @@
 
 #define LINK_STATE_MULTIPLIER 536870
 
+/** hex git version (null terminated string with 40 chars) */
+static const uint8_t gitVersion[41] = GIT_VERSION;
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -231,7 +234,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
         .handleOutgoing = handleOutgoing
     }), registry);
 
-    Hex_decode(out->gitVersionBytes, 20, (uint8_t*) GIT_VERSION, 40);
+    Hex_decode(out->gitVersionBytes, 20, gitVersion, 40);
     out->gitVersion.len = 20;
     out->gitVersion.bytes = (char*) out->gitVersionBytes;
 
@@ -1160,4 +1163,9 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
 {
     return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
+}
+
+const char* RouterModule_gitVersion()
+{
+    return (const char*) gitVersion;
 }
