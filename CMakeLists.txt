@@ -74,7 +74,9 @@ if (HAS_BUILTIN_CONSTANT_P)
 endif()
 
 OPTION(WITH_PIE "Build a position independent executable" ON)
-
+if (NOT "$ENV{NO_PIE}" STREQUAL "")
+    set(WITH_PIE FALSE)
+endif()
 if(WITH_PIE)
     message("Building a position independent executable (ASLR security enabled).")
     message("NOTE: PIE executables cannot run in a debugger.")
