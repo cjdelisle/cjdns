@@ -30,7 +30,8 @@ static void AbortHandler_callback(char* message, int code, struct ExceptionHandl
  * The exception handler.
  * Prints the message to stderr and aborts the program.
  */
-static struct ExceptionHandler* AbortHandler_INSTANCE = &(struct ExceptionHandler) {
+static struct ExceptionHandler* AbortHandler_INSTANCE = &(struct ExceptionHandler)
+{
     .exception = AbortHandler_callback
 };
 

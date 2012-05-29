@@ -456,7 +456,8 @@ int main(int argc, char** argv)
     Crypto_init();
     Assert_true(argc > 0);
 
-    if (argc == 2) { // one argument
+    if (argc == 2) {
+        // one argument
         if (strcmp(argv[1], "--help") == 0) {
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
@@ -472,10 +473,11 @@ int main(int argc, char** argv)
             return 0;
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
-        fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+            fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
         }
-    } else if (argc >  2) { // more than one argument?
+    } else if (argc >  2) {
+        // more than one argument?
         fprintf(stderr, "%s: too many arguments\n", argv[0]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         return -1;

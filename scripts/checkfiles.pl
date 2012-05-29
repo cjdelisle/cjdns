@@ -51,6 +51,7 @@ foreach my $fileName (split("\n", $files))
     open FILE, "$fileName" or die $!;
     my $lineNum = 1;
     my $parenthCount = 0;
+    my $functionParenthCount = 0;
     my $expectBracket = 0;
 
     foreach my $line (split("\n", <FILE>)) {
@@ -83,6 +84,17 @@ foreach my $fileName (split("\n", $files))
                     || $line =~ /^[ ]?static /))
                 {
                     error("all globally visible functions must begin with the name of the file.");
+                }
+            }
+        }
+
+        if ($functionParenthCount > 0 || $line =~ /^\w+\s.*(\(.*)$/) {
+            my $txt = ($functionParenthCount > 0) ? $line : $1;
+            $functionParenthCount += (($txt =~ tr/(//) - ($txt =~ tr/)//));
+            if ($functionParenthCount == 0) {
+                $txt = substr($txt, rindex($txt, ')') + 1);
+                if ($txt =~ /{/) {
+                    error("please put the opening bracket on the next line.");
                 }
             }
         }
@@ -127,7 +139,7 @@ foreach my $fileName (split("\n", $files))
                 $txt = substr($txt, rindex($txt, ')') + 1);
                 # for (x; y; z) ;
                 # is not an unbracketed block.
-                if ($txt !~ /[\s]*;/ && $txt !~ /[\s]+{/) {
+                if ($txt !~ /^[\s]*;$/ && $txt !~ /^[\s]+{$/ && $txt !~ /^[\s]+{[\s]*\\$/) {
                     if ($txt =~ /[\s]*$/) {
                         $expectBracket = 1;
                     } else {

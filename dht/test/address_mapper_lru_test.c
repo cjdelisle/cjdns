@@ -437,14 +437,16 @@ static void applySeed(int argc, char** argv)
     srand(seedValue);
 }
 
-/* list of tests to run */
-static int (*testRunList[])(struct AppState* state, struct AddressMapper* map,
-                                                        struct TestInfo* info) = {
-                    runTest_replaceLeastRecentlyUsed,
-                    runTest_dontReplaceMostRecentlyUsed,
-                    runTest_removeAndPut,
-                    runTest_orderCheck,
-                    NULL
+/* list of tests to run (array of function pointers) */
+static int (*testRunList[])(struct AppState* state,
+                            struct AddressMapper* map,
+                            struct TestInfo* info) =
+{
+    runTest_replaceLeastRecentlyUsed,
+    runTest_dontReplaceMostRecentlyUsed,
+    runTest_removeAndPut,
+    runTest_orderCheck,
+    NULL
 };
 
 

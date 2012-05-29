@@ -65,7 +65,9 @@ int String_compare(const String* a, const String* b)
     for (i = 0; i < (a->len < b->len ? a->len : b->len); i++)
     {
         d = a->bytes[i] - b->bytes[i];
-        if (0 != d) return d;
+        if (0 != d) {
+            return d;
+        }
     }
     return a->len - b->len;
 }

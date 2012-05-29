@@ -23,7 +23,8 @@ static void numberCompressions_generic(
     uint32_t (*bitsUsedForLabel)(const uint64_t label),
     uint32_t (*bitsUsedForNumber)(const uint32_t number),
     uint64_t (*getCompressed)(const uint32_t number, const uint32_t bitsUsed),
-    uint32_t (*getDecompressed)(const uint64_t label, const uint32_t bitsUsed)) {
+    uint32_t (*getDecompressed)(const uint64_t label, const uint32_t bitsUsed))
+{
 
     uint8_t bitWidths[64] = { 0 };
 
@@ -32,11 +33,15 @@ static void numberCompressions_generic(
     }
 
     for (uint32_t bits = 0; bits < 64; ++bits) {
-        if (!bitWidths[bits]) continue;
+        if (!bitWidths[bits]) {
+            continue;
+        }
 
         for (uint32_t i = 0; i < nInterfaces; ++i) {
             /* only check for greater-or-equal bit widths */
-            if (bits < bitsUsedForNumber(i)) continue;
+            if (bits < bitsUsedForNumber(i)) {
+                continue;
+            }
 
             uint64_t label = getCompressed(i, bits);
 

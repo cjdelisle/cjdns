@@ -42,7 +42,8 @@ static const uint8_t publicKey[32] = {
 static const char publicKeyBase32[] = "r6jzx210usqbgnm3pdtm1z6btd14pvdtkn5j8qnpgqzknpggkuw0";
 static const char ipv6[] = "fc68:cb2c:60db:cb96:19ac:34a8:fd34:03fc";
 
-int main() {
+int main()
+{
     /* verify public key */
     struct Address address;
     crypto_scalarmult_curve25519_base(address.key, privateKey);
