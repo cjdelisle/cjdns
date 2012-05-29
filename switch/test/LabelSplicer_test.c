@@ -48,9 +48,19 @@ static void isOneHop()
     Assert_always(LabelSplicer_isOneHop(routeToInterface(0)));
 }
 
+static void routesThrough()
+{
+    // 0000000000000000100100000000101011101010100101011100101001010101
+    uint64_t dest = 0x0000900aea95ca55llu;
+    // 0000000000000000000000010110010100100110001110011100011001010101
+    uint64_t mid =  0x000001652639c655llu;
+    Assert_always(!LabelSplicer_routesThrough(dest, mid));
+}
+
 int main()
 {
     splice();
     isOneHop();
+    routesThrough();
     return 0;
 }

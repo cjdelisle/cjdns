@@ -77,6 +77,10 @@ static inline bool LabelSplicer_isOneHop(uint64_t label)
 
 /**
  * Determine if the route to one node passes through another node.
+ * Given:
+ * 1. alice->bob->charlie->fred->bob
+ * 2. alice->bob
+ * 1 routes through 2.
  *
  * @param destination the node to route to.
  * @param midPath the node which might be in the middle of the route.
