@@ -56,6 +56,7 @@ foreach my $fileName (split("\n", $files))
 
     foreach my $line (split("\n", <FILE>)) {
         $lineNum++;
+        $lineInfo = "$fileName:" . ($lineNum - 1);
 
         if ($lineNum < scalar(@headerArray)) {
             my $expectedLine = $headerArray[$lineNum - 2];
@@ -99,7 +100,9 @@ foreach my $fileName (split("\n", $files))
             }
         }
 
-        $lineInfo = "$fileName:$lineNum";
+        if ($line =~ /[\w]*int[\w]*\s+\*+\w/ || $line =~ /[\w]*struct\s+[\w]+\s+\*+\w/) {
+            error("int* blah; means int pointer named blah, int *blah; means int names splatblah");
+        }
 
         if (length($line) > 100) {
             error("cjd's editor window is only 100 characters wide");

@@ -97,7 +97,7 @@ int TUNConfigurator_configure(struct TUNInterface* interface,
     bcopy(result->ai_addr, &in6_addreq.ifra_addr, result->ai_addrlen);
 
     /* turn the prefixlen into a mask, and add it to the request */
-    struct sockaddr_in6 *mask = &in6_addreq.ifra_prefixmask;
+    struct sockaddr_in6* mask = &in6_addreq.ifra_prefixmask;
     u_char *cp;
 
     int len = prefixLen;

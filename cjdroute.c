@@ -319,7 +319,7 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     Configurator_config(mainConf, &addr, addrLen, password, ctx->base, ctx->logger, ctx->allocator);
 }
 
-static void registerRouter(Dict* config, struct Address *addr, struct Context* context)
+static void registerRouter(Dict* config, struct Address* addr, struct Context* context)
 {
     Dict* iface = Dict_getDict(config, String_CONST("interface"));
     if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {

@@ -43,7 +43,7 @@
  */
 static inline int Base32_decode(uint8_t* output,
                                 const uint32_t outLength,
-                                const uint8_t *in,
+                                const uint8_t* in,
                                 const uint32_t inputLength)
 {
     // Maps ascii character inputs to the numbers
@@ -106,9 +106,9 @@ static inline int Base32_decode(uint8_t* output,
  * @return the length of the output if all goes well,
  *         or Base32_TOO_BIG if the output buffer is not large enough to handle the output.
  */
-static inline int Base32_encode(uint8_t *output,
+static inline int Base32_encode(uint8_t* output,
                                 const uint32_t outputLength,
-                                const uint8_t *in,
+                                const uint8_t* in,
                                 const uint32_t inputLength)
 {
     uint32_t outIndex = 0;
