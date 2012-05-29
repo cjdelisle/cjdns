@@ -494,6 +494,10 @@ static void child(struct sockaddr_storage* addr,
     Bits_memcpyConst(&buff[4 + sizeof(int) + sizeof(struct sockaddr_storage)], "wxyz", 4);
     write(context->outFd, buff, sizeof(buff));
 
+    if (user) {
+        Security_setUser(user, NULL, AbortHandler_INSTANCE);
+    }
+
     event_base_dispatch(context->eventBase);
 }
 
@@ -607,10 +611,6 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
         // Set the process group so that children will not
         // become orphaned if the parent gets signal 11 err um 9.
         setpgid(0, pgid);
-
-        if (user) {
-            Security_setUser(user, NULL, AbortHandler_INSTANCE);
-        }
 
         struct ChildContext context;
         memset(&context, 0, sizeof(struct ChildContext));
