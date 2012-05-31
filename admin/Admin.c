@@ -18,6 +18,7 @@
 #include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "crypto/Crypto.h"
 #include "dht/CJDHTConstants.h"
 #include "exception/AbortHandler.h"
 #include "exception/ExceptionHandler.h"
@@ -38,20 +39,23 @@
 #include <crypto_hash_sha256.h>
 #include <event2/event.h>
 #include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
 
+#ifdef WIN32
+    #define EWOULDBLOCK WSAEWOULDBLOCK
+#endif
+
+/* maximum message size for framing on the channels */
+#define MAX_MESSAGE_SIZE (1<<16)
+
+/* maximum message size for api requests (buffer size per active channel) */
 #define MAX_API_REQUEST_SIZE (1<<16)
 
-/**
- * This txid is the inter-process communication txid.
- * the txid which is passed to the functions is these bytes followed by the bytes
- * that the user supplied in their "txid" entry. If the user didn't supply a txid
- * the txid which the function gets will be just these bytes and when it is sent back
- * the user will not get a txid back.
- */
-#define TXID_LEN 4
+/* max connections to the admin tcp socket */
+#define MAX_CONNECTIONS 64
 
 static String* TYPE =     String_CONST_SO("type");
 static String* REQUIRED = String_CONST_SO("required");
@@ -70,6 +74,109 @@ struct Function
     Dict* args;
 };
 
+/*       *Channels* between admin and core process
+ *
+ * Channels are identified by number; they are opened by a non empty message,
+ * and closed by an empty message. A close on an open channel must be ACKed with
+ * an empty message before it can be reopened.
+ *
+ * Channels are in one of three states: OPEN, CLOSED, WAIT_FOR_CLOSE
+ *  - OPEN:
+ *    + on empty message: send close, -> CLOSED
+ *    + <close>: send close -> WAIT_FOR_CLOSE
+ *    + <send data>: send the non-empty data
+ *  - CLOSED (start state):
+ *    + ignore empty messages
+ *    + on non empty message: -> OPEN
+ *    + <send data>: send the non-empty data -> OPEN
+ *  - WAIT_FOR_CLOSE
+ *    + ignore non empty messages (optionally send close again if this channel is invalid)
+ *    + on empty message: -> CLOSED
+ *    + CANNOT <send data> on this channel
+ *
+ * A channel is a byte stream; the message framing must not be used to identify
+ * frames in the byte stream of a channel.
+ * (Right now bencoding messages is the way to go)
+ *
+ * If one end doesn't want to handle a channel, it responds with an immediate close
+ * on non empty messages, but it drops empty messages; such "invalid" channel are
+ * never in the OPEN state.
+ *
+ * For valid channels (channels that are not closed immediately on open) you
+ * have to keep track of the WAIT_FOR_CLOSE (and OPEN) state, but you can free all
+ * data in the CLOSED state.
+ *
+ * By not ACKing a close message you force the other end to stay in the WAIT_FOR_CLOSE
+ * state (and block reopening the channel).
+ */
+
+/* zero state ("default") is CLOSED */
+enum Admin_ChannelState {
+    Admin_ChannelState_OPEN = 1,
+    Admin_ChannelState_CLOSED = 0,
+    Admin_ChannelState_WAIT_FOR_CLOSE = 2
+};
+
+
+#pragma pack(4)
+struct Admin_MessageHeader
+{
+    /**
+     * some random magic known only to admin and core process to verify the framing
+     * is still in sync.
+     */
+    uint64_t magic;
+
+    /**
+     * length of the message data following the header
+     * zero length: close(d) communication channel
+     */
+    uint32_t length;
+
+    /**
+     * channel types:
+     *   0x00000000 - 0x0000ffff: admin connections
+     *      data exchanged: continous byte stream to/from the tcp connection
+     *      byte stream represents requests/responses;
+     *      each request/response is bencoded
+     */
+    uint32_t channelNum;
+};
+#define Admin_MessageHeader_SIZE 16
+Assert_compileTime(sizeof(struct Admin_MessageHeader) == Admin_MessageHeader_SIZE);
+
+/**
+ * This txid prefix is the inter-process communication txid.
+ * the txid which is passed to the functions is these bytes followed by the bytes
+ * that the user supplied in their "txid" entry. If the user didn't supply a txid
+ * the txid which the function gets will be just these bytes and when it is sent back
+ * the user will not get a txid back.
+ */
+union Admin_TxidPrefix {
+    uint8_t raw[8];
+    struct {
+        uint32_t channelNum;
+        uint32_t serial;
+    } values;
+};
+#define Admin_TxidPrefix_SIZE 8
+Assert_compileTime(sizeof(union Admin_TxidPrefix) == Admin_TxidPrefix_SIZE);
+
+struct Admin_Channel
+{
+    struct Allocator* allocator;
+    uint32_t bufferLen;
+    uint8_t* buffer;
+
+    enum Admin_ChannelState state;
+
+    /**
+     * increase if channel gets closed, so old responses are not sent on a new channel
+     * becomes part of the txid
+     */
+    uint32_t serial;
+};
+
 struct Admin
 {
     struct event_base* eventBase;
@@ -81,12 +188,199 @@ struct Admin
     struct Allocator* allocator;
     struct sockaddr_storage address;
     int addressLength;
+    uint64_t pipeMagic;
     String* password;
     struct Log* logger;
+
+    unsigned int haveMessageHeaderLen;
+    struct Admin_MessageHeader messageHeader;
+
+    struct Admin_Channel clientChannels[MAX_CONNECTIONS];
 
     /** Becomes true after the admin process has sent it's first message. */
     bool initialized;
 };
+
+// close pipes to admin process
+static void adminClosePipes(struct Admin* admin)
+{
+    EVUTIL_CLOSESOCKET(admin->inFd);
+    admin->inFd = -1;
+    EVUTIL_CLOSESOCKET(admin->outFd);
+    admin->outFd = -1;
+    event_free(admin->pipeEv);
+}
+
+/**
+ * find a channel by number; could allocate channels on the fly if needed
+ * right now only 0..MAX_CONNECTIONS-1 numbers are valid and allocated in the Admin struct
+ */
+static struct Admin_Channel* adminChannelFindById(struct Admin* admin, uint32_t channelNum)
+{
+    if (channelNum < MAX_CONNECTIONS) {
+        return &admin->clientChannels[channelNum];
+    }
+
+    return NULL;
+}
+
+/**
+ * find a open channel by TXID from a response; also verifies the serial still matches,
+ * so it drops old responses for a channel which got reset in the meantime
+ * (the serial wraps around after 2^32 channel resets, which should be safe enough)
+ */
+static struct Admin_Channel* adminChannelFindByTxid(struct Admin* admin,
+                                                String* txid,
+                                                uint32_t* pChannelNum)
+{
+    if (!admin || !txid || txid->len < Admin_TxidPrefix_SIZE) {
+        return NULL;
+    }
+
+    union Admin_TxidPrefix prefix;
+    Bits_memcpyConst(prefix.raw, txid->bytes, Admin_TxidPrefix_SIZE);
+
+    struct Admin_Channel* channel = adminChannelFindById(admin, prefix.values.channelNum);
+    if (!channel
+        || Admin_ChannelState_OPEN != channel->state
+        || channel->serial != prefix.values.serial) {
+        // invalid channel or not open or invalid serial
+        return NULL;
+    }
+
+    if (pChannelNum) {
+        *pChannelNum = prefix.values.channelNum;
+    }
+
+    return channel;
+}
+
+/**
+ * send a message
+ */
+static void adminChannelSendData(struct Admin* admin,
+                                 uint32_t channelNum,
+                                 const void *data,
+                                 uint32_t length)
+{
+    /* if this changes, we need to fragment the messages
+    * into MAX_MESSAGE_SIZE chunks
+    */
+    Assert_compileTime(MAX_API_REQUEST_SIZE == MAX_MESSAGE_SIZE);
+
+    Assert_true(length <= MAX_MESSAGE_SIZE);
+
+    struct Admin_MessageHeader header = {
+        .magic = admin->pipeMagic,
+        .length = length,
+        .channelNum = channelNum
+    };
+    const uint8_t* buf = (const uint8_t*) data;
+
+    // TODO: check result, buffer writes
+    write(admin->outFd, &header, Admin_MessageHeader_SIZE);
+    if (length > 0) {
+        write(admin->outFd, buf, length);
+    }
+}
+
+/**
+ * public function to send responses
+ */
+void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
+{
+    if (!admin) {
+        return;
+    }
+    Assert_true(txid);
+
+    uint32_t channelNum;
+    struct Admin_Channel* channel = adminChannelFindByTxid(admin, txid, &channelNum);
+
+    if (!channel) {
+        // txid too short, invalid channel number, closed channel or not matching serial
+        Log_debug(admin->logger,
+                  "Dropped response because channel isn't open anymore.");
+        return;
+    }
+
+    uint8_t buff[MAX_API_REQUEST_SIZE];
+
+    uint8_t allocBuff[256];
+    struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
+
+    // Bounce back the user-supplied txid.
+    String userTxid = {
+        .bytes = txid->bytes + Admin_TxidPrefix_SIZE,
+        .len = txid->len - Admin_TxidPrefix_SIZE
+    };
+    if (txid->len > Admin_TxidPrefix_SIZE) {
+        Dict_putString(message, TXID, &userTxid, allocator);
+    }
+
+    struct Writer* w = ArrayWriter_new(buff, sizeof(buff), allocator);
+    StandardBencSerializer_get()->serializeDictionary(w, message);
+
+    adminChannelSendData(admin, channelNum, buff, w->bytesWritten(w));
+}
+
+/**
+ * close a channel (for example if an error happened or we received non-empty
+ * messages on a invalid channel number)
+ * also used to cleanup if we receive a close message
+ */
+static void adminChannelClose(struct Admin* admin, uint32_t channelNum)
+{
+    struct Admin_Channel* channel = adminChannelFindById(admin, channelNum);
+
+    if (channel) {
+        switch (channel->state) {
+        case Admin_ChannelState_OPEN:
+            break;
+        case Admin_ChannelState_CLOSED:
+        case Admin_ChannelState_WAIT_FOR_CLOSE:
+            return; // already sent close, nothing to do
+        }
+        channel->state = Admin_ChannelState_WAIT_FOR_CLOSE;
+
+        // clean up bufers
+        channel->bufferLen = 0;
+        channel->buffer = NULL;
+        if (channel->allocator) {
+            channel->allocator->free(channel->allocator);
+            channel->allocator = NULL;
+        }
+    }
+    adminChannelSendData(admin, channelNum, NULL, 0);
+}
+
+/**
+ * handle a received channel close (the received header is in admin->messageHeader)
+ * as invalid channels are never OPEN we never have to ACK a close on them
+ */
+static void adminChannelHandleClose(struct Admin* admin)
+{
+    uint32_t channelNum = admin->messageHeader.channelNum;
+    struct Admin_Channel* channel = adminChannelFindById(admin, channelNum);
+
+    if (channel) {
+        switch (channel->state) {
+        case Admin_ChannelState_OPEN:
+            // close active channel
+            adminChannelClose(admin, channelNum);
+            // now the state is WAIT_FOR_CLOSE, set it to CLOSED
+            channel->state = Admin_ChannelState_CLOSED;
+            break;
+        case Admin_ChannelState_WAIT_FOR_CLOSE:
+            channel->state = Admin_ChannelState_CLOSED;
+            channel->serial++;
+            break;
+        case Admin_ChannelState_CLOSED:
+            // nothing to do
+            break;
+        }
+    }
+}
 
 static inline bool authValid(Dict* message, uint8_t* buffer, uint32_t length, struct Admin* admin)
 {
@@ -154,29 +448,28 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
 }
 
 static void handleRequestFromChild(struct Admin* admin,
-                                   uint8_t buffer[MAX_API_REQUEST_SIZE],
+                                   union Admin_TxidPrefix* txid_prefix,
+                                   Dict* message,
+                                   uint8_t* buffer,
                                    size_t amount,
                                    struct Allocator* allocator)
 {
-    struct Reader* reader = ArrayReader_new(buffer + TXID_LEN, amount - TXID_LEN, allocator);
-    Dict message;
-    if (StandardBencSerializer_get()->parseDictionary(reader, allocator, &message)) {
-        Log_info(admin->logger, "Got unparsable data from admin interface.");
-        return;
-    }
-
-    String* query = Dict_getString(&message, CJDHTConstants_QUERY);
+    String* query = Dict_getString(message, CJDHTConstants_QUERY);
     if (!query) {
-        Log_info(admin->logger, "Got a non-query from admin interface.");
+        Log_info(admin->logger,
+                 "Got a non-query from admin interface on channel [%u].",
+                 admin->messageHeader.channelNum);
+        adminChannelClose(admin, admin->messageHeader.channelNum);
         return;
     }
 
     // txid becomes the user supplied txid combined with the inter-process txid.
-    String* userTxid = Dict_getString(&message, TXID);
-    String* txid =
-        String_newBinary((char*)buffer, ((userTxid) ? userTxid->len : 0) + TXID_LEN, allocator);
+    String* userTxid = Dict_getString(message, TXID);
+    uint32_t txidlen = ((userTxid) ? userTxid->len : 0) + Admin_TxidPrefix_SIZE;
+    String* txid = String_newBinary(NULL, txidlen, allocator);
+    Bits_memcpyConst(txid->bytes, txid_prefix->raw, Admin_TxidPrefix_SIZE);
     if (userTxid) {
-        Bits_memcpy(txid->bytes + TXID_LEN, userTxid->bytes, userTxid->len);
+        Bits_memcpy(txid->bytes + Admin_TxidPrefix_SIZE, userTxid->bytes, userTxid->len);
     }
 
     // If they're asking for a cookie then lets give them one.
@@ -195,17 +488,17 @@ static void handleRequestFromChild(struct Admin* admin,
     String* auth = String_CONST("auth");
     bool authed = false;
     if (String_equals(query, auth)) {
-        if (!authValid(&message, buffer + TXID_LEN, reader->bytesRead(reader), admin)) {
+        if (!authValid(message, buffer, amount, admin)) {
             Dict* d = Dict_new(allocator);
             Dict_putString(d, String_CONST("error"), String_CONST("Auth failed."), allocator);
             Admin_sendMessage(d, txid, admin);
             return;
         }
-        query = Dict_getString(&message, String_CONST("aq"));
+        query = Dict_getString(message, String_CONST("aq"));
         authed = true;
     }
 
-    Dict* args = Dict_getDict(&message, String_CONST("args"));
+    Dict* args = Dict_getDict(message, String_CONST("args"));
     bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
         if (String_equals(query, admin->functions[i].name)
@@ -238,62 +531,291 @@ static void handleRequestFromChild(struct Admin* admin,
     return;
 }
 
+static void inFromChildInitialize(struct Admin* admin)
+{
+    uint8_t buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 8];
+    ssize_t amount = read(admin->inFd, buffer, sizeof(buffer));
+
+    if (amount != sizeof(buffer)) {
+        Log_error(admin->logger, "unexpected length");
+        adminClosePipes(admin);
+    } else if (memcmp(buffer, "abcd", 4)) {
+        Log_error(admin->logger, "bad magic");
+        adminClosePipes(admin);
+    } else if (memcmp(&buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 4], "wxyz", 4)) {
+        Log_error(admin->logger, "bad magic");
+        adminClosePipes(admin);
+    } else {
+        Bits_memcpyConst(&admin->addressLength, &buffer[4], sizeof(int));
+        Bits_memcpyConst(&admin->address,
+                        &buffer[4 + sizeof(int)],
+                        sizeof(struct sockaddr_storage));
+        admin->initialized = true;
+    }
+    event_base_loopbreak(admin->eventBase);
+}
+
+static void inFromChildDecode(struct Admin* admin, struct Admin_Channel* channel)
+{
+    uint8_t* buffer = channel->buffer;
+    uint32_t bufferLen = channel->bufferLen;
+
+    union Admin_TxidPrefix prefix = {
+        .values = {
+            .channelNum = admin->messageHeader.channelNum,
+            .serial = channel->serial
+        }
+    };
+
+    while (bufferLen > 0) {
+        /* skip newlines and spaces between requests */
+        while (bufferLen > 0 && ('\r' == *buffer || '\n' == *buffer || ' ' == *buffer)) {
+            buffer++;
+            bufferLen--;
+        }
+        if (0 == bufferLen) {
+            break;
+        }
+
+        struct Allocator* allocator = admin->allocator->child(admin->allocator);
+
+        struct Reader* reader = ArrayReader_new(buffer, bufferLen, allocator);
+        Dict message;
+
+        int res = StandardBencSerializer_get()->parseDictionary(reader, allocator, &message);
+        if (-2 == res) {
+            Log_debug(admin->logger,
+                      "Need more data to decode bencoded request on channel [%u].",
+                      admin->messageHeader.channelNum);
+            break; // need more data
+        }
+        if (res) {
+            Log_info(admin->logger,
+                     "Got unparsable data from admin interface on channel [%u].",
+                     admin->messageHeader.channelNum);
+            adminChannelClose(admin, admin->messageHeader.channelNum);
+            return; // buffer is already cleared
+        }
+
+        uint32_t amount = reader->bytesRead(reader);
+
+        handleRequestFromChild(admin, &prefix, &message, buffer, amount, allocator);
+        buffer += amount;
+        bufferLen -= amount;
+
+        allocator->free(allocator);
+    }
+
+    if (0 != bufferLen && buffer != channel->buffer) {
+        // move data to start of buffer, so we can append new data
+        memmove(channel->buffer, buffer, bufferLen);
+    }
+    channel->bufferLen = bufferLen;
+}
+
+/**
+ * Doesn't read more than maxRead bytes into buf[*have..bufSize]
+ * Increments *have by amount of read bytes
+ *
+ * Buffer mustn't be full, and maxRead > 0
+ *
+ * return values:
+ * n>0: read n new bytes
+ *  -1: eof/network or read error - closed
+ *  -2: EAGAIN
+ */
+static int inFromChildFillBuffer(struct Admin* admin,
+                                 void *buf,
+                                 uint32_t bufSize,
+                                 uint32_t* have,
+                                 uint32_t maxRead)
+{
+    char *charBuf = (char*) buf;
+    Assert_true(*have < bufSize);
+    Assert_true(maxRead > 0);
+
+    if (maxRead > bufSize - *have) {
+        maxRead = bufSize - *have;
+    }
+
+    Assert_always(maxRead > 0);
+    Assert_always(maxRead <= INT_MAX);
+
+    errno = 0;
+    ssize_t amount = read(admin->inFd, charBuf + *have, maxRead);
+
+    if (amount < 0 && (EAGAIN == errno || EWOULDBLOCK == errno)) {
+        return -2;
+    } else if (0 == amount) {
+        Log_error(admin->logger, "Connection to admin process closed unexpectedly");
+        adminClosePipes(admin);
+        return -1;
+    } else if (amount < 0) {
+        Log_error(admin->logger, "Broken pipe to admin process, [%s]", strerror(errno));
+        adminClosePipes(admin);
+        return -1;
+    }
+
+    Assert_always(amount > 0);
+    Assert_true(amount <= maxRead);
+
+    *have += amount;
+    Assert_true(*have <= bufSize);
+
+    return amount;
+}
+
+// only in parent
+static void inFromChildRead(struct Admin* admin, struct Admin_Channel* channel)
+{
+    Assert_true(admin->messageHeader.length > 0);
+
+    if (!channel->buffer) {
+        Assert_true(NULL == channel->allocator);
+        channel->allocator = admin->allocator->child(admin->allocator);
+        channel->buffer = channel->allocator->malloc(MAX_API_REQUEST_SIZE, channel->allocator);
+        Assert_true(0 == channel->bufferLen);
+    }
+
+    Assert_true(channel->bufferLen < MAX_API_REQUEST_SIZE);
+
+    int amount = inFromChildFillBuffer(admin, channel->buffer, MAX_API_REQUEST_SIZE,
+                                       &channel->bufferLen, admin->messageHeader.length);
+    if (amount < 0) {
+        return;
+    }
+
+    admin->messageHeader.length -= amount;
+    if (0 == admin->messageHeader.length) {
+        admin->haveMessageHeaderLen = 0;
+    }
+
+    inFromChildDecode(admin, channel);
+
+    if (MAX_API_REQUEST_SIZE == channel->bufferLen) {
+        // couldn't decode the request, but the buffer is full
+        Log_error(admin->logger, "Request too large, closing channel [%u]",
+                  admin->messageHeader.channelNum);
+        adminChannelClose(admin, admin->messageHeader.channelNum);
+    }
+
+    if (0 == channel->bufferLen && channel->allocator) {
+        // reached end of buffer, free it
+        channel->allocator->free(channel->allocator);
+        channel->allocator = NULL;
+        channel->buffer = NULL;
+    }
+}
+
+// only in parent
+static void inFromChildSkipMmsg(struct Admin* admin)
+{
+    Assert_true(admin->messageHeader.length > 0);
+    uint8_t buffer[MAX_MESSAGE_SIZE];
+    uint32_t have = 0;
+
+    int amount = inFromChildFillBuffer(admin, buffer, MAX_MESSAGE_SIZE,
+                                       &have, admin->messageHeader.length);
+    if (amount < 0) {
+        return;
+    }
+
+    admin->messageHeader.length -= amount;
+    if (0 == admin->messageHeader.length) {
+        admin->haveMessageHeaderLen = 0;
+    }
+}
+
 // only in parent
 static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct Admin* admin = (struct Admin*) vcontext;
 
-    uint8_t buffer[MAX_API_REQUEST_SIZE];
-    ssize_t amount = read(admin->inFd, buffer, MAX_API_REQUEST_SIZE);
-
-    if (amount < 1) {
-        if (amount == 0 || errno != EAGAIN) {
-            if (amount < 0) {
-                Log_error(admin->logger, "Broken pipe to admin process, errno=%d", errno);
-            } else {
-                Log_error(admin->logger, "Connection to admin process closed unexpectedly");
-            }
-            event_free(admin->pipeEv);
-        }
-        return;
-    }
-
     if (!admin->initialized) {
-        if (amount != sizeof(struct sockaddr_storage) + sizeof(int) + 8) {
-            Log_error(admin->logger, "unexpected length");
-        } else if (memcmp(buffer, "abcd", 4)) {
-            Log_error(admin->logger, "bad magic");
-        } else if (memcmp(&buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 4], "wxyz", 4)) {
-            Log_error(admin->logger, "bad magic");
-        } else {
-            Bits_memcpyConst(&admin->addressLength, &buffer[4], sizeof(int));
-            Bits_memcpyConst(&admin->address,
-                             &buffer[4 + sizeof(int)],
-                             sizeof(struct sockaddr_storage));
-            admin->initialized = true;
-        }
-        event_base_loopbreak(admin->eventBase);
+        inFromChildInitialize(admin);
         return;
     }
 
-    struct Allocator* tempAllocator = admin->allocator->child(admin->allocator);
-    handleRequestFromChild(admin, buffer, amount, tempAllocator);
-    tempAllocator->free(tempAllocator);
+    int newMessage = 0;
+
+    if (admin->haveMessageHeaderLen < Admin_MessageHeader_SIZE) {
+        int amount = inFromChildFillBuffer(admin, &admin->messageHeader, Admin_MessageHeader_SIZE,
+                                           &admin->haveMessageHeaderLen, Admin_MessageHeader_SIZE);
+        if (amount < 0) {
+            return;
+        }
+
+        if (admin->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
+            newMessage = 1;
+            // got complete header
+            if (admin->pipeMagic != admin->messageHeader.magic) {
+                Log_error(admin->logger, "wrong magic from admin process");
+                adminClosePipes(admin);
+                return;
+            }
+            if (admin->messageHeader.length > MAX_MESSAGE_SIZE) {
+                Log_error(admin->logger, "message from admin process too large");
+                adminClosePipes(admin);
+                return;
+            }
+            if (0 == admin->messageHeader.length) {
+                // empty message -> close channel
+                adminChannelHandleClose(admin);
+                admin->haveMessageHeaderLen = 0;
+                return;
+            }
+        }
+    }
+
+    if (admin->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
+        // handle non empty message data
+        struct Admin_Channel* channel =
+            adminChannelFindById(admin, admin->messageHeader.channelNum);
+        if (!channel) {
+            if (newMessage) {
+                Log_info(admin->logger,
+                         "message from admin process on invalid channel [%u]",
+                         admin->messageHeader.channelNum);
+                // send close
+                adminChannelSendData(admin, admin->messageHeader.channelNum, NULL, 0);
+            }
+            /* ignore data */
+            inFromChildSkipMmsg(admin);
+        } else {
+            switch (channel->state) {
+            case Admin_ChannelState_CLOSED:
+                channel->state = Admin_ChannelState_OPEN;
+                inFromChildRead(admin, channel);
+                break;
+            case Admin_ChannelState_OPEN:
+                inFromChildRead(admin, channel);
+                break;
+            case Admin_ChannelState_WAIT_FOR_CLOSE:
+                /* ignore data */
+                inFromChildSkipMmsg(admin);
+                break;
+            }
+        }
+    }
 }
 
 struct ChildContext;
 
 struct Connection {
-    struct event* read;
-    evutil_socket_t socket;
+    struct event* read; /** NULL: socket closed */
+    evutil_socket_t socket; /** -1: channel (to core) closed */
     struct ChildContext* context;
 };
 
-#define MAX_CONNECTIONS 64
 struct ChildContext
 {
-    uint8_t buffer[MAX_API_REQUEST_SIZE + TXID_LEN];
+    unsigned int haveMessageHeaderLen, haveMessageLen;
+    struct Admin_MessageHeader messageHeader;
+    uint8_t message[MAX_MESSAGE_SIZE];
+
     struct Connection connections[MAX_CONNECTIONS];
+
+    uint64_t pipeMagic;
 
     /** The event which listens for new connections. */
     struct event* socketEvent;
@@ -307,80 +829,169 @@ struct ChildContext
     struct Allocator* allocator;
 };
 
-static void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
+// Only happens in Admin process.
+/**
+ * send message via pipe to core process
+ */
+static void sendParent(struct ChildContext* context, uint32_t channelNum, uint32_t len, void* data)
 {
-    struct ChildContext* context = (struct ChildContext*) vcontext;
-    errno = 0;
-    ssize_t amount = read(context->inFd, context->buffer, MAX_API_REQUEST_SIZE + TXID_LEN);
+    struct Admin_MessageHeader messageHeader = {
+        .magic = context->pipeMagic,
+        .length = len,
+        .channelNum = channelNum
+    };
 
-    if (amount < 1) {
-        if (errno == EAGAIN) {
-            return;
-        }
-        if (amount < 0) {
-            perror("broken pipe");
-        } else {
-            fprintf(stderr, "admin connection closed\n");
-        }
+    // TODO: buffer writes
+
+    size_t amountWritten;
+    amountWritten = write(context->outFd, &messageHeader, Admin_MessageHeader_SIZE);
+    if (amountWritten != Admin_MessageHeader_SIZE) {
+        printf("Admin process failed to write data across pipe to main process.");
         exit(0);
-        return;
-    } else if (amount < 4) {
-        return;
     }
 
-    Assert_compileTime(TXID_LEN == 4);
-    uint32_t connNumber;
-    Bits_memcpyConst(&connNumber, context->buffer, TXID_LEN);
-
-    if (connNumber >= MAX_CONNECTIONS) {
-        fprintf(stderr, "got message for connection #%u, max connections is %d\n",
-                connNumber, MAX_CONNECTIONS);
-        return;
-    }
-
-    struct Connection* conn = &context->connections[connNumber];
-    if (!conn->read) {
-        fprintf(stderr, "got message for closed #%u", connNumber);
-        return;
-    }
-
-    amount -= TXID_LEN;
-    ssize_t sent = send(conn->socket, context->buffer + TXID_LEN, amount, 0);
-    if (sent != amount) {
-        // All errors lead to closing the socket.
-        EVUTIL_CLOSESOCKET(conn->socket);
-        event_free(conn->read);
-        conn->read = NULL;
+    if (len > 0) {
+        amountWritten = write(context->outFd, data, len);
+        if (amountWritten != len) {
+            printf("Admin process failed to write data across pipe to main process.");
+            exit(0);
+        }
     }
 }
 
 // Only happens in Admin process.
+/**
+ * handle message on the pipe from core process
+ */
+static void incomingFromParent(evutil_socket_t socket, short eventType, void* vcontext)
+{
+    struct ChildContext* context = (struct ChildContext*) vcontext;
+    errno = 0;
+
+    if (context->haveMessageHeaderLen < Admin_MessageHeader_SIZE) {
+        ssize_t amount =
+            read(context->inFd,
+                 context->haveMessageHeaderLen + (char*)&context->messageHeader,
+                 Admin_MessageHeader_SIZE - context->haveMessageHeaderLen);
+        if (amount < 1) {
+            if (EAGAIN == errno || EWOULDBLOCK == errno) {
+                return;
+            }
+            if (amount < 0) {
+                perror("broken pipe");
+            } else {
+                fprintf(stderr, "admin connection closed\n");
+            }
+            exit(0);
+        }
+        context->haveMessageHeaderLen += amount;
+        if (context->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
+            // got complete header, reset message
+            context->haveMessageLen = 0;
+            if (context->pipeMagic != context->messageHeader.magic) {
+                fprintf(stderr, "wrong magic on admin connection\n");
+                exit(0);
+            }
+            if (context->messageHeader.length > MAX_MESSAGE_SIZE) {
+                fprintf(stderr, "message too large on admin connection\n");
+                exit(0);
+            }
+        }
+    }
+
+    if (context->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
+        if (context->haveMessageLen < context->messageHeader.length) {
+            ssize_t amount = read(context->inFd,
+                                  context->message + context->haveMessageLen,
+                                  context->messageHeader.length - context->haveMessageLen);
+            if (amount < 1) {
+                if (EAGAIN == errno || EWOULDBLOCK == errno) {
+                    return;
+                }
+                if (amount < 0) {
+                    perror("broken pipe");
+                } else {
+                    fprintf(stderr, "admin connection closed\n");
+                }
+                exit(0);
+            }
+            context->haveMessageLen += amount;
+        }
+        if (context->haveMessageLen == context->messageHeader.length) {
+            // got complete message, reset header. new header will reset message later
+            context->haveMessageHeaderLen = 0;
+
+            if (context->messageHeader.channelNum <= 0xffff) {
+                // message for admin connections
+                uint32_t connNumber = context->messageHeader.channelNum;
+                if (connNumber >= MAX_CONNECTIONS) {
+                    fprintf(stderr, "got message for connection #%u, max connections is %d\n",
+                            connNumber, MAX_CONNECTIONS);
+                    return;
+                }
+
+                struct Connection* conn = &context->connections[connNumber];
+                if (-1 == conn->socket) {
+                    fprintf(stderr, "got message for closed channel #%u", connNumber);
+                    return;
+                }
+
+                if (0 == context->haveMessageLen) {
+                    /* close channel / recv ACK for close */
+                    if (NULL != conn->read) {
+                        // send close ACK
+                        sendParent(context, connNumber, 0, NULL);
+                        EVUTIL_CLOSESOCKET(conn->socket);
+                        event_free(conn->read);
+                        conn->read = NULL;
+                    }
+                    conn->socket = -1;
+                } else if (NULL == conn->read) {
+                    /* drop message - channel is closed, wait for close ACK */
+                } else {
+                    ssize_t sent;
+                    sent = send(conn->socket, context->message, context->haveMessageLen, 0);
+                    if (sent != (ssize_t) context->haveMessageLen) {
+                        // All errors lead to closing the socket.
+                        EVUTIL_CLOSESOCKET(conn->socket);
+                        event_free(conn->read);
+                        conn->read = NULL;
+                        // send close channel
+                        sendParent(context, connNumber, 0, NULL);
+                        // set conn->socket = -1 later when we recv close ACK
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Only happens in Admin process.
+/**
+ * handle incoming tcp data from client connections in the admin process
+ */
 static void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
+    uint8_t buf[MAX_MESSAGE_SIZE];
+    uint32_t connNumber = conn - context->connections;
+
     errno = 0;
-    uint8_t buf[MAX_API_REQUEST_SIZE + TXID_LEN];
-    ssize_t result = recv(socket, buf + TXID_LEN, MAX_API_REQUEST_SIZE, 0);
+    ssize_t result = recv(socket, buf, sizeof(buf), 0);
 
     if (result > 0) {
-
-        Assert_compileTime(TXID_LEN == 4);
-        uint32_t connNumber = conn - context->connections;
-        Bits_memcpyConst(buf, &connNumber, TXID_LEN);
-
-        size_t amountWritten = write(context->outFd, buf, result + TXID_LEN);
-        if (amountWritten != (size_t)result + TXID_LEN) {
-            printf("Admin process failed to write data across pipe to main process.");
-            exit(0);
-        }
-    } else if (result < 0 && errno == EAGAIN) {
+        sendParent(context, connNumber, result, buf);
+    } else if (result < 0 && (EAGAIN  == errno || EWOULDBLOCK == errno)) {
         return;
     } else {
         // The return value will be 0 when the peer has performed an orderly shutdown.
         EVUTIL_CLOSESOCKET(conn->socket);
         event_free(conn->read);
         conn->read = NULL;
+        // send close channel
+        sendParent(context, connNumber, 0, NULL);
+        // set conn->socket = -1 later when we recv close ACK
     }
 }
 
@@ -388,8 +999,9 @@ static struct Connection* newConnection(struct ChildContext* context, evutil_soc
 {
     struct Connection* conn = NULL;
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        if (context->connections[i].read == NULL) {
+        if (context->connections[i].read == NULL && context->connections[i].socket == -1) {
             conn = &context->connections[i];
+            break;
         }
     }
 
@@ -439,6 +1051,10 @@ static void child(struct sockaddr_storage* addr,
                   char* user,
                   struct ChildContext* context)
 {
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        context->connections[i].socket = -1;
+    }
+
     context->dataFromParent =
         event_new(context->eventBase,
                   context->inFd,
@@ -551,33 +1167,6 @@ void Admin_registerFunctionWithArgCount(char* name,
     }
 }
 
-void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
-{
-    if (!admin) {
-        return;
-    }
-    Assert_true(txid);
-
-    uint8_t buff[MAX_API_REQUEST_SIZE + TXID_LEN];
-
-    // Write the inter-process txid.
-    Bits_memcpyConst(buff, txid->bytes, TXID_LEN);
-
-    uint8_t allocBuff[256];
-    struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
-
-    // Bounce back the user-supplied txid.
-    String userTxid = { .bytes = txid->bytes + TXID_LEN, .len = txid->len - TXID_LEN };
-    if (txid->len > TXID_LEN) {
-        Dict_putString(message, TXID, &userTxid, allocator);
-    }
-
-    struct Writer* w = ArrayWriter_new(buff + TXID_LEN, MAX_API_REQUEST_SIZE, allocator);
-    StandardBencSerializer_get()->serializeDictionary(w, message);
-
-    write(admin->outFd, buff, w->bytesWritten(w) + TXID_LEN);
-}
-
 struct Admin* Admin_new(struct sockaddr_storage* addr,
                         int addrLen,
                         String* password,
@@ -587,6 +1176,9 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
                         struct Log* logger,
                         struct Allocator* allocator)
 {
+    uint64_t pipeMagic;
+    randombytes((uint8_t*)&pipeMagic, sizeof(pipeMagic));
+
     errno = 0;
     int pipes[2][2];
     if (pipe(pipes[0]) || pipe(pipes[1])) {
@@ -608,6 +1200,9 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     close(pipes[isChild][1]);
 
     if (isChild) {
+        // the child is the admin process now
+        // TODO: make parent the admin/angel
+
         // Set the process group so that children will not
         // become orphaned if the parent gets signal 11 err um 9.
         setpgid(0, pgid);
@@ -619,6 +1214,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
         context.allocator = allocator;
         event_reinit(eventBase);
         context.eventBase = eventBase;
+        context.pipeMagic = pipeMagic;
         child(addr, addrLen, user, &context);
         fprintf(stderr, "Admin process exiting.");
         exit(0);
@@ -638,6 +1234,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     admin->addressLength = addrLen;
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
+    admin->pipeMagic = pipeMagic;
 
     event_base_dispatch(eventBase);
 
