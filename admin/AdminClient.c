@@ -229,7 +229,7 @@ char* AdminClient_errorString(enum AdminClient_Error err)
 static void disconnect(void* vcontext)
 {
     struct Context* context = vcontext;
-    close(context->socket);
+    EVUTIL_CLOSESOCKET(context->socket);
     event_del(context->socketEvent);
 }
 
