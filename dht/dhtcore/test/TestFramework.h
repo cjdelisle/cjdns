@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef TestFramework_H
+#define TestFramework_H
+
 #include "memory/Allocator.h"
 #include "dht/DHTModules.h"
 #include "dht/CJDHTConstants.h"

@@ -12,9 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CryptoAuth_struct_H
-#define CryptoAuth_struct_H
-
+#ifndef CryptoAuth_pvt_H
+#define CryptoAuth_pvt_H
+#include "crypto/CryptoAuth.h"
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "benc/Object.h"

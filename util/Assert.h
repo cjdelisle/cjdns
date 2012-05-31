@@ -12,12 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef Assert_H
-    // This is needed every time the file is pulled in to prevent struct name collisions.
-    #define Assert_COUNTER2 Assert_COUNTER
-    #undef Assert_COUNTER
-    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
-#else
+#ifndef Assert_H
 #define Assert_H
 
 #include "util/Log.h"
@@ -56,5 +51,9 @@ static inline void Assert_internal(const char* expr, int isTrue, const char* fil
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)
 
-
+#else /* #ifdef Assert_H */
+    // This is needed every time the file is pulled in to prevent struct name collisions.
+    #define Assert_COUNTER2 Assert_COUNTER
+    #undef Assert_COUNTER
+    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
 #endif

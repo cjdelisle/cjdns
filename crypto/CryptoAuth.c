@@ -12,21 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto_box_curve25519xsalsa20poly1305.h"
-#include "crypto_core_hsalsa20.h"
-#include "crypto_hash_sha256.h"
-#include "crypto_scalarmult_curve25519.h"
-#include "crypto_stream_salsa20.h"
-#include "crypto_stream_xsalsa20.h"
-
 #include "crypto/Crypto.h"
-#include "crypto/CryptoAuth.h"
-#include "crypto/CryptoAuth_struct.h"
+#include "crypto/CryptoAuth_pvt.h"
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "benc/Object.h"
 #include "util/Log.h"
 #include "memory/Allocator.h"
+#include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
@@ -35,10 +28,16 @@
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
+#include "crypto_box_curve25519xsalsa20poly1305.h"
+#include "crypto_core_hsalsa20.h"
+#include "crypto_hash_sha256.h"
+#include "crypto_scalarmult_curve25519.h"
+#include "crypto_stream_salsa20.h"
+#include "crypto_stream_xsalsa20.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include "util/Assert.h"
 #include <event2/event.h>
 
 #ifdef WIN32

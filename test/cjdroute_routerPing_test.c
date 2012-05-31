@@ -14,8 +14,7 @@
  */
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
-#include "net/Ducttape.h"
-#include "net/Ducttape_struct.h"
+#include "net/Ducttape_pvt.h"
 #include "util/Base32.h"
 #include "util/checksum/Checksum.h"
 

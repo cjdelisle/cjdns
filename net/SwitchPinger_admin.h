@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef SwitchPinger_admin_H
+#define SwitchPinger_admin_H
+
 #include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
@@ -23,3 +26,5 @@
 void SwitchPinger_admin_register(struct SwitchPinger* sp,
                                  struct Admin* admin,
                                  struct Allocator* alloc);
+
+#endif

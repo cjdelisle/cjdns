@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUNInterface_struct_H
-#define TUNInterface_struct_H
+#ifndef TUNInterface_pvt_H
+#define TUNInterface_pvt_H
 
 #include "interface/Interface.h"
 #include "benc/String.h"

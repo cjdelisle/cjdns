@@ -27,6 +27,9 @@
 
 struct CryptoAuth;
 
+/** The internal interface wrapper struct. */
+struct CryptoAuth_Wrapper;
+
 /**
  * Associate a password:authtype pair with a user object.
  * Calling CryptoAuth_getUser() on any interface which has established a connection with
