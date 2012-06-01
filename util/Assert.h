@@ -26,14 +26,6 @@
 #define Assert_GLUE(x, y) x ## y
 #define Assert_STRING(x) #x
 
-static inline void Assert_internal(const char* expr, int isTrue, const char* file, int line)
-{
-    if (!isTrue) {
-        fprintf(stderr, "%s:%d Assertion failed: %s", file, line, expr);
-        abort();
-    }
-}
-
 /**
  * Assert_compileTime()
  *
@@ -45,8 +37,14 @@ static inline void Assert_internal(const char* expr, int isTrue, const char* fil
 
 
 /** Runtime assertion which is always applied. */
-#define Assert_always(expr) \
-    Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
+#define Assert_always(expr) do { \
+        if (!(expr)) { \
+            fprintf(stderr, "%s:%d Assertion failed: %s\n", \
+                    __FILE__, __LINE__, Assert_STRING(expr)); \
+            abort(); \
+        } \
+    } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)
