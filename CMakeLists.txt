@@ -191,7 +191,7 @@ if(NOT NO_CODESTYLE)
     set(checker ${CMAKE_SOURCE_DIR}/cmake/modules/CheckCodestyle.cmake)
     add_custom_command(OUTPUT check.codestyle
         COMMAND ${CMAKE_COMMAND}
-        -DCSD=${CMAKE_SOURCE_DIR} -DSKIP=build,buildw32,CMakeFiles -P ${checker}
+        -DCSD=${CMAKE_SOURCE_DIR} -DSKIP=CMakeFiles -P ${checker}
     )
     add_custom_target(check_output ALL DEPENDS check.codestyle)
 endif()
