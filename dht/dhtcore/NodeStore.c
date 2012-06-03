@@ -24,16 +24,15 @@
 #include "dht/dhtcore/LinkStateNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/NodeStore_struct.h"
+#include "dht/dhtcore/NodeStore_pvt.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
+#include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Log.h"
 #include "switch/NumberCompress.h"
 #include "switch/LabelSplicer.h"
 
-#include "util/Assert.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <inttypes.h>

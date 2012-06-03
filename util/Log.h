@@ -16,6 +16,7 @@
 #define Log_H
 
 #include "io/Writer.h"
+#include "util/Gcc.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -33,17 +34,9 @@ struct Log
 };
 
 
-#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
-#define Log_GNUC_PRINTF( format_idx, arg_idx ) \
-    __attribute__((__format__ (__printf__, format_idx, arg_idx)))
-#else
-#define Log_GNUC_PRINTF( format_idx, arg_idx )
-#endif
-
 static inline void Log_logInternal(struct Log* log, const char* logLevel, const char* file,
                                    unsigned int line, const char* format, ...)
-    Log_GNUC_PRINTF(5, 6);
-#undef Log_GNUC_PRINTF
+    Gcc_PRINTF(5, 6);
 
 static inline void Log_logInternal(struct Log* log, const char* logLevel, const char* file,
                                    unsigned int line, const char* format, ...)

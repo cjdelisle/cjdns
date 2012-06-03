@@ -49,19 +49,27 @@ foreach my $fileName (split("\n", $files))
     $fileName =~ /^.*\/(.*)\..*$/ or die;
     my $name = $1;
     open FILE, "$fileName" or die $!;
-    my $lineNum = 1;
+    my $lineNum = 0;
     my $parenthCount = 0;
     my $functionParenthCount = 0;
     my $expectBracket = 0;
 
     foreach my $line (split("\n", <FILE>)) {
         $lineNum++;
-        $lineInfo = "$fileName:" . ($lineNum - 1);
+        $lineInfo = "$fileName:" . ($lineNum);
 
-        if ($lineNum < scalar(@headerArray)) {
-            my $expectedLine = $headerArray[$lineNum - 2];
+        if ($lineNum < scalar(@headerArray) + 1) {
+            my $expectedLine = $headerArray[$lineNum - 1];
             if (index($line, $expectedLine) == -1) {
                 error("missing header\n$expectedLine\n$line");
+            }
+        } elsif ($fileName =~ /\.h$/ && $lineNum < scalar(@headerArray) + 2) {
+            if ($line !~ /^#ifndef ${name}_H$/) {
+                error("expected #ifndef ${name}_H found ${line}");
+            }
+        } elsif ($fileName =~ /\.h$/ && $lineNum < scalar(@headerArray) + 3) {
+            if ($line !~ /^#define ${name}_H$/) {
+                error("expected #define ${name}_H found ${line}");
             }
         }
 
@@ -112,7 +120,7 @@ foreach my $fileName (split("\n", $files))
 
             my $n = $name;
             # If the name is CryptoAuth_struct.h, it's ok to make a structure called CryptoAuth
-            if ($name =~ /^(.*)_struct$/) {
+            if ($name =~ /^(.*)_pvt$/) {
                 $n = $1;
             }
 

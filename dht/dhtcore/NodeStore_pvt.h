@@ -12,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NodeStore_struct_H
-#define NodeStore_struct_H
+#ifndef NodeStore_pvt_H
+#define NodeStore_pvt_H
 
 #include "dht/dhtcore/NodeStore.h"
 #include "util/Log.h"

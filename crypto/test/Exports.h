@@ -17,7 +17,7 @@
 
 #include <stdint.h>
 
-#include "crypto/CryptoAuth_struct.h"
+#include "crypto/CryptoAuth.h"
 #include "wire/Message.h"
 
 void Exports_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);

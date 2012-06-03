@@ -14,8 +14,7 @@
  */
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNInterface_struct.h"
+#include "interface/TUNInterface_pvt.h"
 #include "util/AddrTools.h"
 
 #include <stdio.h>

@@ -25,6 +25,10 @@ else()
                 break()
             endif()
         endforeach()
+        # ignore all *build* subdirectories
+        if (${f} MATCHES "${CSD}/[^/]*build[^/]*/.*")
+            set(skip TRUE)
+        endif()
         if (skip OR IS_DIRECTORY ${f})
             # skip
         elseif(${f} MATCHES "${CSD}/.*")

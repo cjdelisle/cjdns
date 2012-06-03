@@ -81,6 +81,7 @@ struct FirstContext
     size_t spaceAvailable;
 };
 
+static void failure(const char* message) Gcc_NORETURN;
 static void failure(const char* message)
 {
     fprintf(stderr, "Fatal error: %s\n", message);

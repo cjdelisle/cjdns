@@ -12,12 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef Assert_H
-    // This is needed every time the file is pulled in to prevent struct name collisions.
-    #define Assert_COUNTER2 Assert_COUNTER
-    #undef Assert_COUNTER
-    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
-#else
+#ifndef Assert_H
 #define Assert_H
 
 #include "util/Log.h"
@@ -31,14 +26,6 @@
 #define Assert_GLUE(x, y) x ## y
 #define Assert_STRING(x) #x
 
-static inline void Assert_internal(const char* expr, int isTrue, const char* file, int line)
-{
-    if (!isTrue) {
-        fprintf(stderr, "%s:%d Assertion failed: %s", file, line, expr);
-        abort();
-    }
-}
-
 /**
  * Assert_compileTime()
  *
@@ -50,11 +37,21 @@ static inline void Assert_internal(const char* expr, int isTrue, const char* fil
 
 
 /** Runtime assertion which is always applied. */
-#define Assert_always(expr) \
-    Assert_internal(Assert_STRING(expr), (expr) ? 1 : 0, __FILE__, __LINE__)
+#define Assert_always(expr) do { \
+        if (!(expr)) { \
+            fprintf(stderr, "%s:%d Assertion failed: %s\n", \
+                    __FILE__, __LINE__, Assert_STRING(expr)); \
+            abort(); \
+        } \
+    } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)
 
-
+#else /* #ifdef Assert_H */
+    // This is needed every time the file is pulled in to prevent struct name collisions.
+    #define Assert_COUNTER2 Assert_COUNTER
+    #undef Assert_COUNTER
+    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
 #endif

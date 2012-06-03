@@ -12,19 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SwitchPinger_admin_H
-#define SwitchPinger_admin_H
+#ifndef Gcc_H
+#define Gcc_H
 
-#include "admin/Admin.h"
-#include "benc/String.h"
-#include "benc/Dict.h"
-#include "benc/Int.h"
-#include "dht/Address.h"
-#include "net/SwitchPinger.h"
-#include "util/Endian.h"
+#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4))
 
-void SwitchPinger_admin_register(struct SwitchPinger* sp,
-                                 struct Admin* admin,
-                                 struct Allocator* alloc);
+#define Gcc_PRINTF( format_idx, arg_idx ) \
+    __attribute__((__format__ (__printf__, format_idx, arg_idx)))
+#define Gcc_NORETURN \
+  __attribute__((__noreturn__))
+
+#else
+
+#define Gcc_PRINTF( format_idx, arg_idx )
+#define Gcc_NORETURN
+
+#endif
 
 #endif

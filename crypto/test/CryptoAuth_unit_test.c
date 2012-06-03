@@ -12,9 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/CryptoAuth_struct.h"
 #include "crypto/Crypto.h"
-#include "crypto/CryptoAuth.h"
+#include "crypto/CryptoAuth_pvt.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "memory/BufferAllocator.h"
