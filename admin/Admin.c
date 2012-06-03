@@ -657,7 +657,7 @@ static int inFromChildFillBuffer(struct Admin* admin,
     }
 
     Assert_always(amount > 0);
-    Assert_true(amount <= maxRead);
+    Assert_true(amount <= (ssize_t) maxRead);
 
     *have += amount;
     Assert_true(*have <= bufSize);
