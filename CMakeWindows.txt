@@ -11,7 +11,6 @@
 
 # the name of the target operating system
 SET(CMAKE_SYSTEM_NAME Windows)
-set(WIN32 TRUE)
 
 # which compilers to use for C and C++
 SET(CMAKE_C_COMPILER i586-mingw32msvc-gcc)
@@ -20,21 +19,3 @@ SET(CMAKE_RC_COMPILER i586-mingw32msvc-windres)
 
 # here is the target environment located
 SET(CMAKE_FIND_ROOT_PATH /usr/i586-mingw32msvc)
-
-# --prefix is wrong in this case but I'm not sure
-# how else to tell autotools to look for headers somewhere.
-set(EVENT2_CONFIG --prefix=/usr/i686-w64-mingw32 --host=i586-mingw32msvc)
-
-# windows provides clock_gettime() without librt.
-set(NO_LIBRT TRUE)
-
-# BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
-set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
-
-# proceed with ifdef hell :(
-add_definitions(-DWIN32)
-
-set(PLATFORM_LIBRARIES
-    ws2_32
-
-)

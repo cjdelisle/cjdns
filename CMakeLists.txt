@@ -24,10 +24,46 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 # validation
 add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
 
-# ISO C does not support the ‘I64’ ms_printf length modifier
-# but PRId64 is #defined as "I64d"
 if(WIN32)
+    # ISO C does not support the ‘I64’ ms_printf length modifier
+    # but PRId64 is #defined as "I64d"
     add_definitions(-Wno-error)
+
+    # proceed with ifdef hell :(
+    add_definitions(-DWIN32)
+    set(PLATFORM_LIBRARIES
+        ws2_32
+    )
+
+    # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
+    set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
+endif()
+
+if(CMAKE_C_COMPILER MATCHES "(.*)-gcc")
+    string(REGEX REPLACE "-gcc$" "" toolchain ${CMAKE_C_COMPILER})
+    string(REGEX REPLACE ".*/" "" toolchain ${toolchain})
+    message("detected toolchain ${toolchain}")
+    set(TOOLCHAIN ${toolchain} CACHE STRING "Toolchain for compiling (prefix for -gcc, ... binaries)")
+else()
+    set(TOOLCHAIN "" CACHE STRING "Toolchain for compiling (prefix for -gcc, ... binaries)")
+endif()
+
+if(TOOLCHAIN AND NOT CMAKE_C_COMPILER)
+    set(CMAKE_C_COMPILER ${TOOLCHAIN}-gcc)
+endif()
+
+if(TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
+    set(CMAKE_C_COMPILER ${TOOLCHAIN}-g++)
+endif()
+
+if(WIN32 AND TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
+    set(CMAKE_C_COMPILER ${TOOLCHAIN}-windres)
+endif()
+
+message("c compiler: ${CMAKE_C_COMPILER}")
+message("c++ compiler: ${CMAKE_CXX_COMPILER}")
+if(WIN32)
+    message("rc compiler: ${CMAKE_RC_COMPILER}")
 endif()
 
 # This breaks logging since loggers are passed to functions

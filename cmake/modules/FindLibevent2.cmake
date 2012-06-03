@@ -11,15 +11,24 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 INCLUDE(CheckLibraryExists)
+INCLUDE(CheckFunctionExists)
 
-# Need librt to be included if libevent is static linked.
-function(includeLibrt)
-    # Apple includes librt in the standard system library.
-    if(NOT DEFINED APPLE)
-        find_package(Librt REQUIRED)
+# check additional dependencies if libevent is static linked.
+function(include_clock_gettime)
+    # TODO: check libevent2/libevent.pc instead of guessing...
 
-        set_property(TARGET event2
-            PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES})
+    # clock_gettime is used only if it is available on the platform
+    # check whether it is in the default lib
+    CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
+
+    # may have been using librt for clock_gettime
+    if(NOT HAVE_CLOCK_GETTIME)
+        find_package(Librt)
+
+        if(LIBRT_FOUND)
+            set_property(TARGET event2
+                PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES})
+        endif()
     endif()
 endfunction()
 
@@ -85,6 +94,9 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     list(APPEND EVENT2_CONFIG --prefix=${CMAKE_BINARY_DIR}/libevent2)
     list(APPEND EVENT2_CONFIG --disable-openssl --disable-shared --with-pic)
+    if(TOOLCHAIN)
+        list(APPEND EVENT2_CONFIG --host=${TOOLCHAIN})
+    endif()
 
     # https://sourceforge.net/tracker/?func=detail&aid=3527257&group_id=50884&atid=461322
     if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
@@ -125,7 +137,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     set_property(TARGET event2
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2/.libs/libevent.a)
 
-    includeLibrt()
+    include_clock_gettime()
     set(LIBEVENT2_LIBRARIES event2)
     set(LIBEVENT2_FOUND TRUE)
 endif()
