@@ -285,60 +285,38 @@ static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&out, txid, udpif->admin);
 }
 
-#ifdef SCRAMBLE_KEYS
-static void scrambleKeys(Dict* args, void* vcontext, String* txid)
+struct UDPInterface* UDPInterface_new(struct event_base* base,
+                                      const char* bindAddr,
+                                      struct Allocator* allocator,
+                                      struct ExceptionHandler* exHandler,
+                                      struct Log* logger,
+                                      struct InterfaceController* ic,
+                                      struct Admin* admin)
+
+struct UDPInterface_Manager
 {
-    struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
+    struct event_base* eventBase;
+    struct Allocator* allocator;
+    struct Log* logger;
+    struct Admin* admin;
+};
 
-    uint8_t key[InterfaceController_KEY_SIZE];
-    String* xorVal = Dict_getString(args, String_CONST("xorValue"));
-    String* error = String_CONST("none");
-    #define WRONG_LENGTH(x) String_CONST("xorValue length needs to be " #x " characters long")
-    if (!xorVal || xorVal->len != InterfaceController_KEY_SIZE * 2) {
-        error = WRONG_LENGTH((InterfaceController_KEY_SIZE * 2));
-
-    } else {
-        int ret =
-            Hex_decode(key, InterfaceController_KEY_SIZE, (uint8_t*) xorVal->bytes, xorVal->len);
-        if (ret < 0) {
-            error = String_CONST("Failed to parse hex");
-        } else {
-            Bits_memcpyConst(udpif->xorValue, key, InterfaceController_KEY_SIZE);
-        }
-    }
-    Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
-    Admin_sendMessage(&out, txid, udpif->admin);
-}
-#endif
-
-struct UDPInterface* UDPInterface_admin_register(struct event_base* base,
-                                                 struct Allocator* allocator,
-                                                 struct Log* logger,
-                                                 struct Admin* admin)
+void UDPInterface_admin_register(struct event_base* base,
+                                 struct Allocator* allocator,
+                                 struct Log* logger,
+                                 struct Admin* admin)
 {
+    struct UDPInterface_Manager* udpman = allocator->malloc(
+        sizeof(struct UDPInterface_Manager), allocator, &(struct UDPInterface_Manager) {
+            .eventBase = base,
+            .allocator = allocator,
+            .logger = logger,
+            .admin = admin
+        });
+
     struct Admin_FunctionArg adma[3] = {
         { .name = "bindAddress", .required = 1, .type = "String" },
-        { .name = "publicKey", .required = 1, .type = "String" },
-        { .name = "address", .required = 1, .type = "String" },
+        { .name = "password", .required = 1, .type = "String" }
     };
-    Admin_registerFunction("UDPInterface_beginConnection",
-                           beginConnectionAdmin,
-                           context,
-                           true,
-                           adma,
-                           admin);
-
-    #ifdef SCRAMBLE_KEYS
-        struct Admin_FunctionArg scrambleArgs[1] = {
-            { .name = "xorValue", .required = 1, .type = "String" }
-        };
-        Admin_registerFunction("UDPInterface_scrambleKeys",
-                               scrambleKeys,
-                               context,
-                               true,
-                               scrambleArgs,
-                               admin);
-    #endif
-
-    return context;
+    Admin_registerFunction("UDPInterface_new", newInterface, udpman, true, adma, admin);
 }
