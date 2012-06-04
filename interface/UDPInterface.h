@@ -29,20 +29,30 @@ struct UDPInterface;
  * @param bindAddr a string representation of the address to bind to such as "0.0.0.0:12345".
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
+ *    Exceptions:
+ *        UDPInterface_new_PARSE_ADDRESS_FAILED Couldn't parse bindAddr as an ip address and port
+ *        UDPInterface_new_FAILED_CREATING_EVENT Failed creating the event or registering it with
+ *                                               the libevent event base (shouldn't happen)
+ *        UDPInterface_new_SOCKET_FAILED Failed calling socket(), check EVUTIL_SOCKET_ERROR()
+ *        UDPInterface_new_PROTOCOL_NOT_SUPPORTED Only IPv4 is supported as an underlying protocol
+ *        UDPInterface_new_BIND_FAILED Failed calling bind(), check EVUTIL_SOCKET_ERROR()
+ *
  * @param logger
- * @param admin the administration module which will have UDPInterface_beginConnection()
- *              registered with it.
  * @param ic the controller which this interface should register with
  *           and use when starting connections.
  * @return a new UDPInterface.
  */
+#define UDPInterface_new_PARSE_ADDRESS_FAILED -1
+#define UDPInterface_new_FAILED_CREATING_EVENT -2
+#define UDPInterface_new_SOCKET_FAILED -3
+#define UDPInterface_new_PROTOCOL_NOT_SUPPORTED -4
+#define UDPInterface_new_BIND_FAILED -5
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
                                       struct Log* logger,
-                                      struct InterfaceController* ic,
-                                      struct Admin* admin);
+                                      struct InterfaceController* ic);
 
 /**
  * Begin an outgoing connection.

@@ -21,6 +21,7 @@ endif()
 
 add_library(interface
     UDPInterface.c
+    UDPInterface_admin.c
     ${tunif}
     ${tunconf}
     InterfaceConnector.c

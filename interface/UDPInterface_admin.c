@@ -12,254 +12,56 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "benc/Int.h"
 #include "admin/Admin.h"
-#include "crypto/Crypto.h"
-#include "exception/ExceptionHandler.h"
-#include "interface/Interface.h"
+#include "exception/Jmp.h"
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "net/InterfaceController.h"
-#include "util/Bits.h"
-#include "util/Endian.h"
 #include "util/Base32.h"
-#include "wire/Message.h"
-#include "wire/Error.h"
 
-#include "util/Assert.h"
+#include <errno.h>
 #include <event2/event.h>
 
-#ifdef WIN32
-    #include <winsock.h>
-    #undef interface
-    #define EMSGSIZE WSAEMSGSIZE
-    #define ENOBUFS WSAENOBUFS
-    #define EWOULDBLOCK WSAEWOULDBLOCK
-#else
-    #include <arpa/inet.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-#endif
-
-#include <sys/types.h>
-#include <errno.h>
-
-#define MAX_PACKET_SIZE 8192
-
-#define PADDING 512
-
-#define MAX_INTERFACES 256
-
-#ifdef Log_DEBUG
-    #define SCRAMBLE_KEYS
-#endif
-
-struct UDPInterface
+struct Context
 {
-    struct Interface interface;
-
-    evutil_socket_t socket;
-
-    /**
-     * The event registered with libevent.
-     * Needed only so it can be freed.
-     */
-    struct event* incomingMessageEvent;
-
-    /** Used to tell what address type is being used. */
-    ev_socklen_t addrLen;
-
-    uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
-
+    struct event_base* eventBase;
+    struct Allocator* allocator;
     struct Log* logger;
-
+    struct Admin* admin;
     struct InterfaceController* ic;
 
-    struct Admin* admin;
-
-    #ifdef SCRAMBLE_KEYS
-        uint8_t xorValue[InterfaceController_KEY_SIZE];
-    #endif
+    uint32_t ifCount;
+    struct UDPInterface** ifaces;
 };
 
-#define EFFECTIVE_KEY_SIZE \
-    ((InterfaceController_KEY_SIZE > sizeof(struct sockaddr_in)) \
-        ? sizeof(struct sockaddr_in) : InterfaceController_KEY_SIZE)
-
-/**
- * This exists entirely for testing, it allows a call to be made which will alter all keys,
- * effectively the same as making everyone's ip address change.
- */
-#ifdef SCRAMBLE_KEYS
-    static inline void xorkey(uint8_t key[InterfaceController_KEY_SIZE],
-                         struct UDPInterface* udpif)
-    {
-        for (int i = 0; i < InterfaceController_KEY_SIZE; i++) {
-            key[i] ^= udpif->xorValue[i];
-        }
-    }
-#else
-    #define xorkey(a, b)
-#endif
-
-static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
-                                  uint8_t key[InterfaceController_KEY_SIZE],
-                                  struct UDPInterface* udpif)
+static void beginConnection(Dict* args, void* vcontext, String* txid)
 {
-    if (EFFECTIVE_KEY_SIZE < sizeof(struct sockaddr_in)) {
-        memset(sockaddr, 0, sizeof(struct sockaddr_in));
-    }
-    Bits_memcpyConst(sockaddr, key, EFFECTIVE_KEY_SIZE);
-    xorkey(key, udpif);
-}
-
-static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
-                                  struct sockaddr_in* sockaddr,
-                                  struct UDPInterface* udpif)
-{
-    if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
-        memset(key, 0, InterfaceController_KEY_SIZE);
-    }
-    Bits_memcpyConst(key, sockaddr, EFFECTIVE_KEY_SIZE);
-    xorkey(key, udpif);
-}
-
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
-{
-    struct UDPInterface* context = iface->senderContext;
-    Assert_true(&context->interface == iface);
-
-    struct sockaddr_in sin;
-    sockaddrForKey(&sin, message->bytes, context);
-    Bits_memcpyConst(&sin, message->bytes, InterfaceController_KEY_SIZE);
-    Message_shift(message, -InterfaceController_KEY_SIZE);
-
-    if (sendto(context->socket,
-               message->bytes,
-               message->length,
-               0,
-               (struct sockaddr*) &sin,
-               context->addrLen) < 0)
-    {
-        switch (EVUTIL_SOCKET_ERROR()) {
-            case EMSGSIZE:
-                return Error_OVERSIZE_MESSAGE;
-
-            case ENOBUFS:
-            case EAGAIN:
-            #if EWOULDBLOCK != EAGAIN
-                case EWOULDBLOCK:
-            #endif
-                return Error_LINK_LIMIT_EXCEEDED;
-
-            default:;
-                Log_info(context->logger, "Got error sending to socket errno=%d",
-                          EVUTIL_SOCKET_ERROR());
-        }
-    }
-    return 0;
-}
-
-/**
- * Release the event used by this module.
- *
- * @param vevent a void pointer cast of the event structure.
- */
-static void freeEvent(void* vevent)
-{
-    event_del((struct event*) vevent);
-    event_free((struct event*) vevent);
-}
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct UDPInterface* context = (struct UDPInterface*) vcontext;
-
-    struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
-
-    struct sockaddr_storage addrStore;
-    memset(&addrStore, 0, sizeof(struct sockaddr_storage));
-    ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
-
-    // Start writing InterfaceController_KEY_SIZE after the beginning,
-    // keyForSockaddr() will write the key there.
-    int rc = recvfrom(socket,
-                      message.bytes + InterfaceController_KEY_SIZE,
-                      message.length - InterfaceController_KEY_SIZE,
-                      0,
-                      (struct sockaddr*) &addrStore,
-                      &addrLen);
-    /*
-    Log_debug(context->logger,
-               "Got message from peer on port %u\n",
-               Endian_bigEndianToHost16(((struct sockaddr_in*) &addrStore)->sin_port));
-    */
-    if (addrLen != context->addrLen) {
-        return;
-    }
-    if (rc < 0) {
-        return;
-    }
-    message.length = rc + InterfaceController_KEY_SIZE;
-
-    keyForSockaddr(message.bytes, (struct sockaddr_in*) &addrStore, context);
-
-    context->interface.receiveMessage(&message, &context->interface);
-}
-
-int UDPInterface_admin_beginConnection(const char* address,
-                                       uint8_t cryptoKey[32],
-                                       String* password,
-                                      struct UDPInterface* udpif)
-{
-    struct sockaddr_storage addr;
-    ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, addrLen);
-    if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, (int*) &addrLen)) {
-        return UDPInterface_beginConnection_BAD_ADDRESS;
-    }
-    if (addrLen != udpif->addrLen) {
-        return UDPInterface_beginConnection_ADDRESS_MISMATCH;
-    }
-
-    uint8_t key[InterfaceController_KEY_SIZE];
-    keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    int ret =
-        InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
-    switch(ret) {
-        case 0:
-            return 0;
-
-        case InterfaceController_registerInterface_BAD_KEY:
-            return UDPInterface_beginConnection_BAD_KEY;
-
-        case InterfaceController_registerInterface_OUT_OF_SPACE:
-            return UDPInterface_beginConnection_OUT_OF_SPACE;
-
-        default:
-            return UDPInterface_beginConnection_UNKNOWN_ERROR;
-    }
-}
-
-static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
-{
-    struct UDPInterface* udpif = (struct UDPInterface*) vcontext;
+    struct Context* ctx = vcontext;
 
     String* password = Dict_getString(args, String_CONST("password"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
     String* address = Dict_getString(args, String_CONST("address"));
+    int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
+    uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* error = NULL;
 
     uint8_t pkBytes[32];
 
-    if (!publicKey || publicKey->len < 52) {
+    if (ctx->ifCount == 0) {
+        error = String_CONST("no interfaces are setup, call UDPInterface_new() first");
+
+    } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
+        error = String_CONST("invalid interfaceNumber");
+
+    } else if (!publicKey || publicKey->len < 52) {
         error = String_CONST("publicKey is too short, must be 52 characters long.");
 
     } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
         error = String_CONST("failed to parse publicKey.");
 
     } else {
+        struct UDPInterface* udpif = ctx->ifaces[ifNum];
         switch (UDPInterface_beginConnection(address->bytes, pkBytes, password, udpif)) {
             case UDPInterface_beginConnection_OUT_OF_SPACE:
                 error = String_CONST("no more space to register with the switch.");
@@ -282,41 +84,76 @@ static void beginConnectionAdmin(Dict* args, void* vcontext, String* txid)
     }
 
     Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
-    Admin_sendMessage(&out, txid, udpif->admin);
+    Admin_sendMessage(&out, txid, ctx->admin);
 }
 
-struct UDPInterface* UDPInterface_new(struct event_base* base,
-                                      const char* bindAddr,
-                                      struct Allocator* allocator,
-                                      struct ExceptionHandler* exHandler,
-                                      struct Log* logger,
-                                      struct InterfaceController* ic,
-                                      struct Admin* admin)
-
-struct UDPInterface_Manager
+static void newInterface(Dict* args, void* vcontext, String* txid)
 {
-    struct event_base* eventBase;
-    struct Allocator* allocator;
-    struct Log* logger;
-    struct Admin* admin;
-};
+    struct Context* const ctx = vcontext;
+    String* const bindAddress = Dict_getString(args, String_CONST("bindAddress"));
+    char* const bindBytes = (bindAddress) ? bindAddress->bytes : NULL;
+    struct Allocator* const alloc = ctx->allocator->child(ctx->allocator);
+
+    struct UDPInterface* udpIf = NULL;
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        udpIf = UDPInterface_new(
+            ctx->eventBase, bindBytes, alloc, &jmp.handler, ctx->logger, ctx->ic);
+    } Jmp_catch {
+        String* errStr = String_CONST(jmp.message);
+        Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
+
+        if (jmp.code == UDPInterface_new_SOCKET_FAILED
+            || jmp.code == UDPInterface_new_BIND_FAILED)
+        {
+            char* err = strerror(EVUTIL_SOCKET_ERROR());
+            Dict out = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
+            Admin_sendMessage(&out, txid, ctx->admin);
+        } else {
+            Admin_sendMessage(&out, txid, ctx->admin);
+        }
+
+        alloc->free(alloc);
+        return;
+    }
+
+    ctx->ifaces[ctx->ifCount] = udpIf;
+
+    Dict out = Dict_CONST(
+        String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
+        String_CONST("interfaceNumber"), Int_OBJ(ctx->ifCount), NULL
+    ));
+
+    Admin_sendMessage(&out, txid, ctx->admin);
+    ctx->ifCount++;
+}
 
 void UDPInterface_admin_register(struct event_base* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
-                                 struct Admin* admin)
+                                 struct Admin* admin,
+                                 struct InterfaceController* ic)
 {
-    struct UDPInterface_Manager* udpman = allocator->malloc(
-        sizeof(struct UDPInterface_Manager), allocator, &(struct UDPInterface_Manager) {
+    struct Context* ctx = allocator->clone(
+        sizeof(struct Context), allocator, &(struct Context) {
             .eventBase = base,
             .allocator = allocator,
             .logger = logger,
-            .admin = admin
+            .admin = admin,
+            .ic = ic
         });
 
-    struct Admin_FunctionArg adma[3] = {
-        { .name = "bindAddress", .required = 1, .type = "String" },
-        { .name = "password", .required = 1, .type = "String" }
+    struct Admin_FunctionArg adma[1] = {
+        { .name = "bindAddress", .required = 0, .type = "String" }
     };
-    Admin_registerFunction("UDPInterface_new", newInterface, udpman, true, adma, admin);
+    Admin_registerFunction("UDPInterface_new", newInterface, ctx, true, adma, admin);
+
+    struct Admin_FunctionArg adma2[4] = {
+        { .name = "interfaceNumber", .required = 0, .type = "Int" },
+        { .name = "password", .required = 0, .type = "String" },
+        { .name = "publicKey", .required = 1, .type = "String" },
+        { .name = "address", .required = 1, .type = "String" }
+    };
+    Admin_registerFunction("UDPInterface_beginConnection",
+        beginConnection, ctx, true, adma2, admin);
 }
