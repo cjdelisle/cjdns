@@ -94,12 +94,12 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
 {
     struct Context* const ctx = vcontext;
     String* const bindAddress = Dict_getString(args, String_CONST("bindAddress"));
-    char* const bindBytes = (bindAddress) ? bindAddress->bytes : NULL;
     struct Allocator* const alloc = ctx->allocator->child(ctx->allocator);
 
     struct UDPInterface* udpIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
+        char* const bindBytes = (bindAddress) ? bindAddress->bytes : NULL;
         udpIf = UDPInterface_new(
             ctx->eventBase, bindBytes, alloc, &jmp.handler, ctx->logger, ctx->ic);
     } Jmp_catch {
