@@ -19,5 +19,7 @@ add_library(cjdadmin
 
 target_link_libraries(cjdadmin crypto cjdbenc_StandardBencSerializer)
 
+add_subdirectory(testframework)
+
 enable_testing()
 add_subdirectory(test)

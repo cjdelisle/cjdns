@@ -54,8 +54,11 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
         error = String_CONST("invalid interfaceNumber");
 
-    } else if (!publicKey || publicKey->len < 52) {
-        error = String_CONST("publicKey is too short, must be 52 characters long.");
+    } else if (!publicKey
+        || publicKey->len < 52
+        || (publicKey->len > 52 && publicKey->bytes[52] != '.'))
+    {
+        error = String_CONST("publicKey must be 52 characters long.");
 
     } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
         error = String_CONST("failed to parse publicKey.");
@@ -117,6 +120,10 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
         return;
     }
 
+    // sizeof(struct UDPInterface*) the size of a pointer.
+    ctx->ifaces = ctx->allocator->realloc(ctx->ifaces,
+                                          sizeof(struct UDPInterface*) * (ctx->ifCount + 1),
+                                          ctx->allocator);
     ctx->ifaces[ctx->ifCount] = udpIf;
 
     Dict out = Dict_CONST(

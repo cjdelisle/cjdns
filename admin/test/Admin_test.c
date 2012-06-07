@@ -12,17 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/Admin.h"
-#include "admin/AdminClient.h"
+#include "admin/testframework/AdminTestFramework.h"
+
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
-#include "io/FileWriter.h"
-#include "io/Writer.h"
-#include "util/Log.h"
-#include "exception/AbortHandler.h"
 
 #include <event2/event.h>
 #include "util/Assert.h"
@@ -42,38 +37,14 @@ static void adminFunc(Dict* input, void* vcontext, String* txid)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct AdminTestFramework* framework = AdminTestFramework_setUp();
 
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log logger = { .writer = logwriter };
+    struct Context ctx = { .admin = framework->admin, .called = false };
 
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
-
-    struct event_base* eventBase = event_base_new();
-
-    String* password = String_CONST("abcdefg12345");
-    struct Admin* admin =
-        Admin_new(&addr, addrLen, password, NULL, eventBase, AbortHandler_INSTANCE, &logger, alloc);
-
-    struct Context ctx = { .admin = admin, .called = false };
-
-    Admin_registerFunction("adminFunc", adminFunc, &ctx, true, NULL, admin);
-
-    struct sockaddr_storage* addrPtr;
-    String* retPassword;
-    Admin_getConnectInfo(&addrPtr, &addrLen, &retPassword, admin);
-
-    Assert_always(String_equals(password, retPassword));
-
-    struct AdminClient* client =
-        AdminClient_new(addrPtr, addrLen, retPassword, eventBase, &logger, alloc);
-
-    Assert_always(client);
+    Admin_registerFunction("adminFunc", adminFunc, &ctx, true, NULL, framework->admin);
 
     struct AdminClient_Result* res =
-        AdminClient_rpcCall(String_CONST("adminFunc"), NULL, client, alloc);
+        AdminClient_rpcCall(String_CONST("adminFunc"), NULL, framework->client, framework->alloc);
 
     Assert_always(!res->err);
     Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));

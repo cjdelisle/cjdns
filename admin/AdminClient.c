@@ -166,6 +166,7 @@ static void incoming(evutil_socket_t socket, short eventType, void* vcontext)
         }
         return;
     }
+    res->public.messageBytes[length] = '\0';
 
     struct Reader* reader = ArrayReader_new(res->public.messageBytes, length, res->alloc);
     Dict* d = Dict_new(res->alloc);

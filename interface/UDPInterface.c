@@ -187,8 +187,7 @@ int UDPInterface_beginConnection(const char* address,
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    int ret =
-        InterfaceController_insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
     switch(ret) {
         case 0:
             return 0;
@@ -274,7 +273,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
 
-    InterfaceController_registerInterface(&context->interface, ic);
+    ic->registerInterface(&context->interface, ic);
 
     return context;
 }

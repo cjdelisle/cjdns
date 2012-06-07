@@ -24,10 +24,6 @@
 #include "net/InterfaceController.h"
 #include "util/Log.h"
 
-#if InterfaceController_IMPL != DefaultInterfaceController
-    #error InterfaceController_IMPL must be defined as DefaultInterfaceController.
-#endif
-
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
