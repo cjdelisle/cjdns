@@ -50,7 +50,7 @@ enum AdminClient_Error
 };
 
 /** The biggest message that can be sent or received. */
-#define AdminClient_MAX_MESSAGE_SIZE 1024
+#define AdminClient_MAX_MESSAGE_SIZE 1023
 
 struct AdminClient_Result
 {
@@ -61,8 +61,9 @@ struct AdminClient_Result
      * When the request is made, this will hold the request bytes,
      * after it will hold the response bytes. If there is an error
      * during the sending of the request, it will still have the request bytes.
+     * 1 byte extra to alow for a null terminator.
      */
-    uint8_t messageBytes[AdminClient_MAX_MESSAGE_SIZE];
+    uint8_t messageBytes[AdminClient_MAX_MESSAGE_SIZE + 1];
 
     /** The deserialized response. */
     Dict* responseDict;

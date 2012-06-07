@@ -12,18 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/Admin.h"
-#include "admin/AdminClient.h"
+#include "admin/testframework/AdminTestFramework.h"
+
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
+/*<<<<<<< HEAD
 #include "memory/MallocAllocator.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Endian.h"
 #include "util/Log.h"
 #include "exception/AbortHandler.h"
+=======
+>>>>>>> UDPadmin*/
 
 #include <errno.h>
 
@@ -31,16 +34,7 @@
 #include "util/Assert.h"
 
 struct Context {
-    struct Allocator* alloc;
-    struct event_base* eventBase;
-    struct Log logger;
-
-    struct Admin* admin;
-
-    /* connection info for admin clients */
-    struct sockaddr_storage* addrPtr;
-    int addrLen;
-    String *password;
+    struct AdminTestFramework* framework;
 
     /* slow client recv buffer */
     struct {
@@ -53,15 +47,15 @@ struct Context {
 
 static void pendingTimeout(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    event_base_loopexit(((struct Context*)vcontext)->eventBase, NULL);
+    event_base_loopexit(((struct Context*)vcontext)->framework->eventBase, NULL);
 }
 
 static void handlePendingEvents(struct Context* ctx)
 {
-    struct event* timeoutEvent = evtimer_new(ctx->eventBase, pendingTimeout, ctx);
+    struct event* timeoutEvent = evtimer_new(ctx->framework->eventBase, pendingTimeout, ctx);
     evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 0, .tv_usec = 10000 }));
 
-    event_base_dispatch(ctx->eventBase);
+    event_base_dispatch(ctx->framework->eventBase);
 
     evtimer_del(timeoutEvent);
 }
@@ -89,35 +83,29 @@ static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vc
     if (ctx->slowClient.have > 11
         && ctx->slowClient.buf[ctx->slowClient.have-1] == 'e') {
 
-        Log_error(&ctx->logger, "Got cookie response '%s'", ctx->slowClient.buf);
+        Log_error(ctx->framework->logger, "Got cookie response '%s'", ctx->slowClient.buf);
         Assert_always(0 == memcmp("d6:cookie", ctx->slowClient.buf, 9));
 
-        event_base_loopexit(ctx->eventBase, NULL);
+        event_base_loopexit(ctx->framework->eventBase, NULL);
     }
 }
 
-
-
 static void slowClient(struct Context* ctx)
 {
-    int sock = socket(ctx->addrPtr->ss_family, SOCK_STREAM, 0);
+    struct sockaddr_storage* addr;
+    int addrLen;
+
+    Admin_getConnectInfo(&addr, &addrLen, NULL, ctx->framework->admin);
+
+    int sock = socket(addr->ss_family, SOCK_STREAM, 0);
 
     Assert_always(sock >= 0);
-
-    if (ctx->addrPtr->ss_family == AF_INET) {
-        struct sockaddr_in* inAddr = (struct sockaddr_in*) ctx->addrPtr;
-        if (inAddr->sin_addr.s_addr == 0) {
-            // 127.0.0.1
-            inAddr->sin_addr.s_addr = Endian_hostToBigEndian32(0x7f000001);
-        }
-    }
-
-    Assert_always(0 == connect(sock, (struct sockaddr*)ctx->addrPtr, ctx->addrLen));
+    Assert_always(0 == connect(sock, (struct sockaddr*) addr, addrLen));
 
     evutil_make_socket_nonblocking(sock);
 
     struct event* socketEvent =
-        event_new(ctx->eventBase, sock, EV_READ | EV_PERSIST, slowClientIncoming, ctx);
+        event_new(ctx->framework->eventBase, sock, EV_READ | EV_PERSIST, slowClientIncoming, ctx);
     event_add(socketEvent, NULL);
 
     send(sock, "d1:q6", 5, 0);
@@ -126,48 +114,44 @@ static void slowClient(struct Context* ctx)
     handlePendingEvents(ctx);
     send(sock, "e", 1, 0);
 
-    event_base_dispatch(ctx->eventBase);
+    event_base_dispatch(ctx->framework->eventBase);
 
     event_del(socketEvent);
     EVUTIL_CLOSESOCKET(sock);
 }
 
 
-static void standardClient(struct Context* ctx)
-{
-    struct Allocator* alloc = ctx->alloc->child(ctx->alloc);
-
-    struct AdminClient* client =
-        AdminClient_new(ctx->addrPtr,
-                        ctx->addrLen,
-                        ctx->password,
-                        ctx->eventBase,
-                        &ctx->logger,
-                        ctx->alloc);
-
-    Assert_always(client);
-
-    ctx->called = false;
-    struct AdminClient_Result* res =
-        AdminClient_rpcCall(String_CONST("adminFunc"), NULL, client, alloc);
-
-    Assert_always(!res->err);
-    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
-    Assert_always(ctx->called);
-
-    alloc->free(alloc);
-}
 
 static void adminFunc(Dict* input, void* vcontext, String* txid)
 {
     struct Context* ctx = vcontext;
     ctx->called = true;
     Dict d = Dict_CONST(String_CONST("called!"), Int_OBJ(1), NULL);
-    Admin_sendMessage(&d, txid, ctx->admin);
+    Admin_sendMessage(&d, txid, ctx->framework->admin);
+}
+
+static void standardClient(struct Context* ctx)
+{
+    ctx->called = false;
+    struct AdminClient_Result* res =
+        AdminClient_rpcCall(String_CONST("adminFunc"),
+                            NULL,
+                            ctx->framework->client,
+                            ctx->framework->alloc);
+
+    Assert_always(!res->err);
+    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
+    Assert_always(ctx->called);
 }
 
 int main()
 {
+    struct AdminTestFramework* framework = AdminTestFramework_setUp();
+    struct Context ctx = {
+        .framework = framework
+    };
+    Admin_registerFunction("adminFunc", adminFunc, &ctx, true, NULL, framework->admin);
+/*
     struct Context ctx;
     memset(&ctx, 0, sizeof(ctx));
 
@@ -188,12 +172,12 @@ int main()
                           AbortHandler_INSTANCE,
                           &ctx.logger,
                           ctx.alloc);
+*/
 
-    Admin_registerFunction("adminFunc", adminFunc, &ctx, true, NULL, ctx.admin);
 
-    Admin_getConnectInfo(&ctx.addrPtr, &ctx.addrLen, &ctx.password, ctx.admin);
 
-    Assert_always(String_equals(password, ctx.password));
+
+    //Assert_always(String_equals(password, ctx.password));
 
     standardClient(&ctx);
 

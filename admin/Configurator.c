@@ -98,26 +98,38 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 static void udpInterface(Dict* config, struct Context* ctx)
 {
     Dict* udp = Dict_getDict(config, String_CONST("UDPInterface"));
-    Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
-    if (connectTo) {
-        struct Dict_Entry* entry = *connectTo;
-        while (entry != NULL) {
-            String* key = (String*) entry->key;
-            if (entry->val->type != Object_DICT) {
-                Log_critical(ctx->logger, "interfaces.UDPInterface.connectTo: entry [%s] "
-                                           "is not a dictionary type.", key->bytes);
-                exit(-1);
+
+    if (udp) {
+        // Setup the interface.
+        String* bindStr = Dict_getString(udp, String_CONST("bind"));
+        Dict* d = Dict_new(ctx->alloc);
+        if (bindStr) {
+            Dict_putString(d, String_CONST("bindAddress"), bindStr, ctx->alloc);
+        }
+        rpcCall(String_CONST("UDPInterface_new"), d, ctx, ctx->alloc);
+
+        // Make the connections.
+        Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
+        if (connectTo) {
+            struct Dict_Entry* entry = *connectTo;
+            while (entry != NULL) {
+                String* key = (String*) entry->key;
+                if (entry->val->type != Object_DICT) {
+                    Log_critical(ctx->logger, "interfaces.UDPInterface.connectTo: entry [%s] "
+                                               "is not a dictionary type.", key->bytes);
+                    exit(-1);
+                }
+                Dict* value = entry->val->as.dictionary;
+
+                Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+
+                struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
+                Dict_putString(value, String_CONST("address"), key, perCallAlloc);
+                rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
+                perCallAlloc->free(perCallAlloc);
+
+                entry = entry->next;
             }
-            Dict* value = entry->val->as.dictionary;
-
-            Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
-
-            struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
-            Dict_putString(value, String_CONST("address"), key, perCallAlloc);
-            rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
-            perCallAlloc->free(perCallAlloc);
-
-            entry = entry->next;
         }
     }
 }

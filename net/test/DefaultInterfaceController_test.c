@@ -62,7 +62,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .sendMessage = messageFromInterface,
         .senderContext = &message
     };
-    InterfaceController_registerInterface(&icIface, ifController);
+    ifController->registerInterface(&icIface, ifController);
 
     char* majic = "\xDE\xAD\xBE\xEF\xCA\xFE\xBA\xBE";
     uint8_t hexBuffer[1025];

@@ -20,7 +20,6 @@
 #include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/CryptoAuth_benchmark.h"
-#include "dht/CJDHTConstants.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
@@ -29,7 +28,7 @@
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
-#include "interface/UDPInterface.h"
+#include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "io/Writer.h"
@@ -38,7 +37,6 @@
 #include "benc/serialization/json/JsonBencSerializer.h"
 #include "util/Log.h"
 #include "memory/MallocAllocator.h"
-#include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
@@ -81,12 +79,6 @@ struct Context
     struct Log* logger;
 
     struct Admin* admin;
-};
-
-struct UDPInterfaceContext
-{
-    struct Context* context;
-    struct UDPInterface* udpContext;
 };
 
 struct User
@@ -379,7 +371,7 @@ static void security(List* config, struct Log* logger, struct ExceptionHandler* 
 
 static void adminPing(Dict* input, void* vadmin, String* txid)
 {
-    Dict d = Dict_CONST(CJDHTConstants_QUERY, String_OBJ(String_CONST("pong")), NULL);
+    Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
@@ -568,24 +560,11 @@ int main(int argc, char** argv)
                                        sp,
                                        context.allocator);
 
-    Dict* interfaces = Dict_getDict(&config, String_CONST("interfaces"));
-
-    Dict* udpConf = Dict_getDict(interfaces, String_CONST("UDPInterface"));
-    if (udpConf) {
-        String* bindStr = Dict_getString(udpConf, String_CONST("bind"));
-        UDPInterface_new(context.base,
-                         (bindStr) ? bindStr->bytes : NULL,
-                         context.allocator,
-                         context.eHandler,
-                         context.logger,
-                         ifController,
-                         context.admin);
-    }
-
-    if (udpConf == NULL) {
-        fprintf(stderr, "No interfaces configured to connect to.\n");
-        return -1;
-    }
+    UDPInterface_admin_register(context.base,
+                                context.allocator,
+                                context.logger,
+                                context.admin,
+                                ifController);
 
     // pid file
     String* pidFile = Dict_getString(&config, String_CONST("pidFile"));

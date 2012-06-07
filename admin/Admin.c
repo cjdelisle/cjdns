@@ -1246,7 +1246,13 @@ void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
                           String** passwordPtr,
                           struct Admin* admin)
 {
-    *addrPtr = &admin->address;
-    *addrLenPtr = admin->addressLength;
-    *passwordPtr = admin->password;
+    if (addrPtr) {
+        *addrPtr = &admin->address;
+    }
+    if (addrLenPtr) {
+        *addrLenPtr = admin->addressLength;
+    }
+    if (passwordPtr) {
+        *passwordPtr = admin->password;
+    }
 }

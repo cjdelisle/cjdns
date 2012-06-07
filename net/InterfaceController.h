@@ -29,44 +29,40 @@
 /** The number of bytes used to discriminate between endpoints. */
 #define InterfaceController_KEY_SIZE 8
 
-struct InterfaceController;
+struct InterfaceController
+{
+    /**
+     * Add a new endpoint.
+     * Called from the network interface when it is asked to make a connection or it autoconnects.
+     *
+     * @param key the ip/mac address to use for discriminating this endpoint.
+     * @param herPublicKey the public key of the foreign node, NULL if unknown.
+     * @param password the password for authenticating with the other node if specified.
+     * @param externalInterface the network interface which is used to connect to this node.
+     * @param ic the interface controller, a child of the memory allocator for this controller
+     *           will be used for the endpoint because we want to be able to free a single
+     *           endpoint without freeing the whole network interface but if the network interface
+     *           is freed, we would expect all of it's children to deregister.
+     * @return 0 if all goes well.
+     *     InterfaceController_registerInterface_BAD_KEY if the key is not a valid cjdns key.
+     *     InterfaceController_registerInterface_OUT_OF_SPACE if no space to store the entry.
+     */
+    #define InterfaceController_registerInterface_OUT_OF_SPACE -1
+    #define InterfaceController_registerInterface_BAD_KEY -2
+    int (* const insertEndpoint)(uint8_t key[InterfaceController_KEY_SIZE],
+                                 uint8_t herPublicKey[32],
+                                 String* password,
+                                 struct Interface* externalInterface,
+                                 struct InterfaceController* ic);
 
-#ifndef InterfaceController_IMPL
-    #define InterfaceController_IMPL DefaultInterfaceController
-#endif
-
-/**
- * Add a new endpoint.
- * Called from the network interface when it is asked to make a connection or it autoconnects.
- *
- * @param key the ip/mac address to use for discriminating this endpoint.
- * @param herPublicKey the public key of the foreign node, NULL if unknown.
- * @param password the password for authenticating with the other node if specified.
- * @param externalInterface the network interface which is used to connect to this node.
- * @param ic the interface controller, a child of the memory allocator for this controller
- *           will be used for the endpoint because we want to be able to free a single
- *           endpoint without freeing the whole network interface but if the network interface
- *           is freed, we would expect all of it's children to deregister.
- * @return 0 if all goes well.
- *     InterfaceController_registerInterface_BAD_KEY if the key is not a valid cjdns key.
- *     InterfaceController_registerInterface_OUT_OF_SPACE if there is no space to store the entry.
- */
-#define InterfaceController_registerInterface_OUT_OF_SPACE -1
-#define InterfaceController_registerInterface_BAD_KEY -2
-int InterfaceController_insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                                       uint8_t herPublicKey[32],
-                                       String* password,
-                                       struct Interface* externalInterface,
-                                       struct InterfaceController* ic);
-
-/**
- * Setup an external interface to forward to this InterfaceController.
- * This always succeeds.
- *
- * @param externalInterface the network facing interface to register.
- * @param ic the InterfaceController.
- */
-void InterfaceController_registerInterface(struct Interface* externalInterface,
-                                           struct InterfaceController* ic);
-
+    /**
+     * Setup an external interface to forward to this InterfaceController.
+     * This always succeeds.
+     *
+     * @param externalInterface the network facing interface to register.
+     * @param ic the InterfaceController.
+     */
+    void (* const registerInterface)(struct Interface* externalInterface,
+                                     struct InterfaceController* ic);
+};
 #endif
