@@ -66,10 +66,10 @@ if(NOT NACL_FOUND)
     string(REPLACE ";" "," func "${functions}")
 
     # the name of the tag
-    set(tag "f3080eee8c79321a751d8f5e5d4ccf42776b1be3.tar.gz")
+    set(tag "06a77618d3a6e40ae8a2d6bc3b9ae20467e53833.tar.gz")
 
     # the sha256 of the tar.gz file
-    set(hash "f7339f909117f61e8ed49061bb4fbcf773eae690460698b78d8b819653af7212")
+    set(hash "ade920e0dba5d67475dbc4f8a776b5e9dd364f9f9f9ec9cf290f01ec6642993d")
 
     set(file ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
@@ -79,7 +79,7 @@ if(NOT NACL_FOUND)
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
         CONFIGURE_COMMAND ${check}
-        BUILD_COMMAND ./do "-primitives=${func}"
+        BUILD_COMMAND ./do -primitives=${func} -cc=${CMAKE_C_COMPILER}
         INSTALL_COMMAND ""
         UPDATE_COMMAND ""
         PATCH_COMMAND ""
