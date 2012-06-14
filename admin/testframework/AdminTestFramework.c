@@ -41,7 +41,7 @@ struct AdminTestFramework* AdminTestFramework_setUp()
 
     struct event_base* eventBase = event_base_new();
 
-    String* password = String_CONST("abcdefg12345");
+    String* password = String_new("abcdefg12345", alloc);
     struct Admin* admin =
         Admin_new(&addr, addrLen, password, NULL, eventBase, AbortHandler_INSTANCE, logger, alloc);
 
