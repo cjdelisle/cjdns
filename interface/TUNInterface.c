@@ -109,7 +109,7 @@ static int openTunnel(const char* interfaceName, char assignedInterfaceName[IFNA
     }
 
     /* retrieve the assigned utun interface name */
-    uint32_t assignedInterfaceNameLength = sizeof(assignedInterfaceName);
+    uint32_t assignedInterfaceNameLength = IFNAMSIZ;
 
     if (getsockopt(tunFileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
                    assignedInterfaceName, &assignedInterfaceNameLength) >= 0) {
