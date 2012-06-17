@@ -18,6 +18,8 @@ else()
   set(tunif TUNInterface.c)
   if(${CMAKE_SYSTEM_NAME} STREQUAL Linux)
     set(tunconf TUNConfigurator_Linux.c)
+  elseif(${CMAKE_SYSTEM_NAME} STREQUAL Darwin)
+    message(FATAL_ERROR "no TUN adapter to handle your system [${CMAKE_SYSTEM_NAME}]")
   endif()
 endif()
 
