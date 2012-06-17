@@ -100,7 +100,7 @@ static int openTunnel(const char* interfaceName,
 
     char* error = NULL;
 
-    if (ioctl(tun2_fd, SIOCSLIFNAME, &ifr) < 0) {
+    if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
         error = "ioctl(SIOCSLIFNAME)";
 
     } else if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
