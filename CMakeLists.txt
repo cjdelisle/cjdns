@@ -39,6 +39,12 @@ if(WIN32)
     set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
+    set(ILLUMOS TRUE)
+elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    set(LINUX TRUE)
+endif()
+
 if(CMAKE_C_COMPILER MATCHES "(.*)-gcc")
     string(REGEX REPLACE "-gcc$" "" toolchain ${CMAKE_C_COMPILER})
     string(REGEX REPLACE ".*/" "" toolchain ${toolchain})
@@ -127,7 +133,7 @@ else()
     add_definitions(-g)
 endif()
 
-if(NOT DEFINED APPLE AND NOT WIN32 AND NOT SUNOS)
+if(NOT DEFINED APPLE AND NOT WIN32 AND NOT ILLUMOS)
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
 else()
     # apple seems to set noexecstack by default and not support relro.
