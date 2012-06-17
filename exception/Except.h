@@ -12,8 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUNInterface_pvt_H
-#define TUNInterface_pvt_H
+#ifndef Except_H
+#define Except_H
 
+#include "exception/ExceptionHandler.h"
+#include "util/Gcc.h"
+
+#include <stdarg.h>
+#include <string.h>
+
+#define Except ExceptionHandler
+
+Gcc_NORETURN
+Gcc_PRINTF(3, 4)
+static inline void Except_raise(struct Except* eh, int code, char* format, ...)
+{
+    #define Except_BUFFER_SZ 1024
+    char buff[Except_BUFFER_SZ];
+
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buff, Except_BUFFER_SZ, format, args);
+
+    eh->exception(buff, code, eh);
+    abort();
+}
 
 #endif

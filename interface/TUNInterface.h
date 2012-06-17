@@ -30,13 +30,12 @@ struct TUNInterface;
 /**
  * Create a new TUNInterface.
  *
- * @param interfaceName the desired name of the interface,
- *                      if NULL, the kernel will be allowed to choose.
+ * @param tunSocket an pointer to a file descriptor provided by TUNConfigurator_configure().
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param allocator a means of getting memory.
  * @return a TUNInterface structure.
  */
-struct TUNInterface* TUNInterface_new(String* interfaceName,
+struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct event_base* base,
                                       struct Allocator* allocator);
 

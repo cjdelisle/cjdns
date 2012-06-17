@@ -315,12 +315,17 @@ static void registerRouter(Dict* config, struct Address* addr, struct Context* c
 {
     Dict* iface = Dict_getDict(config, String_CONST("interface"));
     if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
-        String* tunPath = Dict_getString(iface, String_CONST("tunDevice"));
-        struct TUNInterface* tun = TUNInterface_new(tunPath, context->base, context->allocator);
-        if (TUNConfigurator_configure(tun, addr->ip6.bytes, 8) != 0) {
-            fprintf(stderr, "Couldn't configure TUN interface\n");
-        }
+        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
+
+        void* tunDesc = TUNConfigurator_configure(((ifName) ? ifName->bytes : NULL),
+                                                  addr->ip6.bytes,
+                                                  8,
+                                                  context->logger,
+                                                  AbortHandler_INSTANCE);
+
+        struct TUNInterface* tun = TUNInterface_new(tunDesc, context->base, context->allocator);
         context->tunInterface = TUNInterface_asGeneric(tun);
+
     }
     context->routerModule = RouterModule_register(context->registry,
                                                   context->allocator,

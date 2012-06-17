@@ -56,7 +56,7 @@ static inline void AddrTools_printPath(uint8_t out[20], uint64_t path)
  * @param netAddr a string representation of the path such as "0000.1111.2222.3333" in Big Endian.
  * @return 0 if successful, -1 if the netAddr is malformed.
  */
-static inline int AddrTools_parsePath(uint64_t* out, uint8_t netAddr[20])
+static inline int AddrTools_parsePath(uint64_t* out, const uint8_t netAddr[20])
 {
     if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
         return -1;
@@ -95,7 +95,7 @@ static inline int AddrTools_parsePath(uint64_t* out, uint8_t netAddr[20])
     return 0;
 }
 
-static inline void AddrTools_printIp(uint8_t output[40], uint8_t binIp[16])
+static inline void AddrTools_printIp(uint8_t output[40], const uint8_t binIp[16])
 {
     uint8_t hex[32];
     Hex_encode(hex, 32, binIp, 16);
@@ -150,7 +150,7 @@ static inline void AddrTools_printIp(uint8_t output[40], uint8_t binIp[16])
  *                "fc4f:630d:e499:8f5b:c49f:6e6b:01ae:3120".
  * @return 0 if successful, -1 if the hexAddr is malformed.
  */
-static inline int AddrTools_parseIp(uint8_t out[16], uint8_t hexAddr[40])
+static inline int AddrTools_parseIp(uint8_t out[16], const uint8_t hexAddr[40])
 {
     for (int i = 4; i < 39; i += 5) {
         if (hexAddr[i] != ':') {

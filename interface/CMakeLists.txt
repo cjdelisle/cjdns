@@ -16,7 +16,9 @@ if(WIN32)
   set(tunconf W32TUNConfigurator.c)
 else()
   set(tunif TUNInterface.c)
-  set(tunconf TUNConfigurator.c)
+  if(${CMAKE_SYSTEM_NAME} STREQUAL Linux)
+    set(tunconf TUNConfigurator_Linux.c)
+  endif()
 endif()
 
 add_library(interface

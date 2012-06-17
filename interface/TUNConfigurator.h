@@ -15,7 +15,8 @@
 #ifndef TUNConfigurator_H
 #define TUNConfigurator_H
 
-#include "interface/TUNInterface.h"
+#include "exception/Except.h"
+#include "util/Log.h"
 
 /**
  * Configure a TUNInterface.
@@ -23,10 +24,20 @@
  * @param interface to configure.
  * @param address the ipv6 address in binary form.
  * @param prefixLen the number of bits in the network mask.
- * @return 0 if successful, non-zero otherwise.
+ * @param logger
+ * @param eh if this function fails, it will raise one of the following.
+ *           TUNConfigurator_configure_BAD_TUNNEL interfaceName was an invalid tun device name.
+ *           TUNConfigurator_configure_MALFORMED_ADDRESS myIp was an invalid ipv6 address.
+ *           TUNConfigurator_configure_INTERNAL Something went wrong internally.
+ * @return an opaque pointer which represents the file descriptor for the newly configured tunnel.
  */
-int TUNConfigurator_configure(struct TUNInterface* iface,
-                              uint8_t address[16],
-                              int prefixLen);
+#define TUNConfigurator_configure_BAD_TUNNEL -1
+#define TUNConfigurator_configure_MALFORMED_ADDRESS -2
+#define TUNConfigurator_configure_INTERNAL -3
+void* TUNConfigurator_configure(const char* interfaceName,
+                                const uint8_t myIp[40],
+                                int prefixLen,
+                                struct Log* logger,
+                                struct Except* eh);
 
 #endif
