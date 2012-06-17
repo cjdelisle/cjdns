@@ -118,6 +118,9 @@ void* TUNConfigurator_configure(const char* interfaceName,
     }
 
     if (!error && address) {
+        snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
+        ifr.lifr_ppa = ppa;
+        ifr.lifr_flags = IFF_IPV6;
         struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
         maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
         ifr.lifr_addr.ss_family = AF_INET6;
