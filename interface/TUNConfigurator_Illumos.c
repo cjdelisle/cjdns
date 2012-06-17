@@ -47,71 +47,54 @@ static int openTunnel(const char* interfaceName,
                       struct Except* eh)
 {
     int ppa = 0;
-	if (interfaceName)) {
+    if (interfaceName)) {
         char* interfaceNum = interfaceName;
         for (int i = 0; i < strlen(interfaceName); i++) {
             if (isdigit(interfaceName[i])) {
                 ppa = atoi(interfaceName);
             }
         }
-	}
+    }
 
     int tunFd = open("/dev/tun", O_RDWR);
     int ipFd = open("/dev/ip", O_RDWR, 0);
-	ppa = ioctl(ttfd, TUNNEWPPA, ppa);
+    ppa = ioctl(ttfd, TUNNEWPPA, ppa);
     int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
-	if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
+    if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
         int err = errno;
         close(tunFd);
         close(ipFd);
         close(tunFd2);
 
+        char* error = NULL;
         if (tunFd < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "open(\"/dev/tun\") [%s]", strerror(errno));
+            error = "open(\"/dev/tun\") [%s]";
+        } else if (ipFd < 0) {
+            error = "open(\"/dev/ip\") [%s]";
+        } else if (ppa < 0) {
+            error = "ioctl(TUNNEWPPA) [%s]";
+        } else if (tunFd2 < 0) {
+            error = "open(\"/dev/tun\") (second time) [%s]";
         }
-        if (ipFd < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "open(\"/dev/ip\") [%s]", strerror(err));
-        }
-        if (ppa < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "ioctl(TUNNEWPPA) [%s]", strerror(err));
-        }
-        if (tunFd2 < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "open(\"/dev/tun\") (second time) [%s]", strerror(err));
-        }
+        Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
 
-    int iPush;
-    int ifUnitsel;
-    int iLink;
-	if ((iPush = ioctl(if_fd, I_PUSH, "ip")) < 0
-        || ((ifUnitsel = ioctl(if_fd, IF_UNITSEL, (char *)&ppa)) < 0)
-        || ((iLink = ioctl(ip_fd, I_LINK, if_fd)) < 0))
-    {
-        int err = errno;
-        close(tunFd);
-        close(ipFd);
-        close(tunFd2);
-
-        if (iPush < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "ioctl(I_PUSH) [%s]", strerror(err));
-        }
-        if (ifUnitsel < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "ioctl(IF_UNITSEL) [%s]", strerror(err));
-        }
-        if (iLink < 0) {
-            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                         "ioctl(I_LINK) [%s]", strerror(err));
-        }
+    if (ioctl(if_fd, I_PUSH, "ip") < 0) {
+        error = "ioctl(I_PUSH) [%s]";
+    } else if ((ifUnitsel = ioctl(if_fd, IF_UNITSEL, (char *)&ppa)) < 0) {
+        error = "ioctl(IF_UNITSEL) [%s]";
+    } else if ((iLink = ioctl(ip_fd, I_LINK, if_fd)) < 0) {
+        error = "ioctl(I_LINK) [%s]";
+    } else {
+        return tunFd;
     }
 
-    return tunFd;
+    int err = errno;
+    close(tunFd);
+    close(ipFd);
+    close(tunFd2);
+    Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
 }
 
 static void setupIpv6(const char* interfaceName,
