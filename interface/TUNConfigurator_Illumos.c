@@ -48,7 +48,7 @@ static int openTunnel(const char* interfaceName,
 {
     int ppa = 0;
     if (interfaceName) {
-        for (int i = 0; i < strlen(interfaceName); i++) {
+        for (uint32_t i = 0; i < strlen(interfaceName); i++) {
             if (isdigit(interfaceName[i])) {
                 ppa = atoi(interfaceName);
             }
@@ -57,7 +57,7 @@ static int openTunnel(const char* interfaceName,
 
     int tunFd = open("/dev/tun", O_RDWR);
     int ipFd = open("/dev/ip", O_RDWR, 0);
-    ppa = ioctl(ttfd, TUNNEWPPA, ppa);
+    ppa = ioctl(tunFd, TUNNEWPPA, ppa);
     int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
     if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
@@ -79,11 +79,11 @@ static int openTunnel(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
 
-    if (ioctl(if_fd, I_PUSH, "ip") < 0) {
+    if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
         error = "ioctl(I_PUSH) [%s]";
-    } else if ((ifUnitsel = ioctl(if_fd, IF_UNITSEL, (char *)&ppa)) < 0) {
+    } else if (ioctl(tunFd2, IF_UNITSEL, (char *)&ppa)) < 0) {
         error = "ioctl(IF_UNITSEL) [%s]";
-    } else if ((iLink = ioctl(ip_fd, I_LINK, if_fd)) < 0) {
+    } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
         error = "ioctl(I_LINK) [%s]";
     } else {
         return tunFd;
