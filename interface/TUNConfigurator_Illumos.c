@@ -101,13 +101,14 @@ static int openTunnel(const char* interfaceName,
     return 0;
 }
 
+/*
 static void setupIpv6(const char* interfaceName,
                       const char myIp[40],
                       int prefixLen,
                       struct Log* logger,
                       struct Except* eh)
 {
-/*
+
     int s;
     struct ifreq ifRequest;
     struct in6_ifreq ifr6;
@@ -144,8 +145,9 @@ static void setupIpv6(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_configure_INTERNAL,
                      "ioctl(SIOCSIFADDR) failed: [%s]", strerror(errno));
     }
-*/
+
 }
+*/
 
 void* TUNConfigurator_configure(const char* interfaceName,
                                 const uint8_t address[16],
