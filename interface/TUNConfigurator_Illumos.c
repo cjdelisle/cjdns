@@ -92,18 +92,19 @@ static int openTunnel(const char* interfaceName,
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
+/*
     struct lifreq ifr;
     snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
     ifr.lifr_flags = IFF_IPV6;
-
+*/
 
     char* error = NULL;
 
-    if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
+    /*if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
         error = "ioctl(SIOCSLIFNAME) [%s]";
 
-    } else if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
+    } else*/ if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
         error = "putting tun into message-discard mode [%s]";
 
     } else if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
