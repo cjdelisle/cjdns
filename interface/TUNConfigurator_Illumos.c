@@ -56,7 +56,7 @@ static int openTunnel(const char* interfaceName,
     }
 
     int tunFd = open("/dev/tun", O_RDWR);
-    int ipFd = open("/dev/ip", O_RDWR, 0);
+    int ipFd = open("/dev/ip6", O_RDWR, 0);
     ppa = ioctl(tunFd, TUNNEWPPA, ppa);
     int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
@@ -70,7 +70,7 @@ static int openTunnel(const char* interfaceName,
         if (tunFd < 0) {
             error = "open(\"/dev/tun\") [%s]";
         } else if (ipFd < 0) {
-            error = "open(\"/dev/ip\") [%s]";
+            error = "open(\"/dev/ip6\") [%s]";
         } else if (ppa < 0) {
             error = "ioctl(TUNNEWPPA) [%s]";
         } else if (tunFd2 < 0) {
