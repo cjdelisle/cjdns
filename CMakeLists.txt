@@ -41,10 +41,6 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
     set(ILLUMOS TRUE)
-
-    # TODO make this less ugly
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lsocket")
-
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(LINUX TRUE)
 endif()
@@ -139,6 +135,9 @@ endif()
 
 if(NOT DEFINED APPLE AND NOT WIN32 AND NOT ILLUMOS)
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
+elseif(ILLUMOS)
+    # TODO make this less ugly
+    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -lsocket")
 else()
     # apple seems to set noexecstack by default and not support relro.
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
