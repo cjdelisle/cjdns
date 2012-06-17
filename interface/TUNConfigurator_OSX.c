@@ -211,7 +211,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
 
     char assignedInterfaceName[IFNAMSIZ];
     intptr_t tunFd = (intptr_t) openTunnel(interfaceName, assignedInterfaceName, logger, eh);
-    if (myIp) {
+    if (address) {
         setupIpv6(assignedInterfaceName, myIp, prefixLen, logger, eh);
     }
     return (void*) tunFd;
