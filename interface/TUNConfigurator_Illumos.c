@@ -101,7 +101,7 @@ static int openTunnel(const char* interfaceName,
     char* error = NULL;
 
     if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
-        error = "ioctl(SIOCSLIFNAME)";
+        error = "ioctl(SIOCSLIFNAME) [%s]";
 
     } else if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
         error = "putting tun into message-discard mode [%s]";
