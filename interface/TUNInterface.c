@@ -30,7 +30,11 @@
     #define INET6_ETHERTYPE PF_INET6
 #else
     #define INET6_ETHERTYPE ETH_P_IPV6
-    #include <linux/if_ether.h>
+    #ifdef Illumios
+        #include <netinet/if_ether.h>
+    #else
+        #include <linux/if_ether.h>
+    #endif
 #endif
 
 // Defined extra large so large MTU can be taken advantage of later.
