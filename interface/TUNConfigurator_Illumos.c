@@ -118,7 +118,8 @@ void* TUNConfigurator_configure(const char* interfaceName,
     }
 
     if (!error && address) {
-        memset(&ifr, 0, sizeof(struct lifreq));
+        ifr.lifr_flags = 0;
+        ifr.lifr_ppa = 0;
         struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
         maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
         ifr.lifr_addr.ss_family = AF_INET6;
