@@ -583,7 +583,7 @@ int main(int argc, char** argv)
                           errno);
             return -1;
         }
-        fprintf(pf, "%d", getpid());
+        fprintf(pf, "%d", (int) getpid());
         fclose(pf);
     }
 
