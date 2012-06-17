@@ -26,15 +26,12 @@
 #include <unistd.h>
 #include <errno.h>
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(Illumos)
+    #include <netinet/if_ether.h>
     #define INET6_ETHERTYPE PF_INET6
 #else
+    #include <linux/if_ether.h>
     #define INET6_ETHERTYPE ETH_P_IPV6
-    #ifdef Illumios
-        #include <netinet/if_ether.h>
-    #else
-        #include <linux/if_ether.h>
-    #endif
 #endif
 
 // Defined extra large so large MTU can be taken advantage of later.
