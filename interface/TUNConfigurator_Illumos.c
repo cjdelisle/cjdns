@@ -79,9 +79,10 @@ static int openTunnel(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
 
+    char* error = NULL;
     if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
         error = "ioctl(I_PUSH) [%s]";
-    } else if (ioctl(tunFd2, IF_UNITSEL, (char *)&ppa)) < 0) {
+    } else if (ioctl(tunFd2, IF_UNITSEL, (char*)&ppa) < 0) {
         error = "ioctl(IF_UNITSEL) [%s]";
     } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
         error = "ioctl(I_LINK) [%s]";
@@ -93,12 +94,16 @@ static int openTunnel(const char* interfaceName,
     close(tunFd);
     close(ipFd);
     close(tunFd2);
+
     Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
+
+    // never reached.
+    return 0;
 }
 
 static void setupIpv6(const char* interfaceName,
                       const char myIp[40],
-                      int prefixLen
+                      int prefixLen,
                       struct Log* logger,
                       struct Except* eh)
 {
