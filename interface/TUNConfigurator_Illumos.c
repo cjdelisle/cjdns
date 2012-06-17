@@ -89,7 +89,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
         } else if (ppa < 0) {
             error = "ioctl(TUNNEWPPA) [%s]";
         } else if (tunFd2 < 0) {
-            error = "open(\"/dev/tun\") (second time) [%s]";
+            error = "open(\"/dev/tun\") (opening for plumbing interface) [%s]";
         }
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
@@ -101,7 +101,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
     memset(&ifr, 0, sizeof(struct lifreq));
     snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
-    ifr.lifr_flags = IFF_IPV6;
+    ifr.lifr_flags = IFF_IPV6 | IFF_BROADCAST;
 
     char* error = NULL;
 
