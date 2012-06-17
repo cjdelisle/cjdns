@@ -126,12 +126,12 @@ void* TUNConfigurator_configure(const char* interfaceName,
         /*if (ioctl(tunFd2, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
             // set the netmask.
             error = "ioctl(SIOCSLIFNETMASK) (setting netmask) [%s]";
-        }*/
+        }
         Bits_memcpyConst(&sin6->sin6_addr, address, 16);
         if (!error && ioctl(tunFd2, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
             // set the ip address.
             error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
-        }
+        }*/
     }
 
     if (error) {
