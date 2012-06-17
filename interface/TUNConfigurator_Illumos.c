@@ -32,19 +32,24 @@
 #include <fcntl.h>
 
 
-/**
- * Open the tun device.
- *
- * @param interfaceName the interface name you *want* to use or NULL to let the kernel decide.
- * @param assignedInterfaceName the interface name you get.
- * @param log
- * @param eh
- * @return a file descriptor for the tunnel.
- */
-static int openTunnel(const char* interfaceName,
-                      char assignedInterfaceName[IFNAMSIZ],
-                      struct Log* logger,
-                      struct Except* eh)
+static void maskForPrefix(uint8_t mask[16], int prefix)
+{
+    for (int i = 0; i < 16; i += 8) {
+        if (i + 8 <= prefix) {
+            mask[i] = 0xff;
+        } else if (i > prefix) {
+            mask[i] = 0x00;
+        } else {
+            mask[i] = (0xff << (i + 8 - prefix)) & 0xff;
+        }
+    }
+}
+
+void* TUNConfigurator_configure(const char* interfaceName,
+                                const uint8_t address[16],
+                                int prefixLen,
+                                struct Log* logger,
+                                struct Except* eh)
 {
     // Extract the number eg: 0 from tun0
     int ppa = 0;
@@ -110,13 +115,32 @@ static int openTunnel(const char* interfaceName,
     } else if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
         // set the name of the interface and specify it as ipv6
         error = "ioctl(SIOCSLIFNAME) [%s]";
+    }
 
+    if (!error && address) {
+        struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
+        maskForPrefix(sin6->sin6_addr, prefixLen);
+        lifr.lifr_addr.ss_family = AF_INET6;
+        if (ioctl(tunFd2, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
+            // set the netmask.
+            error = "ioctl(SIOCSLIFNETMASK) (setting netmask) [%s]";
+        }
+        memcpy(sin6->sin6_addr, address, 16);
+        if (!error && ioctl(tunFd2, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
+            // set the ip address.
+            error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
+        }
+    }
+
+    if (error) {
+        // handled below
     } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
         // link the device to the ipv6 router
         error = "ioctl(I_LINK) [%s]";
 
     } else {
-        return tunFd;
+        intptr_t ret = (intptr_t) tunFd;
+        return (void*) ret;
     }
 
     int err = errno;
@@ -127,63 +151,5 @@ static int openTunnel(const char* interfaceName,
     Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
 
     // never reached.
-    return 0;
-}
-
-/*
-static void setupIpv6(const char* interfaceName,
-                      const char myIp[40],
-                      int prefixLen,
-                      struct Log* logger,
-                      struct Except* eh)
-{
-
-    int s;
-    struct ifreq ifRequest;
-    struct in6_ifreq ifr6;
-
-    if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "socket() failed: [%s]", strerror(errno));
-    }
-
-    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
-
-    if (ioctl(s, SIOCGIFINDEX, &ifRequest) < 0) {
-        int err = errno;
-        close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "ioctl(SIOCGIFINDEX) failed: [%s]", strerror(errno));
-    }
-
-    ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
-    ifr6.ifr6_prefixlen = prefixLen;
-    inet_pton(AF_INET6, myIp, &ifr6.ifr6_addr);
-
-    ifRequest.ifr_flags |= IFF_UP | IFF_RUNNING;
-    if (ioctl(s, SIOCSIFFLAGS, &ifRequest) < 0) {
-        int err = errno;
-        close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "ioctl(SIOCSIFFLAGS) failed: [%s]", strerror(errno));
-    }
-
-    if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
-        int err = errno;
-        close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "ioctl(SIOCSIFADDR) failed: [%s]", strerror(errno));
-    }
-
-}
-*/
-
-void* TUNConfigurator_configure(const char* interfaceName,
-                                const uint8_t address[16],
-                                int prefixLen,
-                                struct Log* logger,
-                                struct Except* eh)
-{
-    intptr_t fd = openTunnel(interfaceName, NULL, logger, eh);
-    return (void*) fd;
+    return NULL;
 }
