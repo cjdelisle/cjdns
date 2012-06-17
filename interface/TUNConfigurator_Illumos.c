@@ -25,11 +25,11 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <net/if.h>
-
+#include <ctype.h>
 #include <net/if_tun.h>
 #include <sys/stropts.h>
 #include <sys/sockio.h>
-
+#include <fcntl.h>
 
 
 /**
@@ -47,8 +47,7 @@ static int openTunnel(const char* interfaceName,
                       struct Except* eh)
 {
     int ppa = 0;
-    if (interfaceName)) {
-        char* interfaceNum = interfaceName;
+    if (interfaceName) {
         for (int i = 0; i < strlen(interfaceName); i++) {
             if (isdigit(interfaceName[i])) {
                 ppa = atoi(interfaceName);
