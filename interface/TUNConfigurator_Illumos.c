@@ -107,10 +107,6 @@ static int openTunnel(const char* interfaceName,
         // add the ip module
         error = "ioctl(I_PUSH) [%s]";
 
-    } else if (ioctl(tunFd2, IF_UNITSEL, (char*)&ppa) < 0) {
-        // select the ppa used in the tun we have opened
-        error = "ioctl(IF_UNITSEL) [%s]";
-
     } else if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
         // set the name of the interface and specify it as ipv6
         error = "ioctl(SIOCSLIFNAME) [%s]";
