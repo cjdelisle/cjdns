@@ -93,7 +93,7 @@ static int openTunnel(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     struct lifreq ifr;
-    snprintf(ifr.lifr_name, "tun%d", ppa, LIFNAMSIZ);
+    snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
     ifr.lifr_flags = IFF_IPV6;
 
