@@ -133,7 +133,7 @@ static int openTunnel(const char* interfaceName,
 
 static void setupIpv6(const char* interfaceName,
                       const char myIp[40],
-                      int prefixLen
+                      int prefixLen,
                       struct Log* logger,
                       struct Except* eh)
 {
