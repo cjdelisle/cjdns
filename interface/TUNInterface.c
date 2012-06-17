@@ -104,7 +104,7 @@ struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct event_base* base,
                                       struct Allocator* allocator)
 {
-    int tunFileDesc = *((int*)tunSocket);
+    int tunFileDesc = (int) ((intptr_t) tunSocket);
 
     evutil_make_socket_nonblocking(tunFileDesc);
 
