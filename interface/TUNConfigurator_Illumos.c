@@ -98,7 +98,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     struct lifreq ifr;
-    memset(ifr, 0, sizeof(struct lifreq));
+    memset(&ifr, 0, sizeof(struct lifreq));
     snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
     ifr.lifr_flags = IFF_IPV6;
