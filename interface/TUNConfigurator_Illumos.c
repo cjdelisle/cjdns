@@ -67,7 +67,7 @@ static int openTunnel(const char* interfaceName,
         ppa = ioctl(tunFd, TUNNEWPPA, -1);
     }
 
-    int ipFd = open("/dev/udp6", O_RDWR, 0);
+    int ipFd = open("/dev/ip6", O_RDWR, 0);
     int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
     if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
@@ -92,28 +92,31 @@ static int openTunnel(const char* interfaceName,
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
-/*
     struct lifreq ifr;
     snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
     ifr.lifr_flags = IFF_IPV6;
-*/
+
 
     char* error = NULL;
 
-    /*if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
-        error = "ioctl(SIOCSLIFNAME) [%s]";
-
-    } else*/ if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
+    if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
         error = "putting tun into message-discard mode [%s]";
 
     } else if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
+        // add the ip module
         error = "ioctl(I_PUSH) [%s]";
 
     } else if (ioctl(tunFd2, IF_UNITSEL, (char*)&ppa) < 0) {
+        // select the ppa used in the tun we have opened
         error = "ioctl(IF_UNITSEL) [%s]";
 
+    } else if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
+        // set the name of the interface and specify it as ipv6
+        error = "ioctl(SIOCSLIFNAME) [%s]";
+
     } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
+        // link the device to the ipv6 router
         error = "ioctl(I_LINK) [%s]";
 
     } else {
