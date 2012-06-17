@@ -123,10 +123,10 @@ void* TUNConfigurator_configure(const char* interfaceName,
         struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
         maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
         ifr.lifr_addr.ss_family = AF_INET6;
-        if (ioctl(tunFd2, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
+        /*if (ioctl(tunFd2, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
             // set the netmask.
             error = "ioctl(SIOCSLIFNETMASK) (setting netmask) [%s]";
-        }
+        }*/
         Bits_memcpyConst(&sin6->sin6_addr, address, 16);
         if (!error && ioctl(tunFd2, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
             // set the ip address.
