@@ -127,10 +127,10 @@ else()
     add_definitions(-g)
 endif()
 
-if(NOT DEFINED APPLE AND NOT WIN32)
+if(NOT DEFINED APPLE AND NOT WIN32 AND NOT SUNOS)
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
 else()
-    # apple seems to set noexecstack by defualt and not support relro.
+    # apple seems to set noexecstack by default and not support relro.
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
 endif()
 
