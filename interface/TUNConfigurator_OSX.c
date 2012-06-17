@@ -32,7 +32,12 @@
 #include <netinet/in_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in.h>
+#include <sys/kern_control.h>
+#include <sys/sys_domain.h>
+#include <sys/kern_event.h>
+#include <sys/errno.h>
 
+#define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
 #define UTUN_OPT_IFNAME 2
 
 /* Tun Configurator for Apple computers. */
