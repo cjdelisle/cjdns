@@ -46,28 +46,72 @@ static int openTunnel(const char* interfaceName,
                       struct Log* logger,
                       struct Except* eh)
 {
-    Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
+    int ppa = 0;
+	if (interfaceName)) {
+        char* interfaceNum = interfaceName;
+        for (int i = 0; i < strlen(interfaceName); i++) {
+            if (isdigit(interfaceName[i])) {
+                ppa = atoi(interfaceName);
+            }
+        }
+	}
 
-    struct ifreq ifRequest = { .ifr_flags = IFF_TUN };
-    if (interfaceName) {
-        strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
-    }
-    int tunFileDescriptor = open("/dev/net/tun", O_RDWR);
+    int tunFd = open("/dev/tun", O_RDWR);
+    int ipFd = open("/dev/ip", O_RDWR, 0);
+	ppa = ioctl(ttfd, TUNNEWPPA, ppa);
+    int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
-    if (tunFileDescriptor < 0) {
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "open(\"/dev/net/tun\") [%s]", strerror(errno));
-    }
-
-    if (ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest) < 0) {
+	if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
         int err = errno;
-        close(tunFileDescriptor);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "ioctl(TUNSETIFF) [%s]", strerror(err));
-    }
-    strncpy(assignedInterfaceName, ifRequest.ifr_name, IFNAMSIZ);
+        close(tunFd);
+        close(ipFd);
+        close(tunFd2);
 
-    return tunFileDescriptor;
+        if (tunFd < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "open(\"/dev/tun\") [%s]", strerror(errno));
+        }
+        if (ipFd < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "open(\"/dev/ip\") [%s]", strerror(err));
+        }
+        if (ppa < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "ioctl(TUNNEWPPA) [%s]", strerror(err));
+        }
+        if (tunFd2 < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "open(\"/dev/tun\") (second time) [%s]", strerror(err));
+        }
+    }
+
+    int iPush;
+    int ifUnitsel;
+    int iLink;
+	if ((iPush = ioctl(if_fd, I_PUSH, "ip")) < 0
+        || ((ifUnitsel = ioctl(if_fd, IF_UNITSEL, (char *)&ppa)) < 0)
+        || ((iLink = ioctl(ip_fd, I_LINK, if_fd)) < 0))
+    {
+        int err = errno;
+        close(tunFd);
+        close(ipFd);
+        close(tunFd2);
+
+        if (iPush < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "ioctl(I_PUSH) [%s]", strerror(err));
+        }
+        if (ifUnitsel < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "ioctl(IF_UNITSEL) [%s]", strerror(err));
+        }
+        if (iLink < 0) {
+            Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+                         "ioctl(I_LINK) [%s]", strerror(err));
+        }
+    }
+
+    return tunFd;
 }
 
 static void setupIpv6(const char* interfaceName,
@@ -76,6 +120,7 @@ static void setupIpv6(const char* interfaceName,
                       struct Log* logger,
                       struct Except* eh)
 {
+/*
     int s;
     struct ifreq ifRequest;
     struct in6_ifreq ifr6;
@@ -112,6 +157,7 @@ static void setupIpv6(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_configure_INTERNAL,
                      "ioctl(SIOCSIFADDR) failed: [%s]", strerror(errno));
     }
+*/
 }
 
 void* TUNConfigurator_configure(const char* interfaceName,
@@ -120,5 +166,6 @@ void* TUNConfigurator_configure(const char* interfaceName,
                                 struct Log* logger,
                                 struct Except* eh)
 {
-    return NULL;
+    intptr_t fd = openTunnel(interfaceName, NULL, logger, eh);
+    return (void*) fd;
 }
