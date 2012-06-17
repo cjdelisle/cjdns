@@ -98,10 +98,10 @@ void* TUNConfigurator_configure(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     struct lifreq ifr;
+    memset(ifr, 0, sizeof(struct lifreq));
     snprintf(ifr.lifr_name, LIFNAMSIZ, "tun%d", ppa);
     ifr.lifr_ppa = ppa;
     ifr.lifr_flags = IFF_IPV6;
-
 
     char* error = NULL;
 
@@ -119,7 +119,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
 
     if (!error && address) {
         struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
-        maskForPrefix((uint8_t*) &sin6->sin6_addr, prefixLen);
+        maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
         ifr.lifr_addr.ss_family = AF_INET6;
         if (ioctl(tunFd2, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
             // set the netmask.
