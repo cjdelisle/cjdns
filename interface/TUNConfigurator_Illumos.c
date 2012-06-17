@@ -46,6 +46,7 @@ static int openTunnel(const char* interfaceName,
                       struct Log* logger,
                       struct Except* eh)
 {
+    // Extract the number eg: 0 from tun0
     int ppa = 0;
     if (interfaceName) {
         for (uint32_t i = 0; i < strlen(interfaceName); i++) {
@@ -55,9 +56,18 @@ static int openTunnel(const char* interfaceName,
         }
     }
 
+    // Open the descriptor
     int tunFd = open("/dev/tun", O_RDWR);
-    int ipFd = open("/dev/ip6", O_RDWR, 0);
-    ppa = ioctl(tunFd, TUNNEWPPA, ppa);
+
+    // Either the name is specified and we use TUNSETPPA,
+    // or it's not specified and we just want a TUNNEWPPA
+    if (ppa) {
+        ppa = ioctl(tunFd, TUNSETPPA, ppa);
+    } else {
+        ppa = ioctl(tunFd, TUNNEWPPA, -1);
+    }
+
+    int ipFd = open("/dev/udp6", O_RDWR, 0);
     int tunFd2 = open("/dev/tun", O_RDWR, 0);
 
     if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
@@ -79,13 +89,32 @@ static int openTunnel(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
 
+
+    // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
+    // so we'll skip the pretty names and call everything tunX
+    struct lifreq ifr;
+    snprintf(ifr.lifr_name, "tun%d", ppa, LIFNAMSIZ);
+    ifr.lifr_ppa = ppa;
+    ifr.lifr_flags = IFF_IPV6;
+
+
     char* error = NULL;
-    if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
+
+    if (ioctl(tun2_fd, SIOCSLIFNAME, &ifr) < 0) {
+        error = "ioctl(SIOCSLIFNAME)";
+
+    } else if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
+        error = "putting tun into message-discard mode [%s]";
+
+    } else if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
         error = "ioctl(I_PUSH) [%s]";
+
     } else if (ioctl(tunFd2, IF_UNITSEL, (char*)&ppa) < 0) {
         error = "ioctl(IF_UNITSEL) [%s]";
+
     } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
         error = "ioctl(I_LINK) [%s]";
+
     } else {
         return tunFd;
     }
