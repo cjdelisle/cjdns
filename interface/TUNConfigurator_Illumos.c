@@ -150,7 +150,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
             // use the same as the source address since we're not really using it.
             error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address)";
         }
-        memset(&sin6, 0, sizeof(struct sockaddr_in6));
+        memset(sin6, 0, sizeof(struct sockaddr_in6));
         if (!error && ioctl(udpSock, SIOCGLIFFLAGS, (caddr_t)&ifr) < 0) {
             // get the flags for the device.
             error = "ioctl(SIOCGLIFFLAGS) (getting device flags)";
