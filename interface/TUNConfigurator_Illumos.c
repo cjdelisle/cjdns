@@ -44,7 +44,7 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
         }
     }
 }
-
+#include <assert.h>
 void* TUNConfigurator_configure(const char* interfaceName,
                                 const uint8_t address[16],
                                 int prefixLen,
