@@ -124,7 +124,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
     }
 
     int udpSock = -1;
-    if (!error && address) {
+    /*if (!error && address) {
         ifr.lifr_flags = 0;
         ifr.lifr_ppa = 0;
         struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
@@ -150,7 +150,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
             // use the same as the source address since we're not really using it.
             error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address) [%s]";
         }
-    }
+    }*/
 
     int err = errno;
 
