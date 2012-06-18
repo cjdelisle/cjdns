@@ -103,7 +103,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
         .lifr_ppa = ppa,
         .lifr_flags = IFF_IPV6
     };
-    memcpy(ifr.lifr_name, assignedName, LIFNAMSIZ);
+    Bits_memcpyConst(ifr.lifr_name, assignedName, LIFNAMSIZ);
 
     char* error = NULL;
 
@@ -145,7 +145,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
             // set the ip address.
             error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
         }
-        if (!error && ioctl(udpSock, SIOCGLIFDSTADDR, (caddr_t)&lifr) < 0) {
+        if (!error && ioctl(udpSock, SIOCGLIFDSTADDR, (caddr_t)&ifr) < 0) {
             // set the destination address for the point-to-point connection
             // use the same as the source address since we're not really using it.
             error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address) [%s]";
