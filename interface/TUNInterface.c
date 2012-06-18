@@ -40,7 +40,17 @@
 
 // The number of bytes at the beginning of the message which is used
 // to contain the type of packet.
-#define PACKET_INFO_SIZE 4
+#ifdef Illumos
+    #define PACKET_INFO_SIZE 0
+#else
+    #define PACKET_INFO_SIZE 4
+
+    static void setPacketInfo(uint8_t* toLocation)
+    {
+        ((uint16_t*) toLocation)[0] = 0;
+        ((uint16_t*) toLocation)[1] = Endian_bigEndianToHost16(INET6_ETHERTYPE);
+    }
+#endif
 
 
 struct TUNInterface
@@ -86,10 +96,12 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
-    // The type of packet we send, older kernels need this hint otherwise they assume it's ipv4.
-    Message_shift(message, PACKET_INFO_SIZE);
-    const uint16_t packetInfo[2] = { 0, Endian_bigEndianToHost16(INET6_ETHERTYPE) };
-    Bits_memcpyConst(message->bytes, packetInfo, PACKET_INFO_SIZE);
+    #if PACKET_INFO_SIZE > 0
+        // The type of packet we send,
+        // older linux kernels need this hint otherwise they assume it's ipv4.
+        Message_shift(message, PACKET_INFO_SIZE);
+        setPacketInfo(message->bytes);
+    #endif
 
     struct TUNInterface* tun = (struct TUNInterface*) iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
