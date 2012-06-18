@@ -83,13 +83,13 @@ void* TUNConfigurator_configure(const char* interfaceName,
 
         char* error = NULL;
         if (tunFd < 0) {
-            error = "open(\"/dev/tun\") [%s]";
+            error = "open(\"/dev/tun\")";
         } else if (ipFd < 0) {
-            error = "open(\"/dev/ip6\") [%s]";
+            error = "open(\"/dev/ip6\")";
         } else if (ppa < 0) {
-            error = "ioctl(TUNNEWPPA) [%s]";
+            error = "ioctl(TUNNEWPPA)";
         } else if (tunFd2 < 0) {
-            error = "open(\"/dev/tun\") (opening for plumbing interface) [%s]";
+            error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
@@ -108,19 +108,19 @@ void* TUNConfigurator_configure(const char* interfaceName,
     char* error = NULL;
 
     if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
-        error = "putting tun into message-discard mode [%s]";
+        error = "putting tun into message-discard mode";
 
     } else if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
         // add the ip module
-        error = "ioctl(I_PUSH) [%s]";
+        error = "ioctl(I_PUSH)";
 
     } else if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
         // set the name of the interface and specify it as ipv6
-        error = "ioctl(SIOCSLIFNAME) [%s]";
+        error = "ioctl(SIOCSLIFNAME)";
 
     } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
         // link the device to the ipv6 router
-        error = "ioctl(I_LINK) [%s]";
+        error = "ioctl(I_LINK)";
     }
 
     int udpSock = -1;
@@ -134,21 +134,31 @@ void* TUNConfigurator_configure(const char* interfaceName,
         udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
         if (udpSock < 0) {
             // the schnozberries really do taste liek schnozberries
-            error = "socket(AF_INET6, SOCK_DGRAM, 0) [%s]";
+            error = "socket(AF_INET6, SOCK_DGRAM, 0)";
 
         } else if (ioctl(udpSock, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
             // set the netmask.
-            error = "ioctl(SIOCSLIFNETMASK) (setting netmask) [%s]";
+            error = "ioctl(SIOCSLIFNETMASK) (setting netmask)";
         }
         Bits_memcpyConst(&sin6->sin6_addr, address, 16);
         if (!error && ioctl(udpSock, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
             // set the ip address.
-            error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
+            error = "ioctl(SIOCSLIFADDR) (setting ipv6 address)";
         }
         if (!error && ioctl(udpSock, SIOCSLIFDSTADDR, (caddr_t)&ifr) < 0) {
             // set the destination address for the point-to-point connection
             // use the same as the source address since we're not really using it.
-            error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address) [%s]";
+            error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address)";
+        }
+        memset(&sin6, 0, sizeof(struct sockaddr_in6));
+        if (!error && ioctl(udpSock, SIOCGLIFFLAGS, (caddr_t)&ifr) < 0) {
+            // get the flags for the device.
+            error = "ioctl(SIOCGLIFFLAGS) (getting device flags)";
+        }
+        ifr.lifr_flags |= IFF_UP;
+        if (!error && ioctl(udpSock, SIOCSLIFFLAGS, (caddr_t)&ifr) < 0) {
+            // bring the interface up
+            error = "ioctl(SIOCSLIFFLAGS) (bringing the interface up)";
         }
     }
 
@@ -160,7 +170,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
     if (error) {
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNConfigurator_configure_INTERNAL, "%s [%s]", error, strerror(err));
     }
 
     intptr_t ret = (intptr_t) tunFd;
