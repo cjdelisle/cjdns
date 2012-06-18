@@ -30,7 +30,6 @@
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <fcntl.h>
-#include <libipadm.h>
 
 
 static void maskForPrefix(uint8_t mask[16], int prefix)
@@ -44,32 +43,6 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
             mask[i] = (0xff << (i + 8 - prefix)) & 0xff;
         }
     }
-}
-
-void* setIpv6(const char* interfaceName,
-              const uint8_t address[16],
-              int prefixLen,
-              struct Log* logger,
-              struct Except* eh)
-{
-    uint8_t addressString[56];
-    AddrTools_printIp(addressString, address);
-    snprintf(&addressString[40], 16, "/%d", prefixLen);
-
-    ipadm_addrobj_t ipaddr;
-    ipadm_status_t ipadmStatus;
-    ipadmStatus = ipadm_create_addrobj(IPADM_ADDR_STATIC, assignedName, &ipaddr);
-    ipadmStatus = ipadm_set_addr(ipaddr, (char*) addressString, AF_INET6);
-    ipadmStatus = ipadm_set_dst_addr(ipaddr, "fc00::1", AF_INET6);
-
-    ipadm_handle_t ipadmHandle;
-    // TODO can IPH_LEGACY be dropped?
-    ipadmStatus = ipadm_open(&ipadmHandle, IPH_LEGACY);
-
-    ipadmStatus = ipadm_create_addr(ipadmHandle, ipaddr, IPADM_OPT_ACTIVE);
-
-    ipadm_destroy_addrobj(ipaddr);
-    ipadm_close(ipadmHandle);
 }
 
 void* TUNConfigurator_configure(const char* interfaceName,
@@ -132,7 +105,6 @@ void* TUNConfigurator_configure(const char* interfaceName,
     };
     memcpy(ifr.lifr_name, assignedName, LIFNAMSIZ);
 
-
     char* error = NULL;
 
     if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
@@ -151,16 +123,45 @@ void* TUNConfigurator_configure(const char* interfaceName,
         error = "ioctl(I_LINK) [%s]";
     }
 
+    int udpSock = -1;
+    if (!error && address) {
+        ifr.lifr_flags = 0;
+        ifr.lifr_ppa = 0;
+        struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
+        maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
+        ifr.lifr_addr.ss_family = AF_INET6;
+
+        udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
+        if (udpSock < 0) {
+            // the schnozberries really do taste liek schnozberries
+            error = "socket(AF_INET6, SOCK_DGRAM, 0) [%s]";
+
+        } else if (ioctl(udpSock, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
+            // set the netmask.
+            error = "ioctl(SIOCSLIFNETMASK) (setting netmask) [%s]";
+        }
+        Bits_memcpyConst(&sin6->sin6_addr, address, 16);
+        if (!error && ioctl(udpSock, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
+            // set the ip address.
+            error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
+        }
+        if (!error && ioctl(udpSock, SIOCGLIFDSTADDR, (caddr_t)&lifr) < 0) {
+            // set the destination address for the point-to-point connection
+            // use the same as the source address since we're not really using it.
+            error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address) [%s]";
+        }
+    }
+
     int err = errno;
+
     close(ipFd);
     close(tunFd2);
+    close(udpSock);
 
     if (error) {
         close(tunFd);
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
-
-    setIpv6(assignedName, address, prefixLen, logger, eh);
 
     intptr_t ret = (intptr_t) tunFd;
     return (void*) ret;
