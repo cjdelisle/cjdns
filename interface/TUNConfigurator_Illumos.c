@@ -32,7 +32,7 @@
 #include <fcntl.h>
 
 
-static void maskForPrefix(uint8_t mask[16], int prefix)
+/*static void maskForPrefix(uint8_t mask[16], int prefix)
 {
     for (int i = 0; i < 16; i += 8) {
         if (i + 8 <= prefix) {
@@ -43,7 +43,7 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
             mask[i] = (0xff << (i + 8 - prefix)) & 0xff;
         }
     }
-}
+}*/
 
 void* TUNConfigurator_configure(const char* interfaceName,
                                 const uint8_t address[16],
