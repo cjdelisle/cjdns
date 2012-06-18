@@ -324,8 +324,13 @@ static inline uint8_t ip6FromTun(struct Message* message,
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     if (memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
-        Log_warn(context->logger, "dropped message because only one address is allowed to be used "
-                                  "and the source address was different.\n");
+        uint8_t expectedSource[40];
+        AddrTools_printIp(expectedSource, context->myAddr.ip6.bytes);
+        uint8_t packetSource[40];
+        AddrTools_printIp(packetSource, header->sourceAddr);
+        Log_warn(context->logger,
+                 "dropped packet from [%s] because all messages must have source address [%s]",
+                 (char*) packetSource, (char*) expectedSource);
         return Error_INVALID;
     }
     if (!memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
