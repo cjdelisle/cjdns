@@ -44,7 +44,7 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
         }
     }
 }
-#include <assert.h>
+#include "util/Assert.h"
 void* TUNConfigurator_configure(const char* interfaceName,
                                 const uint8_t address[16],
                                 int prefixLen,
@@ -147,7 +147,7 @@ Bits_memcpy(&ifr2, &ifr, sizeof(struct lifreq));
             // set the ip address.
             error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
         }
-assert(!memcmp(ifr, ifr2, sizeof(struct lifreq));
+Assert_always(!memcmp(ifr, ifr2, sizeof(struct lifreq)));
         if (!error && ioctl(udpSock, SIOCGLIFDSTADDR, (caddr_t)&ifr) < 0) {
             // set the destination address for the point-to-point connection
             // use the same as the source address since we're not really using it.
