@@ -145,6 +145,7 @@ void* TUNConfigurator_configure(const char* interfaceName,
             // set the ip address.
             error = "ioctl(SIOCSLIFADDR) (setting ipv6 address) [%s]";
         }
+        Bits_memcpyConst(&sin6->sin6_addr, address, 16);
         if (!error && ioctl(udpSock, SIOCGLIFDSTADDR, (caddr_t)&ifr) < 0) {
             // set the destination address for the point-to-point connection
             // use the same as the source address since we're not really using it.
