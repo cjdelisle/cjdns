@@ -155,10 +155,10 @@ void* TUNConfigurator_configure(const char* interfaceName,
     int err = errno;
 
     close(ipFd);
-    close(tunFd2);
     close(udpSock);
 
     if (error) {
+        close(tunFd2);
         close(tunFd);
         Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
     }
