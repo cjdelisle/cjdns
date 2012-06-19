@@ -31,6 +31,28 @@
 #include <sys/sockio.h>
 #include <fcntl.h>
 
+/* TODO: insert route
+#define	BUF_SIZE 2048
+
+struct RouteMessage {
+    struct rt_msghdr header;
+    char space[BUF_SIZE];
+};
+
+static void setupRoute(uint8_t ipv6Addr[16], int prefix)
+{
+    struct RouteMessage rm = {
+        .header = {
+	        .rtm_type = RTM_ADD;
+	        .rtm_flags = RTF_STATIC | RTF_GATEWAY;
+	        .rtm_version = RTM_VERSION;
+	        .rtm_seq = 0;
+	        .rtm_addrs = newrt->ri_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
+	        .rtm_rmx = newrt->ri_metrics;
+	        .rtm_inits = newrt->ri_inits;
+        }
+    }
+}*/
 
 static void maskForPrefix(uint8_t mask[16], int prefix)
 {
