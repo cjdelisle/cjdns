@@ -179,7 +179,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     // so we'll skip the pretty names and call everything tunX
     int maxNameSize =
         (LIFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? LIFNAMSIZ : TUNConfigurator_IFNAMSIZ;
-    snprintf(assignedName, maxNameSize, "tun%d", ppa);
+    snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
     snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
 
     char* error = NULL;
