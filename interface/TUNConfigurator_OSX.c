@@ -42,7 +42,6 @@
 
 /* Tun Configurator for Apple computers. */
 
-
 /**
  * Open the tun device.
  *
@@ -52,11 +51,12 @@
  * @param eh
  * @return a file descriptor for the tunnel.
  */
-static int openTunnel(const char* interfaceName,
-                      char assignedInterfaceName[IFNAMSIZ],
-                      struct Log* logger,
-                      struct Except* eh)
+void* TUNConfigurator_initTun(const char* interfaceName,
+                              char assignedInterfaceName[IFNAMSIZ],
+                              struct Log* logger,
+                              struct Except* eh)
 {
+    int maxNameSize = (IFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? IFNAMSIZ : TUNConfigurator_IFNAMSIZ;
     int tunUnit = 0; /* allocate dynamically by default */
 
     if (interfaceName) {
@@ -64,7 +64,7 @@ static int openTunnel(const char* interfaceName,
 
         if (sscanf(interfaceName, "utun%i", &parsedUnit) != 1 || parsedUnit < 0) {
             Except_raise(eh,
-                         TUNConfigurator_configure_BAD_TUNNEL,
+                         TUNConfigurator_initTun_BAD_TUNNEL,
                          "Invalid utun device %s",
                          interfaceName);
         }
@@ -90,7 +90,7 @@ static int openTunnel(const char* interfaceName,
         int err = errno;
         close(tunFileDescriptor);
         Except_raise(eh,
-                     TUNConfigurator_configure_INTERNAL,
+                     TUNConfigurator_initTun_INTERNAL,
                      "getting utun device id [%s]",
                      strerror(err));
     }
@@ -108,22 +108,20 @@ static int openTunnel(const char* interfaceName,
         int err = errno;
         close(tunFileDescriptor);
         Except_raise(eh,
-                     TUNConfigurator_configure_INTERNAL,
+                     TUNConfigurator_initTun_INTERNAL,
                      "connecting to utun device [%s]",
                      strerror(err));
     }
 
     /* retrieve the assigned utun interface name */
-    uint32_t assignedInterfaceNameLength = IFNAMSIZ;
-
     if (getsockopt(tunFileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
-                   assignedInterfaceName, &assignedInterfaceNameLength) >= 0) {
+                   assignedInterfaceName, &maxNameSize) >= 0) {
         Log_info(logger, "Initialized utun interface [%s]\n", assignedInterfaceName);
     } else {
         int err = errno;
         close(tunFileDescriptor);
         Except_raise(eh,
-                     TUNConfigurator_configure_INTERNAL,
+                     TUNConfigurator_initTun_INTERNAL,
                      "getting utun interface name [%s]",
                      strerror(err));
     }
@@ -131,12 +129,16 @@ static int openTunnel(const char* interfaceName,
     return tunFileDescriptor;
 }
 
-static void setupIpv6(const char* interfaceName,
-                      const char myIp[40],
-                      int prefixLen,
-                      struct Log* logger,
-                      struct Except* eh)
+void TUNConfigurator_setIpAddress(const char* interfaceName,
+                                  const uint8_t address[16],
+                                  int prefixLen,
+                                  struct Log* logger,
+                                  struct Except* eh)
 {
+    /* stringify our IP address */
+    char myIp[40];
+    AddrTools_printIp((uint8_t*)myIp, address);
+
     /* set up the interface ip assignment request */
     struct in6_aliasreq in6_addreq;
     memset(&in6_addreq, 0, sizeof(in6_addreq));
@@ -150,8 +152,9 @@ static void setupIpv6(const char* interfaceName,
     hints.ai_family = AF_INET6;
     int err = getaddrinfo((const char *)myIp, NULL, &hints, &result);
     if (err) {
+        // Should never happen since the address is specified as binary.
         Except_raise(eh,
-                     TUNConfigurator_configure_MALFORMED_ADDRESS,
+                     TUNConfigurator_setIpAddress_INTERNAL,
                      "bad IPv6 address [%s]",
                      gai_strerror(err));
     }
@@ -180,7 +183,7 @@ static void setupIpv6(const char* interfaceName,
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s < 0) {
         Except_raise(eh,
-                     TUNConfigurator_configure_INTERNAL,
+                     TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed [%s]",
                      strerror(errno));
     }
@@ -189,7 +192,7 @@ static void setupIpv6(const char* interfaceName,
         int err = errno;
         close(s);
         Except_raise(eh,
-                     TUNConfigurator_configure_INTERNAL,
+                     TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCAIFADDR) failed [%s]",
                      strerror(err));
     }
@@ -197,22 +200,4 @@ static void setupIpv6(const char* interfaceName,
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
 
     close(s);
-}
-
-void* TUNConfigurator_configure(const char* interfaceName,
-                                const uint8_t address[16],
-                                int prefixLen,
-                                struct Log* logger,
-                                struct Except* eh)
-{
-    /* stringify our IP address */
-    char myIp[40];
-    AddrTools_printIp((uint8_t*)myIp, address);
-
-    char assignedInterfaceName[IFNAMSIZ];
-    intptr_t tunFd = (intptr_t) openTunnel(interfaceName, assignedInterfaceName, logger, eh);
-    if (address) {
-        setupIpv6(assignedInterfaceName, myIp, prefixLen, logger, eh);
-    }
-    return (void*) tunFd;
 }

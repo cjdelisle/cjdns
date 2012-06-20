@@ -19,25 +19,49 @@
 #include "util/Log.h"
 
 /**
- * Configure a TUNInterface.
+ * This is the maximum size that will be accepted as an interface name.
+ * If this runs on a system where IFNAMSIZ is less then 16, names larger
+ * than that will also be rejected.
+ */
+#define TUNConfigurator_IFNAMSIZ 16
+
+/**
+ * Open the TUN device.
  *
- * @param interface to configure.
- * @param address the ipv6 address in binary form.
- * @param prefixLen the number of bits in the network mask.
- * @param logger
+ * @param interfaceName the interface name you *want* to use or NULL to let the kernel decide.
+ * @param assignedInterfaceName an empty buffer which will be filled in with the interface
+ *                              name that is assigned.
+ * @param log
  * @param eh if this function fails, it will raise one of the following.
  *           TUNConfigurator_configure_BAD_TUNNEL interfaceName was an invalid tun device name.
- *           TUNConfigurator_configure_MALFORMED_ADDRESS myIp was an invalid ipv6 address.
  *           TUNConfigurator_configure_INTERNAL Something went wrong internally.
+ *           TUNConfigurator_initTun_PERMISSION The user running this process doesn't have
+ *                                              permission to open a tun device.
  * @return an opaque pointer which represents the file descriptor for the newly configured tunnel.
  */
-#define TUNConfigurator_configure_BAD_TUNNEL -1
-#define TUNConfigurator_configure_MALFORMED_ADDRESS -2
-#define TUNConfigurator_configure_INTERNAL -3
-void* TUNConfigurator_configure(const char* interfaceName,
-                                const uint8_t myIp[40],
-                                int prefixLen,
-                                struct Log* logger,
-                                struct Except* eh);
+#define TUNConfigurator_initTun_INTERNAL -3
+#define TUNConfigurator_initTun_BAD_TUNNEL -2
+#define TUNConfigurator_initTun_PERMISSION -1
+void* TUNConfigurator_initTun(const char* interfaceName,
+                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ],
+                              struct Log* logger,
+                              struct Except* eh);
+
+/**
+ * Set an IPv6 address on an interface, bring the interface up, and configure a route.
+ *
+ * @param interfaceName the name of the interface to alter.
+ * @param address the ip address to set.
+ * @param prefixLen the number of bits netmask to include in the route.
+ * @param logger
+ * @param eh if this function fails, it will raise one of the following.
+ *           TUNConfigurator_setIpAddress_INTERNAL Catch all exception code for failures.
+ */
+#define TUNConfigurator_setIpAddress_INTERNAL -1
+void TUNConfigurator_setIpAddress(const char* interfaceName,
+                                  const uint8_t address[16],
+                                  int prefixLen,
+                                  struct Log* logger,
+                                  struct Except* eh);
 
 #endif

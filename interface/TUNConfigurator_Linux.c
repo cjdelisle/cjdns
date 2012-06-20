@@ -44,7 +44,6 @@
     };
 #endif
 
-
 /**
  * Open the tun device.
  *
@@ -54,47 +53,58 @@
  * @param eh
  * @return a file descriptor for the tunnel.
  */
-static int openTunnel(const char* interfaceName,
-                      char assignedInterfaceName[IFNAMSIZ],
-                      struct Log* logger,
-                      struct Except* eh)
+void* TUNConfigurator_initTun(const char* interfaceName,
+                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ],
+                              struct Log* logger,
+                              struct Except* eh)
 {
+    uint32_t maxNameSize =
+        (IFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? IFNAMSIZ : TUNConfigurator_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
 
     struct ifreq ifRequest = { .ifr_flags = IFF_TUN };
     if (interfaceName) {
-        strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+        if (strlen(interfaceName) > maxNameSize) {
+            Except_raise(eh, TUNConfigurator_initTun_BAD_TUNNEL,
+                         "tunnel name too big, limit is [%d] characters", maxNameSize);
+        }
+        strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
     int tunFileDescriptor = open("/dev/net/tun", O_RDWR);
 
     if (tunFileDescriptor < 0) {
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "open(\"/dev/net/tun\") [%s]", strerror(errno));
+        int code = (errno == EPERM)
+            ? TUNConfigurator_initTun_PERMISSION
+            : TUNConfigurator_initTun_INTERNAL;
+        Except_raise(eh, code, "open(\"/dev/net/tun\") [%s]", strerror(errno));
     }
 
     if (ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest) < 0) {
         int err = errno;
+        int code = (err == EPERM)
+            ? TUNConfigurator_initTun_PERMISSION
+            : TUNConfigurator_initTun_INTERNAL;
         close(tunFileDescriptor);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
-                     "ioctl(TUNSETIFF) [%s]", strerror(err));
+        Except_raise(eh, code, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
-    strncpy(assignedInterfaceName, ifRequest.ifr_name, IFNAMSIZ);
+    strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
 
-    return tunFileDescriptor;
+    uintptr_t tunPtr = (uintptr_t) tunFileDescriptor;
+    return (void*) tunPtr;
 }
 
-static void setupIpv6(const char* interfaceName,
-                      const uint8_t myIp[40],
-                      int prefixLen,
-                      struct Log* logger,
-                      struct Except* eh)
+void TUNConfigurator_setIpAddress(const char* interfaceName,
+                                  const uint8_t address[16],
+                                  int prefixLen,
+                                  struct Log* logger,
+                                  struct Except* eh)
 {
     int s;
     struct ifreq ifRequest;
     struct in6_ifreq ifr6;
 
     if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed: [%s]", strerror(errno));
     }
 
@@ -103,44 +113,28 @@ static void setupIpv6(const char* interfaceName,
     if (ioctl(s, SIOCGIFINDEX, &ifRequest) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCGIFINDEX) failed: [%s]", strerror(err));
     }
 
     ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
     ifr6.ifr6_prefixlen = prefixLen;
+    uint8_t myIp[40];
+    AddrTools_printIp(myIp, address);
     inet_pton(AF_INET6, (char*) myIp, &ifr6.ifr6_addr);
 
     ifRequest.ifr_flags |= IFF_UP | IFF_RUNNING;
     if (ioctl(s, SIOCSIFFLAGS, &ifRequest) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCSIFFLAGS) failed: [%s]", strerror(err));
     }
 
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL,
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
     }
-}
-
-void* TUNConfigurator_configure(const char* interfaceName,
-                                const uint8_t address[16],
-                                int prefixLen,
-                                struct Log* logger,
-                                struct Except* eh)
-{
-    /* stringify our IP address */
-    uint8_t myIp[40];
-    AddrTools_printIp(myIp, address);
-
-    char assignedInterfaceName[IFNAMSIZ];
-    intptr_t tunFd = (intptr_t) openTunnel(interfaceName, assignedInterfaceName, logger, eh);
-    if (address) {
-        setupIpv6(assignedInterfaceName, myIp, prefixLen, logger, eh);
-    }
-    return (void*) tunFd;
 }

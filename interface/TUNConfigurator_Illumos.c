@@ -67,11 +67,65 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
     }
 }
 
-void* TUNConfigurator_configure(const char* interfaceName,
-                                const uint8_t address[16],
-                                int prefixLen,
-                                struct Log* logger,
-                                struct Except* eh)
+void TUNConfigurator_setIpAddress(const char* interfaceName,
+                                  const uint8_t address[16],
+                                  int prefixLen,
+                                  struct Log* logger,
+                                  struct Except* eh)
+{
+    struct lifreq ifr = {
+        .lifr_ppa = 0,
+        .lifr_flags = 0
+    };
+    String* error = NULL;
+    struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
+    maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
+    ifr.lifr_addr.ss_family = AF_INET6;
+    strncpy(ifr.lifr_name, interfaceName, LIFNAMSIZ);
+
+    int udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (udpSock < 0) {
+        error = "socket(AF_INET6, SOCK_DGRAM, 0)";
+
+    } else if (ioctl(udpSock, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
+        // set the netmask.
+        error = "ioctl(SIOCSLIFNETMASK) (setting netmask)";
+    }
+    Bits_memcpyConst(&sin6->sin6_addr, address, 16);
+    if (!error && ioctl(udpSock, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
+        // set the ip address.
+        error = "ioctl(SIOCSLIFADDR) (setting ipv6 address)";
+    }
+    if (!error && ioctl(udpSock, SIOCSLIFDSTADDR, (caddr_t)&ifr) < 0) {
+        // set the destination address for the point-to-point connection
+        // use the same as the source address since we're not really using it.
+        error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address)";
+    }
+    memset(sin6, 0, sizeof(struct sockaddr_in6));
+    if (!error && ioctl(udpSock, SIOCGLIFFLAGS, (caddr_t)&ifr) < 0) {
+        // get the flags for the device.
+        error = "ioctl(SIOCGLIFFLAGS) (getting device flags)";
+    }
+    ifr.lifr_flags |= IFF_UP;
+    if (!error && ioctl(udpSock, SIOCSLIFFLAGS, (caddr_t)&ifr) < 0) {
+        // bring the interface up
+        error = "ioctl(SIOCSLIFFLAGS) (bringing the interface up)";
+    }
+
+    if (error) {
+        int err = errno;
+        close(udpSock);
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL, "%s [%s]", error, strerror(err));
+    }
+    close(udpSock);
+
+    // TODO: set the route.
+}
+
+void* TUNConfigurator_initTun(const char* interfaceName,
+                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ]
+                              struct Log* logger,
+                              struct Except* eh)
 {
     // Extract the number eg: 0 from tun0
     int ppa = 0;
@@ -113,19 +167,20 @@ void* TUNConfigurator_configure(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
     }
 
-
-    // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
-    // so we'll skip the pretty names and call everything tunX
-    char assignedName[LIFNAMSIZ];
-    snprintf(assignedName, LIFNAMSIZ, "tun%d", ppa);
     struct lifreq ifr = {
         .lifr_ppa = ppa,
         .lifr_flags = IFF_IPV6
     };
-    Bits_memcpyConst(ifr.lifr_name, assignedName, LIFNAMSIZ);
+
+    // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
+    // so we'll skip the pretty names and call everything tunX
+    int maxNameSize =
+        (LIFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? LIFNAMSIZ : TUNConfigurator_IFNAMSIZ;
+    snprintf(assignedName, maxNameSize, "tun%d", ppa);
+    snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
 
     char* error = NULL;
 
@@ -145,55 +200,15 @@ void* TUNConfigurator_configure(const char* interfaceName,
         error = "ioctl(I_LINK)";
     }
 
-    int udpSock = -1;
-    if (!error && address) {
-        ifr.lifr_flags = 0;
-        ifr.lifr_ppa = 0;
-        struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
-        maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
-        ifr.lifr_addr.ss_family = AF_INET6;
-
-        udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
-        if (udpSock < 0) {
-            // the schnozberries really do taste liek schnozberries
-            error = "socket(AF_INET6, SOCK_DGRAM, 0)";
-
-        } else if (ioctl(udpSock, SIOCSLIFNETMASK, (caddr_t)&ifr) < 0) {
-            // set the netmask.
-            error = "ioctl(SIOCSLIFNETMASK) (setting netmask)";
-        }
-        Bits_memcpyConst(&sin6->sin6_addr, address, 16);
-        if (!error && ioctl(udpSock, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
-            // set the ip address.
-            error = "ioctl(SIOCSLIFADDR) (setting ipv6 address)";
-        }
-        if (!error && ioctl(udpSock, SIOCSLIFDSTADDR, (caddr_t)&ifr) < 0) {
-            // set the destination address for the point-to-point connection
-            // use the same as the source address since we're not really using it.
-            error = "ioctl(SIOCGLIFDSTADDR) (setting point-to-point destination address)";
-        }
-        memset(sin6, 0, sizeof(struct sockaddr_in6));
-        if (!error && ioctl(udpSock, SIOCGLIFFLAGS, (caddr_t)&ifr) < 0) {
-            // get the flags for the device.
-            error = "ioctl(SIOCGLIFFLAGS) (getting device flags)";
-        }
-        ifr.lifr_flags |= IFF_UP;
-        if (!error && ioctl(udpSock, SIOCSLIFFLAGS, (caddr_t)&ifr) < 0) {
-            // bring the interface up
-            error = "ioctl(SIOCSLIFFLAGS) (bringing the interface up)";
-        }
-    }
-
-    int err = errno;
-
-    close(ipFd);
-    close(udpSock);
-
     if (error) {
+        int err = errno;
+        close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_configure_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
     }
+
+    close(ipFd);
 
     intptr_t ret = (intptr_t) tunFd;
     return (void*) ret;

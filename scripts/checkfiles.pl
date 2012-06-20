@@ -87,6 +87,10 @@ foreach my $fileName (split("\n", $files))
             if ($name =~ /^W32(.*)$/) {
                 $n = $1;
             }
+            # implementations..  TUNConfigurator_Linux contains TUNConfigurator_doStuff...
+            if ($name =~ /^([^_]*)_.*$/) {
+                $n = $1;
+            }
             if ($line =~ /^\w+\s.*\(/) {
                 if (!($line =~ /^int main\(/
                     || $line =~ / ${n}/
