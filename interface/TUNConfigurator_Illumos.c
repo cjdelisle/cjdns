@@ -31,28 +31,6 @@
 #include <sys/sockio.h>
 #include <fcntl.h>
 
-/* TODO: insert route
-#define BUF_SIZE 2048
-
-struct RouteMessage {
-    struct rt_msghdr header;
-    char space[BUF_SIZE];
-};
-
-static void setupRoute(uint8_t ipv6Addr[16], int prefix)
-{
-    struct RouteMessage rm = {
-        .header = {
-            .rtm_type = RTM_ADD;
-            .rtm_flags = RTF_STATIC | RTF_GATEWAY;
-            .rtm_version = RTM_VERSION;
-            .rtm_seq = 0;
-            .rtm_addrs = newrt->ri_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
-            .rtm_rmx = newrt->ri_metrics;
-            .rtm_inits = newrt->ri_inits;
-        }
-    }
-}*/
 
 static void maskForPrefix(uint8_t mask[16], int prefix)
 {
@@ -64,6 +42,58 @@ static void maskForPrefix(uint8_t mask[16], int prefix)
         } else {
             mask[i] = (0xff << (i + 8 - prefix)) & 0xff;
         }
+    }
+}
+
+struct RouteMessage {
+    struct rt_msghdr header;
+    struct sockaddr_in6 dest;
+    struct sockaddr_in6 gateway;
+    struct sockaddr_in6 netmask;
+};
+Assert_compileTime(sizeof(struct RouteMessage) == 172);
+
+static void setupRoute(uint8_t ipv6Addr[16], int prefix)
+{
+    struct RouteMessage rm = {
+        .header = {
+            .rtm_type = RTM_ADD,
+            .rtm_flags = RTF_STATIC | RTF_GATEWAY,
+            .rtm_version = RTM_VERSION,
+            .rtm_seq = 0,
+            .rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK,
+            .rtm_rmx = newrt->ri_metrics,
+            .rtm_inits = newrt->ri_inits,
+            .rtm_msglen = sizeof(struct RouteMessage)
+        },
+        .dest = {
+            .sin6_family = AF_INET6
+        },
+        .gateway = {
+            .sin6_family = AF_INET6
+        },
+        .netmask = {
+            .sin6_family = AF_INET6
+        }
+    };
+
+    Bits_memcpyConst(&rm.dest.in6_addr, ipv6Addr, 16);
+    Bits_memcpyConst(&rm.gateway.in6_addr, ipv6Addr, 16);
+    maskForPrefix(&rm.netmask.in6_addr, prefix);
+
+    int sock = socket(PF_ROUTE, SOCK_RAW, 0);
+    if (sock == -1) {
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+                     "open route socket [%s]", strerror(errno));
+    }
+
+    ssize_t returnLen = write(sock, (char*) &rm, rm.rtm_msglen);
+    if (returnLen < 0) {
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+                     "insert route [%s]", strerror(errno));
+    } else if (returnLen < rm.rtm_msglen) {
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+                     "insert route returned only [%d] of [%d]", returnLen, rm.rtm_msglen);
     }
 }
 
@@ -118,6 +148,8 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL, "%s [%s]", error, strerror(err));
     }
     close(udpSock);
+
+    setupRoute(address, prefix, logger, eh);
 
     // TODO: set the route.
 }
