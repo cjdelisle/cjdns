@@ -76,9 +76,9 @@ static void setupRoute(uint8_t ipv6Addr[16], int prefix)
         }
     };
 
-    Bits_memcpyConst(&rm.dest.in6_addr, ipv6Addr, 16);
-    Bits_memcpyConst(&rm.gateway.in6_addr, ipv6Addr, 16);
-    maskForPrefix(&rm.netmask.in6_addr, prefix);
+    Bits_memcpyConst(&rm.dest.sin6_addr, ipv6Addr, 16);
+    Bits_memcpyConst(&rm.gateway.sin6_addr, ipv6Addr, 16);
+    maskForPrefix(&rm.netmask.sin6_addr, prefix);
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
