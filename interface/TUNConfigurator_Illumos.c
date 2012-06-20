@@ -54,7 +54,10 @@ struct RouteMessage {
 };
 Assert_compileTime(sizeof(struct RouteMessage) == 172);
 
-static void setupRoute(uint8_t ipv6Addr[16], int prefix)
+static void setupRoute(const uint8_t address[16],
+                       int prefixLen,
+                       struct Log* logger,
+                       struct Except* eh)
 {
     struct RouteMessage rm = {
         .header = {
@@ -76,9 +79,9 @@ static void setupRoute(uint8_t ipv6Addr[16], int prefix)
         }
     };
 
-    Bits_memcpyConst(&rm.dest.sin6_addr, ipv6Addr, 16);
-    Bits_memcpyConst(&rm.gateway.sin6_addr, ipv6Addr, 16);
-    maskForPrefix(&rm.netmask.sin6_addr, prefix);
+    Bits_memcpyConst(&rm.dest.sin6_addr, address, 16);
+    Bits_memcpyConst(&rm.gateway.sin6_addr, address, 16);
+    maskForPrefix((uint8_t*) &rm.netmask.sin6_addr, prefixLen);
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
