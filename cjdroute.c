@@ -25,6 +25,7 @@
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
+#include "exception/Jmp.h"
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
@@ -322,9 +323,13 @@ static void registerRouter(Dict* config, struct Address* addr, struct Context* c
                                                assignedTunName,
                                                context->logger,
                                                AbortHandler_INSTANCE);
-
-        TUNConfigurator_setIpAddress(
-            assignedTunName, addr->ip6.bytes, 8, context->logger, AbortHandler_INSTANCE);
+        struct Jmp jmp;
+        Jmp_try(jmp) {
+            TUNConfigurator_setIpAddress(
+                assignedTunName, addr->ip6.bytes, 8, context->logger, &jmp.handler);
+        } Jmp_catch {
+            Log_warn(context->logger, "Unable to configure ip address [%s]", jmp.message);
+        }
 
         struct TUNInterface* tun = TUNInterface_new(tunPtr, context->base, context->allocator);
         context->tunInterface = TUNInterface_asGeneric(tun);

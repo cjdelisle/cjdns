@@ -15,11 +15,8 @@
 #ifndef ExceptionHandler_H
 #define ExceptionHandler_H
 
-struct ExceptionHandler
-{
-    void (* exception)(char* message, int code, struct ExceptionHandler* handler);
+#include "exception/Except.h"
 
-    void* context;
-};
+#define ExceptionHandler Except
 
 #endif

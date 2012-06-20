@@ -15,7 +15,6 @@
 #ifndef Except_H
 #define Except_H
 
-#include "exception/ExceptionHandler.h"
 #include "util/Gcc.h"
 
 #include <stdarg.h>
@@ -23,20 +22,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define Except ExceptionHandler
+#define Except_BUFFER_SZ 1024
+
+struct Except
+{
+    void (* exception)(char* message, int code, struct Except* handler);
+
+    char message[Except_BUFFER_SZ];
+};
 
 Gcc_NORETURN
 Gcc_PRINTF(3, 4)
 static inline void Except_raise(struct Except* eh, int code, char* format, ...)
 {
-    #define Except_BUFFER_SZ 1024
-    char buff[Except_BUFFER_SZ];
-
     va_list args;
     va_start(args, format);
-    vsnprintf(buff, Except_BUFFER_SZ, format, args);
+    vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
 
-    eh->exception(buff, code, eh);
+    eh->exception(eh->message, code, eh);
     abort();
 }
 
