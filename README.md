@@ -69,9 +69,14 @@ The router engine is a modified implementation of the Kademlia DHT design.
 How close is it to complete?
 ----------------------------
 
-A live testing network exists with at least 50 active nodes.
+A live testing network exists with at least 150 active nodes.
 The software has been tested and is known to work on x86, amd64, ARMv5, ARMv7,
-MIPS, and PowerPC64 and is continually tested on Linux and Apple OSX systems.
+MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux and Apple OSX
+systems. While the software itself is stable, the protocols and algorithms are
+new inventions and we still don't understand how they work in the real world so
+please update early and often to give developers the maximum latitude to make
+tweaks to the protocol and alogrithms.
+
 
 You Can Help!
 -------------
