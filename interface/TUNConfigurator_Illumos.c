@@ -89,13 +89,13 @@ static void setupRoute(const uint8_t address[16],
                      "open route socket [%s]", strerror(errno));
     }
 
-    ssize_t returnLen = write(sock, (char*) &rm, rm.rtm_msglen);
+    ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
         Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "insert route [%s]", strerror(errno));
-    } else if (returnLen < rm.rtm_msglen) {
+    } else if (returnLen < rm.header.rtm_msglen) {
         Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
-                     "insert route returned only [%d] of [%d]", returnLen, rm.rtm_msglen);
+                     "insert route returned only [%d] of [%d]", returnLen, rm.header.rtm_msglen);
     }
 }
 
