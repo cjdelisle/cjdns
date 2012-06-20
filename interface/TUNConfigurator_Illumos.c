@@ -62,7 +62,6 @@ static void setupRoute(const uint8_t address[16],
     struct RouteMessage rm = {
         .header = {
             .rtm_type = RTM_ADD,
-            .rtm_flags = RTF_STATIC | RTF_GATEWAY,
             .rtm_version = RTM_VERSION,
             .rtm_seq = 0,
             .rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK,
