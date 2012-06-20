@@ -151,9 +151,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     }
     close(udpSock);
 
-    setupRoute(address, prefix, logger, eh);
-
-    // TODO: set the route.
+    setupRoute(address, prefixLen, logger, eh);
 }
 
 void* TUNConfigurator_initTun(const char* interfaceName,
