@@ -77,7 +77,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         .lifr_ppa = 0,
         .lifr_flags = 0
     };
-    String* error = NULL;
+    char* error = NULL;
     struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
     maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
     ifr.lifr_addr.ss_family = AF_INET6;
@@ -123,7 +123,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
 }
 
 void* TUNConfigurator_initTun(const char* interfaceName,
-                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ]
+                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ],
                               struct Log* logger,
                               struct Except* eh)
 {
