@@ -78,7 +78,9 @@ void* TUNConfigurator_initTun(const char* interfaceName,
 
     int tunFileDescriptor = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
     if (tunFileDescriptor < 0) {
-        return tunFileDescriptor;
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL,
+                     "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]",
+                     strerror(errno));
     }
 
     /* get the utun control id */
@@ -115,7 +117,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
 
     /* retrieve the assigned utun interface name */
     if (getsockopt(tunFileDescriptor, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
-                   assignedInterfaceName, &maxNameSize) >= 0) {
+                   assignedInterfaceName, (uint32_t*) &maxNameSize) >= 0) {
         Log_info(logger, "Initialized utun interface [%s]\n", assignedInterfaceName);
     } else {
         int err = errno;
@@ -126,7 +128,8 @@ void* TUNConfigurator_initTun(const char* interfaceName,
                      strerror(err));
     }
 
-    return tunFileDescriptor;
+    uintptr_t tunPtr = (uintptr_t) tunFileDescriptor;
+    return (void*) tunPtr;
 }
 
 void TUNConfigurator_setIpAddress(const char* interfaceName,
