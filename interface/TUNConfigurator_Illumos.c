@@ -30,6 +30,7 @@
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <fcntl.h>
+#include <net/route.h>
 
 
 static void maskForPrefix(uint8_t mask[16], int prefix)
