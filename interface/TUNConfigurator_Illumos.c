@@ -63,8 +63,6 @@ static void setupRoute(uint8_t ipv6Addr[16], int prefix)
             .rtm_version = RTM_VERSION,
             .rtm_seq = 0,
             .rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK,
-            .rtm_rmx = newrt->ri_metrics,
-            .rtm_inits = newrt->ri_inits,
             .rtm_msglen = sizeof(struct RouteMessage)
         },
         .dest = {
