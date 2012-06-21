@@ -1,5 +1,4 @@
-cjdns: cjd's Network Suite
-==========================
+#cjdns
 
 Dear Reader,
 
@@ -83,8 +82,10 @@ You Can Help!
 
 If you have a system based on an alternative architecture, join the IRC channel
 and ask about running a buildbot. We are specifically looking for buildbots
-running on MIPS and ARM based systems but bots running on PowerPC, Sparc,
+running on MIPS and ARM based systems but bots running on PowerPC, SPARC,
 Itanium or any other esoteric architectures are also helpful.
+
+Join the IRC channel and ask about other ways you can help.
 
 What about DNS?
 ---------------
@@ -112,30 +113,24 @@ get in the channel on IRC:
 Thank you for your time and interest,
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
-
 --------------------------------------------------------------------------------
 
 
-How to install cjdns
-====================
+#How to install cjdns
 
-
-0: Install the build tools you will need.
------------------------------------------
+0. Install the build tools you will need.
 
     # apt-get install cmake git build-essential
 
 
-1: Retrieve cjdns from GitHub.
-------------------------------
+1. Retrieve cjdns from GitHub.
 
 Grab it from GitHub and change to the source directory:
 
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-2: Build.
----------
+2. Build.
 
     # ./do
 
@@ -147,15 +142,13 @@ Look for this:
 --------------------------------------------------------------------------------
 
 
-Setup
-=====
+#Setup
 
 Run cjdroute without options for HELP:
 
     # ./cjdroute
 
-0: Make sure you've got the stuff.
-----------------------------------
+##0: Make sure you've got the stuff.
 
     # cat /dev/net/tun
 
@@ -174,13 +167,11 @@ virtualization platform. Ask your provider to enable the TUN/TAP device, this is
 so they should know exactly what you need.
 
 
-1: Generate a new configuration file.
--------------------------------------
+##1: Generate a new configuration file.
 
     # ./cjdroute --genconf >> cjdroute.conf
 
-2: Find a friend.
------------------
+##2: Find a friend.
 
 In order to get into the network you need to meet someone who is also in the network and connect
 to them. This is required for a number of reasons:
@@ -202,8 +193,7 @@ You can meet people to peer with in the IRC channel:
 NOTE: If you're just interested in setting up a local network between your own computers,
 this step is not necessary.
 
-3: Fill in your friend's info.
-------------------------------
+##3: Fill in your friend's info.
 
 In your cjdroute.conf file, you will see:
 
@@ -253,8 +243,7 @@ It looks like this:
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
-4: Start it up!
----------------
+##4: Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -269,8 +258,7 @@ If you want to be able to close your terminal and you don't use screen:
 NOTE: when you use `&`, remember that you will have cjdroute processes running in the background
 if you are having problems use `killall cjdroute` to return to sanity.
 
-5: Get in IRC
--------------
+##5: Get in IRC
 
 Welcome to the network, you are now a real network administrator.
 There are responsibilities which come with being a network administrator which include
@@ -278,8 +266,7 @@ being available in case there is something wrong with your equipment. You can co
 irc.efnet.org.
 The channel to join is #cjdns and you should stay there so that we are able to reach you.
 
-Notes
------
+##Notes
 
 This starts cjdroute as the root user so cjdroute can configure your system and shed
 permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups
@@ -293,23 +280,20 @@ file means that other people can impersonate you on the network.
     mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
 
 
---------------------------------------------------------------------------------
 
-Self-Check Your Network
-=======================
+
+#Self-Check Your Network
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
 If this is not what you intend, you should check to see that you are not
 offering more services then you intended to.  ;)
 
-1: Obtain IP address.
----------------------
+##1: Obtain IP address.
 
 Use `ifconfig -a` to find your TUN device's IPv6 address. (Same as above.)
 
-2: Scan for open services.
---------------------------
+##2: Scan for open services.
 
 Run `nmap` to discover which services are accessible from this address.
 For example, to scan the address fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe:
@@ -328,8 +312,7 @@ For example, to scan the address fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe:
     Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
         Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
 
-3: If you see anything open, fix it.
-------------------------------------
+##3: If you see anything open, fix it.
 
 Examples for SSH and Samba are below.
 
@@ -386,6 +369,15 @@ Run those commands to prepare your TUN device:
 
 These commands should be executed as root now every time the system restarts.
 
+####Old versions of iproute2
+
+If you see an error when running /sbin/ip, your version of iproute2 might be old.
+
+    # /sbin/ip tuntap add mode tun user cjdns
+    Object "tuntap" is unknown, try "ip help".
+
+The fix: for now grab a copy of a newer `ip` binary and copy it to your home
+directory. Replacing the system binaries is not likely a good idea.
 
 ##4b-2: Fire it up!
 
@@ -395,6 +387,9 @@ These commands should be executed as root now every time the system restarts.
 To delete a tunnel, use this command:
 
     # /sbin/ip tuntap del mode tun <name of tunnel>
+
+
+
 
 
 ##Dynamically linking to Libevent2
@@ -511,34 +506,3 @@ ruby library
     gem install cjdns-lib
 
 
-Known Issues
-============
-
-Old versions of the IP utility do not work for creating tunnel devices.
------------------------------------------------------------------------
-
-    # ip -V
-    ip utility, iproute2-ss080725
-    # /sbin/ip tuntap add mode tun user cjdns
-    Object "tuntap" is unknown, try "ip help".
-
-    # /sbin/ip tuntap list
-    Object "tuntap" is unknown, try "ip help".
-
-    # ip -V
-    ip utility, iproute2-ss100519
-    # /sbin/ip tuntap list
-    tun0: tun user 1001
-
-The fix: for now grab a copy of a newer `ip` binary and copy it to your home
-directory. Replacing the system binaries is not likely a good idea.
-
-Currently we are still debugging some routing issues.
------------------------------------------------------
-
-If you want to help out, load up a few VMs or physical boxen,
-link them, see what happens, tell us!  :)
-
-Lots of bugs to fix yet, but hey, it's talking now!
-
-Created on 2011-02-16.
