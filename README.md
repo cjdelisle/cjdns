@@ -357,15 +357,13 @@ Thats it for now! Got More? Tell us on IRC.
 
 --------------------------------------------------------------------------------
 
-Non-Standard Setups
-===================
+#Non-Standard Setups
 
 Instructions for building or installing in non-default ways.
 
-# Most Users Don't Need To Read Below This Point
+**Most Users Don't Need To Read Below This Point**
 
-Start cjdroute as non-root user.
-================================
+##Start cjdroute as non-root user.
 
 If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
 persistent tunnels.
@@ -379,8 +377,7 @@ Create a new TUN device and give the cjdns user authority to access it:
     # /sbin/ip tuntap add mode tun user cjdns dev cjdroute0
 
 
-4b-1: Setup the interface manually
-----------------
+###4b-1: Setup the interface manually
 
 Run those commands to prepare your TUN device:
 
@@ -390,8 +387,7 @@ Run those commands to prepare your TUN device:
 These commands should be executed as root now every time the system restarts.
 
 
-4b-2: Fire it up!
---------------
+##4b-2: Fire it up!
 
     # sudo -u cjdns ./cjdroute < cjdroute.conf
 
@@ -401,15 +397,14 @@ To delete a tunnel, use this command:
     # /sbin/ip tuntap del mode tun <name of tunnel>
 
 
-Dynamically linking to Libevent2
-================================
+##Dynamically linking to Libevent2
+
 
 By default, the build process will search your system for Libevent2 and if it is not found,
 it will download, compile, and statically link it. If you would like to link it dynamically
 follow these instructions.
 
-1: Remove older versions of dependencies: `libevent` and `libevent-dev`.
-------------------------------------------------------------------------
+###1: Remove older versions of dependencies: `libevent` and `libevent-dev`.
 
 Be sure libevent is gone and remove if found.
 It will cause problems during the build.
@@ -424,8 +419,7 @@ Check to see which libevent is installed:
 **Note: You may need to (re)compile TOR if you use it.**
 
 
-2: Obtain latest `libevent2` dependency manually.
--------------------------------------------------
+###2: Obtain latest `libevent2` dependency manually.
 
 CHECK https://github.com/libevent/libevent for LATEST version.
 (This document assumes 2.0.16.)
@@ -445,8 +439,7 @@ Resolve missing dependencies if needed and run again until all errors gone:
     # make
     # make install
 
-3: Compile cjdns using NO_STATIC.
----------------------------------
+###3: Compile cjdns using NO_STATIC.
 
 By compiling with NO_STATIC, the process will fail rather than defaulting to static link.
 
@@ -458,10 +451,24 @@ You can also force a static build even if you have libevent2 by using:
     # STATIC=1 cmake ..
     # make
 
+##Installing cjdns on OpenIndiana
+
+In order to install cjdns on an OpenIndiana system, do the following:
+
+    sudo pkg set-publisher -p http://pkg.openindiana.org/sfe
+    sudo pkg install runtime/gcc@4.6.2,5.11-0.151.1:20111222T011404Z
+    sudo pkg install gnu-make
+    sudo pkg install header-math
+    sudo pkg install git
+    sudo pkg install tuntap
+    git clone git://github.com/cjdelisle/cjdns.git
+    cd cjdns
+    ./do
+
+Once it has completed successfully, simply type ./cjdroute and follow the normal instructions
 
 
-Accessing the CJDNS admin interface
-===================================
+#Accessing the cjdns admin interface
 
 When cjdnroute is up and running, an administrative interface will listen on localhost:11234
 (this can be changed in the cjdroute.conf configuration file).
