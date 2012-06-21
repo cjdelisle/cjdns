@@ -47,8 +47,11 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .allocator = alloc
     };
 
-
-    uint8_t buffer[512] = {0};
+    union {
+        uint8_t chars[512];
+        uint32_t ints[128];
+    } buff = { .chars = {0} };
+    uint8_t* buffer = buff.chars;
 
     struct Message* outgoing =
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
