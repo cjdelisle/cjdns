@@ -118,19 +118,19 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 #How to install cjdns
 
-0. Install the build tools you will need.
+##0. Install the build tools you will need.
 
     # apt-get install cmake git build-essential
 
 
-1. Retrieve cjdns from GitHub.
+##1. Retrieve cjdns from GitHub.
 
 Grab it from GitHub and change to the source directory:
 
     # git clone https://github.com/cjdelisle/cjdns.git cjdns
     # cd cjdns
 
-2. Build.
+##2. Build.
 
     # ./do
 
