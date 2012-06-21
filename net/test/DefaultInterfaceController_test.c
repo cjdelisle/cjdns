@@ -47,9 +47,10 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .allocator = alloc
     };
 
+    // Some compilers are erroniously reporting buffer overflows so this is 516 instead of 512
     union {
-        uint8_t chars[512];
-        uint32_t ints[128];
+        uint8_t chars[516];
+        uint32_t ints[129];
     } buff = { .chars = {0} };
     uint8_t* buffer = buff.chars;
 
