@@ -58,29 +58,6 @@
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 
-struct Context
-{
-    struct event_base* base;
-
-    struct Allocator* allocator;
-
-    struct ExceptionHandler* eHandler;
-
-    struct CryptoAuth* ca;
-
-    /** The TUN/TAP which the user will use to connect to the network. */
-    struct Interface* tunInterface;
-
-    struct SwitchCore* switchCore;
-
-    struct DHTModuleRegistry* registry;
-
-    struct RouterModule* routerModule;
-
-    struct Log* logger;
-
-    struct Admin* admin;
-};
 
 struct User
 {
@@ -289,14 +266,17 @@ static int usage(char* appName)
     return 0;
 }
 
-static void reconf(struct Context* ctx, Dict* mainConf)
+static void reconf(struct event_base* eventbase,
+                   Dict* mainConf,
+                   struct Log* logger,
+                   struct Allocator* alloc)
 {
     Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
     String* address = Dict_getString(adminConf, String_CONST("bind"));
     String* password = Dict_getString(adminConf, String_CONST("password"));
 
     if (!(address && password)) {
-        Log_critical(ctx->logger, "Can't get the admin address and password from conf file.");
+        Log_critical(logger, "Can't get the admin address and password from conf file.");
         exit(-1);
     }
 
@@ -304,45 +284,12 @@ static void reconf(struct Context* ctx, Dict* mainConf)
     memset(&addr, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
     if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-        Log_critical(ctx->logger, "Unable to parse [%s] as an ip address port, "
-                                   "eg: 127.0.0.1:11234", address->bytes);
+        Log_critical(logger, "Unable to parse [%s] as an ip address port, "
+                             "eg: 127.0.0.1:11234", address->bytes);
         exit(-1);
     }
 
-    Configurator_config(mainConf, &addr, addrLen, password, ctx->base, ctx->logger, ctx->allocator);
-}
-
-static void registerRouter(Dict* config, struct Address* addr, struct Context* context)
-{
-    Dict* iface = Dict_getDict(config, String_CONST("interface"));
-    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
-        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
-
-        char assignedTunName[TUNConfigurator_IFNAMSIZ];
-        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
-                                               assignedTunName,
-                                               context->logger,
-                                               AbortHandler_INSTANCE);
-        struct Jmp jmp;
-        Jmp_try(jmp) {
-            TUNConfigurator_setIpAddress(
-                assignedTunName, addr->ip6.bytes, 8, context->logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(context->logger, "Unable to configure ip address [%s]", jmp.message);
-        }
-
-        struct TUNInterface* tun = TUNInterface_new(tunPtr, context->base, context->allocator);
-        context->tunInterface = TUNInterface_asGeneric(tun);
-
-    }
-    context->routerModule = RouterModule_register(context->registry,
-                                                  context->allocator,
-                                                  addr->key,
-                                                  context->base,
-                                                  context->logger,
-                                                  context->admin);
-
-    RouterModule_admin_register(context->routerModule, context->admin, context->allocator);
+    Configurator_config(mainConf, &addr, addrLen, password, eventbase, logger, alloc);
 }
 
 static char* setUser(List* config)
@@ -388,16 +335,26 @@ static void adminPing(Dict* input, void* vadmin, String* txid)
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
+struct MemoryContext
+{
+    struct Allocator* allocator;
+    struct Admin* admin;
+};
+
 static void adminMemory(Dict* input, void* vcontext, String* txid)
 {
-    struct Context* context = (struct Context*) vcontext;
+    struct MemoryContext* context = vcontext;
     Dict d = Dict_CONST(
         String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
     );
     Admin_sendMessage(&d, txid, context->admin);
 }
 
-static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context* context)
+static struct Admin* newAdmin(Dict* mainConf,
+                              char* user,
+                              struct Log* logger,
+                              struct event_base* eventBase,
+                              struct Allocator* alloc)
 {
     Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
     String* address = Dict_getString(adminConf, String_CONST("bind"));
@@ -417,30 +374,18 @@ static void admin(Dict* mainConf, char* user, struct Log* logger, struct Context
     if (!password) {
         uint8_t buff[32];
         randomBase32(buff);
-        password = String_new((char*)buff, context->allocator);
+        password = String_new((char*)buff, alloc);
     }
 
-    context->admin = Admin_new(&addr,
-                               addrLen,
-                               password,
-                               user,
-                               context->base,
-                               context->eHandler,
-                               context->logger,
-                               context->allocator);
-
-    // AuthorizedPasswords_get()
-    AuthorizedPasswords_init(context->admin, context->ca, context->allocator);
-    Admin_registerFunction("ping", adminPing, context->admin, false, NULL, context->admin);
-    Admin_registerFunction("memory", adminMemory, context, false, NULL, context->admin);
-}
-
-static void pidfile(Dict* config)
-{
-    String* pidFile = Dict_getString(config, String_CONST("pidFile"));
-    if (pidFile) {
-        printf("%s", pidFile->bytes);
-    }
+    struct Admin* admin = Admin_new(&addr,
+                                    addrLen,
+                                    password,
+                                    user,
+                                    eventBase,
+                                    AbortHandler_INSTANCE,
+                                    logger,
+                                    alloc);
+    return admin;
 }
 
 static int benchmark()
@@ -498,94 +443,33 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    struct Context context;
-    memset(&context, 0, sizeof(struct Context));
-    context.base = event_base_new();
+    struct event_base* eventBase = event_base_new();
 
     // Allow it to allocate 4MB
-    context.allocator = MallocAllocator_new(1<<22);
-    struct Reader* reader = FileReader_new(stdin, context.allocator);
+    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Reader* reader = FileReader_new(stdin, allocator);
     Dict config;
-    if (JsonBencSerializer_get()->parseDictionary(reader, context.allocator, &config)) {
+    if (JsonBencSerializer_get()->parseDictionary(reader, allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
 
-    if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
-        pidfile(&config);
-        return 0;
-    }
-
     // Logging.
-    struct Writer* logwriter = FileWriter_new(stdout, context.allocator);
-    struct Log logger = { .writer = logwriter };
-    context.logger = &logger;
+    struct Writer* logwriter = FileWriter_new(stdout, allocator);
+    struct Log* logger = &(struct Log) { .writer = logwriter };
 
-    if (argc == 2 && strcmp(argv[1], "--reconf") == 0) {
-        reconf(&context, &config);
-        return 0;
-    }
-
-    // ca, needed for admin.
-    struct Address myAddr;
-    uint8_t privateKey[32];
-    parsePrivateKey(&config, &myAddr, privateKey);
-    context.ca =
-        CryptoAuth_new(&config, context.allocator, privateKey, context.base, context.logger);
-
-    // Admin
-    char* user = setUser(Dict_getList(&config, String_CONST("security")));
-    admin(&config, user, &logger, &context);
-
-    context.eHandler = AbortHandler_INSTANCE;
-    context.switchCore = SwitchCore_new(context.logger, context.allocator);
-    context.registry = DHTModuleRegistry_new(context.allocator);
-    ReplyModule_register(context.registry, context.allocator);
-
-    // Router
-    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
-    registerRouter(routerConf, &myAddr, &context);
-
-    SerializationModule_register(context.registry, context.allocator);
-
-    struct Ducttape* dt = Ducttape_register(&config,
-                                            privateKey,
-                                            context.registry,
-                                            context.routerModule,
-                                            context.tunInterface,
-                                            context.switchCore,
-                                            context.base,
-                                            context.allocator,
-                                            context.logger,
-                                            context.admin);
-
-    struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, context.base, context.logger, context.allocator);
-    SwitchPinger_admin_register(sp, context.admin, context.allocator);
-
-    // Interfaces.
-    struct InterfaceController* ifController =
-        DefaultInterfaceController_new(context.ca,
-                                       context.switchCore,
-                                       context.routerModule,
-                                       context.logger,
-                                       context.base,
-                                       sp,
-                                       context.allocator);
-
-    UDPInterface_admin_register(context.base,
-                                context.allocator,
-                                context.logger,
-                                context.admin,
-                                ifController);
 
     // pid file
     String* pidFile = Dict_getString(&config, String_CONST("pidFile"));
     if (pidFile) {
-        Log_info(context.logger, "Writing pid of process to [%s].\n", pidFile->bytes);
+        if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
+            printf("%s", pidFile->bytes);
+            return 0;
+        }
+        Log_info(logger, "Writing pid of process to [%s].\n", pidFile->bytes);
         FILE* pf = fopen(pidFile->bytes, "w");
         if (!pf) {
-            Log_critical(context.logger,
+            Log_critical(logger,
                           "Failed to open pid file [%s] for writing, errno=%d\n",
                           pidFile->bytes,
                           errno);
@@ -595,29 +479,125 @@ int main(int argc, char** argv)
         fclose(pf);
     }
 
+    // re-configure
+    if (argc == 2 && strcmp(argv[1], "--reconf") == 0) {
+        reconf(eventBase, &config, logger, allocator);
+        return 0;
+    }
+
+    // ca, needed for admin.
+    struct Address myAddr;
+    uint8_t privateKey[32];
+    parsePrivateKey(&config, &myAddr, privateKey);
+    struct CryptoAuth* cryptoAuth =
+        CryptoAuth_new(&config, allocator, privateKey, eventBase, logger);
+
+    // Admin
+    char* user = setUser(Dict_getList(&config, String_CONST("security")));
+    struct Admin* admin = newAdmin(&config, user, logger, eventBase, allocator);
+
+    struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
+    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
+    ReplyModule_register(registry, allocator);
+
+    // Router
+    struct Interface* routerIf = NULL;
+    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
+    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
+    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
+        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
+
+        char assignedTunName[TUNConfigurator_IFNAMSIZ];
+        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
+                                               assignedTunName,
+                                               logger,
+                                               AbortHandler_INSTANCE);
+        struct Jmp jmp;
+        Jmp_try(jmp) {
+            TUNConfigurator_setIpAddress(
+                assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
+        } Jmp_catch {
+            Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
+        }
+
+        struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
+        routerIf = &tun->iface;
+
+    }
+    struct RouterModule* router = RouterModule_register(registry,
+                                                        allocator,
+                                                        myAddr.key,
+                                                        eventBase,
+                                                        logger,
+                                                        admin);
+
+    SerializationModule_register(registry, allocator);
+
+    struct Ducttape* dt = Ducttape_register(&config,
+                                            privateKey,
+                                            registry,
+                                            router,
+                                            routerIf,
+                                            switchCore,
+                                            eventBase,
+                                            allocator,
+                                            logger,
+                                            admin);
+
+    struct SwitchPinger* sp =
+        SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, allocator);
+
+    // Interfaces.
+    struct InterfaceController* ifController =
+        DefaultInterfaceController_new(cryptoAuth,
+                                       switchCore,
+                                       router,
+                                       logger,
+                                       eventBase,
+                                       sp,
+                                       allocator);
+
+
+    // ------------------- Register RPC functions ----------------------- //
+    SwitchPinger_admin_register(sp, admin, allocator);
+    UDPInterface_admin_register(eventBase, allocator, logger, admin, ifController);
+    RouterModule_admin_register(router, admin, allocator);
+    AuthorizedPasswords_init(admin, cryptoAuth, allocator);
+    Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
+
+    struct MemoryContext* mc =
+        allocator->clone(sizeof(struct MemoryContext), allocator,
+            &(struct MemoryContext) {
+                .allocator = allocator,
+                .admin = admin
+            });
+    Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
+
+
+    // --------------------- Configuration ------------------------- //
     struct sockaddr_storage* adminAddr;
     int adminAddrLen;
     String* adminPassword;
-    Admin_getConnectInfo(&adminAddr, &adminAddrLen, &adminPassword, context.admin);
+    Admin_getConnectInfo(&adminAddr, &adminAddrLen, &adminPassword, admin);
     Configurator_config(&config,
                         adminAddr,
                         adminAddrLen,
                         adminPassword,
-                        context.base,
-                        &logger,
-                        context.allocator);
+                        eventBase,
+                        logger,
+                        allocator);
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);
-    Log_info(context.logger, "Your address is: %s.k\n", address);
+    Log_info(logger, "Your address is: %s.k\n", address);
     uint8_t myIp[40];
     Address_printIp(myIp, &myAddr);
-    Log_info(context.logger, "Your IPv6 address is: %s\n", myIp);
+    Log_info(logger, "Your IPv6 address is: %s\n", myIp);
 
     // Security.
-    security(Dict_getList(&config, String_CONST("security")), context.logger, context.eHandler);
+    security(Dict_getList(&config, String_CONST("security")), logger, AbortHandler_INSTANCE);
 
-    event_base_loop(context.base, 0);
+    event_base_loop(eventBase, 0);
 abort();
     // Never reached.
     return 0;

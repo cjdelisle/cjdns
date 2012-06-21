@@ -25,7 +25,10 @@
  * An interface which connects to the TUN/TAP device for
  * sending IPv6 traffic to the kernel network stack.
  */
-struct TUNInterface;
+struct TUNInterface
+{
+    struct Interface iface;
+};
 
 /**
  * Create a new TUNInterface.
@@ -38,11 +41,4 @@ struct TUNInterface;
 struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct event_base* base,
                                       struct Allocator* allocator);
-
-/**
- * @param a TUNInterface structure.
- * @return the generic Interface structure represented by it.
- */
-struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunif);
-
 #endif

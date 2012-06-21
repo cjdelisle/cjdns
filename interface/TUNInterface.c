@@ -53,16 +53,16 @@
 #endif
 
 
-struct TUNInterface
+struct Context
 {
+    struct TUNInterface pub;
     struct event* incomingEvent;
     int fileDescriptor;
-    struct Interface iface;
 };
 
 static void closeInterface(void* vcontext)
 {
-    struct TUNInterface* tun = (struct TUNInterface*) vcontext;
+    struct Context* tun = vcontext;
     close(tun->fileDescriptor);
     event_del(tun->incomingEvent);
     event_free(tun->incomingEvent);
@@ -88,7 +88,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
     message.length = length - PACKET_INFO_SIZE;
 
-    struct Interface* iface = &((struct TUNInterface*) vcontext)->iface;
+    struct Interface* iface = &((struct Context*) vcontext)->pub.iface;
     if (iface->receiveMessage) {
         iface->receiveMessage(&message, iface);
     }
@@ -103,7 +103,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
         setPacketInfo(message->bytes);
     #endif
 
-    struct TUNInterface* tun = (struct TUNInterface*) iface->senderContext;
+    struct Context* tun = iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
     if (ret < 0) {
         printf("Error writing to TUN device %d\n", errno);
@@ -120,7 +120,7 @@ struct TUNInterface* TUNInterface_new(void* tunSocket,
 
     evutil_make_socket_nonblocking(tunFileDesc);
 
-    struct TUNInterface* tun = allocator->malloc(sizeof(struct TUNInterface), allocator);
+    struct Context* tun = allocator->malloc(sizeof(struct Context), allocator);
     tun->incomingEvent = event_new(base, tunFileDesc, EV_READ | EV_PERSIST, handleEvent, tun);
     tun->fileDescriptor = tunFileDesc;
 
@@ -136,16 +136,11 @@ struct TUNInterface* TUNInterface_new(void* tunSocket,
         .maxMessageLength = MAX_PACKET_SIZE
     };
 
-    Bits_memcpyConst(&tun->iface, &iface, sizeof(struct Interface));
+    Bits_memcpyConst(&tun->pub.iface, &iface, sizeof(struct Interface));
 
     event_add(tun->incomingEvent, NULL);
 
     allocator->onFree(closeInterface, tun, allocator);
 
-    return tun;
-}
-
-struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunIf)
-{
-    return (tunIf) ? &tunIf->iface : NULL;
+    return &tun->pub;
 }
