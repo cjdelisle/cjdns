@@ -76,7 +76,12 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         outgoing->padding = 512;
         outgoing->bytes = buffer + 512;
         Message_shift(outgoing, 12);
-        Bits_memcpyConst(outgoing->bytes, "hello world", 12);
+
+        // This causes a false positive warning.
+        // gcc (GCC) 4.6.2 (OpenIndiana)
+        // error: array subscript is below array bounds [-Werror=array-bounds]
+        //Bits_memcpyConst(outgoing->bytes, "hello world", 12);
+        Bits_memcpyConst(buffer + 500, "hello world", 12);
 
         Message_shift(outgoing, Headers_SwitchHeader_SIZE);
         Bits_memcpyConst(outgoing->bytes, (&(struct Headers_SwitchHeader) {
