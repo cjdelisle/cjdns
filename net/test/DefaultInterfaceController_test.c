@@ -47,12 +47,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .allocator = alloc
     };
 
-    // Some compilers are erroniously reporting buffer overflows so this is 516 instead of 512
-    union {
-        uint8_t chars[516];
-        uint32_t ints[129];
-    } buff = { .chars = {0} };
-    uint8_t* buffer = buff.chars;
+    uint8_t* buffer = alloc->malloc(512, alloc);
 
     struct Message* outgoing =
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
@@ -77,12 +72,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         outgoing->padding = 512;
         outgoing->bytes = buffer + 512;
         Message_shift(outgoing, 12);
-
-        // This causes a false positive warning.
-        // gcc (GCC) 4.6.2 (OpenIndiana)
-        // error: array subscript is below array bounds [-Werror=array-bounds]
-        //Bits_memcpyConst(outgoing->bytes, "hello world", 12);
-        Bits_memcpyConst(buffer + 500, "hello world", 12);
+        Bits_memcpyConst(outgoing->bytes, "hello world", 12);
 
         Message_shift(outgoing, Headers_SwitchHeader_SIZE);
         Bits_memcpyConst(outgoing->bytes, (&(struct Headers_SwitchHeader) {
