@@ -943,3 +943,49 @@ Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 163
 version: bc41a54dc5d2a0ece5864671242184afbd46ba6e
 
 # This version is just post the NACL improvements.
+
+
+
+
+
+
+
+
+[root@Bifrost] ~/src/cjdns# ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 20195ms. 25 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 20389ms. 588 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 20077ms. 25 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 20296ms. 591 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 500ms. 102400 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 8314ms. 144334 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 1502ms. 34087 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 17730ms. 67681 Kb/s
+
+[root@Bifrost] ~/src/cjdns# cat /proc/cpuinfo
+processor       : 0
+cpu             : Cell Broadband Engine, altivec supported
+clock           : 3192.000000MHz
+revision        : 5.1 (pvr 0070 0501)
+
+processor       : 1
+cpu             : Cell Broadband Engine, altivec supported
+clock           : 3192.000000MHz
+revision        : 5.1 (pvr 0070 0501)
+
+timebase        : 79800000
+platform        : PS3
+model           : SonyPS3
+[root@Bifrost] ~/src/cjdns# git log | head -n 1
+commit 829f93e93c1eff81fdde62f00500f7e2c6e05c2f
+[root@Bifrost] ~/src/cjdns# date
+Fri Jun 22 15:48:05 CDT 2012
