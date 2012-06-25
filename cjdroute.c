@@ -100,8 +100,11 @@ static int genconf()
     uint8_t adminPassword[32];
     randomBase32(adminPassword);
 
-    uint16_t port;
-    randombytes((uint8_t*) &port, 2);
+    uint16_t port = 0;
+    while (port <= 1024) {
+        randombytes((uint8_t*) &port, 2);
+    }
+
     uint8_t publicKeyBase32[53];
     uint8_t address[40];
     uint8_t privateKeyHex[65];
