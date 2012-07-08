@@ -56,7 +56,7 @@ def cjdns_connect(ipAddr, port, password):
     sock.send('d1:q4:pinge');
     data = sock.recv(BUFFER_SIZE);
     if (data != 'd1:q4:ponge'):
-        raise Exception("Looks like " + ipAddr + ":" + port + " is to a non-cjdns socket.");
+        raise Exception("Looks like " + ipAddr + ":" + str(port) + " is to a non-cjdns socket.");
 
     # Get the functions and make the object
     sock.send('d1:q7:invalide');
@@ -104,7 +104,7 @@ def cjdns_connect(ipAddr, port, password):
     # Check our password.
     ret = callfunc(cjdns, "ping", password, {});
     if ('error' in ret):
-        raise Exception("Connect failed, incorrect admin password?\n" + ret);
+        raise Exception("Connect failed, incorrect admin password?\n" + str(ret))
 
     cjdns.functions = "";
     nl = "";
