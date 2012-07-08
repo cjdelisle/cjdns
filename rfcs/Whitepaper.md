@@ -697,7 +697,7 @@ valid and then a router lookup is made on the destination address. cjdns
 addresses are the first 16 bytes of the SHA-512 of the SHA-512 of the public
 key. All addresses must begin with the byte `0xFC` otherwise they are invalid,
 generating a key is done by brute force key generation until the result of the
-double SHA-256 begins with `0xFC`.
+double SHA-512 begins with `0xFC`.
 
 After the router lookup, the node compares the destination address to the
 address of the next router, if they are the same, the inner layer of
