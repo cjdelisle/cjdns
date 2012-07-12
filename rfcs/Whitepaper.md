@@ -368,7 +368,7 @@ responding node than the search target, and they MUST NOT have routes which
 begin with the same interface as the route to the querying node. These two
 simple rules provide that no search will ever go in circles and no route will
 ever go down an interface, only to be bounced back. While the second rule can
-only be enforced by the honer system, querying nodes MUST double check the first
+only be enforced by the honor system, querying nodes MUST double check the first
 rule. The node doing the searching adds the newly discovered nodes to their
 routing table and to the search, then continues the search by asking them.
 
