@@ -32,10 +32,10 @@
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
+    #include <sys/types.h>
 #endif
 
 #include <event2/event.h>
-#include <sys/types.h>
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192

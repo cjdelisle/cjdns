@@ -52,9 +52,12 @@
 
 #include <stdint.h>
 #include "util/Assert.h"
-#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+
+#ifndef WIN32
+    #include <unistd.h>
+#endif
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 
@@ -212,7 +215,7 @@ static int genconf()
            "        // Most security exploits require the use of files.\n"
            "        \"nofiles\",\n"
            "\n"
-           "        // Change the user id to this user after starting up and getting resources.\n"
+           "        // Change the user id to this user after starting up and getting resources. (Not supported on Windows) \n"
            "        {\"setuser\": \"nobody\"}\n"
            "     ],\n"
            "\n"

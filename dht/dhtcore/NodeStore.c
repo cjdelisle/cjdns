@@ -35,7 +35,10 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <inttypes.h>
+
+#ifndef WIN32
+    #include <inttypes.h>
+#endif
 
 static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 

@@ -42,9 +42,10 @@
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
 
-#ifdef WIN32
+#ifndef WIN32
+    #include <unistd.h>
+#else
     #define EWOULDBLOCK WSAEWOULDBLOCK
 #endif
 
