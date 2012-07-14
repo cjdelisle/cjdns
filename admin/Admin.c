@@ -42,12 +42,7 @@
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
-
-#ifndef WIN32
-    #include <unistd.h>
-#else
-    #define EWOULDBLOCK WSAEWOULDBLOCK
-#endif
+#include <unistd.h>
 
 /* maximum message size for framing on the channels */
 #define MAX_MESSAGE_SIZE (1<<16)

@@ -209,14 +209,16 @@ static int genconf()
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
+#ifndef WIN32
            "        // Set number of open files to zero, in Linux, this will succeed even if\n"
            "        // files are already open and will not allow any files to be opened for the\n"
            "        // duration of the program's operation.\n"
            "        // Most security exploits require the use of files.\n"
            "        \"nofiles\",\n"
            "\n"
-           "        // Change the user id to this user after starting up and getting resources. (Not supported on Windows) \n"
+           "        // Change the user id to this user after starting up and getting resources.\n"
            "        {\"setuser\": \"nobody\"}\n"
+#endif
            "     ],\n"
            "\n"
            "    // Version of the config file, used internally for migration.\n"
