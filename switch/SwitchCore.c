@@ -25,7 +25,9 @@
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
-#include <inttypes.h>
+#ifndef WIN32
+    #include <inttypes.h>
+#endif
 
 struct SwitchInterface
 {

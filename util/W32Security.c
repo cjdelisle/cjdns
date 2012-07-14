@@ -23,10 +23,13 @@
 
 void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
 {
+    // Windows does not support this
 }
 
 void Security_noFiles(struct ExceptionHandler* eh)
 {
+    // Windows does not support this
+	/** TODO Investigate chromium sandbox as a nofiles alternative. */
 }
 
 #endif

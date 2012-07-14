@@ -23,8 +23,11 @@
 #include "util/Hex.h"
 
 #include <crypto_hash_sha256.h>
-#include <unistd.h>
 #include <errno.h>
+
+#ifndef WIN32
+    #include <unistd.h>
+#endif
 
 struct AdminClient
 {

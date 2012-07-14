@@ -15,8 +15,11 @@
 #ifndef Time_H
 #define Time_H
 
-#include <sys/time.h>
 #include <event2/event.h>
+
+#ifndef WIN32
+    #include <sys/time.h>
+#endif
 
 static inline uint64_t Time_currentTimeMilliseconds(struct event_base* eventBase)
 {

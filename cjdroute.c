@@ -52,9 +52,12 @@
 
 #include <stdint.h>
 #include "util/Assert.h"
-#include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+
+#ifndef WIN32
+    #include <unistd.h>
+#endif
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 
@@ -206,6 +209,7 @@ static int genconf()
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
+#ifndef WIN32
            "        // Set number of open files to zero, in Linux, this will succeed even if\n"
            "        // files are already open and will not allow any files to be opened for the\n"
            "        // duration of the program's operation.\n"
@@ -214,6 +218,7 @@ static int genconf()
            "\n"
            "        // Change the user id to this user after starting up and getting resources.\n"
            "        {\"setuser\": \"nobody\"}\n"
+#endif
            "     ],\n"
            "\n"
            "    // Version of the config file, used internally for migration.\n"

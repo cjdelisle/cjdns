@@ -32,10 +32,10 @@
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
+    #include <sys/types.h>
 #endif
 
 #include <event2/event.h>
-#include <sys/types.h>
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192
@@ -118,7 +118,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
             #endif
                 return Error_LINK_LIMIT_EXCEEDED;
 
-            default:;
+            default:
                 Log_info(context->logger, "Got error sending to socket errno=%d",
                           EVUTIL_SOCKET_ERROR());
         }

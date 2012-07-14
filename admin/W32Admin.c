@@ -40,7 +40,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
 
 #define MAX_API_REQUEST_SIZE (1<<16)
 
