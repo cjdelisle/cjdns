@@ -675,7 +675,7 @@ of the hash of the password. This is used as a sort of username so that the
 other end knows which password to try using in the handshake.
 
 If Derivations is non-zero, an additional step is included, the two most
-significant bytes of the password hash are ZORed against the two bytes of the
+significant bytes of the password hash are XORed against the two bytes of the
 network representation of Derivations and it is hashed using SHA-256 once
 again before being included in the generation of the symmetric key. This form is
 notably NOT used in the Hash Code field.
