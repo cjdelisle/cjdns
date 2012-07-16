@@ -1079,3 +1079,48 @@ power management:
 [dan@archbang ~]$ yaourt -Q cjdns-git
 local/cjdns-git 120619-1
 packaged (6-19-2012)
+
+
+
+
+
+# Another Rasberry Pi
+[cjdns@meLonpi] ~/cjdns$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 111492ms. 4 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 112808ms. 106 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 111424ms. 4 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 113002ms. 106 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 5692ms. 8995 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 117375ms. 10223 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 23037ms. 2222 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 162951ms. 7364 Kb/s
+
+[cjdns@meLonpi] ~/cjdns$ uname -a
+Linux meLonpi 3.1.9+ #90 Wed Apr 18 18:23:05 BST 2012 armv6l GNU/Linux
+
+[cjdns@meLonpi] ~/cjdns$ cat /proc/cpuinfo
+Processor       : ARMv6-compatible processor rev 7 (v6l)
+BogoMIPS        : 697.95
+Features        : swp half thumb fastmult vfp edsp java tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xb76
+CPU revision    : 7
+
+Hardware        : BCM2708
+Revision        : 0002
+Serial          : 000000008b285506
+
+[cjdns@meLonpi] ~/cjdns$ git log | head -1
+commit a7c6c3a02c96ff5bfc12aa110af5a594c08a605b
