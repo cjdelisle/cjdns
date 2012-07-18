@@ -4,7 +4,7 @@ A simple PHP API for the CJDNS admin interface.
 
 Installing
 -------------
-Make a `secrets.inc.php` file (see `secrects.example.inc.php`) and include it in
+Make a `secrets.inc.php` file (see `secrets.example.inc.php`) and include it in
 your page, in addition to `cjdns.inc.php`. It is recommended that you keep
 `secrets.inc.php` out of your http directory to prevent accidental password
 leakage.
@@ -39,4 +39,4 @@ $cjdns->disconnect();
 
 Bugs
 -------------
-Please report any bugs you find to thefinn93. IRC is fine, as it github.
+Please report any bugs you find to thefinn93. IRC is fine, as is github.
