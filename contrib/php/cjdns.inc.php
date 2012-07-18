@@ -8,7 +8,6 @@
 
 */
 
-require_once("secrets.inc.php");
 require_once("bencode.inc.php");
 
 class cjdns {

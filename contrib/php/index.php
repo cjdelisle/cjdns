@@ -1,5 +1,6 @@
 <pre>
 <?php
+require_once("secrets.inc.php");
 require_once("cjdns.inc.php");
 
 $admin = new cjdns;
