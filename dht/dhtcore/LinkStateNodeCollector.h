@@ -28,7 +28,7 @@
 /**
  * NOTE: It's critical that LinkStateNodeCollector is ALWAYS used with allowNodesFartherThanUs true.
  * Filter a node through the collector.
- * If this node is better than all of the ones known to the collector, it will be collected.
+ * If this node is better than any one of the ones known to the collector, it will be collected.
  *
  * @param header the header of the node to add.
  * @param body the node which is used in case the prefix is an exact match and it needs to

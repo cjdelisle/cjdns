@@ -989,3 +989,138 @@ model           : SonyPS3
 commit 829f93e93c1eff81fdde62f00500f7e2c6e05c2f
 [root@Bifrost] ~/src/cjdns# date
 Fri Jun 22 15:48:05 CDT 2012
+
+
+
+
+
+
+[dan@archbang ~]$ cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 614ms. 833 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 671ms. 17882 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 962ms. 532 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 975ms. 12306 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 296ms. 172972 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 1040ms. 1153846 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 626ms. 81789 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 1745ms. 687679 Kb/s
+
+[dan@archbang ~]$ cat /proc/cpuinfo
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 15
+model name	: Intel(R) Pentium(R) Dual  CPU  T3200  @ 2.00GHz
+stepping	: 13
+microcode	: 0xa3
+cpu MHz		: 1000.000
+cache size	: 1024 KB
+physical id	: 0
+siblings	: 2
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 10
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni dtes64 monitor ds_cpl est tm2 ssse3 cx16 xtpr pdcm lahf_lm dts
+bogomips	: 3991.79
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 15
+model name	: Intel(R) Pentium(R) Dual  CPU  T3200  @ 2.00GHz
+stepping	: 13
+microcode	: 0xa3
+cpu MHz		: 1000.000
+cache size	: 1024 KB
+physical id	: 0
+siblings	: 2
+core id		: 1
+cpu cores	: 2
+apicid		: 1
+initial apicid	: 1
+fdiv_bug	: no
+hlt_bug		: no
+f00f_bug	: no
+coma_bug	: no
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 10
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts aperfmperf pni dtes64 monitor ds_cpl est tm2 ssse3 cx16 xtpr pdcm lahf_lm dts
+bogomips	: 3991.79
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+[dan@archbang ~]$ yaourt -Q cjdns-git
+local/cjdns-git 120619-1
+packaged (6-19-2012)
+
+
+
+
+
+# Another Rasberry Pi
+[cjdns@meLonpi] ~/cjdns$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte       hello packets.  packet auth enabled.    Finished in 111492ms. 4 Kb/s
+
+Test sending 1000 1500 byte     hello packets.  packet auth enabled.    Finished in 112808ms. 106 Kb/s
+
+Test sending 1000 64 byte       key packets.    packet auth enabled.    Finished in 111424ms. 4 Kb/s
+
+Test sending 1000 1500 byte     key packets.    packet auth enabled.    Finished in 113002ms. 106 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth disabled.   Finished in 5692ms. 8995 Kb/s
+
+Test sending 100000 1500 byte   data packets.   packet auth disabled.   Finished in 117375ms. 10223 Kb/s
+
+Test sending 100000 64 byte     data packets.   packet auth enabled.    Finished in 23037ms. 2222 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte   data packets.   packet auth enabled.    Finished in 162951ms. 7364 Kb/s
+
+[cjdns@meLonpi] ~/cjdns$ uname -a
+Linux meLonpi 3.1.9+ #90 Wed Apr 18 18:23:05 BST 2012 armv6l GNU/Linux
+
+[cjdns@meLonpi] ~/cjdns$ cat /proc/cpuinfo
+Processor       : ARMv6-compatible processor rev 7 (v6l)
+BogoMIPS        : 697.95
+Features        : swp half thumb fastmult vfp edsp java tls 
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xb76
+CPU revision    : 7
+
+Hardware        : BCM2708
+Revision        : 0002
+Serial          : 000000008b285506
+
+[cjdns@meLonpi] ~/cjdns$ git log | head -1
+commit a7c6c3a02c96ff5bfc12aa110af5a594c08a605b

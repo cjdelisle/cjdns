@@ -368,7 +368,7 @@ responding node than the search target, and they MUST NOT have routes which
 begin with the same interface as the route to the querying node. These two
 simple rules provide that no search will ever go in circles and no route will
 ever go down an interface, only to be bounced back. While the second rule can
-only be enforced by the honer system, querying nodes MUST double check the first
+only be enforced by the honor system, querying nodes MUST double check the first
 rule. The node doing the searching adds the newly discovered nodes to their
 routing table and to the search, then continues the search by asking them.
 
@@ -675,7 +675,7 @@ of the hash of the password. This is used as a sort of username so that the
 other end knows which password to try using in the handshake.
 
 If Derivations is non-zero, an additional step is included, the two most
-significant bytes of the password hash are ZORed against the two bytes of the
+significant bytes of the password hash are XORed against the two bytes of the
 network representation of Derivations and it is hashed using SHA-256 once
 again before being included in the generation of the symmetric key. This form is
 notably NOT used in the Hash Code field.
@@ -697,7 +697,7 @@ valid and then a router lookup is made on the destination address. cjdns
 addresses are the first 16 bytes of the SHA-512 of the SHA-512 of the public
 key. All addresses must begin with the byte `0xFC` otherwise they are invalid,
 generating a key is done by brute force key generation until the result of the
-double SHA-256 begins with `0xFC`.
+double SHA-512 begins with `0xFC`.
 
 After the router lookup, the node compares the destination address to the
 address of the next router, if they are the same, the inner layer of
