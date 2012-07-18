@@ -70,8 +70,8 @@ class cjdns {
     }
 
     public function write($data) {
-          if(!fwrite($this->conn, "$data\r\n")) {
-              die("Please connect before making function calls: $errstr ($errno) ");
+        if(!fwrite($this->conn, "$data\r\n")) {
+            die("Please connect before making function calls: $errstr ($errno) ");
         }
 
     }
