@@ -13,8 +13,6 @@ Usage
 -------------
 ```php
 <?
-
-
 // Include the two files
 require("/etc/cjdns/secrets.inc.php");
 require("cjdns.inc.php");
@@ -36,7 +34,8 @@ print_r($ping);
 
 // Close the connection:
 $cjdns->disconnect();
-?>```
+?>
+```
 
 Bugs
 -------------
