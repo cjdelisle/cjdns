@@ -49,12 +49,16 @@ class cjdns {
                         $args[] = "\"".$name."\" => ".$type["type"];
                     }
                 }
-                print $function."(".implode(", ", $args).");\n";
+                if(count($args) > 0) {
+                    print "call(\"".$function."\", array(".implode(", ", $args)."));\n";
+                } else {
+                    print "call(\"".$function."\");\n";
+                }
             }
         }
     }
 
-    public function call($function, $args) {
+    public function call($function, $args=array()) {
         global $password;
         $be = new BEncoded;
         $args['isDct'] = TRUE;
