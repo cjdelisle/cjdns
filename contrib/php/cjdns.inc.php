@@ -14,7 +14,7 @@
  *
 
  CJDNS admin interface for PHP. See index.php for sample usage
- https://github.com/thefinn93/cjdns/contrib/php/
+ https://github.com/thefinn93/cjdns
 
 */
 
