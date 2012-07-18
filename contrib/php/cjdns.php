@@ -24,14 +24,12 @@ class cjdns {
         {
         $be = new BEncoded;
         $this->write("d1:q7:invalide");
-        echo "<pre>";
-        print_r($be->Decode($this->read()));
-        echo "</pre>";
+        return $be->Decode($this->read());
         }
-    public function call($function)
+    public function call($function, $args)
         {
         $be = new BEncoded;
-        $args = func_get_args();
+        $args['isDct'] = TRUE;
 
         // Get a cookie
         $this->write("d1:q6:cookiee");
