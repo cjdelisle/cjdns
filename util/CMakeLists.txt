@@ -18,7 +18,7 @@ find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 if(WIN32)
-    set(sec W32Security.c)
+    set(sec Security_W32.c)
 else()
     set(sec Security.c)
 endif()

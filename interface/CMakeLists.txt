@@ -12,8 +12,8 @@
 find_package(Libevent2 REQUIRED)
 
 if(WIN32)
-  set(tunif W32TUNInterface.c)
-  set(tunconf W32TUNConfigurator.c)
+  set(tunif TUNInterface_W32.c)
+  set(tunconf TUNConfigurator_W32.c)
 else()
   set(tunif TUNInterface.c)
   if(LINUX)
