@@ -10,8 +10,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+if (WIN32)
+   set(admin Admin_W32.c)
+else()
+   set(admin Admin.c)
+endif()
+
 add_library(cjdadmin
-    Admin.c
+    ${admin}
     AdminClient.c
     AuthorizedPasswords.c
     Configurator.c
