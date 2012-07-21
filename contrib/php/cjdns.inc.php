@@ -40,22 +40,7 @@ class cjdns {
         $be = new BEncoded;
         $this->write("d1:q7:invalide");
         $list = $be->Decode($this->read());
-        $list = $list["availableFunctions"];
-        foreach($list as $function=>$info) {
-            if($function != "isDct") {
-                $args = array();
-                foreach($info as $name=>$type) {
-                    if($name != "isDct") {
-                        $args[] = "\"".$name."\" => ".$type["type"];
-                    }
-                }
-                if(count($args) > 0) {
-                    print "call(\"".$function."\", array(".implode(", ", $args)."));\n";
-                } else {
-                    print "call(\"".$function."\");\n";
-                }
-            }
-        }
+        return $list["availableFunctions"];
     }
 
     public function call($function, $args=array()) {
