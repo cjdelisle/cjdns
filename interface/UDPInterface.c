@@ -12,6 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _POSIX_C_SOURCE 200809L
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h> // getaddrinfo
+
 #include "crypto/Crypto.h"
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"
@@ -37,6 +42,8 @@
 #include <event2/event.h>
 #include <sys/types.h>
 #include <errno.h>
+
+#include <string.h>
 
 #define MAX_PACKET_SIZE 8192
 
@@ -170,24 +177,124 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     context->interface.receiveMessage(&message, &context->interface);
 }
 
+typedef struct sockname_s {
+    char* node;
+    char* service;
+    struct sockaddr_in* cached;
+    uint8_t state;
+    struct UDPInterface* udpif;
+} sockname;
+
+static int lookupHost(uint8_t key[InterfaceController_KEY_SIZE],void* arg)
+{
+    fprintf(stderr,"YAY lookup host\n");
+    sockname* s = (sockname*) arg;
+    struct addrinfo hints;
+    struct addrinfo* info = NULL;
+    int res;
+
+    switch(s->state) {
+    case 0:
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = 0;
+        hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICHOST;
+        // this doesn't block if the node is in x.x.x.x or ::::: form.
+        // could possibly cache the sockaddr in sockname structure, if it is in that form
+        // how to test if "is not a hostname"?
+        res = getaddrinfo(s->node,s->service,&hints,&info);
+        switch(res) {
+        case 0:
+            // node is numeric! i.e. x.x.x.x or ::::: so we just have to cache
+            // a sockaddr_in (XXX: in and in6 in future)
+            s->state = 1;
+            s->cached = malloc(sizeof(struct sockaddr_in));
+            Bits_memcpyConst(s->cached,
+                             info->ai_addr,
+                             sizeof(struct sockaddr_in));
+            if (info) freeaddrinfo(info);
+            free(s->node);
+            free(s->service);
+            return lookupHost(key,s);
+        case EAI_NONAME:
+            // node isn't numeric, but may be a hostname
+            s->state = 2;
+            if (info) freeaddrinfo(info);
+            return lookupHost(key,s);
+        default:
+            fprintf(stderr,"Initial host lookup failed: %s:%s\n",s->node,s->service);
+            if (info) freeaddrinfo(info);
+            return 1;
+        };
+    case 1:
+        // we already found the node to be numeric, just copy the cached sockaddr
+        keyForSockaddr(key, (struct sockaddr_in*) s->cached, s->udpif);
+        return 0;
+    case 2:
+        // we determined the node is a hostname, so we must look it up every recalculation!
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = 0;
+        hints.ai_flags = AI_ADDRCONFIG;
+        res = getaddrinfo(s->node,s->service,&hints,&info);
+        if (res != 0) {
+            fprintf(stderr,"Host lookup failed: %s:%s\n",s->node,s->service);
+            if (info) freeaddrinfo(info);
+            return 2;
+        }
+        // we'll just use the first result
+        struct addrinfo* which = info;
+        while (which) {
+            switch(which->ai_family) {
+            case AF_INET6:
+                fprintf(stderr,"Found an IPv6 UDP address we can't use :(\n");
+                break;
+            case AF_INET:
+                // we'll just use the first result
+                keyForSockaddr(key, (struct sockaddr_in*) which->ai_addr, s->udpif);
+                freeaddrinfo(info);
+                return 0;
+            default:
+                fprintf(stderr,"Found a weird address family %d!\n",info->ai_family);
+                break;
+            };
+            which = which->ai_next;
+        }
+        fprintf(stderr,"Host %s has no addresses!\n",s->node);
+        freeaddrinfo(info);
+        return 3;
+    default:
+        fprintf(stderr,"MY EYEBALLS ARE GERBILS\n");
+        abort();
+    };
+}
+
 int UDPInterface_beginConnection(const char* address,
                                  uint8_t cryptoKey[32],
                                  String* password,
                                  struct UDPInterface* udpif)
 {
-    struct sockaddr_storage addr;
-    ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, addrLen);
-    if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, (int*) &addrLen)) {
+    // address MUST be in host:port format
+    char* port = strrchr(address,':');
+    if (port==NULL) {
         return UDPInterface_beginConnection_BAD_ADDRESS;
     }
-    if (addrLen != udpif->addrLen) {
-        return UDPInterface_beginConnection_ADDRESS_MISMATCH;
-    }
+    sockname* s = malloc(sizeof(sockname));
+    Bits_memcpyConst(s, (&(sockname)
+        {
+            .service = strdup(port+1),
+                .node = strndup(address,port-address),
+                .state = 0,
+                .cached = NULL,
+                .udpif = udpif,
+            }), sizeof(sockname));
 
-    uint8_t key[InterfaceController_KEY_SIZE];
-    keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    int ret = udpif->ic->insertEndpoint(lookupHost,
+                                        s,
+                                        cryptoKey,
+                                        password,
+                                        &udpif->interface,
+                                        udpif->ic);
     switch(ret) {
         case 0:
             return 0;

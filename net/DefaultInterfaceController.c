@@ -75,6 +75,9 @@ struct Endpoint
      * if they are not responsive.
      */
     uint32_t timeOfLastMessage;
+
+    int (*recalculateKey)(uint8_t key[InterfaceController_KEY_SIZE],void* arg);
+    void* rKarg;
 };
 
 struct Context
@@ -175,6 +178,10 @@ static void pingCallback(void* vic)
                     continue;
                 }
                 Log_debug(ic->logger, "Pinging unresponsive neighbor [%s].", path);
+                int res = ep->recalculateKey(ep->key,ep->rKarg);
+                if (res) {
+                    Log_debug(ic->logger,"Could not recalculate the key [%s]",path);
+                }
             } else {
                 Log_debug(ic->logger, "Pinging lazy neighbor [%s].", path);
             }
@@ -356,7 +363,8 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface);
  *           is freed, we would expect all of it's children to deregister.
  * @return the newly inserted endpoint, NULL if there is no space to add one.
  */
-static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
+static struct Endpoint* insertEndpoint(
+    int (*calculateKey)(uint8_t key[InterfaceController_KEY_SIZE],void*), void* arg,
                                        uint8_t herPublicKey[32],
                                        bool requireAuth,
                                        String* password,
@@ -384,14 +392,21 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     externalInterface->receiverContext = ic;
     externalInterface->receiveMessage = receiveMessage;
 
+    int res = calculateKey(ep->key,arg);
+    if (res) {
+
+        return NULL;
+    }
 
     struct Allocator* epAllocator =
         externalInterface->allocator->child(externalInterface->allocator);
     epAllocator->onFree(closeInterface, ep, epAllocator);
 
     ep->external = externalInterface;
-    Bits_memcpyConst(ep->key, key, InterfaceController_KEY_SIZE);
-    InterfaceMap_put(key, &ep->internal, 0, ic->imap);
+    ep->recalculateKey = calculateKey;
+    ep->rKarg = arg;
+
+    InterfaceMap_put(ep->key, &ep->internal, 0, ic->imap);
 
     Bits_memcpyConst(&ep->internal, (&(struct Interface) {
         .senderContext = ic,
@@ -445,6 +460,13 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     return ep;
 }
 
+static int copyKey(uint8_t dest[InterfaceController_KEY_SIZE], void* arg)
+{
+    uint8_t* src = (uint8_t*) arg;
+    Bits_memcpyConst(dest,src, InterfaceController_KEY_SIZE);
+    return 0;
+}
+
 // Get an incoming message from a network interface, doesn't matter what interface or what endpoint.
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
@@ -453,7 +475,8 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     if (!ep) {
         // Not a known peer, add them.
-        ep = insertEndpoint(msg->bytes, NULL, requiresAuth(iface, ic), NULL, iface, ic);
+        // assert(msg->byteslength == keysize) ?
+        ep = insertEndpoint(copyKey, msg->bytes, NULL, requiresAuth(iface, ic), NULL, iface, ic);
 
         if (!ep) {
             Log_warn(ic->logger, "Could not insert endpoint, out of space in switch.");
@@ -473,15 +496,16 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return ep->internal.receiveMessage(msg, &ep->internal);
 }
 
-static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
-                                uint8_t herPublicKey[32],
-                                String* password,
-                                struct Interface* externalInterface,
-                                struct InterfaceController* ic)
+static int insertEndpointPublic(
+    int (*calculateKey)(uint8_t key[InterfaceController_KEY_SIZE],void*), void* arg,
+    uint8_t herPublicKey[32],
+    String* password,
+    struct Interface* externalInterface,
+    struct InterfaceController* ic)
 {
     struct Context* ctx = (struct Context*) ic;
     struct Endpoint* ep =
-        insertEndpoint(key, herPublicKey, false, password, externalInterface, ctx);
+        insertEndpoint(calculateKey, arg, herPublicKey, false, password, externalInterface, ctx);
     if (!ep) {
         if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
             return InterfaceController_registerInterface_BAD_KEY;

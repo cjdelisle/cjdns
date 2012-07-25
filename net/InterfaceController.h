@@ -49,7 +49,9 @@ struct InterfaceController
      */
     #define InterfaceController_registerInterface_OUT_OF_SPACE -1
     #define InterfaceController_registerInterface_BAD_KEY -2
-    int (* const insertEndpoint)(uint8_t key[InterfaceController_KEY_SIZE],
+    int (* const insertEndpoint)(int (*calculateKey)(
+                                     uint8_t key[InterfaceController_KEY_SIZE],
+                                     void*),void* arg,
                                  uint8_t herPublicKey[32],
                                  String* password,
                                  struct Interface* externalInterface,
