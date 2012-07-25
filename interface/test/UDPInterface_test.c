@@ -47,8 +47,7 @@ static int insertEndpoint(int (*recalc)(uint8_t key[InterfaceController_KEY_SIZE
                           struct InterfaceController* ic)
 {
     insertEndpointCalls++;
-    recalc(key,arg);
-    return 0;
+    return recalc(key,arg);
 }
 
 static int registerInterfaceCalls = 0;
@@ -110,9 +109,22 @@ int main()
                    String_CONST("publicKey"),
                    String_CONST("c86pf0ngj3wlb569juqm10yzv29n9t4w5tmsyhx6xd3fbqjlcu50.k"),
                    fw->alloc);
-    Dict_putString(dict, String_CONST("address"), String_CONST("mineatest.net:20"), fw->alloc);
+    Dict_putString(dict, String_CONST("address"),
+                   String_CONST("hostname.is.invalid:20"), fw->alloc);
     res = AdminClient_rpcCall(
-        String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    fprintf(stderr,"Uh %s\n",res->messageBytes);
-    Assert_always(0);
+        String_CONST("UDPInterface_beginConnection"), dict,
+        fw->client, fw->alloc);
+    Assert_always(!strcmp("d5:error13:unknown errore",(char*)res->messageBytes));
+
+    dict = Dict_new(fw->alloc);
+    Dict_putString(dict,
+                   String_CONST("publicKey"),
+                   String_CONST("c86pf0ngj3wlb569juqm10yzv29n9t4w5tmsyhx6xd3fbqjlcu50.k"),
+                   fw->alloc);
+    Dict_putString(dict, String_CONST("address"), String_CONST("github.com:20"), fw->alloc);
+    res = AdminClient_rpcCall(
+        String_CONST("UDPInterface_beginConnection"), dict,
+        fw->client, fw->alloc);
+    Assert_always(!strcmp("d5:error4:nonee",(char*)res->messageBytes));
+
 }

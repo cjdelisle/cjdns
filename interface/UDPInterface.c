@@ -187,7 +187,6 @@ typedef struct sockname_s {
 
 static int lookupHost(uint8_t key[InterfaceController_KEY_SIZE],void* arg)
 {
-    fprintf(stderr,"YAY lookup host\n");
     sockname* s = (sockname*) arg;
     struct addrinfo hints;
     struct addrinfo* info = NULL;
