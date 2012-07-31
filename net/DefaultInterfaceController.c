@@ -76,6 +76,10 @@ struct Endpoint
      */
     uint32_t timeOfLastMessage;
 
+    /**
+     * The closure to recalculate the key, if it may have changed.
+     */
+
     int (*recalculateKey)(uint8_t key[InterfaceController_KEY_SIZE],void* arg);
     void* rKarg;
 };
@@ -178,7 +182,9 @@ static void pingCallback(void* vic)
                     continue;
                 }
                 Log_debug(ic->logger, "Pinging unresponsive neighbor [%s].", path);
+                InterfaceMap_remove(InterfaceMap_indexOf(ep->key, ic->imap), ic->imap);
                 int res = ep->recalculateKey(ep->key,ep->rKarg);
+                InterfaceMap_put(ep->key, &ep->internal, 0, ic->imap);
                 if (res) {
                     Log_debug(ic->logger,"Could not recalculate the key [%s]",path);
                 }
