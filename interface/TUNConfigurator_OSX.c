@@ -204,3 +204,11 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
 
     close(s);
 }
+
+void TUNConfigurator_setMTU(const char* interfaceName,
+                            uint32_t mtu,
+                            struct Log* logger,
+                            struct Except* eh)
+{
+    Except_raise(eh, TUNConfigurator_setMTU_INTERNAL, "Not implemented in OSX");
+}

@@ -58,6 +58,25 @@
 
 #define DEFAULT_TUN_DEV "cjdroute0"
 
+/**
+ * The worst possible packet overhead.
+ * assuming the packet needs to be handed off to another node
+ * because we have no route to the destination.
+ * and the CryptoAuths to both the destination and the handoff node are both timed out.
+ */
+#define WORST_CASE_OVERHEAD ( \
+    /* TODO: Headers_IPv4_SIZE */ 20 \
+    + Headers_UDPHeader_SIZE \
+    + /* Nonce */ 4 \
+    + /* Poly1306 authenticator */ 16 \
+    + Headers_SwitchHeader_SIZE \
+    + Headers_CryptoAuth_SIZE \
+    + Headers_IP6Header_SIZE \
+    + Headers_CryptoAuth_SIZE \
+)
+
+/** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
+#define DEFAULT_MTU (1492 - WORST_CASE_OVERHEAD)
 
 struct User
 {
@@ -521,6 +540,13 @@ int main(int argc, char** argv)
                 assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
         } Jmp_catch {
             Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
+        }
+
+        Jmp_try(jmp) {
+            TUNConfigurator_setMTU(
+                assignedTunName, DEFAULT_MTU, logger, &jmp.handler);
+        } Jmp_catch {
+            Log_warn(logger, "Unable to set MTU [%s], skipping.", jmp.message);
         }
 
         struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);

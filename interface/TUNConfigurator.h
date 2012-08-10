@@ -26,6 +26,12 @@
 #define TUNConfigurator_IFNAMSIZ 16
 
 /**
+ * The error code for any function which fails to get a socket for configuring an interface.
+ * Multiple functions may return this error.
+ */
+#define TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET -2
+
+/**
  * Open the TUN device.
  *
  * @param interfaceName the interface name you *want* to use or NULL to let the kernel decide.
@@ -56,12 +62,31 @@ void* TUNConfigurator_initTun(const char* interfaceName,
  * @param logger
  * @param eh if this function fails, it will raise one of the following.
  *           TUNConfigurator_setIpAddress_INTERNAL Catch all exception code for failures.
+ *           TUNConfigurator_setIpAddress_ADMIN_SOCKET Error getting admin socket for interface.
  */
 #define TUNConfigurator_setIpAddress_INTERNAL -1
+#define TUNConfigurator_setIpAddress_ADMIN_SOCKET TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET
 void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   const uint8_t address[16],
                                   int prefixLen,
                                   struct Log* logger,
                                   struct Except* eh);
+
+/**
+ * Set the MTU of an interface.
+ *
+ * @param interfaceName the name of the interface to set the MTU for.
+ * @param mtu the desired MTU.
+ * @param logger where to write information.
+ * @param eh if this function fails, it will raise one of the following.
+ *           TUNConfigurator_setMTU_INTERNAL Catch all exception code for failures.
+ *           TUNConfigurator_setMTU_ADMIN_SOCKET Error getting admin socket for interface.
+ */
+#define TUNConfigurator_setMTU_INTERNAL -1
+#define TUNConfigurator_setMTU_ADMIN_SOCKET TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET
+void TUNConfigurator_setMTU(const char* interfaceName,
+                            uint32_t mtu,
+                            struct Log* logger,
+                            struct Except* eh);
 
 #endif
