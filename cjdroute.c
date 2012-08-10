@@ -67,8 +67,8 @@
 #define WORST_CASE_OVERHEAD ( \
     /* TODO: Headers_IPv4_SIZE */ 20 \
     + Headers_UDPHeader_SIZE \
-    + /* Nonce */ 4 \
-    + /* Poly1306 authenticator */ 16 \
+    + 4 /* Nonce */ \
+    + 16 /* Poly1305 authenticator */ \
     + Headers_SwitchHeader_SIZE \
     + Headers_CryptoAuth_SIZE \
     + Headers_IP6Header_SIZE \
@@ -76,7 +76,13 @@
 )
 
 /** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
-#define DEFAULT_MTU (1492 - WORST_CASE_OVERHEAD)
+#define DEFAULT_MTU ( \
+    1492 \
+  - WORST_CASE_OVERHEAD \
+  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
+  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
+  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
+)
 
 struct User
 {
@@ -535,6 +541,7 @@ int main(int argc, char** argv)
                                                logger,
                                                AbortHandler_INSTANCE);
         struct Jmp jmp;
+
         Jmp_try(jmp) {
             TUNConfigurator_setIpAddress(
                 assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);

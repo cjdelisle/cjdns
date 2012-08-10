@@ -29,7 +29,10 @@
  * The error code for any function which fails to get a socket for configuring an interface.
  * Multiple functions may return this error.
  */
-#define TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET -2
+#define TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET 1
+
+/** If there is an error bringing the interface up. */
+#define TUNConfigurator_ERROR_ENABLING_INTERFACE 2
 
 /**
  * Open the TUN device.
@@ -62,10 +65,10 @@ void* TUNConfigurator_initTun(const char* interfaceName,
  * @param logger
  * @param eh if this function fails, it will raise one of the following.
  *           TUNConfigurator_setIpAddress_INTERNAL Catch all exception code for failures.
- *           TUNConfigurator_setIpAddress_ADMIN_SOCKET Error getting admin socket for interface.
+ *           TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET Error getting admin socket for interface.
+ *           TUNConfigurator_ERROR_ENABLING_INTERFACE If the interface cannot be brought up.
  */
 #define TUNConfigurator_setIpAddress_INTERNAL -1
-#define TUNConfigurator_setIpAddress_ADMIN_SOCKET TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET
 void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   const uint8_t address[16],
                                   int prefixLen,
@@ -80,10 +83,10 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
  * @param logger where to write information.
  * @param eh if this function fails, it will raise one of the following.
  *           TUNConfigurator_setMTU_INTERNAL Catch all exception code for failures.
- *           TUNConfigurator_setMTU_ADMIN_SOCKET Error getting admin socket for interface.
+ *           TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET Error getting admin socket for interface.
+ *           TUNConfigurator_ERROR_ENABLING_INTERFACE If the interface cannot be brought up.
  */
 #define TUNConfigurator_setMTU_INTERNAL -1
-#define TUNConfigurator_setMTU_ADMIN_SOCKET TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET
 void TUNConfigurator_setMTU(const char* interfaceName,
                             uint32_t mtu,
                             struct Log* logger,

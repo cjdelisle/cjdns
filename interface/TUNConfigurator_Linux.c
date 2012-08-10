@@ -113,6 +113,7 @@ static int socketForIfName(const char* interfaceName,
                      "socket() failed: [%s]", strerror(errno));
     }
 
+    memset(ifRequestOut, 0, sizeof(struct ifreq));
     strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
@@ -124,6 +125,34 @@ static int socketForIfName(const char* interfaceName,
     return s;
 }
 
+static void checkInterfaceUp(int socket,
+                             struct ifreq* ifRequest,
+                             struct Log* logger,
+                             struct Except* eh)
+{
+    if (ioctl(socket, SIOCGIFFLAGS, ifRequest) < 0) {
+        int err = errno;
+        close(socket);
+        Except_raise(eh, TUNConfigurator_ERROR_ENABLING_INTERFACE,
+                     "ioctl(SIOCGIFFLAGS) failed: [%s]", strerror(err));
+    }
+
+    if (ifRequest->ifr_flags & IFF_UP & IFF_RUNNING) {
+        // already up.
+        return;
+    }
+
+    Log_info(logger, "Bringing up interface [%s]", ifRequest->ifr_name);
+
+    ifRequest->ifr_flags |= IFF_UP | IFF_RUNNING;
+    if (ioctl(socket, SIOCSIFFLAGS, ifRequest) < 0) {
+        int err = errno;
+        close(socket);
+        Except_raise(eh, TUNConfigurator_ERROR_ENABLING_INTERFACE,
+                     "ioctl(SIOCSIFFLAGS) failed: [%s]", strerror(err));
+    }
+}
+
 void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   const uint8_t address[16],
                                   int prefixLen,
@@ -131,22 +160,21 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   struct Except* eh)
 {
     struct ifreq ifRequest;
-    struct in6_ifreq ifr6;
     int s = socketForIfName(interfaceName, eh, &ifRequest);
 
+    struct in6_ifreq ifr6;
+    memset(&ifr6, 0, sizeof(struct in6_ifreq));
+    // checkInterfaceUp() clobbers the ifindex.
     ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
-    ifr6.ifr6_prefixlen = prefixLen;
+
+    checkInterfaceUp(s, &ifRequest, logger, eh);
+
     uint8_t myIp[40];
     AddrTools_printIp(myIp, address);
-    inet_pton(AF_INET6, (char*) myIp, &ifr6.ifr6_addr);
+    Log_info(logger, "Setting IPv6 address [%s] for device [%s]", myIp, interfaceName);
 
-    ifRequest.ifr_flags |= IFF_UP | IFF_RUNNING;
-    if (ioctl(s, SIOCSIFFLAGS, &ifRequest) < 0) {
-        int err = errno;
-        close(s);
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
-                     "ioctl(SIOCSIFFLAGS) failed: [%s]", strerror(err));
-    }
+    ifr6.ifr6_prefixlen = prefixLen;
+    inet_pton(AF_INET6, (char*) myIp, &ifr6.ifr6_addr);
 
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
         int err = errno;
@@ -161,10 +189,10 @@ void TUNConfigurator_setMTU(const char* interfaceName,
                             struct Log* logger,
                             struct Except* eh)
 {
-    Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
-
     struct ifreq ifRequest;
     int s = socketForIfName(interfaceName, eh, &ifRequest);
+
+    Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
     ifRequest.ifr_mtu = mtu;
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
