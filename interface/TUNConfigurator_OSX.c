@@ -210,5 +210,29 @@ void TUNConfigurator_setMTU(const char* interfaceName,
                             struct Log* logger,
                             struct Except* eh)
 {
-    Except_raise(eh, TUNConfigurator_setMTU_INTERNAL, "Not implemented in OSX");
+    int s = socket(AF_INET6, SOCK_DGRAM, 0);
+
+    if (s < 0) {
+        Except_raise(eh,
+                     TUNConfigurator_setIpAddress_INTERNAL,
+                     "socket() failed [%s]",
+                     strerror(errno));
+    }
+
+
+    struct ifreq ifRequest;
+
+    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+    ifRequest.ifr_mtu = mtu;
+
+    Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
+
+    if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
+       int err = errno;
+        close(s);
+        Except_raise(eh,
+                     TUNConfigurator_setMTU_INTERNAL,
+                     "ioctl(SIOCSIFMTU) failed [%s]",
+                     strerror(err));
+    }
 }
