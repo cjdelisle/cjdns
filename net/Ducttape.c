@@ -242,7 +242,7 @@ static inline uint8_t incomingForMe(struct Message* message,
 
     // RouterModule_addNode(&addr, context->routerModule);
 
-    if (!context->routerIf) {
+    if (!context->userIf) {
         Log_warn(context->logger,
                  "Dropping message because there is no router interface configured.\n");
         return Error_UNDELIVERABLE;
@@ -259,7 +259,7 @@ static inline uint8_t incomingForMe(struct Message* message,
                 Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
         memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
-    context->routerIf->sendMessage(message, context->routerIf);
+    context->userIf->sendMessage(message, context->userIf);
     return Error_NONE;
 }
 
@@ -695,7 +695,6 @@ struct Ducttape* Ducttape_register(Dict* config,
                                    uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
-                                   struct Interface* routerIf,
                                    struct SwitchCore* switchCore,
                                    struct event_base* eventBase,
                                    struct Allocator* allocator,
@@ -723,12 +722,6 @@ struct Ducttape* Ducttape_register(Dict* config,
                                      cryptoAuth,
                                      allocator);
 
-    if (routerIf) {
-        context->routerIf = routerIf;
-        routerIf->receiveMessage = ip6FromTun;
-        routerIf->receiverContext = context;
-    }
-
     Bits_memcpyConst(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
         .context = context,
@@ -754,4 +747,12 @@ struct Ducttape* Ducttape_register(Dict* config,
     }), sizeof(struct Interface));
 
     return &context->public;
+}
+
+void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)
+{
+    struct Ducttape_Private* context = (struct Ducttape_Private*) dt;
+    context->userIf = userIf;
+    userIf->receiveMessage = ip6FromTun;
+    userIf->receiverContext = context;
 }

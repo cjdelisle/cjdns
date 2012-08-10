@@ -32,12 +32,19 @@ struct Ducttape* Ducttape_register(Dict* config,
                                    uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
-                                   struct Interface* routerIf,
                                    struct SwitchCore* switchCore,
                                    struct event_base* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct Admin* admin);
+
+/**
+ * Set the interface which the user will use to communicate with the network.
+ *
+ * @param dt the ducttape struct.
+ * @param userIf the (TUN) interface which will be used to send and receive packets.
+ */
+void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf);
 
 /**
  * The structure of data which should be the beginning

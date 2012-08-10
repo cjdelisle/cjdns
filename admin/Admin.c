@@ -1176,6 +1176,12 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
                         struct Log* logger,
                         struct Allocator* allocator)
 {
+    if (!password) {
+        uint8_t buff[32];
+        Crypto_randomBase32(buff, 32);
+        password = String_new((char*)buff, allocator);
+    }
+
     uint64_t pipeMagic;
     randombytes((uint8_t*)&pipeMagic, sizeof(pipeMagic));
 

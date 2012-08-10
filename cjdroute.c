@@ -378,44 +378,6 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
     Admin_sendMessage(&d, txid, context->admin);
 }
 
-static struct Admin* newAdmin(Dict* mainConf,
-                              char* user,
-                              struct Log* logger,
-                              struct event_base* eventBase,
-                              struct Allocator* alloc)
-{
-    Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
-    String* address = Dict_getString(adminConf, String_CONST("bind"));
-    String* password = Dict_getString(adminConf, String_CONST("password"));
-
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
-    if (address) {
-        if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-            Log_critical(logger, "Unable to parse [%s] as an ip address port, "
-                                  "eg: 127.0.0.1:11234", address->bytes);
-            exit(-1);
-        }
-    }
-
-    if (!password) {
-        uint8_t buff[32];
-        randomBase32(buff);
-        password = String_new((char*)buff, alloc);
-    }
-
-    struct Admin* admin = Admin_new(&addr,
-                                    addrLen,
-                                    password,
-                                    user,
-                                    eventBase,
-                                    AbortHandler_INSTANCE,
-                                    logger,
-                                    alloc);
-    return admin;
-}
-
 static int benchmark()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
@@ -482,7 +444,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Logging.
+    // Logging. TODO: admin based logging.
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = &(struct Log) { .writer = logwriter };
 
@@ -513,53 +475,47 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    // ca, needed for admin.
+    // Admin -------------------------------------------------------------------------------------
+    char* user = setUser(Dict_getList(&config, String_CONST("security")));
+
+    Dict* adminConf = Dict_getDict(&config, String_CONST("admin"));
+    String* adminAddress = Dict_getString(adminConf, String_CONST("bind"));
+    String* password = Dict_getString(adminConf, String_CONST("password"));
+
+    struct sockaddr_storage addr;
+    int addrLen = sizeof(struct sockaddr_storage);
+    memset(&addr, 0, sizeof(struct sockaddr_storage));
+    if (adminAddress) {
+        if (evutil_parse_sockaddr_port(adminAddress->bytes, (struct sockaddr*) &addr, &addrLen)) {
+            Log_critical(logger, "Unable to parse [%s] as an ip address port, "
+                                  "eg: 127.0.0.1:11234", adminAddress->bytes);
+            exit(-1);
+        }
+    }
+    struct Admin* admin = Admin_new(&addr,
+                                    addrLen,
+                                    password,
+                                    user,
+                                    eventBase,
+                                    AbortHandler_INSTANCE,
+                                    logger,
+                                    allocator);
+
+    // CryptoAuth ---------------------------------------------------------------------
     struct Address myAddr;
     uint8_t privateKey[32];
     parsePrivateKey(&config, &myAddr, privateKey);
     struct CryptoAuth* cryptoAuth =
         CryptoAuth_new(&config, allocator, privateKey, eventBase, logger);
 
-    // Admin
-    char* user = setUser(Dict_getList(&config, String_CONST("security")));
-    struct Admin* admin = newAdmin(&config, user, logger, eventBase, allocator);
+
+
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
     // Router
-    struct Interface* routerIf = NULL;
-    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
-    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
-    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
-        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
-
-        char assignedTunName[TUNConfigurator_IFNAMSIZ];
-        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
-                                               assignedTunName,
-                                               logger,
-                                               AbortHandler_INSTANCE);
-        struct Jmp jmp;
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setIpAddress(
-                assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
-        }
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setMTU(
-                assignedTunName, DEFAULT_MTU, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to set MTU [%s], skipping.", jmp.message);
-        }
-
-        struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
-        routerIf = &tun->iface;
-
-    }
     struct RouterModule* router = RouterModule_register(registry,
                                                         allocator,
                                                         myAddr.key,
@@ -573,7 +529,6 @@ int main(int argc, char** argv)
                                             privateKey,
                                             registry,
                                             router,
-                                            routerIf,
                                             switchCore,
                                             eventBase,
                                             allocator,
@@ -622,6 +577,39 @@ int main(int argc, char** argv)
                         eventBase,
                         logger,
                         allocator);
+
+    // ---------------------- Legacy Config ----------------------- //
+
+    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
+    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
+    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
+        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
+
+        char assignedTunName[TUNConfigurator_IFNAMSIZ];
+        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
+                                               assignedTunName,
+                                               logger,
+                                               AbortHandler_INSTANCE);
+        struct Jmp jmp;
+
+        Jmp_try(jmp) {
+            TUNConfigurator_setIpAddress(
+                assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
+        } Jmp_catch {
+            Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
+        }
+
+        Jmp_try(jmp) {
+            TUNConfigurator_setMTU(
+                assignedTunName, DEFAULT_MTU, logger, &jmp.handler);
+        } Jmp_catch {
+            Log_warn(logger, "Unable to set MTU [%s], skipping.", jmp.message);
+        }
+
+        struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
+        Ducttape_setUserInterface(dt, &tun->iface);
+    }
+
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

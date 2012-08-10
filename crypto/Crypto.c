@@ -17,6 +17,7 @@
 #include "memory/BufferAllocator.h"
 
 #include "util/Assert.h"
+#include "util/Base32.h"
 #include <stdio.h>
 #include <event2/util.h>
 
@@ -36,4 +37,18 @@ void Crypto_init()
 void randombytes(unsigned char* buffer,unsigned long long size) // CHECKFILES_IGNORE
 {
     evutil_secure_rng_get_bytes(buffer, size);
+}
+
+void Crypto_randomBase32(uint8_t* output, uint32_t length)
+{
+    uint32_t index = 0;
+    for (;;) {
+        uint8_t bin[16];
+        randombytes(bin, 16);
+        int ret = Base32_encode(&output[index], length - index, bin, 16);
+        if (ret == Base32_TOO_BIG || index + ret == length) {
+            break;
+        }
+        index += ret;
+    }
 }

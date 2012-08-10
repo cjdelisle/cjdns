@@ -27,4 +27,12 @@ void Crypto_init();
 
 void randombytes(unsigned char* buffer, unsigned long long size); // CHECKFILES_IGNORE
 
+/**
+ * Get random Base32 text, great for password material.
+ *
+ * @param output the buffer to write the output to.
+ * @param length the number of bytes to write.
+ */
+void Crypto_randomBase32(uint8_t* output, uint32_t length);
+
 #endif

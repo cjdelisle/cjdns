@@ -54,7 +54,7 @@ struct Ducttape_Private
     struct Interface switchInterface;
 
     /** The interface which is used by the operator of the node to communicate in the network. */
-    struct Interface* routerIf;
+    struct Interface* userIf;
 
     struct Address myAddr;
 
