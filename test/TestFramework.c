@@ -51,6 +51,6 @@ struct Ducttape* TestFramework_setUp()
 
     SerializationModule_register(registry, allocator);
 
-    return Ducttape_register(NULL, privateKey, registry, routerModule,
+    return Ducttape_register(privateKey, registry, routerModule,
                              switchCore, base, allocator, logger, NULL);
 }

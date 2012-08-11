@@ -28,8 +28,7 @@ struct Ducttape
     struct Interface switchPingerIf;
 };
 
-struct Ducttape* Ducttape_register(Dict* config,
-                                   uint8_t privateKey[32],
+struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
                                    struct SwitchCore* switchCore,

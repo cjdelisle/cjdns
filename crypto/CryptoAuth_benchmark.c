@@ -114,8 +114,8 @@ void CryptoAuth_benchmark(struct event_base* base,
                           struct Allocator* alloc)
 {
     struct Context ctx = {
-        .ca1 = CryptoAuth_new(NULL, alloc, NULL, base, NULL),
-        .ca2 = CryptoAuth_new(NULL, alloc, privateKey, base, NULL),
+        .ca1 = CryptoAuth_new(alloc, NULL, base, NULL),
+        .ca2 = CryptoAuth_new(alloc, privateKey, base, NULL),
         .if1 = {
             .sendMessage = transferMessage,
             .senderContext = &ctx.if2,

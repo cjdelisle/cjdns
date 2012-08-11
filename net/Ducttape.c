@@ -691,8 +691,7 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
-struct Ducttape* Ducttape_register(Dict* config,
-                                   uint8_t privateKey[32],
+struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
                                    struct SwitchCore* switchCore,
@@ -710,8 +709,8 @@ struct Ducttape* Ducttape_register(Dict* config,
     AddressMapper_init(&context->addrMap);
 
     struct CryptoAuth* cryptoAuth =
-        CryptoAuth_new(config, allocator, privateKey, eventBase, logger);
-    CryptoAuth_getPublicKey(context->myAddr.key, cryptoAuth);
+        CryptoAuth_new(allocator, privateKey, eventBase, logger);
+    Bits_memcpyConst(context->myAddr.key, cryptoAuth->publicKey, 32);
     Address_getPrefix(&context->myAddr);
 
     context->sm = SessionManager_new(16,

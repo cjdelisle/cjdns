@@ -52,7 +52,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
     struct Message* outgoing =
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
 
-    struct CryptoAuth* externalCa = CryptoAuth_new(NULL, alloc, NULL, eventBase, logger);
+    struct CryptoAuth* externalCa = CryptoAuth_new(alloc, NULL, eventBase, logger);
     struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, false, externalCa);
     CryptoAuth_setAuth(String_CONST("passwd"), 1, wrapped);
 
@@ -145,9 +145,9 @@ int main()
 
     struct event_base* eventBase = event_base_new();
 
-    struct CryptoAuth* ca = CryptoAuth_new(NULL, alloc, NULL, eventBase, logger);
+    struct CryptoAuth* ca = CryptoAuth_new(alloc, NULL, eventBase, logger);
     uint8_t publicKey[32];
-    CryptoAuth_getPublicKey(publicKey, ca);
+    Bits_memcpyConst(publicKey, ca->publicKey, 32);
     CryptoAuth_addUser(String_CONST("passwd"), 1, (void*)0x01, ca);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);

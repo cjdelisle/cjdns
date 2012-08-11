@@ -70,7 +70,7 @@ void createNew()
 {
     uint8_t buff[BUFFER_SIZE];
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, eventBase, NULL);
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
@@ -103,7 +103,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     struct Allocator* allocator = MallocAllocator_new(8192*2);
     struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);
     logger->writer = FileWriter_new(stdout, allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, myPrivateKey, eventBase, logger);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger);
 
     struct Interface* iface =
         allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
@@ -116,7 +116,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
                          allocator,
                          &(struct CryptoAuth_Wrapper)
         {
-            .context = ca,
+            .context = (struct CryptoAuth_pvt*) ca,
             .wrappedInterface = iface
         });
 
@@ -224,7 +224,7 @@ void repeatHello()
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log logger = { .writer = logwriter };
-    struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, NULL, eventBase, &logger);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, &logger);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -233,7 +233,7 @@ void repeatHello()
     };
 
     struct CryptoAuth_Wrapper wrapper = {
-        .context = ca,
+        .context = (struct CryptoAuth_pvt*) ca,
         .wrappedInterface = &iface
     };
     Bits_memcpyConst(wrapper.herPerminentPubKey, publicKey, 32);
@@ -257,10 +257,10 @@ void repeatHello()
     // Check the nonce
     Assert_always(!memcmp(msg2.bytes, "\0\0\0\1", 4));
 
-    ca = CryptoAuth_new(NULL, allocator, privateKey, eventBase, &logger);
+    ca = CryptoAuth_new(allocator, privateKey, eventBase, &logger);
     struct Message* finalOut = NULL;
     struct CryptoAuth_Wrapper wrapper2 = {
-        .context = ca,
+        .context = (struct CryptoAuth_pvt*) ca,
         .externalInterface = {
             .receiveMessage = receiveMessage,
             .receiverContext = &finalOut

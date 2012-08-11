@@ -153,7 +153,7 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
  * @return an Auth struct with a if one is found, otherwise NULL.
  */
 static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
-                                              struct CryptoAuth* context)
+                                              struct CryptoAuth_pvt* context)
 {
     if (auth.challenge.type != 1) {
         return NULL;
@@ -395,7 +395,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 
     // garbage the auth field to frustrate DPI and set the nonce (next 24 bytes after the auth)
     randombytes((uint8_t*) &header->handshake.auth, sizeof(union Headers_AuthChallenge) + 24);
-    Bits_memcpyConst(&header->handshake.publicKey, wrapper->context->publicKey, 32);
+    Bits_memcpyConst(&header->handshake.publicKey, wrapper->context->pub.publicKey, 32);
 
     if (!knowHerKey(wrapper)) {
         return genReverseHandshake(message, wrapper, header);
@@ -565,7 +565,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     // This will prevent "connection in bad state" situations from lasting forever.
     uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
 
-    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->resetAfterInactivitySeconds) {
+    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
         Log_debug(wrapper->context->logger, "No traffic in [%d] seconds, resetting connection.",
                   (int) (nowSecs - wrapper->timeOfLastPacket));
 
@@ -881,13 +881,12 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct CryptoAuth* CryptoAuth_new(Dict* config,
-                                  struct Allocator* allocator,
+struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
                                   struct event_base* eventBase,
                                   struct Log* logger)
 {
-    struct CryptoAuth* ca = allocator->calloc(sizeof(struct CryptoAuth), 1, allocator);
+    struct CryptoAuth_pvt* ca = allocator->calloc(sizeof(struct CryptoAuth_pvt), 1, allocator);
     ca->allocator = allocator;
 
     ca->passwords = allocator->calloc(sizeof(struct CryptoAuth_Auth), 256, allocator);
@@ -895,23 +894,18 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
     ca->passwordCapacity = 256;
     ca->eventBase = eventBase;
     ca->logger = logger;
-    ca->resetAfterInactivitySeconds = UINT32_MAX;
-    int64_t* resetAfterInactivitySeconds =
-        Dict_getInt(config, &(String){ .len=27, .bytes="resetAfterInactivitySeconds" });
-    if (resetAfterInactivitySeconds && *resetAfterInactivitySeconds > 0) {
-        ca->resetAfterInactivitySeconds = (uint32_t) *resetAfterInactivitySeconds;
-    }
+    ca->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
 
     if (privateKey != NULL) {
         Bits_memcpyConst(ca->privateKey, privateKey, 32);
-        crypto_scalarmult_curve25519_base(ca->publicKey, ca->privateKey);
+        crypto_scalarmult_curve25519_base(ca->pub.publicKey, ca->privateKey);
     } else {
-        crypto_box_curve25519xsalsa20poly1305_keypair(ca->publicKey, ca->privateKey);
+        crypto_box_curve25519xsalsa20poly1305_keypair(ca->pub.publicKey, ca->privateKey);
     }
 
     #ifdef Log_KEYS
         uint8_t publicKeyHex[65];
-        printHexKey(publicKeyHex, ca->publicKey);
+        printHexKey(publicKeyHex, ca->pub.publicKey);
         uint8_t privateKeyHex[65];
         printHexKey(privateKeyHex, ca->privateKey);
         Log_keys(logger,
@@ -920,14 +914,15 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
                   publicKeyHex);
     #endif
 
-    return ca;
+    return &ca->pub;
 }
 
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
                            void* user,
-                           struct CryptoAuth* context)
+                           struct CryptoAuth* ca)
 {
+    struct CryptoAuth_pvt* context = (struct CryptoAuth_pvt*) ca;
     if (authType != 1) {
         return CryptoAuth_addUser_INVALID_AUTHTYPE;
     }
@@ -952,7 +947,7 @@ int32_t CryptoAuth_addUser(String* password,
 
 void CryptoAuth_flushUsers(struct CryptoAuth* context)
 {
-    context->passwordCount = 0;
+    ((struct CryptoAuth_pvt*) context)->passwordCount = 0;
 }
 
 void* CryptoAuth_getUser(struct Interface* interface)
@@ -976,8 +971,9 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
                                            const bool requireAuth,
                                            bool authenticatePackets,
-                                           struct CryptoAuth* context)
+                                           struct CryptoAuth* ca)
 {
+    struct CryptoAuth_pvt* context = (struct CryptoAuth_pvt*) ca;
     struct CryptoAuth_Wrapper* wrapper =
         toWrap->allocator->clone(sizeof(struct CryptoAuth_Wrapper), toWrap->allocator,
             &(struct CryptoAuth_Wrapper) {
@@ -1016,11 +1012,6 @@ void CryptoAuth_setAuth(const String* password,
         ? String_newBinary(password->bytes, password->len, wrappedInterface->allocator)
         : NULL;
     wrapper->authType = (password != NULL) ? authType : 0;
-}
-
-void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context)
-{
-    Bits_memcpyConst(output, context->publicKey, 32);
 }
 
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)

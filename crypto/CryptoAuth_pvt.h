@@ -34,11 +34,11 @@ struct CryptoAuth_Auth {
     void* user;
 };
 
-struct CryptoAuth
+struct CryptoAuth_pvt
 {
-    uint8_t privateKey[32];
+    struct CryptoAuth pub;
 
-    uint8_t publicKey[32];
+    uint8_t privateKey[32];
 
     struct CryptoAuth_Auth* passwords;
     uint32_t passwordCount;
@@ -46,12 +46,6 @@ struct CryptoAuth
 
     struct Log* logger;
     struct event_base* eventBase;
-
-    /**
-     * After this number of seconds of inactivity,
-     * a connection will be reset to prevent them hanging in a bad state.
-     */
-    uint32_t resetAfterInactivitySeconds;
 
     struct Allocator* allocator;
 };
@@ -113,7 +107,7 @@ struct CryptoAuth_Wrapper
     bool hasBufferedMessage : 1;
 
     /** A pointer back to the main cryptoauth context. */
-    struct CryptoAuth* const context;
+    struct CryptoAuth_pvt* const context;
 
     /** The internal interface which we are wrapping. */
     struct Interface* const wrappedInterface;

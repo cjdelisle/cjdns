@@ -506,7 +506,7 @@ int main(int argc, char** argv)
     uint8_t privateKey[32];
     parsePrivateKey(&config, &myAddr, privateKey);
     struct CryptoAuth* cryptoAuth =
-        CryptoAuth_new(&config, allocator, privateKey, eventBase, logger);
+        CryptoAuth_new(allocator, privateKey, eventBase, logger);
 
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
@@ -523,8 +523,7 @@ int main(int argc, char** argv)
 
     SerializationModule_register(registry, allocator);
 
-    struct Ducttape* dt = Ducttape_register(&config,
-                                            privateKey,
+    struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
                                             router,
                                             switchCore,

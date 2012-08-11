@@ -25,7 +25,18 @@
 #include <stdbool.h>
 #include <event2/event.h>
 
-struct CryptoAuth;
+#define CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS 60
+
+struct CryptoAuth
+{
+    uint8_t publicKey[32];
+
+    /**
+     * After this number of seconds of inactivity,
+     * a connection will be reset to prevent them hanging in a bad state.
+     */
+    uint32_t resetAfterInactivitySeconds;
+};
 
 /** The internal interface wrapper struct. */
 struct CryptoAuth_Wrapper;
@@ -76,9 +87,6 @@ void* CryptoAuth_getUser(struct Interface* iface);
 /**
  * Create a new crypto authenticator.
  *
- * @param config the configuration for this CryptoAuth, configuration options include:
- *            resetAfterInactivitySeconds -- the number of seconds of inactivity after which to
- *                                           reset the connection.
  * @param allocator the means of aquiring memory.
  * @param privateKey the private key to use for this CryptoAuth or null if one should be generated.
  * @param eventBase the libevent context for handling timeouts.
@@ -86,8 +94,7 @@ void* CryptoAuth_getUser(struct Interface* iface);
  *               if NULL then no logging will be done.
  * @return a new CryptoAuth context.
  */
-struct CryptoAuth* CryptoAuth_new(Dict* config,
-                                  struct Allocator* allocator,
+struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
                                   struct event_base* eventBase,
                                   struct Log* logger);
@@ -123,9 +130,6 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
 void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
                         struct Interface* wrappedInterface);
-
-/** Make a copy of our public key. */
-void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
 
 /** @return a pointer to the other party's public key. */
 uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
