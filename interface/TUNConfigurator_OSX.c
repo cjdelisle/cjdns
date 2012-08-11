@@ -214,7 +214,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
 
     if (s < 0) {
         Except_raise(eh,
-                     TUNConfigurator_setIpAddress_INTERNAL,
+                     TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
                      strerror(errno));
     }
@@ -229,10 +229,10 @@ void TUNConfigurator_setMTU(const char* interfaceName,
 
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
        int err = errno;
-        close(s);
-        Except_raise(eh,
-                     TUNConfigurator_setMTU_INTERNAL,
-                     "ioctl(SIOCSIFMTU) failed [%s]",
-                     strerror(err));
+       close(s);
+       Except_raise(eh,
+                    TUNConfigurator_setMTU_INTERNAL,
+                    "ioctl(SIOCSIFMTU) failed [%s]",
+                    strerror(err));
     }
 }

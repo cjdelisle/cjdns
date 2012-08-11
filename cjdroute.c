@@ -509,8 +509,6 @@ int main(int argc, char** argv)
         CryptoAuth_new(&config, allocator, privateKey, eventBase, logger);
 
 
-
-
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
