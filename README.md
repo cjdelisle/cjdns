@@ -253,10 +253,10 @@ If you want to have your logs written to a file:
 
 If you want to be able to close your terminal and you don't use screen:
 
-    sudo ./cjdroute < cjdroute.conf &
+    sudo ./cjdroute < cjdroute.conf > /dev/null &
 
 NOTE: when you use `&`, remember that you will have cjdroute processes running in the background
-if you are having problems use `killall cjdroute` to return to sanity.
+if you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
 
 ##5: Get in IRC
 
