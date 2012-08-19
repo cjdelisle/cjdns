@@ -477,7 +477,8 @@ static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
                                 uint8_t herPublicKey[32],
                                 String* password,
                                 struct Interface* externalInterface,
-                                struct InterfaceController* ic)
+                                struct InterfaceController* ic,
+    uint64_t* switchLabel)
 {
     struct Context* ctx = (struct Context*) ic;
     struct Endpoint* ep =
@@ -488,6 +489,7 @@ static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
         }
         return InterfaceController_registerInterface_OUT_OF_SPACE;
     }
+    *switchLabel = ep->switchLabel;
     return 0;
 }
 

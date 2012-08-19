@@ -34,7 +34,8 @@ static int insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
                           uint8_t herPublicKey[32],
                           String* password,
                           struct Interface* externalInterface,
-                          struct InterfaceController* ic)
+                          struct InterfaceController* ic,
+    uint64_t* switchLabel)
 {
     insertEndpointCalls++;
     return 0;
@@ -46,6 +47,8 @@ static void registerInterface(struct Interface* externalInterface,
 {
     registerInterfaceCalls++;
 }
+
+#define STRCOMPP(ca,b) memcmp(ca,b,sizeof(ca)-1)
 
 int main()
 {
@@ -92,5 +95,5 @@ int main()
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!strcmp("d5:error4:nonee", (char*) res->messageBytes));
+    Assert_always(!STRCOMPP("d5:error4:none", (char*) res->messageBytes));
 }
