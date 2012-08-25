@@ -63,12 +63,24 @@ struct Endpoint
     /** The label for this endpoint, needed to ping the endpoint. */
     uint64_t switchLabel;
 
+    /** If state is UNAUTHENTICATED, the other node has not sent a single valid packet. */
+    #define Endpoint_state_UNAUTHENTICATED 0
+
+    /** In state == HANDSHAKE, a valid packet has been received but it could still be a replay . */
+    #define Endpoint_state_HANDSHAKE 1
+
+    /** In state == ESTABLISHED, we know the node at the other end is authentic. */
+    #define Endpoint_state_ESTABLISHED 2
+
     /**
-     * True after the CryptoAuth handshake is completed.
-     * This is used to check for a registeration of a node which is already registered in a
-     * different switch slot, if there is one and the handshake completes, it will be moved.
+     * one of Endpoint_state_UNAUTHENTICATED, Endpoint_state_HANDSHAKE or
+     * Endpoint_state_ESTABLISHED.
+     * If Endpoint_state_UNAUTHENTICATED, no permanent state will be kept.
+     * During transition from Endpoint_state_HANDSHAKE to Endpoint_state_ESTABLISHED, a check
+     * is done for a registeration of a node which is already registered in a different switch
+     * slot, if there is one and the handshake completes, it will be moved.
      */
-    bool authenticated : 1;
+    int state;
 
     /**
      * The time of the last incoming message in milliseconds, used to clear out endpoints
@@ -231,15 +243,15 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     struct Context* ic = interfaceControllerForEndpoint(ep);
 
     ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
-    if (!ep->authenticated) {
+    if (ep->state != Endpoint_state_ESTABLISHED) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep, ic);
-            ep->authenticated = true;
+            ep->state = Endpoint_state_ESTABLISHED;
         } else {
             // prevent some kinds of nasty things which could be done with packet replay.
-            if (msg->length < 8 || memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
-                Log_info(ic->logger, "Dropping message because CA is not established.");
-            }
+            Log_info(ic->logger, "Dropping message because CA is not established.");
+            ep->state = Endpoint_state_HANDSHAKE;
+            return Error_NONE;
         }
     }
 
@@ -470,7 +482,15 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     }
 
     Message_shift(msg, -InterfaceController_KEY_SIZE);
-    return ep->internal.receiveMessage(msg, &ep->internal);
+    uint8_t out = ep->internal.receiveMessage(msg, &ep->internal);
+
+    if (ep->state == Endpoint_state_UNAUTHENTICATED) {
+        // some random stray packet wandered in to the interface....
+        // This removes all of the state associated with the endpoint.
+        ep->allocator->free(ep->allocator);
+    }
+
+    return out;
 }
 
 static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
