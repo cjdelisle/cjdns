@@ -248,10 +248,14 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             moveEndpointIfNeeded(ep, ic);
             ep->state = Endpoint_state_ESTABLISHED;
         } else {
-            // prevent some kinds of nasty things which could be done with packet replay.
-            Log_info(ic->logger, "Dropping message because CA is not established.");
             ep->state = Endpoint_state_HANDSHAKE;
-            return Error_NONE;
+            // prevent some kinds of nasty things which could be done with packet replay.
+            // This is checking the message switch header and will drop it unless the label
+            // directs it to *this* router.
+            if (msg->length < 8 || memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
+                Log_info(ic->logger, "Dropping message because CA is not established.");
+                return Error_NONE;
+            }
         }
     }
 
@@ -487,7 +491,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     if (ep->state == Endpoint_state_UNAUTHENTICATED) {
         // some random stray packet wandered in to the interface....
         // This removes all of the state associated with the endpoint.
-        ep->allocator->free(ep->allocator);
+        ep->internal.allocator->free(ep->internal.allocator);
     }
 
     return out;
