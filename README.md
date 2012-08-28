@@ -212,9 +212,7 @@ After adding their connection credentials, it will look like:
                 "0.1.2.3:45678":
                 {
                     "password": "thisIsNotARealConnection",
-                    "authType": 1,
-                    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k",
-                    "trust": 10000
+                    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k"
                 }
             }
 
@@ -234,9 +232,7 @@ It looks like this:
             "your.external.ip.goes.here:12345":
             {
                 "password": "thisIsNotARealConnectionEither",
-                "authType": 1,
-                "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k",
-                "trust": 10000
+                "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k"
             }
         */
 
