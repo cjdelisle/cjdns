@@ -242,7 +242,6 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     struct Endpoint* ep = cryptoAuthIf->receiverContext;
     struct Context* ic = interfaceControllerForEndpoint(ep);
 
-    ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
     if (ep->state != Endpoint_state_ESTABLISHED) {
         if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep, ic);
@@ -258,6 +257,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             }
         }
     }
+    ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
 
     return ep->switchIf.receiveMessage(msg, &ep->switchIf);
 }
@@ -394,6 +394,13 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     }
     if (!ep) {
         return NULL;
+    }
+
+    // If the other end need not supply a valid password to connect
+    // we will set the connection state to HANDSHAKE because we don't
+    // want the connection to be trashed after the first invalid packet.
+    if (!requireAuth) {
+        ep->state = Endpoint_state_HANDSHAKE;
     }
 
     // This is the same no matter what endpoint.
