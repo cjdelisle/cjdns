@@ -134,6 +134,45 @@ static void udpInterface(Dict* config, struct Context* ctx)
     }
 }
 
+static void ethInterface(Dict* config, struct Context* ctx)
+{
+    Dict* eth = Dict_getDict(config, String_CONST("ETHInterface"));
+
+    if (eth) {
+        // Setup the interface.
+        String* deviceStr = Dict_getString(eth, String_CONST("device"));
+        Dict* d = Dict_new(ctx->alloc);
+        if (deviceStr) {
+            Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
+        }
+        rpcCall(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc);
+
+        // Make the connections.
+        Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
+        if (connectTo) {
+            struct Dict_Entry* entry = *connectTo;
+            while (entry != NULL) {
+                String* key = (String*) entry->key;
+                if (entry->val->type != Object_DICT) {
+                    Log_critical(ctx->logger, "interfaces.ETHInterface.connectTo: entry [%s] "
+                                               "is not a dictionary type.", key->bytes);
+                    exit(-1);
+                }
+                Dict* value = entry->val->as.dictionary;
+
+                Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+
+                struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
+                Dict_putString(value, String_CONST("device"), key, perCallAlloc);
+                rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
+                perCallAlloc->free(perCallAlloc);
+
+                entry = entry->next;
+            }
+        }
+    }
+}
+
 void Configurator_config(Dict* config,
                          struct sockaddr_storage* addr,
                          int addrLen,
@@ -155,6 +194,7 @@ void Configurator_config(Dict* config,
 
     Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
     udpInterface(ifaces, &ctx);
+    ethInterface(ifaces, &ctx);
 
     tempAlloc->free(tempAlloc);
 }

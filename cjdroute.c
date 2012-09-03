@@ -30,6 +30,7 @@
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface_admin.h"
+#include "interface/ETHInterface_admin.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "io/Writer.h"
