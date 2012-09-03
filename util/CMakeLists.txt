@@ -23,14 +23,17 @@ else()
     set(sec Security.c)
 endif()
 
+add_library(cjdns-security
+    ${sec}
+)
+
 add_library(util
     AverageRoller.c
     Timeout.c
     Hex.c
     Pinger.c
-    ${sec}
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
+target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security)
 
 # Everything must be tested.
 enable_testing()
