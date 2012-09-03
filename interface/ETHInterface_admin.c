@@ -41,7 +41,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
 
     String* password = Dict_getString(args, String_CONST("password"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
-    String* ifaceName = Dict_getString(args, String_CONST("device"));
+    String* bindDevice = Dict_getString(args, String_CONST("device"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* error = NULL;
@@ -65,7 +65,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
 
     } else {
         struct ETHInterface* udpif = ctx->ifaces[ifNum];
-        switch (ETHInterface_beginConnection(ifaceName->bytes, pkBytes, password, udpif)) {
+        switch (ETHInterface_beginConnection(bindDevice->bytes, pkBytes, password, udpif)) {
             case ETHInterface_beginConnection_OUT_OF_SPACE:
                 error = String_CONST("no more space to register with the switch.");
                 break;
@@ -156,7 +156,7 @@ void ETHInterface_admin_register(struct event_base* base,
         { .name = "interfaceNumber", .required = 0, .type = "Int" },
         { .name = "password", .required = 0, .type = "String" },
         { .name = "publicKey", .required = 1, .type = "String" },
-        { .name = "device", .required = 1, .type = "String" }
+        { .name = "bind", .required = 0, .type = "String" }
     };
     Admin_registerFunction("ETHInterface_beginConnection",
         beginConnection, ctx, true, adma2, admin);

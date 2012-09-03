@@ -140,7 +140,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
     if (eth) {
         // Setup the interface.
-        String* deviceStr = Dict_getString(eth, String_CONST("device"));
+        String* deviceStr = Dict_getString(eth, String_CONST("bind"));
         Dict* d = Dict_new(ctx->alloc);
         if (deviceStr) {
             Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);

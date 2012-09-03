@@ -550,6 +550,7 @@ int main(int argc, char** argv)
     // ------------------- Register RPC functions ----------------------- //
     SwitchPinger_admin_register(sp, admin, allocator);
     UDPInterface_admin_register(eventBase, allocator, logger, admin, ifController);
+    ETHInterface_admin_register(eventBase, allocator, logger, admin, ifController);
     RouterModule_admin_register(router, admin, allocator);
     AuthorizedPasswords_init(admin, cryptoAuth, allocator);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);

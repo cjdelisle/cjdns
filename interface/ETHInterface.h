@@ -26,7 +26,7 @@ struct ETHInterface;
 
 /**
  * @param base the LibEvent context.
- * @param ifaceName the name of the ethernet interface to use.
+ * @param bindDevice the name of the device to bind to.
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
  *    Exceptions:
@@ -50,7 +50,7 @@ struct ETHInterface;
 #define ETHInterface_new_SOCKET_FAILED -5
 #define ETHInterface_new_BIND_FAILED -6
 struct ETHInterface* ETHInterface_new(struct event_base* base,
-                                      const char* ifaceName,
+                                      const char* bindDevice,
                                       struct Allocator* allocator,
                                       struct ExceptionHandler* exHandler,
                                       struct Log* logger,
@@ -63,7 +63,7 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
  * @param macAddress the MAC address of the ethernet card to connect to.
  * @param cryptoKey the node's public key, this is required to send it traffic.
  * @param password if specified, the password for authenticating with the other node.
- * @param iface the Ether interface.
+ * @param ethIf the Ether interface.
  * @return 0 on success
  *     ETHInterface_beginConnection_OUT_OF_SPACE if there is no space to store the entry.
  *     ETHInterface_beginConnection_BAD_KEY invalid (non-cjdns) cryptoKey
@@ -77,6 +77,6 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
 int ETHInterface_beginConnection(const char* macAddress,
                                  uint8_t cryptoKey[32],
                                  String* password,
-                                 struct ETHInterface* iface);
+                                 struct ETHInterface* ethIf);
 
 #endif
