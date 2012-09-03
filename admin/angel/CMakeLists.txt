@@ -10,23 +10,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if (WIN32)
-   set(admin Admin_W32.c)
-else()
-   set(admin Admin.c)
-endif()
-
-add_library(cjdadmin
-    ${admin}
-    AdminClient.c
-    AuthorizedPasswords.c
-    Configurator.c
+add_executable(cjdns-angel
+    Angel.c
+    AngelInit.c
 )
 
-target_link_libraries(cjdadmin crypto cjdbenc_StandardBencSerializer)
+target_link_libraries(cjdns-angel
+    cjdbenc
+    cjdbenc_StandardBencSerializer
+    cjdmemory
+    ${LIBEVENT2_LIBRARIES}
+    cjdns-security
+)
 
-add_subdirectory(testframework)
-add_subdirectory(angel)
+add_executable(cjdns-core
+    Core.c
+)
+
+target_link_libraries(cjdns-core
+    crypto
+    crypto_benchmark
+    interface
+    switch
+    dht
+    dhtcore
+    cjdbenc
+    cjdbenc_JsonBencSerializer
+    cjdmemory
+    cjdadmin
+    cjdnet
+    ${LIBEVENT2_LIBRARIES}
+    ${PLATFORM_LIBRARIES}
+)
 
 enable_testing()
-add_subdirectory(test)
+#add_subdirectory(test)

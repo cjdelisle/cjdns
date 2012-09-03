@@ -492,14 +492,14 @@ int main(int argc, char** argv)
             exit(-1);
         }
     }
-    struct Admin* admin = Admin_new(&addr,
-                                    addrLen,
-                                    password,
-                                    user,
-                                    eventBase,
-                                    AbortHandler_INSTANCE,
-                                    logger,
-                                    allocator);
+    struct Admin* admin = Admin_newProc(&addr,
+                                        addrLen,
+                                        password,
+                                        user,
+                                        eventBase,
+                                        AbortHandler_INSTANCE,
+                                        logger,
+                                        allocator);
 
     // CryptoAuth ---------------------------------------------------------------------
     struct Address myAddr;

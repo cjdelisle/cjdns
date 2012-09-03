@@ -42,8 +42,14 @@ struct AdminTestFramework* AdminTestFramework_setUp()
     struct event_base* eventBase = event_base_new();
 
     String* password = String_new("abcdefg12345", alloc);
-    struct Admin* admin =
-        Admin_new(&addr, addrLen, password, NULL, eventBase, AbortHandler_INSTANCE, logger, alloc);
+    struct Admin* admin = Admin_newProc(&addr,
+                                        addrLen,
+                                        password,
+                                        NULL,
+                                        eventBase,
+                                        AbortHandler_INSTANCE,
+                                        logger,
+                                        alloc);
 
     struct sockaddr_storage* addrPtr;
     String* retPassword;
