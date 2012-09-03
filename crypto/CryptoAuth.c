@@ -838,7 +838,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     struct CryptoAuth_Wrapper* wrapper = (struct CryptoAuth_Wrapper*) interface->receiverContext;
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
-    if (received->length < (wrapper->requireAuth ? 20 : 4)) {
+    if (received->length < (wrapper->authenticatePackets ? 20 : 4)) {
         Log_debug(wrapper->context->logger, "Dropped runt");
         return Error_UNDERSIZE_MESSAGE;
     }
