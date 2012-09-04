@@ -63,62 +63,35 @@ struct ETHInterface
      */
     struct event* incomingMessageEvent;
 
-    /** Used to tell what address type is being used. */
-    ev_socklen_t addrLen;
-
     uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
 
+    /** The unix interface index which is used to identify the eth device. */
     int ifindex;
 
     struct Log* logger;
 
     struct InterfaceController* ic;
-};
 
-#define EFFECTIVE_KEY_SIZE \
-    ((InterfaceController_KEY_SIZE > sizeof(struct sockaddr_ll)) \
-        ? sizeof(struct sockaddr_ll) : InterfaceController_KEY_SIZE)
+    /** A base sockaddr_ll which is used to build the address to send packets to. */
+    struct sockaddr_ll addrBase;
+};
 
 static inline void sockaddrForKey(struct sockaddr_ll* sockaddr,
                                   uint8_t key[InterfaceController_KEY_SIZE],
                                   struct ETHInterface* ethIf)
 {
-    int i;
-    for (i = 0; i < InterfaceController_KEY_SIZE; i++) {
-        printf("%X", key[i]);
-    }
-    printf("\n");
-    sockaddr->sll_family = AF_PACKET;
-    sockaddr->sll_ifindex = ethIf->ifindex;
-    sockaddr->sll_halen = ETH_ALEN;
-    if (EFFECTIVE_KEY_SIZE < ETH_ALEN) {
-        printf("EKS < %d!!\n", (int) ETH_ALEN);
-        memset(sockaddr->sll_addr, 0, EFFECTIVE_KEY_SIZE);
-    }
-    Bits_memcpyConst(sockaddr->sll_addr, key, EFFECTIVE_KEY_SIZE);
-    printf("Found src MAC: ");
-    for (i = 0; i < 8; i++) {
-        printf("%02X", sockaddr->sll_addr[i]);
-    }
-    printf("\n");
-
+    Assert_true(key[6] == 'e' && key[7] == 'n');
+    Bits_memcpyConst(sockaddr, &ethIf->addrBase, sizeof(struct sockaddr_ll));
+    Bits_memcpyConst(sockaddr->sll_addr, key, 6);
 }
 
 static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
                                   struct sockaddr_ll* sockaddr,
                                   struct ETHInterface* ethIf)
 {
-    int i;
-    if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
-        printf("EKS < IC_KS!!\n");
-        memset(key, 0, InterfaceController_KEY_SIZE);
-    }
-    Bits_memcpyConst(key, sockaddr->sll_addr, EFFECTIVE_KEY_SIZE);
-    for (i = 0; i < InterfaceController_KEY_SIZE; i++) {
-        printf("%X", key[i]);
-    }
-    printf("\n");
-
+    Bits_memcpyConst(key, sockaddr->sll_addr, 6);
+    key[6] = 'e';
+    key[7] = 'n';
 }
 
 static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
@@ -132,33 +105,32 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     Bits_memcpyConst(&sll.sll_addr, message->bytes, InterfaceController_KEY_SIZE);
     Message_shift(message, -InterfaceController_KEY_SIZE);
 
-    printf("sin->ll_addr: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            sll.sll_addr[0],
-            sll.sll_addr[1],
-            sll.sll_addr[2],
-            sll.sll_addr[3],
-            sll.sll_addr[4],
-            sll.sll_addr[5]);
+printf("sin->ll_addr: %02X:%02X:%02X:%02X:%02X:%02X\n",
+        sll.sll_addr[0],
+        sll.sll_addr[1],
+        sll.sll_addr[2],
+        sll.sll_addr[3],
+        sll.sll_addr[4],
+        sll.sll_addr[5]);
 
-    printf("sendto(%d, %02X%02X%02X%02X%02X%02X%02X%02X, %d, 0, sin, %d)\n",
-            context->socket,
-            message->bytes[0],
-            message->bytes[1],
-            message->bytes[2],
-            message->bytes[3],
-            message->bytes[4],
-            message->bytes[5],
-            message->bytes[6],
-            message->bytes[7],
-            message->length,
-            context->addrLen);
+printf("sendto(%d, %02X%02X%02X%02X%02X%02X%02X%02X, %d, 0, sin)\n",
+        context->socket,
+        message->bytes[0],
+        message->bytes[1],
+        message->bytes[2],
+        message->bytes[3],
+        message->bytes[4],
+        message->bytes[5],
+        message->bytes[6],
+        message->bytes[7],
+        message->length);
 
     if (sendto(context->socket,
                message->bytes,
                message->length + ETH_ALEN,
                0,
                (struct sockaddr*) &sll,
-               context->addrLen) < 0)
+               sizeof(struct sockaddr)) < 0)
     {
         switch (EVUTIL_SOCKET_ERROR()) {
             case EMSGSIZE:
@@ -202,7 +174,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     memset(&addr, 0, sizeof(struct sockaddr_ll));
     ev_socklen_t addrLen = sizeof(struct sockaddr_ll);
 
-    printf("Got Event!\n");
+printf("Got Event!\n");
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
     // keyForSockaddr() will write the key there.
@@ -213,12 +185,9 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       (struct sockaddr*) &addr,
                       &addrLen);
 
-    printf("rc = %i\n", rc);
+printf("rc = %i\n", rc);
 
-    if (addrLen != context->addrLen) {
-        printf("addrLen != context->addrLen : (%i != %i)\n", addrLen, context->addrLen);
-        //return; // XXX: addrLen == 18, context->addrLen == 20.... so what?
-    }
+    Assert_true(addrLen == sizeof(struct sockaddr_ll));
     if (rc < 0) {
         return;
     }
@@ -229,60 +198,20 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     context->interface.receiveMessage(&message, &context->interface);
 }
 
-#define xtod(c) ((c>='0' && c<='9') ? c-'0' : ((c>='A' && c<='F') ? \
-                 c-'A'+10 : ((c>='a' && c<='f') ? c-'a'+10 : 0)))
-
 int ETHInterface_beginConnection(const char* macAddress,
                                  uint8_t cryptoKey[32],
                                  String* password,
                                  struct ETHInterface* ethIf)
 {
     struct sockaddr_ll addr;
-    unsigned char dstMac[6];
-    int j,k;
-    int first;
-
-    // macAddress: 00:00:00:00:00:00\0 -> size == 18
-    if (strlen(macAddress) < 18) {
-        printf("--> ERROR: bad macAddress length: %d\n", (int)strlen(macAddress));
-        // fail here.
+    if (AddrTools_parseMac(addr.sll_addr, (const uint8_t*)macAddress)) {
+        return ETHInterface_beginConnection_BAD_MAC;
     }
 
-    printf("---> MAC ADDRESS: %s\n", macAddress);
-    first = 1;
-    for (j=0, k=0; j<6; k++) {
-        char c = macAddress[k];
-        if (c == ':') {
-            continue;
-        }
-        if (first == 1) {
-            dstMac[j] = xtod(c) << 4;
-            first = 0;
-        } else {
-            dstMac[j] = dstMac[j] + xtod(c);
-            first = 1;
-            j = j + 1;
-        }
-    }
-    printf("connectTo: %02X:%02X:%02X:%02X:%02X:%02X\n",
-           dstMac[0], dstMac[1], dstMac[2], dstMac[3], dstMac[4], dstMac[5]);
-
-    memset(&addr, 0, sizeof(struct sockaddr_ll));
-
-    addr.sll_family = AF_PACKET;
-    addr.sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS);
-    addr.sll_ifindex = ethIf->ifindex;
-    addr.sll_hatype = ARPHRD_ETHER;
-    addr.sll_pkttype = PACKET_OTHERHOST;
-    addr.sll_halen = ETH_ALEN;
-    addr.sll_addr[0] = dstMac[0];
-    addr.sll_addr[1] = dstMac[1];
-    addr.sll_addr[2] = dstMac[2];
-    addr.sll_addr[3] = dstMac[3];
-    addr.sll_addr[4] = dstMac[4];
-    addr.sll_addr[5] = dstMac[5];
-    addr.sll_addr[6] = 0x00;
-    addr.sll_addr[7] = 0x00;
+printf("---> MAC ADDRESS: %s\n", macAddress);
+uint8_t printedMac[18];
+AddrTools_printMac(printedMac, addr.sll_addr);
+printf("connectTo:        %s\n", printedMac);
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, &addr, ethIf);
@@ -321,54 +250,48 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
     }), sizeof(struct ETHInterface));
 
     struct ifreq ifr;
-    struct sockaddr_ll addr;
-
-    int j;
-    unsigned char srcMac[6];
-
-    context->addrLen = sizeof(struct sockaddr_ll);
 
     context->socket = socket(AF_PACKET, SOCK_DGRAM, Endian_hostToBigEndian16(ETH_P_CJDNS));
     if (context->socket == -1) {
-        exHandler->exception("call to socket() failed.",
-                             ETHInterface_new_SOCKET_FAILED, exHandler);
+        Except_raise(exHandler, ETHInterface_new_SOCKET_FAILED,
+                     "call to socket() failed. [%s]", strerror(errno));
     }
     strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ);
     ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
-        exHandler->exception("failed to find interface index",
-                            ETHInterface_new_FAILED_FIND_IFACE, exHandler);
+        Except_raise(exHandler, ETHInterface_new_FAILED_FIND_IFACE,
+                     "failed to find interface index [%s]", strerror(errno));
     }
     context->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
-       exHandler->exception("failed to find mac address of interface",
-                            ETHInterface_new_FAILED_FIND_MACADDR, exHandler);
+       Except_raise(exHandler, ETHInterface_new_FAILED_FIND_MACADDR,
+                    "failed to find mac address of interface [%s]", strerror(errno));
     }
-    for (j=0; j<6; j++) {
-        srcMac[j] = ifr.ifr_hwaddr.sa_data[j];
-    }
+
+    uint8_t srcMac[6];
+    Bits_memcpyConst(srcMac, ifr.ifr_hwaddr.sa_data, 6);
+
+    // TODO: is the node's mac addr private information?
     Log_info(context->logger, "found MAC for device %s [%i]: %02x:%02x:%02x:%02x:%02x:%02x\n",
             bindDevice, context->ifindex,
             srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
 
 
-    addr.sll_family = AF_PACKET;
-    addr.sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS);    // used in bind()
-    addr.sll_ifindex = context->ifindex;     // used in bind()
-    addr.sll_hatype = ARPHRD_ETHER;
-    addr.sll_pkttype = PACKET_OTHERHOST;
-    addr.sll_halen = ETH_ALEN;
-    addr.sll_addr[6] = 0x00;
-    addr.sll_addr[7] = 0x00;
+    context->addrBase.sll_family = AF_PACKET;
+    context->addrBase.sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS);    // used in bind()
+    context->addrBase.sll_ifindex = context->ifindex;     // used in bind()
+    context->addrBase.sll_hatype = ARPHRD_ETHER;
+    context->addrBase.sll_pkttype = PACKET_OTHERHOST;
+    context->addrBase.sll_halen = ETH_ALEN;
+    context->addrBase.sll_addr[6] = 0x00;
+    context->addrBase.sll_addr[7] = 0x00;
 
 
-    if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
-        Log_error(context->logger, "call to bind() returned an error");
-        perror("bind");
-        exHandler->exception("call to bind() failed.",
-                            ETHInterface_new_BIND_FAILED, exHandler);
+    if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
+        Except_raise(exHandler, ETHInterface_new_BIND_FAILED,
+                     "call to bind() failed [%s]", strerror(errno));
     }
 
     evutil_make_socket_nonblocking(context->socket);
@@ -377,8 +300,8 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
         event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);
 
     if (!context->incomingMessageEvent || event_add(context->incomingMessageEvent, NULL)) {
-        exHandler->exception("failed to create ETHInterface event",
-                             ETHInterface_new_FAILED_CREATING_EVENT, exHandler);
+        Except_raise(exHandler, ETHInterface_new_FAILED_CREATING_EVENT,
+                     "failed to create ETHInterface event [%s]", strerror(errno));
     }
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);

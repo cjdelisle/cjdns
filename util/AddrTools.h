@@ -174,4 +174,59 @@ static inline int AddrTools_parseIp(uint8_t out[16], const uint8_t hexAddr[40])
     return 0;
 }
 
+/**
+ * Parse out an ethernet MAC address.
+ *
+ * @param out a pointer to a byte array which will be set to the bytes of the MAC address.
+ * @param hexAddr a string representation of an ethernet MAC address such as:
+ *                "00:11:22:33:44:55"
+ * @return 0 if successful, -1 if the hexAddr is malformed.
+ */
+static inline int AddrTools_parseMac(uint8_t out[6], const uint8_t hexAddr[17])
+{
+    for (int i = 2; i < 15; i += 3) {
+        if (hexAddr[i] != ':') {
+            return -1;
+        }
+    }
+
+    uint8_t hex[12];
+    int j = 0;
+    for (int i = 0; i < 18; i++) {
+        hex[j++] = hexAddr[i++];
+        hex[j++] = hexAddr[i++];
+    }
+
+    if (Hex_decode(out, 6, hex, 12) != 6) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static inline void AddrTools_printMac(uint8_t output[18], const uint8_t binMac[6])
+{
+    uint8_t hex[12];
+    Hex_encode(hex, 12, binMac, 6);
+
+    output[ 0] = hex[ 0];
+    output[ 1] = hex[ 1];
+    output[ 2] = ':';
+    output[ 3] = hex[ 2];
+    output[ 4] = hex[ 3];
+    output[ 5] = ':';
+    output[ 6] = hex[ 4];
+    output[ 7] = hex[ 5];
+    output[ 8] = ':';
+    output[ 9] = hex[ 6];
+    output[10] = hex[ 7];
+    output[11] = ':';
+    output[12] = hex[ 8];
+    output[13] = hex[ 9];
+    output[14] = ':';
+    output[15] = hex[10];
+    output[16] = hex[11];
+    output[17] = '\0';
+}
+
 #endif

@@ -69,11 +69,13 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
  *     ETHInterface_beginConnection_BAD_KEY invalid (non-cjdns) cryptoKey
  *     ETHInterface_beginConnection_BAD_IFACE failed to parse interface name.
  *     ETHInterface_beginConnection_UNKNOWN_ERROR something failed in InterfaceController.
+ *     ETHInterface_beginConnection_BAD_MAC malformed MAC address.
  */
 #define ETHInterface_beginConnection_OUT_OF_SPACE -1
 #define ETHInterface_beginConnection_BAD_KEY -2
 #define ETHInterface_beginConnection_BAD_IFACE -3
 #define ETHInterface_beginConnection_UNKNOWN_ERROR -4
+#define ETHInterface_beginConnection_BAD_MAC -5
 int ETHInterface_beginConnection(const char* macAddress,
                                  uint8_t cryptoKey[32],
                                  String* password,
