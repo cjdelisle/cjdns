@@ -47,7 +47,7 @@
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
 
-#define PADDING sizeof(union Headers_CryptoAuth)
+#define PADDING 512
 
 #define MAX_INTERFACES 256
 
