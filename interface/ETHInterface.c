@@ -18,6 +18,7 @@
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
+#include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 #include "util/Assert.h"
@@ -46,7 +47,7 @@
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
 
-#define PADDING 16
+#define PADDING sizeof(union Headers_CryptoAuth)
 
 #define MAX_INTERFACES 256
 
