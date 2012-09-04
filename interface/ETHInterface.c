@@ -53,6 +53,9 @@
 
 #define ETH_P_CJDNS 0xFC00
 
+// 2 last 0x00 of .sll_addr are removed from original size (20)
+#define SOCKADDR_LL_LEN 18
+
 struct ETHInterface
 {
     struct Interface interface;
@@ -112,7 +115,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
                message->length,
                0,
                (struct sockaddr*) &addr,
-               sizeof(addr)) < 0)
+               sizeof(struct sockaddr_ll)) < 0)
     {
         switch (EVUTIL_SOCKET_ERROR()) {
             case EMSGSIZE:
@@ -153,7 +156,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     struct sockaddr_ll addr;
     memset(&addr, 0, sizeof(struct sockaddr_ll));
-    ev_socklen_t addrLen = sizeof(addr);
+    ev_socklen_t addrLen = sizeof(struct sockaddr_ll);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
     // keyForSockaddr() will write the key there.
@@ -164,19 +167,17 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
                       (struct sockaddr*) &addr,
                       &addrLen);
 
+    Assert_true(addrLen == SOCKADDR_LL_LEN);
 
     /** "Magic" Warning!
      *
-     * - returned addrLen is 18, we expect 20.
      * - smallest payload for AF_PACKET: 46 bytes
-     * - smallest packet (empyrical): 40 bytes
+     * - smallest packet (empyrical): 40 bytes (aka "ctrl packet")
      */
 
     /* Begin of "magic" */
-    Assert_true(addrLen == sizeof(addr) - 2); // XXX: because of the 2 nulls in sll_addr?
-
     if (rc == MIN_PACKET_SIZE) {
-        // remove filling 0x00 from the end of the paylod
+        // remove extra 0x00 from the end of the paylod
         rc = 40;
     }
     /* End of "magic" */
