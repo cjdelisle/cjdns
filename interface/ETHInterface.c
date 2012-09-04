@@ -130,7 +130,7 @@ printf("sendto(%d, %02X%02X%02X%02X%02X%02X%02X%02X, %d, 0, sin)\n",
                message->length + ETH_ALEN,
                0,
                (struct sockaddr*) &sll,
-               sizeof(struct sockaddr)) < 0)
+               sizeof(struct sockaddr_ll)) < 0)
     {
         switch (EVUTIL_SOCKET_ERROR()) {
             case EMSGSIZE:
