@@ -64,8 +64,8 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
         error = String_CONST("failed to parse publicKey.");
 
     } else {
-        struct ETHInterface* udpif = ctx->ifaces[ifNum];
-        switch (ETHInterface_beginConnection(bindDevice->bytes, pkBytes, password, udpif)) {
+        struct ETHInterface* ethif = ctx->ifaces[ifNum];
+        switch (ETHInterface_beginConnection(bindDevice->bytes, pkBytes, password, ethif)) {
             case ETHInterface_beginConnection_OUT_OF_SPACE:
                 error = String_CONST("no more space to register with the switch.");
                 break;
