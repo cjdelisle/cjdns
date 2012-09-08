@@ -13,6 +13,7 @@
 add_executable(cjdns-angel
     Angel.c
     AngelInit.c
+    Waiter.c
 )
 
 target_link_libraries(cjdns-angel
@@ -25,6 +26,7 @@ target_link_libraries(cjdns-angel
 
 add_executable(cjdns-core
     Core.c
+    Waiter.c
 )
 
 target_link_libraries(cjdns-core

@@ -14,19 +14,22 @@
  */
 
 #define _POSIX_SOURCE 1 // fdopen()
-#include </usr/include/stdio.h>
 
 #include "admin/angel/Angel.h"
+#include "admin/angel/AngelChan.h"
+#include "admin/angel/Waiter.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
+#include "io/ArrayReader.h"
 #include "io/FileReader.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "exception/Except.h"
 #include "exception/AbortHandler.h"
+#include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Security.h"
 
@@ -45,7 +48,6 @@
 static int spawnProcess(char* binaryPath, char** args, struct Allocator* alloc)
 {
     int pid = fork();
-printf("forking [%u]\n", pid);
     if (pid < 0) {
         return -1;
     } else if (pid == 0) {
@@ -54,16 +56,14 @@ printf("forking [%u]\n", pid);
             int argCount;
             for (argCount = 0; args[argCount]; argCount++);
             argv = alloc->malloc((argCount + 1) * sizeof(char*), alloc);
-            argv[argCount] = NULL;
+            argv[argCount + 1] = NULL;
         }
         for (int i = 1; args[i - 1]; i++) {
             argv[i] = args[i - 1];
         }
         argv[0] = binaryPath;
-printf("and off we go\n");
         // Goodbye :)
-        execv(binaryPath, argv);
-printf("error");
+        execvp(binaryPath, argv);
         _exit(72);
     }
     return 0;
@@ -103,9 +103,7 @@ static void initCore(char* coreBinaryPath,
     char fromAngel[32];
     snprintf(toAngel, 32, "%u", TO_ANGEL);
     snprintf(fromAngel, 32, "%u", FROM_ANGEL);
-    char* args[3] = { toAngel, fromAngel, NULL };
-
-printf("starting core\n");
+    char* args[] = { toAngel, fromAngel, "20000", NULL };
 
     FILE* file;
     if ((file = fopen(coreBinaryPath, "r")) != NULL) {
@@ -117,8 +115,6 @@ printf("starting core\n");
     if (spawnProcess(coreBinaryPath, args, alloc)) {
         Except_raise(eh, -1, "Failed to spawn core process.");
     }
-
-printf("core initialized\n");
 
     *toCore = TO_CORE;
     *fromCore = FROM_CORE;
@@ -220,51 +216,25 @@ static Dict* bindListener(String* bindAddr,
     return out;
 }
 
-/** A context which is used by getSyncMagic() and it's accompanying functions. */
-struct SynMagicContext
+static Dict* getInitialConfigResponse(int fromCore,
+                                      struct event_base* eventBase,
+                                      struct Allocator* alloc,
+                                      struct Except* eh)
 {
-    struct event* timeoutEvent;
-    struct Except* exceptionHandler;
-};
-
-/**
- * Handle response from core which should contain sync magic.
- */
-static void responseFromCore(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct SynMagicContext* ctx = (struct SynMagicContext*) vcontext;
-    event_del(ctx->timeoutEvent);
-}
-
-/**
- * Timeout waiting for response from core, means core has failed to initialize.
- */
-static void timeoutAwaitingResponse(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct SynMagicContext* ctx = (struct SynMagicContext*) vcontext;
-    Except_raise(ctx->exceptionHandler, -1, "Core not responding.");
-}
-
-static void getSyncMagic(uint8_t syncMagicOut[8],
-                         int fromCoreFd,
-                         struct event_base* eventBase,
-                         struct Except* eh)
-{
-    struct SynMagicContext ctx = {
-        .exceptionHandler = eh
-    };
-
-    ctx.timeoutEvent = evtimer_new(eventBase, timeoutAwaitingResponse, &ctx);
-    struct event* ev = event_new(eventBase, fromCoreFd, EV_READ, responseFromCore, &ctx);
-    struct timeval two_seconds = { 2, 0 };
-    event_add(ctx.timeoutEvent, &two_seconds);
-    event_add(ev, NULL);
-
-    event_base_dispatch(eventBase);
-
-    if (read(fromCoreFd, syncMagicOut, 8) != 8) {
-        Except_raise(eh, -1, "Incorrect response from core.");
+    uint8_t buff[AngelChan_INITIAL_CONF_BUFF_SIZE] = {0};
+    uint32_t amountRead =
+        Waiter_getData(buff, AngelChan_INITIAL_CONF_BUFF_SIZE, fromCore, eventBase, eh);
+    if (amountRead == AngelChan_INITIAL_CONF_BUFF_SIZE) {
+        Except_raise(eh, -1, "initial config exceeds INITIAL_CONF_BUFF_SIZE");
     }
+
+    struct Reader* reader = ArrayReader_new(buff, AngelChan_INITIAL_CONF_BUFF_SIZE, alloc);
+    Dict* config = Dict_new(alloc);
+    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
+        Except_raise(eh, -1, "Failed to parse initial configuration.");
+    }
+
+    return config;
 }
 
 /**
@@ -318,13 +288,17 @@ bindListener(bind, alloc, eh, &tcpSocket);
 
     sendConfToCore(toCore, alloc, &config, eh);
 
-    uint8_t syncMagic[8];
     struct event_base* eventBase = event_base_new();
-    getSyncMagic(syncMagic, fromCore, eventBase, eh);
+    Dict* configResp = getInitialConfigResponse(fromCore, eventBase, alloc, eh);
+    Dict* adminResp = Dict_getDict(configResp, String_CONST("admin"));
+    String* syncMagic = Dict_getString(adminResp, String_CONST("syncMagic"));
+    if (!syncMagic || syncMagic->len != 8) {
+        Except_raise(eh, -1, "didn't get proper syncMagic from core.");
+    }
 
     if (user) {
         Security_setUser(user->bytes, NULL, eh);
     }
 
-    Angel_start(pass, syncMagic, tcpSocket, toCore, fromCore, eventBase, alloc);
+    Angel_start(pass, (uint8_t*)syncMagic->bytes, tcpSocket, toCore, fromCore, eventBase, alloc);
 }

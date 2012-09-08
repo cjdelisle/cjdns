@@ -99,4 +99,7 @@ enum AngelChan_ChannelState {
 /* max connections to the admin tcp socket */
 #define AngelChan_MAX_CONNECTIONS 64
 
+/* the max size of the first initialization messages which are sent across the pipe. */
+#define AngelChan_INITIAL_CONF_BUFF_SIZE 1024
+
 #endif
