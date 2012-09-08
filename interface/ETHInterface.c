@@ -44,8 +44,9 @@
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 1496
+#define MIN_PACKET_SIZE 46
 
-#define PADDING 0
+#define PADDING 16
 
 #define MAX_INTERFACES 256
 
@@ -99,38 +100,18 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     struct ETHInterface* context = ethIf->senderContext;
     Assert_true(&context->interface == ethIf);
 
-    struct sockaddr_ll sll;
+    struct sockaddr_ll addr;
 
-    sockaddrForKey(&sll, message->bytes, context);
-    Bits_memcpyConst(&sll.sll_addr, message->bytes, InterfaceController_KEY_SIZE);
+    sockaddrForKey(&addr, message->bytes, context);
+    Bits_memcpyConst(&addr.sll_addr, message->bytes, 6);
     Message_shift(message, -InterfaceController_KEY_SIZE);
-
-printf("sin->ll_addr: %02X:%02X:%02X:%02X:%02X:%02X\n",
-        sll.sll_addr[0],
-        sll.sll_addr[1],
-        sll.sll_addr[2],
-        sll.sll_addr[3],
-        sll.sll_addr[4],
-        sll.sll_addr[5]);
-
-printf("sendto(%d, %02X%02X%02X%02X%02X%02X%02X%02X, %d, 0, sin)\n",
-        context->socket,
-        message->bytes[0],
-        message->bytes[1],
-        message->bytes[2],
-        message->bytes[3],
-        message->bytes[4],
-        message->bytes[5],
-        message->bytes[6],
-        message->bytes[7],
-        message->length);
 
     if (sendto(context->socket,
                message->bytes,
-               message->length + ETH_ALEN,
+               message->length,
                0,
-               (struct sockaddr*) &sll,
-               sizeof(struct sockaddr_ll)) < 0)
+               (struct sockaddr*) &addr,
+               sizeof(addr)) < 0)
     {
         switch (EVUTIL_SOCKET_ERROR()) {
             case EMSGSIZE:
@@ -172,9 +153,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     struct sockaddr_ll addr;
     memset(&addr, 0, sizeof(struct sockaddr_ll));
-    ev_socklen_t addrLen = sizeof(struct sockaddr_ll);
-
-printf("Got Event!\n");
+    ev_socklen_t addrLen = sizeof(addr);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
     // keyForSockaddr() will write the key there.
@@ -185,12 +164,27 @@ printf("Got Event!\n");
                       (struct sockaddr*) &addr,
                       &addrLen);
 
-printf("rc = %i\n", rc);
 
-    Assert_true(addrLen == sizeof(struct sockaddr_ll));
+    /** "Magic" Warning!
+     *
+     * - returned addrLen is 18, we expect 20.
+     * - smallest payload for AF_PACKET: 46 bytes
+     * - smallest packet (empyrical): 40 bytes
+     */
+
+    /* Begin of "magic" */
+    Assert_true(addrLen == sizeof(addr) - 2); // XXX: because of the 2 nulls in sll_addr?
+
+    if (rc == MIN_PACKET_SIZE) {
+        // remove filling 0x00 from the end of the paylod
+        rc = 40;
+    }
+    /* End of "magic" */
+
     if (rc < 0) {
         return;
     }
+
     message.length = rc + InterfaceController_KEY_SIZE;
 
     keyForSockaddr(message.bytes, &addr, context);
@@ -207,11 +201,6 @@ int ETHInterface_beginConnection(const char* macAddress,
     if (AddrTools_parseMac(addr.sll_addr, (const uint8_t*)macAddress)) {
         return ETHInterface_beginConnection_BAD_MAC;
     }
-
-printf("---> MAC ADDRESS: %s\n", macAddress);
-uint8_t printedMac[18];
-AddrTools_printMac(printedMac, addr.sll_addr);
-printf("connectTo:        %s\n", printedMac);
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, &addr, ethIf);
@@ -278,15 +267,16 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
             bindDevice, context->ifindex,
             srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);
 
-
-    context->addrBase.sll_family = AF_PACKET;
-    context->addrBase.sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS);    // used in bind()
-    context->addrBase.sll_ifindex = context->ifindex;     // used in bind()
-    context->addrBase.sll_hatype = ARPHRD_ETHER;
-    context->addrBase.sll_pkttype = PACKET_OTHERHOST;
-    context->addrBase.sll_halen = ETH_ALEN;
-    context->addrBase.sll_addr[6] = 0x00;
-    context->addrBase.sll_addr[7] = 0x00;
+    context->addrBase = (struct sockaddr_ll) {
+        .sll_family = AF_PACKET,
+        .sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS),
+        .sll_ifindex = context->ifindex,
+        .sll_hatype = ARPHRD_ETHER,
+        .sll_pkttype = PACKET_OTHERHOST,
+        .sll_halen = ETH_ALEN,
+        .sll_addr[6] = 0x00,
+        .sll_addr[7] = 0x00,
+    };
 
 
     if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
