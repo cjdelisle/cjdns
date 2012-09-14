@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#if defined(__APPLE__) || defined(Illumos)
+#if defined(__APPLE__) || defined(Illumos) || defined(__FreeBSD__)
     #include <netinet/if_ether.h>
     #define INET6_ETHERTYPE PF_INET6
 #else
