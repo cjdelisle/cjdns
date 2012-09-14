@@ -38,10 +38,7 @@
 #include <netinet6/nd6.h>
 #include <sys/errno.h>
 
-#define APPLE_UTUN_CONTROL "com.apple.net.utun_control"
-#define UTUN_OPT_IFNAME 2
-
-/* Tun Configurator for Apple computers. */
+/* Tun Configurator for FreeBSD. */
 
 /**
  * Open the tun device.
@@ -91,6 +88,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
 
     char* error = NULL;
 
+    // We want to send IPv6 through our tun device, so we need to be able to specify "ethertype"
     int tunhead = 1;
     if (ioctl(tunFd,TUNSIFHEAD,&tunhead) == -1) {
         error = "TUNSIFHEAD";
