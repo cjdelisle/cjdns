@@ -19,6 +19,9 @@
 #include "exception/ExceptionHandler.h"
 #include "memory/Allocator.h"
 #include "util/Log.h"
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#endif
 
 #include <event2/event.h>
 #include <stdbool.h>
