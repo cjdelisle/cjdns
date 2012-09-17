@@ -12,22 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Angel_H
-#define Angel_H
+#ifndef Process_H
+#define Process_H
 
-#include "admin/angel/AngelChan.h"
-#include "benc/String.h"
 #include "memory/Allocator.h"
 
-#include <event2/event.h>
+#include <stdint.h>
 
-void Angel_start(String* pass,
-                 uint8_t syncMagic[8],
-                 evutil_socket_t tcpSocket,
-                 int toCore,
-                 int fromCore,
-                 struct event_base* eventBase,
-                 struct Log* logger,
-                 struct Allocator* alloc);
+/**
+ * Spawn a new process.
+ *
+ * @param binaryPath the path to the file to execute.
+ * @param args a list of strings representing the arguments to the command followed by NULL.
+ * @return 0 if all went well, -1 if forking fails.
+ */
+int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc);
+
 
 #endif

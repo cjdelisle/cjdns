@@ -19,12 +19,18 @@ include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 if(WIN32)
     set(sec Security_W32.c)
+    message(FATAL ERROR "Please implement a windows version of Process_Linux")
 else()
     set(sec Security.c)
+    set(process Process_Linux.c)
 endif()
 
 add_library(cjdns-security
     ${sec}
+)
+
+add_library(cjdns-process
+    ${process}
 )
 
 add_library(util

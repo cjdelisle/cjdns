@@ -10,10 +10,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+add_library(cjdns-waiter
+    Waiter.c
+)
+
 add_executable(cjdns-angel
     Angel.c
     AngelInit.c
-    Waiter.c
 )
 
 target_link_libraries(cjdns-angel
@@ -22,11 +25,13 @@ target_link_libraries(cjdns-angel
     cjdmemory
     ${LIBEVENT2_LIBRARIES}
     cjdns-security
+    cjdns-process
+    cjdns-waiter
+    util # Hex_decode()
 )
 
 add_executable(cjdns-core
     Core.c
-    Waiter.c
 )
 
 target_link_libraries(cjdns-core
@@ -38,12 +43,30 @@ target_link_libraries(cjdns-core
     dhtcore
     cjdbenc
     cjdbenc_JsonBencSerializer
+    cjdbenc_StandardBencSerializer
     cjdmemory
     cjdadmin
     cjdnet
     ${LIBEVENT2_LIBRARIES}
     ${PLATFORM_LIBRARIES}
+    cjdns-waiter
 )
+
+add_executable(cjdroute2
+    cjdroute2.c
+)
+
+target_link_libraries(cjdroute2
+    cjdadmin
+    crypto
+    cjdns-crypto-bench
+    cjdbenc_StandardBencSerializer
+    cjdbenc_JsonBencSerializer
+    cjdns-process
+    cjdns-waiter
+)
+
+
 
 enable_testing()
 #add_subdirectory(test)

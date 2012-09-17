@@ -29,45 +29,17 @@
 #include "memory/MallocAllocator.h"
 #include "exception/Except.h"
 #include "exception/AbortHandler.h"
+#include "exception/WriteErrorHandler.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Security.h"
+#include "util/Process.h"
+#include "util/Hex.h"
 
 #include <unistd.h>
 #include <event2/event.h>
 #include <stdint.h>
 #include <errno.h>
-
-/**
- * Spawn a new process.
- *
- * @param binaryPath the path to the file to execute.
- * @param args a list of strings representing the arguments to the command followed by NULL.
- * @return 0 if all went well, -1 if forking fails.
- */
-static int spawnProcess(char* binaryPath, char** args, struct Allocator* alloc)
-{
-    int pid = fork();
-    if (pid < 0) {
-        return -1;
-    } else if (pid == 0) {
-        char** argv;
-        {
-            int argCount;
-            for (argCount = 0; args[argCount]; argCount++);
-            argv = alloc->malloc((argCount + 1) * sizeof(char*), alloc);
-            argv[argCount + 1] = NULL;
-        }
-        for (int i = 1; args[i - 1]; i++) {
-            argv[i] = args[i - 1];
-        }
-        argv[0] = binaryPath;
-        // Goodbye :)
-        execvp(binaryPath, argv);
-        _exit(72);
-    }
-    return 0;
-}
 
 /**
  * Initialize the core.
@@ -103,7 +75,7 @@ static void initCore(char* coreBinaryPath,
     char fromAngel[32];
     snprintf(toAngel, 32, "%u", TO_ANGEL);
     snprintf(fromAngel, 32, "%u", FROM_ANGEL);
-    char* args[] = { toAngel, fromAngel, "20000", NULL };
+    char* args[] = { toAngel, fromAngel, NULL };
 
     FILE* file;
     if ((file = fopen(coreBinaryPath, "r")) != NULL) {
@@ -112,7 +84,7 @@ static void initCore(char* coreBinaryPath,
         Except_raise(eh, -1, "Can't open core executable [%s] for reading.", coreBinaryPath);
     }
 
-    if (spawnProcess(coreBinaryPath, args, alloc)) {
+    if (Process_spawn(coreBinaryPath, args, alloc)) {
         Except_raise(eh, -1, "Failed to spawn core process.");
     }
 
@@ -261,8 +233,23 @@ int main(int argc, char** argv)
         Except_raise(eh, -1, "This is internal to cjdns, it should not be started manually.");
     }
 
+    FILE* inFromClient = stdin;
+    FILE* outToClient = stdout;
+    int inFromClientNo;
+    int outToClientNo;
+    if (argc > 1 && (inFromClientNo = atoi(argv[1])) != 0) {
+        inFromClient = fdopen(inFromClientNo, "r");
+    }
+    if (argc > 2 && (outToClientNo = atoi(argv[2])) != 0) {
+        outToClient = fdopen(outToClientNo, "w");
+    }
+
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Reader* reader = FileReader_new(stdin, alloc);
+
+    struct Writer* outToClientWriter = FileWriter_new(outToClient, alloc);
+    eh = WriteErrorHandler_new(outToClientWriter, alloc);
+
+    struct Reader* reader = FileReader_new(inFromClient, alloc);
     Dict config;
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, &config)) {
         Except_raise(eh, -1, "Failed to parse configuration.");
@@ -279,8 +266,7 @@ int main(int argc, char** argv)
     }
 
     evutil_socket_t tcpSocket;
-    //Dict* boundAddr =
-bindListener(bind, alloc, eh, &tcpSocket);
+    Dict* boundAddr = bindListener(bind, alloc, eh, &tcpSocket);
 
     int toCore;
     int fromCore;
@@ -290,15 +276,38 @@ bindListener(bind, alloc, eh, &tcpSocket);
 
     struct event_base* eventBase = event_base_new();
     Dict* configResp = getInitialConfigResponse(fromCore, eventBase, alloc, eh);
-    Dict* adminResp = Dict_getDict(configResp, String_CONST("admin"));
-    String* syncMagic = Dict_getString(adminResp, String_CONST("syncMagic"));
-    if (!syncMagic || syncMagic->len != 8) {
+    Dict* angelResp = Dict_getDict(configResp, String_CONST("angel"));
+    String* syncMagicStr = Dict_getString(angelResp, String_CONST("syncMagic"));
+    if (!syncMagicStr || syncMagicStr->len != 16) {
         Except_raise(eh, -1, "didn't get proper syncMagic from core.");
     }
+    uint8_t syncMagic[8];
+    Hex_decode(syncMagic, 8, (uint8_t*)syncMagicStr->bytes, 16);
+
+    Dict* adminResp = Dict_getDict(configResp, String_CONST("admin"));
+    if (!adminResp) {
+        adminResp = Dict_new(alloc);
+        Dict_putDict(configResp, String_CONST("admin"), adminResp, alloc);
+    }
+
+    Dict_putString(adminResp,
+                   String_CONST("addr"),
+                   Dict_getString(boundAddr, String_CONST("addr")),
+                   alloc);
+    int64_t* portPtr = Dict_getInt(boundAddr, String_CONST("port"));
+    Dict_putInt(adminResp, String_CONST("port"), ((portPtr) ? *portPtr : -1), alloc);
+
+    if (StandardBencSerializer_get()->serializeDictionary(outToClientWriter, configResp)) {
+        Except_raise(eh, -1, "Failed to serialize response");
+    }
+    fflush(outToClient);
 
     if (user) {
         Security_setUser(user->bytes, NULL, eh);
     }
 
-    Angel_start(pass, (uint8_t*)syncMagic->bytes, tcpSocket, toCore, fromCore, eventBase, alloc);
+    struct Writer* logwriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = &(struct Log) { .writer = logwriter };
+
+    Angel_start(pass, syncMagic, tcpSocket, toCore, fromCore, eventBase, logger, alloc);
 }

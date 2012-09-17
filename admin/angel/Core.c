@@ -13,9 +13,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _POSIX_SOURCE // fdopen()
+
 #include "admin/Admin.h"
 #include "admin/angel/AngelChan.h"
 #include "admin/angel/Waiter.h"
+#include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
@@ -24,6 +27,7 @@
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/AbortHandler.h"
+#include "exception/WriteErrorHandler.h"
 #include "interface/UDPInterface_admin.h"
 #include "io/ArrayReader.h"
 #include "io/FileWriter.h"
@@ -42,20 +46,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static void parsePrivateKey(String* privateKeyStr,
+// Failsafe: abort if more than 2^22 bytes are allocated (4MB)
+#define ALLOCATOR_FAILSAFE (1<<22)
+
+static void parsePrivateKey(uint8_t privateKey[32],
                             struct Address* addr,
                             struct Except* eh)
 {
-    if (privateKeyStr == NULL) {
-        Except_raise(eh, -1, "Could not extract private key from configuration.");
-    } else if (privateKeyStr->len != 32) {
-        Except_raise(eh, -1, "Private key is not 32 bytes long.");
-    } else {
-        crypto_scalarmult_curve25519_base(addr->key, privateKeyStr->bytes);
-        AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
-        if (addr->ip6.bytes[0] != 0xFC) {
-            Except_raise(eh, -1, "Ip address outside of the FC00/8 range, invalid private key.");
-        }
+    crypto_scalarmult_curve25519_base(addr->key, privateKey);
+    AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
+    if (addr->ip6.bytes[0] != 0xFC) {
+        Except_raise(eh, -1, "Ip address outside of the FC00/8 range, invalid private key.");
     }
 }
 
@@ -105,26 +106,25 @@ static void sendResponse(int toAngel, uint8_t syncMagic[8])
 {
     char buff[64] =
         "d"
-          "5:admin" "d"
-            "9:syncMagic" "8:\1\2\3\4\5\6\7\1"
+          "5:angel" "d"
+            "9:syncMagic" "16:\1\1\2\3\4\5\6\7\1\1\2\3\4\5\6\7"
           "e"
         "e";
 
     uint32_t length = strlen(buff);
-    char* location = strstr(buff, "\1\2\3\4\5\6\7\1");
+    char* location = strstr(buff, "\1\1\2\3\4\5\6\7\1\1\2\3\4\5\6\7");
     Assert_true(location > buff);
-    Bits_memcpyConst(location, syncMagic, 8);
+    Hex_encode((uint8_t*)location, 16, syncMagic, 8);
     write(toAngel, buff, length);
 }
 
 /*
- * This process is started with 3 parameters, they must all be numeric in base 10.
+ * This process is started with 2 parameters, they must all be numeric in base 10.
  * toAngel the pipe which is used to send data back to the angel process.
  * fromAngel the pipe which is used to read incoming data from the angel.
- * maxAlloc the number of bytes of memory which the core is allowed to allocate.
  *
- * Upon initialization, this process will immedietly write 8 bytes to the toAngel pipe.
- * these 8 bytes (syncMagic) will henceforth be used for indicating the border of a frame.
+ * Upon initialization, this process will wait for an initial configuration to be sent to
+ * it and then it will send an initial response.
  */
 int main(int argc, char** argv)
 {
@@ -134,27 +134,38 @@ int main(int argc, char** argv)
     struct Except* eh = AbortHandler_INSTANCE;
     int toAngel;
     int fromAngel;
-    int maxAlloc;
-    if (argc != 4
+    if (argc != 3
         || !(toAngel = atoi(argv[1]))
-        || !(fromAngel = atoi(argv[2]))
-        || !(maxAlloc = atoi(argv[3])))
+        || !(fromAngel = atoi(argv[2])))
     {
         Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
     }
 
-    struct Allocator* alloc = MallocAllocator_new(maxAlloc);
+    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+
+
+    FILE* toAngelF = fdopen(toAngel, "w");
+    Assert_always(toAngelF != NULL);
+    struct Writer* toAngelWriter = FileWriter_new(toAngelF, alloc);
+    eh = WriteErrorHandler_new(toAngelWriter, alloc);
+
     struct event_base* eventBase = event_base_new();
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = &(struct Log) { .writer = logwriter };
 
     Dict* config = getInitialConfig(fromAngel, eventBase, alloc, eh);
-    String* privateKey = Dict_getString(config, String_CONST("privateKey"));
+    String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
     String* pass = Dict_getString(adminConf, String_CONST("pass"));
-    if (!pass || !privateKey) {
+    if (!pass || !privateKeyHex) {
         Except_raise(eh, -1, "Expected 'pass' and 'privateKey' in configuration.");
+    }
+    uint8_t privateKey[32];
+    if (privateKeyHex->len != 64
+        || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
+    {
+        Except_raise(eh, -1, "privateKey must be 64 bytes of hex.");
     }
 
     sendResponse(toAngel, syncMagic);
@@ -165,33 +176,33 @@ int main(int argc, char** argv)
     // CryptoAuth
     struct Address addr;
     parsePrivateKey(privateKey, &addr, eh);
-    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey->bytes, eventBase, logger);
+    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger);
 
-    struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
-    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
-    ReplyModule_register(registry, allocator);
+    struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
+    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
+    ReplyModule_register(registry, alloc);
 
     // Router
     struct RouterModule* router = RouterModule_register(registry,
-                                                        allocator,
-                                                        myAddr.key,
+                                                        alloc,
+                                                        addr.key,
                                                         eventBase,
                                                         logger,
                                                         admin);
 
-    SerializationModule_register(registry, allocator);
+    SerializationModule_register(registry, alloc);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
                                             router,
                                             switchCore,
                                             eventBase,
-                                            allocator,
+                                            alloc,
                                             logger,
                                             admin);
 
     struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, allocator);
+        SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);
 
     // Interfaces.
     struct InterfaceController* ifController =
@@ -201,19 +212,19 @@ int main(int argc, char** argv)
                                        logger,
                                        eventBase,
                                        sp,
-                                       allocator);
+                                       alloc);
 
     // ------------------- Register RPC functions ----------------------- //
-    SwitchPinger_admin_register(sp, admin, allocator);
-    UDPInterface_admin_register(eventBase, allocator, logger, admin, ifController);
-    RouterModule_admin_register(router, admin, allocator);
-    AuthorizedPasswords_init(admin, cryptoAuth, allocator);
+    SwitchPinger_admin_register(sp, admin, alloc);
+    UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
+    RouterModule_admin_register(router, admin, alloc);
+    AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
 
     struct MemoryContext* mc =
-        allocator->clone(sizeof(struct MemoryContext), allocator,
+        alloc->clone(sizeof(struct MemoryContext), alloc,
             &(struct MemoryContext) {
-                .allocator = allocator,
+                .allocator = alloc,
                 .admin = admin
             });
     Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);

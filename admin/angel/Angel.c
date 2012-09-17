@@ -12,10 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "admin/angel/Angel.h"
 #include "admin/angel/AngelChan.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
+#include "util/Bits.h"
+#include "util/Log.h"
 
 #include <event2/event.h>
 #include <errno.h>
@@ -53,6 +55,7 @@ struct AngelContext
 
     struct event_base* eventBase;
     struct Allocator* allocator;
+    struct Log* logger;
 };
 
 static void sendToCore(struct AngelContext* context, uint32_t channelNum, uint32_t len, void* data);
@@ -70,6 +73,11 @@ static void incomingFromCore(evutil_socket_t socket, short eventType, void* vcon
             read(context->inFd,
                  context->haveMessageHeaderLen + (char*)&context->messageHeader,
                  AngelChan_MessageHeader_SIZE - context->haveMessageHeaderLen);
+        #ifdef Log_DEBUG
+            uint8_t headerContent[AngelChan_MessageHeader_SIZE + 1] = {0};
+            Bits_memcpyConst(headerContent, &context->messageHeader, AngelChan_MessageHeader_SIZE);
+            Log_debug(context->logger, "Got header part: [%s]", headerContent);
+        #endif
         if (amount < 1) {
             if (EAGAIN == errno || EWOULDBLOCK == errno) {
                 return;
@@ -275,6 +283,7 @@ void Angel_start(String* pass,
                  int toCore,
                  int fromCore,
                  struct event_base* eventBase,
+                 struct Log* logger,
                  struct Allocator* alloc)
 {
     struct AngelContext contextStore;
@@ -287,8 +296,9 @@ void Angel_start(String* pass,
     context->eventBase = eventBase;
     context->inFd = fromCore;
     context->outFd = toCore;
+    context->logger = logger;
     context->allocator = alloc;
-    memcpy(&context->syncMagic, syncMagic, 8);
+    Bits_memcpyConst(&context->syncMagic, syncMagic, 8);
 
     context->fromCore =
         event_new(context->eventBase,
