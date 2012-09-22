@@ -23,13 +23,14 @@
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
 #include "io/ArrayReader.h"
+#include "io/ArrayWriter.h"
 #include "io/FileReader.h"
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "exception/Except.h"
 #include "exception/AbortHandler.h"
-#include "exception/WriteErrorHandler.h"
+//#include "exception/WriteErrorHandler.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Security.h"
@@ -233,23 +234,24 @@ int main(int argc, char** argv)
         Except_raise(eh, -1, "This is internal to cjdns, it should not be started manually.");
     }
 
-    FILE* inFromClient = stdin;
-    FILE* outToClient = stdout;
     int inFromClientNo;
     int outToClientNo;
-    if (argc > 1 && (inFromClientNo = atoi(argv[1])) != 0) {
-        inFromClient = fdopen(inFromClientNo, "r");
+    if (argc < 2 || (inFromClientNo = atoi(argv[1])) == 0) {
+        inFromClientNo = STDIN_FILENO;
     }
-    if (argc > 2 && (outToClientNo = atoi(argv[2])) != 0) {
-        outToClient = fdopen(outToClientNo, "w");
+    if (argc < 3 || (outToClientNo = atoi(argv[2])) == 0) {
+        outToClientNo = STDOUT_FILENO;
     }
+printf("%d<--\n", outToClientNo);
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct event_base* eventBase = event_base_new();
 
-    struct Writer* outToClientWriter = FileWriter_new(outToClient, alloc);
-    eh = WriteErrorHandler_new(outToClientWriter, alloc);
+    #define CONFIG_BUFF_SIZE 1024
+    uint8_t buff[CONFIG_BUFF_SIZE] = {0};
+    Waiter_getData(buff, CONFIG_BUFF_SIZE, inFromClientNo, eventBase, eh);
 
-    struct Reader* reader = FileReader_new(inFromClient, alloc);
+    struct Reader* reader = ArrayReader_new(buff, CONFIG_BUFF_SIZE, alloc);
     Dict config;
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, &config)) {
         Except_raise(eh, -1, "Failed to parse configuration.");
@@ -262,7 +264,8 @@ int main(int argc, char** argv)
     String* user = Dict_getString(admin, String_CONST("user"));
 
     if (!core || !bind || !pass) {
-        Except_raise(eh, -1, "missing configuration params.");
+printf("xxx\n");
+        Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", buff);
     }
 
     evutil_socket_t tcpSocket;
@@ -274,10 +277,10 @@ int main(int argc, char** argv)
 
     sendConfToCore(toCore, alloc, &config, eh);
 
-    struct event_base* eventBase = event_base_new();
     Dict* configResp = getInitialConfigResponse(fromCore, eventBase, alloc, eh);
     Dict* angelResp = Dict_getDict(configResp, String_CONST("angel"));
     String* syncMagicStr = Dict_getString(angelResp, String_CONST("syncMagic"));
+
     if (!syncMagicStr || syncMagicStr->len != 16) {
         Except_raise(eh, -1, "didn't get proper syncMagic from core.");
     }
@@ -297,11 +300,12 @@ int main(int argc, char** argv)
     int64_t* portPtr = Dict_getInt(boundAddr, String_CONST("port"));
     Dict_putInt(adminResp, String_CONST("port"), ((portPtr) ? *portPtr : -1), alloc);
 
-    if (StandardBencSerializer_get()->serializeDictionary(outToClientWriter, configResp)) {
+    struct Writer* toClientWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE, alloc);
+    if (StandardBencSerializer_get()->serializeDictionary(toClientWriter, configResp)) {
         Except_raise(eh, -1, "Failed to serialize response");
     }
-    fflush(outToClient);
-
+    write(outToClientNo, buff, toClientWriter->bytesWritten(toClientWriter));
+printf("\n\n");
     if (user) {
         Security_setUser(user->bytes, NULL, eh);
     }

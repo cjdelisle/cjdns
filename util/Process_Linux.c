@@ -30,12 +30,11 @@ int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc)
         {
             int argCount;
             for (argCount = 0; args[argCount]; argCount++);
-            struct Allocator* alloc = MallocAllocator_new((argCount + 1) * sizeof(char*));
-            argv = alloc->malloc((argCount + 1) * sizeof(char*), alloc);
-            argv[argCount + 1] = NULL;
+            struct Allocator* alloc = MallocAllocator_new((argCount + 2) * sizeof(char*));
+            argv = alloc->calloc((argCount + 2), sizeof(char*), alloc);
         }
-        for (int i = 1; args[i - 1]; i++) {
-            argv[i] = args[i - 1];
+        for (int i = 1; args[i-1]; i++) {
+            argv[i] = args[i-1];
         }
         argv[0] = binaryPath;
         // Goodbye :)

@@ -397,8 +397,6 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    struct event_base* eventBase = event_base_new();
-
     // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
     struct Reader* stdinReader = FileReader_new(stdin, allocator);
@@ -442,7 +440,7 @@ int main(int argc, char** argv)
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
-    String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
+    String* adminPass = Dict_getString(configAdmin, String_CONST("pass"));
     String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
     if (!adminPass) {
         adminPass = String_newBinary(NULL, 32, allocator);
@@ -451,33 +449,25 @@ int main(int argc, char** argv)
     if (!adminBind) {
         adminBind = String_new("127.0.0.1:0", allocator);
     }
-    char* adminBindLastColon = strrchr(adminBind->bytes, ':');
-    if (!adminBindLastColon) {
-        Except_raise(eh, -1, "\"admin\" { \"bind\" must have a colon with port number");
-    }
-    String* adminDesiredAddr = &(String) {
-        .bytes = adminBind->bytes,
-        .len = adminBindLastColon - adminBind->bytes - 1
-    };
-    int64_t port = atoi(adminBindLastColon + 1);
-    if (port < 0) {
-        Except_raise(eh, -1, "\"admin\" { \"bind\" failed to parse port number");
-    }
-printf("xx");
+
     // --------------------- Pre-Configure Angel ------------------------- //
     Dict* preConf = Dict_new(allocator);
     Dict* adminPreConf = Dict_new(allocator);
-    Dict_putString(adminPreConf, String_CONST("corePath"), corePath, allocator);
+    Dict_putDict(preConf, String_CONST("admin"), adminPreConf, allocator);
+    Dict_putString(adminPreConf, String_CONST("core"), corePath, allocator);
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
-    Dict_putString(adminPreConf, String_CONST("addr"), adminDesiredAddr, allocator);
-    Dict_putInt(adminPreConf, String_CONST("port"), port, allocator);
+    Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
+    Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
         Except_raise(eh, -1, "Failed to serialize pre-configuration");
     }
 
     // --------------------- Get Response from Angel --------------------- //
+    struct event_base* eventBase = event_base_new();
+
     #define RESPONSE_BUFF_SIZE 1024
-    uint8_t buff[RESPONSE_BUFF_SIZE];
+    uint8_t buff[RESPONSE_BUFF_SIZE] = {0};
+printf("-->%d\n", pipeFromAngel[0]);
     Waiter_getData(buff, RESPONSE_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
     Dict responseFromAngel;
     struct Reader* responseFromAngelReader = ArrayReader_new(buff, RESPONSE_BUFF_SIZE, allocator);
@@ -485,9 +475,9 @@ printf("xx");
                                                       allocator,
                                                       &responseFromAngel))
     {
-        Except_raise(eh, -1, "Failed to parse pre-configuration response");
+        Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
     }
-
+printf("parsed response\n");
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
     Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
     String* adminAddrStr = Dict_getString(responseFromAngelAdmin, String_CONST("addr"));
