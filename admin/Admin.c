@@ -189,7 +189,10 @@ struct Admin
 
     struct Admin_Channel clientChannels[AngelChan_MAX_CONNECTIONS];
 
-    /** Becomes true after the admin process has sent it's first message. */
+    /**
+     * Becomes true after the admin process has sent it's first message.
+     * In cjdroute2 this is unused.
+     */
     bool initialized;
 };
 
@@ -523,6 +526,7 @@ static void handleRequestFromChild(struct Admin* admin,
     return;
 }
 
+// This is unused in cjdroute2, it only exists for legacy cjdroute.
 static void inFromChildInitialize(struct Admin* admin)
 {
     uint8_t buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 8];
@@ -1177,6 +1181,7 @@ struct Admin* Admin_new(int fromAngelFd,
     admin->eventBase = eventBase;
     admin->password = password;
     admin->pipeEv = event_new(eventBase, fromAngelFd, EV_READ | EV_PERSIST, inFromChild, admin);
+    admin->initialized = true;
     event_add(admin->pipeEv, NULL);
     Bits_memcpyConst(&admin->syncMagic, syncMagic, 8);
     return admin;

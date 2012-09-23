@@ -93,25 +93,20 @@ static void initCore(char* coreBinaryPath,
     *fromCore = FROM_CORE;
 }
 
-static void sendConfToCore(int toCore, struct Allocator* alloc, Dict* config, struct Except* eh)
+static void sendConfToCore(int toCore,
+                           struct Allocator* alloc,
+                           Dict* config,
+                           struct Except* eh,
+                           struct Log* logger)
 {
-    int toCore2 = dup(toCore);
-    if (toCore2 == -1) {
-        Except_raise(eh, -1, "Failed to duplicate file descriptor [%s]", strerror(errno));
-    }
-    FILE* ftoCore = fdopen(toCore2, "w");
-    if (!ftoCore) {
-        int err = errno;
-        close(toCore2);
-        Except_raise(eh, -1, "Failed to open file descriptor [%s]", strerror(err));
-    }
-
-    struct Writer* writer = FileWriter_new(ftoCore, alloc);
+    #define CONFIG_BUFF_SIZE 1024
+    uint8_t buff[CONFIG_BUFF_SIZE] = {0};
+    struct Writer* writer = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, alloc);
     if (StandardBencSerializer_get()->serializeDictionary(writer, config)) {
-        fclose(ftoCore);
-        Except_raise(eh, -1, "Failed to send configuration to core.");
+        Except_raise(eh, -1, "Failed to serialize pre-configuration for core.");
     }
-    fclose(ftoCore);
+    write(toCore, buff, writer->bytesWritten(writer));
+    Log_keys(logger, "Sent [%s] to core.", buff);
 }
 
 /**
@@ -123,10 +118,10 @@ static void sendConfToCore(int toCore, struct Allocator* alloc, Dict* config, st
  * @return a dictionary containing: "addr" which is a string representation of the ip address
  *         which was bound and "port" which is the bound port as an integer.
  */
-static Dict* bindListener(String* bindAddr,
-                          struct Allocator* alloc,
-                          struct Except* eh,
-                          evutil_socket_t* sock)
+static String* bindListener(String* bindAddr,
+                            struct Allocator* alloc,
+                            struct Except* eh,
+                            evutil_socket_t* sock)
 {
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
@@ -167,26 +162,34 @@ static Dict* bindListener(String* bindAddr,
         Except_raise(eh, -1, "Failed to listen on socket [%s]", strerror(err));
     }
 
-    char addrStr[40];
+    #define ADDR_BUFF_SZ 64
+    char addrStr[ADDR_BUFF_SZ] = {0};
     uint16_t port;
     switch(addr.ss_family) {
         case AF_INET:
-            evutil_inet_ntop(AF_INET, &(((struct sockaddr_in*)&addr)->sin_addr), addrStr, 40);
+            evutil_inet_ntop(AF_INET,
+                             &(((struct sockaddr_in*)&addr)->sin_addr),
+                             addrStr,
+                             ADDR_BUFF_SZ);
             port = ((struct sockaddr_in*)&addr)->sin_port;
             break;
         case AF_INET6:
-            evutil_inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&addr)->sin6_addr), addrStr, 40);
+            evutil_inet_ntop(AF_INET6,
+                             &(((struct sockaddr_in6*)&addr)->sin6_addr),
+                             addrStr + 1,
+                             ADDR_BUFF_SZ - 2);
+            addrStr[0] = '[';
+            addrStr[strlen(addrStr)] = ']';
             port = ((struct sockaddr_in6*)&addr)->sin6_port;
             break;
         default:
             Assert_always(false);
     }
+    port = Endian_bigEndianToHost16(port);
+    snprintf(addrStr + strlen(addrStr), 48 - strlen(addrStr), ":%u", port);
 
-    Dict* out = Dict_new(alloc);
-    Dict_putString(out, String_CONST("addr"), String_new(addrStr, alloc), alloc);
-    Dict_putInt(out, String_CONST("port"), port, alloc);
     *sock = listener;
-    return out;
+    return String_new(addrStr, alloc);
 }
 
 static Dict* getInitialConfigResponse(int fromCore,
@@ -247,9 +250,16 @@ printf("%d<--\n", outToClientNo);
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct event_base* eventBase = event_base_new();
 
+    struct Writer* logwriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = &(struct Log) { .writer = logwriter };
+
+    Log_debug(logger, "Getting pre-configuration from client");
+
     #define CONFIG_BUFF_SIZE 1024
     uint8_t buff[CONFIG_BUFF_SIZE] = {0};
     Waiter_getData(buff, CONFIG_BUFF_SIZE, inFromClientNo, eventBase, eh);
+
+    Log_debug(logger, "Finished getting pre-configuration from client");
 
     struct Reader* reader = ArrayReader_new(buff, CONFIG_BUFF_SIZE, alloc);
     Dict config;
@@ -264,22 +274,24 @@ printf("%d<--\n", outToClientNo);
     String* user = Dict_getString(admin, String_CONST("user"));
 
     if (!core || !bind || !pass) {
-printf("xxx\n");
         Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", buff);
     }
 
     evutil_socket_t tcpSocket;
-    Dict* boundAddr = bindListener(bind, alloc, eh, &tcpSocket);
+    String* boundAddr = bindListener(bind, alloc, eh, &tcpSocket);
 
     int toCore;
     int fromCore;
+    Log_debug(logger, "Initializing core [%s]", core->bytes);
     initCore(core->bytes, &toCore, &fromCore, alloc, eh);
-
-    sendConfToCore(toCore, alloc, &config, eh);
-
+    Log_debug(logger, "Sending pre-configuration to core.");
+    sendConfToCore(toCore, alloc, &config, eh, logger);
     Dict* configResp = getInitialConfigResponse(fromCore, eventBase, alloc, eh);
     Dict* angelResp = Dict_getDict(configResp, String_CONST("angel"));
     String* syncMagicStr = Dict_getString(angelResp, String_CONST("syncMagic"));
+
+    // The client doesn't care about angel<-> core matters.
+    Dict_remove(configResp, String_CONST("angel"));
 
     if (!syncMagicStr || syncMagicStr->len != 16) {
         Except_raise(eh, -1, "didn't get proper syncMagic from core.");
@@ -293,25 +305,18 @@ printf("xxx\n");
         Dict_putDict(configResp, String_CONST("admin"), adminResp, alloc);
     }
 
-    Dict_putString(adminResp,
-                   String_CONST("addr"),
-                   Dict_getString(boundAddr, String_CONST("addr")),
-                   alloc);
-    int64_t* portPtr = Dict_getInt(boundAddr, String_CONST("port"));
-    Dict_putInt(adminResp, String_CONST("port"), ((portPtr) ? *portPtr : -1), alloc);
+    Dict_putString(adminResp, String_CONST("bind"), boundAddr, alloc);
 
     struct Writer* toClientWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE, alloc);
     if (StandardBencSerializer_get()->serializeDictionary(toClientWriter, configResp)) {
         Except_raise(eh, -1, "Failed to serialize response");
     }
     write(outToClientNo, buff, toClientWriter->bytesWritten(toClientWriter));
-printf("\n\n");
+    buff[toClientWriter->bytesWritten(toClientWriter)] = 0;
+    Log_keys(logger, "Sent [%s] to client.", buff);
     if (user) {
         Security_setUser(user->bytes, NULL, eh);
     }
-
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
 
     Angel_start(pass, syncMagic, tcpSocket, toCore, fromCore, eventBase, logger, alloc);
 }

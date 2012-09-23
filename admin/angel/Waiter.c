@@ -16,6 +16,10 @@
 #include "admin/angel/Waiter.h"
 #include "exception/Except.h"
 
+#include "memory/MallocAllocator.h"
+#include "util/Log.h"
+#include "io/FileWriter.h"
+
 #include <event2/event.h>
 #include <unistd.h>
 #include <errno.h>
@@ -24,6 +28,7 @@ struct Context
 {
     struct event* timeoutEvent;
     struct event* responseEvent;
+    struct event_base* eventBase;
     struct Except* exceptionHandler;
 };
 
@@ -35,6 +40,7 @@ static void responseFromCore(evutil_socket_t socket, short eventType, void* vcon
     struct Context* ctx = (struct Context*) vcontext;
     event_del(ctx->timeoutEvent);
     event_del(ctx->responseEvent);
+    event_base_loopbreak(ctx->eventBase);
 }
 
 /**
@@ -43,6 +49,12 @@ static void responseFromCore(evutil_socket_t socket, short eventType, void* vcon
 static void timeoutAwaitingResponse(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct Context* ctx = (struct Context*) vcontext;
+
+ struct Allocator* alloc = MallocAllocator_new(10000);
+ struct Writer* logwriter = FileWriter_new(stdout, alloc);
+ struct Log* logger = &(struct Log) { .writer = logwriter };
+ Log_debug(logger, "timeout");
+
     Except_raise(ctx->exceptionHandler, -1, "Timed out waiting for data.");
 }
 
@@ -53,7 +65,8 @@ uint32_t Waiter_getData(uint8_t* output,
                         struct Except* eh)
 {
     struct Context ctx = {
-        .exceptionHandler = eh
+        .exceptionHandler = eh,
+        .eventBase = eventBase
     };
 
     ctx.timeoutEvent = evtimer_new(eventBase, timeoutAwaitingResponse, &ctx);

@@ -35,6 +35,7 @@
 #include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
+#include "io/ArrayWriter.h"
 #include "io/FileReader.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
@@ -304,42 +305,6 @@ static void reconf(struct event_base* eventbase,
     Configurator_config(mainConf, &addr, addrLen, password, eventbase, logger, alloc);
 }
 */
-static char* setUser(List* config)
-{
-    for (int i = 0; i < List_size(config); i++) {
-        Dict* d = List_getDict(config, i);
-        if (d) {
-            String* uname = Dict_getString(d, String_CONST("setuser"));
-            if (uname) {
-                return uname->bytes;
-            }
-        }
-    }
-    return NULL;
-}
-
-static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
-{
-    if (!config) {
-        return;
-    }
-    bool nofiles = false;
-    for (int i = 0; i < List_size(config); i++) {
-        String* s = List_getString(config, i);
-        if (s && String_equals(s, String_CONST("nofiles"))) {
-            nofiles = true;
-        }
-    }
-    char* user = setUser(config);
-    if (user) {
-        Log_info(logger, "Changing user to [%s]\n", user);
-        Security_setUser(user, logger, eh);
-    }
-    if (nofiles) {
-        Log_info(logger, "Setting max open files to zero.\n");
-        Security_noFiles(eh);
-    }
-}
 
 static int benchmark()
 {
@@ -416,12 +381,6 @@ int main(int argc, char** argv)
     if (pipe(pipeToAngel) || pipe(pipeFromAngel)) {
         Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(errno));
     }
-    FILE* toAngelF = fdopen(pipeToAngel[1], "w");
-    if (!toAngelF) {
-        Except_raise(eh, -1, "Failed to open pipes to angel [%s]", strerror(errno));
-    }
-    struct Writer* toAngelWriter = FileWriter_new(toAngelF, allocator);
-//    struct Reader* fromAngelReader = FileReader_new(fromAngelF, allocator);
 
     char pipeToAngelStr[8];
     snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
@@ -458,41 +417,43 @@ int main(int argc, char** argv)
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
     Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
+
+    #define CONFIG_BUFF_SIZE 1024
+    uint8_t buff[CONFIG_BUFF_SIZE] = {0};
+    struct Writer* toAngelWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, allocator);
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
         Except_raise(eh, -1, "Failed to serialize pre-configuration");
     }
+    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten(toAngelWriter));
+    Log_keys(logger, "Sent [%s] to angel process.", buff);
 
     // --------------------- Get Response from Angel --------------------- //
     struct event_base* eventBase = event_base_new();
 
-    #define RESPONSE_BUFF_SIZE 1024
-    uint8_t buff[RESPONSE_BUFF_SIZE] = {0};
-printf("-->%d\n", pipeFromAngel[0]);
-    Waiter_getData(buff, RESPONSE_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
+    uint32_t amount = Waiter_getData(buff, CONFIG_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
     Dict responseFromAngel;
-    struct Reader* responseFromAngelReader = ArrayReader_new(buff, RESPONSE_BUFF_SIZE, allocator);
+    struct Reader* responseFromAngelReader = ArrayReader_new(buff, amount, allocator);
     if (StandardBencSerializer_get()->parseDictionary(responseFromAngelReader,
                                                       allocator,
                                                       &responseFromAngel))
     {
         Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
     }
-printf("parsed response\n");
+
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
     Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
-    String* adminAddrStr = Dict_getString(responseFromAngelAdmin, String_CONST("addr"));
-    int64_t* adminPort = Dict_getInt(responseFromAngelAdmin, String_CONST("port"));
+    adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
     struct sockaddr_storage adminAddr = {0};
     int adminAddrLen = sizeof(struct sockaddr_storage);
-    if (!adminAddrStr || !adminPort) {
+    if (!adminBind) {
         Except_raise(eh, -1, "didn't get address and port back from angel");
     }
-    if (evutil_parse_sockaddr_port(adminAddrStr->bytes,
+    if (evutil_parse_sockaddr_port(adminBind->bytes,
                                    (struct sockaddr*) &adminAddr,
                                    &adminAddrLen))
     {
         Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
-                     adminAddrStr->bytes);
+                     adminBind->bytes);
     }
 
     // --------------------- Configuration ------------------------- //
@@ -548,10 +509,10 @@ printf("parsed response\n");
     Log_info(logger, "Your IPv6 address is: %s\n", myIp);
 */
     // Security.
-    security(Dict_getList(&config, String_CONST("security")), logger, AbortHandler_INSTANCE);
+    //security(Dict_getList(&config, String_CONST("security")), logger, AbortHandler_INSTANCE);
 
-    event_base_loop(eventBase, 0);
-abort();
+  //  event_base_loop(eventBase, 0);
+//abort();
     // Never reached.
     return 0;
 }
