@@ -12,9 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#define _POSIX_SOURCE 1 // fdopen()
-
 #include "admin/angel/Angel.h"
 #include "admin/angel/AngelChan.h"
 #include "admin/angel/Waiter.h"
@@ -36,6 +33,7 @@
 #include "util/Security.h"
 #include "util/Process.h"
 #include "util/Hex.h"
+#include "util/WriterLog.h"
 
 #include <unistd.h>
 #include <event2/event.h>
@@ -250,8 +248,8 @@ printf("%d<--\n", outToClientNo);
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct event_base* eventBase = event_base_new();
 
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Writer* logWriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logWriter, alloc);
 
     Log_debug(logger, "Getting pre-configuration from client");
 

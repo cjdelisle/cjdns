@@ -28,6 +28,7 @@ target_link_libraries(cjdns-angel
     cjdns-process
     cjdns-waiter
     util # Hex_decode()
+    cjdns-log-writer
 )
 
 add_executable(cjdns-core
@@ -50,6 +51,7 @@ target_link_libraries(cjdns-core
     ${LIBEVENT2_LIBRARIES}
     ${PLATFORM_LIBRARIES}
     cjdns-waiter
+    cjdns-log-writer
 )
 
 add_executable(cjdroute2
@@ -64,6 +66,7 @@ target_link_libraries(cjdroute2
     cjdbenc_JsonBencSerializer
     cjdns-process
     cjdns-waiter
+    cjdns-log-writer
 )
 
 

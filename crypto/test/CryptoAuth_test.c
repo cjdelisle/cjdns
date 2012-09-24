@@ -20,6 +20,7 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
+#include "util/WriterLog.h"
 #include "wire/Error.h"
 
 #include "util/Assert.h"
@@ -105,7 +106,7 @@ int init(const uint8_t* privateKey,
     struct Allocator* allocator = MallocAllocator_new(1048576);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);
+    struct Log* logger = WriterLog_new(logwriter, allocator);
     logger->writer = logwriter;
 
     struct event_base* base = event_base_new();

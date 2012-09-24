@@ -33,13 +33,17 @@ add_library(cjdns-process
     ${process}
 )
 
+add_library(cjdns-log-writer
+    WriterLog.c
+)
+
 add_library(util
     AverageRoller.c
     Timeout.c
     Hex.c
     Pinger.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security)
+target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security cjdns-log-writer)
 
 # Everything must be tested.
 enable_testing()

@@ -23,6 +23,7 @@
 #include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/Log.h"
+#include "util/WriterLog.h"
 
 #include <event2/event.h>
 
@@ -32,8 +33,7 @@ struct AdminTestFramework* AdminTestFramework_setUp()
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     Assert_always(logwriter);
-    struct Log* logger =
-        alloc->clone(sizeof(struct Log), alloc, &(struct Log) { .writer = logwriter });
+    struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);

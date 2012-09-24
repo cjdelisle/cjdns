@@ -40,6 +40,7 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "util/WriterLog.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -151,8 +152,8 @@ int main(int argc, char** argv)
 
     struct event_base* eventBase = event_base_new();
 
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Writer* logWriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logWriter, alloc);
 
     Dict* config = getInitialConfig(fromAngel, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));

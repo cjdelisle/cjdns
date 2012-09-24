@@ -47,6 +47,7 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 #include "util/Security.h"
+#include "util/WriterLog.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -383,8 +384,8 @@ static int benchmark()
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct event_base* base = event_base_new();
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log logger = { .writer = logwriter };
-    CryptoAuth_benchmark(base, &logger, alloc);
+    struct Log* logger = WriterLog_new(logwriter, alloc);
+    CryptoAuth_benchmark(base, logger, alloc);
     return 0;
 }
 
@@ -444,9 +445,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Logging. TODO: admin based logging.
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Log* logger = WriterLog_new(logwriter, allocator);
 
 
     // pid file

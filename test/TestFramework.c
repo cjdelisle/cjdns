@@ -22,6 +22,7 @@
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "test/TestFramework.h"
+#include "util/WriterLog.h"
 
 struct Ducttape* TestFramework_setUp()
 {
@@ -36,9 +37,7 @@ struct Ducttape* TestFramework_setUp()
     struct Allocator* allocator = MallocAllocator_new(1<<22);
 
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = allocator->clone(sizeof(struct Log), allocator, &(struct Log) {
-        .writer = logwriter
-    });
+    struct Log* logger = WriterLog_new(logwriter, allocator);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
     //struct CryptoAuth* ca = CryptoAuth_new(NULL, allocator, privateKey, base, logger);

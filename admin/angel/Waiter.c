@@ -49,12 +49,6 @@ static void responseFromCore(evutil_socket_t socket, short eventType, void* vcon
 static void timeoutAwaitingResponse(evutil_socket_t socket, short eventType, void* vcontext)
 {
     struct Context* ctx = (struct Context*) vcontext;
-
- struct Allocator* alloc = MallocAllocator_new(10000);
- struct Writer* logwriter = FileWriter_new(stdout, alloc);
- struct Log* logger = &(struct Log) { .writer = logwriter };
- Log_debug(logger, "timeout");
-
     Except_raise(ctx->exceptionHandler, -1, "Timed out waiting for data.");
 }
 

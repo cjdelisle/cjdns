@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define _POSIX_SOURCE // fdopen()
-
 #include "admin/Admin.h"
 #include "admin/angel/Waiter.h"
 #include "admin/AuthorizedPasswords.h"
@@ -54,6 +52,7 @@
 #include "util/Hex.h"
 #include "util/Security.h"
 #include "util/Process.h"
+#include "util/WriterLog.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -90,11 +89,6 @@
   + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
   TODO: make sure we never hand off to a node for which the CA session is expired. */ \
 )
-
-struct User
-{
-    uint64_t trust;
-};
 
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
@@ -310,9 +304,9 @@ static int benchmark()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct event_base* base = event_base_new();
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log logger = { .writer = logwriter };
-    CryptoAuth_benchmark(base, &logger, alloc);
+    struct Writer* logWriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logWriter, alloc);
+    CryptoAuth_benchmark(base, logger, alloc);
     return 0;
 }
 
@@ -371,9 +365,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Logging. TODO: admin based logging.
-    struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Writer* logWriter = FileWriter_new(stdout, allocator);
+    struct Log* logger = WriterLog_new(logWriter, allocator);
 
     // --------------------- Setup Pipes to Angel --------------------- //
     int pipeToAngel[2];
@@ -457,7 +450,6 @@ int main(int argc, char** argv)
     }
 
     // --------------------- Configuration ------------------------- //
-//    Admin_getConnectInfo(&adminAddr, &adminAddrLen, &adminPassword, admin);
     Configurator_config(&config,
                         &adminAddr,
                         adminAddrLen,
