@@ -44,50 +44,64 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     String* address = Dict_getString(args, String_CONST("address"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
-    String* error = NULL;
 
     uint8_t pkBytes[32];
+#define RESULT(message,next) {                                \
+        Dict out = Dict_CONST(                              \
+            String_CONST_SO("error"),                       \
+            String_OBJ(String_CONST_SO(message)),           \
+            next);                                          \
+        Admin_sendMessage(&out, txid, ctx->admin);          \
+        return;                                             \
+    }
+#define ERROR(error) RESULT(error,NULL)
 
     if (ctx->ifCount == 0) {
-        error = String_CONST("no interfaces are setup, call UDPInterface_new() first");
+        ERROR("no interfaces are setup, call UDPInterface_new() first");
 
-    } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
-        error = String_CONST("invalid interfaceNumber");
+    }
 
-    } else if (!publicKey
+    if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
+        ERROR("invalid interfaceNumber");
+
+    }
+
+    if (!publicKey
         || publicKey->len < 52
         || (publicKey->len > 52 && publicKey->bytes[52] != '.'))
     {
-        error = String_CONST("publicKey must be 52 characters long.");
+        ERROR("publicKey must be 52 characters long.");
 
-    } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
-        error = String_CONST("failed to parse publicKey.");
-
-    } else {
-        struct UDPInterface* udpif = ctx->ifaces[ifNum];
-        switch (UDPInterface_beginConnection(address->bytes, pkBytes, password, udpif)) {
-            case UDPInterface_beginConnection_OUT_OF_SPACE:
-                error = String_CONST("no more space to register with the switch.");
-                break;
-            case UDPInterface_beginConnection_BAD_KEY:
-                error = String_CONST("invalid cjdns public key.");
-                break;
-            case UDPInterface_beginConnection_BAD_ADDRESS:
-                error = String_CONST("unable to parse ip address and port.");
-                break;
-            case UDPInterface_beginConnection_ADDRESS_MISMATCH:
-                error = String_CONST("different address type than this socket is bound to.");
-                break;
-            case 0:
-                error = String_CONST("none");
-                break;
-            default:
-                error = String_CONST("unknown error");
-        }
     }
 
-    Dict out = Dict_CONST(String_CONST("error"), String_OBJ(error), NULL);
-    Admin_sendMessage(&out, txid, ctx->admin);
+    if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
+        ERROR("failed to parse publicKey.");
+
+    }
+
+    struct UDPInterface* udpif = ctx->ifaces[ifNum];
+    uint64_t switchLabel;
+    switch (UDPInterface_beginConnection(address->bytes, pkBytes, password, udpif, &switchLabel)) {
+    case UDPInterface_beginConnection_OUT_OF_SPACE:
+        ERROR("no more space to register with the switch.");
+        break;
+    case UDPInterface_beginConnection_BAD_KEY:
+        ERROR("invalid cjdns public key.");
+        break;
+    case UDPInterface_beginConnection_BAD_ADDRESS:
+        ERROR("unable to parse ip address and port.");
+        break;
+    case UDPInterface_beginConnection_ADDRESS_MISMATCH:
+        ERROR("different address type than this socket is bound to.");
+        break;
+    case 0:
+        RESULT("none",
+               Dict_CONST(String_CONST("label"), Int_OBJ(switchLabel),
+                          NULL));
+        break;
+    default:
+        ERROR("unknown error");
+    };
 }
 
 static void newInterface(Dict* args, void* vcontext, String* txid)

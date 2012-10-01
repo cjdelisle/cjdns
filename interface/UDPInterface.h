@@ -61,6 +61,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
  * @param cryptoKey the node's public key, this is required to send it traffic.
  * @param password if specified, the password for authenticating with the other node.
  * @param udpif the UDP interface.
+ * @param switchLabel points to valid memory, stored if return 0, may be used
+ *     with SwitchPinger_ping
  * @return 0 on success
  *     UDPInterface_beginConnection_OUT_OF_SPACE if there is no space to store the entry.
  *     UDPInterface_beginConnection_BAD_KEY invalid (non-cjdns) cryptoKey
@@ -76,6 +78,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 int UDPInterface_beginConnection(const char* address,
                                  uint8_t cryptoKey[32],
                                  String* password,
-                                 struct UDPInterface* udpif);
+                                 struct UDPInterface* udpif,
+    uint64_t* switchLabel);
 
 #endif

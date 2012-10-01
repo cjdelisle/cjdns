@@ -173,7 +173,8 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 int UDPInterface_beginConnection(const char* address,
                                  uint8_t cryptoKey[32],
                                  String* password,
-                                 struct UDPInterface* udpif)
+                                 struct UDPInterface* udpif,
+    uint64_t* switchLabel)
 {
     struct sockaddr_storage addr;
     ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
@@ -187,7 +188,9 @@ int UDPInterface_beginConnection(const char* address,
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password,
+                                        &udpif->interface, udpif->ic,
+                                        switchLabel);
     switch(ret) {
         case 0:
             return 0;

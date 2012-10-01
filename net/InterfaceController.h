@@ -43,6 +43,9 @@ struct InterfaceController
      *           will be used for the endpoint because we want to be able to free a single
      *           endpoint without freeing the whole network interface but if the network interface
      *           is freed, we would expect all of it's children to deregister.
+     * @param switchLabel should point to valid memory which will be assigned
+     *           the switch label, provided the endpoint is successfully
+     *           inserted and return 0.
      * @return 0 if all goes well.
      *     InterfaceController_registerInterface_BAD_KEY if the key is not a valid cjdns key.
      *     InterfaceController_registerInterface_OUT_OF_SPACE if no space to store the entry.
@@ -53,7 +56,8 @@ struct InterfaceController
                                  uint8_t herPublicKey[32],
                                  String* password,
                                  struct Interface* externalInterface,
-                                 struct InterfaceController* ic);
+                                 struct InterfaceController* ic,
+        uint64_t* switchLabel);
 
     /**
      * Setup an external interface to forward to this InterfaceController.
