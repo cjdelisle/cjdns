@@ -18,6 +18,8 @@
 #include "admin/Admin.h"
 #include "admin/angel/AngelChan.h"
 #include "admin/angel/Waiter.h"
+#include "admin/angel/Core.h"
+#include "admin/angel/Core_admin.h"
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
@@ -29,6 +31,8 @@
 #include "exception/AbortHandler.h"
 #include "exception/WriteErrorHandler.h"
 #include "interface/UDPInterface_admin.h"
+#include "interface/TUNConfigurator.h"
+#include "interface/TUNInterface.h"
 #include "io/ArrayReader.h"
 #include "io/FileWriter.h"
 #include "io/Reader.h"
@@ -49,6 +53,32 @@
 
 // Failsafe: abort if more than 2^22 bytes are allocated (4MB)
 #define ALLOCATOR_FAILSAFE (1<<22)
+
+/**
+ * The worst possible packet overhead.
+ * assuming the packet needs to be handed off to another node
+ * because we have no route to the destination.
+ * and the CryptoAuths to both the destination and the handoff node are both timed out.
+ */
+#define WORST_CASE_OVERHEAD ( \
+    /* TODO: Headers_IPv4_SIZE */ 20 \
+    + Headers_UDPHeader_SIZE \
+    + 4 /* Nonce */ \
+    + 16 /* Poly1305 authenticator */ \
+    + Headers_SwitchHeader_SIZE \
+    + Headers_CryptoAuth_SIZE \
+    + Headers_IP6Header_SIZE \
+    + Headers_CryptoAuth_SIZE \
+)
+
+/** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
+#define DEFAULT_MTU ( \
+    1492 \
+  - WORST_CASE_OVERHEAD \
+  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
+  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
+  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
+)
 
 static void parsePrivateKey(uint8_t privateKey[32],
                             struct Address* addr,
@@ -119,6 +149,29 @@ static void sendResponse(int toAngel, uint8_t syncMagic[8])
     write(toAngel, buff, length);
 }
 
+void Core_initTunnel(String* desiredDeviceName,
+                     uint8_t ipAddr[16],
+                     uint8_t addressPrefix,
+                     struct Ducttape* dt,
+                     struct Log* logger,
+                     struct event_base* eventBase,
+                     struct Allocator* alloc,
+                     struct Except* eh)
+{
+    Log_debug(logger, "Initializing TUN device [%s]",
+              (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
+    char assignedTunName[TUNConfigurator_IFNAMSIZ];
+    void* tunPtr = TUNConfigurator_initTun(((desiredDeviceName) ? desiredDeviceName->bytes : NULL),
+                                           assignedTunName,
+                                           logger,
+                                           eh);
+
+    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
+    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
+    struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
+    Ducttape_setUserInterface(dt, &tun->iface);
+}
+
 /*
  * This process is started with 2 parameters, they must all be numeric in base 10.
  * toAngel the pipe which is used to send data back to the angel process.
@@ -162,6 +215,7 @@ int main(int argc, char** argv)
     if (!pass || !privateKeyHex) {
         Except_raise(eh, -1, "Expected 'pass' and 'privateKey' in configuration.");
     }
+    Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
@@ -221,6 +275,7 @@ int main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
+    Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
 
     struct MemoryContext* mc =
         alloc->clone(sizeof(struct MemoryContext), alloc,

@@ -62,33 +62,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#define DEFAULT_TUN_DEV "cjdroute0"
-
-/**
- * The worst possible packet overhead.
- * assuming the packet needs to be handed off to another node
- * because we have no route to the destination.
- * and the CryptoAuths to both the destination and the handoff node are both timed out.
- */
-#define WORST_CASE_OVERHEAD ( \
-    /* TODO: Headers_IPv4_SIZE */ 20 \
-    + Headers_UDPHeader_SIZE \
-    + 4 /* Nonce */ \
-    + 16 /* Poly1305 authenticator */ \
-    + Headers_SwitchHeader_SIZE \
-    + Headers_CryptoAuth_SIZE \
-    + Headers_IP6Header_SIZE \
-    + Headers_CryptoAuth_SIZE \
-)
-
-/** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
-#define DEFAULT_MTU ( \
-    1492 \
-  - WORST_CASE_OVERHEAD \
-  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
-  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
-  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
-)
+#define DEFAULT_TUN_DEV "tun0"
 
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
@@ -392,11 +366,12 @@ int main(int argc, char** argv)
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
-    String* adminPass = Dict_getString(configAdmin, String_CONST("pass"));
+    String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
     String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
     if (!adminPass) {
         adminPass = String_newBinary(NULL, 32, allocator);
         randomBase32((uint8_t*) adminPass->bytes);
+        adminPass->len = strlen(adminPass->bytes);
     }
     if (!adminBind) {
         adminBind = String_new("127.0.0.1:0", allocator);
@@ -464,7 +439,6 @@ int main(int argc, char** argv)
     Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
     if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
         String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
-
         char assignedTunName[TUNConfigurator_IFNAMSIZ];
         void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
                                                assignedTunName,
@@ -489,9 +463,7 @@ int main(int argc, char** argv)
         struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
         Ducttape_setUserInterface(dt, &tun->iface);
     }
-*/
 
-/*
 
     uint8_t address[53];
     Base32_encode(address, 53, myAddr.key, 32);

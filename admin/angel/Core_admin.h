@@ -12,13 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AdminLog_H
-#define AdminLog_H
+#ifndef Core_admin_H
+#define Core_admin_H
 
-#include "admin/Admin.h"
-#include "memory/Allocator.h"
+#include "net/Ducttape.h"
 #include "util/Log.h"
+#include "memory/Allocator.h"
+#include "admin/Admin.h"
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc);
+#include <event2/event.h>
+#include <stdint.h>
+
+void Core_admin_register(uint8_t ipAddr[16],
+                         struct Ducttape* dt,
+                         struct Log* logger,
+                         struct Allocator* alloc,
+                         struct Admin* admin,
+                         struct event_base* eventBase);
 
 #endif

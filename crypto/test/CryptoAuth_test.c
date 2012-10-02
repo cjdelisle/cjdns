@@ -107,7 +107,6 @@ int init(const uint8_t* privateKey,
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
-    logger->writer = logwriter;
 
     struct event_base* base = event_base_new();
 

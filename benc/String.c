@@ -43,16 +43,23 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
     return string;
 }
 
-String* String_printf(const struct Allocator* allocator, const char* format, ...)
+String* String_vprintf(const struct Allocator* allocator, const char* format, va_list args)
 {
     #define String_BUFFER_SZ 1024
     char buff[String_BUFFER_SZ];
-    va_list args;
-    va_start(args, format);
     vsnprintf(buff, String_BUFFER_SZ, format, args);
     size_t length = strlen(buff);
     return String_newBinary(buff, length, allocator);
     #undef String_BUFFER_SZ
+}
+
+String* String_printf(const struct Allocator* allocator, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    String* out = String_vprintf(allocator, format, args);
+    va_end(args);
+    return out;
 }
 
 int String_compare(const String* a, const String* b)

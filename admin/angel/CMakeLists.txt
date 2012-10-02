@@ -33,6 +33,7 @@ target_link_libraries(cjdns-angel
 
 add_executable(cjdns-core
     Core.c
+    Core_admin.c
 )
 
 target_link_libraries(cjdns-core

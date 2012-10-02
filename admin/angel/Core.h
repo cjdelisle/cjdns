@@ -12,13 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AdminLog_H
-#define AdminLog_H
+#ifndef Core_H
+#define Core_H
 
-#include "admin/Admin.h"
+#include "benc/String.h"
+#include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "util/Log.h"
+#include "net/Ducttape.h"
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc);
+
+void Core_initTunnel(String* desiredDeviceName,
+                     uint8_t ipAddr[16],
+                     uint8_t addressPrefix,
+                     struct Ducttape* dt,
+                     struct Log* logger,
+                     struct event_base* eventBase,
+                     struct Allocator* alloc,
+                     struct Except* eh);
 
 #endif

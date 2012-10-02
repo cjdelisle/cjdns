@@ -134,6 +134,23 @@ static void udpInterface(Dict* config, struct Context* ctx)
     }
 }
 
+static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    String* ifaceType = Dict_getString(ifaceConf, String_CONST("type"));
+    if (!String_equals(ifaceType, String_CONST("TUNInterface"))) {
+        return;
+    }
+
+    // Setup the interface.
+    String* device = Dict_getString(ifaceConf, String_CONST("tunDevice"));
+
+    Dict* args = Dict_new(tempAlloc);
+    if (device) {
+        Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
+    }
+    rpcCall(String_CONST("Core_initTunnel"), args, ctx, tempAlloc);
+}
+
 void Configurator_config(Dict* config,
                          struct sockaddr_storage* addr,
                          int addrLen,
@@ -155,6 +172,10 @@ void Configurator_config(Dict* config,
 
     Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
     udpInterface(ifaces, &ctx);
+
+    Dict* routerConf = Dict_getDict(config, String_CONST("router"));
+    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
+    tunInterface(iface, tempAlloc, &ctx);
 
     tempAlloc->free(tempAlloc);
 }

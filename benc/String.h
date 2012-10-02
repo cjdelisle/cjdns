@@ -18,6 +18,7 @@
 #include "memory/Allocator.h"
 
 #include <stdbool.h>
+#include <stdarg.h>
 
 typedef struct {
     size_t len;
@@ -69,6 +70,11 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
  * @return a bencoded string.
  */
 String* String_printf(const struct Allocator* allocator, const char* format, ...);
+
+/**
+ * Same as String_printf() except the arguments are passed as a va_list.
+ */
+String* String_vprintf(const struct Allocator* allocator, const char* format, va_list args);
 
 /**
  * Compare 2 bencoded strings.

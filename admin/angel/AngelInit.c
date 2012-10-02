@@ -243,7 +243,6 @@ int main(int argc, char** argv)
     if (argc < 3 || (outToClientNo = atoi(argv[2])) == 0) {
         outToClientNo = STDOUT_FILENO;
     }
-printf("%d<--\n", outToClientNo);
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct event_base* eventBase = event_base_new();

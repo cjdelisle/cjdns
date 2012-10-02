@@ -22,26 +22,55 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 struct Log;
 
+enum Log_Level
+{
+    Log_Level_KEYS,
+    Log_Level_DEBUG,
+    Log_Level_INFO,
+    Log_Level_WARN,
+    Log_Level_ERROR,
+    Log_Level_CRITICAL,
+    Log_Level_INVALID
+};
+
 typedef void (* Log_callback) (struct Log* log,
-                               const char* logLevel,
+                               enum Log_Level logLevel,
                                const char* file,
                                uint32_t line,
                                const char* format, ...) Gcc_PRINTF(5, 6);
 
 struct Log
 {
-    struct Writer* writer;
     Log_callback callback;
 };
 
-#define Log_logInternal(log, level, file, line, ...) \
-    if (log) {                                                \
-        log->callback(log, level, file, line, __VA_ARGS__);   \
-    }                                                         \
+static inline char* Log_nameForLevel(enum Log_Level logLevel)
+{
+    switch (logLevel) {
+        case Log_Level_KEYS:     return "KEYS";
+        case Log_Level_DEBUG:    return "DEBUG";
+        case Log_Level_INFO:     return "INFO";
+        case Log_Level_WARN:     return "WARN";
+        case Log_Level_ERROR:    return "ERROR";
+        case Log_Level_CRITICAL: return "CRITICAL";
+        default:                 return "INVALID";
+    }
+}
+
+static inline enum Log_Level Log_levelForName(char* name)
+{
+    for (enum Log_Level logLevel = Log_Level_KEYS; logLevel <= Log_Level_CRITICAL; logLevel++) {
+        if (!strcasecmp(name, Log_nameForLevel(logLevel))) {
+            return logLevel;
+        }
+    }
+    return Log_Level_INVALID;
+}
 
 #ifdef Log_KEYS
     #define Log_DEBUG
@@ -58,6 +87,8 @@ struct Log
 #ifdef Log_ERROR
     #define Log_CRITICAL
 #endif
+
+// Default
 #ifndef Log_CRITICAL
     #define Log_INFO
     #define Log_WARN
@@ -66,46 +97,48 @@ struct Log
 #endif
 
 #define Log_printf(log, level, ...) \
-    Log_logInternal(log, level " ", __FILE__, __LINE__, __VA_ARGS__)
+    if (log) {                                                        \
+        log->callback(log, level, __FILE__, __LINE__, __VA_ARGS__);   \
+    }                                                                 \
 
 #ifdef Log_KEYS
     #define Log_keys(log, ...) \
-        Log_printf(log, "KEYS", __VA_ARGS__)
+        Log_printf(log, Log_Level_KEYS, __VA_ARGS__)
 #else
     #define Log_keys(log, ...)
 #endif
 
 #ifdef Log_DEBUG
     #define Log_debug(log, ...) \
-        Log_printf(log, "DEBUG", __VA_ARGS__)
+        Log_printf(log, Log_Level_DEBUG, __VA_ARGS__)
 #else
     #define Log_debug(log, ...)
 #endif
 
 #ifdef Log_INFO
     #define Log_info(log, ...) \
-        Log_printf(log, "INFO", __VA_ARGS__)
+        Log_printf(log, Log_Level_INFO, __VA_ARGS__)
 #else
     #define Log_info(log, ...)
 #endif
 
 #ifdef Log_WARN
     #define Log_warn(log, ...) \
-        Log_printf(log, "WARN", __VA_ARGS__)
+        Log_printf(log, Log_Level_WARN, __VA_ARGS__)
 #else
     #define Log_warn(log, ...)
 #endif
 
 #ifdef Log_ERROR
     #define Log_error(log, ...) \
-        Log_printf(log, "ERROR", __VA_ARGS__)
+        Log_printf(log, Log_Level_ERROR, __VA_ARGS__)
 #else
     #define Log_error(log, ...)
 #endif
 
 #ifdef Log_CRITICAL
     #define Log_critical(log, ...) \
-        Log_printf(log, "CRITICAL", __VA_ARGS__)
+        Log_printf(log, Log_Level_CRITICAL, __VA_ARGS__)
 #else
     #define Log_critical(log, ...)
 #endif

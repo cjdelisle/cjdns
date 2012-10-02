@@ -15,20 +15,25 @@
 
 #include "util/WriterLog.h"
 
-static void doLog(struct Log* log,
-                  const char* logLevel,
+struct WriterLog
+{
+    struct Log pub;
+    struct Writer* writer;
+};
+
+static void doLog(struct Log* genericLog,
+                  enum Log_Level logLevel,
                   const char* file,
                   uint32_t line,
                   const char* format,
                   ...)
 {
-    char timeBuff[32];
+    struct WriterLog* log = (struct WriterLog*) genericLog;
+    char timeAndLevelBuff[64];
     time_t now;
     time(&now);
-    snprintf(timeBuff, 32, "%u ", (uint32_t) now);
-    log->writer->write(timeBuff, strlen(timeBuff), log->writer);
-
-    log->writer->write(logLevel, strlen(logLevel), log->writer);
+    snprintf(timeAndLevelBuff, 64, "%u %s ", (uint32_t) now, Log_nameForLevel(logLevel));
+    log->writer->write(timeAndLevelBuff, strlen(timeAndLevelBuff), log->writer);
 
     // Strip the path to make log lines shorter.
     char* lastSlash = strrchr(file, '/');
@@ -56,8 +61,10 @@ static void doLog(struct Log* log,
 
 struct Log* WriterLog_new(struct Writer* w, struct Allocator* alloc)
 {
-    return alloc->clone(sizeof(struct Log), alloc, &(struct Log) {
-        .writer = w,
-        .callback = doLog
+    return alloc->clone(sizeof(struct WriterLog), alloc, &(struct WriterLog) {
+        .pub = {
+            .callback = doLog
+        },
+        .writer = w
     });
 }
