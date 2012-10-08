@@ -45,6 +45,7 @@
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
 #include "util/WriterLog.h"
+#include "util/Security_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -110,6 +111,11 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
         String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
     );
     Admin_sendMessage(&d, txid, context->admin);
+}
+
+static void adminExit(Dict* input, void* vcontext, String* txid)
+{
+    exit(1);
 }
 
 static Dict* getInitialConfig(int fromAngel,
@@ -275,7 +281,9 @@ int main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
+    Admin_registerFunction("Core_exit", adminExit, NULL, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
+    Security_admin_register(alloc, logger, admin);
 
     struct MemoryContext* mc =
         alloc->clone(sizeof(struct MemoryContext), alloc,

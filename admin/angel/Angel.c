@@ -73,11 +73,13 @@ static void incomingFromCore(evutil_socket_t socket, short eventType, void* vcon
             read(context->inFd,
                  context->haveMessageHeaderLen + (char*)&context->messageHeader,
                  AngelChan_MessageHeader_SIZE - context->haveMessageHeaderLen);
+        /* crapflood
         #ifdef Log_DEBUG
             uint8_t headerContent[AngelChan_MessageHeader_SIZE + 1] = {0};
             Bits_memcpyConst(headerContent, &context->messageHeader, AngelChan_MessageHeader_SIZE);
             Log_debug(context->logger, "Got header part: [%s]", headerContent);
         #endif
+        */
         if (amount < 1) {
             if (EAGAIN == errno || EWOULDBLOCK == errno) {
                 return;

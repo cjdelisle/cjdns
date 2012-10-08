@@ -377,6 +377,16 @@ int main(int argc, char** argv)
         adminBind = String_new("127.0.0.1:0", allocator);
     }
 
+    // --------------------- Get user for angel to setuid() ---------------------- //
+    String* securityUser = NULL;
+    List* securityConf = Dict_getList(&config, String_CONST("security"));
+    for (int i = 0; i < List_size(securityConf); i++) {
+        securityUser = Dict_getString(List_getDict(securityConf, i), String_CONST("setuser"));
+        if (securityUser) {
+            break;
+        }
+    }
+
     // --------------------- Pre-Configure Angel ------------------------- //
     Dict* preConf = Dict_new(allocator);
     Dict* adminPreConf = Dict_new(allocator);
@@ -385,6 +395,9 @@ int main(int argc, char** argv)
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
     Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
+    if (securityUser) {
+        Dict_putString(adminPreConf, String_CONST("user"), securityUser, allocator);
+    }
 
     #define CONFIG_BUFF_SIZE 1024
     uint8_t buff[CONFIG_BUFF_SIZE] = {0};
@@ -433,50 +446,5 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
-    // ---------------------- Legacy Config ----------------------- //
-/*
-    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
-    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
-    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
-        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
-        char assignedTunName[TUNConfigurator_IFNAMSIZ];
-        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
-                                               assignedTunName,
-                                               logger,
-                                               AbortHandler_INSTANCE);
-        struct Jmp jmp;
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setIpAddress(
-                assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
-        }
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setMTU(
-                assignedTunName, DEFAULT_MTU, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to set MTU [%s], skipping.", jmp.message);
-        }
-
-        struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
-        Ducttape_setUserInterface(dt, &tun->iface);
-    }
-
-
-    uint8_t address[53];
-    Base32_encode(address, 53, myAddr.key, 32);
-    Log_info(logger, "Your address is: %s.k\n", address);
-    uint8_t myIp[40];
-    Address_printIp(myIp, &myAddr);
-    Log_info(logger, "Your IPv6 address is: %s\n", myIp);
-*/
-    // Security.
-    //security(Dict_getList(&config, String_CONST("security")), logger, AbortHandler_INSTANCE);
-
-  //  event_base_loop(eventBase, 0);
-//abort();
-    // Never reached.
     return 0;
 }

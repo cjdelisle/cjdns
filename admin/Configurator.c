@@ -30,15 +30,29 @@ struct Context
     struct AdminClient* client;
 };
 
-static void showMsg(struct AdminClient_Result* res, struct Context* ctx)
+static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allocator* alloc)
 {
     Log_keys(ctx->logger, "message bytes = [%s]", res->messageBytes);
     #ifndef Log_KEYS
         Log_critical(ctx->logger, "enable Log_LEVEL=KEYS to see message content.");
     #endif
+
+    Dict d = NULL;
+    struct AdminClient_Result* exitRes =
+        AdminClient_rpcCall(String_CONST("Core_exit"), &d, ctx->client, alloc);
+
+    if (exitRes->err) {
+        Log_critical(ctx->logger, "Failed to stop the core.");
+    }
+    Log_critical(ctx->logger, "Aborting.");
+    exit(1);
 }
 
-static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
+static void rpcCall0(String* function,
+                     Dict* args,
+                     struct Context* ctx,
+                     struct Allocator* alloc,
+                     bool exitIfError)
 {
     struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
     if (res->err) {
@@ -46,18 +60,25 @@ static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Al
                       "Failed to make function call [%s], error: [%s]",
                       AdminClient_errorString(res->err),
                       function->bytes);
-        showMsg(res, ctx);
-        exit(-1);
+        die(res, ctx, alloc);
     }
     String* error = Dict_getString(res->responseDict, String_CONST("error"));
     if (error && !String_equals(error, String_CONST("none"))) {
-        Log_critical(ctx->logger,
-                      "Router responses with error: [%s]\nCalling function: [%s]",
-                      error->bytes,
-                      function->bytes);
-        showMsg(res, ctx);
-        exit(-1);
+        if (exitIfError) {
+            Log_critical(ctx->logger,
+                         "Got error [%s] calling [%s]",
+                         error->bytes,
+                         function->bytes);
+            die(res, ctx, alloc);
+        }
+        Log_warn(ctx->logger, "Got error [%s] calling [%s], ignoring.",
+                 error->bytes, function->bytes);
     }
+}
+
+static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
+{
+    rpcCall0(function, args, ctx, alloc, true);
 }
 
 static void authorizedPasswords(List* list, struct Context* ctx)
@@ -151,6 +172,28 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     rpcCall(String_CONST("Core_initTunnel"), args, ctx, tempAlloc);
 }
 
+static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    bool noFiles = false;
+    for (int i = 0; i < List_size(securityConf); i++) {
+        if (String_equals(String_CONST("nofiles"), List_getString(securityConf, i))) {
+            noFiles = true;
+        } else {
+            Dict* userDict = List_getDict(securityConf, i);
+            String* userName = Dict_getString(userDict, String_CONST("setuser"));
+            if (userName) {
+                Dict d = Dict_CONST(String_CONST("user"), String_OBJ(userName), NULL);
+                // If this call returns an error, it is ok.
+                rpcCall0(String_CONST("Security_setUser"), &d, ctx, tempAlloc, false);
+            }
+        }
+    }
+    if (noFiles) {
+        Dict d = NULL;
+        rpcCall(String_CONST("Security_noFiles"), &d, ctx, tempAlloc);
+    }
+}
+
 void Configurator_config(Dict* config,
                          struct sockaddr_storage* addr,
                          int addrLen,
@@ -176,6 +219,9 @@ void Configurator_config(Dict* config,
     Dict* routerConf = Dict_getDict(config, String_CONST("router"));
     Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
     tunInterface(iface, tempAlloc, &ctx);
+
+    List* securityList = Dict_getList(config, String_CONST("security"));
+    security(securityList, tempAlloc, &ctx);
 
     tempAlloc->free(tempAlloc);
 }
