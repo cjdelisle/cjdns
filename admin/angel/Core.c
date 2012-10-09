@@ -186,7 +186,7 @@ void Core_initTunnel(String* desiredDeviceName,
  * Upon initialization, this process will wait for an initial configuration to be sent to
  * it and then it will send an initial response.
  */
-int main(int argc, char** argv)
+int Core_main(int argc, char** argv)
 {
     uint8_t syncMagic[8];
     randombytes(syncMagic, 8);
@@ -194,9 +194,9 @@ int main(int argc, char** argv)
     struct Except* eh = AbortHandler_INSTANCE;
     int toAngel;
     int fromAngel;
-    if (argc != 3
-        || !(toAngel = atoi(argv[1]))
-        || !(fromAngel = atoi(argv[2])))
+    if (argc != 4
+        || !(toAngel = atoi(argv[2]))
+        || !(fromAngel = atoi(argv[3])))
     {
         Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
     }
@@ -295,4 +295,5 @@ int main(int argc, char** argv)
 
 
     event_base_dispatch(eventBase);
+    return 0;
 }

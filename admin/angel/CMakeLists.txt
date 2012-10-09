@@ -14,7 +14,7 @@ add_library(cjdns-waiter
     Waiter.c
 )
 
-add_executable(cjdns-angel
+add_library(cjdns-angel
     Angel.c
     AngelInit.c
 )
@@ -31,20 +31,18 @@ target_link_libraries(cjdns-angel
     cjdns-log-writer
 )
 
-add_executable(cjdns-core
+add_library(cjdns-core
     Core.c
     Core_admin.c
 )
 
 target_link_libraries(cjdns-core
     crypto
-    crypto_benchmark
     interface
     switch
     dht
     dhtcore
     cjdbenc
-    cjdbenc_JsonBencSerializer
     cjdbenc_StandardBencSerializer
     cjdmemory
     cjdadmin
@@ -54,6 +52,12 @@ target_link_libraries(cjdns-core
     cjdns-waiter
     cjdns-log-writer
 )
+
+add_executable(cjdns
+    Cjdns.c
+)
+
+target_link_libraries(cjdns cjdns-angel cjdns-core)
 
 add_executable(cjdroute2
     cjdroute2.c

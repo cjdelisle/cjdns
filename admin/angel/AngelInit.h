@@ -12,24 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Core_H
-#define Core_H
+#ifndef AngelInit_H
+#define AngelInit_H
 
-#include "benc/String.h"
-#include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "net/Ducttape.h"
-
-
-void Core_initTunnel(String* desiredDeviceName,
-                     uint8_t ipAddr[16],
-                     uint8_t addressPrefix,
-                     struct Ducttape* dt,
-                     struct Log* logger,
-                     struct event_base* eventBase,
-                     struct Allocator* alloc,
-                     struct Except* eh);
-
-int Core_main(int argc, char** argv);
+/**
+ * Input:
+ * {
+ *   "admin": {
+ *     "core": "/path/to/core/binary",
+ *     "bind": "127.0.0.1:12345",
+ *     "pass": "12345adminsocketpassword",
+ *     "user": "setUidToThisUser"
+ *   }
+ * }
+ * for example:
+ * d5:admind4:core30:./build/admin/angel/cjdns-core4:bind15:127.0.0.1:123454:pass4:abcdee
+ *
+/home/user/wrk/cjdns/build/admin/angel/cjdns-core
+ * "user" is optional, if set the angel will setuid() that user's uid.
+ */
+int AngelInit_main(int argc, char** argv);
 
 #endif

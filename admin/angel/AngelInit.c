@@ -74,7 +74,7 @@ static void initCore(char* coreBinaryPath,
     char fromAngel[32];
     snprintf(toAngel, 32, "%u", TO_ANGEL);
     snprintf(fromAngel, 32, "%u", FROM_ANGEL);
-    char* args[] = { toAngel, fromAngel, NULL };
+    char* args[] = { "core", toAngel, fromAngel, NULL };
 
     FILE* file;
     if ((file = fopen(coreBinaryPath, "r")) != NULL) {
@@ -227,20 +227,16 @@ static Dict* getInitialConfigResponse(int fromCore,
 /home/user/wrk/cjdns/build/admin/angel/cjdns-core
  * "user" is optional, if set the angel will setuid() that user's uid.
  */
-int main(int argc, char** argv)
+int AngelInit_main(int argc, char** argv)
 {
     struct Except* eh = AbortHandler_INSTANCE;
 
-    if (isatty(STDIN_FILENO)) {
-        Except_raise(eh, -1, "This is internal to cjdns, it should not be started manually.");
-    }
-
     int inFromClientNo;
     int outToClientNo;
-    if (argc < 2 || (inFromClientNo = atoi(argv[1])) == 0) {
+    if (argc < 3 || (inFromClientNo = atoi(argv[2])) == 0) {
         inFromClientNo = STDIN_FILENO;
     }
-    if (argc < 3 || (outToClientNo = atoi(argv[2])) == 0) {
+    if (argc < 4 || (outToClientNo = atoi(argv[3])) == 0) {
         outToClientNo = STDOUT_FILENO;
     }
 
@@ -316,4 +312,5 @@ int main(int argc, char** argv)
     }
 
     Angel_start(pass, syncMagic, tcpSocket, toCore, fromCore, eventBase, logger, alloc);
+    return 0;
 }

@@ -20,7 +20,7 @@
 #include "util/Bits.h"
 #include "util/checksum/Checksum.h"
 #include "util/Endian.h"
-#include "wire/Control.h"
+#include "cjdns/core/switch/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"

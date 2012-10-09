@@ -12,24 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Core_H
-#define Core_H
+#include "admin/angel/AngelInit.h"
+#include "admin/angel/Core.h"
 
-#include "benc/String.h"
-#include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "net/Ducttape.h"
+#include <stdio.h>
+#include <unistd.h>
 
-
-void Core_initTunnel(String* desiredDeviceName,
-                     uint8_t ipAddr[16],
-                     uint8_t addressPrefix,
-                     struct Ducttape* dt,
-                     struct Log* logger,
-                     struct event_base* eventBase,
-                     struct Allocator* alloc,
-                     struct Except* eh);
-
-int Core_main(int argc, char** argv);
-
-#endif
+int main(int argc, char** argv)
+{
+    if (isatty(STDIN_FILENO) || argc < 2) {
+        // Fall through.
+    } else if (!strcmp("angel", argv[1])) {
+        return AngelInit_main(argc, argv);
+    } else if (!strcmp("core", argv[1])) {
+        return Core_main(argc, argv);
+    }
+    printf("This is internal to cjdns, it should not be started manually.\n");
+    return -1;
+}

@@ -192,6 +192,7 @@ endif()
 # GIT_VERSION is used in dht/dhtcore/CMakeLists.txt
 
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/src)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})

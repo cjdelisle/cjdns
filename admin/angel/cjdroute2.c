@@ -353,16 +353,15 @@ int main(int argc, char** argv)
     snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
     char pipeFromAngelStr[8];
     snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
-    char* args[] = { pipeToAngelStr, pipeFromAngelStr, NULL };
+    char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
 
     // --------------------- Spawn Angel --------------------- //
-    String* angelPath = Dict_getString(&config, String_CONST("angelPath"));
     String* corePath = Dict_getString(&config, String_CONST("corePath"));
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
-    if (!angelPath || !corePath || !privateKey) {
-        Except_raise(eh, -1, "Need to specify angelPath, corePath, and privateKey.");
+    if (!corePath || !privateKey) {
+        Except_raise(eh, -1, "Need to specify corePath, and privateKey.");
     }
-    Process_spawn(angelPath->bytes, args, allocator);
+    Process_spawn(corePath->bytes, args, allocator);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
