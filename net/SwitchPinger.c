@@ -20,7 +20,7 @@
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "wire/Headers.h"
-#include "cjdns/core/switch/Control.h"
+#include "wire/Control.h"
 #include "wire/Error.h"
 
 
