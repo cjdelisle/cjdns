@@ -25,8 +25,6 @@
 #include <strings.h>
 #include <time.h>
 
-struct Log;
-
 enum Log_Level
 {
     Log_Level_KEYS,
@@ -38,11 +36,14 @@ enum Log_Level
     Log_Level_INVALID
 };
 
+struct Log;
+
 typedef void (* Log_callback) (struct Log* log,
                                enum Log_Level logLevel,
                                const char* file,
                                uint32_t line,
-                               const char* format, ...) Gcc_PRINTF(5, 6);
+                               const char* format,
+                               va_list args);
 
 struct Log
 {
@@ -96,10 +97,23 @@ static inline enum Log_Level Log_levelForName(char* name)
     #define Log_CRITICAL
 #endif
 
+Gcc_PRINTF(5, 6)
+static inline void Log_internal(struct Log* logger,
+                                enum Log_Level level,
+                                const char* file,
+                                int lineNum,
+                                const char* format, ...)
+{
+    if (logger) {
+        va_list args;
+        va_start(args, format);
+        logger->callback(logger, level, file, lineNum, format, args);
+        va_end(args);
+    }
+}
+
 #define Log_printf(log, level, ...) \
-    if (log) {                                                        \
-        log->callback(log, level, __FILE__, __LINE__, __VA_ARGS__);   \
-    }                                                                 \
+    Log_internal(log, level, __FILE__, __LINE__, __VA_ARGS__);
 
 #ifdef Log_KEYS
     #define Log_keys(log, ...) \

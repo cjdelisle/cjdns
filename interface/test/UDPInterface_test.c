@@ -24,7 +24,7 @@
 #include "net/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <event2/event.h>
 #include "util/Assert.h"

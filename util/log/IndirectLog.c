@@ -12,21 +12,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef W32Security_H
-#define W32Security_H
 
-#include "exception/ExceptionHandler.h"
-#include "util/Security.h"
-#include "util/log/Log.h"
+#include "util/log/IndirectLog.h"
 
-// lol windows security
-
-void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
+static void doLog(struct Log* genericLog,
+                  enum Log_Level logLevel,
+                  const char* file,
+                  uint32_t lineNum,
+                  const char* format,
+                  va_list args)
 {
+    struct IndirectLog* log = (struct IndirectLog*) genericLog;
+    if (log && log->wrappedLog) {
+        log->wrappedLog->callback(log->wrappedLog, logLevel, file, lineNum, format, args);
+    }
 }
 
-void Security_noFiles(struct ExceptionHandler* eh)
+struct IndirectLog* IndirectLog_new(struct Allocator* alloc)
 {
+    return alloc->clone(sizeof(struct IndirectLog), alloc, &(struct IndirectLog) {
+        .pub = {
+            .callback = doLog
+        }
+    });
 }
-
-#endif

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "exception/ExceptionHandler.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/Security.h"
 
 #include <sys/resource.h>

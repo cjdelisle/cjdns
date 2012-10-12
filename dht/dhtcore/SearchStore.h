@@ -18,7 +18,7 @@
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "benc/Object.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/AverageRoller.h"
 
 #include <stdint.h>

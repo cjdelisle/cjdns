@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 
 struct WriterLog
 {
@@ -26,7 +26,7 @@ static void doLog(struct Log* genericLog,
                   const char* file,
                   uint32_t line,
                   const char* format,
-                  ...)
+                  va_list args)
 {
     struct WriterLog* log = (struct WriterLog*) genericLog;
     char timeAndLevelBuff[64];
@@ -44,8 +44,6 @@ static void doLog(struct Log* genericLog,
     snprintf(buff, Log_BUFFER_SZ, ":%u ", line);
     log->writer->write(buff, strlen(buff), log->writer);
 
-    va_list args;
-    va_start(args, format);
     vsnprintf(buff, Log_BUFFER_SZ, format, args);
     size_t length = strlen(buff);
 
@@ -55,7 +53,6 @@ static void doLog(struct Log* genericLog,
     }
 
     log->writer->write(buff, length > Log_BUFFER_SZ ? Log_BUFFER_SZ : length, log->writer);
-    va_end(args);
     #undef Log_BUFFER_SZ
 }
 

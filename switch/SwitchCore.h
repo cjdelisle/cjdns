@@ -16,7 +16,7 @@
 #define SwitchCore_H
 
 #include "interface/Interface.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "wire/Message.h"
 
 #include <stdint.h>

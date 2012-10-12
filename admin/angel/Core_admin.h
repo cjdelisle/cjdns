@@ -16,7 +16,7 @@
 #define Core_admin_H
 
 #include "net/Ducttape.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "admin/Admin.h"
 

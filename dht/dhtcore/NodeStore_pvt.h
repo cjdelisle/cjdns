@@ -16,7 +16,7 @@
 #define NodeStore_pvt_H
 
 #include "dht/dhtcore/NodeStore.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 /** A list of DHT nodes. */
 struct NodeStore

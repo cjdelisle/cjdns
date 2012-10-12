@@ -12,17 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "admin/Admin.h"
+#include "benc/Dict.h"
+#include "benc/String.h"
+#include "crypto/Crypto.h"
 #include "io/Writer.h"
-#include "util/Log.h"
+#include "memory/BufferAllocator.h"
+#include "util/log/Log.h"
+#include "util/Hex.h"
 
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define MAX_SUBSCRIPTIONS 64
-#define FILENAME_COUNT 32
+#define FILE_NAME_COUNT 32
 
 struct Subscription
 {
@@ -39,13 +46,13 @@ struct Subscription
     int lineNum : 31;
 
     /** The name of the file to match against or null to match any file. */
-    char* file;
+    const char* file;
 
     /** The transaction ID of the message which solicited this stream of logs. */
     String* txid;
 
     /** A hopefully unique (random) number identifying this stream. */
-    uint64_t streamId;
+    int64_t streamId;
 
     /** An allocator which will live during the lifecycle of the Subscription */
     struct Allocator* alloc;
@@ -56,7 +63,7 @@ struct AdminLog
     struct Log pub;
     struct Subscription subscriptions[MAX_SUBSCRIPTIONS];
     uint32_t subscriptionCount;
-    char* fileNames[FILENAME_COUNT];
+    const char* fileNames[FILE_NAME_COUNT];
     struct Admin* admin;
     struct Allocator* alloc;
 };
@@ -65,7 +72,7 @@ static inline bool isMatch(struct Subscription* subscription,
                            struct AdminLog* logger,
                            enum Log_Level logLevel,
                            const char* file,
-                           uint32_t line)
+                           int line)
 {
     if (subscription->file) {
         if (subscription->internalName) {
@@ -79,7 +86,7 @@ static inline bool isMatch(struct Subscription* subscription,
             // it can be compared quickly with a pointer comparison.
             subscription->file = file;
             subscription->internalName = true;
-            for (int i = 0; i < FILENAME_COUNT; i++) {
+            for (int i = 0; i < FILE_NAME_COUNT; i++) {
                 if (logger->fileNames[i] == file) {
                     break;
                 }
@@ -95,32 +102,37 @@ static inline bool isMatch(struct Subscription* subscription,
     if (logLevel < subscription->level) {
         return false;
     }
-    if (subscription->line && line != subscription->line) {
+    if (subscription->lineNum && line != subscription->lineNum) {
         return false;
     }
     return true;
 }
 
-static Dict* makeLogMessage(struct AdminLog* logger,
+static Dict* makeLogMessage(struct Subscription* subscription,
+                            struct AdminLog* logger,
                             enum Log_Level logLevel,
                             const char* file,
                             uint32_t line,
                             const char* format,
-                            va_list* vaArgs,
-                            uint32_t streamNum,
+                            va_list vaArgs,
                             struct Allocator* alloc)
 {
     time_t now;
     time(&now);
 
     Dict* out = Dict_new(alloc);
-    Dict_putInt(out, String_CONST("streamId"), streamNum, alloc);
-    Dict_putInt(out, String_CONST("time"), now, alloc);
-    Dict_putString(out, String_CONST("level"), String_CONST(Log_nameForLevel(logLevel)), alloc);
-    Dict_putString(out, String_CONST("file"), String_CONST(file), alloc);
-    Dict_putInt(out, String_CONST("line"), line, alloc);
+    char* buff = alloc->malloc(20, alloc);
+    Hex_encode((uint8_t*)buff, 20, (uint8_t*)subscription->streamId, 8);
+    Dict_putString(out, String_new("streamId", alloc), String_new(buff, alloc), alloc);
+    Dict_putInt(out, String_new("time", alloc), now, alloc);
+    Dict_putString(out,
+                   String_new("level", alloc),
+                   String_new(Log_nameForLevel(logLevel), alloc),
+                   alloc);
+    Dict_putString(out, String_new("file", alloc), String_new((char*)file, alloc), alloc);
+    Dict_putInt(out, String_new("line", alloc), line, alloc);
     String* message = String_vprintf(alloc, format, vaArgs);
-    Dict_putString(out, String_CONST("message"), message, alloc);
+    Dict_putString(out, String_new("message", alloc), message, alloc);
 
     return out;
 }
@@ -130,20 +142,24 @@ static void doLog(struct Log* genericLog,
                   const char* file,
                   uint32_t line,
                   const char* format,
-                  ...)
+                  va_list args)
 {
     struct AdminLog* log = (struct AdminLog*) genericLog;
     Dict* message = NULL;
     #define ALLOC_BUFFER_SZ 4096
     uint8_t allocBuffer[ALLOC_BUFFER_SZ];
-    for (int i = 0; i < log->subscriptionCount; i++) {
+    for (int i = 0; i < (int)log->subscriptionCount; i++) {
         if (isMatch(&log->subscriptions[i], log, logLevel, file, line)) {
             if (!message) {
                 struct Allocator* alloc = BufferAllocator_new(allocBuffer, ALLOC_BUFFER_SZ);
-                va_list args;
-                va_start(args, format);
-                message = makeLogMessage(log, logLevel, file, line, format, args, alloc);
-                va_end(args);
+                message = makeLogMessage(&log->subscriptions[i],
+                                         log,
+                                         logLevel,
+                                         file,
+                                         line,
+                                         format,
+                                         args,
+                                         alloc);
             }
             Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
         }
@@ -154,10 +170,10 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* levelName = Dict_getString(args, String_CONST("level"));
-    struct Log_Level level = (levelName) ? Log_levelForName(levelName) : Log_Level_DEBUG;
+    enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_DEBUG;
     int64_t* lineNumPtr = Dict_getInt(args, String_CONST("line"));
     String* fileStr = Dict_getString(args, String_CONST("file"));
-    char* file = (fileStr) ? fileStr->bytes : NULL;
+    const char* file = (fileStr) ? fileStr->bytes : NULL;
     char* error = "2+2=5";
     if (level == Log_Level_INVALID) {
         error = "The provided log level is invalid, please specify one of ["
@@ -187,34 +203,34 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
         sub->alloc = log->alloc->child(log->alloc);
         if (file) {
             int i;
-            for (i = 0; i < FILENAME_COUNT; i++) {
+            for (i = 0; i < FILE_NAME_COUNT; i++) {
                 if (log->fileNames[i] && !strcmp(log->fileNames[i], file)) {
-                    file = fileNames[i];
+                    file = log->fileNames[i];
                     sub->internalName = true;
                     break;
                 }
             }
-            if (i == FILENAME_COUNT) {
+            if (i == FILE_NAME_COUNT) {
                 file = String_new(file, sub->alloc)->bytes;
                 sub->internalName = false;
             }
         }
         sub->file = file;
         sub->lineNum = (lineNumPtr) ? *lineNumPtr : 0;
-        sub->txid = String_CLONE(txid, sub->alloc);
-        randombytes(&sub->streamId, 8);
+        sub->txid = String_clone(txid, sub->alloc);
+        randombytes((uint8_t*) &sub->streamId, 8);
         uint8_t streamIdHex[20];
-        Hex_encode(streamIdHex, 20, &sub->streamId, 8);
-        Dict response = Dict_new(
-            String_CONST("error"), String_OBJ(String_CONST("none")), Dict_new(
-            String_CONST("streamId"), String_OBJ(String_CONST(streamIdHex)), NULL
+        Hex_encode(streamIdHex, 20, (uint8_t*)&sub->streamId, 8);
+        Dict response = Dict_CONST(
+            String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
+            String_CONST("streamId"), String_OBJ(String_CONST((char*)streamIdHex)), NULL
         ));
         Admin_sendMessage(&response, txid, log->admin);
         log->subscriptionCount++;
         return;
     }
 
-    Dict response = Dict_new(
+    Dict response = Dict_CONST(
         String_CONST("error"), String_OBJ(String_CONST(error)), NULL
     );
     Admin_sendMessage(&response, txid, log->admin);
@@ -224,13 +240,15 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* streamIdHex = Dict_getString(args, String_CONST("streamId"));
-    uint64_t streamId;
+    int64_t streamId;
     char* error = NULL;
-    if (streamIdHex->len != 16 || Hex_decode(&streamId, 8, streamIdHex->bytes, 16) != 8) {
+    if (streamIdHex->len != 16
+        || Hex_decode((uint8_t*)&streamId, 8, (uint8_t*)streamIdHex->bytes, 16) != 8)
+    {
         error = "Invalid streamId.";
     } else {
-        error = "No such subscription."
-        for (int i = 0; i < log->subscriptionCount; i++) {
+        error = "No such subscription.";
+        for (int i = 0; i < (int)log->subscriptionCount; i++) {
             if (streamId == log->subscriptions[i].streamId) {
                 log->subscriptions[i].alloc->free(log->subscriptions[i].alloc);
                 log->subscriptionCount--;
@@ -245,7 +263,7 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
         }
     }
 
-    Dict response = Dict_new(
+    Dict response = Dict_CONST(
         String_CONST("error"), String_OBJ(String_CONST(error)), NULL
     );
     Admin_sendMessage(&response, txid, log->admin);
@@ -272,4 +290,6 @@ struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc)
         { .name = "streamId", .required = 1, .type = "String" }
     };
     Admin_registerFunction("AdminLog_unsubscribe", unsubscribe, log, true, unsubscribeArgs, admin);
+
+    return &log->pub;
 }

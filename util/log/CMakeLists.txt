@@ -10,25 +10,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_library(cjdns-admin
-    Admin.c
-    AuthorizedPasswords.c
+add_library(cjdns-util-log-writer
+    WriterLog.c
 )
-target_link_libraries(cjdns-admin crypto cjdbenc_StandardBencSerializer)
 
-add_library(cjdns-admin-logger
-    AdminLog.c
+add_library(cjdns-util-log-indirect
+    IndirectLog.c
 )
-target_link_libraries(cjdns-admin-logger cjdns-admin)
-
-add_library(cjdns-admin-client
-    AdminClient.c
-    Configurator.c
-)
-target_link_libraries(cjdns-admin-client crypto cjdbenc_StandardBencSerializer)
-
-add_subdirectory(testframework)
-add_subdirectory(angel)
-
-enable_testing()
-add_subdirectory(test)

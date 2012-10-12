@@ -13,6 +13,7 @@ project(util C)
 cmake_minimum_required(VERSION 2.4)
 
 add_subdirectory(checksum)
+add_subdirectory(log)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
@@ -33,10 +34,6 @@ add_library(cjdns-process
     ${process}
 )
 
-add_library(cjdns-log-writer
-    WriterLog.c
-)
-
 add_library(util
     AverageRoller.c
     Timeout.c
@@ -44,7 +41,7 @@ add_library(util
     Pinger.c
     Security_admin.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security cjdns-log-writer)
+target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security cjdns-util-log-writer)
 
 # Everything must be tested.
 enable_testing()

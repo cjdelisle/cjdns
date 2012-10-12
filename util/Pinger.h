@@ -17,7 +17,7 @@
 
 #include "benc/String.h"
 #include "memory/Allocator.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <event2/event.h>
 

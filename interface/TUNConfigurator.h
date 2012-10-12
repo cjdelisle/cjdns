@@ -16,7 +16,7 @@
 #define TUNConfigurator_H
 
 #include "exception/Except.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 /**
  * This is the maximum size that will be accepted as an interface name.

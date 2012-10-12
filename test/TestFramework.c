@@ -17,12 +17,12 @@
 #include "dht/SerializationModule.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "test/TestFramework.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 
 struct Ducttape* TestFramework_setUp()
 {

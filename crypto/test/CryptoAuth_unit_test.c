@@ -21,7 +21,7 @@
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 

@@ -19,7 +19,7 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <stdint.h>
 #include <stdbool.h>

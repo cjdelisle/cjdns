@@ -36,7 +36,7 @@
 #include "io/FileWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
@@ -47,7 +47,7 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 #include "util/Security.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 
 #include "crypto_scalarmult_curve25519.h"
 

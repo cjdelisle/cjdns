@@ -17,7 +17,7 @@
 
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin);
 

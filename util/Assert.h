@@ -15,7 +15,7 @@
 #ifndef Assert_H
 #define Assert_H
 
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include <stdio.h>
 
 /* Internals */

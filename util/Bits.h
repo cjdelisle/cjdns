@@ -17,7 +17,7 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <stdint.h>
 #include <stdbool.h>

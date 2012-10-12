@@ -16,6 +16,7 @@
 #define _POSIX_SOURCE // fdopen()
 
 #include "admin/Admin.h"
+#include "admin/AdminLog.h"
 #include "admin/angel/AngelChan.h"
 #include "admin/angel/Waiter.h"
 #include "admin/angel/Core.h"
@@ -44,7 +45,8 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
+#include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
@@ -211,8 +213,13 @@ int Core_main(int argc, char** argv)
 
     struct event_base* eventBase = event_base_new();
 
+    // -------------------- Setup the Pre-Logger ---------------------- //
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logWriter, alloc);
+    struct Log* preLogger = WriterLog_new(logWriter, alloc);
+    struct IndirectLog* indirectLogger = IndirectLog_new(alloc);
+    indirectLogger->wrappedLog = preLogger;
+    struct Log* logger = &indirectLogger->pub;
+
 
     Dict* config = getInitialConfig(fromAngel, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
@@ -221,7 +228,7 @@ int Core_main(int argc, char** argv)
     if (!pass || !privateKeyHex) {
         Except_raise(eh, -1, "Expected 'pass' and 'privateKey' in configuration.");
     }
-    Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
+    Log_keys(indirectLogger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
@@ -232,6 +239,13 @@ int Core_main(int argc, char** argv)
     sendResponse(toAngel, syncMagic);
 
     struct Admin* admin = Admin_new(fromAngel, toAngel, alloc, logger, eventBase, pass, syncMagic);
+
+
+    // --------------------- Setup the Logger --------------------- //
+    // the prelogger will nolonger be used.
+    struct Log* adminLogger = AdminLog_registerNew(admin, alloc);
+    indirectLogger->wrappedLog = adminLogger;
+    logger = adminLogger;
 
 
     // CryptoAuth

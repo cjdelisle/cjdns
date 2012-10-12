@@ -12,13 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef WriterLog_H
-#define WriterLog_H
+#ifndef IndirectLog_H
+#define IndirectLog_H
 
 #include "memory/Allocator.h"
-#include "io/Writer.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
-struct Log* WriterLog_new(struct Writer* w, struct Allocator* alloc);
+struct IndirectLog
+{
+    struct Log pub;
+    struct Log* wrappedLog;
+};
+
+struct IndirectLog* IndirectLog_new(struct Allocator* alloc);
 
 #endif

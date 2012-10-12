@@ -29,7 +29,7 @@
 #include "dht/dhtcore/NodeList.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "switch/NumberCompress.h"
 #include "switch/LabelSplicer.h"
 

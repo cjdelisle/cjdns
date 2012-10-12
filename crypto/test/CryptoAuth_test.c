@@ -20,7 +20,7 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 #include "wire/Error.h"
 
 #include "util/Assert.h"

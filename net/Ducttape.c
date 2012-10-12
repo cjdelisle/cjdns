@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/CryptoAuth.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "dht/Address.h"
 #include "dht/AddressMapper.h"
 #include "dht/DHTMessage.h"
@@ -24,7 +24,7 @@
 #include "interface/Interface.h"
 #include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "net/Ducttape_pvt.h"

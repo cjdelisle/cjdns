@@ -33,7 +33,7 @@
 #include "util/Security.h"
 #include "util/Process.h"
 #include "util/Hex.h"
-#include "util/WriterLog.h"
+#include "util/log/WriterLog.h"
 
 #include <unistd.h>
 #include <event2/event.h>

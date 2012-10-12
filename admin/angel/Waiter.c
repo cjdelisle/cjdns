@@ -17,7 +17,7 @@
 #include "exception/Except.h"
 
 #include "memory/MallocAllocator.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "io/FileWriter.h"
 
 #include <event2/event.h>

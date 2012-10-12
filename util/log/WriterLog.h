@@ -12,14 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Security_H
-#define Security_H
+#ifndef WriterLog_H
+#define WriterLog_H
 
-#include "exception/ExceptionHandler.h"
+#include "memory/Allocator.h"
+#include "io/Writer.h"
 #include "util/log/Log.h"
 
-void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh);
-
-void Security_noFiles(struct ExceptionHandler* eh);
+struct Log* WriterLog_new(struct Writer* w, struct Allocator* alloc);
 
 #endif

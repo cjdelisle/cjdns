@@ -22,8 +22,8 @@
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
-#include "util/Log.h"
-#include "util/WriterLog.h"
+#include "util/log/Log.h"
+#include "util/log/WriterLog.h"
 
 #include <event2/event.h>
 

@@ -17,7 +17,7 @@
 #include "benc/Dict.h"
 #include "exception/Except.h"
 #include "exception/Jmp.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/Security.h"
 
 struct Context

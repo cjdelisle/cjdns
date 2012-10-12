@@ -23,7 +23,7 @@
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Endian.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "exception/AbortHandler.h"
 =======
 >>>>>>> UDPadmin*/
