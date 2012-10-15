@@ -16,7 +16,7 @@ views of the same problem.
 
 We have a number of somewhat competing offerings to solve this problem from ISPs
 and government. We have IPSEC, DNSSEC, numerous proposals from the mundane to
-the wild and whacky such as "internet drivers licenses".
+the wild and wacky such as "internet drivers licenses".
 
 The people who have developed these proposals are unfortunately limited in
 their thinking. ISPs are unable to see past the now almost 30 year old routing
@@ -74,7 +74,7 @@ MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux and Apple OSX
 systems. While the software itself is stable, the protocols and algorithms are
 new inventions and we still don't understand how they work in the real world so
 please update early and often to give developers the maximum latitude to make
-tweaks to the protocol and alogrithms.
+tweaks to the protocol and algorithms.
 
 
 You Can Help!
@@ -133,10 +133,7 @@ Clone the repository from GitHub and change to the source directory:
 
     ./do
 
-Look for this, then proceed below:
-
-    Build completed successfully, type ./cjdroute to begin setup.
-
+Look for `Build completed successfully, type ./cjdroute to begin setup.`, then proceed below:
 
 --------------------------------------------------------------------------------
 
@@ -257,13 +254,9 @@ The channel to join is #cjdns and you should stay there so that we are able to r
 
 ## Notes
 
-This starts cjdroute as the root user so cjdroute can configure your system and shed
-permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups
-below.
+This starts cjdroute as the root user so cjdroute can configure your system and shed permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups below.
 
-Protect your conf file! A lost conf file means you lost your password and connections
-and anyone who connected to you will nolonger be able to connect. A *compromized* conf
-file means that other people can impersonate you on the network.
+Protect your conf file! A lost conf file means you lost your password and connections and anyone who connected to you will nolonger be able to connect. A *compromised* conf file means that other people can impersonate you on the network.
 
     chmod 400 cjdroute.conf
     mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
