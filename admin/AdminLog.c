@@ -132,6 +132,11 @@ static Dict* makeLogMessage(struct Subscription* subscription,
     Dict_putString(out, String_new("file", alloc), String_new((char*)file, alloc), alloc);
     Dict_putInt(out, String_new("line", alloc), line, alloc);
     String* message = String_vprintf(alloc, format, vaArgs);
+
+    // Strip all of the annoying \n marks in the log entries.
+    if (message->len > 0 && message->bytes[message->len - 1] == '\n') {
+        message->len--;
+    }
     Dict_putString(out, String_new("message", alloc), message, alloc);
 
     return out;
@@ -189,25 +194,12 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
     enum Log_Level level = (levelName) ? Log_levelForName(levelName->bytes) : Log_Level_DEBUG;
     int64_t* lineNumPtr = Dict_getInt(args, String_CONST("line"));
     String* fileStr = Dict_getString(args, String_CONST("file"));
-    const char* file = (fileStr) ? fileStr->bytes : NULL;
+    const char* file = (fileStr && fileStr->len > 0) ? fileStr->bytes : NULL;
     char* error = "2+2=5";
     if (level == Log_Level_INVALID) {
-        error = "The provided log level is invalid, please specify one of ["
-            "ANY, "
-        #ifdef Log_DEBUG
-            "DEBUG, "
-        #endif
-        #ifdef Log_INFO
-            "INFO, "
-        #endif
-        #ifdef Log_WARN
-            "WARN, "
-        #endif
-        #ifdef Log_ERROR
-            "ERROR, "
-        #endif
-        "CRITICAL]";
-    } else if (lineNumPtr && *lineNumPtr < 0) {
+        level = Log_Level_KEYS;
+    }
+    if (lineNumPtr && *lineNumPtr < 0) {
         error = "Invalid line number, must be positive or 0 to signify any line is acceptable.";
     } else if (log->subscriptionCount >= MAX_SUBSCRIPTIONS) {
         error = "Max subscription count reached.";
@@ -215,7 +207,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
         struct Subscription* sub = &log->subscriptions[log->subscriptionCount];
         sub->level = level;
         sub->alloc = log->alloc->child(log->alloc);
-        if (file && strlen(file) > 0) {
+        if (file) {
             int i;
             for (i = 0; i < FILE_NAME_COUNT; i++) {
                 if (log->fileNames[i] && !strcmp(log->fileNames[i], file)) {
@@ -228,10 +220,8 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
                 file = String_new(file, sub->alloc)->bytes;
                 sub->internalName = false;
             }
-            sub->file = file;
-        } else {
-            sub->file = NULL;
         }
+        sub->file = file;
         sub->lineNum = (lineNumPtr) ? *lineNumPtr : 0;
         sub->txid = String_clone(txid, sub->alloc);
         randombytes((uint8_t*) sub->streamId, 8);

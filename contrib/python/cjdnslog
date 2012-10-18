@@ -13,6 +13,18 @@
 
 from cjdns import cjdns_connectWithAdminInfo;
 from bencode import *;
+import sys;
+
+def usage():
+    app = sys.argv[0];
+    print("Usage: " + app + " <level> <fileName> <lineNum>");
+    print(app + " 'INFO'                <-- log all INFO and higher (WARN, ERROR, or CRITICAL) messages.");
+    print(app + " ''                    <-- log everything");
+    print(app + " '' 'CryptoAuth.c'     <-- log everything in CryptoAuth.c");
+    print(app + " 'INFO' 'CryptoAuth.c' <-- log INFO and higher in CryptoAuth.c");
+    print(app + " '' 'CryptoAuth.c' 747 <-- print messages from log statement on line 747 of CryptoAuth.c");
+    print(app + " '' '' 747             <-- print messages from log statements on line 747 of any file at all.");
+
 
 def doLog(data):
     print str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message'];
@@ -41,5 +53,20 @@ def recieve(sock):
 
 cjdns = cjdns_connectWithAdminInfo();
 
-cjdns.AdminLog_subscribe();
-recieve(cjdns.socket);
+level = '';
+fileName = '';
+line = 0;
+args = len(sys.argv) - 1;
+if (args == 0):
+    usage();
+    exit(0);
+
+if (args > 0): level = sys.argv[1];
+if (args > 1): fileName = sys.argv[2];
+if (args > 2): line = int(sys.argv[3]);
+
+sub = cjdns.AdminLog_subscribe(line, fileName, level);
+if (sub['error'] == 'none'):
+    recieve(cjdns.socket);
+else:
+    print(sub);
