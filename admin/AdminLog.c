@@ -52,7 +52,7 @@ struct Subscription
     String* txid;
 
     /** A hopefully unique (random) number identifying this stream. */
-    int64_t streamId;
+    uint8_t streamId[8];
 
     /** An allocator which will live during the lifecycle of the Subscription */
     struct Allocator* alloc;
@@ -122,7 +122,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
 
     Dict* out = Dict_new(alloc);
     char* buff = alloc->malloc(20, alloc);
-    Hex_encode((uint8_t*)buff, 20, (uint8_t*)subscription->streamId, 8);
+    Hex_encode((uint8_t*)buff, 20, subscription->streamId, 8);
     Dict_putString(out, String_new("streamId", alloc), String_new(buff, alloc), alloc);
     Dict_putInt(out, String_new("time", alloc), now, alloc);
     Dict_putString(out,
@@ -137,13 +137,26 @@ static Dict* makeLogMessage(struct Subscription* subscription,
     return out;
 }
 
+static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
+{
+    sub->alloc->free(sub->alloc);
+    log->subscriptionCount--;
+    if (log->subscriptionCount == 0) {
+        return;
+    }
+    Bits_memcpyConst(sub,
+                     &log->subscriptions[log->subscriptionCount],
+                     sizeof(struct Subscription));
+}
+
 static void doLog(struct Log* genericLog,
                   enum Log_Level logLevel,
-                  const char* file,
+                  const char* fullFilePath,
                   uint32_t line,
                   const char* format,
                   va_list args)
 {
+    const char* file = strrchr(fullFilePath, '/') + 1;
     struct AdminLog* log = (struct AdminLog*) genericLog;
     Dict* message = NULL;
     #define ALLOC_BUFFER_SZ 4096
@@ -161,7 +174,10 @@ static void doLog(struct Log* genericLog,
                                          args,
                                          alloc);
             }
-            Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
+            int ret = Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
+            if (ret) {
+                removeSubscription(log, &log->subscriptions[i]);
+            }
         }
     }
 }
@@ -177,9 +193,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
     char* error = "2+2=5";
     if (level == Log_Level_INVALID) {
         error = "The provided log level is invalid, please specify one of ["
-        #ifdef Log_KEYS
-            "KEYS, "
-        #endif
+            "ANY, "
         #ifdef Log_DEBUG
             "DEBUG, "
         #endif
@@ -193,15 +207,15 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
             "ERROR, "
         #endif
         "CRITICAL]";
-    } else if (lineNumPtr && *lineNumPtr < 1) {
-        error = "Invalid line number, must be greater than or equal to 1";
+    } else if (lineNumPtr && *lineNumPtr < 0) {
+        error = "Invalid line number, must be positive or 0 to signify any line is acceptable.";
     } else if (log->subscriptionCount >= MAX_SUBSCRIPTIONS) {
         error = "Max subscription count reached.";
     } else {
         struct Subscription* sub = &log->subscriptions[log->subscriptionCount];
         sub->level = level;
         sub->alloc = log->alloc->child(log->alloc);
-        if (file) {
+        if (file && strlen(file) > 0) {
             int i;
             for (i = 0; i < FILE_NAME_COUNT; i++) {
                 if (log->fileNames[i] && !strcmp(log->fileNames[i], file)) {
@@ -214,13 +228,15 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
                 file = String_new(file, sub->alloc)->bytes;
                 sub->internalName = false;
             }
+            sub->file = file;
+        } else {
+            sub->file = NULL;
         }
-        sub->file = file;
         sub->lineNum = (lineNumPtr) ? *lineNumPtr : 0;
         sub->txid = String_clone(txid, sub->alloc);
-        randombytes((uint8_t*) &sub->streamId, 8);
+        randombytes((uint8_t*) sub->streamId, 8);
         uint8_t streamIdHex[20];
-        Hex_encode(streamIdHex, 20, (uint8_t*)&sub->streamId, 8);
+        Hex_encode(streamIdHex, 20, sub->streamId, 8);
         Dict response = Dict_CONST(
             String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
             String_CONST("streamId"), String_OBJ(String_CONST((char*)streamIdHex)), NULL
@@ -240,23 +256,15 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* streamIdHex = Dict_getString(args, String_CONST("streamId"));
-    int64_t streamId;
+    uint8_t streamId[8];
     char* error = NULL;
-    if (streamIdHex->len != 16
-        || Hex_decode((uint8_t*)&streamId, 8, (uint8_t*)streamIdHex->bytes, 16) != 8)
-    {
+    if (streamIdHex->len != 16 || Hex_decode(streamId, 8, (uint8_t*)streamIdHex->bytes, 16) != 8) {
         error = "Invalid streamId.";
     } else {
         error = "No such subscription.";
         for (int i = 0; i < (int)log->subscriptionCount; i++) {
-            if (streamId == log->subscriptions[i].streamId) {
-                log->subscriptions[i].alloc->free(log->subscriptions[i].alloc);
-                log->subscriptionCount--;
-                if (log->subscriptionCount) {
-                    Bits_memcpyConst(&log->subscriptions[i],
-                                     &log->subscriptions[log->subscriptionCount],
-                                     sizeof(struct Subscription));
-                }
+            if (!memcmp(streamId, log->subscriptions[i].streamId, 8)) {
+                removeSubscription(log, &log->subscriptions[i]);
                 error = "none";
                 break;
             }

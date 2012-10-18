@@ -282,10 +282,10 @@ static void adminChannelSendData(struct Admin* admin,
 /**
  * public function to send responses
  */
-void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
+int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 {
     if (!admin) {
-        return;
+        return 0;
     }
     Assert_true(txid);
 
@@ -293,10 +293,7 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     struct Admin_Channel* channel = adminChannelFindByTxid(admin, txid, &channelNum);
 
     if (!channel) {
-        // txid too short, invalid channel number, closed channel or not matching serial
-        Log_debug(admin->logger,
-                  "Dropped response because channel isn't open anymore.");
-        return;
+        return Admin_sendMessage_CHANNEL_CLOSED;
     }
 
     uint8_t buff[AngelChan_MAX_API_REQUEST_SIZE];
@@ -313,10 +310,12 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         Dict_putString(message, TXID, &userTxid, allocator);
     }
 
-    struct Writer* w = ArrayWriter_new(buff, sizeof(buff), allocator);
+    struct Writer* w = ArrayWriter_new(buff, AngelChan_MAX_API_REQUEST_SIZE, allocator);
     StandardBencSerializer_get()->serializeDictionary(w, message);
 
     adminChannelSendData(admin, channelNum, buff, w->bytesWritten(w));
+
+    return 0;
 }
 
 /**

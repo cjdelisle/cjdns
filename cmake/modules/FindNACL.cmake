@@ -30,8 +30,8 @@ if (NOT NACL_FOUND)
         NAMES
             nacl
         PATHS
-            ${NACL_INCLUDE_DIRS}/../lib
-            ${NACL_INCLUDE_DIRS}/../../lib
+            ${NACL_INCLUDE_DIRS}/../lib/default
+            ${NACL_INCLUDE_DIRS}/../../lib/default
         NO_DEFAULT_PATH
     )
 

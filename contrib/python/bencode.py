@@ -61,9 +61,12 @@ decode_func['7'] = decode_string
 decode_func['8'] = decode_string
 decode_func['9'] = decode_string
 
+def bdecode_stream(x):
+    return decode_func[x[0]](x, 0);
+
 def bdecode(x):
     try:
-        r, l = decode_func[x[0]](x, 0)
+        r, l = bdecode_stream(x);
     except (IndexError, KeyError):
         raise ValueError
     if l != len(x):

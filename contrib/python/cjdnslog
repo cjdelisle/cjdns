@@ -1,0 +1,45 @@
+#!/usr/bin/python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from cjdns import cjdns_connectWithAdminInfo;
+from bencode import *;
+
+def doLog(data):
+    print str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message'];
+
+def recieve(sock):
+    allData = '';
+    error = 0;
+    while True:
+        data = sock.recv(8192);
+        allData = allData + data;
+        try:
+            output, index = bdecode_stream(allData);
+        except (KeyError, ValueError):
+            if (error > 5):
+                allData = "";
+                error = 0;
+            else:
+                error = error + 1;
+
+            continue;
+
+        doLog(output);
+        allData = allData[index:];
+
+
+
+cjdns = cjdns_connectWithAdminInfo();
+
+cjdns.AdminLog_subscribe();
+recieve(cjdns.socket);
