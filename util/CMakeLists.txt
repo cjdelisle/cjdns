@@ -28,6 +28,9 @@ endif()
 add_library(cjdns-security
     ${sec}
 )
+target_link_libraries(cjdns-security
+    cjdns-except
+)
 
 add_library(cjdns-process
     Process_${SYSTEM}.c
@@ -40,7 +43,12 @@ add_library(util
     Pinger.c
     Security_admin.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security cjdns-util-log-writer)
+target_link_libraries(util
+    cjdmemory
+    ${LIBEVENT2_LIBRARIES}
+    cjdns-security
+    cjdns-util-log-writer
+)
 
 # Everything must be tested.
 enable_testing()

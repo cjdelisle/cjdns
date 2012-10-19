@@ -12,24 +12,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Except_H
-#define Except_H
+#define _POSIX_C_SOURCE 200112L
 
-#include "util/Gcc.h"
+#include "exception/Except.h"
 
 #include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define Except_BUFFER_SZ 1024
-
-struct Except
+void Except_raise(struct Except* eh, int code, char* format, ...)
 {
-    void (* exception)(char* message, int code, struct Except* handler);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
 
-    char message[Except_BUFFER_SZ];
-};
-
-Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
-
-#endif
+    eh->exception(eh->message, code, eh);
+    abort();
+}
