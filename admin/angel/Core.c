@@ -12,9 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#define _POSIX_SOURCE // fdopen()
-
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "admin/angel/AngelChan.h"
@@ -30,11 +27,11 @@
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/AbortHandler.h"
-#include "exception/WriteErrorHandler.h"
 #include "interface/UDPInterface_admin.h"
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
 #include "io/ArrayReader.h"
+#include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
@@ -204,12 +201,13 @@ int Core_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+    // earlyAlloc will be freed after intiailization.
+    struct Allocator* earlyAlloc = alloc->child(alloc);
 
-
-    FILE* toAngelF = fdopen(toAngel, "w");
-    Assert_always(toAngelF != NULL);
-    struct Writer* toAngelWriter = FileWriter_new(toAngelF, alloc);
-    eh = WriteErrorHandler_new(toAngelWriter, alloc);
+    #define BUFFER_SZ 2048
+    char* buffer = earlyAlloc->malloc(BUFFER_SZ, earlyAlloc);
+    struct Writer* toAngelWriter = ArrayWriter_new(buffer, BUFFER_SZ, earlyAlloc);
+    write(toAngel, buffer, toAngelWriter->bytesWritten(toAngelWriter));
 
     struct event_base* eventBase = event_base_new();
 
@@ -307,6 +305,7 @@ int Core_main(int argc, char** argv)
             });
     Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
 
+    earlyAlloc->free(earlyAlloc);
 
     event_base_dispatch(eventBase);
     return 0;
