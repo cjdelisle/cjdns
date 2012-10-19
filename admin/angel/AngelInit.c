@@ -41,7 +41,7 @@
 #include <errno.h>
 
 #ifdef FreeBSD
-    #include <in.h>
+    #include <netinet/in.h>
 #endif
 
 /**
