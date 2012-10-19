@@ -52,7 +52,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
     set(FREEBSD TRUE)
     set(SYSTEM FreeBSD)
 endif()
-add_definitions(-D ${SYSTEM}=1}
+add_definitions(-D ${SYSTEM}=1})
 
 if(CMAKE_C_COMPILER MATCHES "(.*)-gcc")
     string(REGEX REPLACE "-gcc$" "" toolchain ${CMAKE_C_COMPILER})
