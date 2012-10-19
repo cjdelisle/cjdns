@@ -3,4 +3,5 @@ buildw32
 *.pyc
 .clang_complete
 cjdroute
+cjdns
 *~

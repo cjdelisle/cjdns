@@ -319,9 +319,9 @@ static void corePinger(void* vcontext)
 {
     struct AngelContext* context = (struct AngelContext*) vcontext;
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
-    if (now > context->timeOfLastMessageFromCore + 3000) {
-        if (now > context->timeOfLastMessageFromCore + 5000) {
-            //fprintf(stderr, "no response from core, exiting");
+    if (now > context->timeOfLastMessageFromCore + 1000) {
+        if (now > context->timeOfLastMessageFromCore + 10000) {
+            fprintf(stderr, "no response from core, exiting");
             exit(1);
         }
         pingCore(context);
@@ -364,7 +364,7 @@ void Angel_start(String* pass,
         event_new(context->eventBase, tcpSocket, EV_READ | EV_PERSIST, acceptConn, context);
     event_add(context->socketEvent, NULL);
 
-    Timeout_setInterval(corePinger, context, 3000, eventBase, alloc);
+    Timeout_setInterval(corePinger, context, 1000, eventBase, alloc);
 
     event_base_dispatch(context->eventBase);
 }

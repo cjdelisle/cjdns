@@ -92,8 +92,37 @@ static void randomBase32(uint8_t output[32])
     Base32_encode(output, 32, bin, 16);
 }
 
+static bool fileExists(const char* filename)
+{
+    FILE* file;
+    if ((file = fopen(filename, "r")) != NULL) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+static String* getCorePath(struct Allocator* alloc)
+{
+    struct Allocator* alloc2 = alloc->child(alloc);
+    char* cjdroute2Path = Process_getPath(alloc2);
+    char* lastSlash = strrchr(cjdroute2Path, '/');
+    Assert_always(lastSlash != NULL);
+    *lastSlash = '\0';
+    String* tempOutput = String_printf(alloc2, "%s/cjdns", cjdroute2Path);
+    String* output = NULL;
+    if (fileExists(tempOutput->bytes)) {
+        output = String_clone(tempOutput, alloc);
+    }
+    alloc2->free(alloc2);
+    return output;
+}
+
 static int genconf()
 {
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    String* corePath = getCorePath(alloc);
+
     uint8_t password[32];
     randomBase32(password);
 
@@ -111,6 +140,14 @@ static int genconf()
     genAddress(address, privateKeyHex, publicKeyBase32);
 
     printf("{\n");
+    printf("    // The path to the cjdns core executable.\n");
+    if (corePath) {
+        printf("    \"corePath\": \"%s\",\n", corePath->bytes);
+    } else {
+        printf("    // cjdroute2 could not find this file, please specify it's location.\n");
+        printf("    //\"corePath\": \"\",\n");
+    }
+    printf("\n");
     printf("    // Private key:\n"
            "    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
            "    \"privateKey\": \"%s\",\n\n", privateKeyHex);
@@ -358,8 +395,20 @@ int main(int argc, char** argv)
     // --------------------- Spawn Angel --------------------- //
     String* corePath = Dict_getString(&config, String_CONST("corePath"));
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
-    if (!corePath || !privateKey) {
-        Except_raise(eh, -1, "Need to specify corePath, and privateKey.");
+
+    if (!corePath) {
+        corePath = getCorePath(allocator);
+    }
+    if (!corePath) {
+        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
+                             "try specifying the location in your cjdroute.conf");
+    } else {
+        Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
+                         "guessing it's location.");
+    }
+
+    if (!privateKey) {
+        Except_raise(eh, -1, "Need to specify privateKey.");
     }
     Process_spawn(corePath->bytes, args, allocator);
 

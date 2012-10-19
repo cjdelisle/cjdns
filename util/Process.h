@@ -17,7 +17,6 @@
 
 #include "memory/Allocator.h"
 
-#include <stdint.h>
 
 /**
  * Spawn a new process.
@@ -28,5 +27,12 @@
  */
 int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc);
 
+/**
+ * Get the path to the binary of the current process.
+ *
+ * @param alloc an allocator.
+ * @return the binary path to the process or null if there was a failure.
+ */
+char* Process_getPath(struct Allocator* alloc);
 
 #endif

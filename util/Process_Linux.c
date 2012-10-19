@@ -13,12 +13,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _POSIX_C_SOURCE 200112L
+
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Process.h"
+#include "util/Bits.h"
 
+#include <stdint.h>
+#include <string.h>
 #include <unistd.h>
-
 
 int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc)
 {
@@ -42,4 +46,17 @@ int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc)
         _exit(72);
     }
     return 0;
+}
+
+char* Process_getPath(struct Allocator* alloc)
+{
+    char buff[1024] = {0};
+    ssize_t pathSize = readlink("/proc/self/exe", buff, 1023);
+    if (pathSize < 1) {
+        return NULL;
+    }
+    uint32_t length = strlen(buff);
+    char* output = alloc->calloc(length + 1, 1, alloc);
+    Bits_memcpy(output, buff, length);
+    return output;
 }

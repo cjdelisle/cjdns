@@ -211,23 +211,6 @@ add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(net)
 
-#add_executable(cjdroute cjdroute.c)
-#target_link_libraries(cjdroute
-#    crypto
-#    crypto_benchmark
-#    interface
-#    switch
-#    dht
-#    dhtcore
-#    cjdbenc
-#    cjdbenc_JsonBencSerializer
-#    cjdmemory
-#    cjdns-admin
-#    cjdnet
-#    ${LIBEVENT2_LIBRARIES}
-#    ${PLATFORM_LIBRARIES}
-#)
-
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 
 OPTION(NO_CODESYTLE "No codestyle checks")
