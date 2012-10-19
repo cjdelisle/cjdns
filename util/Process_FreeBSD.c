@@ -51,7 +51,6 @@ char* Process_getPath(struct Allocator* alloc)
 {
     size_t len = MAXPATHLEN;
     char buff[MAXPATHLEN];
-    char* path;
 
     int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, getpid() };
     if (sysctl(mib, 4, buff, &len, NULL, 0) != 0) {
