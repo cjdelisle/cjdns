@@ -472,7 +472,8 @@ int main(int argc, char** argv)
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
     Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
-    struct sockaddr_storage adminAddr = {0};
+    struct sockaddr_storage adminAddr;
+    memset(&adminAddr, 0, sizeof(struct sockaddr_storage));
     int adminAddrLen = sizeof(struct sockaddr_storage);
     if (!adminBind) {
         Except_raise(eh, -1, "didn't get address and port back from angel");
