@@ -51,7 +51,7 @@ int Process_spawn(char* binaryPath, char** args)
 char* Process_getPath(struct Allocator* alloc)
 {
     char buff[1024] = {0};
-    ssize_t pathSize = readlink("/proc/self/exe", buff, 1023);
+    ssize_t pathSize = readlink("/proc/self/path/a.out", buff, 1023);
     if (pathSize < 1) {
         return NULL;
     }

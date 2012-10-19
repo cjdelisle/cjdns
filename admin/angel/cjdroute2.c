@@ -410,7 +410,7 @@ int main(int argc, char** argv)
     if (!privateKey) {
         Except_raise(eh, -1, "Need to specify privateKey.");
     }
-    Process_spawn(corePath->bytes, args, allocator);
+    Process_spawn(corePath->bytes, args);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));

@@ -83,7 +83,7 @@ static void initCore(char* coreBinaryPath,
         Except_raise(eh, -1, "Can't open core executable [%s] for reading.", coreBinaryPath);
     }
 
-    if (Process_spawn(coreBinaryPath, args, alloc)) {
+    if (Process_spawn(coreBinaryPath, args)) {
         Except_raise(eh, -1, "Failed to spawn core process.");
     }
 

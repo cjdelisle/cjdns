@@ -23,7 +23,6 @@ if(WIN32)
     message(FATAL ERROR "Please implement a windows version of Process_Linux")
 else()
     set(sec Security.c)
-    set(process Process_Linux.c)
 endif()
 
 add_library(cjdns-security
@@ -31,7 +30,7 @@ add_library(cjdns-security
 )
 
 add_library(cjdns-process
-    ${process}
+    Process_${SYSTEM}.c
 )
 
 add_library(util

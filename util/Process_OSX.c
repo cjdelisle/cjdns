@@ -20,6 +20,7 @@
 #include "util/Process.h"
 #include "util/Bits.h"
 
+#include <mach-o/dyld.h> // _NSGetExecutablePath()
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -51,8 +52,9 @@ int Process_spawn(char* binaryPath, char** args)
 char* Process_getPath(struct Allocator* alloc)
 {
     char buff[1024] = {0};
-    ssize_t pathSize = readlink("/proc/self/exe", buff, 1023);
-    if (pathSize < 1) {
+    int size = 1023;
+    _NSGetExecutablePath(buff, &size);
+    if (size > 1023) {
         return NULL;
     }
     uint32_t length = strlen(buff);

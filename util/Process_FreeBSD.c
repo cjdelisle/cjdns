@@ -50,11 +50,15 @@ int Process_spawn(char* binaryPath, char** args)
 
 char* Process_getPath(struct Allocator* alloc)
 {
-    char buff[1024] = {0};
-    ssize_t pathSize = readlink("/proc/self/exe", buff, 1023);
-    if (pathSize < 1) {
+    size_t len = MAXPATHLEN;
+    char buff[MAXPATHLEN];
+    char* path;
+
+    int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, getpid() };
+    if (sysctl(mib, 4, buff, &len, NULL, 0) != 0) {
         return NULL;
     }
+
     uint32_t length = strlen(buff);
     char* output = alloc->calloc(length + 1, 1, alloc);
     Bits_memcpy(output, buff, length);

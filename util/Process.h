@@ -25,7 +25,7 @@
  * @param args a list of strings representing the arguments to the command followed by NULL.
  * @return 0 if all went well, -1 if forking fails.
  */
-int Process_spawn(char* binaryPath, char** args, struct Allocator* alloc);
+int Process_spawn(char* binaryPath, char** args);
 
 /**
  * Get the path to the binary of the current process.
