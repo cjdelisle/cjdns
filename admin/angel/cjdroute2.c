@@ -26,7 +26,6 @@
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/ExceptionHandler.h"
 #include "exception/AbortHandler.h"
-#include "exception/Jmp.h"
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
