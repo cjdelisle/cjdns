@@ -21,6 +21,7 @@
 #include "util/Bits.h"
 
 #include <mach-o/dyld.h> // _NSGetExecutablePath()
+#include <sys/param.h> // MAXPATHLEN
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -51,10 +52,10 @@ int Process_spawn(char* binaryPath, char** args)
 
 char* Process_getPath(struct Allocator* alloc)
 {
-    char buff[1024] = {0};
-    int size = 1023;
+    char buff[MAXPATHLEN + 1] = {0};
+    uint32_t size = MAXPATHLEN;
     _NSGetExecutablePath(buff, &size);
-    if (size > 1023) {
+    if (size > MAXPATHLEN) {
         return NULL;
     }
     uint32_t length = strlen(buff);
