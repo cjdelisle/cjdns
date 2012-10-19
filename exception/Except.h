@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h> // Apple needs this for vsnprintf()
 
 #define Except_BUFFER_SZ 1024
 
