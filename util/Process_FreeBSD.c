@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/sysctl.h> // sysctl()
+#include <sys/param.h> // MAXPATHLEN
 
 int Process_spawn(char* binaryPath, char** args)
 {
