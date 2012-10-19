@@ -20,6 +20,8 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 
+#include <string.h>
+
 struct Context
 {
     struct Log* logger;

@@ -21,6 +21,7 @@
 #include <pwd.h>
 #include <errno.h>
 #include <unistd.h>
+#include <string.h>
 
 void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {

@@ -21,7 +21,7 @@
 #include "util/log/Log.h"
 
 #include <event2/event.h>
-
+#include <string.h>
 
 struct Context
 {

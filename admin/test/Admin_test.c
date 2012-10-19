@@ -18,11 +18,11 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
+#include "util/Assert.h"
 
 #include <errno.h>
-
+#include <string.h>
 #include <event2/event.h>
-#include "util/Assert.h"
 
 struct Context {
     struct AdminTestFramework* framework;

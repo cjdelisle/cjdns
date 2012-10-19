@@ -91,10 +91,8 @@ static inline void* Bits_memcpyDebug(void* out,
 {
     const char* inc = in;
     const char* outc = out;
-    if (outc >= inc && outc < inc + length) {
-        fprintf(stderr, "Bits_memcpy() output and input alias eachother at %s:%d", file, line);
-        abort();
-    }
+    // Check that pointers don't alias.
+    Assert_always(outc < inc || outc >= inc + length);
     return memcpy(out, in, length);
 }
 

@@ -23,6 +23,7 @@
 #include <event2/event.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 struct Context
 {

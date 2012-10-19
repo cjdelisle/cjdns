@@ -25,6 +25,7 @@
 #include <crypto_hash_sha256.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 struct AdminClient
 {

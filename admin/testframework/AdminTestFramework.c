@@ -26,6 +26,7 @@
 #include "util/log/WriterLog.h"
 
 #include <event2/event.h>
+#include <string.h>
 
 struct AdminTestFramework* AdminTestFramework_setUp()
 {

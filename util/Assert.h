@@ -17,6 +17,7 @@
 
 #include "util/log/Log.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Internals */
 #define Assert_COUNTER x

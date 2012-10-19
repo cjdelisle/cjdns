@@ -10,10 +10,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+add_library(cjdns-util-log
+    Log.c
+)
+
 add_library(cjdns-util-log-writer
     WriterLog.c
+)
+target_link_libraries(cjdns-util-log-writer
+    cjdns-util-log
 )
 
 add_library(cjdns-util-log-indirect
     IndirectLog.c
+)
+target_link_libraries(cjdns-util-log-indirect
+    cjdns-util-log
 )

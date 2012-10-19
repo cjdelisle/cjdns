@@ -15,15 +15,10 @@
 #ifndef Log_H
 #define Log_H
 
-#include "io/Writer.h"
 #include "util/Gcc.h"
 
 #include <stdarg.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <strings.h>
-#include <time.h>
 
 enum Log_Level
 {
@@ -50,28 +45,9 @@ struct Log
     Log_callback callback;
 };
 
-static inline char* Log_nameForLevel(enum Log_Level logLevel)
-{
-    switch (logLevel) {
-        case Log_Level_KEYS:     return "KEYS";
-        case Log_Level_DEBUG:    return "DEBUG";
-        case Log_Level_INFO:     return "INFO";
-        case Log_Level_WARN:     return "WARN";
-        case Log_Level_ERROR:    return "ERROR";
-        case Log_Level_CRITICAL: return "CRITICAL";
-        default:                 return "INVALID";
-    }
-}
+char* Log_nameForLevel(enum Log_Level logLevel);
 
-static inline enum Log_Level Log_levelForName(char* name)
-{
-    for (enum Log_Level logLevel = Log_Level_KEYS; logLevel <= Log_Level_CRITICAL; logLevel++) {
-        if (!strcasecmp(name, Log_nameForLevel(logLevel))) {
-            return logLevel;
-        }
-    }
-    return Log_Level_INVALID;
-}
+enum Log_Level Log_levelForName(char* name);
 
 #ifdef Log_KEYS
     #define Log_DEBUG
