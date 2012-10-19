@@ -21,7 +21,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h> // Apple needs this for vsnprintf()
+
+// Apple doesn't expose vsnprintf
+#ifdef OSX
+    vsnprintf(char*, size_t, const char*, va_list);
+#endif
 
 #define Except_BUFFER_SZ 1024
 
