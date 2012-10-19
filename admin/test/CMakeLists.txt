@@ -24,7 +24,7 @@ foreach(test_source_fullpath ${tests})
   string(REPLACE "test.c" "test" test_bin ${test_source})
   message("     " ${test_source})
   add_executable(${test_bin} ${test_source})
-  target_link_libraries(${test_bin} cjdadmin cjdadmintest)
+  target_link_libraries(${test_bin} cjdns-admin cjdns-admin-client cjdadmintest)
   add_test(${test_bin} ${test_bin})
 endforeach()
 # Add an empty line after tests.

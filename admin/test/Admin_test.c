@@ -18,15 +18,6 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
-/*<<<<<<< HEAD
-#include "memory/MallocAllocator.h"
-#include "io/FileWriter.h"
-#include "io/Writer.h"
-#include "util/Endian.h"
-#include "util/Log.h"
-#include "exception/AbortHandler.h"
-=======
->>>>>>> UDPadmin*/
 
 #include <errno.h>
 
@@ -180,6 +171,5 @@ int main()
     //Assert_always(String_equals(password, ctx.password));
 
     standardClient(&ctx);
-
     slowClient(&ctx);
 }

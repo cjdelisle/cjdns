@@ -64,6 +64,6 @@ done
 
 ${CMAKE} .. && make &&
     make test || rm cjdroute &&
-    [ -f cjdroute ] &&
-    cp cjdroute ../cjdroute &&
+    [ -f admin/angel/cjdroute2 ] && cp admin/angel/cjdroute2 ../cjdroute &&
+    [ -f admin/angel/cjdns ] && cp admin/angel/cjdns ../ &&
     echo "\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m"

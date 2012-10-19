@@ -58,16 +58,25 @@ void Admin_registerFunctionWithArgCount(char* name,
     Admin_registerFunctionWithArgCount(                                                           \
         name, cb, ctx, needsAuth, args, (sizeof(args) / sizeof(struct Admin_FunctionArg)), admin)
 
-void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
+#define Admin_sendMessage_CHANNEL_CLOSED -1
+int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-struct Admin* Admin_new(struct sockaddr_storage* addr,
-                        int addrLen,
-                        String* password,
-                        char* user,
-                        struct event_base* eventBase,
-                        struct ExceptionHandler* eh,
+struct Admin* Admin_new(int fromAngelFd,
+                        int toAngelFd,
+                        struct Allocator* alloc,
                         struct Log* logger,
-                        struct Allocator* allocator);
+                        struct event_base* eventBase,
+                        String* password,
+                        uint8_t pipeMagic[8]);
+
+struct Admin* Admin_newProc(struct sockaddr_storage* addr,
+                            int addrLen,
+                            String* password,
+                            char* user,
+                            struct event_base* eventBase,
+                            struct ExceptionHandler* eh,
+                            struct Log* logger,
+                            struct Allocator* allocator);
 
 void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
                           int* addrLenPtr,

@@ -17,7 +17,7 @@
 
 #include "exception/ExceptionHandler.h"
 #include "util/Security.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 // lol windows security
 

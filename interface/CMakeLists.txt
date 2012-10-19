@@ -16,25 +16,13 @@ if(WIN32)
   set(tunconf TUNConfigurator_W32.c)
 else()
   set(tunif TUNInterface.c)
-  if(LINUX)
-    set(tunconf TUNConfigurator_Linux.c)
-  elseif(APPLE)
-    set(tunconf TUNConfigurator_OSX.c)
-  elseif(ILLUMOS)
-    add_definitions(-D Illumos=1)
-    set(tunconf TUNConfigurator_Illumos.c)
-  elseif(FREEBSD)
-    set(tunconf TUNConfigurator_FreeBSD.c)
-  else()
-    message(FATAL_ERROR "no TUN adapter to handle your system [${CMAKE_SYSTEM_NAME}]")
-  endif()
 endif()
 
 add_library(interface
     UDPInterface.c
     UDPInterface_admin.c
     ${tunif}
-    ${tunconf}
+    TUNConfigurator_${SYSTEM}.c
     InterfaceConnector.c
     SessionManager.c
 )

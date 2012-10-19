@@ -21,7 +21,7 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "interface/Interface.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "net/Ducttape.h"
 
 #include <stdint.h>

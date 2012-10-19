@@ -41,11 +41,18 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
     set(ILLUMOS TRUE)
+    set(SYSTEM Illumos)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(LINUX TRUE)
+    set(SYSTEM Linux)
+elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+    set(APPLE TRUE)
+    set(SYSTEM OSX)
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
     set(FREEBSD TRUE)
+    set(SYSTEM FreeBSD)
 endif()
+add_definitions(-D ${SYSTEM}=1}
 
 if(CMAKE_C_COMPILER MATCHES "(.*)-gcc")
     string(REGEX REPLACE "-gcc$" "" toolchain ${CMAKE_C_COMPILER})
@@ -194,6 +201,7 @@ endif()
 # GIT_VERSION is used in dht/dhtcore/CMakeLists.txt
 
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/src)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
@@ -212,24 +220,7 @@ add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(net)
 
-add_executable(cjdroute cjdroute.c)
-target_link_libraries(cjdroute
-    crypto
-    crypto_benchmark
-    interface
-    switch
-    dht
-    dhtcore
-    cjdbenc
-    cjdbenc_JsonBencSerializer
-    cjdmemory
-    cjdadmin
-    cjdnet
-    ${LIBEVENT2_LIBRARIES}
-    ${PLATFORM_LIBRARIES}
-)
-
-INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
+#INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 
 OPTION(NO_CODESYTLE "No codestyle checks")
 

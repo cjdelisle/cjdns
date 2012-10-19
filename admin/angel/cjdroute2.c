@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
+#include "admin/angel/Waiter.h"
 #include "admin/AuthorizedPasswords.h"
 #include "admin/Configurator.h"
 #include "benc/Int.h"
@@ -31,12 +32,15 @@
 #include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
+#include "io/ArrayReader.h"
+#include "io/ArrayWriter.h"
 #include "io/FileReader.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
-#include "util/Log.h"
+#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "util/log/Log.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
@@ -47,6 +51,8 @@
 #include "util/Base32.h"
 #include "util/Hex.h"
 #include "util/Security.h"
+#include "util/Process.h"
+#include "util/log/WriterLog.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -56,38 +62,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#define DEFAULT_TUN_DEV "cjdroute0"
-
-/**
- * The worst possible packet overhead.
- * assuming the packet needs to be handed off to another node
- * because we have no route to the destination.
- * and the CryptoAuths to both the destination and the handoff node are both timed out.
- */
-#define WORST_CASE_OVERHEAD ( \
-    /* TODO: Headers_IPv4_SIZE */ 20 \
-    + Headers_UDPHeader_SIZE \
-    + 4 /* Nonce */ \
-    + 16 /* Poly1305 authenticator */ \
-    + Headers_SwitchHeader_SIZE \
-    + Headers_CryptoAuth_SIZE \
-    + Headers_IP6Header_SIZE \
-    + Headers_CryptoAuth_SIZE \
-)
-
-/** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
-#define DEFAULT_MTU ( \
-    1492 \
-  - WORST_CASE_OVERHEAD \
-  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
-  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
-  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
-)
-
-struct User
-{
-    uint64_t trust;
-};
+#define DEFAULT_TUN_DEV "tun0"
 
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
@@ -117,8 +92,37 @@ static void randomBase32(uint8_t output[32])
     Base32_encode(output, 32, bin, 16);
 }
 
+static bool fileExists(const char* filename)
+{
+    FILE* file;
+    if ((file = fopen(filename, "r")) != NULL) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+static String* getCorePath(struct Allocator* alloc)
+{
+    struct Allocator* alloc2 = alloc->child(alloc);
+    char* cjdroute2Path = Process_getPath(alloc2);
+    char* lastSlash = strrchr(cjdroute2Path, '/');
+    Assert_always(lastSlash != NULL);
+    *lastSlash = '\0';
+    String* tempOutput = String_printf(alloc2, "%s/cjdns", cjdroute2Path);
+    String* output = NULL;
+    if (fileExists(tempOutput->bytes)) {
+        output = String_clone(tempOutput, alloc);
+    }
+    alloc2->free(alloc2);
+    return output;
+}
+
 static int genconf()
 {
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    String* corePath = getCorePath(alloc);
+
     uint8_t password[32];
     randomBase32(password);
 
@@ -136,6 +140,14 @@ static int genconf()
     genAddress(address, privateKeyHex, publicKeyBase32);
 
     printf("{\n");
+    printf("    // The path to the cjdns core executable.\n");
+    if (corePath) {
+        printf("    \"corePath\": \"%s\",\n", corePath->bytes);
+    } else {
+        printf("    // cjdroute2 could not find this file, please specify it's location.\n");
+        printf("    //\"corePath\": \"\",\n");
+    }
+    printf("\n");
     printf("    // Private key:\n"
            "    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
            "    \"privateKey\": \"%s\",\n\n", privateKeyHex);
@@ -248,28 +260,6 @@ static int genconf()
     return 0;
 }
 
-static void parsePrivateKey(Dict* config, struct Address* addr, uint8_t privateKey[32])
-{
-    String* privateKeyStr = Dict_getString(config, String_CONST("privateKey"));
-    if (privateKeyStr == NULL) {
-        fprintf(stderr, "Could not extract private key from configuration.\n");
-    } else if (privateKeyStr->len != 64) {
-        fprintf(stderr, "Private key is not 32 bytes long.\n");
-    } else if (Hex_decode(privateKey, 32, (uint8_t*)privateKeyStr->bytes, 64) != 32) {
-        fprintf(stderr, "Failed to parse private key.\n");
-    } else {
-        crypto_scalarmult_curve25519_base(addr->key, privateKey);
-        AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
-        if (addr->ip6.bytes[0] != 0xFC) {
-            fprintf(stderr, "Ip address is outside of the FC00/8 range, "
-                            "invalid private key.\n");
-        } else {
-            return;
-        }
-    }
-    exit(-1);
-}
-
 static int usage(char* appName)
 {
     printf("Usage: %s [--help] [--genconf] [--bench] [--version]\n"
@@ -293,7 +283,7 @@ static int usage(char* appName)
 
     return 0;
 }
-
+/*
 static void reconf(struct event_base* eventbase,
                    Dict* mainConf,
                    struct Log* logger,
@@ -319,72 +309,15 @@ static void reconf(struct event_base* eventbase,
 
     Configurator_config(mainConf, &addr, addrLen, password, eventbase, logger, alloc);
 }
-
-static char* setUser(List* config)
-{
-    for (int i = 0; i < List_size(config); i++) {
-        Dict* d = List_getDict(config, i);
-        if (d) {
-            String* uname = Dict_getString(d, String_CONST("setuser"));
-            if (uname) {
-                return uname->bytes;
-            }
-        }
-    }
-    return NULL;
-}
-
-static void security(List* config, struct Log* logger, struct ExceptionHandler* eh)
-{
-    if (!config) {
-        return;
-    }
-    bool nofiles = false;
-    for (int i = 0; i < List_size(config); i++) {
-        String* s = List_getString(config, i);
-        if (s && String_equals(s, String_CONST("nofiles"))) {
-            nofiles = true;
-        }
-    }
-    char* user = setUser(config);
-    if (user) {
-        Log_info(logger, "Changing user to [%s]\n", user);
-        Security_setUser(user, logger, eh);
-    }
-    if (nofiles) {
-        Log_info(logger, "Setting max open files to zero.\n");
-        Security_noFiles(eh);
-    }
-}
-
-static void adminPing(Dict* input, void* vadmin, String* txid)
-{
-    Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
-    Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
-}
-
-struct MemoryContext
-{
-    struct Allocator* allocator;
-    struct Admin* admin;
-};
-
-static void adminMemory(Dict* input, void* vcontext, String* txid)
-{
-    struct MemoryContext* context = vcontext;
-    Dict d = Dict_CONST(
-        String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
-    );
-    Admin_sendMessage(&d, txid, context->admin);
-}
+*/
 
 static int benchmark()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct event_base* base = event_base_new();
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log logger = { .writer = logwriter };
-    CryptoAuth_benchmark(base, &logger, alloc);
+    struct Writer* logWriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logWriter, alloc);
+    CryptoAuth_benchmark(base, logger, alloc);
     return 0;
 }
 
@@ -395,6 +328,7 @@ int main(int argc, char** argv)
     #endif
     Crypto_init();
     Assert_true(argc > 0);
+    struct Except* eh = AbortHandler_INSTANCE;
 
     if (argc == 2) {
         // one argument
@@ -409,7 +343,7 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
         } else if (strcmp(argv[1], "--version") == 0) {
-            printf("Version ID: %s\n", RouterModule_gitVersion());
+            //printf("Version ID: %s\n", RouterModule_gitVersion());
             return 0;
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
@@ -433,193 +367,132 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    struct event_base* eventBase = event_base_new();
-
     // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
-    struct Reader* reader = FileReader_new(stdin, allocator);
+    struct Reader* stdinReader = FileReader_new(stdin, allocator);
     Dict config;
-    if (JsonBencSerializer_get()->parseDictionary(reader, allocator, &config)) {
+    if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
     }
 
-    // Logging. TODO: admin based logging.
-    struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Writer* logWriter = FileWriter_new(stdout, allocator);
+    struct Log* logger = WriterLog_new(logWriter, allocator);
 
-
-    // pid file
-    String* pidFile = Dict_getString(&config, String_CONST("pidFile"));
-    if (pidFile) {
-        if (argc == 2 && strcmp(argv[1], "--pidfile") == 0) {
-            printf("%s", pidFile->bytes);
-            return 0;
-        }
-        Log_info(logger, "Writing pid of process to [%s].\n", pidFile->bytes);
-        FILE* pf = fopen(pidFile->bytes, "w");
-        if (!pf) {
-            Log_critical(logger,
-                          "Failed to open pid file [%s] for writing, errno=%d\n",
-                          pidFile->bytes,
-                          errno);
-            return -1;
-        }
-        fprintf(pf, "%d", (int) getpid());
-        fclose(pf);
+    // --------------------- Setup Pipes to Angel --------------------- //
+    int pipeToAngel[2];
+    int pipeFromAngel[2];
+    if (pipe(pipeToAngel) || pipe(pipeFromAngel)) {
+        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(errno));
     }
 
-    // re-configure
-    if (argc == 2 && strcmp(argv[1], "--reconf") == 0) {
-        reconf(eventBase, &config, logger, allocator);
-        return 0;
+    char pipeToAngelStr[8];
+    snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
+    char pipeFromAngelStr[8];
+    snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
+    char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
+
+    // --------------------- Spawn Angel --------------------- //
+    String* corePath = Dict_getString(&config, String_CONST("corePath"));
+    String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
+
+    if (!corePath) {
+        corePath = getCorePath(allocator);
+    }
+    if (!corePath) {
+        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
+                             "try specifying the location in your cjdroute.conf");
+    } else {
+        Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
+                         "guessing it's location.");
     }
 
-    // Admin -------------------------------------------------------------------------------------
-    char* user = setUser(Dict_getList(&config, String_CONST("security")));
+    if (!privateKey) {
+        Except_raise(eh, -1, "Need to specify privateKey.");
+    }
+    Process_spawn(corePath->bytes, args);
 
-    Dict* adminConf = Dict_getDict(&config, String_CONST("admin"));
-    String* adminAddress = Dict_getString(adminConf, String_CONST("bind"));
-    String* password = Dict_getString(adminConf, String_CONST("password"));
+    // --------------------- Get Admin  --------------------- //
+    Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
+    String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
+    String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
+    if (!adminPass) {
+        adminPass = String_newBinary(NULL, 32, allocator);
+        randomBase32((uint8_t*) adminPass->bytes);
+        adminPass->len = strlen(adminPass->bytes);
+    }
+    if (!adminBind) {
+        adminBind = String_new("127.0.0.1:0", allocator);
+    }
 
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
-    if (adminAddress) {
-        if (evutil_parse_sockaddr_port(adminAddress->bytes, (struct sockaddr*) &addr, &addrLen)) {
-            Log_critical(logger, "Unable to parse [%s] as an ip address port, "
-                                  "eg: 127.0.0.1:11234", adminAddress->bytes);
-            exit(-1);
+    // --------------------- Get user for angel to setuid() ---------------------- //
+    String* securityUser = NULL;
+    List* securityConf = Dict_getList(&config, String_CONST("security"));
+    for (int i = 0; i < List_size(securityConf); i++) {
+        securityUser = Dict_getString(List_getDict(securityConf, i), String_CONST("setuser"));
+        if (securityUser) {
+            break;
         }
     }
-    struct Admin* admin = Admin_new(&addr,
-                                    addrLen,
-                                    password,
-                                    user,
-                                    eventBase,
-                                    AbortHandler_INSTANCE,
-                                    logger,
-                                    allocator);
 
-    // CryptoAuth ---------------------------------------------------------------------
-    struct Address myAddr;
-    uint8_t privateKey[32];
-    parsePrivateKey(&config, &myAddr, privateKey);
-    struct CryptoAuth* cryptoAuth =
-        CryptoAuth_new(allocator, privateKey, eventBase, logger);
+    // --------------------- Pre-Configure Angel ------------------------- //
+    Dict* preConf = Dict_new(allocator);
+    Dict* adminPreConf = Dict_new(allocator);
+    Dict_putDict(preConf, String_CONST("admin"), adminPreConf, allocator);
+    Dict_putString(adminPreConf, String_CONST("core"), corePath, allocator);
+    Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
+    Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
+    Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
+    if (securityUser) {
+        Dict_putString(adminPreConf, String_CONST("user"), securityUser, allocator);
+    }
 
+    #define CONFIG_BUFF_SIZE 1024
+    uint8_t buff[CONFIG_BUFF_SIZE] = {0};
+    struct Writer* toAngelWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, allocator);
+    if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
+        Except_raise(eh, -1, "Failed to serialize pre-configuration");
+    }
+    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten(toAngelWriter));
+    Log_keys(logger, "Sent [%s] to angel process.", buff);
 
-    struct SwitchCore* switchCore = SwitchCore_new(logger, allocator);
-    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
-    ReplyModule_register(registry, allocator);
+    // --------------------- Get Response from Angel --------------------- //
+    struct event_base* eventBase = event_base_new();
 
-    // Router
-    struct RouterModule* router = RouterModule_register(registry,
-                                                        allocator,
-                                                        myAddr.key,
-                                                        eventBase,
-                                                        logger,
-                                                        admin);
+    uint32_t amount = Waiter_getData(buff, CONFIG_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
+    Dict responseFromAngel;
+    struct Reader* responseFromAngelReader = ArrayReader_new(buff, amount, allocator);
+    if (StandardBencSerializer_get()->parseDictionary(responseFromAngelReader,
+                                                      allocator,
+                                                      &responseFromAngel))
+    {
+        Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
+    }
 
-    SerializationModule_register(registry, allocator);
-
-    struct Ducttape* dt = Ducttape_register(privateKey,
-                                            registry,
-                                            router,
-                                            switchCore,
-                                            eventBase,
-                                            allocator,
-                                            logger,
-                                            admin);
-
-    struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, allocator);
-
-    // Interfaces.
-    struct InterfaceController* ifController =
-        DefaultInterfaceController_new(cryptoAuth,
-                                       switchCore,
-                                       router,
-                                       logger,
-                                       eventBase,
-                                       sp,
-                                       allocator);
-
-
-    // ------------------- Register RPC functions ----------------------- //
-    SwitchPinger_admin_register(sp, admin, allocator);
-    UDPInterface_admin_register(eventBase, allocator, logger, admin, ifController);
-    RouterModule_admin_register(router, admin, allocator);
-    AuthorizedPasswords_init(admin, cryptoAuth, allocator);
-    Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-
-    struct MemoryContext* mc =
-        allocator->clone(sizeof(struct MemoryContext), allocator,
-            &(struct MemoryContext) {
-                .allocator = allocator,
-                .admin = admin
-            });
-    Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
-
+    // --------------------- Get Admin Addr/Port/Passwd --------------------- //
+    Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
+    adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
+    struct sockaddr_storage adminAddr = {0};
+    int adminAddrLen = sizeof(struct sockaddr_storage);
+    if (!adminBind) {
+        Except_raise(eh, -1, "didn't get address and port back from angel");
+    }
+    if (evutil_parse_sockaddr_port(adminBind->bytes,
+                                   (struct sockaddr*) &adminAddr,
+                                   &adminAddrLen))
+    {
+        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+                     adminBind->bytes);
+    }
 
     // --------------------- Configuration ------------------------- //
-    struct sockaddr_storage* adminAddr;
-    int adminAddrLen;
-    String* adminPassword;
-    Admin_getConnectInfo(&adminAddr, &adminAddrLen, &adminPassword, admin);
     Configurator_config(&config,
-                        adminAddr,
+                        &adminAddr,
                         adminAddrLen,
-                        adminPassword,
+                        adminPass,
                         eventBase,
                         logger,
                         allocator);
 
-    // ---------------------- Legacy Config ----------------------- //
-
-    Dict* routerConf = Dict_getDict(&config, String_CONST("router"));
-    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
-    if (String_equals(Dict_getString(iface, String_CONST("type")), String_CONST("TUNInterface"))) {
-        String* ifName = Dict_getString(iface, String_CONST("tunDevice"));
-
-        char assignedTunName[TUNConfigurator_IFNAMSIZ];
-        void* tunPtr = TUNConfigurator_initTun(((ifName) ? ifName->bytes : NULL),
-                                               assignedTunName,
-                                               logger,
-                                               AbortHandler_INSTANCE);
-        struct Jmp jmp;
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setIpAddress(
-                assignedTunName, myAddr.ip6.bytes, 8, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to configure ip address [%s]", jmp.message);
-        }
-
-        Jmp_try(jmp) {
-            TUNConfigurator_setMTU(
-                assignedTunName, DEFAULT_MTU, logger, &jmp.handler);
-        } Jmp_catch {
-            Log_warn(logger, "Unable to set MTU [%s], skipping.", jmp.message);
-        }
-
-        struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, allocator);
-        Ducttape_setUserInterface(dt, &tun->iface);
-    }
-
-
-    uint8_t address[53];
-    Base32_encode(address, 53, myAddr.key, 32);
-    Log_info(logger, "Your address is: %s.k\n", address);
-    uint8_t myIp[40];
-    Address_printIp(myIp, &myAddr);
-    Log_info(logger, "Your IPv6 address is: %s\n", myIp);
-
-    // Security.
-    security(Dict_getList(&config, String_CONST("security")), logger, AbortHandler_INSTANCE);
-
-    event_base_loop(eventBase, 0);
-abort();
-    // Never reached.
     return 0;
 }

@@ -25,7 +25,7 @@
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"

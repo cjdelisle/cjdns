@@ -19,7 +19,8 @@
 #include "net/DefaultInterfaceController.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
+#include "util/log/WriterLog.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/NumberCompress.h"
@@ -141,7 +142,7 @@ int main()
     struct Allocator* alloc = MallocAllocator_new(1<<20);
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = &(struct Log) { .writer = logwriter };
+    struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct event_base* eventBase = event_base_new();
 

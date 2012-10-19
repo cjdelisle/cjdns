@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
+#include "admin/angel/AngelChan.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
@@ -30,7 +31,7 @@
 #include "memory/BufferAllocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
@@ -47,15 +48,6 @@
 #ifdef WIN32
     #define EWOULDBLOCK WSAEWOULDBLOCK
 #endif
-
-/* maximum message size for framing on the channels */
-#define MAX_MESSAGE_SIZE (1<<16)
-
-/* maximum message size for api requests (buffer size per active channel) */
-#define MAX_API_REQUEST_SIZE (1<<16)
-
-/* max connections to the admin tcp socket */
-#define MAX_CONNECTIONS 64
 
 static String* TYPE =     String_CONST_SO("type");
 static String* REQUIRED = String_CONST_SO("required");
@@ -188,16 +180,19 @@ struct Admin
     struct Allocator* allocator;
     struct sockaddr_storage address;
     int addressLength;
-    uint64_t pipeMagic;
+    uint64_t syncMagic;
     String* password;
     struct Log* logger;
 
     unsigned int haveMessageHeaderLen;
     struct Admin_MessageHeader messageHeader;
 
-    struct Admin_Channel clientChannels[MAX_CONNECTIONS];
+    struct Admin_Channel clientChannels[AngelChan_MAX_CONNECTIONS];
 
-    /** Becomes true after the admin process has sent it's first message. */
+    /**
+     * Becomes true after the admin process has sent it's first message.
+     * In cjdroute2 this is unused.
+     */
     bool initialized;
 };
 
@@ -213,11 +208,11 @@ static void adminClosePipes(struct Admin* admin)
 
 /**
  * find a channel by number; could allocate channels on the fly if needed
- * right now only 0..MAX_CONNECTIONS-1 numbers are valid and allocated in the Admin struct
+ * right now only 0..AngelChan_MAX_CONNECTIONS-1 numbers are valid and allocated in the Admin struct
  */
 static struct Admin_Channel* adminChannelFindById(struct Admin* admin, uint32_t channelNum)
 {
-    if (channelNum < MAX_CONNECTIONS) {
+    if (channelNum < AngelChan_MAX_CONNECTIONS) {
         return &admin->clientChannels[channelNum];
     }
 
@@ -264,14 +259,14 @@ static void adminChannelSendData(struct Admin* admin,
                                  uint32_t length)
 {
     /* if this changes, we need to fragment the messages
-    * into MAX_MESSAGE_SIZE chunks
+    * into AngelChan_MAX_MESSAGE_SIZE chunks
     */
-    Assert_compileTime(MAX_API_REQUEST_SIZE == MAX_MESSAGE_SIZE);
+    Assert_compileTime(AngelChan_MAX_API_REQUEST_SIZE == AngelChan_MAX_MESSAGE_SIZE);
 
-    Assert_true(length <= MAX_MESSAGE_SIZE);
+    Assert_true(length <= AngelChan_MAX_MESSAGE_SIZE);
 
     struct Admin_MessageHeader header = {
-        .magic = admin->pipeMagic,
+        .magic = admin->syncMagic,
         .length = length,
         .channelNum = channelNum
     };
@@ -287,10 +282,10 @@ static void adminChannelSendData(struct Admin* admin,
 /**
  * public function to send responses
  */
-void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
+int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 {
     if (!admin) {
-        return;
+        return 0;
     }
     Assert_true(txid);
 
@@ -298,13 +293,10 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     struct Admin_Channel* channel = adminChannelFindByTxid(admin, txid, &channelNum);
 
     if (!channel) {
-        // txid too short, invalid channel number, closed channel or not matching serial
-        Log_debug(admin->logger,
-                  "Dropped response because channel isn't open anymore.");
-        return;
+        return Admin_sendMessage_CHANNEL_CLOSED;
     }
 
-    uint8_t buff[MAX_API_REQUEST_SIZE];
+    uint8_t buff[AngelChan_MAX_API_REQUEST_SIZE];
 
     uint8_t allocBuff[256];
     struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
@@ -318,10 +310,12 @@ void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         Dict_putString(message, TXID, &userTxid, allocator);
     }
 
-    struct Writer* w = ArrayWriter_new(buff, sizeof(buff), allocator);
+    struct Writer* w = ArrayWriter_new(buff, AngelChan_MAX_API_REQUEST_SIZE, allocator);
     StandardBencSerializer_get()->serializeDictionary(w, message);
 
     adminChannelSendData(admin, channelNum, buff, w->bytesWritten(w));
+
+    return 0;
 }
 
 /**
@@ -531,6 +525,7 @@ static void handleRequestFromChild(struct Admin* admin,
     return;
 }
 
+// This is unused in cjdroute2, it only exists for legacy cjdroute.
 static void inFromChildInitialize(struct Admin* admin)
 {
     uint8_t buffer[sizeof(struct sockaddr_storage) + sizeof(int) + 8];
@@ -673,13 +668,14 @@ static void inFromChildRead(struct Admin* admin, struct Admin_Channel* channel)
     if (!channel->buffer) {
         Assert_true(NULL == channel->allocator);
         channel->allocator = admin->allocator->child(admin->allocator);
-        channel->buffer = channel->allocator->malloc(MAX_API_REQUEST_SIZE, channel->allocator);
+        channel->buffer =
+            channel->allocator->malloc(AngelChan_MAX_API_REQUEST_SIZE, channel->allocator);
         Assert_true(0 == channel->bufferLen);
     }
 
-    Assert_true(channel->bufferLen < MAX_API_REQUEST_SIZE);
+    Assert_true(channel->bufferLen < AngelChan_MAX_API_REQUEST_SIZE);
 
-    int amount = inFromChildFillBuffer(admin, channel->buffer, MAX_API_REQUEST_SIZE,
+    int amount = inFromChildFillBuffer(admin, channel->buffer, AngelChan_MAX_API_REQUEST_SIZE,
                                        &channel->bufferLen, admin->messageHeader.length);
     if (amount < 0) {
         return;
@@ -692,7 +688,7 @@ static void inFromChildRead(struct Admin* admin, struct Admin_Channel* channel)
 
     inFromChildDecode(admin, channel);
 
-    if (MAX_API_REQUEST_SIZE == channel->bufferLen) {
+    if (AngelChan_MAX_API_REQUEST_SIZE == channel->bufferLen) {
         // couldn't decode the request, but the buffer is full
         Log_error(admin->logger, "Request too large, closing channel [%u]",
                   admin->messageHeader.channelNum);
@@ -711,10 +707,10 @@ static void inFromChildRead(struct Admin* admin, struct Admin_Channel* channel)
 static void inFromChildSkipMmsg(struct Admin* admin)
 {
     Assert_true(admin->messageHeader.length > 0);
-    uint8_t buffer[MAX_MESSAGE_SIZE];
+    uint8_t buffer[AngelChan_MAX_MESSAGE_SIZE];
     uint32_t have = 0;
 
-    int amount = inFromChildFillBuffer(admin, buffer, MAX_MESSAGE_SIZE,
+    int amount = inFromChildFillBuffer(admin, buffer, AngelChan_MAX_MESSAGE_SIZE,
                                        &have, admin->messageHeader.length);
     if (amount < 0) {
         return;
@@ -748,12 +744,12 @@ static void inFromChild(evutil_socket_t socket, short eventType, void* vcontext)
         if (admin->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
             newMessage = 1;
             // got complete header
-            if (admin->pipeMagic != admin->messageHeader.magic) {
+            if (admin->syncMagic != admin->messageHeader.magic) {
                 Log_error(admin->logger, "wrong magic from admin process");
                 adminClosePipes(admin);
                 return;
             }
-            if (admin->messageHeader.length > MAX_MESSAGE_SIZE) {
+            if (admin->messageHeader.length > AngelChan_MAX_MESSAGE_SIZE) {
                 Log_error(admin->logger, "message from admin process too large");
                 adminClosePipes(admin);
                 return;
@@ -811,11 +807,11 @@ struct ChildContext
 {
     unsigned int haveMessageHeaderLen, haveMessageLen;
     struct Admin_MessageHeader messageHeader;
-    uint8_t message[MAX_MESSAGE_SIZE];
+    uint8_t message[AngelChan_MAX_MESSAGE_SIZE];
 
-    struct Connection connections[MAX_CONNECTIONS];
+    struct Connection connections[AngelChan_MAX_CONNECTIONS];
 
-    uint64_t pipeMagic;
+    uint64_t syncMagic;
 
     /** The event which listens for new connections. */
     struct event* socketEvent;
@@ -836,7 +832,7 @@ struct ChildContext
 static void sendParent(struct ChildContext* context, uint32_t channelNum, uint32_t len, void* data)
 {
     struct Admin_MessageHeader messageHeader = {
-        .magic = context->pipeMagic,
+        .magic = context->syncMagic,
         .length = len,
         .channelNum = channelNum
     };
@@ -888,11 +884,11 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
         if (context->haveMessageHeaderLen == Admin_MessageHeader_SIZE) {
             // got complete header, reset message
             context->haveMessageLen = 0;
-            if (context->pipeMagic != context->messageHeader.magic) {
+            if (context->syncMagic != context->messageHeader.magic) {
                 fprintf(stderr, "wrong magic on admin connection\n");
                 exit(0);
             }
-            if (context->messageHeader.length > MAX_MESSAGE_SIZE) {
+            if (context->messageHeader.length > AngelChan_MAX_MESSAGE_SIZE) {
                 fprintf(stderr, "message too large on admin connection\n");
                 exit(0);
             }
@@ -924,9 +920,9 @@ static void incomingFromParent(evutil_socket_t socket, short eventType, void* vc
             if (context->messageHeader.channelNum <= 0xffff) {
                 // message for admin connections
                 uint32_t connNumber = context->messageHeader.channelNum;
-                if (connNumber >= MAX_CONNECTIONS) {
+                if (connNumber >= AngelChan_MAX_CONNECTIONS) {
                     fprintf(stderr, "got message for connection #%u, max connections is %d\n",
-                            connNumber, MAX_CONNECTIONS);
+                            connNumber, AngelChan_MAX_CONNECTIONS);
                     return;
                 }
 
@@ -974,7 +970,7 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct ChildContext* context = conn->context;
-    uint8_t buf[MAX_MESSAGE_SIZE];
+    uint8_t buf[AngelChan_MAX_MESSAGE_SIZE];
     uint32_t connNumber = conn - context->connections;
 
     errno = 0;
@@ -998,7 +994,7 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 static struct Connection* newConnection(struct ChildContext* context, evutil_socket_t fd)
 {
     struct Connection* conn = NULL;
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+    for (int i = 0; i < AngelChan_MAX_CONNECTIONS; i++) {
         if (context->connections[i].read == NULL && context->connections[i].socket == -1) {
             conn = &context->connections[i];
             break;
@@ -1051,7 +1047,7 @@ static void child(struct sockaddr_storage* addr,
                   char* user,
                   struct ChildContext* context)
 {
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+    for (int i = 0; i < AngelChan_MAX_CONNECTIONS; i++) {
         context->connections[i].socket = -1;
     }
 
@@ -1167,14 +1163,37 @@ void Admin_registerFunctionWithArgCount(char* name,
     }
 }
 
-struct Admin* Admin_new(struct sockaddr_storage* addr,
-                        int addrLen,
-                        String* password,
-                        char* user,
-                        struct event_base* eventBase,
-                        struct ExceptionHandler* eh,
+struct Admin* Admin_new(int fromAngelFd,
+                        int toAngelFd,
+                        struct Allocator* alloc,
                         struct Log* logger,
-                        struct Allocator* allocator)
+                        struct event_base* eventBase,
+                        String* password,
+                        uint8_t syncMagic[8])
+{
+    struct Admin* admin = alloc->calloc(sizeof(struct Admin), 1, alloc);
+    admin->inFd = fromAngelFd;
+    admin->outFd = toAngelFd;
+    admin->allocator = alloc;
+    admin->logger = logger;
+    admin->functionCount = 0;
+    admin->eventBase = eventBase;
+    admin->password = password;
+    admin->pipeEv = event_new(eventBase, fromAngelFd, EV_READ | EV_PERSIST, inFromChild, admin);
+    admin->initialized = true;
+    event_add(admin->pipeEv, NULL);
+    Bits_memcpyConst(&admin->syncMagic, syncMagic, 8);
+    return admin;
+}
+
+struct Admin* Admin_newProc(struct sockaddr_storage* addr,
+                            int addrLen,
+                            String* password,
+                            char* user,
+                            struct event_base* eventBase,
+                            struct ExceptionHandler* eh,
+                            struct Log* logger,
+                            struct Allocator* allocator)
 {
     if (!password) {
         uint8_t buff[32];
@@ -1182,8 +1201,8 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
         password = String_new((char*)buff, allocator);
     }
 
-    uint64_t pipeMagic;
-    randombytes((uint8_t*)&pipeMagic, sizeof(pipeMagic));
+    uint64_t syncMagic;
+    randombytes((uint8_t*) &syncMagic, 8);
 
     errno = 0;
     int pipes[2][2];
@@ -1220,7 +1239,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
         context.allocator = allocator;
         event_reinit(eventBase);
         context.eventBase = eventBase;
-        context.pipeMagic = pipeMagic;
+        context.syncMagic = syncMagic;
         child(addr, addrLen, user, &context);
         fprintf(stderr, "Admin process exiting.");
         exit(0);
@@ -1240,7 +1259,7 @@ struct Admin* Admin_new(struct sockaddr_storage* addr,
     admin->addressLength = addrLen;
     admin->pipeEv = event_new(eventBase, inFd, EV_READ | EV_PERSIST, inFromChild, admin);
     event_add(admin->pipeEv, NULL);
-    admin->pipeMagic = pipeMagic;
+    admin->syncMagic = syncMagic;
 
     event_base_dispatch(eventBase);
 

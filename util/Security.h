@@ -16,7 +16,7 @@
 #define Security_H
 
 #include "exception/ExceptionHandler.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh);
 

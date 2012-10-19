@@ -17,7 +17,7 @@
 
 #include "benc/String.h"
 #include "interface/Interface.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <stdint.h>
 #include <event2/event.h>

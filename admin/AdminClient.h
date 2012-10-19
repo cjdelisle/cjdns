@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #ifdef __FreeBSD__
 #include <netinet/in.h>
 #endif

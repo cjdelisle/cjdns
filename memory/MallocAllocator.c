@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Bits.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 struct OnFreeJob;
 struct OnFreeJob {

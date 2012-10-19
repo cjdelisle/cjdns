@@ -29,7 +29,7 @@
 #include "memory/BufferAllocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/Time.h"
 #include "util/Timeout.h"

@@ -17,7 +17,7 @@
 #include "crypto/ReplayProtector.h"
 #include "interface/Interface.h"
 #include "benc/Object.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"

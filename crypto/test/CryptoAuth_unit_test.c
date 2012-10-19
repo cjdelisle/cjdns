@@ -21,6 +21,7 @@
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
+#include "util/log/WriterLog.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -101,8 +102,8 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
                       struct Message** resultMessage)
 {
     struct Allocator* allocator = MallocAllocator_new(8192*2);
-    struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);
-    logger->writer = FileWriter_new(stdout, allocator);
+    struct Writer* writer = FileWriter_new(stdout, allocator);
+    struct Log* logger = WriterLog_new(writer, allocator);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger);
 
     struct Interface* iface =
@@ -223,8 +224,8 @@ void repeatHello()
     uint8_t buff[BUFFER_SIZE];
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log logger = { .writer = logwriter };
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, &logger);
+    struct Log* logger = WriterLog_new(logwriter, allocator);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, logger);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -257,7 +258,7 @@ void repeatHello()
     // Check the nonce
     Assert_always(!memcmp(msg2.bytes, "\0\0\0\1", 4));
 
-    ca = CryptoAuth_new(allocator, privateKey, eventBase, &logger);
+    ca = CryptoAuth_new(allocator, privateKey, eventBase, logger);
     struct Message* finalOut = NULL;
     struct CryptoAuth_Wrapper wrapper2 = {
         .context = (struct CryptoAuth_pvt*) ca,

@@ -21,7 +21,7 @@
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/SwitchPinger.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 
 #include <stdint.h>
 #include <stdbool.h>

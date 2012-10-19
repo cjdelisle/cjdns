@@ -30,8 +30,8 @@ if (NOT NACL_FOUND)
         NAMES
             nacl
         PATHS
-            ${NACL_INCLUDE_DIRS}/../lib
-            ${NACL_INCLUDE_DIRS}/../../lib
+            ${NACL_INCLUDE_DIRS}/../lib/default
+            ${NACL_INCLUDE_DIRS}/../../lib/default
         NO_DEFAULT_PATH
     )
 
@@ -74,11 +74,16 @@ if(NOT NACL_FOUND)
     set(file ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
     set(check ${CMAKE_COMMAND} -DFILE=${file} -DEXPECTED=${hash} -P ${AssertSHA256})
+    if(EXISTS ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
+        set(url ${CMAKE_BINARY_DIR}/${tag})
+    else()
+        set(url "http://nodeload.github.com/cjdelisle/nacl/tarball/${tag}")
+    endif()
     ExternalProject_Add(nacl_ep
-        URL "http://nodeload.github.com/cjdelisle/nacl/tarball/${tag}"
+        URL ${url}
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
-        CONFIGURE_COMMAND ${check}
+        CONFIGURE_COMMAND "" # ${check}
         BUILD_COMMAND ./do -primitives=${func} -cc=${CMAKE_C_COMPILER}
         INSTALL_COMMAND ""
         UPDATE_COMMAND ""

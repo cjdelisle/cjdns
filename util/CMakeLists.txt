@@ -13,24 +13,34 @@ project(util C)
 cmake_minimum_required(VERSION 2.4)
 
 add_subdirectory(checksum)
+add_subdirectory(log)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 if(WIN32)
     set(sec Security_W32.c)
+    message(FATAL ERROR "Please implement a windows version of Process_Linux")
 else()
     set(sec Security.c)
 endif()
+
+add_library(cjdns-security
+    ${sec}
+)
+
+add_library(cjdns-process
+    Process_${SYSTEM}.c
+)
 
 add_library(util
     AverageRoller.c
     Timeout.c
     Hex.c
     Pinger.c
-    ${sec}
+    Security_admin.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
+target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES} cjdns-security cjdns-util-log-writer)
 
 # Everything must be tested.
 enable_testing()

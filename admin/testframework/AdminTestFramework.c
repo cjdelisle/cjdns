@@ -22,7 +22,8 @@
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
+#include "util/log/WriterLog.h"
 
 #include <event2/event.h>
 
@@ -32,8 +33,7 @@ struct AdminTestFramework* AdminTestFramework_setUp()
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     Assert_always(logwriter);
-    struct Log* logger =
-        alloc->clone(sizeof(struct Log), alloc, &(struct Log) { .writer = logwriter });
+    struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
@@ -42,8 +42,14 @@ struct AdminTestFramework* AdminTestFramework_setUp()
     struct event_base* eventBase = event_base_new();
 
     String* password = String_new("abcdefg12345", alloc);
-    struct Admin* admin =
-        Admin_new(&addr, addrLen, password, NULL, eventBase, AbortHandler_INSTANCE, logger, alloc);
+    struct Admin* admin = Admin_newProc(&addr,
+                                        addrLen,
+                                        password,
+                                        NULL,
+                                        eventBase,
+                                        AbortHandler_INSTANCE,
+                                        logger,
+                                        alloc);
 
     struct sockaddr_storage* addrPtr;
     String* retPassword;

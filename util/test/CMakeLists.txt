@@ -24,10 +24,10 @@ foreach(test_source_fullpath ${tests})
   string(REPLACE "test.c" "test" test_bin ${test_source})
   message("     " ${test_source})
   add_executable(${test_bin} ${test_source})
-  target_link_libraries(${test_bin} cjdmemory util crypto)
+  target_link_libraries(${test_bin} cjdmemory util cjdns-process crypto)
   add_test(${test_bin} ${test_bin})
 endforeach()
-# Add an empty line after tests.
+# Add an empty line after tests. 
 message("")
 
 # Experimental benchmark target.

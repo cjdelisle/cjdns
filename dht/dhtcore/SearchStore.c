@@ -17,7 +17,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"
 #include "util/Bits.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
 #include "util/Time.h"

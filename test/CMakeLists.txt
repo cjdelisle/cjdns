@@ -27,7 +27,7 @@ target_link_libraries(TestFramework
     cjdbenc_JsonBencSerializer
     cjdbenc_StandardBencSerializer
     cjdmemory
-    cjdadmin
+    cjdns-admin
     cjdnet
     ${LIBEVENT2_LIBRARIES}
 )

@@ -10,22 +10,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if (WIN32)
-   set(admin Admin_W32.c)
-else()
-   set(admin Admin.c)
-endif()
-
-add_library(cjdadmin
-    ${admin}
-    AdminClient.c
+add_library(cjdns-admin
+    Admin.c
     AuthorizedPasswords.c
+)
+target_link_libraries(cjdns-admin crypto cjdbenc_StandardBencSerializer)
+
+add_library(cjdns-admin-logger
+    AdminLog.c
+)
+target_link_libraries(cjdns-admin-logger cjdns-admin)
+
+add_library(cjdns-admin-client
+    AdminClient.c
     Configurator.c
 )
-
-target_link_libraries(cjdadmin crypto cjdbenc_StandardBencSerializer)
+target_link_libraries(cjdns-admin-client crypto cjdbenc_StandardBencSerializer)
 
 add_subdirectory(testframework)
+add_subdirectory(angel)
 
 enable_testing()
 add_subdirectory(test)
