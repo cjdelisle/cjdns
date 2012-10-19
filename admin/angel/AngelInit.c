@@ -40,6 +40,10 @@
 #include <stdint.h>
 #include <errno.h>
 
+#ifdef FreeBSD
+    #include <in.h>
+#endif
+
 /**
  * Initialize the core.
  *
