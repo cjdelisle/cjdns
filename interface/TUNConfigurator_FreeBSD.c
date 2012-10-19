@@ -136,7 +136,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
                      gai_strerror(err));
     }
 
-    Bits_memcpy(result->ai_addr, &in6_addreq.ifra_addr, result->ai_addrlen);
+    Bits_memcpy(&in6_addreq.ifra_addr, result->ai_addr, result->ai_addrlen);
 
     /* turn the prefixlen into a mask, and add it to the request */
     struct sockaddr_in6* mask = &in6_addreq.ifra_prefixmask;
