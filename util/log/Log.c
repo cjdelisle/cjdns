@@ -15,8 +15,10 @@
 
 #include "util/log/Log.h"
 
+#ifdef Illumos
+    #define _XPG4_2
+#endif
 #include <strings.h>
-#include <errno.h>
 
 
 char* Log_nameForLevel(enum Log_Level logLevel)
