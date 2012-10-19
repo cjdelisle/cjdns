@@ -169,7 +169,7 @@ static String* bindListener(String* bindAddr,
                              &(((struct sockaddr_in*)&addr)->sin_addr),
                              addrStr,
                              ADDR_BUFF_SZ);
-            port = ((struct sockaddr_in*)&addr)->sin_port;
+            Bits_memcpyConst(&port, &((struct sockaddr_in*)&addr)->sin_port, 2);
             break;
         case AF_INET6:
             evutil_inet_ntop(AF_INET6,
@@ -178,7 +178,7 @@ static String* bindListener(String* bindAddr,
                              ADDR_BUFF_SZ - 2);
             addrStr[0] = '[';
             addrStr[strlen(addrStr)] = ']';
-            port = ((struct sockaddr_in6*)&addr)->sin6_port;
+            Bits_memcpyConst(&port, &((struct sockaddr_in6*)&addr)->sin6_port, 2);
             break;
         default:
             Assert_always(false);
