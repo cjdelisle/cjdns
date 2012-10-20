@@ -86,6 +86,12 @@ struct Ducttape_Private
     /** whether we are encrypting/decrypting the inner layer or the outer layer. */
     int layer;
 
+    /** Number of milliseconds to wait between searches for a node to send arbitrary data to. */
+    uint32_t timeBetweenSearches;
+
+    /** Absolute time of last search for node to send arbitrary data to. */
+    uint64_t timeOfLastSearch;
+
     /** The IPv6 address of the router from which the packet we are handling was sent. */
     uint8_t* routerAddress;
 

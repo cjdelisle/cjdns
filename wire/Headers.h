@@ -298,6 +298,28 @@ struct Headers_IP6Header
 #define Headers_IP6Header_SIZE 40
 Assert_compileTime(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
 
+struct Headers_IP4Header
+{
+    uint8_t versionAndHeaderLength;
+    uint8_t differentiatedServices;
+    uint16_t totalLength_be;
+    uint16_t identification_be;
+    uint16_t flagsAndFragmentOffset;
+    uint8_t ttl;
+    uint8_t protocol;
+    uint16_t checksum_be;
+    uint8_t sourceAddr[4];
+    uint8_t destAddr[4];
+};
+#define Headers_IP4Header_SIZE 20
+Assert_compileTime(sizeof(struct Headers_IP4Header) == Headers_IP4Header_SIZE);
+
+static inline int Headers_getIpVersion(void* header)
+{
+    return ((uint8_t*) header)[0] & 0xF0;
+}
+
+
 struct Headers_UDPHeader {
     uint32_t sourceAndDestPorts;
     uint16_t length_be;

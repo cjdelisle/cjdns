@@ -316,12 +316,19 @@ static inline bool isForMe(struct Message* message, struct Ducttape_Private* con
 }
 
 // Called by the TUN device.
-static inline uint8_t ip6FromTun(struct Message* message,
-                                 struct Interface* interface)
+static inline uint8_t incomingFromTun(struct Message* message,
+                                      struct Interface* interface)
 {
     struct Ducttape_Private* context = (struct Ducttape_Private*) interface->receiverContext;
-
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
+
+    int version = Headers_getIpVersion(message->bytes);
+    if (version == 4 || (version == 6 && header->sourceAddr[0] != 0xfc)) {
+        return IpTunnel_incomingFromTun(message, context->ipTunnel);
+    } else if (version != 6) {
+        Log_warn(context->logger, "dropped packet with unexpected IP version [%d].", version);
+        return Error_INVALID;
+    }
 
     if (memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
         uint8_t expectedSource[40];
@@ -369,6 +376,50 @@ static inline uint8_t ip6FromTun(struct Message* message,
     // This comes out at outgoingFromMe()
     context->layer = INNER_LAYER;
     return session->sendMessage(message, session);
+}
+
+/**
+ * Send an arbitrary message to a node.
+ *
+ * @param message to be sent
+ * @param nodeIp6 the ipv6 address of the node for doing the routing table lookup.
+ * @param nodeKey the key for the node, if specified and doesn't match the node's key,
+ *                the send will fail. This is to make collision attacks less interesting.
+ * @param vducttape the ducttape context.
+ */
+static uint8_t sendToNode(struct Message* message,
+                          uint8_t nodeIp6[16],
+                          uint8_t nodeKey[32],
+                          void* vducttape)
+{
+    struct Ducttape_Private* context = (struct Ducttape_Private*) vducttape;
+    struct Node* n = RouterModule_lookup(nodeIp6, context->routerModule);
+    if (n) {
+        if ((nodeKey && !memcmp(nodeKey, n->address.key, 32))
+            || (!nodeKey && !memcmp(nodeIp6, n->address.ip6.bytes, 16)))
+        {
+            // Found the node.
+            #ifdef Log_DEBUG
+                uint8_t nhAddr[60];
+                Address_print(nhAddr, &n->address);
+                Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
+            #endif
+            return sendToRouter(&n->address, message, context);
+        }
+    }
+
+    #ifdef Log_DEBUG
+        uint8_t printedIp6[40];
+        AddrTools_printIp(printedIp6, nodeIp6);
+        Log_debug(context->logger, "Couldn't find node [%s] for sending to.", printedIp6);
+    #endif
+
+    // Now lets trigger a search for this node.
+    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
+    if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
+        context->timeOfLastSearch = now;
+        RouterModule_beginSearch(nodeIp6, NULL, NULL, context->routerModule);
+    }
 }
 
 /**
@@ -478,8 +529,11 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_Pr
 static inline int incomingFromRouter(struct Message* message, struct Ducttape_Private* context)
 {
     if (!validEncryptedIP6(message)) {
-        Log_debug(context->logger, "Dropping message because of invalid ipv6 header.\n");
-        return Error_INVALID;
+        // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
+        // and check if we have an agreement with the node who sent it.
+        return IpTunnel_incomingFromPeer(message,
+                                         CryptoAuth_getHerPublicKey(context->session),
+                                         context->ipTunnel);
     }
 
     //Log_debug(context->logger, "Got message from router.\n");
@@ -752,6 +806,6 @@ void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)
 {
     struct Ducttape_Private* context = (struct Ducttape_Private*) dt;
     context->userIf = userIf;
-    userIf->receiveMessage = ip6FromTun;
+    userIf->receiveMessage = incomingFromTun;
     userIf->receiverContext = context;
 }
