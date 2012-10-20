@@ -228,7 +228,10 @@ static Dict* getInitialConfigResponse(int fromCore,
  * for example:
  * d5:admind4:core30:./build/admin/angel/cjdns-core4:bind15:127.0.0.1:123454:pass4:abcdee
  *
-/home/user/wrk/cjdns/build/admin/angel/cjdns-core
+ * If "core" is not specified, this process will enter testing mode where the core will not be
+ * spawned and the data which would otherwise be sent to the core will instead be sent back to
+ * the client process.
+ *
  * "user" is optional, if set the angel will setuid() that user's uid.
  */
 int AngelInit_main(int argc, char** argv)
@@ -270,7 +273,9 @@ int AngelInit_main(int argc, char** argv)
     String* pass = Dict_getString(admin, String_CONST("pass"));
     String* user = Dict_getString(admin, String_CONST("user"));
 
-    if (!core || !bind || !pass) {
+    bool isTesting = (!core);
+
+    if (!bind || !pass) {
         Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", buff);
     }
 
@@ -279,8 +284,16 @@ int AngelInit_main(int argc, char** argv)
 
     int toCore;
     int fromCore;
-    Log_debug(logger, "Initializing core [%s]", core->bytes);
-    initCore(core->bytes, &toCore, &fromCore, alloc, eh);
+
+    if (isTesting) {
+        toCore = outToClientNo;
+        fromCore = inFromClientNo;
+        Log_info(logger, "Entering test mode.");
+    } else {
+        Log_info(logger, "Initializing core [%s]", core->bytes);
+        initCore(core->bytes, &toCore, &fromCore, alloc, eh);
+    }
+
     Log_debug(logger, "Sending pre-configuration to core.");
     sendConfToCore(toCore, alloc, &config, eh, logger);
     Dict* configResp = getInitialConfigResponse(fromCore, eventBase, alloc, eh);

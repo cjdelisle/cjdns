@@ -69,15 +69,6 @@ struct Admin* Admin_new(int fromAngelFd,
                         String* password,
                         uint8_t pipeMagic[8]);
 
-struct Admin* Admin_newProc(struct sockaddr_storage* addr,
-                            int addrLen,
-                            String* password,
-                            char* user,
-                            struct event_base* eventBase,
-                            struct ExceptionHandler* eh,
-                            struct Log* logger,
-                            struct Allocator* allocator);
-
 void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
                           int* addrLenPtr,
                           String** passwordPtr,
