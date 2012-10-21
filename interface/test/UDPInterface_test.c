@@ -47,9 +47,9 @@ static void registerInterface(struct Interface* externalInterface,
     registerInterfaceCalls++;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    struct AdminTestFramework* fw = AdminTestFramework_setUp();
+    struct AdminTestFramework* fw = AdminTestFramework_setUp(argc, argv);
 
     // mock interface controller.
     struct InterfaceController ifController = {
@@ -93,4 +93,7 @@ int main()
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
     Assert_always(!strcmp("d5:error4:nonee", (char*) res->messageBytes));
+
+
+    AdminTestFramework_tearDown(fw);
 }

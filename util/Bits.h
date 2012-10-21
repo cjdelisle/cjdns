@@ -137,4 +137,30 @@ static inline void* Bits_memcpyDebug(void* out,
 #endif
 #define memcpy "do not use memcpy directly, see Bits.h" /* CHECKFILES_IGNORE */
 
+
+static inline void* Bits_memmem(const void* haystack,
+                                const void* needle,
+                                size_t haystackLen,
+                                size_t needleLen)
+{
+        uint8_t* needleC = (uint8_t*) needle;
+        uint8_t* haystackC = (uint8_t*) haystack;
+        uint8_t* stopAt = haystackC + haystackLen - needleLen;
+
+        if (!(haystack && needle && haystackLen && needleLen)) {
+            return NULL;
+        }
+
+        while (haystackC <= stopAt) {
+            if (*haystackC == *needleC
+                && !memcmp(haystackC, needleC, needleLen))
+            {
+                return haystackC;
+            }
+            haystackC++;
+        }
+
+        return NULL;
+}
+
 #endif

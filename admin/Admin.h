@@ -17,10 +17,12 @@
 
 #include "benc/Dict.h"
 #include "exception/ExceptionHandler.h"
+#include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#ifdef __FreeBSD__
-#include <netinet/in.h>
+
+#ifdef FreeBSD
+    #include <netinet/in.h>
 #endif
 
 #include <event2/event.h>
@@ -36,6 +38,11 @@ struct Admin_FunctionArg
     char* type;
     bool required;
 };
+
+#define Admin_MAX_REQUEST_SIZE 512
+
+// This must not exceed PipeInterface_MAX_MESSAGE_SIZE
+#define Admin_MAX_RESPONSE_SIZE 65536
 
 /**
  * @param arguments an array of struct Admin_FunctionArg specifying what functions are available
@@ -61,16 +68,9 @@ void Admin_registerFunctionWithArgCount(char* name,
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-struct Admin* Admin_new(int fromAngelFd,
-                        int toAngelFd,
+struct Admin* Admin_new(struct Interface* toAngelInterface,
                         struct Allocator* alloc,
                         struct Log* logger,
                         struct event_base* eventBase,
-                        String* password,
-                        uint8_t pipeMagic[8]);
-
-void Admin_getConnectInfo(struct sockaddr_storage** addrPtr,
-                          int* addrLenPtr,
-                          String** passwordPtr,
-                          struct Admin* admin);
+                        String* password);
 #endif

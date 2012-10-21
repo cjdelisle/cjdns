@@ -65,6 +65,12 @@ static struct timeval timeForMilliseconds(const uint64_t numberOfMilliseconds)
     };
 }
 
+static void onFree(void* vtimeout)
+{
+    struct Timeout* t = vtimeout;
+    Timeout_clearTimeout(t);
+}
+
 /**
  * Create a timeout event.
  * The timeout event will be triggered after the given number of milliseconds.
@@ -103,6 +109,8 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
     struct timeval time = timeForMilliseconds(milliseconds);
     event_add(timeout->event, &time);
 
+    allocator->onFree(onFree, timeout, allocator);
+
     return timeout;
 }
 
@@ -138,5 +146,5 @@ void Timeout_resetTimeout(struct Timeout* timeout,
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    event_del(timeout->event);
+    event_free(timeout->event);
 }

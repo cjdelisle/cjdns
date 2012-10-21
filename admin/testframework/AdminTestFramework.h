@@ -29,8 +29,11 @@ struct AdminTestFramework
     struct Allocator* alloc;
     struct event_base* eventBase;
     struct Log* logger;
+    struct sockaddr_storage addr;
+    int addrLen;
+    struct Interface* angelInterface;
 };
 
-struct AdminTestFramework* AdminTestFramework_setUp();
-
+struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv);
+void AdminTestFramework_tearDown(struct AdminTestFramework* framework);
 #endif

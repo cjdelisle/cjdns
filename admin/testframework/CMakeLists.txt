@@ -14,4 +14,10 @@ add_library(cjdadmintest
     AdminTestFramework.c
 )
 
-target_link_libraries(cjdadmintest cjdns-admin cjdns-admin-client)
+target_link_libraries(cjdadmintest
+    cjdns-angel
+    cjdns-admin
+    cjdns-admin-client
+    cjdns-waiter
+    cjdns-process
+)

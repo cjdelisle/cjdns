@@ -42,12 +42,15 @@ struct BufferAllocator_context {
     char* const endPointer;
     struct Job* onFree;
     struct Job onOOM;
+    char* file;
+    int line;
 };
 
-static void failure(const char* message) Gcc_NORETURN;
-static void failure(const char* message)
+Gcc_NORETURN
+static void failure(struct BufferAllocator_context* context, const char* message)
 {
-    fprintf(stderr, "Fatal error: %s\n", message);
+    fprintf(stderr, "BufferAllocator [%s:%d] Fatal error: %s\n",
+            context->file, context->line, message);
     abort();
 }
 
@@ -70,12 +73,12 @@ static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
     if (endOfAlloc >= context->endPointer) {
         /* out of bounds. */
         oom(context);
-        failure("BufferAllocator ran out of memory.");
+        failure(context, "BufferAllocator ran out of memory.");
     }
 
     if (endOfAlloc < context->pointer) {
         /* integer overflow. */
-        failure("BufferAllocator ran off the top end of the memory range.");
+        failure(context, "BufferAllocator ran off the top end of the memory range.");
     }
 
     context->pointer = endOfAlloc;
@@ -200,14 +203,19 @@ static struct Allocator* childAllocator(const struct Allocator* allocator)
 }
 
 /** @see BufferAllocator.h */
-struct Allocator* BufferAllocator_new(void* buffer, size_t length)
+struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
+                                                  size_t length,
+                                                  char* file,
+                                                  int line)
 {
     /* Write itself into it's own buffer :) */
     struct BufferAllocator_context context = {
         /* Align the pointer to do the first write manually. */
         .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
         .basePointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
-        .endPointer = ((char*)buffer) + length
+        .endPointer = ((char*)buffer) + length,
+        .file = file,
+        .line = line
     };
 
     if (context.endPointer < context.pointer) {

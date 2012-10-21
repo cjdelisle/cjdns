@@ -16,15 +16,10 @@
 #define Assert_H
 
 #include "util/log/Log.h"
+#include "util/UniqueName.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Internals */
-#define Assert_COUNTER x
-#define Assert_UNIQUE_NAME Assert_MAKE_NAME(Assert_COUNTER, __LINE__)
-#define Assert_MAKE_NAME(x, y) Assert_MAKE_NAME2(x, y)
-#define Assert_MAKE_NAME2(x, y) Assert_testStruct_ ## x ## y
-#define Assert_GLUE(x, y) x ## y
 #define Assert_STRING(x) #x
 
 /**
@@ -34,7 +29,7 @@
  * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
  */
 #define Assert_compileTime(isTrue) \
-    struct Assert_UNIQUE_NAME { unsigned int assertFailed : (isTrue); }
+    struct UniqueName_get() { unsigned int assertFailed : (isTrue); }
 
 
 /** Runtime assertion which is always applied. */
@@ -50,9 +45,4 @@
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)
 
-#else /* #ifdef Assert_H */
-    // This is needed every time the file is pulled in to prevent struct name collisions.
-    #define Assert_COUNTER2 Assert_COUNTER
-    #undef Assert_COUNTER
-    #define Assert_COUNTER Assert_GLUE(Assert_COUNTER2, x)
 #endif

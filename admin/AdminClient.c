@@ -136,8 +136,8 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
 
     send(res->ctx->socket, res->public.messageBytes, writer->bytesWritten(writer), 0);
 
-    struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res);
-    evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 5, .tv_usec = 0 }));
+    struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res->ctx);
+    //evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 5, .tv_usec = 0 }));
 
     event_base_dispatch(res->ctx->eventBase);
 
