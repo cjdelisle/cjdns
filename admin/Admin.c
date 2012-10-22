@@ -153,6 +153,33 @@ static void sendMessage(struct Message* message, uint32_t channelNum, struct Adm
     admin->toAngelInterface->sendMessage(message, admin->toAngelInterface);
 }
 
+static int sendBenc(Dict* message, uint32_t channelNum, struct Admin* admin)
+{
+    struct Allocator* allocator;
+    BufferAllocator_STACK(allocator, 256);
+
+    #define SEND_MESSAGE_PADDING 32
+    uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
+
+    struct Writer* w = ArrayWriter_new(buff + SEND_MESSAGE_PADDING,
+                                       Admin_MAX_RESPONSE_SIZE,
+                                       allocator);
+    StandardBencSerializer_get()->serializeDictionary(w, message);
+
+    struct Message m = {
+        .bytes = buff + SEND_MESSAGE_PADDING,
+        .length = w->bytesWritten(w),
+        .padding = SEND_MESSAGE_PADDING
+    };
+    sendMessage(&m, channelNum, admin);
+    return 0;
+}
+
+int Admin_sendMessageToAngel(Dict* message, struct Admin* admin)
+{
+    return sendBenc(message, 0xFFFFFFFF, admin);
+}
+
 /**
  * public function to send responses
  */
@@ -171,11 +198,8 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         return Admin_sendMessage_CHANNEL_CLOSED;
     }
 
-    #define SEND_MESSAGE_PADDING 32
-    uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
-
-    uint8_t allocBuff[256];
-    struct Allocator* allocator = BufferAllocator_new(allocBuff, 256);
+    struct Allocator* allocator;
+    BufferAllocator_STACK(allocator, 256);
 
     // Bounce back the user-supplied txid.
     String userTxid = {
@@ -186,19 +210,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         Dict_putString(message, TXID, &userTxid, allocator);
     }
 
-    struct Writer* w = ArrayWriter_new(buff + SEND_MESSAGE_PADDING,
-                                       Admin_MAX_RESPONSE_SIZE,
-                                       allocator);
-    StandardBencSerializer_get()->serializeDictionary(w, message);
-
-    struct Message m = {
-        .bytes = buff + SEND_MESSAGE_PADDING,
-        .length = w->bytesWritten(w),
-        .padding = SEND_MESSAGE_PADDING
-    };
-    sendMessage(&m, channelNum, admin);
-
-    return 0;
+    return sendBenc(message, channelNum, admin);
 }
 
 /**

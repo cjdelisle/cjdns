@@ -212,7 +212,7 @@ int Core_main(int argc, char** argv)
     struct Admin* admin = Admin_new(&pi->generic, alloc, logger, eventBase, pass);
 
     Dict adminResponse = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
-    Admin_sendMessage(&adminResponse, String_CONST("\xff\xff\xff\xff"), admin);
+    Admin_sendMessageToAngel(&adminResponse, admin);
 
     // --------------------- Setup the Logger --------------------- //
     // the prelogger will nolonger be used.

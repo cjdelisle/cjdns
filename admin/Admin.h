@@ -68,6 +68,8 @@ void Admin_registerFunctionWithArgCount(char* name,
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
+int Admin_sendMessageToAngel(Dict* message, struct Admin* admin);
+
 struct Admin* Admin_new(struct Interface* toAngelInterface,
                         struct Allocator* alloc,
                         struct Log* logger,
