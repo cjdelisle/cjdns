@@ -191,8 +191,8 @@ int Core_main(int argc, char** argv)
     indirectLogger->wrappedLog = preLogger;
     struct Log* logger = &indirectLogger->pub;
 
+    // The first read inside of getInitialConfig() will begin it waiting.
     struct PipeInterface* pi = PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc);
-    PipeInterface_waitUntilReady(pi);
 
     Dict* config = getInitialConfig(&pi->generic, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
@@ -211,6 +211,8 @@ int Core_main(int argc, char** argv)
 
     struct Admin* admin = Admin_new(&pi->generic, alloc, logger, eventBase, pass);
 
+    Dict adminResponse = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
+    Admin_sendMessage(&adminResponse, String_CONST("\xff\xff\xff\xff"), admin);
 
     // --------------------- Setup the Logger --------------------- //
     // the prelogger will nolonger be used.

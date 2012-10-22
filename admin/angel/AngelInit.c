@@ -319,6 +319,10 @@ int AngelInit_main(int argc, char** argv)
 
     sendConfToCore(coreIface, alloc, &config, eh, logger);
 
+    struct Allocator* tempAlloc = alloc->child(alloc);
+    InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
+    tempAlloc->free(tempAlloc);
+
     Dict* configResp = Dict_new(alloc);
     Dict* adminResp = Dict_new(alloc);
     Dict_putDict(configResp, String_CONST("admin"), adminResp, alloc);

@@ -228,10 +228,9 @@ static bool handleMessage(struct PipeInterface_pvt* context)
     } else if (context->pub.state == PipeInterface_State_INITIALIZING) {
         Log_debug(context->logger, "[%p] Established Synchronization", (void*) context);
         context->pub.state = PipeInterface_State_ESTABLISHED;
-        if (context->isWaiting) {
-            context->isWaiting = false;
-            event_base_loopbreak(context->eventBase);
-        }
+    } else if (context->isWaiting) {
+        context->isWaiting = false;
+        event_base_loopbreak(context->eventBase);
     }
 
     uint32_t length = context->message.as.header.length + FramedMessage_SIZE;
@@ -329,9 +328,11 @@ static void onFree(void* vcontext)
 
 void PipeInterface_waitUntilReady(struct PipeInterface* pif)
 {
-    struct PipeInterface_pvt* context = (struct PipeInterface_pvt*) pif;
-    context->isWaiting = true;
-    event_base_dispatch(context->eventBase);
+    if (pif->state == PipeInterface_State_INITIALIZING) {
+        struct PipeInterface_pvt* context = (struct PipeInterface_pvt*) pif;
+        context->isWaiting = true;
+        event_base_dispatch(context->eventBase);
+    }
 }
 
 struct PipeInterface* PipeInterface_new(int inPipe,

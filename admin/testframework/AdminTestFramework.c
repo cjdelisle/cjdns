@@ -16,6 +16,7 @@
 #include "admin/AdminClient.h"
 #include "admin/angel/Waiter.h"
 #include "admin/angel/AngelInit.h"
+#include "admin/angel/InterfaceWaiter.h"
 #include "admin/testframework/AdminTestFramework.h"
 #include "benc/String.h"
 #include "benc/Int.h"
@@ -107,10 +108,27 @@ static String* initAngel(int fromAngel,
 
     struct PipeInterface* pi =
         PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc);
-    PipeInterface_waitUntilReady(pi);
     *piOut = pi;
 
     Log_info(logger, "PipeInterface [%p] is now ready.", (void*)pi);
+
+    // Make sure the angel sends data to the core.
+    InterfaceWaiter_waitForData(&pi->generic, eventBase, alloc, NULL);
+
+    // Send response on behalf of core.
+    char coreToAngelResponse[128] = "           PADDING              "
+        "\xff\xff\xff\xff"
+        "d"
+          "5:error" "4:none"
+        "e";
+
+    char* start = strchr(coreToAngelResponse, '\xff');
+    struct Message m = {
+        .bytes = (uint8_t*) start,
+        .length = strlen(start),
+        .padding = start - coreToAngelResponse
+    };
+    pi->generic.sendMessage(&m, &pi->generic);
 
     // This is angel->client data, it will tell us which port was bound.
     Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, AbortHandler_INSTANCE);
