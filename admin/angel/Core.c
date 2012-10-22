@@ -116,6 +116,7 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
 
 static void adminExit(Dict* input, void* vcontext, String* txid)
 {
+    Log_info((struct Log*) vcontext, "Got request to exit.");
     exit(1);
 }
 
@@ -125,7 +126,7 @@ static Dict* getInitialConfig(struct Interface* iface,
                               struct Except* eh)
 {
     struct Message* m = InterfaceWaiter_waitForData(iface, eventBase, alloc, eh);
-    struct Reader* reader = ArrayReader_new(m, m->length, alloc);
+    struct Reader* reader = ArrayReader_new(m->bytes, m->length, alloc);
     Dict* config = Dict_new(alloc);
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
         Except_raise(eh, -1, "Failed to parse initial configuration.");
@@ -265,7 +266,7 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Admin_registerFunction("Core_exit", adminExit, NULL, true, NULL, admin);
+    Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
 

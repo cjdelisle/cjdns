@@ -18,6 +18,10 @@
 #include "exception/ExceptionHandler.h"
 #include "util/log/Log.h"
 
+#define Security_setUser_NO_SUCH_USER -1
+#define Security_setUser_PERMISSION -2
+#define Security_setUser_INTERNAL -3
+
 void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh);
 
 void Security_noFiles(struct ExceptionHandler* eh);

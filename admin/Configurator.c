@@ -169,7 +169,7 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     if (device) {
         Dict_putString(args, String_CONST("desiredTunName"), device, tempAlloc);
     }
-    rpcCall(String_CONST("Core_initTunnel"), args, ctx, tempAlloc);
+    rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, false);
 }
 
 static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)

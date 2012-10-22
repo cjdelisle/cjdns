@@ -72,6 +72,7 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
 
     iface->receiveMessage = NULL;
 
+    Assert_true(ctx.message);
     return ctx.message;
 }
 

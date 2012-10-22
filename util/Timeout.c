@@ -146,5 +146,5 @@ void Timeout_resetTimeout(struct Timeout* timeout,
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    event_free(timeout->event);
+    event_del(timeout->event);
 }

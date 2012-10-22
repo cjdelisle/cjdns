@@ -29,17 +29,18 @@ void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
         Except_raise(eh,
-                     -1,
+                     Security_setUser_NO_SUCH_USER,
                      "Failed to set UID, couldn't find user named [%s] in the system.",
                      strerror(errno));
         return;
     }
     if (setuid(pw->pw_uid)) {
         if (errno == EPERM) {
-            Except_raise(eh, EPERM, "You do not have permission to set UID.");
+            Except_raise(eh, Security_setUser_PERMISSION,
+                         "You do not have permission to set UID.");
             return;
         }
-        Except_raise(eh, -1, "Failed to set UID [%s]", strerror(errno));
+        Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]", strerror(errno));
     }
 }
 

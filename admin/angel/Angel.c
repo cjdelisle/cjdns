@@ -69,7 +69,7 @@ static void sendToCore(struct Message* message, uint32_t connNumber, struct Ange
 {
     Message_shift(message, 4);
     Bits_memcpyConst(message->bytes, &connNumber, 4);
-Log_debug(context->logger, "sending Message to core");
+    //Log_debug(context->logger, "sending Message to core");
     context->coreIface->sendMessage(message, context->coreIface);
 }
 
@@ -91,8 +91,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    Log_debug(context->logger, "Got incoming message from [%u] with content [%s]",
-              connNumber, message->bytes);
+    //Log_debug(context->logger, "Got incoming message from [%u] with content [%s]",
+    //          connNumber, message->bytes);
 
     if (connNumber <= 0xffff) {
         if (connNumber >= Angel_MAX_CONNECTIONS) {

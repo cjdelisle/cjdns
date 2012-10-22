@@ -27,6 +27,7 @@
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "exception/Jmp.h"
 #include "exception/Except.h"
 #include "exception/AbortHandler.h"
 #include "util/Bits.h"
@@ -203,6 +204,19 @@ static String* bindListener(String* bindAddr,
     return String_new(addrStr, alloc);
 }
 
+static void setUser(char* user, struct Log* logger, struct Except* eh)
+{
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        Security_setUser(user, logger, &jmp.handler);
+    } Jmp_catch {
+        if (jmp.code == Security_setUser_PERMISSION) {
+            return;
+        }
+        Except_raise(eh, jmp.code, jmp.message);
+    }
+}
+
 /**
  * Input:
  * {
@@ -318,7 +332,7 @@ int AngelInit_main(int argc, char** argv)
     buff[toClientWriter->bytesWritten(toClientWriter)] = 0;
     Log_keys(logger, "Sent [%s] to client.", buff);
     if (user) {
-        Security_setUser(user->bytes, NULL, eh);
+        setUser(user->bytes, logger, eh);
     }
 
     Angel_start(pass, tcpSocket, coreIface, eventBase, logger, alloc);

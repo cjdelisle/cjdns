@@ -123,7 +123,7 @@ static void newChannel(struct Channel** location, struct Allocator* alloc)
 {
     struct Allocator* childAlloc = alloc->child(alloc);
     struct Channel* out = childAlloc->clone(sizeof(struct Channel), alloc, &(struct Channel) {
-        .alloc = alloc
+        .alloc = childAlloc
     });
     childAlloc->onFree(freeChannel, location, childAlloc);
     *location = out;
@@ -146,7 +146,8 @@ static struct Channel* channelForNum(uint32_t channelNum, bool create, struct Ad
 
 static void sendMessage(struct Message* message, uint32_t channelNum, struct Admin* admin)
 {
-    Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
+    // stack overflow when used with admin logger.
+    //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
     Message_shift(message, 4);
     Bits_memcpyConst(message->bytes, &channelNum, 4);
     admin->toAngelInterface->sendMessage(message, admin->toAngelInterface);

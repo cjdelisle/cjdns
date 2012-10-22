@@ -44,7 +44,6 @@ struct FramedMessage
 #define FramedMessage_SIZE 16
 Assert_compileTime(FramedMessage_SIZE == sizeof(struct FramedMessage));
 
-
 struct PipeInterface_pvt
 {
     /** Public API. */
@@ -236,6 +235,7 @@ static bool handleMessage(struct PipeInterface_pvt* context)
     }
 
     uint32_t length = context->message.as.header.length + FramedMessage_SIZE;
+    uint32_t remainingLength = context->messageReceived - length;
     if (context->messageReceived < length) {
         Log_debug(context->logger, "Dropping runt");
         return false;
@@ -251,7 +251,6 @@ static bool handleMessage(struct PipeInterface_pvt* context)
         Log_info(context->logger, "Got unknown message");
     }
 
-    uint32_t remainingLength = context->messageReceived - length;
     context->messageReceived = remainingLength;
     if (remainingLength) {
         memmove(context->message.as.bytes, context->message.as.bytes + length, remainingLength);
