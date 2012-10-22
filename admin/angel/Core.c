@@ -14,10 +14,11 @@
  */
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
-#include "admin/angel/AngelChan.h"
+#include "admin/angel/Angel.h"
 #include "admin/angel/Waiter.h"
 #include "admin/angel/Core.h"
 #include "admin/angel/Core_admin.h"
+#include "admin/angel/InterfaceWaiter.h"
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
@@ -30,6 +31,7 @@
 #include "interface/UDPInterface_admin.h"
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
+#include "interface/PipeInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
@@ -114,44 +116,23 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
 
 static void adminExit(Dict* input, void* vcontext, String* txid)
 {
+    Log_info((struct Log*) vcontext, "Got request to exit.");
     exit(1);
 }
 
-static Dict* getInitialConfig(int fromAngel,
+static Dict* getInitialConfig(struct Interface* iface,
                               struct event_base* eventBase,
                               struct Allocator* alloc,
                               struct Except* eh)
 {
-    uint8_t buff[AngelChan_INITIAL_CONF_BUFF_SIZE] = {0};
-    uint32_t amountRead =
-        Waiter_getData(buff, AngelChan_INITIAL_CONF_BUFF_SIZE, fromAngel, eventBase, eh);
-    if (amountRead == AngelChan_INITIAL_CONF_BUFF_SIZE) {
-        Except_raise(eh, -1, "initial config exceeds INITIAL_CONF_BUFF_SIZE");
-    }
-
-    struct Reader* reader = ArrayReader_new(buff, AngelChan_INITIAL_CONF_BUFF_SIZE, alloc);
+    struct Message* m = InterfaceWaiter_waitForData(iface, eventBase, alloc, eh);
+    struct Reader* reader = ArrayReader_new(m->bytes, m->length, alloc);
     Dict* config = Dict_new(alloc);
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
         Except_raise(eh, -1, "Failed to parse initial configuration.");
     }
 
     return config;
-}
-
-static void sendResponse(int toAngel, uint8_t syncMagic[8])
-{
-    char buff[64] =
-        "d"
-          "5:angel" "d"
-            "9:syncMagic" "16:\1\1\2\3\4\5\6\7\1\1\2\3\4\5\6\7"
-          "e"
-        "e";
-
-    uint32_t length = strlen(buff);
-    char* location = strstr(buff, "\1\1\2\3\4\5\6\7\1\1\2\3\4\5\6\7");
-    Assert_true(location > buff);
-    Hex_encode((uint8_t*)location, 16, syncMagic, 8);
-    write(toAngel, buff, length);
 }
 
 void Core_initTunnel(String* desiredDeviceName,
@@ -171,10 +152,11 @@ void Core_initTunnel(String* desiredDeviceName,
                                            logger,
                                            eh);
 
-    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
-    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
     Ducttape_setUserInterface(dt, &tun->iface);
+
+    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
+    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 
 /*
@@ -201,14 +183,6 @@ int Core_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    // earlyAlloc will be freed after intiailization.
-    struct Allocator* earlyAlloc = alloc->child(alloc);
-
-    #define BUFFER_SZ 2048
-    char* buffer = earlyAlloc->malloc(BUFFER_SZ, earlyAlloc);
-    struct Writer* toAngelWriter = ArrayWriter_new(buffer, BUFFER_SZ, earlyAlloc);
-    write(toAngel, buffer, toAngelWriter->bytesWritten(toAngelWriter));
-
     struct event_base* eventBase = event_base_new();
 
     // -------------------- Setup the Pre-Logger ---------------------- //
@@ -218,15 +192,17 @@ int Core_main(int argc, char** argv)
     indirectLogger->wrappedLog = preLogger;
     struct Log* logger = &indirectLogger->pub;
 
+    // The first read inside of getInitialConfig() will begin it waiting.
+    struct PipeInterface* pi = PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc);
 
-    Dict* config = getInitialConfig(fromAngel, eventBase, alloc, eh);
+    Dict* config = getInitialConfig(&pi->generic, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
     String* pass = Dict_getString(adminConf, String_CONST("pass"));
     if (!pass || !privateKeyHex) {
         Except_raise(eh, -1, "Expected 'pass' and 'privateKey' in configuration.");
     }
-    Log_keys(indirectLogger, "Starting core with admin password [%s]", pass->bytes);
+    Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
@@ -234,10 +210,10 @@ int Core_main(int argc, char** argv)
         Except_raise(eh, -1, "privateKey must be 64 bytes of hex.");
     }
 
-    sendResponse(toAngel, syncMagic);
+    struct Admin* admin = Admin_new(&pi->generic, alloc, logger, eventBase, pass);
 
-    struct Admin* admin = Admin_new(fromAngel, toAngel, alloc, logger, eventBase, pass, syncMagic);
-
+    Dict adminResponse = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
+    Admin_sendMessageToAngel(&adminResponse, admin);
 
     // --------------------- Setup the Logger --------------------- //
     // the prelogger will nolonger be used.
@@ -293,7 +269,7 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Admin_registerFunction("Core_exit", adminExit, NULL, true, NULL, admin);
+    Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
 
@@ -304,8 +280,6 @@ int Core_main(int argc, char** argv)
                 .admin = admin
             });
     Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
-
-    earlyAlloc->free(earlyAlloc);
 
     event_base_dispatch(eventBase);
     return 0;

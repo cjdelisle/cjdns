@@ -83,10 +83,8 @@ static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vc
 
 static void slowClient(struct Context* ctx)
 {
-    struct sockaddr_storage* addr;
-    int addrLen;
-
-    Admin_getConnectInfo(&addr, &addrLen, NULL, ctx->framework->admin);
+    struct sockaddr_storage* addr = &ctx->framework->addr;
+    int addrLen = ctx->framework->addrLen;
 
     int sock = socket(addr->ss_family, SOCK_STREAM, 0);
 
@@ -135,9 +133,9 @@ static void standardClient(struct Context* ctx)
     Assert_always(ctx->called);
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    struct AdminTestFramework* framework = AdminTestFramework_setUp();
+    struct AdminTestFramework* framework = AdminTestFramework_setUp(argc, argv);
     struct Context ctx = {
         .framework = framework
     };
@@ -172,4 +170,6 @@ int main()
 
     standardClient(&ctx);
     slowClient(&ctx);
+
+    AdminTestFramework_tearDown(framework);
 }

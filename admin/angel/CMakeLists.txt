@@ -14,6 +14,10 @@ add_library(cjdns-waiter
     Waiter.c
 )
 
+add_library(cjdns-interface-waiter
+    InterfaceWaiter.c
+)
+
 add_library(cjdns-angel
     Angel.c
     AngelInit.c
@@ -26,6 +30,7 @@ target_link_libraries(cjdns-angel
     ${LIBEVENT2_LIBRARIES}
     cjdns-security
     cjdns-process
+    cjdns-interface-waiter
     cjdns-waiter
     util # Hex_decode()
     cjdns-util-log-writer
@@ -49,7 +54,7 @@ target_link_libraries(cjdns-core
     cjdnet
     ${LIBEVENT2_LIBRARIES}
     ${PLATFORM_LIBRARIES}
-    cjdns-waiter
+    cjdns-interface-waiter
     cjdns-util-log-writer
     cjdns-admin-logger
     cjdns-util-log-indirect

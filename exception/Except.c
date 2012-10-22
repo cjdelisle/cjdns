@@ -25,8 +25,13 @@ void Except_raise(struct Except* eh, int code, char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
 
-    eh->exception(eh->message, code, eh);
+    if (eh) {
+        vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
+        eh->exception(eh->message, code, eh);
+    } else {
+        vprintf(format, args);
+    }
     abort();
+    exit(100);
 }

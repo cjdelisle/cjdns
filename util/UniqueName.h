@@ -12,24 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Angel_H
-#define Angel_H
+#ifndef UniqueName_H
+#define UniqueName_H
 
-#include "benc/String.h"
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
-#include "interface/Interface.h"
+#define UniqueName_COUNTER x
+#define UniqueName_MAKE UniqueName_MAKE_NAME(UniqueName_COUNTER, __LINE__)
+#define UniqueName_MAKE_NAME(x, y) UniqueName_MAKE_NAME2(x, y)
+#define UniqueName_MAKE_NAME2(x, y) UniqueName_generated_ ## x ## y
+#define UniqueName_GLUE(x, y) x ## y
 
-#include <event2/event.h>
+#define UniqueName_get() UniqueName_MAKE
 
-#define Angel_MAX_CONNECTIONS 64
-#define Angel_INITIAL_CONF_BUFF_SIZE 1024
-
-void Angel_start(String* pass,
-                 evutil_socket_t tcpSocket,
-                 struct Interface* coreIface,
-                 struct event_base* eventBase,
-                 struct Log* logger,
-                 struct Allocator* alloc);
-
+#else /* #ifdef UniqueName_H */
+    // This is needed every time the file is pulled in to prevent name collisions.
+    #define UniqueName_COUNTER2 UniqueName_COUNTER
+    #undef UniqueName_COUNTER
+    #define UniqueName_COUNTER UniqueName_GLUE(UniqueName_COUNTER2, x)
 #endif

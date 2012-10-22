@@ -13,13 +13,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/angel/Angel.h"
-#include "admin/angel/AngelChan.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
+#include "interface/Interface.h"
+#include "interface/PipeInterface.h"
+#include "interface/Interface.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
+#include "wire/Message.h"
+#include "wire/Error.h"
 
 #include <event2/event.h>
 #include <errno.h>
@@ -35,151 +39,80 @@ struct Connection {
 
 struct AngelContext
 {
-    unsigned int haveMessageHeaderLen, haveMessageLen;
-    struct AngelChan_MessageHeader messageHeader;
-    uint8_t message[AngelChan_MAX_MESSAGE_SIZE];
-
-    struct Connection connections[AngelChan_MAX_CONNECTIONS];
-
-    /**
-     * Magic bytes which are sent at the beginning of
-     * each frame to make sure the connection is still synchronized.
-     */
-    uint64_t syncMagic;
-
-    uint64_t timeOfLastMessageFromCore;
+    struct Connection connections[Angel_MAX_CONNECTIONS];
 
     /** The event which listens for new connections. */
     struct event* socketEvent;
 
-    /** For talking with the core process. */
-    struct event* fromCore;
-    int inFd;
-    int outFd;
+    struct Interface* coreIface;
 
     struct event_base* eventBase;
-    struct Allocator* allocator;
     struct Log* logger;
 };
 
-static void sendToCore(struct AngelContext* context, uint32_t channelNum, uint32_t len, void* data);
-
-/**
- * @param fileDescriptor the file to read from.
- * @param outputBuffer the buffer to write to.
- * @param amountGotten the amount of data already read (this will be modified).
- * @param totalExpected the amount to expect when reading.
- */
-static void getDataFromPipe(int fileDescriptor,
-                            uint8_t* outputBuffer,
-                            uint32_t* amountGotten,
-                            uint32_t totalExpected)
+static void handleMessageForAngel(struct Message* message, struct AngelContext* context)
 {
-    uint32_t oldAmount = *amountGotten;
-    if (oldAmount == totalExpected) {
-        return;
-    }
-    Assert_true(oldAmount < totalExpected);
-
-    ssize_t amount = read(fileDescriptor, outputBuffer + *amountGotten, totalExpected - oldAmount);
-
-    if (amount < 1) {
-        if (EAGAIN == errno || EWOULDBLOCK == errno) {
-            return;
-        }
-        if (amount < 0) {
-            perror("broken pipe");
-        } else {
-            fprintf(stderr, "admin connection closed\n");
-        }
+    Log_debug(context->logger, "Got message for angel with content [%s]", message->bytes);
+    char* angelExit = "d1:q10:Angel_exite";
+    if (message->length == strlen(angelExit)
+        && !memcmp((char*)message->bytes, angelExit, message->length))
+    {
+        Log_info(context->logger, "Got request to exit");
         exit(0);
     }
-    *amountGotten += amount;
 }
 
-/** return true if the header is available and false otherwise. */
-static bool getMessageHeaderFromCore(struct AngelContext* context)
+/**
+ * send message via pipe to core process
+ */
+static void sendToCore(struct Message* message, uint32_t connNumber, struct AngelContext* context)
 {
-    getDataFromPipe(context->inFd,
-                    (uint8_t*)&context->messageHeader,
-                    &context->haveMessageHeaderLen,
-                    AngelChan_MessageHeader_SIZE);
-
-    return (context->haveMessageHeaderLen == AngelChan_MessageHeader_SIZE);
-}
-
-static bool getMessageBodyFromCore(struct AngelContext* context)
-{
-    getDataFromPipe(context->inFd,
-                    context->message,
-                    &context->haveMessageLen,
-                    context->messageHeader.length);
-
-    return (context->haveMessageLen == context->messageHeader.length);
-}
-
-static void handleMessageForAngel(struct AngelContext* context)
-{
-    // TODO: handle incoming messages from the core.
+    Message_shift(message, 4);
+    Bits_memcpyConst(message->bytes, &connNumber, 4);
+    //Log_debug(context->logger, "sending Message to core");
+    context->coreIface->sendMessage(message, context->coreIface);
 }
 
 /**
  * handle message on the pipe from core process
  */
-static void incomingFromCore(evutil_socket_t socket, short eventType, void* vcontext)
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
-    struct AngelContext* context = (struct AngelContext*) vcontext;
+    struct AngelContext* context = iface->receiverContext;
 
-    if (!getMessageHeaderFromCore(context)) {
-        return;
+    Assert_true(message->length >= 4);
+
+    uint32_t connNumber;
+    Bits_memcpyConst(&connNumber, message->bytes, 4);
+    Message_shift(message, -4);
+
+    if (connNumber == 0xffffffff) {
+        handleMessageForAngel(message, context);
+        return Error_NONE;
     }
 
-    // got complete header, reset message
-    context->haveMessageLen = 0;
-    if (context->syncMagic != context->messageHeader.syncMagic) {
-        fprintf(stderr, "wrong magic on admin connection\n");
-        exit(0);
-    }
+    //Log_debug(context->logger, "Got incoming message from [%u] with content [%s]",
+    //          connNumber, message->bytes);
 
-    uint32_t messageBodyLength = context->messageHeader.length;
-
-    if (messageBodyLength > AngelChan_MAX_MESSAGE_SIZE) {
-        fprintf(stderr, "message too large on admin connection\n");
-        exit(0);
-    }
-
-    if (!getMessageBodyFromCore(context)) {
-        return;
-    }
-
-    // got complete message, reset header. new header will reset message later
-    context->haveMessageHeaderLen = 0;
-
-    context->timeOfLastMessageFromCore = Time_currentTimeMilliseconds(context->eventBase);
-    if (context->messageHeader.channelNum == 0xffffffff) {
-        handleMessageForAngel(context);
-        return;
-    }
-    if (context->messageHeader.channelNum <= 0xffff) {
-        // message for admin connections
-        uint32_t connNumber = context->messageHeader.channelNum;
-        if (connNumber >= AngelChan_MAX_CONNECTIONS) {
+    if (connNumber <= 0xffff) {
+        if (connNumber >= Angel_MAX_CONNECTIONS) {
             fprintf(stderr, "got message for connection #%u, max connections is %d\n",
-                    connNumber, AngelChan_MAX_CONNECTIONS);
-            return;
+                    connNumber, Angel_MAX_CONNECTIONS);
+            return Error_NONE;
         }
 
         struct Connection* conn = &context->connections[connNumber];
         if (-1 == conn->socket) {
             fprintf(stderr, "got message for closed channel #%u", connNumber);
-            return;
+            return Error_NONE;
         }
 
-        if (0 == context->haveMessageLen) {
+        if (0 == message->length) {
             /* close channel / recv ACK for close */
             if (NULL != conn->read) {
                 // send close ACK
-                sendToCore(context, connNumber, 0, NULL);
+                message->length = 0;
+                sendToCore(message, connNumber, context);
                 EVUTIL_CLOSESOCKET(conn->socket);
                 event_free(conn->read);
                 conn->read = NULL;
@@ -189,47 +122,20 @@ static void incomingFromCore(evutil_socket_t socket, short eventType, void* vcon
             /* drop message - channel is closed, wait for close ACK */
         } else {
             ssize_t sent;
-            sent = send(conn->socket, context->message, context->haveMessageLen, 0);
-            if (sent != (ssize_t) context->haveMessageLen) {
+            sent = send(conn->socket, message->bytes, message->length, 0);
+            if (sent != (ssize_t) message->length) {
                 // All errors lead to closing the socket.
                 EVUTIL_CLOSESOCKET(conn->socket);
                 event_free(conn->read);
                 conn->read = NULL;
                 // send close channel
-                sendToCore(context, connNumber, 0, NULL);
+                message->length = 0;
+                sendToCore(message, connNumber, context);
                 // set conn->socket = -1 later when we recv close ACK
             }
         }
     }
-}
-
-/**
- * send message via pipe to core process
- */
-static void sendToCore(struct AngelContext* context, uint32_t channelNum, uint32_t len, void* data)
-{
-    struct AngelChan_MessageHeader messageHeader = {
-        .syncMagic = context->syncMagic,
-        .length = len,
-        .channelNum = channelNum
-    };
-
-    // TODO: buffer writes
-
-    size_t amountWritten;
-    amountWritten = write(context->outFd, &messageHeader, AngelChan_MessageHeader_SIZE);
-    if (amountWritten != AngelChan_MessageHeader_SIZE) {
-        printf("Admin process failed to write data across pipe to main process.");
-        exit(0);
-    }
-
-    if (len > 0) {
-        amountWritten = write(context->outFd, data, len);
-        if (amountWritten != len) {
-            printf("Admin process failed to write data across pipe to main process.");
-            exit(0);
-        }
-    }
+    return Error_NONE;
 }
 
 /**
@@ -239,14 +145,20 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct AngelContext* context = conn->context;
-    uint8_t buf[AngelChan_MAX_MESSAGE_SIZE];
+
+    uint8_t buf[PipeInterface_MAX_MESSAGE_SIZE + PipeInterface_PADDING];
     uint32_t connNumber = conn - context->connections;
 
-    errno = 0;
-    ssize_t result = recv(socket, buf, sizeof(buf), 0);
+    struct Message message = {
+        .bytes = buf + PipeInterface_PADDING,
+        .length = PipeInterface_MAX_MESSAGE_SIZE,
+        .padding = PipeInterface_PADDING
+    };
+    ssize_t result = recv(socket, message.bytes, message.length, 0);
 
     if (result > 0) {
-        sendToCore(context, connNumber, result, buf);
+        message.length = result;
+        sendToCore(&message, connNumber, context);
     } else if (result < 0 && (EAGAIN  == errno || EWOULDBLOCK == errno)) {
         return;
     } else {
@@ -255,7 +167,8 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
         event_free(conn->read);
         conn->read = NULL;
         // send close channel
-        sendToCore(context, connNumber, 0, NULL);
+        message.length = 0;
+        sendToCore(&message, connNumber, context);
         // set conn->socket = -1 later when we recv close ACK
     }
 }
@@ -263,7 +176,7 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
 static struct Connection* newConnection(struct AngelContext* context, evutil_socket_t fd)
 {
     struct Connection* conn = NULL;
-    for (int i = 0; i < AngelChan_MAX_CONNECTIONS; i++) {
+    for (int i = 0; i < Angel_MAX_CONNECTIONS; i++) {
         if (context->connections[i].read == NULL && context->connections[i].socket == -1) {
             conn = &context->connections[i];
             break;
@@ -309,30 +222,9 @@ static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
     }
 }
 
-static void pingCore(struct AngelContext* context)
-{
-    char* ping = "d1:q4:ping4:txid4:iiiie";
-    sendToCore(context, 0xffffffff, strlen(ping), ping);
-}
-
-static void corePinger(void* vcontext)
-{
-    struct AngelContext* context = (struct AngelContext*) vcontext;
-    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
-    if (now > context->timeOfLastMessageFromCore + 1000) {
-        if (now > context->timeOfLastMessageFromCore + 10000) {
-            fprintf(stderr, "no response from core, exiting");
-            exit(1);
-        }
-        pingCore(context);
-    }
-}
-
 void Angel_start(String* pass,
-                 uint8_t syncMagic[8],
                  evutil_socket_t tcpSocket,
-                 int toCore,
-                 int fromCore,
+                 struct Interface* coreIface,
                  struct event_base* eventBase,
                  struct Log* logger,
                  struct Allocator* alloc)
@@ -341,30 +233,19 @@ void Angel_start(String* pass,
     struct AngelContext* context = &contextStore;
     memset(context, 0, sizeof(struct AngelContext));
 
-    for (int i = 0; i < AngelChan_MAX_CONNECTIONS; i++) {
+    for (int i = 0; i < Angel_MAX_CONNECTIONS; i++) {
         context->connections[i].socket = -1;
     }
     context->eventBase = eventBase;
-    context->inFd = fromCore;
-    context->outFd = toCore;
     context->logger = logger;
-    context->allocator = alloc;
-    context->timeOfLastMessageFromCore = Time_currentTimeMilliseconds(context->eventBase);
-    Bits_memcpyConst(&context->syncMagic, syncMagic, 8);
 
-    context->fromCore =
-        event_new(context->eventBase,
-                  context->inFd,
-                  EV_READ | EV_PERSIST,
-                  incomingFromCore,
-                  context);
-    event_add(context->fromCore, NULL);
+    context->coreIface = coreIface;
+    context->coreIface->receiveMessage = receiveMessage;
+    context->coreIface->receiverContext = context;
 
     context->socketEvent =
         event_new(context->eventBase, tcpSocket, EV_READ | EV_PERSIST, acceptConn, context);
     event_add(context->socketEvent, NULL);
-
-    Timeout_setInterval(corePinger, context, 1000, eventBase, alloc);
 
     event_base_dispatch(context->eventBase);
 }

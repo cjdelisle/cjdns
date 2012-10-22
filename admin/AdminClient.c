@@ -136,7 +136,7 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
 
     send(res->ctx->socket, res->public.messageBytes, writer->bytesWritten(writer), 0);
 
-    struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res);
+    struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res->ctx);
     evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 5, .tv_usec = 0 }));
 
     event_base_dispatch(res->ctx->eventBase);
@@ -266,11 +266,13 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
     }
 
     if (connect(context->socket, (struct sockaddr*)addr, addrLen)) {
-        char printedAddr[128];
-        uint16_t port = Endian_bigEndianToHost16(((struct sockaddr_in*)addr)->sin_port);
-        evutil_inet_ntop(AF_INET, &((struct sockaddr_in*)addr)->sin_addr, printedAddr, 128);
-        Log_error(logger, "Failed to connect to admin port at [%s:%u], [%s]",
-                  printedAddr, port, strerror(errno));
+        #ifdef Log_ERROR
+            char printedAddr[128];
+            uint16_t port = Endian_bigEndianToHost16(((struct sockaddr_in*)addr)->sin_port);
+            evutil_inet_ntop(AF_INET, &((struct sockaddr_in*)addr)->sin_addr, printedAddr, 128);
+            Log_error(logger, "Failed to connect to admin port at [%s:%u], [%s]",
+                      printedAddr, port, strerror(errno));
+        #endif
         return NULL;
     }
 
