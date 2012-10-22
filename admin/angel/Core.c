@@ -152,10 +152,11 @@ void Core_initTunnel(String* desiredDeviceName,
                                            logger,
                                            eh);
 
-    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
-    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
     Ducttape_setUserInterface(dt, &tun->iface);
+
+    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
+    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 
 /*
