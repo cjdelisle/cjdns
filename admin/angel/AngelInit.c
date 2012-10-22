@@ -213,7 +213,7 @@ static void setUser(char* user, struct Log* logger, struct Except* eh)
         if (jmp.code == Security_setUser_PERMISSION) {
             return;
         }
-        Except_raise(eh, jmp.code, jmp.message);
+        Except_raise(eh, jmp.code, "%s", jmp.message);
     }
 }
 
