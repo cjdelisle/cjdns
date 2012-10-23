@@ -29,11 +29,19 @@ target_link_libraries(crypto
     util
 )
 
-add_library(cjdns-crypto-bench CryptoAuth_benchmark.c)
-target_link_libraries(cjdns-crypto-bench crypto)
+add_library(cjdns-crypto-bench
+    CryptoAuth_benchmark.c)
+target_link_libraries(cjdns-crypto-bench
+    crypto
+)
 
-add_library(crypto_benchmark CryptoAuth_benchmark.c)
-target_link_libraries(crypto_benchmark crypto)
+add_library(cjdns-crypto-key
+    Key.c
+)
+target_link_libraries(cjdns-crypto-key
+    util
+    crypto
+)
 
 # Everything must be tested.
 enable_testing()

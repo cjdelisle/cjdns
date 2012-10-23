@@ -19,6 +19,7 @@
 #include "dht/dhtcore/RouterModule.h"
 #include "switch/SwitchCore.h"
 #include "memory/Allocator.h"
+#include "tunnel/IpTunnel.h"
 #include "wire/Headers.h"
 
 #include <event2/event.h>
@@ -35,7 +36,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct event_base* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
-                                   struct Admin* admin);
+                                   struct Admin* admin,
+                                   struct IpTunnel* ipTun);
 
 /**
  * Set the interface which the user will use to communicate with the network.

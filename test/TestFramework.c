@@ -50,6 +50,8 @@ struct Ducttape* TestFramework_setUp()
 
     SerializationModule_register(registry, allocator);
 
+    struct IpTunnel* ipTun = IpTunnel_new(logger, allocator);
+
     return Ducttape_register(privateKey, registry, routerModule,
-                             switchCore, base, allocator, logger, NULL);
+                             switchCore, base, allocator, logger, NULL, ipTun);
 }

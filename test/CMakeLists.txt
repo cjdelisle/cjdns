@@ -30,6 +30,7 @@ target_link_libraries(TestFramework
     cjdns-admin
     cjdnet
     ${LIBEVENT2_LIBRARIES}
+    cjdns-tunnel-iptunnel
 )
 
 # Anything in this dir which ends with "test.c" is considered a test.

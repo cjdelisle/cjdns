@@ -97,6 +97,9 @@ struct Ducttape_Private
 
     /** The interface for the SwitchPinger. */
     struct Interface* switchPingerIf;
+
+    /** For tunneling IPv4 and ICANN IPv6 packets. */
+    struct IpTunnel* ipTunnel;
 };
 
 #endif

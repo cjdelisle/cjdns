@@ -91,10 +91,11 @@ void AuthorizedPasswords_init(struct Admin* admin,
     context->admin = admin;
     context->allocator = allocator;
     context->ca = ca;
-    struct Admin_FunctionArg adma[2] = {
-        { .name = "password", .required = 1, .type = "String" },
-        { .name = "authType", .required = 0, .type = "Int" }
-    };
-    Admin_registerFunction("AuthorizedPasswords_add", add, context, true, adma, admin);
+
+    Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
+        ((struct Admin_FunctionArg[]){
+            { .name = "password", .required = 1, .type = "String" },
+            { .name = "authType", .required = 0, .type = "Int" }
+        }), admin);
     Admin_registerFunction("AuthorizedPasswords_flush", flush, context, true, NULL, admin);
 }

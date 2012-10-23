@@ -44,6 +44,8 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "tunnel/IpTunnel.h"
+#include "tunnel/IpTunnel_admin.h"
 #include "util/log/WriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
@@ -241,6 +243,8 @@ int Core_main(int argc, char** argv)
 
     SerializationModule_register(registry, alloc);
 
+    struct IpTunnel* ipTun = IpTunnel_new(logger, alloc);
+
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
                                             router,
@@ -248,7 +252,8 @@ int Core_main(int argc, char** argv)
                                             eventBase,
                                             alloc,
                                             logger,
-                                            admin);
+                                            admin,
+                                            ipTun);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);
@@ -272,6 +277,7 @@ int Core_main(int argc, char** argv)
     Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
+    IpTunnel_admin_register(ipTun, admin, alloc);
 
     struct MemoryContext* mc =
         alloc->clone(sizeof(struct MemoryContext), alloc,

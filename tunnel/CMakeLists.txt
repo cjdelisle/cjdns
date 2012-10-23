@@ -9,28 +9,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-find_package(Libevent2 REQUIRED)
 
-if(WIN32)
-  set(tunif TUNInterface_W32.c)
-  set(tunconf TUNConfigurator_W32.c)
-else()
-  set(tunif TUNInterface.c)
-endif()
-
-add_library(interface
-    UDPInterface.c
-    UDPInterface_admin.c
-    ${tunif}
-    TUNConfigurator_${SYSTEM}.c
-    InterfaceConnector.c
-    SessionManager.c
-)
-target_link_libraries(interface util cjdns-crypto-key ${LIBEVENT2_LIBRARIES})
-
-add_library(cjdns-interface-pipeinterface
-    PipeInterface.c
+add_library(cjdns-tunnel-iptunnel
+    IpTunnel.c
+    IpTunnel_admin.c
 )
 
-enable_testing()
-add_subdirectory(test)
+target_link_libraries(cjdns-tunnel-iptunnel
+    cjdbenc
+)

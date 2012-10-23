@@ -20,6 +20,7 @@
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/UniqueName.h"
 
 #ifdef FreeBSD
     #include <netinet/in.h>

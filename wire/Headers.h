@@ -316,7 +316,7 @@ Assert_compileTime(sizeof(struct Headers_IP4Header) == Headers_IP4Header_SIZE);
 
 static inline int Headers_getIpVersion(void* header)
 {
-    return ((uint8_t*) header)[0] & 0xF0;
+    return (((uint8_t*) header)[0] & 0xF0) >> 4;
 }
 
 

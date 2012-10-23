@@ -18,7 +18,7 @@
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
-#include "util/Base32.h"
+#include "crypto/Key.h"
 
 #include <errno.h>
 #include <event2/event.h>
@@ -47,21 +47,15 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     String* error = NULL;
 
     uint8_t pkBytes[32];
-
+    int ret;
     if (ctx->ifCount == 0) {
         error = String_CONST("no interfaces are setup, call UDPInterface_new() first");
 
     } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
         error = String_CONST("invalid interfaceNumber");
 
-    } else if (!publicKey
-        || publicKey->len < 52
-        || (publicKey->len > 52 && publicKey->bytes[52] != '.'))
-    {
-        error = String_CONST("publicKey must be 52 characters long.");
-
-    } else if (Base32_decode(pkBytes, 32, (uint8_t*)publicKey->bytes, 52) != 32) {
-        error = String_CONST("failed to parse publicKey.");
+    } else if ((ret = Key_parse(publicKey, pkBytes, NULL))) {
+        error = String_CONST(Key_parse_strerror(ret));
 
     } else {
         struct UDPInterface* udpif = ctx->ifaces[ifNum];

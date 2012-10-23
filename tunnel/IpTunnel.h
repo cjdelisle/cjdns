@@ -34,6 +34,8 @@ struct IpTunnel_PacketInfoHeader
     /** The full 32 byte key which corrisponds to the above Ip6 address. */
     uint8_t nodeKey[32];
 };
+#define IpTunnel_PacketInfoHeader_SIZE 48
+Assert_compileTime(sizeof(struct IpTunnel_PacketInfoHeader) == IpTunnel_PacketInfoHeader_SIZE);
 
 struct IpTunnel_Connection
 {
@@ -47,8 +49,14 @@ struct IpTunnel_Connection
     uint8_t connectionIp4[4];
 
     /** non-zero if the connection was made using IpTunnel_connectTo(). */
-    int isOutgoing;
-}
+    int isOutgoing : 1;
+
+    /** Zero until addresses have been requested and returned. */
+    int isActive : 1;
+
+    /** The number of the connection so it can be identified when removing. */
+    int number : 30;
+};
 
 struct IpTunnel
 {
@@ -61,7 +69,10 @@ struct IpTunnel
      */
     struct Interface nodeInterface;
 
-    /** The list of registered connections, do not modify manually. */
+    /**
+     * The list of registered connections, do not modify manually.
+     * Will be reorganized from time to time so pointers are ephimeral.
+     */
     struct {
         uint32_t count;
         struct IpTunnel_Connection* connections;
@@ -83,32 +94,32 @@ struct IpTunnel* IpTunnel_new(struct Log* logger, struct Allocator* alloc);
  * @param ip6Address the IPv6 address which the node will be issued or NULL.
  * @param ip4Address the IPv4 address which the node will be issued or NULL.
  * @param tunnel the IpTunnel.
- * @return an connection object which is usable with IpTunnel_remove().
- *         NOTE: this connection is internal and should not be modified.
+ * @return an connection number which is usable with IpTunnel_remove().
  */
-struct IpTunnel_Connection* IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                                                     uint8_t ip6Address[16],
-                                                     uint8_t ip4Address[4],
-                                                     struct IpTunnel* tunnel);
+int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
+                             uint8_t ip6Address[16],
+                             uint8_t ip4Address[4],
+                             struct IpTunnel* tunnel);
 
 /**
  * Connect to another node and get IPv4 and/or IPv6 addresses from it.
  *
  * @param publicKeyOfNodeToConnectTo the key for the node to connect to.
  * @param tunnel the IpTunnel.
- * @return an connection object which is usable with IpTunnel_remove().
- *         NOTE: this connection is internal and should not be modified.
+ * @return an connection number which is usable with IpTunnel_remove().
  */
-struct IpTunnel_Connection* IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32],
-                                               struct IpTunnel* tunnel);
+int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* tunnel);
 
 /**
  * Disconnect from a node or remove authorization to connect.
  *
- * @param connection the connection to remove.
+ * @param connectionNumber the number of the connection to remove.
  * @param tunnel the IpTunnel.
+ * @return 0 if the connection was successfully removed
+ *         IpTunnel_remove_NOT_FOUND if the connection was not found.
  */
-void IpTunnel_remove(struct IpTunnel_Connection* connection, struct IpTunnel* tunnel);
+#define IpTunnel_removeConnection_NOT_FOUND -1
+int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel);
 
 
 #endif

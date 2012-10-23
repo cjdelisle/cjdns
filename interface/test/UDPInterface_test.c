@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!strcmp("d5:error37:publicKey must be 52 characters long.e",
+    Assert_always(!strcmp("d5:error30:key must be 52 characters longe",
                           (char*) res->messageBytes));
 
     //printf("result content: >>%s<<", res->messageBytes);

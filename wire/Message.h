@@ -34,6 +34,14 @@ struct Message
     uint8_t* bytes;
 };
 
+#define Message_STACK(name, messageLength, amountOfPadding) \
+    uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
+    name = &(struct Message){                                  \
+        .length = messageLength,                               \
+        .bytes = UniqueName_get() + amountOfPadding,           \
+        .padding = amountOfPadding                             \
+    }
+
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {

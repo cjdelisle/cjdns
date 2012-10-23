@@ -58,6 +58,7 @@ target_link_libraries(cjdns-core
     cjdns-util-log-writer
     cjdns-admin-logger
     cjdns-util-log-indirect
+    cjdns-tunnel-iptunnel
 )
 
 add_executable(cjdns

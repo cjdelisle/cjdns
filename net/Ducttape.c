@@ -29,8 +29,10 @@
 #include "memory/BufferAllocator.h"
 #include "net/Ducttape_pvt.h"
 #include "switch/SwitchCore.h"
+#include "tunnel/IpTunnel.h"
 #include "util/Bits.h"
 #include "util/checksum/Checksum.h"
+#include "util/Time.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -324,7 +326,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
 
     int version = Headers_getIpVersion(message->bytes);
     if (version == 4 || (version == 6 && header->sourceAddr[0] != 0xfc)) {
-        return IpTunnel_incomingFromTun(message, context->ipTunnel);
+        return context->ipTunnel->tunInterface.sendMessage(message,
+                                                           &context->ipTunnel->tunInterface);
     } else if (version != 6) {
         Log_warn(context->logger, "dropped packet with unexpected IP version [%d].", version);
         return Error_INVALID;
@@ -381,23 +384,17 @@ static inline uint8_t incomingFromTun(struct Message* message,
 /**
  * Send an arbitrary message to a node.
  *
- * @param message to be sent
- * @param nodeIp6 the ipv6 address of the node for doing the routing table lookup.
- * @param nodeKey the key for the node, if specified and doesn't match the node's key,
- *                the send will fail. This is to make collision attacks less interesting.
- * @param vducttape the ducttape context.
+ * @param message to be sent, must be prefixed with IpTunnel_PacketInfoHeader.
+ * @param iface an interface for which receiverContext is the ducttape.
  */
-static uint8_t sendToNode(struct Message* message,
-                          uint8_t nodeIp6[16],
-                          uint8_t nodeKey[32],
-                          void* vducttape)
+static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_Private* context = (struct Ducttape_Private*) vducttape;
-    struct Node* n = RouterModule_lookup(nodeIp6, context->routerModule);
+    struct Ducttape_Private* context = iface->receiverContext;
+    struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
+    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
+    struct Node* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
     if (n) {
-        if ((nodeKey && !memcmp(nodeKey, n->address.key, 32))
-            || (!nodeKey && !memcmp(nodeIp6, n->address.ip6.bytes, 16)))
-        {
+        if (!memcmp(header->nodeKey, n->address.key, 32)) {
             // Found the node.
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
@@ -410,7 +407,7 @@ static uint8_t sendToNode(struct Message* message,
 
     #ifdef Log_DEBUG
         uint8_t printedIp6[40];
-        AddrTools_printIp(printedIp6, nodeIp6);
+        AddrTools_printIp(printedIp6, header->nodeIp6Addr);
         Log_debug(context->logger, "Couldn't find node [%s] for sending to.", printedIp6);
     #endif
 
@@ -418,8 +415,24 @@ static uint8_t sendToNode(struct Message* message,
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
     if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
         context->timeOfLastSearch = now;
-        RouterModule_beginSearch(nodeIp6, NULL, NULL, context->routerModule);
+        RouterModule_beginSearch(header->nodeIp6Addr, NULL, NULL, context->routerModule);
     }
+    return 0;
+}
+
+/**
+ * Send an arbitrary message to the tun device.
+ *
+ * @param message to be sent, must be prefixed with IpTunnel_PacketInfoHeader.
+ * @param iface an interface for which receiverContext is the ducttape.
+ */
+static uint8_t sendToTun(struct Message* message, struct Interface* iface)
+{
+    struct Ducttape_Private* context = iface->receiverContext;
+    if (context->userIf) {
+        return context->userIf->sendMessage(message, context->userIf);
+    }
+    return 0;
 }
 
 /**
@@ -531,9 +544,17 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape_Pr
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
-        return IpTunnel_incomingFromPeer(message,
-                                         CryptoAuth_getHerPublicKey(context->session),
-                                         context->ipTunnel);
+        Message_shift(message, IpTunnel_PacketInfoHeader_SIZE);
+        struct IpTunnel_PacketInfoHeader* header =
+            (struct IpTunnel_PacketInfoHeader*) message->bytes;
+
+        uint8_t* pubKey = CryptoAuth_getHerPublicKey(context->session);
+        uint8_t* addr = context->routerAddress;
+        Bits_memcpyConst(header->nodeIp6Addr, addr, 16);
+        Bits_memcpyConst(header->nodeKey, pubKey, 32);
+
+        struct Interface* ipTun = &context->ipTunnel->nodeInterface;
+        return ipTun->sendMessage(message, ipTun);
     }
 
     //Log_debug(context->logger, "Got message from router.\n");
@@ -752,7 +773,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct event_base* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
-                                   struct Admin* admin)
+                                   struct Admin* admin,
+                                   struct IpTunnel* ipTun)
 {
     struct Ducttape_Private* context =
         allocator->calloc(sizeof(struct Ducttape_Private), 1, allocator);
@@ -760,7 +782,13 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->routerModule = routerModule;
     context->logger = logger;
     context->forwardTo = NULL;
+    context->ipTunnel = ipTun;
     AddressMapper_init(&context->addrMap);
+
+    ipTun->nodeInterface.receiveMessage = sendToNode;
+    ipTun->nodeInterface.receiverContext = context;
+    ipTun->tunInterface.receiveMessage = sendToTun;
+    ipTun->tunInterface.receiverContext = context;
 
     struct CryptoAuth* cryptoAuth =
         CryptoAuth_new(allocator, privateKey, eventBase, logger);
