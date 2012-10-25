@@ -607,7 +607,8 @@ static void timeout(void* vcontext)
     int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
     for (int i = beginning + 1; i != beginning; i++) {
         if (i >= (int)context->pub.connectionList.count) {
-            i = 0;
+            i = -1;
+            continue;
         }
         struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
         if (conn->isOutgoing
