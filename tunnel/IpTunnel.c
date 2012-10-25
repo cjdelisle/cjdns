@@ -282,7 +282,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
         return Error_INVALID;
     }
 
-    Message_shift(message, Headers_UDPHeader_SIZE);
+    Message_shift(message, -Headers_UDPHeader_SIZE);
 
     message->length = length;
     return 0;
