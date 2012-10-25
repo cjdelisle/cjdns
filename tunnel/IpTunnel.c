@@ -379,11 +379,21 @@ static int incomingAddresses(Dict* d,
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     if (ip4 && ip4->len == 4) {
         Bits_memcpyConst(conn->connectionIp4, ip4->bytes, 4);
+        #ifdef Log_INFO
+            Log_info(context->logger, "Got issued address [%u.%u.%u.%u] for connection [%d]",
+                     ip4->bytes[0], ip4->bytes[1], ip4->bytes[2], ip4->bytes[3], conn->number);
+        #endif
     }
 
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
-    if (ip6 && ip6->len == 4) {
+    if (ip6 && ip6->len == 16) {
         Bits_memcpyConst(conn->connectionIp6, ip6->bytes, 16);
+        #ifdef Log_INFO
+            uint8_t addr[40];
+            AddrTools_printIp(addr, (uint8_t*)ip6->bytes);
+            Log_info(context->logger, "Got issued address [%s] for connection [%d]",
+                     addr, conn->number);
+        #endif
     }
     return 0;
 }
