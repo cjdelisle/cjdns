@@ -271,7 +271,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
     Message_shift(message, -Headers_IP6Header_SIZE);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) message->bytes;
 
-    if (Checksum_udpIp6(header->sourceAddr, message->bytes, length) != udp->checksum_be) {
+    if (Checksum_udpIp6(header->sourceAddr, message->bytes, length)) {
         Log_warn(context->logger, "Checksum mismatch");
         return Error_INVALID;
     }
@@ -395,11 +395,7 @@ static uint8_t incomingControlMessage(struct Message* message,
     #ifdef Log_DEBUG
         uint8_t addr[40];
         AddrTools_printIp(addr, conn->header.nodeIp6Addr);
-        uint8_t lastChar = message->bytes[message->length - 1];
-        message->bytes[message->length - 1] = '\0';
-        Log_debug(context->logger, "Got incoming message from [%s] with content [%s%c]",
-                  addr, message->bytes, lastChar);
-        message->bytes[message->length - 1] = lastChar;
+        Log_debug(context->logger, "Got incoming message from [%s]", addr);
     #endif
 
     // This aligns the message on the content.
@@ -407,10 +403,17 @@ static uint8_t incomingControlMessage(struct Message* message,
         return Error_INVALID;
     }
 
+    #ifdef Log_DEBUG
+        uint8_t lastChar = message->bytes[message->length - 1];
+        message->bytes[message->length - 1] = '\0';
+        Log_debug(context->logger, "Message content [%s%c]", message->bytes, lastChar);
+        message->bytes[message->length - 1] = lastChar;
+    #endif
+
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 1024);
 
-    struct Reader* r = ArrayReader_new(message, message->length, alloc);
+    struct Reader* r = ArrayReader_new(message->bytes, message->length, alloc);
     Dict dStore;
     Dict* d = &dStore;
     if (StandardBencSerializer_get()->parseDictionary(r, alloc, d)) {
