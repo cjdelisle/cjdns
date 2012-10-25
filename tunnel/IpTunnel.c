@@ -18,6 +18,7 @@
 #include "benc/List.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
+#include "crypto/Random.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "memory/BufferAllocator.h"
@@ -25,6 +26,9 @@
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"
 #include "util/checksum/Checksum.h"
+#include "util/AddrTools.h"
+#include "util/Events.h"
+#include "util/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 
@@ -36,7 +40,7 @@ struct IpTunnel_pvt
 {
     struct IpTunnel pub;
 
-    /** For verifying the integrity of the structure, must match IDENTITY. */
+    /** For verifying the integrity of the structure, must match IpTunnel_IDENTITY. */
     char* identity;
 
     struct Allocator* allocator;
@@ -46,6 +50,12 @@ struct IpTunnel_pvt
 
     /** An always incrementing number which represents the connections. */
     uint32_t nextConnectionNumber;
+
+    /**
+     * Every 10 seconds check for connections which the other end has
+     * not provided ip addresses and send more requests.
+     */
+    struct Timeout* timeout;
 };
 
 static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunnel_pvt* context)
@@ -81,8 +91,8 @@ static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunne
     conn->number = context->nextConnectionNumber++;
     conn->isOutgoing = isOutgoing;
 
-    // if there are 1 billion calls, die.
-    Assert_true(context->nextConnectionNumber < (UINT32_MAX >> 2));
+    // if there are 2 billion calls, die.
+    Assert_true(context->nextConnectionNumber < (UINT32_MAX >> 1));
 
     return conn;
 }
@@ -151,6 +161,14 @@ static uint8_t sendControlMessage(Dict* dict,
 
     struct Writer* w = ArrayWriter_new(message->bytes, message->length, alloc);
     StandardBencSerializer_get()->serializeDictionary(w, dict);
+    message->length = w->bytesWritten(w);
+
+    #ifdef Log_DEBUG
+        message->bytes[message->length] = '\0';
+        uint8_t addr[40];
+        AddrTools_printIp(addr, connection->header.nodeIp6Addr);
+        Log_debug(context->logger, "Send message to [%s] with content [%s]", addr, message->bytes);
+    #endif
 
     // do UDP header.
     Message_shift(message, Headers_UDPHeader_SIZE);
@@ -168,6 +186,7 @@ static uint8_t sendControlMessage(Dict* dict,
     header->nextHeader = 17;
     header->hopLimit = 0;
     header->payloadLength_be = Endian_hostToBigEndian16(payloadLength);
+    Headers_setIpVersion(header);
 
     // zero the source and dest addresses.
     memset(header->sourceAddr, 0, 32);
@@ -206,6 +225,12 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
     struct IpTunnel_Connection* conn = newConnection(true, context);
     Bits_memcpyConst(conn->header.nodeKey, publicKeyOfNodeToConnectTo, 32);
     AddressCalc_addressForPublicKey(conn->header.nodeIp6Addr, publicKeyOfNodeToConnectTo);
+
+    #ifdef Log_DEBUG
+        uint8_t addr[40];
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
+        Log_debug(context->logger, "Trying to connect to [%s]", addr);
+    #endif
 
     requestAddresses(conn, context);
 
@@ -260,6 +285,12 @@ static uint8_t requestForAddresses(Dict* request,
                                    struct Allocator* alloc,
                                    struct IpTunnel_pvt* context)
 {
+    #ifdef Log_DEBUG
+        uint8_t addr[40];
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
+        Log_debug(context->logger, "Got request for addresses from [%s]", addr);
+    #endif
+
     if (conn->isOutgoing) {
         Log_warn(context->logger, "got request for addresses from outgoing connection");
         return Error_INVALID;
@@ -353,6 +384,16 @@ static uint8_t incomingControlMessage(struct Message* message,
                                       struct IpTunnel_Connection* conn,
                                       struct IpTunnel_pvt* context)
 {
+    #ifdef Log_DEBUG
+        uint8_t addr[40];
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
+        uint8_t lastChar = message->bytes[message->length - 1];
+        message->bytes[message->length - 1] = '\0';
+        Log_debug(context->logger, "Got incoming message from [%s] with content [%s%c]",
+                  addr, message->bytes, lastChar);
+        message->bytes[message->length - 1] = lastChar;
+    #endif
+
     // This aligns the message on the content.
     if (isControlMessageInvalid(message, context)) {
         return Error_INVALID;
@@ -520,7 +561,11 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     struct IpTunnel_Connection* conn = connectionByPubKey(header->nodeKey, context);
     if (!conn) {
-        Log_debug(context->logger, "Got message from unrecognized node");
+        #ifdef Log_DEBUG
+            uint8_t addr[40];
+            AddrTools_printIp(addr, header->nodeIp6Addr);
+            Log_debug(context->logger, "Got message from unrecognized node [%s]", addr);
+        #endif
         return 0;
     }
 
@@ -533,14 +578,27 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
         return ip4FromNode(message, conn, context);
     }
 
-    Log_debug(context->logger, "Got message of unknown type, length: [%d], IP version [%d]",
-              message->length, (message->length > 1) ? Headers_getIpVersion(message->bytes) : 0);
+    #ifdef Log_DEBUG
+        uint8_t addr[40];
+        AddrTools_printIp(addr, header->nodeIp6Addr);
+        Log_debug(context->logger,
+                  "Got message of unknown type, length: [%d], IP version [%d] from [%s]",
+                  message->length,
+                  (message->length > 1) ? Headers_getIpVersion(message->bytes) : 0,
+                  addr);
+    #endif
     return 0;
 }
 
+static void timeout(void* vcontext)
+{
+//    struct IpTunnel_pvt* context = vcontext;
+}
 
-
-struct IpTunnel* IpTunnel_new(struct Log* logger, struct Allocator* alloc)
+struct IpTunnel* IpTunnel_new(struct Log* logger,
+                              struct Events* eventBase,
+                              struct Allocator* alloc,
+                              struct Random* rand)
 {
     struct IpTunnel_pvt* context =
         alloc->clone(sizeof(struct IpTunnel_pvt), alloc, &(struct IpTunnel_pvt) {
@@ -552,6 +610,7 @@ struct IpTunnel* IpTunnel_new(struct Log* logger, struct Allocator* alloc)
             .allocator = alloc,
             .logger = logger
         });
+    context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
 
     return &context->pub;
 }

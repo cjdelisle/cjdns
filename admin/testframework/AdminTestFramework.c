@@ -70,7 +70,8 @@ static String* initAngel(int fromAngel,
                          struct PipeInterface** piOut,
                          struct event_base* eventBase,
                          struct Log* logger,
-                         struct Allocator* alloc)
+                         struct Allocator* alloc,
+                         struct Random* rand)
 {
     #define TO_CORE (corePipes[0][1])
     #define FROM_CORE (corePipes[1][0])
@@ -107,7 +108,7 @@ static String* initAngel(int fromAngel,
     memset(buff, 0, BUFFER_SZ);
 
     struct PipeInterface* pi =
-        PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc);
+        PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc, rand);
     *piOut = pi;
 
     Log_info(logger, "PipeInterface [%p] is now ready.", (void*)pi);
@@ -165,6 +166,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct event_base* eventBase = event_base_new();
+    struct Random* rand = Random_new(alloc, NULL);
 
     int fromAngel;
     int toAngel;
@@ -175,7 +177,8 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     spawnAngel(&fromAngel, &toAngel);
 
     struct PipeInterface* pi;
-    String* addrStr = initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc);
+    String* addrStr =
+        initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc, rand);
 
     Log_info(logger, "Angel initialized.");
 

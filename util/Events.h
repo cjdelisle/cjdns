@@ -12,27 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Crypto_H
-#define Crypto_H
+#ifndef Events_H
+#define Events_H
 
-#include "wire/Message.h"
+// slow process of removing the libevent headers from places where they are not needed.
+struct event_base; // CHECKFILES_IGNORE
 
-#include <stdint.h>
-
-/**
- * Initialize the random number generator.
- * This must be called before doing anything else.
- */
-void Crypto_init();
-
-void randombytes(unsigned char* buffer, unsigned long long size); // CHECKFILES_IGNORE
-
-/**
- * Get random Base32 text, great for password material.
- *
- * @param output the buffer to write the output to.
- * @param length the number of bytes to write.
- */
-void Crypto_randomBase32(uint8_t* output, uint32_t length);
+#define Events event_base
 
 #endif

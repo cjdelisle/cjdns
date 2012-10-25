@@ -24,11 +24,11 @@ foreach(test_source_fullpath ${tests})
   string(REPLACE "test.c" "test" test_bin ${test_source})
   message("     " ${test_source})
   add_executable(${test_bin} ${test_source})
-  target_link_libraries(${test_bin} checksum util crypto)
+  target_link_libraries(${test_bin} checksum util cjdns-crypto-random)
   add_test(${test_bin} ${test_bin})
 endforeach()
 # Add an empty line after tests.
 message("")
 
 add_executable(Checksum_benchmark Checksum_benchmark.c)
-target_link_libraries(Checksum_benchmark checksum util crypto ${LIBEVENT2_LIBRARIES})
+target_link_libraries(Checksum_benchmark checksum util cjdns-crypto-random ${LIBEVENT2_LIBRARIES})

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -39,7 +40,8 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
                                        struct Allocator* alloc,
                                        struct event_base* eventBase,
                                        struct Log* logger,
-                                       struct Interface* routerIf)
+                                       struct Interface* routerIf,
+                                       struct Random* rand)
 {
     struct Message* message;
     struct Interface iface = {
@@ -53,7 +55,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
     struct Message* outgoing =
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
 
-    struct CryptoAuth* externalCa = CryptoAuth_new(alloc, NULL, eventBase, logger);
+    struct CryptoAuth* externalCa = CryptoAuth_new(alloc, NULL, eventBase, logger, rand);
     struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, false, externalCa);
     CryptoAuth_setAuth(String_CONST("passwd"), 1, wrapped);
 
@@ -140,13 +142,14 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Random* rand = Random_new(alloc, NULL);
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct event_base* eventBase = event_base_new();
 
-    struct CryptoAuth* ca = CryptoAuth_new(alloc, NULL, eventBase, logger);
+    struct CryptoAuth* ca = CryptoAuth_new(alloc, NULL, eventBase, logger, rand);
     uint8_t publicKey[32];
     Bits_memcpyConst(publicKey, ca->publicKey, 32);
     CryptoAuth_addUser(String_CONST("passwd"), 1, (void*)0x01, ca);
@@ -163,7 +166,7 @@ int main()
     // These are unused.
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     struct RouterModule* rm =
-        RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL);
+        RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL, rand);
 
     struct InterfaceController* ifController =
         DefaultInterfaceController_new(ca, switchCore, rm, logger, eventBase, NULL, alloc);
@@ -176,5 +179,6 @@ int main()
                                        alloc,
                                        eventBase,
                                        logger,
-                                       &iface);
+                                       &iface,
+                                       rand);
 }

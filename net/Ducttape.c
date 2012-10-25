@@ -774,7 +774,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct Admin* admin,
-                                   struct IpTunnel* ipTun)
+                                   struct IpTunnel* ipTun,
+                                   struct Random* rand)
 {
     struct Ducttape_Private* context =
         allocator->calloc(sizeof(struct Ducttape_Private), 1, allocator);
@@ -791,7 +792,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     ipTun->tunInterface.receiverContext = context;
 
     struct CryptoAuth* cryptoAuth =
-        CryptoAuth_new(allocator, privateKey, eventBase, logger);
+        CryptoAuth_new(allocator, privateKey, eventBase, logger, rand);
     Bits_memcpyConst(context->myAddr.key, cryptoAuth->publicKey, 32);
     Address_getPrefix(&context->myAddr);
 

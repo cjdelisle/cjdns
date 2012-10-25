@@ -15,13 +15,14 @@
 #ifndef Janitor_H
 #define Janitor_H
 
-#include <stdint.h>
-#include <event2/event.h>
-
+#include "crypto/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
+#include "util/Events.h"
+
+#include <stdint.h>
 
 struct Janitor;
 
@@ -29,7 +30,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
-                            struct Allocator* allocator,
-                            struct event_base* eventBase);
+                            struct Allocator* alloc,
+                            struct Events* eventBase,
+                            struct Random* rand);
 
 #endif

@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
@@ -71,7 +70,7 @@ void createNew()
 {
     uint8_t buff[BUFFER_SIZE];
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, eventBase, NULL);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, eventBase, NULL, NULL);
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
@@ -91,7 +90,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 }
 
 // This needs to be determinent.
-void randombytes(unsigned char* buffer,unsigned long long size)
+void Random_bytes(struct Random* rand, uint8_t* buffer, uint64_t size)
 {
     memset(buffer, 0xFF, size);
 }
@@ -104,7 +103,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     struct Allocator* allocator = MallocAllocator_new(8192*2);
     struct Writer* writer = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(writer, allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger, NULL);
 
     struct Interface* iface =
         allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
@@ -225,7 +224,7 @@ void repeatHello()
     struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, logger);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, logger, NULL);
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -258,7 +257,7 @@ void repeatHello()
     // Check the nonce
     Assert_always(!memcmp(msg2.bytes, "\0\0\0\1", 4));
 
-    ca = CryptoAuth_new(allocator, privateKey, eventBase, logger);
+    ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, NULL);
     struct Message* finalOut = NULL;
     struct CryptoAuth_Wrapper wrapper2 = {
         .context = (struct CryptoAuth_pvt*) ca,

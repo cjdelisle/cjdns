@@ -219,7 +219,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin)
+                                           struct Admin* admin,
+                                           struct Random* rand)
 {
     struct RouterModule* const out = allocator->calloc(sizeof(struct RouterModule), 1, allocator);
 
@@ -248,18 +249,20 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->logger = logger;
     out->allocator = allocator;
     out->admin = admin;
+    out->rand = rand;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                out,
                                out->nodeStore,
                                allocator,
-                               eventBase);
+                               eventBase,
+                               rand);
 
-    struct Admin_FunctionArg adma[2] = {
-        { .name = "path", .required = 1, .type = "String" },
-        { .name = "timeout", .required = 0, .type = "Int" },
-    };
-    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, adma, admin);
+    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "path", .required = 1, .type = "String" },
+            { .name = "timeout", .required = 0, .type = "Int" },
+        }), admin);
 
     return out;
 }

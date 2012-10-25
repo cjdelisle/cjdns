@@ -12,16 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
+#include "memory/BufferAllocator.h"
 #include "util/Hex.h"
-
-#include <stdio.h>
 #include "util/Assert.h"
+
+#include <string.h>
+#include <stdio.h>
 
 int main()
 {
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 512);
+    struct Random* rand = Random_new(alloc, NULL);
+
     uint8_t bytes[32];
-    randombytes(bytes, 32);
+    Random_bytes(rand, bytes, 32);
 
     uint8_t hex[64] = {0};
 

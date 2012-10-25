@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
@@ -21,11 +22,11 @@
 #include "util/Hex.h"
 #include "util/Endian.h"
 #include "util/Time.h"
+#include "util/Events.h"
 #include "wire/Error.h"
 
 #include "util/Assert.h"
 #include <stdio.h>
-#include <event2/event.h>
 
 static const uint8_t* privateKey = (uint8_t*)
     "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
@@ -113,9 +114,10 @@ void CryptoAuth_benchmark(struct event_base* base,
                           struct Log* logger,
                           struct Allocator* alloc)
 {
+    struct Random* rand = Random_new(alloc, NULL);
     struct Context ctx = {
-        .ca1 = CryptoAuth_new(alloc, NULL, base, NULL),
-        .ca2 = CryptoAuth_new(alloc, privateKey, base, NULL),
+        .ca1 = CryptoAuth_new(alloc, NULL, base, NULL, rand),
+        .ca2 = CryptoAuth_new(alloc, privateKey, base, NULL, rand),
         .if1 = {
             .sendMessage = transferMessage,
             .senderContext = &ctx.if2,

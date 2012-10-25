@@ -264,6 +264,7 @@ int AngelInit_main(int argc, char** argv)
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct event_base* eventBase = event_base_new();
+    struct Random* rand = Random_new(alloc, eh);
 
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
@@ -313,7 +314,8 @@ int AngelInit_main(int argc, char** argv)
     }
 
     Log_debug(logger, "Sending pre-configuration to core.");
-    struct PipeInterface* pif = PipeInterface_new(fromCore, toCore, eventBase, logger, alloc);
+    struct PipeInterface* pif =
+        PipeInterface_new(fromCore, toCore, eventBase, logger, alloc, rand);
     struct Interface* coreIface = &pif->generic;
     PipeInterface_waitUntilReady(pif);
 

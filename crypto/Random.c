@@ -12,43 +12,53 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
-
 #include "util/Assert.h"
 #include "util/Base32.h"
-#include <stdio.h>
+
 #include <event2/util.h>
 
+static char Random_IDENTITY;
 
-/** @see Crypto.h */
-void Crypto_init()
+struct Random {
+    char* identity;
+};
+
+static void randomBytes(struct Random* rand, uint8_t* location, uint64_t count)
 {
-    if (evutil_secure_rng_init() != 0) {
-        fprintf(stderr, "Unable to initialize secure random number generator, bailing out.");
-        abort();
-    }
+    evutil_secure_rng_get_bytes(location, count);
 }
 
-/**
- * This is used by libnacl which requires us to provide it with a randombytes() function.
- */
-void randombytes(unsigned char* buffer,unsigned long long size) // CHECKFILES_IGNORE
+void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count)
 {
-    evutil_secure_rng_get_bytes(buffer, size);
+    Assert_true(rand->identity == &Random_IDENTITY);
+    randomBytes(rand, location, count);
 }
 
-void Crypto_randomBase32(uint8_t* output, uint32_t length)
+void Random_base32(struct Random* rand, uint8_t* output, uint32_t length)
 {
+    Assert_true(rand->identity == &Random_IDENTITY);
     uint32_t index = 0;
     for (;;) {
         uint8_t bin[16];
-        randombytes(bin, 16);
+        randomBytes(rand, bin, 16);
         int ret = Base32_encode(&output[index], length - index, bin, 16);
         if (ret == Base32_TOO_BIG || index + ret == length) {
             break;
         }
         index += ret;
     }
+    output[length - 1] = '\0';
+}
+
+struct Random* Random_new(struct Allocator* alloc, struct Except* eh)
+{
+    if (evutil_secure_rng_init() != 0) {
+        Except_raise(eh, Random_new_INIT_FAILED,
+                     "Unable to initialize secure random number generator");
+    }
+    return alloc->clone(sizeof(struct Random), alloc, &(struct Random) {
+        .identity = &Random_IDENTITY
+    });
 }

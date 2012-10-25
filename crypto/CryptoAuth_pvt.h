@@ -20,6 +20,7 @@
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
+#include "util/Events.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
@@ -45,9 +46,10 @@ struct CryptoAuth_pvt
     uint32_t passwordCapacity;
 
     struct Log* logger;
-    struct event_base* eventBase;
+    struct Events* eventBase;
 
     struct Allocator* allocator;
+    struct Random* rand;
 };
 
 /**

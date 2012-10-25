@@ -15,16 +15,17 @@
 #ifndef RouterModule_H
 #define RouterModule_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <event2/event.h>
-
 #include "admin/Admin.h"
+#include "crypto/Random.h"
 #include "dht/Address.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "benc/Object.h"
 #include "util/log/Log.h"
+#include "util/Events.h"
+
+#include <stdint.h>
+#include <stdbool.h>
 
 /**
  * The router module is the functional part of the DHT engine.
@@ -51,13 +52,15 @@ struct RouterModule_Search;
  * @param eventBase the libevent base.
  * @param logger the means of writing logs.
  * @param admin tool for administrating a running router.
+ * @param rand a source of random numbers
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin);
+                                           struct Admin* admin,
+                                           struct Random* rand);
 
 /**
  * Start a search.

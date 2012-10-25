@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
@@ -107,10 +108,11 @@ int init(const uint8_t* privateKey,
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
+    struct Random* rand = Random_new(allocator, NULL);
 
     struct event_base* base = event_base_new();
 
-    ca1 = CryptoAuth_new(allocator, NULL, base, logger);
+    ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
@@ -120,7 +122,7 @@ int init(const uint8_t* privateKey,
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(allocator, privateKey, base, logger);
+    ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
     if (password) {
         String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
         CryptoAuth_setAuth(&passStr, 1, cif1);

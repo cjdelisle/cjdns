@@ -23,7 +23,7 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
@@ -171,9 +171,6 @@ void Core_initTunnel(String* desiredDeviceName,
  */
 int Core_main(int argc, char** argv)
 {
-    uint8_t syncMagic[8];
-    randombytes(syncMagic, 8);
-
     struct Except* eh = AbortHandler_INSTANCE;
     int toAngel;
     int fromAngel;
@@ -186,6 +183,7 @@ int Core_main(int argc, char** argv)
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
     struct event_base* eventBase = event_base_new();
+    struct Random* rand = Random_new(alloc, eh);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
@@ -195,7 +193,8 @@ int Core_main(int argc, char** argv)
     struct Log* logger = &indirectLogger->pub;
 
     // The first read inside of getInitialConfig() will begin it waiting.
-    struct PipeInterface* pi = PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc);
+    struct PipeInterface* pi =
+        PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc, rand);
 
     Dict* config = getInitialConfig(&pi->generic, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
@@ -219,7 +218,7 @@ int Core_main(int argc, char** argv)
 
     // --------------------- Setup the Logger --------------------- //
     // the prelogger will nolonger be used.
-    struct Log* adminLogger = AdminLog_registerNew(admin, alloc);
+    struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
     indirectLogger->wrappedLog = adminLogger;
     logger = adminLogger;
 
@@ -227,7 +226,7 @@ int Core_main(int argc, char** argv)
     // CryptoAuth
     struct Address addr;
     parsePrivateKey(privateKey, &addr, eh);
-    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger);
+    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
@@ -239,11 +238,12 @@ int Core_main(int argc, char** argv)
                                                         addr.key,
                                                         eventBase,
                                                         logger,
-                                                        admin);
+                                                        admin,
+                                                        rand);
 
     SerializationModule_register(registry, alloc);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, alloc);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
@@ -253,7 +253,8 @@ int Core_main(int argc, char** argv)
                                             alloc,
                                             logger,
                                             admin,
-                                            ipTun);
+                                            ipTun,
+                                            rand);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);

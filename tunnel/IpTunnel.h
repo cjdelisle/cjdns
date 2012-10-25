@@ -15,9 +15,11 @@
 #ifndef IpTunnel_H
 #define IpTunnel_H
 
+#include "crypto/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Events.h"
 
 #include <stdint.h>
 
@@ -51,11 +53,8 @@ struct IpTunnel_Connection
     /** non-zero if the connection was made using IpTunnel_connectTo(). */
     int isOutgoing : 1;
 
-    /** Zero until addresses have been requested and returned. */
-    int isActive : 1;
-
     /** The number of the connection so it can be identified when removing. */
-    int number : 30;
+    int number : 31;
 };
 
 struct IpTunnel
@@ -83,9 +82,13 @@ struct IpTunnel
  * Create a new IpTunnel structure.
  *
  * @param logger a logger or NULL.
+ * @param eventBase the event base.
  * @param alloc an allocator.
  */
-struct IpTunnel* IpTunnel_new(struct Log* logger, struct Allocator* alloc);
+struct IpTunnel* IpTunnel_new(struct Log* logger,
+                              struct Events* eventBase,
+                              struct Allocator* alloc,
+                              struct Random* rand);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.

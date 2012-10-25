@@ -19,7 +19,6 @@
 #include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "crypto/Crypto.h"
 #include "dht/CJDHTConstants.h"
 #include "exception/ExceptionHandler.h"
 #include "interface/Interface.h"

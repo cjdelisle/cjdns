@@ -16,9 +16,10 @@
 #define AdminLog_H
 
 #include "admin/Admin.h"
+#include "crypto/Random.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc);
+struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, struct Random* rand);
 
 #endif

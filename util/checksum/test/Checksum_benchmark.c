@@ -12,7 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
+#include "memory/BufferAllocator.h"
 #include "util/Assert.h"
 #include "util/checksum/Checksum_impl0.h"
 #include "util/checksum/Checksum_impl1.h"
@@ -25,10 +26,15 @@ int main()
 {
     uint8_t buffer[MAX_SIZE];
     uint16_t size;
-    randombytes((uint8_t*) &size, 2);
+
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 512);
+    struct Random* rand = Random_new(alloc, NULL);
+    Random_bytes(rand, (uint8_t*) &size, 2);
+
     size %= MAX_SIZE;
     size &= ~1;
-    randombytes(buffer, size);
+    Random_bytes(rand, buffer, size);
     uint64_t startTime;
     uint64_t timeDiff;
 

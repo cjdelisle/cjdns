@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "interface/PipeInterface.h"
 #include "wire/Error.h"
 #include "util/Time.h"
@@ -339,7 +339,8 @@ struct PipeInterface* PipeInterface_new(int inPipe,
                                         int outPipe,
                                         struct event_base* eventBase,
                                         struct Log* logger,
-                                        struct Allocator* alloc)
+                                        struct Allocator* alloc,
+                                        struct Random* rand)
 {
     struct PipeInterface_pvt* context =
         alloc->clone(sizeof(struct PipeInterface_pvt), alloc, &(struct PipeInterface_pvt) {
@@ -369,7 +370,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
     event_add(context->pipeEvent, NULL);
     alloc->onFree(onFree, context, alloc);
 
-    randombytes((uint8_t*) &context->syncMagic, 8);
+    Random_bytes(rand, (uint8_t*) &context->syncMagic, 8);
 
     sendPing(context);
     return &context->pub;

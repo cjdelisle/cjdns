@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
@@ -35,6 +36,7 @@ struct Ducttape* TestFramework_setUp()
 
     // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Random* rand = Random_new(allocator, NULL);
 
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
@@ -46,12 +48,12 @@ struct Ducttape* TestFramework_setUp()
     ReplyModule_register(registry, allocator);
 
     struct RouterModule* routerModule =
-        RouterModule_register(registry, allocator, publicKey, base, logger, NULL);
+        RouterModule_register(registry, allocator, publicKey, base, logger, NULL, rand);
 
     SerializationModule_register(registry, allocator);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, allocator);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand);
 
     return Ducttape_register(privateKey, registry, routerModule,
-                             switchCore, base, allocator, logger, NULL, ipTun);
+                             switchCore, base, allocator, logger, NULL, ipTun, rand);
 }

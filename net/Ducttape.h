@@ -37,7 +37,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct Admin* admin,
-                                   struct IpTunnel* ipTun);
+                                   struct IpTunnel* ipTun,
+                                   struct Random* rand);
 
 /**
  * Set the interface which the user will use to communicate with the network.
