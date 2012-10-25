@@ -56,6 +56,7 @@ struct IpTunnel_pvt
      * not provided ip addresses and send more requests.
      */
     struct Timeout* timeout;
+    struct Random* rand;
 };
 
 static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunnel_pvt* context)
@@ -201,6 +202,13 @@ static uint8_t sendControlMessage(Dict* dict,
 static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
                                 struct IpTunnel_pvt* context)
 {
+    #ifdef Log_DEBUG
+        uint8_t addr[40];
+        AddrTools_printIp(addr, conn->header.nodeIp6Addr);
+        Log_debug(context->logger, "Requesting addresses from [%s] for connection [%d]",
+                  addr, conn->number);
+    #endif
+
     int number = conn->number;
     Dict d = Dict_CONST(
         String_CONST("q"), String_OBJ(String_CONST("IpTunnel_getAddresses")), Dict_CONST(
@@ -592,7 +600,24 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
 
 static void timeout(void* vcontext)
 {
-//    struct IpTunnel_pvt* context = vcontext;
+    struct IpTunnel_pvt* context = vcontext;
+    if (!context->pub.connectionList.count) {
+        return;
+    }
+    int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
+    for (int i = beginning + 1; i != beginning; i++) {
+        if (i >= (int)context->pub.connectionList.count) {
+            i = 0;
+        }
+        struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
+        if (conn->isOutgoing
+            && Bits_isZero(conn->connectionIp6, 16)
+            && Bits_isZero(conn->connectionIp4, 4))
+        {
+            requestAddresses(conn, context);
+            break;
+        }
+    }
 }
 
 struct IpTunnel* IpTunnel_new(struct Log* logger,
@@ -608,7 +633,8 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
             },
             .identity = &IpTunnel_IDENTITY,
             .allocator = alloc,
-            .logger = logger
+            .logger = logger,
+            .rand = rand
         });
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
 

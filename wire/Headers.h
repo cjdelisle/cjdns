@@ -320,7 +320,7 @@ static inline int Headers_getIpVersion(void* header)
 }
 
 #define Headers_setIpVersion(header) \
-    ((uint8_t*) header)[0] &= (                                          \
+    ((uint8_t*) header)[0] |= (                                          \
         (sizeof(*header) == Headers_IP4Header_SIZE) ? 4 : 6              \
     ) << 4;                                                              \
     Assert_compileTime(sizeof(*header) == Headers_IP4Header_SIZE         \
