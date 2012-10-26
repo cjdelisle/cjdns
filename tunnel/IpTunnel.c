@@ -464,8 +464,9 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
                                                  bool isFromTun,
                                                  struct IpTunnel_pvt* context)
 {
-    uint8_t* addr = (sourceAndDestIp6) ? sourceAndDestIp6 : sourceAndDestIp4;
+    uint8_t* source = (sourceAndDestIp6) ? sourceAndDestIp6 : sourceAndDestIp4;
     uint32_t length = (sourceAndDestIp6) ? 16 : 4;
+    #define DESTINATION source + length
 
     struct IpTunnel_Connection* lastConnection =
         &context->pub.connectionList.connections[context->pub.connectionList.count];
@@ -480,8 +481,8 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
         // connections are first on the list.
         //
         uint8_t* compareAddr = (isFromTun)
-            ? ((conn->isOutgoing) ? addr + length : addr)
-            : ((conn->isOutgoing) ? addr : addr + length);
+            ? ((conn->isOutgoing) ? source : DESTINATION)
+            : ((conn->isOutgoing) ? DESTINATION : source);
 
         uint8_t* connectionAddr = (sourceAndDestIp6) ? conn->connectionIp6 : conn->connectionIp4;
         if (!memcmp(compareAddr, connectionAddr, length)) {
@@ -617,8 +618,8 @@ static void timeout(void* vcontext)
     if (!context->pub.connectionList.count) {
         return;
     }
-    int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
-    for (int i = beginning + 1; i != beginning; i++) {
+    int32_t beginning = (Random_int32(context->rand) % context->pub.connectionList.count) + 1;
+    for (int i = beginning; i != beginning - 1; i++) {
         if (i >= (int)context->pub.connectionList.count) {
             i = -1;
             continue;
