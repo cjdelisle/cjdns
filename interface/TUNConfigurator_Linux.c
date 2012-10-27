@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <net/if.h>
+#include <arpa/inet.h>
 
 #include <linux/if.h>
 #include <linux/if_tun.h>

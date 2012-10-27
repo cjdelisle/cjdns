@@ -21,10 +21,6 @@ void printInfo()
 {
     printf("According to testing this machine is %s\n",
            Endian_isBigEndian() ? "big endian" : "little endian");
-
-    printf("Endian_byteSwap64() uses " Endian_byteSwap64_uses "\n");
-
-    printf("Endian_byteSwap32() uses " Endian_byteSwap32_uses "\n");
 }
 
 int main()

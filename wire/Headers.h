@@ -59,12 +59,12 @@ Assert_compileTime(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_S
 
 static inline uint32_t Headers_getMessageType(const struct Headers_SwitchHeader* header)
 {
-    return ntohl(header->lowBits_be) >> 24;
+    return Endian_bigEndianToHost32(header->lowBits_be) >> 24;
 }
 
 static inline uint32_t Headers_getPriority(const struct Headers_SwitchHeader* header)
 {
-    return ntohl(header->lowBits_be) & ((1 << 24) - 1);
+    return Endian_bigEndianToHost32(header->lowBits_be) & ((1 << 24) - 1);
 }
 
 static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader* header,
