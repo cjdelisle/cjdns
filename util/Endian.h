@@ -167,7 +167,7 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
     #define Endian_hostToLittleEndian32(input) (input)
     #define Endian_hostToBigEndian32(input) Endian_byteSwap32(input)
     #define Endian_hostToLittleEndian64(input) (input)
-    #define Endian_hostToBigEndian64(input) Endian_byteSwap32(input)
+    #define Endian_hostToBigEndian64(input) Endian_byteSwap64(input)
 #else
     #define Endian_hostToLittleEndian16(input) \
         ((!Endian_isBigEndian()) ? input : Endian_byteSwap16(input))
