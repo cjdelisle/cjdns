@@ -96,8 +96,6 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
 
     #define Endian_byteSwap32(x) bswap_32(x)
     #define Endian_byteSwap32_uses "bswap_32"
-#else
-#error
 #endif
 #ifdef bswap_64
     #undef Endian_byteSwap64
