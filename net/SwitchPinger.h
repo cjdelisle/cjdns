@@ -49,14 +49,15 @@ enum SwitchPinger_Result
  * @param label the label as of the responding node in host order.
  * @param data the content of the ping response.
  * @param millisecondsLag the number of milliseconds since the original ping was sent.
+ * @param nodeVersion the version of the node which was pinged.
  * @param onResponseContext a context which was provided to SwitchPinger_ping().
  */
-#define SwitchPinger_ON_RESPONSE(x) \
-    void (* x)(enum SwitchPinger_Result result,           \
-               uint64_t label,                            \
-               String* data,                              \
-               uint32_t millisecondsLag,                  \
-               void* onResponseContext)
+typedef void (* SwitchPinger_ResponseCallback)(enum SwitchPinger_Result result,
+                                               uint64_t label,
+                                               String* data,
+                                               uint32_t millisecondsLag,
+                                               uint32_t nodeVersion,
+                                               void* onResponseContext);
 
 struct SwitchPinger_Ping
 {
@@ -87,7 +88,7 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result);
 struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
                                             String* data,
                                             uint32_t timeoutMilliseconds,
-                                            SwitchPinger_ON_RESPONSE(onResponse),
+                                            SwitchPinger_ResponseCallback onResponse,
                                             struct SwitchPinger* sp);
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,

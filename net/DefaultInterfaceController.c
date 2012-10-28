@@ -143,6 +143,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
                            uint64_t label,
                            String* data,
                            uint32_t millisecondsLag,
+                           uint32_t version,
                            void* onResponseContext)
 {
     if (SwitchPinger_Result_OK != result) {
@@ -154,7 +155,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
-    RouterModule_addNode(&addr, ic->routerModule);
+    RouterModule_addNode(ic->routerModule, &addr, version);
 
     #ifdef Log_DEBUG
         // This will be false if it times out.
@@ -451,8 +452,6 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     authedIf->receiverContext = ep;
 
     if (herPublicKey) {
-        Bits_memcpyConst(addr.key, herPublicKey, 32);
-        RouterModule_addNode(&addr, ic->routerModule);
         #ifdef Log_INFO
             uint8_t printAddr[60];
             Address_print(printAddr, &addr);
@@ -463,6 +462,8 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
             Hex_encode(keyHex, sizeof(keyHex), key, InterfaceController_KEY_SIZE);
             Log_keys(ic->logger, "With connection identifier [%s]", keyHex);
         #endif
+        // Kick the ping callback so that the node will be pinged ASAP.
+        pingCallback(ic);
     }
 
     return ep;

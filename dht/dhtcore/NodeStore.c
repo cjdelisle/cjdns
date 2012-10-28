@@ -30,6 +30,7 @@
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
+#include "util/version/Version.h"
 #include "switch/NumberCompress.h"
 #include "switch/LabelSplicer.h"
 
@@ -64,8 +65,16 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     return out;
 }
 
+static struct Node* nodeForIndex(struct NodeStore* store, uint32_t index)
+{
+    struct Node* out = &store->nodes[index];
+    out->reach = store->headers[index].reach;
+    out->version = store->headers[index].version;
+    return out;
+}
+
 /** See: NodeStore.h */
-struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* addr)
+struct Node* NodeStore_getNode(struct NodeStore* store, struct Address* addr)
 {
     uint32_t pfx = Address_getPrefix(addr);
 
@@ -87,8 +96,7 @@ struct Node* NodeStore_getNode(const struct NodeStore* store, struct Address* ad
     }
 
     // Synchronize the reach values.
-    store->nodes[bestIndex].reach = store->headers[bestIndex].reach;
-    return &store->nodes[bestIndex];
+    return nodeForIndex(store, bestIndex);
 }
 
 static inline uint32_t getSwitchIndex(struct Address* addr)
@@ -97,13 +105,14 @@ static inline uint32_t getSwitchIndex(struct Address* addr)
     return NumberCompress_getDecompressed(addr->path, bits);
 }
 
-static inline void replaceNode(struct Node* const nodeToReplace,
-                               struct NodeHeader* const headerToReplace,
+static inline void replaceNode(struct Node* nodeToReplace,
+                               struct NodeHeader* headerToReplace,
                                struct Address* addr,
                                struct NodeStore* store)
 {
     headerToReplace->addressPrefix = Address_getPrefix(addr);
     headerToReplace->reach = 0;
+    headerToReplace->version = 0;
     headerToReplace->switchIndex = getSwitchIndex(addr);
     store->labelSum -= Bits_log2x64(nodeToReplace->address.path);
     store->labelSum += Bits_log2x64(addr->path);
@@ -129,8 +138,13 @@ static inline void adjustReach(struct NodeHeader* header,
 
 struct Node* NodeStore_addNode(struct NodeStore* store,
                                struct Address* addr,
-                               const int64_t reachDifference)
+                               int64_t reachDifference,
+                               uint32_t version)
 {
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
+        return NULL;
+    }
+
     Address_getPrefix(addr);
     if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
         printf("got introduced to ourselves\n");
@@ -177,6 +191,10 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
                 adjustReach(&store->headers[i], reachDifference);
 
+                if (version) {
+                    store->headers[i].version = version;
+                }
+
                 /*#ifdef Log_DEBUG
                     if (oldReach != store->headers[i].reach) {
                         uint8_t nodeAddr[60];
@@ -192,7 +210,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                     }
                 #endif*/
 
-                return &store->nodes[i];
+                return nodeForIndex(store, i);
             }
             #ifdef Log_DEBUG
                 else if (store->headers[i].addressPrefix == pfx) {
@@ -215,7 +233,9 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr, store);
         adjustReach(&store->headers[store->size], reachDifference);
-        return &store->nodes[store->size++];
+        store->headers[store->size].version = version;
+
+        return nodeForIndex(store, store->size++);
     }
 
     // The node whose reach OR distance is the least.
@@ -247,14 +267,14 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
     adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
 
-    return &store->nodes[indexOfNodeToReplace];
+    store->headers[indexOfNodeToReplace].version = version;
+
+    return nodeForIndex(store, indexOfNodeToReplace);
 }
 
 static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)
 {
-    struct Node* n = &store->nodes[header - store->headers];
-    n->reach = header->reach;
-    return n;
+    return nodeForIndex(store, header - store->headers);
 }
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store)
@@ -324,6 +344,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
                                            bool allowNodesFartherThanUs,
+                                           uint32_t versionOfRequestingNode,
                                            const struct Allocator* allocator)
 {
     // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
@@ -340,6 +361,11 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
     // naive implementation, todo make this faster
     for (uint32_t i = 0; i < store->size; i++) {
         if (requestorsAddress && store->headers[i].switchIndex == index) {
+            // Nodes which are down the same interface as the node who asked.
+            continue;
+        }
+        if (!Version_isCompatible(store->headers[i].version, versionOfRequestingNode)) {
+            // Known not to be compatable.
             continue;
         }
         LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
@@ -394,7 +420,7 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* sto
 
     for (uint32_t i = 0; i < store->size; i++) {
         if (path == store->nodes[i].address.path) {
-            return &store->nodes[i];
+            return nodeForIndex(store, i);
         }
     }
     return NULL;
@@ -456,11 +482,16 @@ static void addRoutingTableEntries(struct NodeStore* store,
 {
     uint8_t path[20];
     uint8_t ip[40];
+    String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
+    String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
+    Object* link = Int_OBJ(0xFFFFFFFF);
+    Object* version = Int_OBJ(Version_CURRENT_PROTOCOL);
     Dict entry = Dict_CONST(
-        String_CONST("ip"), String_OBJ((&(String) { .len = 39, .bytes = (char*)ip })), Dict_CONST(
-        String_CONST("link"), Int_OBJ(0xFFFFFFFF), Dict_CONST(
-        String_CONST("path"), String_OBJ((&(String) { .len = 19, .bytes = (char*)path })), NULL
-    )));
+        String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
+        String_CONST("link"), link, Dict_CONST(
+        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
+        String_CONST("version"), version, NULL
+    ))));
 
     struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
 
@@ -476,7 +507,8 @@ static void addRoutingTableEntries(struct NodeStore* store,
         return;
     }
 
-    entry->next->val->as.number = store->headers[i].reach;
+    link->as.number = store->headers[i].reach;
+    version->as.number = store->headers[i].version;
     Address_printIp(ip, &store->nodes[i].address);
     AddrTools_printPath(path, store->nodes[i].address.path);
 

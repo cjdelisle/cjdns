@@ -19,6 +19,7 @@
 #include "util/checksum/Checksum.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
+#include "util/version/Version.h"
 #include "wire/Headers.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
@@ -42,6 +43,9 @@ struct SwitchPinger
      */
     uint64_t incomingLabel;
 
+    /** The version of the node which sent the message. */
+    uint32_t incomingVersion;
+
     bool isError;
 };
 
@@ -51,7 +55,7 @@ struct Ping
     uint64_t label;
     String* data;
     struct SwitchPinger* context;
-    SwitchPinger_ON_RESPONSE(onResponse);
+    SwitchPinger_ResponseCallback onResponse;
     void* onResponseContext;
 };
 
@@ -61,12 +65,22 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct SwitchPinger* ctx = iface->receiverContext;
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
+    ctx->incomingVersion = 0;
     Assert_true(Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL);
     Message_shift(msg, -Headers_SwitchHeader_SIZE);
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->type_be == Control_PONG_be) {
         Message_shift(msg, -Control_HEADER_SIZE);
         ctx->isError = false;
+        struct Control_Ping* pongHeader = (struct Control_Ping*) msg->bytes;
+        if (msg->length >= Control_Ping_MIN_SIZE) {
+             // TODO: Make this a failure (protocol version 2)
+             if (pongHeader->magic == Control_Pong_MAGIC) {
+                 ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
+             }
+             Message_shift(msg, -Control_Ping_HEADER_SIZE);
+        }
+
     } else if (ctrl->type_be == Control_ERROR_be) {
         Log_debug(ctx->logger, "error was caused by our ping.");
         Message_shift(msg, -(
@@ -77,6 +91,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         ));
         ctx->isError = true;
     }
+
     String* msgStr = &(String) { .bytes = (char*) msg->bytes, .len = msg->length };
     Pinger_pongReceived(msgStr, ctx->pinger);
     return Error_NONE;
@@ -99,7 +114,8 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
         err = SwitchPinger_Result_TIMEOUT;
     }
 
-    p->onResponse(err, label, data, milliseconds, p->public.onResponseContext);
+    uint32_t version = p->context->incomingVersion;
+    p->onResponse(err, label, data, milliseconds, version, p->public.onResponseContext);
 }
 
 static void sendPing(String* data, void* sendPingContext)
@@ -115,6 +131,11 @@ static void sendPing(String* data, void* sendPingContext)
     msg.padding = msg.bytes - buffer;
     Assert_true(data->len < (BUFFER_SZ / 2));
     Bits_memcpy(msg.bytes, data->bytes, data->len);
+
+    Message_shift(&msg, Control_Ping_HEADER_SIZE);
+    struct Control_Ping* pingHeader = (struct Control_Ping*) msg.bytes;
+    pingHeader->magic = Control_Ping_MAGIC;
+    pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
     Message_shift(&msg, Control_HEADER_SIZE);
     struct Control* ctrl = (struct Control*) msg.bytes;
@@ -164,7 +185,7 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
 struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
                                             String* data,
                                             uint32_t timeoutMilliseconds,
-                                            SwitchPinger_ON_RESPONSE(onResponse),
+                                            SwitchPinger_ResponseCallback onResponse,
                                             struct SwitchPinger* ctx)
 {
     if (data && data->len > Control_Ping_MAX_SIZE) {

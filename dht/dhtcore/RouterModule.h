@@ -91,10 +91,11 @@ void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
  * This injects a node directly into the routing table, it's much safer to ping the node and let the
  * routing engine pick up the ping response and insert the node then.
  *
- * @param address the address of the node.
  * @param module the router module to add the node to.
+ * @param address the address of the node.
+ * @param version the protocol version of the node which we are adding.
  */
-void RouterModule_addNode(struct Address* address, struct RouterModule* module);
+void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version);
 
 /**
  * Send a ping to a node, when it responds it will be added to the routing table.
@@ -122,11 +123,5 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module);
-
-/**
- * return git commit id as hex (null terminated string with 40 chars)
- */
-const char* RouterModule_gitVersion();
-
 
 #endif

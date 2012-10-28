@@ -12,32 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NodeHeader_H
-#define NodeHeader_H
+#ifndef VersionList_H
+#define VersionList_H
 
-#include "util/Assert.h"
+#include "benc/String.h"
+#include "memory/Allocator.h"
 
 #include <stdint.h>
 
-/**
- * Information about a given node.
- */
-struct NodeHeader
+struct VersionList
 {
-    /** The first 4 bytes of the node's address, swapped into host order for easy sorting. */
-    uint32_t addressPrefix;
-
-    /**
-     * Reach value for the node.
-     * See: Node.h
-     */
-    uint32_t reach;
-
-    /** The number interface of the next hop to get to this node. */
-    uint32_t switchIndex;
-
-    /** The protocol version of the node. */
-    uint32_t version;
+    uint32_t length;
+    struct Allocator* alloc;
+    uint32_t* versions;
 };
+
+struct VersionList* VersionList_parse(String* str, struct Allocator* alloc);
+
+String* VersionList_stringify(struct VersionList* list, struct Allocator* alloc);
+
+struct VersionList* VersionList_new(uint32_t count, struct Allocator* alloc);
+
 
 #endif

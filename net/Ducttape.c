@@ -560,9 +560,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         }
         struct Control* ctrl = (struct Control*) message->bytes;
 
-        uint16_t checksum = ctrl->checksum_be;
-        ctrl->checksum_be = 0;
-        if (checksum != Checksum_engine(message->bytes, message->length)) {
+        if (Checksum_engine(message->bytes, message->length)) {
             Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
             // TODO: return Error_NONE;
             // This will break error responses since they were

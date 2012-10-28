@@ -12,32 +12,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NodeHeader_H
-#define NodeHeader_H
+#ifndef Identity_H
+#define Identity_H
 
 #include "util/Assert.h"
 
-#include <stdint.h>
+#ifdef Identity_CHECK
 
-/**
- * Information about a given node.
- */
-struct NodeHeader
-{
-    /** The first 4 bytes of the node's address, swapped into host order for easy sorting. */
-    uint32_t addressPrefix;
+    /** This is unique to each file. */
+    static char Identity_ID;
 
-    /**
-     * Reach value for the node.
-     * See: Node.h
-     */
-    uint32_t reach;
+    /** This goes in each structure which will be checked. */
+    #define Identity \
+        char* Identity_verifier;
 
-    /** The number interface of the next hop to get to this node. */
-    uint32_t switchIndex;
+    #define Identity_set(pointer) \
+        pointer->Identity_verifier = &Identity_ID
 
-    /** The protocol version of the node. */
-    uint32_t version;
-};
+    #define Identity_check(pointer) \
+        (pointer); Assert_always(pointer->Identity_verifier == &Identity_ID)
+
+#else
+
+    #define Identity
+    #define Identity_set(pointer)
+    #define Identity_check(pointer) (pointer)
+
+#endif
 
 #endif

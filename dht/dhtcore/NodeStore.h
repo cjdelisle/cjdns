@@ -49,12 +49,14 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  *                  amount causes the reach to become negative or nolonger fit in a uint32
  *                  type, it will be set to 0 or UINT32_MAX, respectively.
  *                  Undefined behavior will result if this input exceeds UINT32_MAX.
+ * @param version the protocol version of the node to add.
  * @return the node in the node store which was added or NULL if the node is "us".
  *         NOTE: The reach in this node will be *wrong* because it is not synced with the header.
  */
 struct Node* NodeStore_addNode(struct NodeStore* store,
                                struct Address* addr,
-                               const int64_t reachDiff);
+                               int64_t reachDiff,
+                               uint32_t version);
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
@@ -75,13 +77,16 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
  * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
  *                                then we are. this is required for searches but unallowable
  *                                for answering queries.
+ * @param versionOfRequestingNode the version of the node who asked for the list, no nodes will
+ *                                be returned which are known to be incompatible with this version.
  * @param allocator the memory allocator to use for getting the memory to store the output.
  */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           const bool allowNodesFartherThanUs,
+                                           bool allowNodesFartherThanUs,
+                                           uint32_t versionOfRequestingNode,
                                            const struct Allocator* allocator);
 
 /**

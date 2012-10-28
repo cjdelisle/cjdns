@@ -53,7 +53,7 @@ struct DHTMessage
     struct DHTMessage* replyTo;
 
     /** A memory allocator which will be freed after this message is sent. */
-    const struct Allocator* allocator;
+    struct Allocator* allocator;
 };
 
 #endif

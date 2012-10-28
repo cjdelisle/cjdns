@@ -9,26 +9,23 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-find_package(Libevent2 REQUIRED)
 
-add_library(dhtcore
-    NodeStore.c
-    RouterModule.c
-    RouterModule_admin.c
-    SearchStore.c
-    Janitor.c
-    VersionList.c
+if(NOT "$ENV{GIT_VERSION}" STREQUAL "")
+    SET(GIT_VERSION "$ENV{GIT_VERSION}")
+elseif(EXISTS ${CMAKE_SOURCE_DIR}.git_commit)
+    FILE(READ .git_commit GIT_VERSION)
+else()
+    find_package(Git)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} log -n 1
+        OUTPUT_VARIABLE GIT_LOG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    string(REGEX MATCH "[0-9a-f]*\n" GIT_VERSION "${GIT_LOG}")
+    string(REPLACE "\n" "" GIT_VERSION "${GIT_VERSION}")
+endif()
+
+add_definitions("-D GIT_VERSION=\\\"${GIT_VERSION}\\\"")
+add_library(cjdns-util-version-version
+    Version.c
 )
-
-target_link_libraries(dhtcore
-    cjdbenc
-    util
-    crypto
-    switch
-    ${LIBEVENT2_LIBRARIES}
-    cjdns-util-version-version
-)
-
-# Everything must be tested.
-enable_testing()
-add_subdirectory(test)

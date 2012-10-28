@@ -29,6 +29,9 @@ struct Node
      */
     uint32_t reach;
 
+    /** The version of the node, must be synchronized with NodeHeader */
+    uint32_t version;
+
     /** The address of the node. */
     struct Address address;
 };

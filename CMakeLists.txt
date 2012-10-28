@@ -163,14 +163,14 @@ endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
 # vrooooooom
-add_definitions(-funroll-loops)
+add_definitions(-funroll-loops -O3)
 
-IF(NOT CMAKE_BUILD_TYPE)
+#IF(NOT CMAKE_BUILD_TYPE)
 # default to RelWithDebInfo (-g -O2)
-    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
-        "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
-        FORCE)
-ENDIF(NOT CMAKE_BUILD_TYPE)
+#    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+#        "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+#        FORCE)
+#ENDIF(NOT CMAKE_BUILD_TYPE)
 
 OPTION(WITH_LTO "Building with link time optimization.")
 if(WITH_LTO)
@@ -183,25 +183,12 @@ endif()
 SET(CJDNS_MAX_PEERS 256 CACHE STRING "maximum number of peers")
 add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
 
+# make sure casts are done properly.
+add_definitions("-D Identity_CHECK")
 
-if(NOT "$ENV{GIT_VERSION}" STREQUAL "")
-    SET(GIT_VERSION "$ENV{GIT_VERSION}")
-elseif(EXISTS .git_commit)
-    FILE(READ .git_commit GIT_VERSION)
-else()
-    find_package(Git)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} log -n 1
-        OUTPUT_VARIABLE GIT_LOG
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    string(REGEX MATCH "[0-9a-f]*\n" GIT_VERSION "${GIT_LOG}")
-    string(REPLACE "\n" "" GIT_VERSION "${GIT_VERSION}")
-endif()
-# GIT_VERSION is used in dht/dhtcore/CMakeLists.txt
+
 
 include_directories(${CMAKE_SOURCE_DIR})
-include_directories(${CMAKE_SOURCE_DIR}/src)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})

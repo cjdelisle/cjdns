@@ -21,6 +21,7 @@
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/SearchStore.h"
+#include "dht/dhtcore/VersionList.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
@@ -35,6 +36,7 @@
 #include "util/Pinger.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
+#include "util/version/Version.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -186,9 +188,6 @@
 
 #define LINK_STATE_MULTIPLIER 536870
 
-/** hex git version (null terminated string with 40 chars) */
-static const uint8_t gitVersion[41] = GIT_VERSION;
-
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -233,7 +232,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
         .handleOutgoing = handleOutgoing
     }), registry);
 
-    Hex_decode(out->gitVersionBytes, 20, gitVersion, 40);
+    Hex_decode(out->gitVersionBytes, 20, Version_gitVersion(), 40);
     out->gitVersion.len = 20;
     out->gitVersion.bytes = (char*) out->gitVersionBytes;
 
@@ -418,7 +417,7 @@ static inline void sendRequest(struct Address* address,
     memset(&message, 0, sizeof(struct DHTMessage));
 
     char buffer[4096];
-    const struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
+    struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
     message.allocator = allocator;
     message.asDict = Dict_new(allocator);
@@ -678,8 +677,11 @@ static inline void responseFromNode(struct Node* node,
  */
 static inline int handleReply(struct DHTMessage* message, struct RouterModule* module)
 {
+    int64_t* version = Dict_getInt(message->asDict, String_CONST("p"));
+
     // this implementation only pings to get the address of a node, so lets add the node.
-    struct Node* node = NodeStore_addNode(module->nodeStore, message->address, 0);
+    struct Node* node =
+        NodeStore_addNode(module->nodeStore, message->address, 0, ((version) ? *version : 0) );
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
 
@@ -760,6 +762,12 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return 0;
     }
 
+    struct VersionList* versions = NULL;
+    String* versionsStr = Dict_getString(message->asDict, String_CONST("np"));
+    if (versionsStr) {
+        versions = VersionList_parse(versionsStr, message->allocator);
+    }
+
     // If this node has sent us any entries which are further from the target than it is,
     // garbage the whole response.
     const uint32_t targetPrefix = Address_getPrefix(&scc->targetAddress);
@@ -813,7 +821,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         }
 
         // Nodes we are told about are inserted with 0 reach.
-        NodeStore_addNode(module->nodeStore, &addr, 0);
+        uint32_t version = (versions) ? versions->versions[i / Address_SERIALIZED_SIZE] : 0;
+        NodeStore_addNode(module->nodeStore, &addr, 0, version);
 
         if ((newNodePrefix ^ targetPrefix) >= parentDistance
             && xorCompare(&scc->targetAddress, &addr, parent->address) >= 0)
@@ -866,8 +875,11 @@ static inline int handleQuery(struct DHTMessage* message,
 {
     struct DHTMessage* query = message->replyTo;
 
+    int64_t* versionPtr = Dict_getInt(query->asDict, String_CONST("p"));
+    uint32_t version = (versionPtr && *versionPtr <= UINT32_MAX) ? *versionPtr : 0;
+
     // We got a query, the reach should be set to 1 in the new node.
-    NodeStore_addNode(module->nodeStore, query->address, 1);
+    NodeStore_addNode(module->nodeStore, query->address, 1, version);
 
     // get the target
     String* target = Dict_getString(query->asDict, CJDHTConstants_TARGET);
@@ -889,12 +901,15 @@ static inline int handleQuery(struct DHTMessage* message,
                                                           query->address,
                                                           RouterModule_K + 5,
                                                           false,
+                                                          version,
                                                           message->allocator);
 
     String* nodes = message->allocator->malloc(sizeof(String), message->allocator);
     nodes->len = nodeList->size * Address_SERIALIZED_SIZE;
     nodes->bytes = message->allocator->malloc(nodeList->size * Address_SERIALIZED_SIZE,
                                               message->allocator);
+
+    struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
     uint32_t i;
     for (i = 0; i < nodeList->size; i++) {
@@ -908,9 +923,13 @@ static inline int handleQuery(struct DHTMessage* message,
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
         Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+
+        versions->versions[i] = nodeList->nodes[i]->version;
     }
     if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
+        String* versionsStr = VersionList_stringify(versions, message->allocator);
+        Dict_putString(message->asDict, String_CONST("np"), versionsStr, message->allocator);
     }
 
     return 0;
@@ -926,6 +945,8 @@ static inline int handleQuery(struct DHTMessage* message,
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {
     struct RouterModule* module = (struct RouterModule*) vcontext;
+
+    Dict_putInt(message->asDict, String_CONST("p"), Version_CURRENT_PROTOCOL, message->allocator);
 
     if (message->replyTo != NULL) {
         return handleQuery(message, module);
@@ -957,6 +978,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
                                   NULL,
                                   RouterModule_K,
                                   true,
+                                  Version_CURRENT_PROTOCOL,
                                   searchAllocator);
 
     if (nodes->size == 0) {
@@ -1139,10 +1161,10 @@ int RouterModule_pingNode(struct Node* node,
 }
 
 /** See: RouterModule.h */
-void RouterModule_addNode(struct Address* address, struct RouterModule* module)
+void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {
     Address_getPrefix(address);
-    NodeStore_addNode(module->nodeStore, address, 0);
+    NodeStore_addNode(module->nodeStore, address, 0, version);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.path != address->path) {
         RouterModule_pingNode(best, module, 0, NULL);
@@ -1162,9 +1184,4 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
 {
     return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
-}
-
-const char* RouterModule_gitVersion()
-{
-    return (const char*) gitVersion;
 }

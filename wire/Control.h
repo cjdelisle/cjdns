@@ -16,6 +16,7 @@
 #define Control_H
 
 #include "wire/Headers.h"
+#include "util/Endian.h"
 
 /**
  * Type one, error.
@@ -39,27 +40,37 @@ Assert_compileTime(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
  * Type two, ping.
  */
 #define Control_PING_be Endian_hostToBigEndian16(3)
-#define Control_Ping_MIN_SIZE 4
+#define Control_Ping_HEADER_SIZE 8
+#define Control_Ping_MIN_SIZE 12
 #define Control_Ping_MAX_SIZE 256
+#define Control_Ping_MAGIC Endian_hostToBigEndian32(0x09f91102)
 struct Control_Ping
 {
+    /** Magic: equal to Control_Ping_MAGIC in a ping and Control_Pong_MAGIC in a pong. */
+    uint32_t magic;
+
+    /** The version of the sending node. */
+    uint32_t version_be;
+
     /**
-     * Between 4 and 256 bytes of opaque data.
+     * Between 0 and 256 bytes of opaque data.
      * Since a ping is inherently a message to one's self,
      * the format is only of interest to the sender and thus undefined.
      */
-    uint8_t data[Control_Ping_MIN_SIZE];
+    uint8_t data[4];
 };
 Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE);
-
 
 /**
  * Type three, pong.
  * A pong is identical to a ping.
  */
 #define Control_PONG_be Endian_hostToBigEndian16(4)
+#define Control_Pong_HEADER_SIZE Control_Ping_HEADER_SIZE
 #define Control_Pong_MIN_SIZE Control_Ping_MIN_SIZE
 #define Control_Pong_MAX_SIZE Control_Ping_MAX_SIZE
+#define Control_Pong_MAGIC Endian_hostToBigEndian32(0x9d74e35b)
+
 
 static inline char* Control_typeString(uint16_t type_be)
 {
