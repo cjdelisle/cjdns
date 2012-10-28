@@ -21,7 +21,6 @@ include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 if(WIN32)
     set(sec Security_W32.c)
-    message(FATAL ERROR "Please implement a windows version of Process_Linux")
 else()
     set(sec Security.c)
 endif()
