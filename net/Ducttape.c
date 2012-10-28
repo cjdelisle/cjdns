@@ -53,6 +53,14 @@
 /** Size of the per-message workspace. */
 #define PER_MESSAGE_BUF_SZ 8192
 
+/**
+ * In order to easily tell the incoming connection requests from messages which
+ * are addressed to a specific interface by it's handle, the most significant bit
+ * in the big endian representation of the handle shall be reserved for indicating
+ * that a session is new.
+ */
+#define HANDLE_FLAG_BIT Endian_hostToBigEndian32(0x80000000)
+
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
@@ -330,7 +338,10 @@ static inline uint8_t sendToSwitch(struct Message* message,
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
             Log_debug(context->logger, "Sending protocol [%d] start message.", session->version);
-            ((uint32_t*)message->bytes)[0] = session->receiveHandle;
+            // the most significant bit in a handle is reserved to tell the recipient if it is
+            // an initiation handle or a running handle which they should look up in their map.
+            ((uint32_t*)message->bytes)[0] =
+                Endian_hostToBigEndian32(session->receiveHandle) | HANDLE_FLAG_BIT;
         }
     } else {
         Log_debug(context->logger, "Sending protocol 0 message.");
@@ -761,11 +772,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     // #1 try to get the session using the handle.
     uint32_t handle = ((uint32_t*)message->bytes)[0];
-    struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
+    struct SessionManager_Session* session = NULL;
 
-    if (session) {
-        Log_debug(context->logger, "Got session using protocol 1 handle");
-        Message_shift(message, -4);
+    if (!(handle & HANDLE_FLAG_BIT)) {
+        session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle), context->sm);
+        if (session) {
+            Log_debug(context->logger, "Got session using protocol 1 handle");
+            Message_shift(message, -4);
+        }
     }
 
     // #2 no session, try the message as a handshake.
@@ -776,7 +790,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
-            session->sendHandle = handle;
+            session->sendHandle = handle & ~HANDLE_FLAG_BIT;
             session->version = version;
             Log_debug(context->logger, "Got session with protocol version [%d]", version);
         }
