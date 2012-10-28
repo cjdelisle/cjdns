@@ -245,7 +245,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     struct Context* ic = interfaceControllerForEndpoint(ep);
 
     if (ep->state != Endpoint_state_ESTABLISHED) {
-        if (CryptoAuth_getState(cryptoAuthIf) == CryptoAuth_ESTABLISHED) {
+        if (CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3) {
             moveEndpointIfNeeded(ep, ic);
             ep->state = Endpoint_state_ESTABLISHED;
         } else {

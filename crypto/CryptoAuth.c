@@ -1033,14 +1033,16 @@ int CryptoAuth_getState(struct Interface* interface)
     switch (wrapper->nextNonce) {
         case 0:
             return CryptoAuth_NEW;
-        case 1:
+        case 1: // Sent a hello, waiting for the key
             return CryptoAuth_HANDSHAKE1;
-        case 2:
-        case 3:
-        case 4:
-            // a bit of an oversimplification.
-            // state 4 = waiting for first data packet to prove the handshake succeeded.
+        case 2: // Received a hello, sent a key packet.
+        case 3: // Received a hello, sent multiple key packets.
             return CryptoAuth_HANDSHAKE2;
+        case 4:
+            // state 4 = waiting for first data packet to prove the handshake succeeded.
+            // At this point you have sent a challenge and received a response so it is safe
+            // to assume you are not being hit with replay packets.
+            return CryptoAuth_HANDSHAKE3;
         default:
             return CryptoAuth_ESTABLISHED;
     }

@@ -147,8 +147,11 @@ void CryptoAuth_reset(struct Interface* iface);
 /** Received a hello message, sent a key message, waiting for the session to complete. */
 #define CryptoAuth_HANDSHAKE2  2
 
+/** Sent a hello message and received a key message but have not gotten a data message yet. */
+#define CryptoAuth_HANDSHAKE3  3
+
 /** The CryptoAuth session has successfully done a handshake and received at least one message. */
-#define CryptoAuth_ESTABLISHED 3
+#define CryptoAuth_ESTABLISHED 4
 
 /**
  * Get the state of the CryptoAuth session.

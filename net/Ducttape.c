@@ -333,7 +333,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         Message_shift(message, 4);
         // If the session is established, we send their handle for the session,
         // otherwise we send ours.
-        if (CryptoAuth_getState(&session->iface) == CryptoAuth_ESTABLISHED) {
+        if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
             Log_debug(context->logger, "Sending protocol [%d] run message.", session->version);
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
