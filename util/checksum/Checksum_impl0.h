@@ -46,6 +46,11 @@ static uint32_t Checksum_impl0_step(const uint8_t* buffer,
     return state;
 }
 
+static uint32_t Checksum_impl0_step32(uint32_t content, uint32_t state)
+{
+    return Checksum_impl0_step((uint8_t*) &content, 4, state);
+}
+
 static uint16_t Checksum_impl0_complete(uint32_t state)
 {
     return Endian_hostToBigEndian16(~state & 0xFFFF);

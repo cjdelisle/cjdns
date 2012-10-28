@@ -39,6 +39,11 @@ static uint32_t Checksum_impl1_step(const uint8_t* buffer,
     return state;
 }
 
+static uint32_t Checksum_impl1_step32(uint32_t content, uint32_t state)
+{
+    return state + (content >> 16) + (content & 0xFFFF);
+}
+
 static uint16_t Checksum_impl1_complete(uint32_t state)
 {
     while (state > 0xFFFF) {

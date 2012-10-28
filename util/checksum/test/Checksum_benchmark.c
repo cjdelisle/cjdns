@@ -31,13 +31,16 @@ int main()
     randombytes(buffer, size);
     uint64_t startTime;
     uint64_t timeDiff;
+    uint32_t randomInt;
+    randombytes((uint8_t*) &randomInt, 4);
 
     printf("Cycles: %u\n", CYCLES);
     for (int j = 0; j < 2; j++) {
         printf("bytes: %u\n", (int) size);
         startTime = Time_currentTimeMilliseconds(NULL);
         for (int i = 0; i < CYCLES; i++) {
-            buffer[buffer[0]] = Checksum_impl0_complete(Checksum_impl0_step(buffer, size, 0));
+            uint32_t start = Checksum_impl0_step32(randomInt, 0);
+            buffer[buffer[0]] = Checksum_impl0_complete(Checksum_impl0_step(buffer, size, start));
         }
         timeDiff = Time_currentTimeMilliseconds(NULL) - startTime;
         printf("impl0: %dms.\n", (int) timeDiff);
@@ -45,7 +48,8 @@ int main()
 
         uint64_t startTime = Time_currentTimeMilliseconds(NULL);
         for (int i = 0; i < CYCLES; i++) {
-            buffer[buffer[0]] = Checksum_impl1_complete(Checksum_impl1_step(buffer, size, 0));
+            uint32_t start = Checksum_impl1_step32(randomInt, 0);
+            buffer[buffer[0]] = Checksum_impl1_complete(Checksum_impl1_step(buffer, size, start));
         }
         timeDiff = Time_currentTimeMilliseconds(NULL) - startTime;
         printf("impl1: %dms.\n", (int) timeDiff);

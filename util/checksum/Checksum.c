@@ -24,6 +24,7 @@
     #define Checksum_IMPLEMENTATION impl1
 #endif
 
+#define STEP32 GLUE3(Checksum_, Checksum_IMPLEMENTATION, _step32)
 #define STEP GLUE3(Checksum_, Checksum_IMPLEMENTATION, _step)
 #define COMPLETE GLUE3(Checksum_, Checksum_IMPLEMENTATION, _complete)
 #define GLUE3(a,b,c) GLUE3b(a,b,c)
@@ -49,8 +50,8 @@ static uint16_t ip6PacketChecksum(const uint8_t sourceAndDestAddrs[32],
     uint64_t sum = STEP(sourceAndDestAddrs, 32, 0);
 
     const uint32_t length_be = Endian_hostToBigEndian32(length);
-    sum = STEP((uint8_t*) &length_be, 4, sum);
-    sum = STEP((uint8_t*) &packetType_be, 4, sum);
+    sum = STEP32(length_be, sum);
+    sum = STEP32(packetType_be, sum);
     sum = STEP(packetHeaderAndContent, length, sum);
 
     return COMPLETE(sum);

@@ -28,9 +28,14 @@ int main()
         randombytes((uint8_t*) &size, 2);
         size %= MAX_SIZE;
         randombytes(buffer, size);
+        uint32_t randomInt;
+        randombytes((uint8_t*) &randomInt, 4);
 
-        uint16_t sum0 = Checksum_impl0_complete(Checksum_impl0_step(buffer, size, 0));
-        uint16_t sum1 = Checksum_impl1_complete(Checksum_impl1_step(buffer, size, 0));
+        uint32_t start = Checksum_impl0_step32(randomInt, 0);
+        uint16_t sum0 = Checksum_impl0_complete(Checksum_impl0_step(buffer, size, start));
+
+        start = Checksum_impl1_step32(randomInt, 0);
+        uint16_t sum1 = Checksum_impl1_complete(Checksum_impl1_step(buffer, size, start));
         Assert_always(sum0 == sum1);
     }
 }
