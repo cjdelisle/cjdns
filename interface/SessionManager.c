@@ -122,6 +122,10 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
     } else {
         // Interface already exists, set the time of last message to "now".
         sm->ifaceMap.values[ifaceIndex].lastMessageTime = Time_currentTimeSeconds(sm->eventBase);
+        uint8_t* herPubKey = CryptoAuth_getHerPublicKey(&sm->ifaceMap.values[ifaceIndex].iface);
+        if (Bits_isZero(herPubKey, 32) && cryptoKey) {
+            Bits_memcpyConst(herPubKey, cryptoKey, 32);
+        }
     }
 
     return &sm->ifaceMap.values[ifaceIndex];

@@ -90,7 +90,7 @@ static inline uint8_t incomingDHT(struct Message* message,
 }
 
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Node* node,
+static inline uint8_t sendToRouter(struct Address* addr,
                                    struct Message* message,
                                    struct Ducttape_Private* context)
 {
@@ -159,11 +159,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     context->ip6Header = header;
     context->switchHeader = NULL;
 
-    struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
-    // The RouterModule should never send a message to someone whom it doesn't know.
-    Assert_always(n);
-
-    sendToRouter(n, &message, context);
+    sendToRouter(&dmessage->address, &message, context);
 
     return 0;
 }
@@ -387,7 +383,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
-            return sendToRouter(bestNext, message, context);
+            return sendToRouter(&bestNext->address, message, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
         // of the best node to forward to, we can skip doing another lookup by storing a pointer
@@ -473,7 +469,7 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
-        return sendToRouter(nextHop, message, context);
+        return sendToRouter(addr, message, context);
     }
 
     #ifdef Log_INFO
@@ -639,8 +635,8 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
     } else if (ctrl->type_be == Control_PONG_be) {
         pong = true;
     } else if (ctrl->type_be == Control_PING_be) {
-        Message_shift(message, -Control_HEADER_SIZE);
 
+        Message_shift(message, -Control_HEADER_SIZE);
         #ifdef Version_0_COMPAT
             if (message->length >= Control_Ping_MIN_SIZE) {
         #endif
@@ -654,6 +650,7 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
         #ifdef Version_0_COMPAT
             }
         #endif
+        Message_shift(message, Control_HEADER_SIZE);
 
         ctrl->type_be = Control_PONG_be;
         ctrl->checksum_be = 0;
