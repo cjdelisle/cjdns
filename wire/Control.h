@@ -41,7 +41,7 @@ Assert_compileTime(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
  */
 #define Control_PING_be Endian_hostToBigEndian16(3)
 #define Control_Ping_HEADER_SIZE 8
-#define Control_Ping_MIN_SIZE 12
+#define Control_Ping_MIN_SIZE 8
 #define Control_Ping_MAX_SIZE 256
 #define Control_Ping_MAGIC Endian_hostToBigEndian32(0x09f91102)
 struct Control_Ping
@@ -59,7 +59,7 @@ struct Control_Ping
      */
     uint8_t data[4];
 };
-Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE + 4);
 
 /**
  * Type three, pong.

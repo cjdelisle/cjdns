@@ -73,12 +73,26 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         Message_shift(msg, -Control_HEADER_SIZE);
         ctx->isError = false;
         struct Control_Ping* pongHeader = (struct Control_Ping*) msg->bytes;
-        if (msg->length >= Control_Ping_MIN_SIZE) {
-             // TODO: Make this a failure (protocol version 2)
-             if (pongHeader->magic == Control_Pong_MAGIC) {
-                 ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
-             }
-             Message_shift(msg, -Control_Ping_HEADER_SIZE);
+        if (msg->length >= Control_Pong_MIN_SIZE) {
+            ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
+            Message_shift(msg, -Control_Pong_HEADER_SIZE);
+            if (pongHeader->magic != Control_Pong_MAGIC) {
+                #ifdef Version_0_COMPAT
+                    if (pongHeader->magic == Control_Ping_MAGIC) {
+                        Log_info(ctx->logger, "got pong from legacy version 0 node.");
+                        ctx->incomingVersion = 0;
+                    } else {
+                        Log_debug(ctx->logger, "dropped invalid switch pong");
+                        return Error_INVALID;
+                    }
+                #else
+                    Log_debug(ctx->logger, "dropped invalid switch pong");
+                    return Error_INVALID;
+                #endif
+            }
+        } else {
+            Log_debug(ctx->logger, "got run pong message, length: [%d]", msg->length);
+            return Error_INVALID;
         }
 
     } else if (ctrl->type_be == Control_ERROR_be) {
@@ -88,9 +102,14 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
           + Control_Error_HEADER_SIZE
           + Headers_SwitchHeader_SIZE
           + Control_HEADER_SIZE
+          + Control_Ping_HEADER_SIZE
         ));
         ctx->isError = true;
+
+    } else {
+        Assert_true(false);
     }
+
 
     String* msgStr = &(String) { .bytes = (char*) msg->bytes, .len = msg->length };
     Pinger_pongReceived(msgStr, ctx->pinger);

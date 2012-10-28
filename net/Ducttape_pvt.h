@@ -16,7 +16,10 @@
 #define Ducttape_pvt_H
 
 #include "dht/Address.h"
-#include "dht/AddressMapper.h"
+#include "util/version/Version.h"
+#ifdef Version_0_COMPAT
+    #include "dht/AddressMapper.h"
+#endif
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -60,7 +63,9 @@ struct Ducttape_Private
 
     struct SessionManager* sm;
 
-    struct AddressMapper addrMap;
+    #ifdef Version_0_COMPAT
+        struct AddressMapper addrMap;
+    #endif
 
     struct event_base* eventBase;
 
@@ -75,19 +80,16 @@ struct Ducttape_Private
     struct Headers_IP6Header* ip6Header;
 
     /**
-     * NULL unless this is router-to-router traffic.
-     * router-to-router traffic MUST NOT be forwarded, therefor it must be sent to the switch.
+     * If not NULL, we know which node we want to forward the message to so an extra lookup
+     * can be avoided.
      */
-    struct Address* forwardTo;
+    struct Node* forwardTo;
 
-    /** The last crypto session, used for getting the public key of the other party. */
-    struct Interface* session;
+    /** The current session, used for getting the key, ipv6, and version of the other party. */
+    struct SessionManager_Session* session;
 
     /** whether we are encrypting/decrypting the inner layer or the outer layer. */
     int layer;
-
-    /** The IPv6 address of the router from which the packet we are handling was sent. */
-    uint8_t* routerAddress;
 
     /** The interface for the SwitchPinger. */
     struct Interface* switchPingerIf;

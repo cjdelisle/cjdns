@@ -137,7 +137,8 @@
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 0
+#define Version_CURRENT_PROTOCOL 1
+#define Version_0_COMPAT
 
 
 /**

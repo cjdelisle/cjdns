@@ -15,7 +15,6 @@
 #include "crypto/CryptoAuth.h"
 #include "util/log/Log.h"
 #include "dht/Address.h"
-#include "dht/AddressMapper.h"
 #include "dht/DHTMessage.h"
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
@@ -31,13 +30,12 @@
 #include "switch/SwitchCore.h"
 #include "util/Bits.h"
 #include "util/checksum/Checksum.h"
+#include "util/version/Version.h"
+#include "util/Assert.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 
-#include "crypto_stream_salsa20.h"
-
-#include "util/Assert.h"
 #include <stdint.h>
 #include <event2/event.h>
 #include <setjmp.h>
@@ -92,10 +90,12 @@ static inline uint8_t incomingDHT(struct Message* message,
 }
 
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Address* sendTo,
+static inline uint8_t sendToRouter(struct Node* node,
                                    struct Message* message,
                                    struct Ducttape_Private* context)
 {
+    struct Address* addr = &node->address;
+
     // We have to copy out the switch header because it
     // will probably be clobbered by the crypto headers.
     struct Headers_SwitchHeader header;
@@ -104,13 +104,17 @@ static inline uint8_t sendToRouter(struct Address* sendTo,
     } else {
         memset(&header, 0, Headers_SwitchHeader_SIZE);
     }
-    header.label_be = Endian_hostToBigEndian64(sendTo->path);
+    header.label_be = Endian_hostToBigEndian64(addr->path);
     context->switchHeader = &header;
-    struct Interface* session =
-        SessionManager_getSession(sendTo->ip6.bytes, sendTo->key, context->sm);
+
     // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
+    struct SessionManager_Session* session =
+        SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
+    session->version = node->version;
+
     context->layer = OUTER_LAYER;
-    return session->sendMessage(message, session);
+    context->session = session;
+    return session->iface.sendMessage(message, &session->iface);
 }
 
 static int handleOutgoing(struct DHTMessage* dmessage,
@@ -155,7 +159,11 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     context->ip6Header = header;
     context->switchHeader = NULL;
 
-    sendToRouter(dmessage->address, &message, context);
+    struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
+    // The RouterModule should never send a message to someone whom it doesn't know.
+    Assert_always(n);
+
+    sendToRouter(n, &message, context);
 
     return 0;
 }
@@ -183,7 +191,8 @@ static inline uint8_t incomingForMe(struct Message* message,
                                     uint8_t herPubKey[32])
 {
     struct Address addr;
-    AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
+    Bits_memcpyConst(addr.ip6.bytes, context->session->ip6, 16);
+    //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
 
     if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
@@ -218,19 +227,27 @@ static inline uint8_t incomingForMe(struct Message* message,
     if (isRouterTraffic(message, context->ip6Header)) {
         // Check the checksum.
         struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-        const uint16_t cs = uh->checksum_be;
-        uh->checksum_be = 0;
-        if (cs == 0) {
-            // TODO: Stop supporting legacy nodes which leave checksum blank.
-        } else {
-            const uint16_t computedCs =
-                Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*) uh, message->length);
-            if (cs != computedCs) {
+
+        if (uh->checksum_be == 0) {
+            #ifdef Version_0_COMPAT
+                uint8_t keyAddr[40];
+                Address_printIp(keyAddr, &addr);
+                Log_warn(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
+            #else
+                #ifdef Log_DEBUG
+                uint8_t keyAddr[40];
+                Address_printIp(keyAddr, &addr);
+                Log_debug(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
+                #endif
+            #endif
+        } else if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
+            #ifdef Log_DEBUG
+                uint8_t keyAddr[40];
+                Address_printIp(keyAddr, &addr);
                 Log_debug(context->logger,
-                          "Router packet with incorrect checksum, expected [%04x] got [%04x]",
-                          computedCs, cs);
-                return Error_INVALID;
-            }
+                          "Router packet with incorrect checksum, from [%s]", keyAddr);
+            #endif
+            return Error_INVALID;
         }
 
         // Shift off the UDP header.
@@ -239,8 +256,6 @@ static inline uint8_t incomingForMe(struct Message* message,
         Bits_memcpyConst(addr.key, herPubKey, 32);
         return incomingDHT(message, &addr, context);
     }
-
-    // RouterModule_addNode(&addr, context->routerModule);
 
     if (!context->userIf) {
         Log_warn(context->logger,
@@ -278,7 +293,14 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
     context->ip6Header = &ip6;
     Message_shift(message, -Headers_IP6Header_SIZE);
 
-    return incomingForMe(message, context, herPublicKey);
+    struct SessionManager_Session s;
+    AddressCalc_addressForPublicKey(s.ip6, herPublicKey);
+
+    context->session = &s;
+    uint8_t ret = incomingForMe(message, context, herPublicKey);
+    context->session = NULL;
+
+    return ret;
 }
 
 /**
@@ -289,10 +311,24 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
                                    struct Ducttape_Private* context)
 {
+    struct SessionManager_Session* session = context->session;
+    if (session->version > 0) {
+        Message_shift(message, 4);
+        // If the session is established, we send their handle for the session,
+        // otherwise we send ours.
+        if (CryptoAuth_getState(&session->iface) == CryptoAuth_ESTABLISHED) {
+            ((uint32_t*)message->bytes)[0] = session->sendHandle;
+        } else {
+            ((uint32_t*)message->bytes)[0] = session->receiveHandle;
+        }
+    }
+
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
         (struct Headers_SwitchHeader*) message->bytes;
 
+    // This will be false if an incoming connect-to-me packet caused the cryptoAuth to send
+    // back a hello packet.
     if (destinationSwitchHeader != switchHeaderLocation) {
         memmove(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
     }
@@ -342,8 +378,8 @@ static inline uint8_t ip6FromTun(struct Message* message,
     context->switchHeader = NULL;
 
     struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
+    context->forwardTo = bestNext;
     if (bestNext) {
-        context->forwardTo = &bestNext->address;
         if (!memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
             // Direct send, skip the innermost layer of encryption.
             #ifdef Log_DEBUG
@@ -351,9 +387,15 @@ static inline uint8_t ip6FromTun(struct Message* message,
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
-            return sendToRouter(&bestNext->address, message, context);
+            return sendToRouter(bestNext, message, context);
         }
+        // else { the message will need to be 3 layer encrypted but since we already did a lookup
+        // of the best node to forward to, we can skip doing another lookup by storing a pointer
+        // to that node in the context (forwardTo).
     }
+    // else { we don't have *that* node in our store, proceed with forwardTo set to null and
+    // encrypt the message with a session corrisponding to the destination addr then send it to
+    // outgoingFromMe() where the best node to handle it will be looked up. }
 
     // Grab out the header so it doesn't get clobbered.
     struct Headers_IP6Header headerStore;
@@ -363,12 +405,13 @@ static inline uint8_t ip6FromTun(struct Message* message,
     // Shift over the content.
     Message_shift(message, -Headers_IP6Header_SIZE);
 
-    struct Interface* session =
+    struct SessionManager_Session* session =
         SessionManager_getSession(headerStore.destinationAddr, NULL, context->sm);
 
     // This comes out at outgoingFromMe()
     context->layer = INNER_LAYER;
-    return session->sendMessage(message, session);
+    context->session = session;
+    return session->iface.sendMessage(message, &session->iface);
 }
 
 /**
@@ -383,18 +426,20 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
-        if (memcmp(context->routerAddress, context->ip6Header->sourceAddr, 16)) {
+        if (memcmp(context->session->ip6, context->ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
             context->layer = INNER_LAYER;
             context->session =
                 SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
-            return context->session->receiveMessage(message, context->session);
+            return context->session->iface.receiveMessage(message, &context->session->iface);
         } else {
             // double encrypted, inner layer plaintext.
             // The session is still set from the router-to-router traffic and that is the one we use
             // to determine the node's id.
-            return incomingForMe(message, context, CryptoAuth_getHerPublicKey(context->session));
+            return incomingForMe(message,
+                                 context,
+                                 CryptoAuth_getHerPublicKey(&context->session->iface));
         }
     }
 
@@ -405,21 +450,18 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
     }
     context->ip6Header->hopLimit--;
 
-    struct Address* ft = context->forwardTo;
+    struct Node* nextHop = context->forwardTo;
     context->forwardTo = NULL;
-    if (!ft) {
-        struct Node* bestNext =
-            RouterModule_lookup(context->ip6Header->destinationAddr, context->routerModule);
-        if (bestNext) {
-            ft = &bestNext->address;
-        }
+    if (!nextHop) {
+        nextHop = RouterModule_lookup(context->ip6Header->destinationAddr, context->routerModule);
     }
 
-    if (ft) {
+    if (nextHop) {
         #ifdef Log_DEBUG
+            struct Address* addr = &nextHop->address;
             uint8_t nhAddr[60];
-            Address_print(nhAddr, ft);
-            if (memcmp(context->ip6Header->destinationAddr, ft->ip6.bytes, 16)) {
+            Address_print(nhAddr, addr);
+            if (memcmp(context->ip6Header->destinationAddr, addr->ip6.bytes, 16)) {
                 // Potentially forwarding for ourselves.
                 struct Address destination;
                 Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
@@ -431,15 +473,17 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
-        return sendToRouter(ft, message, context);
+        return sendToRouter(nextHop, message, context);
     }
 
-    struct Address destination;
-    Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
-    uint8_t ipAddr[40];
-    Address_printIp(ipAddr, &destination);
-    Log_debug(context->logger, "Dropped message because this node is the closest known "
-                               "node to the destination %s.", ipAddr);
+    #ifdef Log_INFO
+        struct Address destination;
+        Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+        uint8_t ipAddr[40];
+        Address_printIp(ipAddr, &destination);
+        Log_info(context->logger, "Dropped message because this node is the closest known "
+                                   "node to the destination %s.", ipAddr);
+    #endif
     return Error_UNDELIVERABLE;
 }
 
@@ -464,8 +508,8 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_Pr
         Assert_true(context->ip6Header == ip6);
         Bits_memcpyConst(ip6->destinationAddr, ip6->sourceAddr, 16);
         Bits_memcpyConst(ip6->sourceAddr, &context->myAddr.ip6.bytes, 16);
-        // It came from me...
-        context->routerAddress = context->myAddr.ip6.bytes;
+        // Say it came from us...
+        //context->routerAddress = context->myAddr.ip6.bytes; TODO should not be needed
     } else {
         Bits_memcpyConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
@@ -492,7 +536,9 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     int layer = context->layer;
     context->layer = INVALID_LAYER;
     if (layer == INNER_LAYER) {
-        return incomingForMe(message, context, CryptoAuth_getHerPublicKey(context->session));
+        return incomingForMe(message,
+                             context,
+                             CryptoAuth_getHerPublicKey(&context->session->iface));
     } else if (layer == OUTER_LAYER) {
         return incomingFromRouter(message, context);
     }
@@ -514,20 +560,137 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     return 0;
 }
 
-static inline uint8_t* extractPublicKey(struct Message* message,
-                                        uint64_t switchLabel_be,
-                                        struct Log* logger)
+/**
+ * Handle an incoming control message from a switch.
+ *
+ * @param context the ducttape context.
+ * @param message the control message, this should be alligned on the beginning of the content,
+ *                that is to say, after the end of the switch header.
+ * @param switchHeader the header.
+ * @param switchIf the interface which leads to the switch.
+ */
+static uint8_t handleControlMessage(struct Ducttape_Private* context,
+                                    struct Message* message,
+                                    struct Headers_SwitchHeader* switchHeader,
+                                    struct Interface* switchIf)
 {
+    uint8_t labelStr[20];
+    uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
+    AddrTools_printPath(labelStr, label);
+    if (message->length < Control_HEADER_SIZE) {
+        Log_info(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
+        return Error_NONE;
+    } else {
+        Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
+    }
+    struct Control* ctrl = (struct Control*) message->bytes;
+
+    if (Checksum_engine(message->bytes, message->length)) {
+        Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
+        #ifndef Version_0_COMPAT
+            return Error_NONE;
+        #endif
+        // This will break error responses since they were
+        // not sending proper checksums as of 5610464f7bc44ec09ffac81b3507d4df905d6d98
+    }
+
+    bool pong = false;
+    if (ctrl->type_be == Control_ERROR_be) {
+        if (message->length < Control_Error_MIN_SIZE) {
+            Log_info(context->logger, "dropped runt error packet from [%s]", labelStr);
+            return Error_NONE;
+        }
+        Log_info(context->logger,
+                  "error packet from [%s], error type [%d]",
+                  labelStr,
+                  Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
+
+        RouterModule_brokenPath(Endian_bigEndianToHost64(switchHeader->label_be),
+                                context->routerModule);
+
+        uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
+        if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
+            if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
+                Log_info(context->logger,
+                          "error packet from [%s] containing runt cause packet",
+                          labelStr);
+                return Error_NONE;
+            }
+            struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
+            if (causeCtrl->type_be != Control_PING_be) {
+                Log_info(context->logger,
+                          "error packet from [%s] caused by [%s] packet ([%d])",
+                          labelStr,
+                          Control_typeString(causeCtrl->type_be),
+                          Endian_bigEndianToHost16(causeCtrl->type_be));
+            } else {
+                Log_debug(context->logger,
+                           "error packet from [%s] in response to ping, length: [%d].",
+                           labelStr,
+                           message->length);
+                // errors resulting from pings are forwarded back to the pinger.
+                pong = true;
+            }
+        } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
+            Log_info(context->logger,
+                      "error packet from [%s] containing cause of unknown type [%d]",
+                      labelStr, causeType);
+        }
+    } else if (ctrl->type_be == Control_PONG_be) {
+        pong = true;
+    } else if (ctrl->type_be == Control_PING_be) {
+        ctrl->type_be = Control_PONG_be;
+        ctrl->checksum_be = 0;
+        ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
+        Message_shift(message, Headers_SwitchHeader_SIZE);
+        switchIf->receiveMessage(message, switchIf);
+    } else {
+        Log_info(context->logger,
+                  "control packet of unknown type from [%s], type [%d]",
+                  labelStr, Endian_bigEndianToHost16(ctrl->type_be));
+    }
+
+    if (pong && context->public.switchPingerIf.receiveMessage) {
+        // Shift back over the header
+        Message_shift(message, Headers_SwitchHeader_SIZE);
+        context->public.switchPingerIf.receiveMessage(
+            message, &context->public.switchPingerIf);
+    }
+    return Error_NONE;
+}
+
+static inline uint8_t* extractPublicKey(struct Message* message,
+                                        uint32_t* version,
+                                        uint8_t ip6[16])
+{
+    if (*version == 0xFFFFFFFF) {
+        return NULL;
+    }
+    if (*version == 0) {
+        #ifndef Version_0_COMPAT
+            return NULL;
+        #endif
+        // version 0 nodes are missing the handle
+        Message_shift(message, -4);
+    }
+
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
     uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
 
     if (nonce > 3 && nonce < UINT32_MAX) {
-        return NULL;
+        *version = *version - 1;
+        return extractPublicKey(message, version, ip6);
     }
 
     if (message->length < Headers_CryptoAuth_SIZE) {
-        Log_debug(logger, "Dropped runt packet.\n");
-        return NULL;
+        *version = *version - 1;
+        return extractPublicKey(message, version, ip6);
+    }
+
+    AddressCalc_addressForPublicKey(ip6, caHeader->handshake.publicKey);
+    if (ip6[0] != 0xfc) {
+        *version = *version - 1;
+        return extractPublicKey(message, version, ip6);
     }
 
     return caHeader->handshake.publicKey;
@@ -549,136 +712,75 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
     if (Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL) {
-        uint8_t labelStr[20];
-        uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-        AddrTools_printPath(labelStr, label);
-        if (message->length < Control_HEADER_SIZE) {
-            Log_info(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
-            return Error_NONE;
-        } else {
-            Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
-        }
-        struct Control* ctrl = (struct Control*) message->bytes;
-
-        if (Checksum_engine(message->bytes, message->length)) {
-            Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
-            // TODO: return Error_NONE;
-            // This will break error responses since they were
-            // not sending proper checksums as of 5610464f7bc44ec09ffac81b3507d4df905d6d98
-        }
-
-        bool pong = false;
-        if (ctrl->type_be == Control_ERROR_be) {
-            if (message->length < Control_Error_MIN_SIZE) {
-                Log_info(context->logger, "dropped runt error packet from [%s]", labelStr);
-                return Error_NONE;
-            }
-            Log_info(context->logger,
-                      "error packet from [%s], error type [%d]",
-                      labelStr,
-                      Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
-
-            RouterModule_brokenPath(Endian_bigEndianToHost64(switchHeader->label_be),
-                                    context->routerModule);
-
-            uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
-            if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
-                if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
-                    Log_info(context->logger,
-                              "error packet from [%s] containing runt cause packet",
-                              labelStr);
-                    return Error_NONE;
-                }
-                struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
-                if (causeCtrl->type_be != Control_PING_be) {
-                    Log_info(context->logger,
-                              "error packet from [%s] caused by [%s] packet ([%d])",
-                              labelStr,
-                              Control_typeString(causeCtrl->type_be),
-                              Endian_bigEndianToHost16(causeCtrl->type_be));
-                } else {
-                    Log_debug(context->logger,
-                               "error packet from [%s] in response to ping, length: [%d].",
-                               labelStr,
-                               message->length);
-                    // errors resulting from pings are forwarded back to the pinger.
-                    pong = true;
-                }
-            } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
-                Log_info(context->logger,
-                          "error packet from [%s] containing cause of unknown type [%d]",
-                          labelStr, causeType);
-            }
-        } else if (ctrl->type_be == Control_PONG_be) {
-            pong = true;
-        } else if (ctrl->type_be == Control_PING_be) {
-            ctrl->type_be = Control_PONG_be;
-            ctrl->checksum_be = 0;
-            ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-            Message_shift(message, Headers_SwitchHeader_SIZE);
-            switchIf->receiveMessage(message, switchIf);
-        } else {
-            Log_info(context->logger,
-                      "control packet of unknown type from [%s], type [%d]",
-                      labelStr, Endian_bigEndianToHost16(ctrl->type_be));
-        }
-
-        if (pong && context->public.switchPingerIf.receiveMessage) {
-            // Shift back over the header
-            Message_shift(message, Headers_SwitchHeader_SIZE);
-            context->public.switchPingerIf.receiveMessage(
-                message, &context->public.switchPingerIf);
-        }
-        return Error_NONE;
+        return handleControlMessage(context, message, switchHeader, switchIf);
     }
 
-    uint8_t* herKey = extractPublicKey(message, switchHeader->label_be, context->logger);
-    int herAddrIndex;
-    if (herKey) {
-        uint8_t herAddrStore[16];
-        AddressCalc_addressForPublicKey(herAddrStore, herKey);
-        if (herAddrStore[0] != 0xFC) {
-            Log_debug(context->logger,
-                      "Got message from peer whose address is not in fc00::/8 range.\n");
-            return 0;
-        }
-        herAddrIndex = AddressMapper_put(switchHeader->label_be, herAddrStore, &context->addrMap);
-    } else {
-        herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
-        if (herAddrIndex == -1) {
-            uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-            struct Node* n = RouterModule_getNode(label, context->routerModule);
-            if (n) {
-                herAddrIndex = AddressMapper_put(switchHeader->label_be,
-                                                 n->address.ip6.bytes,
-                                                 &context->addrMap);
-            } else {
-                #ifdef Log_DEBUG
-                    uint8_t switchAddr[20];
-                    AddrTools_printPath(switchAddr,
-                                        Endian_bigEndianToHost64(switchHeader->label_be));
-                    Log_debug(context->logger,
-                               "Dropped traffic packet from unknown node. (%s)\n",
-                               switchAddr);
-                #endif
-                return 0;
-            }
+    if (message->length < 4) {
+        Log_info(context->logger, "runt");
+        return Error_INVALID;
+    }
+
+    // #1 try to get the session using the handle.
+    uint32_t handle = ((uint32_t*)message->bytes)[0];
+    struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
+
+    // #2 no session, try the message as a handshake.
+    if (!session && message->length >= 4 + Headers_CryptoAuth_SIZE) {
+        Message_shift(message, 4);
+        uint32_t version = 1;
+        uint8_t ip6[16];
+        uint8_t* herKey = extractPublicKey(message, &version, ip6);
+        if (herKey) {
+            session = SessionManager_getSession(ip6, herKey, context->sm);
+            session->sendHandle = handle;
+            session->version = version;
         }
     }
 
-    // If the source address is the same as the router address, no third layer of crypto.
-    context->routerAddress = context->addrMap.entries[herAddrIndex].address;
+    // #3 try the message as a protocol version 0 message.
+    #ifdef Version_0_COMPAT
+        if (!session) {
+            int herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
+            uint8_t* herKey = NULL;
+            if (herAddrIndex == -1) {
+                uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
+                struct Node* n = RouterModule_getNode(label, context->routerModule);
+                if (n) {
+                    herAddrIndex = AddressMapper_put(switchHeader->label_be,
+                                                     n->address.ip6.bytes,
+                                                     &context->addrMap);
+                    herKey = n->address.key;
+                }
+            }
+            if (herAddrIndex != -1) {
+                Log_debug(context->logger, "Handling packet from legacy protocol version 0 node.");
+                session = SessionManager_getSession(context->addrMap.entries[herAddrIndex].address,
+                                                    herKey,
+                                                    context->sm);
+                session->version = 0;
+            }
+        }
+    #endif
+
+
+    if (!session) {
+        #ifdef Log_INFO
+            uint8_t path[20];
+            AddrTools_printPath(path, Endian_bigEndianToHost64(switchHeader->label_be));
+            Log_info(context->logger, "Dropped traffic packet from unknown node. [%s]", path);
+        #endif
+        return 0;
+    }
 
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
     context->switchHeader = switchHeader;
 
-    context->session = SessionManager_getSession(context->routerAddress, herKey, context->sm);
-
     // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()
     context->layer = OUTER_LAYER;
-    context->session->receiveMessage(message, context->session);
+    context->session = session;
+    session->iface.receiveMessage(message, &session->iface);
 
     return 0;
 }
@@ -704,15 +806,16 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->routerModule = routerModule;
     context->logger = logger;
     context->forwardTo = NULL;
-    AddressMapper_init(&context->addrMap);
+    #ifdef Version_0_COMPAT
+        AddressMapper_init(&context->addrMap);
+    #endif
 
     struct CryptoAuth* cryptoAuth =
         CryptoAuth_new(allocator, privateKey, eventBase, logger);
     Bits_memcpyConst(context->myAddr.key, cryptoAuth->publicKey, 32);
     Address_getPrefix(&context->myAddr);
 
-    context->sm = SessionManager_new(16,
-                                     incomingFromCryptoAuth,
+    context->sm = SessionManager_new(incomingFromCryptoAuth,
                                      outgoingFromCryptoAuth,
                                      context,
                                      eventBase,
