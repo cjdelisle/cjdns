@@ -152,10 +152,7 @@ struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
         .interfaceContext = interfaceContext,
         .eventBase = eventBase,
         .ifaceMap = {
-            .allocator = allocator,
-            // Prevent the handles from colliding with the first 2,147,483,648 packets from a node
-            // which speaks only protocol 0
-            .nextHandle = 0x80000000
+            .allocator = allocator
         },
         .cryptoAuth = cryptoAuth,
         .allocator = allocator,

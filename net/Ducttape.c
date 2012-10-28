@@ -337,7 +337,9 @@ static inline uint8_t sendToSwitch(struct Message* message,
             Log_debug(context->logger, "Sending protocol [%d] run message.", session->version);
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
-            Log_debug(context->logger, "Sending protocol [%d] start message.", session->version);
+            Log_debug(context->logger, "Sending protocol [%d] start message with handle [%p].",
+                      session->version,
+                      (void*)(uint64_t)Endian_hostToBigEndian32(session->receiveHandle));
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
             ((uint32_t*)message->bytes)[0] =
@@ -771,6 +773,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     // #1 try to get the session using the handle.
+    uint32_t version = 1;
     uint32_t handle = ((uint32_t*)message->bytes)[0];
     struct SessionManager_Session* session = NULL;
 
@@ -779,20 +782,22 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         if (session) {
             Log_debug(context->logger, "Got session using protocol 1 handle");
             Message_shift(message, -4);
+        } else {
+            version = 0;
         }
     }
 
     // #2 no session, try the message as a handshake.
     if (!session && message->length >= Headers_CryptoAuth_SIZE) {
         Message_shift(message, -4);
-        uint32_t version = 1;
         uint8_t ip6[16];
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle = handle & ~HANDLE_FLAG_BIT;
             session->version = version;
-            Log_debug(context->logger, "Got session with protocol version [%d]", version);
+            Log_debug(context->logger, "Got session with protocol version [%d] handle [%p]",
+                      version, (void*)(uint64_t)session->sendHandle);
         }
     }
 
