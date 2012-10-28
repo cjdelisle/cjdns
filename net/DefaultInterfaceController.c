@@ -155,6 +155,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
+    Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
     RouterModule_addNode(ic->routerModule, &addr, version);
 
     #ifdef Log_DEBUG

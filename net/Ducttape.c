@@ -639,10 +639,26 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
     } else if (ctrl->type_be == Control_PONG_be) {
         pong = true;
     } else if (ctrl->type_be == Control_PING_be) {
+        Message_shift(message, -Control_HEADER_SIZE);
+
+        #ifdef Version_0_COMPAT
+            if (message->length >= Control_Ping_MIN_SIZE) {
+        #endif
+        if (message->length < Control_Ping_MIN_SIZE) {
+            Log_info(context->logger, "dropped runt ping");
+            return Error_INVALID;
+        }
+        struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
+        ping->magic = Control_Pong_MAGIC;
+        ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+        #ifdef Version_0_COMPAT
+            }
+        #endif
+
         ctrl->type_be = Control_PONG_be;
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-        Message_shift(message, Headers_SwitchHeader_SIZE);
+        Message_shift(message, Control_HEADER_SIZE + Headers_SwitchHeader_SIZE);
         switchIf->receiveMessage(message, switchIf);
     } else {
         Log_info(context->logger,
