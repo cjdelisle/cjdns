@@ -39,10 +39,11 @@ add_library(cjdns-process
 
 add_library(util
     AverageRoller.c
-    Timeout.c
+    Errno.c
     Hex.c
     Pinger.c
     Security_admin.c
+    Timeout.c
 )
 target_link_libraries(util
     cjdmemory

@@ -32,16 +32,17 @@
 #include "exception/AbortHandler.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
-#include "util/Security.h"
-#include "util/Process.h"
+#include "util/Errno.h"
 #include "util/Hex.h"
 #include "util/log/WriterLog.h"
+#include "util/Pipe.h"
+#include "util/Process.h"
+#include "util/Security.h"
 #include "wire/Message.h"
 
 #include <unistd.h>
 #include <event2/event.h>
 #include <stdint.h>
-#include <errno.h>
 
 #ifdef FreeBSD
     #include <netinet/in.h>
@@ -66,7 +67,7 @@ static void initCore(char* coreBinaryPath,
 {
     int pipes[2][2];
     if (pipe(pipes[0]) || pipe(pipes[1])) {
-        Except_raise(eh, -1, "Failed to create pipes [%s]", strerror(errno));
+        Except_raise(eh, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
     }
 
     // Pipes used in the core process.
@@ -151,25 +152,25 @@ static String* bindListener(String* bindAddr,
 
     evutil_socket_t listener = socket(addr.ss_family, SOCK_STREAM, 0);
     if (listener < 0) {
-        Except_raise(eh, -1, "Failed to allocate socket() [%s]", strerror(errno));
+        Except_raise(eh, -1, "Failed to allocate socket() [%s]", strerror(Errno_get()));
     }
 
     evutil_make_listen_socket_reuseable(listener);
 
     if (bind(listener, (struct sockaddr*) &addr, addrLen) < 0) {
-        int err = errno;
+        int err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
         Except_raise(eh, -1, "Failed to bind() socket [%s]", strerror(err));
     }
 
     if (getsockname(listener, (struct sockaddr*) &addr, (ev_socklen_t*) &addrLen)) {
-        int err = errno;
+        int err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
         Except_raise(eh, -1, "Failed to get socket name [%s]", strerror(err));
     }
 
     if (listen(listener, 16) < 0) {
-        int err = errno;
+        int err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
         Except_raise(eh, -1, "Failed to listen on socket [%s]", strerror(err));
     }

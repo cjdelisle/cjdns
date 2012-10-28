@@ -19,8 +19,8 @@
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/Base32.h"
+#include "util/Errno.h"
 
-#include <errno.h>
 #include <event2/event.h>
 
 struct Context

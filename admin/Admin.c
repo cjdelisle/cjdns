@@ -29,6 +29,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/log/Log.h"
@@ -36,10 +37,9 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 
-#include "util/Assert.h"
+
 #include <crypto_hash_sha256.h>
 #include <event2/event.h>
-#include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>

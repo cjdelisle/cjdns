@@ -19,8 +19,8 @@
 #include "benc/Int.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
+#include <util/Errno.h>
 
-#include <errno.h>
 #include <string.h>
 #include <event2/event.h>
 
@@ -59,7 +59,7 @@ static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vc
                           ctx->slowClient.buf + ctx->slowClient.have,
                           sizeof(ctx->slowClient.buf) - ctx->slowClient.have, 0);
 
-    if (length < 0 && EAGAIN == errno) {
+    if (length < 0 && Errno_EAGAIN == Errno_get()) {
         return;
     }
 

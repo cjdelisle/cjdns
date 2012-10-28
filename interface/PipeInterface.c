@@ -15,12 +15,12 @@
 #include "crypto/Crypto.h"
 #include "interface/PipeInterface.h"
 #include "wire/Error.h"
+#include "util/Errno.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
 #include "util/log/Log.h"
 
 #include <unistd.h>
-#include <errno.h>
 #include <event2/event.h>
 
 #define PING_FREQUENCY_MILLISECONDS 3000
@@ -123,11 +123,12 @@ static uint32_t doRead(int pipe, void* buffer, uint32_t maxLength, struct Except
 {
     ssize_t amount = read(pipe, buffer, maxLength);
     if (amount < 1) {
-        if (EAGAIN == errno || EWOULDBLOCK == errno) {
+        int err = Errno_get();
+        if (Errno_EAGAIN == err) {
             return 0;
         }
         if (amount < 0) {
-            Except_raise(eh, PipeInterface_DISCONNECTED, "Connection Lost [%s]", strerror(errno));
+            Except_raise(eh, PipeInterface_DISCONNECTED, "Connection Lost [%s]", strerror(err));
         }
         Except_raise(eh, PipeInterface_DISCONNECTED, "PipeInterface Connection Lost.");
     }

@@ -32,6 +32,7 @@
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
+#include "util/Errno.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/Process.h"
@@ -39,7 +40,7 @@
 #include <event2/event.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+
 
 static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 {
@@ -170,7 +171,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     int toAngel;
     int corePipes[2][2];
     if (pipe(corePipes[0]) || pipe(corePipes[1])) {
-        Except_raise(NULL, -1, "Failed to create pipes [%s]", strerror(errno));
+        Except_raise(NULL, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
     }
     spawnAngel(&fromAngel, &toAngel);
 

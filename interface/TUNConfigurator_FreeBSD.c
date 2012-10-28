@@ -17,13 +17,13 @@
 #include "interface/TUNConfigurator.h"
 #include "util/AddrTools.h"
 #include "util/Bits.h"
+#include "util/Errno.h"
 
 #include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,7 +37,6 @@
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
-#include <sys/errno.h>
 
 /* Tun Configurator for FreeBSD. */
 
@@ -71,7 +70,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     }
 
     if (tunFd < 0 || ppa < 0 ) {
-        int err = errno;
+        int err = Errno_get();
         close(tunFd);
 
         char* error = NULL;
@@ -96,7 +95,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     }
 
     if (error) {
-        int err = errno;
+        int err = Errno_get();
         close(tunFd);
         Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
     }
@@ -162,11 +161,11 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed [%s]",
-                     strerror(errno));
+                     strerror(Errno_get()));
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(s);
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
@@ -190,7 +189,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
-                     strerror(errno));
+                     strerror(Errno_get()));
     }
 
 
@@ -202,7 +201,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-       int err = errno;
+       int err = Errno_get();
        close(s);
        Except_raise(eh,
                     TUNConfigurator_setMTU_INTERNAL,
