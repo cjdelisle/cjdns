@@ -337,9 +337,9 @@ static inline uint8_t sendToSwitch(struct Message* message,
             Log_debug(context->logger, "Sending protocol [%d] run message.", session->version);
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
-            Log_debug(context->logger, "Sending protocol [%d] start message with handle [%p].",
+            Log_debug(context->logger, "Sending protocol [%d] start message with handle [%u].",
                       session->version,
-                      (void*)(uint64_t)Endian_hostToBigEndian32(session->receiveHandle));
+                      Endian_hostToBigEndian32(session->receiveHandle));
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
             ((uint32_t*)message->bytes)[0] =
@@ -796,8 +796,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle = handle & ~HANDLE_FLAG_BIT;
             session->version = version;
-            Log_debug(context->logger, "Got session with protocol version [%d] handle [%p]",
-                      version, (void*)(uint64_t)session->sendHandle);
+            Log_debug(context->logger, "Got session with protocol version [%d] handle [%u]",
+                      version, session->sendHandle);
         }
     }
 
