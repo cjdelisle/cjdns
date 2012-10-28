@@ -759,6 +759,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     uint32_t handle = ((uint32_t*)message->bytes)[0];
     struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
 
+    if (session) {
+        Message_shift(message, -4);
+    }
+
     // #2 no session, try the message as a handshake.
     if (!session && message->length >= 4 + Headers_CryptoAuth_SIZE) {
         Message_shift(message, -4);
