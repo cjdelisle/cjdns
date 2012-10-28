@@ -326,10 +326,14 @@ static inline uint8_t sendToSwitch(struct Message* message,
         // If the session is established, we send their handle for the session,
         // otherwise we send ours.
         if (CryptoAuth_getState(&session->iface) == CryptoAuth_ESTABLISHED) {
+            Log_debug(context->logger, "Sending protocol [%d] run message.", session->version);
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
+            Log_debug(context->logger, "Sending protocol [%d] start message.", session->version);
             ((uint32_t*)message->bytes)[0] = session->receiveHandle;
         }
+    } else {
+        Log_debug(context->logger, "Sending protocol 0 message.");
     }
 
     Message_shift(message, Headers_SwitchHeader_SIZE);
@@ -760,11 +764,12 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
 
     if (session) {
+        Log_debug(context->logger, "Got session using protocol 1 handle");
         Message_shift(message, -4);
     }
 
     // #2 no session, try the message as a handshake.
-    if (!session && message->length >= 4 + Headers_CryptoAuth_SIZE) {
+    if (!session && message->length >= Headers_CryptoAuth_SIZE) {
         Message_shift(message, -4);
         uint32_t version = 1;
         uint8_t ip6[16];
@@ -773,6 +778,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle = handle;
             session->version = version;
+            Log_debug(context->logger, "Got session with protocol version [%d]", version);
         }
     }
 
