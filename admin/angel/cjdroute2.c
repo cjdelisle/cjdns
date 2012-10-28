@@ -405,6 +405,8 @@ int main(int argc, char** argv)
     } else {
         Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
                          "guessing it's location.");
+        Log_critical(logger, "Location guess not implemented yet! Aborting.");
+        exit(1);
     }
 
     if (!privateKey) {
