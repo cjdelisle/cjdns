@@ -28,6 +28,7 @@
 #include "memory/BufferAllocator.h"
 #include "net/Ducttape_pvt.h"
 #include "switch/SwitchCore.h"
+#include "switch/LabelSplicer.h"
 #include "util/Bits.h"
 #include "util/checksum/Checksum.h"
 #include "util/version/Version.h"
@@ -588,8 +589,6 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
     if (message->length < Control_HEADER_SIZE) {
         Log_info(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
-    } else {
-        Log_debug(context->logger, "ctrl packet from [%s]", labelStr);
     }
     struct Control* ctrl = (struct Control*) message->bytes;
 
@@ -608,10 +607,6 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
             Log_info(context->logger, "dropped runt error packet from [%s]", labelStr);
             return Error_NONE;
         }
-        Log_info(context->logger,
-                  "error packet from [%s], error type [%d]",
-                  labelStr,
-                  Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
 
         RouterModule_brokenPath(Endian_bigEndianToHost64(switchHeader->label_be),
                                 context->routerModule);
@@ -632,9 +627,18 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
                           Control_typeString(causeCtrl->type_be),
                           Endian_bigEndianToHost16(causeCtrl->type_be));
             } else {
+                if (LabelSplicer_isOneHop(label)
+                    && ctrl->content.error.errorType_be
+                        == Endian_hostToBigEndian32(Error_UNDELIVERABLE))
+                {
+                    // this is our own InterfaceController complaining
+                    // because the node isn't responding to pings.
+                    return Error_NONE;
+                }
                 Log_debug(context->logger,
-                           "error packet from [%s] in response to ping, length: [%d].",
+                           "error packet from [%s] in response to ping, err [%d], length: [%d].",
                            labelStr,
+                           Endian_bigEndianToHost32(ctrl->content.error.errorType_be),
                            message->length);
                 // errors resulting from pings are forwarded back to the pinger.
                 pong = true;
@@ -643,6 +647,11 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
             Log_info(context->logger,
                       "error packet from [%s] containing cause of unknown type [%d]",
                       labelStr, causeType);
+        } else {
+            Log_info(context->logger,
+                      "error packet from [%s], error type [%d]",
+                      labelStr,
+                      Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
         }
     } else if (ctrl->type_be == Control_PONG_be) {
         pong = true;
@@ -667,7 +676,8 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
         ctrl->type_be = Control_PONG_be;
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-        Message_shift(message, Control_HEADER_SIZE + Headers_SwitchHeader_SIZE);
+        Message_shift(message, Headers_SwitchHeader_SIZE);
+        Log_info(context->logger, "got switch ping from [%s]", labelStr);
         switchIf->receiveMessage(message, switchIf);
     } else {
         Log_info(context->logger,

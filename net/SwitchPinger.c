@@ -91,7 +91,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
                 #endif
             }
         } else {
-            Log_debug(ctx->logger, "got run pong message, length: [%d]", msg->length);
+            Log_debug(ctx->logger, "got runt pong message, length: [%d]", msg->length);
             return Error_INVALID;
         }
 

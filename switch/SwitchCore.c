@@ -81,9 +81,12 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
                                    struct Message* toSend,
                                    struct Log* logger)
 {
-    uint16_t priority = Headers_getPriority((struct Headers_SwitchHeader*) toSend->bytes);
+    struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) toSend->bytes;
+
+    uint32_t priority = Headers_getPriority(switchHeader);
     if (switchIf->buffer + priority > switchIf->bufferMax) {
-        return Error_LINK_LIMIT_EXCEEDED;
+        uint32_t messageType = Headers_getMessageType(switchHeader);
+        Headers_setPriorityAndMessageType(switchHeader, 0, messageType);
     }
 
     uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
@@ -239,11 +242,9 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be = Endian_hostToBigEndian64(targetLabel);
 
-    /* Too much noise.
     Log_debug(sourceIf->core->logger,
                "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
                sourceIndex, destIndex, label, targetLabel);
-    */
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
