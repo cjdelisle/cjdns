@@ -20,6 +20,9 @@
 #endif
 #include <strings.h>
 
+#ifdef WIN32
+    #define strcasecmp strcmp
+#endif
 
 char* Log_nameForLevel(enum Log_Level logLevel)
 {
