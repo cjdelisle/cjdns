@@ -46,6 +46,8 @@
 
 #ifdef FreeBSD
     #include <netinet/in.h>
+#elif defined(WIN32)
+    #include <ws2tcpip.h> /* sockaddr_in6 */
 #endif
 
 /**
