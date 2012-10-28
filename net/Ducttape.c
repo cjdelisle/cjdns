@@ -706,7 +706,7 @@ static inline uint8_t* extractPublicKey(struct Message* message,
             return NULL;
         #endif
         // version 0 nodes are missing the handle
-        Message_shift(message, -4);
+        Message_shift(message, 4);
     }
 
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -761,7 +761,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     // #2 no session, try the message as a handshake.
     if (!session && message->length >= 4 + Headers_CryptoAuth_SIZE) {
-        Message_shift(message, 4);
+        Message_shift(message, -4);
         uint32_t version = 1;
         uint8_t ip6[16];
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
