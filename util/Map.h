@@ -116,12 +116,12 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
         #ifdef Map_ENABLE_HANDLES
             // If we use handels then we need to keep the map sorted.
             #ifdef Map_ENABLE_KEYS
-                memmove(&map->keySuffixes[index + 1],
-                        &map->keySuffixes[index],
+                memmove(&map->keySuffixes[index],
+                        &map->keySuffixes[index + 1],
                         (map->count - index) * sizeof(uint32_t));
 
-                memmove(&map->keys[index + 1],
-                        &map->keys[index],
+                memmove(&map->keys[index],
+                        &map->keys[index + 1],
                         (map->count - index) * sizeof(Map_KEY_TYPE));
             #endif
             memmove(&map->handles[index],
