@@ -41,6 +41,7 @@ add_library(util
     Errno.c
     Hex.c
     Pinger.c
+    Pipe.c
     Security_admin.c
     Timeout.c
 )

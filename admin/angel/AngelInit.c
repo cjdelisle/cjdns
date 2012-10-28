@@ -66,7 +66,7 @@ static void initCore(char* coreBinaryPath,
                      struct Except* eh)
 {
     int pipes[2][2];
-    if (pipe(pipes[0]) || pipe(pipes[1])) {
+    if (Pipe_createUniPipe(pipes[0]) || Pipe_createUniPipe(pipes[1])) {
         Except_raise(eh, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
     }
 

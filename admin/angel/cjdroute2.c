@@ -51,6 +51,7 @@
 #include "util/Base32.h"
 #include "util/Errno.h"
 #include "util/Hex.h"
+#include "util/Pipe.h"
 #include "util/Process.h"
 #include "util/Security.h"
 #include "util/log/WriterLog.h"
@@ -381,7 +382,7 @@ int main(int argc, char** argv)
     // --------------------- Setup Pipes to Angel --------------------- //
     int pipeToAngel[2];
     int pipeFromAngel[2];
-    if (pipe(pipeToAngel) || pipe(pipeFromAngel)) {
+    if (Pipe_createUniPipe(pipeToAngel) || Pipe_createUniPipe(pipeFromAngel)) {
         Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(Errno_get()));
     }
 

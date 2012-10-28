@@ -32,7 +32,7 @@ target_link_libraries(cjdns-angel
     cjdns-process
     cjdns-interface-waiter
     cjdns-waiter
-    util # Hex_decode()
+    util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
 )
 
