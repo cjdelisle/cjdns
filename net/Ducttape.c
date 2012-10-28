@@ -90,7 +90,7 @@ static inline uint8_t incomingDHT(struct Message* message,
 }
 
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Address* addr,
+static inline uint8_t sendToRouter(struct Node* node,
                                    struct Message* message,
                                    struct Ducttape_Private* context)
 {
@@ -159,7 +159,19 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     context->ip6Header = header;
     context->switchHeader = NULL;
 
-    sendToRouter(&dmessage->address, &message, context);
+    struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
+    struct Node ns;
+    if (!n) {
+        // TODO: this is a mess
+        Bits_memcpyConst(&ns.address, &dmessage->address, sizeof(struct Address));
+        if (dmessage->replyTo) {
+            int64_t* verPtr = Dict_getInt(dmessage->replyTo->asDict, String_CONST("p"));
+            ns.version = (verPtr) ? *verPtr : 0;
+        }
+        n = &ns;
+    }
+
+    sendToRouter(n, &message, context);
 
     return 0;
 }
@@ -383,7 +395,7 @@ static inline uint8_t ip6FromTun(struct Message* message,
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
-            return sendToRouter(&bestNext->address, message, context);
+            return sendToRouter(bestNext, message, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
         // of the best node to forward to, we can skip doing another lookup by storing a pointer
@@ -469,7 +481,7 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
-        return sendToRouter(addr, message, context);
+        return sendToRouter(nextHop, message, context);
     }
 
     #ifdef Log_INFO
