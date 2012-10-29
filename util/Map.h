@@ -90,15 +90,15 @@ static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEX
 #ifdef Map_ENABLE_HANDLES
 static inline int Map_FUNCTION(indexForHandle)(uint32_t handle, struct Map_CONTEXT* map)
 {
-    uint32_t* handles = map->handles;
-    for (uint32_t lim = map->count; lim != 0; lim >>= 1) {
-        uint32_t currentHandle = handles[lim >> 1];
+    uint32_t base = 0;
+    for (uint32_t bufferLen = map->count; bufferLen != 0; bufferLen /= 2) {
+        uint32_t currentHandle = map->handles[base + (bufferLen / 2)];
         if (handle >= currentHandle) {
             if (currentHandle == handle) {
-                return lim >> 1;
+                return base + (bufferLen / 2);
             }
-            handles = &handles[(lim >> 1) + 1];
-            lim--;
+            base += (bufferLen / 2) + 1;
+            bufferLen--;
         }
     }
     return -1;

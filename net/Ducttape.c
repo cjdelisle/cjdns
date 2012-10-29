@@ -344,7 +344,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
-            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be & ~HANDLE_FLAG_BIT_be;
+            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
         }
     } else {
         Log_debug(context->logger, "Sending protocol 0 message.");
@@ -781,7 +781,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             if (session->version == 0) {
                 uint8_t hex[9];
                 Hex_encode(hex, 9, message->bytes, 4);
-                Log_debug(context->logger, "0 version session input: [%s]", hex);
+                Log_debug(context->logger, "0 version session input: [%s] [%u]", hex, realHandle);
                 debugHandles(context->logger, session, "Got 0 version session");
                 session = NULL;
                 version = 0;
