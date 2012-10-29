@@ -47,8 +47,8 @@
 /**
  * In order to easily tell the incoming connection requests from messages which
  * are addressed to a specific interface by it's handle, the most significant bit
- * in the big endian representation of the handle shall be reserved for indicating
- * that a session is new.
+ * in the big endian representation of the handle shall be cleared to indicate
+ * that a session is new and set otherwise.
  */
 #define HANDLE_FLAG_BIT_be Endian_hostToBigEndian32(0x80000000)
 
@@ -344,7 +344,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
 
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
-            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be | HANDLE_FLAG_BIT_be;
+            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be & ~HANDLE_FLAG_BIT_be;
         }
     } else {
         Log_debug(context->logger, "Sending protocol 0 message.");
@@ -774,7 +774,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     uint32_t handle_be = ((uint32_t*)message->bytes)[0];
     struct SessionManager_Session* session = NULL;
 
-    if (!(handle_be & HANDLE_FLAG_BIT_be)) {
+    if (handle_be & HANDLE_FLAG_BIT_be) {
         session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle_be),
                                                   context->outerSm);
         if (session) {
@@ -792,7 +792,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
             session = SessionManager_getSession(ip6, herKey, context->outerSm);
-            session->sendHandle_be = handle_be & ~HANDLE_FLAG_BIT_be;
+            session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
             session->version = version;
             debugHandles(context->logger, session, "New session");
         }
