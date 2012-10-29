@@ -775,11 +775,13 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = NULL;
 
     if (handle_be & HANDLE_FLAG_BIT_be) {
-        handle_be &= ~HANDLE_FLAG_BIT_be;
-        session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle_be),
-                                                  context->outerSm);
+        uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
+        session = SessionManager_sessionForHandle(realHandle, context->outerSm);
         if (session) {
             if (session->version == 0) {
+                uint8_t hex[9];
+                Hex_encode(hex, 9, message->bytes, 4);
+                Log_debug(context->logger, "0 version session input: [%s]", hex);
                 debugHandles(context->logger, session, "Got 0 version session");
                 session = NULL;
                 version = 0;
