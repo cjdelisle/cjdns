@@ -317,7 +317,7 @@ static void debugHandles(struct Log* logger, struct SessionManager_Session* sess
     Log_debug(logger, "%s ver[%u] send[%u] recv[%u] ip[%s]",
               message,
               session->version,
-              Endian_hostToBigEndian32(session->sendHandle_be),
+              Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be),
               Endian_hostToBigEndian32(session->receiveHandle_be),
               ip);
 }
@@ -779,8 +779,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle_be),
                                                   context->outerSm);
         if (session) {
-            debugHandles(context->logger, session, "Got running session");
-            Message_shift(message, -4);
+            if (session->version == 0) {
+                debugHandles(context->logger, session, "Got 0 version session");
+                session = NULL;
+                version = 0;
+            } else {
+                debugHandles(context->logger, session, "Got running session");
+                Message_shift(message, -4);
+            }
         } else {
             version = 0;
         }
