@@ -789,6 +789,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             continue;
         }
 
+        /* oww my ears
         #ifdef Log_DEBUG
             uint8_t fromAddr[60];
             uint8_t newAddr[60];
@@ -799,6 +800,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                        newAddr,
                        fromAddr);
         #endif
+        */
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.

@@ -775,6 +775,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = NULL;
 
     if (handle_be & HANDLE_FLAG_BIT_be) {
+        handle_be &= ~HANDLE_FLAG_BIT_be;
         session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle_be),
                                                   context->outerSm);
         if (session) {
