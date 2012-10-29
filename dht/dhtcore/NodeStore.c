@@ -454,8 +454,12 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
     int out = 0;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
-            NodeStore_remove(&store->nodes[i], store);
-            out++;
+            if (!LabelSplicer_isOneHop(store->nodes[i].address.path)) {
+                NodeStore_remove(&store->nodes[i], store);
+                out++;
+            } else {
+                store->headers[i].reach = 0;
+            }
         }
     }
     return out;
