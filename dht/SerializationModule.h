@@ -21,9 +21,11 @@
  * Register a new SerializationModule.
  *
  * @param registry the module registry to register with.
+ * @param logger
  * @param allocator the means of aquiring memory for the serialization module.
  */
 void SerializationModule_register(struct DHTModuleRegistry* registry,
-                                  const struct Allocator* allocator);
+                                  struct Log* logger,
+                                  struct Allocator* allocator);
 
 #endif

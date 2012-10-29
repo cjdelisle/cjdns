@@ -38,4 +38,10 @@ static String* const CJDHTConstants_TXID = String_CONST_SO("txid");
 // Version which is in ping responses.
 static String* const CJDHTConstants_VERSION = String_CONST_SO("v");
 
+// Node protocols, the protocol versions of the nodes in a node list.
+static String* const CJDHTConstants_NODE_PROTOCOLS = String_CONST_SO("np");
+
+// The protocol version of the sending node.
+static String* const CJDHTConstants_PROTOCOL = String_CONST_SO("p");
+
 #endif

@@ -677,11 +677,12 @@ static inline void responseFromNode(struct Node* node,
  */
 static inline int handleReply(struct DHTMessage* message, struct RouterModule* module)
 {
-    int64_t* version = Dict_getInt(message->asDict, String_CONST("p"));
+    int64_t* versionPtr = Dict_getInt(message->asDict, CJDHTConstants_PROTOCOL);
+    uint32_t version = ((versionPtr) ? *versionPtr : 0);
 
     // this implementation only pings to get the address of a node, so lets add the node.
     struct Node* node =
-        NodeStore_addNode(module->nodeStore, message->address, 0, ((version) ? *version : 0) );
+        NodeStore_addNode(module->nodeStore, message->address, 0, version);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
 
@@ -730,8 +731,12 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
 
     if (parent == NULL) {
         // Couldn't find the node, perhaps we were sent a malformed packet.
+        Log_debug(module->logger, "orphaned search result");
         return -1;
     }
+
+    Log_debug(module->logger, "\n\nGot search result! count [%d]\n\n",
+              (int)((nodes) ? nodes->len : 0));
 
     // If the search has already replaced the node's location or it has already finished
     // and another search is taking place in the same slot, drop this reply because it is late.
@@ -763,7 +768,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     }
 
     struct VersionList* versions = NULL;
-    String* versionsStr = Dict_getString(message->asDict, String_CONST("np"));
+    String* versionsStr = Dict_getString(message->asDict, CJDHTConstants_NODE_PROTOCOLS);
     if (versionsStr) {
         versions = VersionList_parse(versionsStr, message->allocator);
     }
@@ -787,7 +792,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             continue;
         }
 
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t fromAddr[60];
             uint8_t newAddr[60];
             Address_print(fromAddr, message->address);
@@ -796,7 +801,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
                        "Discovered new node:\n    %s\nvia:%s\n",
                        newAddr,
                        fromAddr);
-        #endif*/
+        #endif
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
@@ -875,7 +880,7 @@ static inline int handleQuery(struct DHTMessage* message,
 {
     struct DHTMessage* query = message->replyTo;
 
-    int64_t* versionPtr = Dict_getInt(query->asDict, String_CONST("p"));
+    int64_t* versionPtr = Dict_getInt(query->asDict, CJDHTConstants_PROTOCOL);
     uint32_t version = (versionPtr && *versionPtr <= UINT32_MAX) ? *versionPtr : 0;
 
     // We got a query, the reach should be set to 1 in the new node.
@@ -929,7 +934,10 @@ static inline int handleQuery(struct DHTMessage* message,
     if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
         String* versionsStr = VersionList_stringify(versions, message->allocator);
-        Dict_putString(message->asDict, String_CONST("np"), versionsStr, message->allocator);
+        Dict_putString(message->asDict,
+                       CJDHTConstants_NODE_PROTOCOLS,
+                       versionsStr,
+                       message->allocator);
     }
 
     return 0;
@@ -946,7 +954,10 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {
     struct RouterModule* module = (struct RouterModule*) vcontext;
 
-    Dict_putInt(message->asDict, String_CONST("p"), Version_CURRENT_PROTOCOL, message->allocator);
+    Dict_putInt(message->asDict,
+                CJDHTConstants_PROTOCOL,
+                Version_CURRENT_PROTOCOL,
+                message->allocator);
 
     if (message->replyTo != NULL) {
         return handleQuery(message, module);

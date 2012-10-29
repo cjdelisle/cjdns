@@ -83,6 +83,11 @@ static inline uint8_t incomingDHT(struct Message* message,
         : DHTMessage_MAX_SIZE;
     Bits_memcpy(dht.bytes, message->bytes, length);
 
+    uint8_t buff[DHTMessage_MAX_SIZE * 2 + 1] = {0};
+    Hex_encode(buff, DHTMessage_MAX_SIZE * 2, (uint8_t*) dht.bytes, length);
+    printf("incoming DHT message: [%s]\n", buff);
+    printf("dht length: [%u]\n", length);
+
     dht.address = addr;
 
     uint8_t buffer[PER_MESSAGE_BUF_SZ];
@@ -133,6 +138,9 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 
     struct Message message =
         { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
+
+    dmessage->bytes[dmessage->length] = '\0';
+    Log_debug(context->logger, "outgoing DHT message: [%s]", (char*)dmessage->bytes);
 
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
@@ -334,11 +342,16 @@ static inline uint8_t sendToSwitch(struct Message* message,
         // If the session is established, we send their handle for the session,
         // otherwise we send ours.
         if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
-            Log_debug(context->logger, "Sending protocol [%d] run message.", session->version);
+            Log_debug(context->logger, "Sending protocol [%d] run message [%u][%u]",
+                      session->version,
+                      Endian_hostToBigEndian32(session->sendHandle),
+                      Endian_hostToBigEndian32(session->receiveHandle));
+
             ((uint32_t*)message->bytes)[0] = session->sendHandle;
         } else {
-            Log_debug(context->logger, "Sending protocol [%d] start message with handle [%u].",
+            Log_debug(context->logger, "Sending protocol [%d] start message with handle [%u][%u].",
                       session->version,
+                      Endian_hostToBigEndian32(session->sendHandle),
                       Endian_hostToBigEndian32(session->receiveHandle));
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
@@ -780,7 +793,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (!(handle & HANDLE_FLAG_BIT)) {
         session = SessionManager_sessionForHandle(Endian_bigEndianToHost32(handle), context->sm);
         if (session) {
-            Log_debug(context->logger, "Got session using protocol 1 handle");
+            Log_debug(context->logger, "Got session using protocol 1 handle [%u][%u]",
+                      Endian_bigEndianToHost32(session->sendHandle),
+                      Endian_bigEndianToHost32(handle));
             Message_shift(message, -4);
         } else {
             version = 0;
@@ -796,8 +811,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle = handle & ~HANDLE_FLAG_BIT;
             session->version = version;
-            Log_debug(context->logger, "Got session with protocol version [%d] handle [%u]",
-                      version, session->sendHandle);
+            Log_debug(context->logger, "Got session with protocol version [%d] handle [%u][%u]",
+                      version,
+                      Endian_bigEndianToHost32(session->sendHandle),
+                      session->receiveHandle);
         }
     }
 

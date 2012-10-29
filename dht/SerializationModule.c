@@ -25,6 +25,7 @@
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/Bits.h"
+#include "util/log/Log.h"
 
 #include <string.h>
 
@@ -32,6 +33,7 @@
 
 struct SerializationModule_context {
     struct DHTModule module;
+    struct Log* logger;
 };
 
 /*--------------------Prototypes--------------------*/
@@ -43,7 +45,8 @@ static int handleIncoming(struct DHTMessage* message,
 /*--------------------Interface--------------------*/
 
 void SerializationModule_register(struct DHTModuleRegistry* registry,
-                                  const struct Allocator* allocator)
+                                  struct Log* logger,
+                                  struct Allocator* allocator)
 {
     struct SerializationModule_context* context =
         allocator->malloc(sizeof(struct SerializationModule_context), allocator);
@@ -53,7 +56,8 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
             .context = context,
             .handleIncoming = handleIncoming,
             .handleOutgoing = handleOutgoing
-        }
+        },
+        .logger = logger
     }), sizeof(struct SerializationModule_context));
 
     DHTModuleRegistry_register(&(context->module), registry);
@@ -86,12 +90,16 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
+    struct SerializationModule_context* context = vcontext;
+
     message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
 
     struct Reader* reader =
         ArrayReader_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
-    if (SERIALIZER->parseDictionary(reader, message->allocator, message->asDict) != 0) {
+    int ret = SERIALIZER->parseDictionary(reader, message->allocator, message->asDict);
+    if (ret != 0) {
+        Log_info(context->logger, "Failed to parse message [%d]", ret);
         return -2;
     }
 

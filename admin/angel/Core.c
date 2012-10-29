@@ -239,7 +239,7 @@ int Core_main(int argc, char** argv)
                                                         logger,
                                                         admin);
 
-    SerializationModule_register(registry, alloc);
+    SerializationModule_register(registry, logger, alloc);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,

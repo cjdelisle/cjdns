@@ -48,7 +48,7 @@ struct Ducttape* TestFramework_setUp()
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, NULL);
 
-    SerializationModule_register(registry, allocator);
+    SerializationModule_register(registry, logger, allocator);
 
     return Ducttape_register(privateKey, registry, routerModule,
                              switchCore, base, allocator, logger, NULL);

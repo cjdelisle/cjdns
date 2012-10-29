@@ -142,6 +142,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                uint32_t version)
 {
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
+        Log_debug(store->logger, "node with incompatable version");
         return NULL;
     }
 
