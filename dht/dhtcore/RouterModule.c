@@ -735,9 +735,6 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         return -1;
     }
 
-    Log_debug(module->logger, "\n\nGot search result! count [%d]\n\n",
-              (int)((nodes) ? nodes->len : 0));
-
     // If the search has already replaced the node's location or it has already finished
     // and another search is taking place in the same slot, drop this reply because it is late.
     if (!Address_isSameIp(parent->address, message->address)) {

@@ -116,7 +116,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 
         int index = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &s, &sm->ifaceMap);
         struct SessionManager_Session* sp = &sm->ifaceMap.values[index];
-        sp->receiveHandle = sm->ifaceMap.handles[index];
+        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index]);
         Bits_memcpyConst(sp->ip6, lookupKey, 16);
         return sp;
     } else {

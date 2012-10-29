@@ -61,7 +61,8 @@ struct Ducttape_Private
 
     struct Address myAddr;
 
-    struct SessionManager* sm;
+    struct SessionManager* outerSm;
+    struct SessionManager* innerSm;
 
     #ifdef Version_0_COMPAT
         struct AddressMapper addrMap;
@@ -87,9 +88,6 @@ struct Ducttape_Private
 
     /** The current session, used for getting the key, ipv6, and version of the other party. */
     struct SessionManager_Session* session;
-
-    /** whether we are encrypting/decrypting the inner layer or the outer layer. */
-    int layer;
 
     /** The interface for the SwitchPinger. */
     struct Interface* switchPingerIf;
