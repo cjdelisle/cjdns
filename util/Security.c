@@ -46,7 +46,7 @@ void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 
 void Security_noFiles(struct Except* eh)
 {
-    #ifdef BSD
+    #if !defined(RLIMIT_NOFILE) && defined(RLIMIT_OFILE)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
