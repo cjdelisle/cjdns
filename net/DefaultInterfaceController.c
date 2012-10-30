@@ -28,7 +28,7 @@
 #endif
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
-#define UNRESPONSIVE_AFTER_MILLISECONDS 10000
+#define UNRESPONSIVE_AFTER_MILLISECONDS 20000
 
 #define PING_AFTER_MILLISECONDS 3000
 
