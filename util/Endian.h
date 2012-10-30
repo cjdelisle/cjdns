@@ -59,7 +59,7 @@ static inline uint16_t Endian_byteSwap16_manual(uint16_t input)
 {
     return (input << 8) | (input >> 8);
 }
-#define Endian_byteSwap16(x) Endian_byteSwap16_manual(x)
+#define Endian_byteSwapNoCast16(x) Endian_byteSwap16_manual(x)
 #define Endian_byteSwap16_uses "Endian_byteSwap16_manual"
 
 
@@ -68,7 +68,7 @@ static inline uint32_t Endian_byteSwap32_manual(uint32_t input)
     input = Endian_rotateAndMask(0x00FF00FF,  8);
     return Endian_rotateAndMask(0x0000FFFF, 16);
 }
-#define Endian_byteSwap32(x) Endian_byteSwap32_manual(x)
+#define Endian_byteSwapNoCast32(x) Endian_byteSwap32_manual(x)
 #define Endian_byteSwap32_uses "Endian_byteSwap32_manual"
 
 
@@ -78,80 +78,86 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
     input = Endian_rotateAndMask(0x0000FFFF0000FFFFull, 16);
     return Endian_rotateAndMask(0x00000000FFFFFFFFull, 32);
 }
-#define Endian_byteSwap64(x) Endian_byteSwap64_manual(x)
+#define Endian_byteSwapNoCast64(x) Endian_byteSwap64_manual(x)
 #define Endian_byteSwap64_uses "Endian_byteSwap64_manual"
 
 
 // Linux
 #ifdef bswap_16
-    #undef Endian_byteSwap16
+    #undef Endian_byteSwapNoCast16
     #undef Endian_byteSwap16_uses
 
-    #define Endian_byteSwap16(x) bswap_16(x)
+    #define Endian_byteSwapNoCast16(x) bswap_16(x)
     #define Endian_byteSwap16_uses "bswap_16"
 #endif
 #ifdef bswap_32
-    #undef Endian_byteSwap32
+    #undef Endian_byteSwapNoCast32
     #undef Endian_byteSwap32_uses
 
-    #define Endian_byteSwap32(x) bswap_32(x)
+    #define Endian_byteSwapNoCast32(x) bswap_32(x)
     #define Endian_byteSwap32_uses "bswap_32"
 #endif
 #ifdef bswap_64
-    #undef Endian_byteSwap64
+    #undef Endian_byteSwapNoCast64
     #undef Endian_byteSwap64_uses
 
-    #define Endian_byteSwap64(x) bswap_64(x)
+    #define Endian_byteSwapNoCast64(x) bswap_64(x)
     #define Endian_byteSwap64_uses "bswap_64"
 #endif
 
 
 // BSD
 #ifdef bswap16
-    #undef Endian_byteSwap16
+    #undef Endian_byteSwapNoCast16
     #undef Endian_byteSwap16_uses
 
-    #define Endian_byteSwap16(x) bswap16(x)
+    #define Endian_byteSwapNoCast16(x) bswap16(x)
     #define Endian_byteSwap16_uses "bswap16"
 #endif
 #ifdef bswap32
-    #undef Endian_byteSwap32
+    #undef Endian_byteSwapNoCast32
     #undef Endian_byteSwap32_uses
 
-    #define Endian_byteSwap32(x) bswap32(x)
+    #define Endian_byteSwapNoCast32(x) bswap32(x)
     #define Endian_byteSwap32_uses "bswap32"
 #endif
 #ifdef bswap64
-    #undef Endian_byteSwap64
+    #undef Endian_byteSwapNoCast64
     #undef Endian_byteSwap64_uses
 
-    #define Endian_byteSwap64(x) bswap64(x)
+    #define Endian_byteSwapNoCast64(x) bswap64(x)
     #define Endian_byteSwap64_uses "bswap64"
 #endif
 
 
 // Apple
 #ifdef OSSwapInt16
-    #undef Endian_byteSwap16
+    #undef Endian_byteSwapNoCast16
     #undef Endian_byteSwap16_uses
 
-    #define Endian_byteSwap16(x) OSSwapInt16(x)
+    #define Endian_byteSwapNoCast16(x) OSSwapInt16(x)
     #define Endian_byteSwap16_uses "OSSwapInt16"
 #endif
 #ifdef OSSwapInt32
-    #undef Endian_byteSwap32
+    #undef Endian_byteSwapNoCast32
     #undef Endian_byteSwap32_uses
 
-    #define Endian_byteSwap32(x) OSSwapInt32(x)
+    #define Endian_byteSwapNoCast32(x) OSSwapInt32(x)
     #define Endian_byteSwap32_uses "OSSwapInt32"
 #endif
 #ifdef OSSwapInt64
-    #undef Endian_byteSwap64
+    #undef Endian_byteSwapNoCast64
     #undef Endian_byteSwap64_uses
 
-    #define Endian_byteSwap64(x) OSSwapInt64(x)
+    #define Endian_byteSwapNoCast64(x) OSSwapInt64(x)
     #define Endian_byteSwap64_uses "OSSwapInt64"
 #endif
+
+
+// Make sure the size is right.
+#define Endian_byteSwap16(x) ((uint16_t)Endian_byteSwapNoCast16(((uint16_t)(x))))
+#define Endian_byteSwap32(x) ((uint32_t)Endian_byteSwapNoCast32(((uint32_t)(x))))
+#define Endian_byteSwap64(x) ((uint64_t)Endian_byteSwapNoCast64(((uint64_t)(x))))
 
 
 #if defined(Endian_BIG)
@@ -170,19 +176,19 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
     #define Endian_hostToBigEndian64(input) Endian_byteSwap64(input)
 #else
     #define Endian_hostToLittleEndian16(input) \
-        ((!Endian_isBigEndian()) ? input : Endian_byteSwap16(input))
+        ((!Endian_isBigEndian()) ? (input) : Endian_byteSwap16(input))
     #define Endian_hostToBigEndian16(input) \
-        ((Endian_isBigEndian()) ? input : Endian_byteSwap16(input))
+        ((Endian_isBigEndian()) ? (input) : Endian_byteSwap16(input))
 
     #define Endian_hostToLittleEndian32(input) \
-        ((!Endian_isBigEndian()) ? input : Endian_byteSwap32(input))
+        ((!Endian_isBigEndian()) ? (input) : Endian_byteSwap32(input))
     #define Endian_hostToBigEndian32(input) \
-        ((Endian_isBigEndian()) ? input : Endian_byteSwap32(input))
+        ((Endian_isBigEndian()) ? (input) : Endian_byteSwap32(input))
 
     #define Endian_hostToLittleEndian64(input) \
-        ((!Endian_isBigEndian()) ? input : Endian_byteSwap64(input))
+        ((!Endian_isBigEndian()) ? (input) : Endian_byteSwap64(input))
     #define Endian_hostToBigEndian64(input) \
-        ((Endian_isBigEndian()) ? input : Endian_byteSwap64(input))
+        ((Endian_isBigEndian()) ? (input) : Endian_byteSwap64(input))
 #endif
 
 #define Endian_littleEndianToHost16(x) Endian_hostToLittleEndian16(x)

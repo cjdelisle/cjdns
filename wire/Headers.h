@@ -128,12 +128,15 @@ static inline bool Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
 }
 
 static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac,
-                                                bool require)
+                                                 bool require)
 {
-    ac->challenge.requirePacketAuthAndDerivationCount &=
-        Endian_hostToBigEndian16((uint16_t)~(1<<15));
-    ac->challenge.requirePacketAuthAndDerivationCount |=
-        Endian_hostToBigEndian16(require<<15);
+    if (require) {
+        ac->challenge.requirePacketAuthAndDerivationCount |=
+            Endian_hostToBigEndian16(1<<15);
+    } else {
+        ac->challenge.requirePacketAuthAndDerivationCount &=
+            Endian_hostToBigEndian16(~(1<<15));
+    }
 }
 
 static inline uint16_t Headers_getAuthChallengeDerivations(union Headers_AuthChallenge* ac)
