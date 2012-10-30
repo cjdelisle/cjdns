@@ -29,13 +29,13 @@
     #define ENOBUFS WSAENOBUFS
     #define EWOULDBLOCK WSAEWOULDBLOCK
 #else
-    #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
+    #include <arpa/inet.h>
 #endif
 
-#include <event2/event.h>
 #include <sys/types.h>
+#include <event2/event.h>
 #include <errno.h>
 
 #define MAX_PACKET_SIZE 8192

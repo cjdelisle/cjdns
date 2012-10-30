@@ -43,7 +43,7 @@
 #include <stdint.h>
 #include <errno.h>
 
-#ifdef FreeBSD
+#ifdef BSD
     #include <netinet/in.h>
 #endif
 

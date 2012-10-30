@@ -25,7 +25,7 @@
     #include <libkern/OSByteOrder.h>
 #endif
 
-#ifdef FreeBSD
+#ifdef BSD
     #include <sys/endian.h>
 #endif
 

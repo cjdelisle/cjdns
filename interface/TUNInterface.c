@@ -30,9 +30,7 @@
     #include <linux/if_ether.h>
     #define INET6_ETHERTYPE ETH_P_IPV6
 #else
-    #ifdef FreeBSD
-        #include <netinet/in.h>  // struct in_addr
-    #endif
+    #include <netinet/in.h>
     #include <netinet/if_ether.h>
     #define INET6_ETHERTYPE PF_INET6
 #endif

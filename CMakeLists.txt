@@ -50,7 +50,12 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(SYSTEM OSX)
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
     set(FREEBSD TRUE)
+    add_definitions(-D BSD=1)
     set(SYSTEM FreeBSD)
+elseif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
+    set(OPENBSD TRUE)
+    add_definitions(-D BSD=1)
+    set(SYSTEM OpenBSD)
 endif()
 add_definitions(-D ${SYSTEM}=1})
 
@@ -163,7 +168,7 @@ endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
 # vrooooooom
-add_definitions(-funroll-loops -O3)
+add_definitions(-funroll-loops -O3 -g)
 
 #IF(NOT CMAKE_BUILD_TYPE)
 # default to RelWithDebInfo (-g -O2)
