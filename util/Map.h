@@ -190,14 +190,14 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
     if (i < 0) {
         i = map->count;
         map->count++;
+        #ifdef Map_ENABLE_HANDLES
+            map->handles[i] = map->nextHandle++;
+        #endif
     }
 
     #ifdef Map_ENABLE_KEYS
         map->keySuffixes[i] = Map_getKeySuffix(key);
         Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
-    #endif
-    #ifdef Map_ENABLE_HANDLES
-        map->handles[i] = map->nextHandle++;
     #endif
     Bits_memcpyConst(&map->values[i], value, sizeof(Map_VALUE_TYPE));
 

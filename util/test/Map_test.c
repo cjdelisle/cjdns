@@ -22,26 +22,46 @@
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
+
+#define CYCLES 1
+
 int main()
 {
-    uint32_t size;
-    randombytes((uint8_t*) &size, 4);
-    size = size % 4096;
+    for (int cycles = 0; cycles < CYCLES; cycles++) {
+        struct Allocator* alloc = MallocAllocator_new(1<<18);
+        struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
+        uint32_t size;
+        randombytes((uint8_t*) &size, 4);
+        size = (size % 4096) + 101;
 
-    struct Allocator* alloc = MallocAllocator_new(1<<16);
-    struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
+        uint32_t key = 3;
+        uint64_t val = 4;
+        for (uint32_t i = 0; i < size; i++) {
+            Map_OfLongsByInteger_put(&key, &val, map);
+            key += val >> 13 ^ size << 19;
+            val += key >> 19 ^ i << 13;
+        }
 
-    uint32_t key = 3;
-    uint64_t val = 4;
-    for (uint32_t i = 0; i < size; i++) {
-        Map_OfLongsByInteger_put(&key, &val, map);
-        key += val >> 13 ^ size << 19;
-        val += key >> 19 ^ i << 13;
-    }
+        // If a key is duplicated, the entry will br replaced.
+        size = map->count;
 
-    for (uint32_t i = size - 1; i > size - 100; i--) {
-        int index = map->keys[i] % size;
-        uint32_t handle = map->handles[index];
-        Assert_always(index == Map_OfLongsByInteger_indexForHandle(handle, map));
+        for (uint32_t i = size - 1; i > size - 100; i--) {
+            int index = map->keys[i] % size;
+            uint32_t handle = map->handles[index];
+            if (index != Map_OfLongsByInteger_indexForHandle(handle, map)) {
+                uint32_t num = 0;
+                for (int i = 0; i < (int)map->count; i++) {
+                    if (num > map->handles[i]) {
+                        Assert_true(!"map out of order");
+                    }
+                    num = map->handles[i];
+                }
+                printf("failed to find the correct index for the handle "
+                       "handle[%u], index[%u], indexForHandle[%u]\n",
+                       handle, index, Map_OfLongsByInteger_indexForHandle(handle, map));
+                Assert_true(false);
+            }
+        }
+        alloc->free(alloc);
     }
 }
