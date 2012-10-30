@@ -24,11 +24,9 @@
 
 int main()
 {
-    uint32_t size;
-    randombytes((uint8_t*) &size, 4);
-    size = size % 4096;
+    uint32_t size = 8192;
 
-    struct Allocator* alloc = MallocAllocator_new(1<<16);
+    struct Allocator* alloc = MallocAllocator_new(1<<18);
     struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
 
     uint32_t key = 3;
