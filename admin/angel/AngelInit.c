@@ -47,6 +47,10 @@
     #include <netinet/in.h>
 #endif
 
+#ifdef OpenBSD
+    #include <netinet/in.h>
+#endif
+
 /**
  * Initialize the core.
  *

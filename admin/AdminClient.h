@@ -19,7 +19,12 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-#ifdef __FreeBSD__
+
+#ifdef FreeBSD
+#include <netinet/in.h>
+#endif
+
+#ifdef OpenBSD
 #include <netinet/in.h>
 #endif
 

@@ -29,6 +29,10 @@
     #include <sys/endian.h>
 #endif
 
+#ifdef OpenBSD
+    #include <sys/endian.h>
+#endif
+
 static inline int Endian_isBigEndian()
 {
     union {
