@@ -79,7 +79,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     if (tunFileDescriptor < 0) {
         Except_raise(eh, TUNConfigurator_initTun_INTERNAL,
                      "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 
     /* get the utun control id */
@@ -88,7 +88,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     strncpy(info.ctl_name, APPLE_UTUN_CONTROL, strlen(APPLE_UTUN_CONTROL));
 
     if (ioctl(tunFileDescriptor, CTLIOCGINFO, &info) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(tunFileDescriptor);
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
@@ -106,7 +106,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     addr.sc_unit = tunUnit;
 
     if (connect(tunFileDescriptor, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(tunFileDescriptor);
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
@@ -119,7 +119,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
                    assignedInterfaceName, (uint32_t*) &maxNameSize) >= 0) {
         Log_info(logger, "Initialized utun interface [%s]\n", assignedInterfaceName);
     } else {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(tunFileDescriptor);
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
@@ -187,11 +187,11 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(s);
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
@@ -215,7 +215,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 
 
@@ -227,7 +227,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-       int err = Errno_get();
+       enum Errno err = Errno_get();
        close(s);
        Except_raise(eh,
                     TUNConfigurator_setMTU_INTERNAL,

@@ -13,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "interface/Interface.h"
-#include "interface/TUNInterface_pvt.h"
+#include "interface/TUNInterface.h"
 #include "benc/String.h"
 #include "util/Endian.h"
 
@@ -59,47 +59,14 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-struct TUNInterface* TUNInterface_new(String* interfaceName,
+struct TUNInterface* TUNInterface_new(void* handle,
                                       struct event_base* base,
                                       struct Allocator* allocator)
 {
-    String* ifName = String_newBinary(NULL, IFNAMSIZ, allocator);
-
-    int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL, ifName->bytes);
-    if (tunFileDesc < 0) {
-        fprintf(stderr, "Failed to open tunnel, error: %d\n", errno);
-        return NULL;
-    }
-
-    evutil_make_socket_nonblocking(tunFileDesc);
-
-    struct TUNInterface* tun = allocator->malloc(sizeof(struct TUNInterface), allocator);
-    tun->incomingEvent = event_new(base, tunFileDesc, EV_READ | EV_PERSIST, handleEvent, tun);
-    tun->fileDescriptor = tunFileDesc;
-    tun->name = ifName;
-
-    if (tun->incomingEvent == NULL) {
-        abort();
-    }
-
-    struct Interface iface = {
-        .senderContext = tun,
-        .sendMessage = sendMessage,
-        .allocator = allocator,
-        .requiredPadding = 0,
-        .maxMessageLength = MAX_PACKET_SIZE
-    };
-
-    Bits_memcpyConst(&tun->interface, &iface, sizeof(struct Interface));
-
-    event_add(tun->incomingEvent, NULL);
-
-    allocator->onFree(closeInterface, tun, allocator);
-
-    return tun;
+    return NULL;
 }
 
 struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunIf)
 {
-    return (tunIf) ? &tunIf->interface : NULL;
+    return (tunIf) ? &tunIf->iface : NULL;
 }

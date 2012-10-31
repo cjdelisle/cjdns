@@ -171,7 +171,6 @@ static int32_t parseint64_t(const struct Reader* reader,
         }
         if (buffer[i] < '0' || buffer[i] > '9' || status != 0 /* end of input */) {
             buffer[i] = '\0';
-            Errno_clear();
             int64_t out = strtol((char*)buffer, NULL, 10);
             // Failed parse causes 0 to be set.
             if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {

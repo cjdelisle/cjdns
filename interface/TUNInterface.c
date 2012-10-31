@@ -14,7 +14,6 @@
  */
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
-#include "interface/TUNInterface_pvt.h"
 #include "benc/String.h"
 #include "util/Endian.h"
 #include "util/Errno.h"

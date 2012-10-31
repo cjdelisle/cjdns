@@ -383,7 +383,7 @@ int main(int argc, char** argv)
     int pipeToAngel[2];
     int pipeFromAngel[2];
     if (Pipe_createUniPipe(pipeToAngel) || Pipe_createUniPipe(pipeFromAngel)) {
-        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(Errno_get()));
+        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", Errno_getString());
     }
 
     char pipeToAngelStr[8];
@@ -405,8 +405,6 @@ int main(int argc, char** argv)
     } else {
         Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
                          "guessing it's location.");
-        Log_critical(logger, "Location guess not implemented yet! Aborting.");
-        exit(1);
     }
 
     if (!privateKey) {

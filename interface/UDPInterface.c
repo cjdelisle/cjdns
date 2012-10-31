@@ -114,8 +114,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info(context->logger, "Got error sending to socket errno=%d",
-                          EVUTIL_SOCKET_ERROR());
+                Log_info(context->logger, "Got error sending to socket [%s]",
+                         Errno_getString());
         }
     }
     return 0;

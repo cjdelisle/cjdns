@@ -69,7 +69,7 @@ static void initCore(char* coreBinaryPath,
 {
     int pipes[2][2];
     if (Pipe_createUniPipe(pipes[0]) || Pipe_createUniPipe(pipes[1])) {
-        Except_raise(eh, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
+        Except_raise(eh, -1, "Failed to create pipes [%s]", Errno_getString());
     }
 
     // Pipes used in the core process.
@@ -154,27 +154,27 @@ static String* bindListener(String* bindAddr,
 
     evutil_socket_t listener = socket(addr.ss_family, SOCK_STREAM, 0);
     if (listener < 0) {
-        Except_raise(eh, -1, "Failed to allocate socket() [%s]", strerror(Errno_get()));
+        Except_raise(eh, -1, "Failed to allocate socket() [%s]", Errno_getString());
     }
 
     evutil_make_listen_socket_reuseable(listener);
 
     if (bind(listener, (struct sockaddr*) &addr, addrLen) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to bind() socket [%s]", strerror(err));
+        Except_raise(eh, -1, "Failed to bind() socket [%s]", Errno_strerror(err));
     }
 
     if (getsockname(listener, (struct sockaddr*) &addr, (ev_socklen_t*) &addrLen)) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to get socket name [%s]", strerror(err));
+        Except_raise(eh, -1, "Failed to get socket name [%s]", Errno_strerror(err));
     }
 
     if (listen(listener, 16) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to listen on socket [%s]", strerror(err));
+        Except_raise(eh, -1, "Failed to listen on socket [%s]", Errno_strerror(err));
     }
 
     #define ADDR_BUFF_SZ 64

@@ -72,7 +72,7 @@ uint32_t Waiter_getData(uint8_t* output,
     event_base_dispatch(eventBase);
     ssize_t amountRead = read(fromCoreFd, output, bufferSize);
     if (amountRead < 0) {
-        Except_raise(eh, -1, "Failed to read data [%s]", strerror(errno));
+        Except_raise(eh, -1, "Failed to read data [%s]", Errno_getString());
     }
     return (uint32_t) amountRead;
 }

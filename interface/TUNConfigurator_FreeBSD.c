@@ -70,7 +70,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     }
 
     if (tunFd < 0 || ppa < 0 ) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(tunFd);
 
         char* error = NULL;
@@ -79,7 +79,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         } else if (ppa < 0) {
             error = "fdevname/getting number from fdevname";
         }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, Errno_strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
@@ -95,9 +95,9 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     }
 
     if (error) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, Errno_strerror(err));
     }
 
 
@@ -161,16 +161,16 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         close(s);
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCAIFADDR) failed [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
@@ -189,7 +189,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 
 
@@ -201,11 +201,11 @@ void TUNConfigurator_setMTU(const char* interfaceName,
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-       int err = Errno_get();
+       enum Errno err = Errno_get();
        close(s);
        Except_raise(eh,
                     TUNConfigurator_setMTU_INTERNAL,
                     "ioctl(SIOCSIFMTU) failed [%s]",
-                    strerror(err));
+                    Errno_strerror(err));
     }
 }

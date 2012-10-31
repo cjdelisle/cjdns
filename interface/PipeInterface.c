@@ -123,12 +123,13 @@ static uint32_t doRead(int pipe, void* buffer, uint32_t maxLength, struct Except
 {
     ssize_t amount = read(pipe, buffer, maxLength);
     if (amount < 1) {
-        int err = Errno_get();
+        enum Errno err = Errno_get();
         if (Errno_EAGAIN == err) {
             return 0;
         }
         if (amount < 0) {
-            Except_raise(eh, PipeInterface_DISCONNECTED, "Connection Lost [%s]", strerror(err));
+            Except_raise(eh, PipeInterface_DISCONNECTED,
+                         "Connection Lost [%s]", Errno_strerror(err));
         }
         Except_raise(eh, PipeInterface_DISCONNECTED, "PipeInterface Connection Lost.");
     }

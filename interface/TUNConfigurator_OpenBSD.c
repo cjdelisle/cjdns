@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -36,7 +35,6 @@
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
-#include <sys/errno.h>
 
 /* Tun Configurator for OpenBSD. */
 
@@ -72,14 +70,14 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     }
 
     if (tunFd < 0 ) {
-        int err = errno;
+        enum Errno err = Errno_get();
         close(tunFd);
 
         char* error = NULL;
         if (tunFd < 0) {
             error = "open(\"/dev/tunX\")";
         }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, Errno_strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
@@ -89,9 +87,9 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     char* error = NULL;
 
     if (error) {
-        int err = errno;
+        enum Errno err = Errno_get();
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, Errno_strerror(err));
     }
 
 
@@ -155,16 +153,16 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "socket() failed [%s]",
-                     strerror(errno));
+                     Errno_getString());
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
-        int err = errno;
+        enum Errno err = Errno_get();
         close(s);
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCAIFADDR) failed [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
@@ -183,7 +181,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
-                     strerror(errno));
+                     Errno_getString(errno));
     }
 
 
@@ -195,11 +193,11 @@ void TUNConfigurator_setMTU(const char* interfaceName,
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-       int err = errno;
+       enum Errno err = Errno_get();
        close(s);
        Except_raise(eh,
                     TUNConfigurator_setMTU_INTERNAL,
                     "ioctl(SIOCSIFMTU) failed [%s]",
-                    strerror(err));
+                    Errno_strerror(err));
     }
 }

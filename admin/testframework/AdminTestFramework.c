@@ -172,7 +172,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     int toAngel;
     int corePipes[2][2];
     if (Pipe_createUniPipe(corePipes[0]) || Pipe_createUniPipe(corePipes[1])) {
-        Except_raise(NULL, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
+        Except_raise(NULL, -1, "Failed to create pipes [%s]", Errno_getString());
     }
     spawnAngel(&fromAngel, &toAngel);
 

@@ -25,13 +25,12 @@
 
 void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
-    Errno_clear();
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
         Except_raise(eh,
                      Security_setUser_NO_SUCH_USER,
                      "Failed to set UID, couldn't find user named [%s] in the system.",
-                     strerror(Errno_get()));
+                     Errno_getString());
         return;
     }
     if (setuid(pw->pw_uid)) {
@@ -41,7 +40,7 @@ void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
             return;
         }
         Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]",
-                     strerror(Errno_get()));
+                     Errno_getString());
     }
 }
 
@@ -51,6 +50,6 @@ void Security_noFiles(struct Except* eh)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", strerror(Errno_get()));
+        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", Errno_getString());
     }
 }

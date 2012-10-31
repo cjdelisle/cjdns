@@ -159,7 +159,6 @@ static int32_t parseint64_t(const struct Reader* reader,
             return UNPARSABLE;
         }
     }
-    Errno_clear();
 
     /* buffer + 1, skip the 'i' */
     int64_t out = strtol(buffer + 1, NULL, 10);
