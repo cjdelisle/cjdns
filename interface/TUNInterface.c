@@ -17,6 +17,7 @@
 #include "interface/TUNInterface_pvt.h"
 #include "benc/String.h"
 #include "util/Endian.h"
+#include "util/Errno.h"
 
 #include <string.h>
 #include <event2/event.h>
@@ -24,7 +25,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
 
 #ifdef Linux
     #include <linux/if_ether.h>
@@ -107,7 +107,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     struct Context* tun = iface->senderContext;
     ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
     if (ret < 0) {
-        printf("Error writing to TUN device %d\n", errno);
+        printf("Error writing to TUN device %d\n", Errno_get());
     }
     // TODO: report errors
     return 0;

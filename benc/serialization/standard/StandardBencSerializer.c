@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 /* for parseint64_t */
-#include <errno.h>
 #include <limits.h>
 
 #include "memory/Allocator.h"
@@ -23,6 +22,7 @@
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
+#include "util/Errno.h"
 
 static int32_t parseGeneric(const struct Reader* reader,
                             const struct Allocator* allocator,
@@ -159,7 +159,7 @@ static int32_t parseint64_t(const struct Reader* reader,
             return UNPARSABLE;
         }
     }
-    errno = 0;
+    Errno_clear();
 
     /* buffer + 1, skip the 'i' */
     int64_t out = strtol(buffer + 1, NULL, 10);
@@ -168,7 +168,7 @@ static int32_t parseint64_t(const struct Reader* reader,
     if (out == 0 && buffer[1] != '0' && (buffer[1] != '-' || buffer[2] != '0')) {
         return UNPARSABLE;
     }
-    if ((out == LONG_MAX || out == LONG_MIN) && errno == ERANGE) {
+    if ((out == LONG_MAX || out == LONG_MIN) && Errno_get() == Errno_ERANGE) {
         /* errno (holds nose) */
         return UNPARSABLE;
     }

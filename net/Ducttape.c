@@ -636,7 +636,7 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
             struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
             if (causeCtrl->type_be != Control_PING_be) {
                 Log_info(context->logger,
-                          "error packet from [%s] caused by [%s] packet ([%d])",
+                          "error packet from [%s] caused by [%s] packet ([%u])",
                           labelStr,
                           Control_typeString(causeCtrl->type_be),
                           Endian_bigEndianToHost16(causeCtrl->type_be));
@@ -650,7 +650,7 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
                     return Error_NONE;
                 }
                 Log_debug(context->logger,
-                           "error packet from [%s] in response to ping, err [%d], length: [%d].",
+                           "error packet from [%s] in response to ping, err [%u], length: [%u].",
                            labelStr,
                            Endian_bigEndianToHost32(ctrl->content.error.errorType_be),
                            message->length);
@@ -659,11 +659,11 @@ static uint8_t handleControlMessage(struct Ducttape_Private* context,
             }
         } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
             Log_info(context->logger,
-                      "error packet from [%s] containing cause of unknown type [%d]",
+                      "error packet from [%s] containing cause of unknown type [%u]",
                       labelStr, causeType);
         } else {
             Log_info(context->logger,
-                      "error packet from [%s], error type [%d]",
+                      "error packet from [%s], error type [%u]",
                       labelStr,
                       Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
         }

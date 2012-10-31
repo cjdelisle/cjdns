@@ -15,12 +15,12 @@
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
 #include "util/AddrTools.h"
+#include "util/Errno.h"
 
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -74,15 +74,16 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     int tunFileDescriptor = open("/dev/net/tun", O_RDWR);
 
     if (tunFileDescriptor < 0) {
-        int code = (errno == EPERM)
+        int err = Errno_get();
+        int code = (err == Errno_EPERM)
             ? TUNConfigurator_initTun_PERMISSION
             : TUNConfigurator_initTun_INTERNAL;
-        Except_raise(eh, code, "open(\"/dev/net/tun\") [%s]", strerror(errno));
+        Except_raise(eh, code, "open(\"/dev/net/tun\") [%s]", strerror(err));
     }
 
     if (ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest) < 0) {
-        int err = errno;
-        int code = (err == EPERM)
+        int err = Errno_get();
+        int code = (err == Errno_EPERM)
             ? TUNConfigurator_initTun_PERMISSION
             : TUNConfigurator_initTun_INTERNAL;
         close(tunFileDescriptor);
@@ -111,14 +112,14 @@ static int socketForIfName(const char* interfaceName,
 
     if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
         Except_raise(eh, TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
-                     "socket() failed: [%s]", strerror(errno));
+                     "socket() failed: [%s]", strerror(Errno_get()));
     }
 
     memset(ifRequestOut, 0, sizeof(struct ifreq));
     strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(s);
         Except_raise(eh, TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "ioctl(SIOCGIFINDEX) failed: [%s]", strerror(err));
@@ -132,7 +133,7 @@ static void checkInterfaceUp(int socket,
                              struct Except* eh)
 {
     if (ioctl(socket, SIOCGIFFLAGS, ifRequest) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(socket);
         Except_raise(eh, TUNConfigurator_ERROR_ENABLING_INTERFACE,
                      "ioctl(SIOCGIFFLAGS) failed: [%s]", strerror(err));
@@ -147,7 +148,7 @@ static void checkInterfaceUp(int socket,
 
     ifRequest->ifr_flags |= IFF_UP | IFF_RUNNING;
     if (ioctl(socket, SIOCSIFFLAGS, ifRequest) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(socket);
         Except_raise(eh, TUNConfigurator_ERROR_ENABLING_INTERFACE,
                      "ioctl(SIOCSIFFLAGS) failed: [%s]", strerror(err));
@@ -178,7 +179,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     inet_pton(AF_INET6, (char*) myIp, &ifr6.ifr6_addr);
 
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(s);
         Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
@@ -197,7 +198,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
 
     ifRequest.ifr_mtu = mtu;
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-        int err = errno;
+        int err = Errno_get();
         close(s);
         Except_raise(eh, TUNConfigurator_setMTU_INTERNAL,
                      "ioctl(SIOCSIFMTU) failed: [%s]", strerror(err));

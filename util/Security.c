@@ -14,33 +14,34 @@
  */
 #include "exception/ExceptionHandler.h"
 #include "util/log/Log.h"
+#include "util/Errno.h"
 #include "util/Security.h"
 
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include <errno.h>
 #include <unistd.h>
 #include <string.h>
 
 void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
-    errno = 0;
+    Errno_clear();
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
         Except_raise(eh,
                      Security_setUser_NO_SUCH_USER,
                      "Failed to set UID, couldn't find user named [%s] in the system.",
-                     strerror(errno));
+                     strerror(Errno_get()));
         return;
     }
     if (setuid(pw->pw_uid)) {
-        if (errno == EPERM) {
+        if (Errno_get() == Errno_EPERM) {
             Except_raise(eh, Security_setUser_PERMISSION,
                          "You do not have permission to set UID.");
             return;
         }
-        Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]", strerror(errno));
+        Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]",
+                     strerror(Errno_get()));
     }
 }
 
@@ -50,6 +51,6 @@ void Security_noFiles(struct Except* eh)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", strerror(errno));
+        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", strerror(Errno_get()));
     }
 }

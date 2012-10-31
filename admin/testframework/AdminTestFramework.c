@@ -32,20 +32,22 @@
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
+#include "util/Errno.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
+#include "util/Pipe.h"
 #include "util/Process.h"
 
 #include <event2/event.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+
 
 static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 {
     int pipeToAngel[2];
     int pipeFromAngel[2];
-    Assert_true(!pipe(pipeToAngel) && !pipe(pipeFromAngel));
+    Assert_true(!Pipe_createUniPipe(pipeToAngel) && !Pipe_createUniPipe(pipeFromAngel));
 
     char pipeToAngelStr[8];
     snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
@@ -169,8 +171,8 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     int fromAngel;
     int toAngel;
     int corePipes[2][2];
-    if (pipe(corePipes[0]) || pipe(corePipes[1])) {
-        Except_raise(NULL, -1, "Failed to create pipes [%s]", strerror(errno));
+    if (Pipe_createUniPipe(corePipes[0]) || Pipe_createUniPipe(corePipes[1])) {
+        Except_raise(NULL, -1, "Failed to create pipes [%s]", strerror(Errno_get()));
     }
     spawnAngel(&fromAngel, &toAngel);
 

@@ -19,6 +19,7 @@
 #include "interface/PipeInterface.h"
 #include "interface/Interface.h"
 #include "util/Bits.h"
+#include "util/Errno.h"
 #include "util/log/Log.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
@@ -26,7 +27,7 @@
 #include "wire/Error.h"
 
 #include <event2/event.h>
-#include <errno.h>
+
 #include <unistd.h>
 
 struct AngelContext;
@@ -159,7 +160,7 @@ static void incomingFromClient(evutil_socket_t socket, short eventType, void* vc
     if (result > 0) {
         message.length = result;
         sendToCore(&message, connNumber, context);
-    } else if (result < 0 && (EAGAIN  == errno || EWOULDBLOCK == errno)) {
+    } else if (result < 0 && Errno_get() == Errno_EAGAIN) {
         return;
     } else {
         // The return value will be 0 when the peer has performed an orderly shutdown.

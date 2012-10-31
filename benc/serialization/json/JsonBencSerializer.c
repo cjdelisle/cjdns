@@ -17,11 +17,11 @@
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
+#include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -171,14 +171,14 @@ static int32_t parseint64_t(const struct Reader* reader,
         }
         if (buffer[i] < '0' || buffer[i] > '9' || status != 0 /* end of input */) {
             buffer[i] = '\0';
-            errno = 0;
+            Errno_clear();
             int64_t out = strtol((char*)buffer, NULL, 10);
             // Failed parse causes 0 to be set.
             if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {
                 printf("Failed to parse \"%s\": not a number\n",buffer);
                 return UNPARSABLE;
             }
-            if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
+            if ((out == INT64_MAX || out == INT64_MIN) && Errno_get() == Errno_ERANGE) {
                 printf("Failed to parse \"%s\": number too large/small\n",buffer);
                 return UNPARSABLE;
             }

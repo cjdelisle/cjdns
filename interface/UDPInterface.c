@@ -18,16 +18,14 @@
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
+#include "util/Assert.h"
+#include "util/Errno.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
-#include "util/Assert.h"
 
 #ifdef WIN32
     #include <winsock.h>
     #undef interface
-    #define EMSGSIZE WSAEMSGSIZE
-    #define ENOBUFS WSAENOBUFS
-    #define EWOULDBLOCK WSAEWOULDBLOCK
 #else
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -36,7 +34,7 @@
 
 #include <sys/types.h>
 #include <event2/event.h>
-#include <errno.h>
+
 
 #define MAX_PACKET_SIZE 8192
 
@@ -107,15 +105,12 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
                (struct sockaddr*) &sin,
                context->addrLen) < 0)
     {
-        switch (EVUTIL_SOCKET_ERROR()) {
-            case EMSGSIZE:
+        switch (Errno_get()) {
+            case Errno_EMSGSIZE:
                 return Error_OVERSIZE_MESSAGE;
 
-            case ENOBUFS:
-            case EAGAIN:
-            #if EWOULDBLOCK != EAGAIN
-                case EWOULDBLOCK:
-            #endif
+            case Errno_ENOBUFS:
+            case Errno_EAGAIN:
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;

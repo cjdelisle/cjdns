@@ -15,17 +15,18 @@
 #include "admin/AdminClient.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "io/Reader.h"
 #include "io/ArrayReader.h"
-#include "io/Writer.h"
 #include "io/ArrayWriter.h"
+#include "io/Reader.h"
+#include "io/Writer.h"
 #include "util/Endian.h"
+#include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <crypto_hash_sha256.h>
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
+#include <unistd.h>
+
 
 struct AdminClient
 {
@@ -251,7 +252,7 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
     context->socket = socket(addr->ss_family, SOCK_STREAM, 0);
 
     if (context->socket < 0) {
-        Log_error(logger, "Failed to allocate socket [%s]", strerror(errno));
+        Log_error(logger, "Failed to allocate socket [%s]", strerror(Errno_get()));
         return NULL;
     }
 
@@ -267,11 +268,12 @@ struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
 
     if (connect(context->socket, (struct sockaddr*)addr, addrLen)) {
         #ifdef Log_ERROR
+            int err = Errno_get();
             char printedAddr[128];
             uint16_t port = Endian_bigEndianToHost16(((struct sockaddr_in*)addr)->sin_port);
             evutil_inet_ntop(AF_INET, &((struct sockaddr_in*)addr)->sin_addr, printedAddr, 128);
             Log_error(logger, "Failed to connect to admin port at [%s:%u], [%s]",
-                      printedAddr, port, strerror(errno));
+                      printedAddr, port, strerror(err));
         #endif
         return NULL;
     }

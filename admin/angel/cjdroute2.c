@@ -47,19 +47,20 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "util/Assert.h"
 #include "util/Base32.h"
+#include "util/Errno.h"
 #include "util/Hex.h"
-#include "util/Security.h"
+#include "util/Pipe.h"
 #include "util/Process.h"
+#include "util/Security.h"
 #include "util/log/WriterLog.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
 #include <stdint.h>
-#include "util/Assert.h"
-#include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <unistd.h>
 
 #define DEFAULT_TUN_DEV "tun0"
 
@@ -381,8 +382,8 @@ int main(int argc, char** argv)
     // --------------------- Setup Pipes to Angel --------------------- //
     int pipeToAngel[2];
     int pipeFromAngel[2];
-    if (pipe(pipeToAngel) || pipe(pipeFromAngel)) {
-        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(errno));
+    if (Pipe_createUniPipe(pipeToAngel) || Pipe_createUniPipe(pipeFromAngel)) {
+        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", strerror(Errno_get()));
     }
 
     char pipeToAngelStr[8];
@@ -404,6 +405,8 @@ int main(int argc, char** argv)
     } else {
         Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
                          "guessing it's location.");
+        Log_critical(logger, "Location guess not implemented yet! Aborting.");
+        exit(1);
     }
 
     if (!privateKey) {
