@@ -30,7 +30,7 @@
 #include "switch/SwitchCore.h"
 #include "switch/LabelSplicer.h"
 #include "util/Bits.h"
-#include "util/checksum/Checksum.h"
+#include "util/Checksum.h"
 #include "util/version/Version.h"
 #include "util/Assert.h"
 #include "wire/Control.h"

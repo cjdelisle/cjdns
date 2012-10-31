@@ -12,7 +12,6 @@
 project(util C)
 cmake_minimum_required(VERSION 2.4)
 
-add_subdirectory(checksum)
 add_subdirectory(log)
 add_subdirectory(version)
 

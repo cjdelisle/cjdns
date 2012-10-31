@@ -16,7 +16,7 @@
 #include "memory/Allocator.h"
 #include "net/Ducttape_pvt.h"
 #include "util/Base32.h"
-#include "util/checksum/Checksum.h"
+#include "util/Checksum.h"
 
 #include "test/TestFramework.h"
 

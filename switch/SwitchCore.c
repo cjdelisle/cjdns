@@ -18,7 +18,7 @@
 #include "switch/SwitchCore.h"
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
-#include "util/checksum/Checksum.h"
+#include "util/Checksum.h"
 #include "util/Endian.h"
 #include "wire/Control.h"
 #include "wire/Error.h"

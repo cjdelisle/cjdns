@@ -17,7 +17,7 @@ message("-- Tests to run for " ${this_dir})
 remove_definitions(-Werror)
 add_definitions(-DTEST)
 
-# Anything in this dir which ends with "test.c" is considered a test.
+# Anything in this dir which ends with "test.c" is considered a test. 
 file(GLOB tests "*_test.c")
 foreach(test_source_fullpath ${tests})
   string(REGEX REPLACE "^.*/" "" test_source ${test_source_fullpath})

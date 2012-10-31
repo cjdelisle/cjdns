@@ -16,7 +16,7 @@
 #include "net/SwitchPinger.h"
 #include "dht/Address.h"
 #include "util/Bits.h"
-#include "util/checksum/Checksum.h"
+#include "util/Checksum.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "util/version/Version.h"
