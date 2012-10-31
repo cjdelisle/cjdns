@@ -147,7 +147,8 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     if (error) {
         enum Errno err = Errno_get();
         close(udpSock);
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL, "%s [%s]",
+                     error, Errno_strerror(err));
     }
     close(udpSock);
 
@@ -199,7 +200,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, Errno_strerror(err));
     }
 
     struct lifreq ifr = {
@@ -237,7 +238,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, Errno_strerror(err));
     }
 
     close(ipFd);

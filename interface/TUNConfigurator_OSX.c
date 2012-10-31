@@ -93,7 +93,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
                      "getting utun device id [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     /* connect the utun device */
@@ -111,7 +111,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
                      "connecting to utun device [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     /* retrieve the assigned utun interface name */
@@ -124,7 +124,7 @@ void* TUNConfigurator_initTun(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_initTun_INTERNAL,
                      "getting utun interface name [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     uintptr_t tunPtr = (uintptr_t) tunFileDescriptor;
@@ -196,7 +196,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_setIpAddress_INTERNAL,
                      "ioctl(SIOCAIFADDR) failed [%s]",
-                     strerror(err));
+                     Errno_strerror(err));
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
@@ -232,6 +232,6 @@ void TUNConfigurator_setMTU(const char* interfaceName,
        Except_raise(eh,
                     TUNConfigurator_setMTU_INTERNAL,
                     "ioctl(SIOCSIFMTU) failed [%s]",
-                    strerror(err));
+                    Errno_strerror(err));
     }
 }
