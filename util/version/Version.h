@@ -109,6 +109,20 @@
  * identifyable because they echo back 0x09f91102 rather than replacing it and they will be unlikely
  * to send a ping request whose content begins with 0x09f91102.
  *
+ * Protocol1.1
+ * In protocol0 there was a single pool of sessions shared between the outer and inner layer.
+ * In protocol1 it was split because one pool needed to have handles and the other pool didn't.
+ * The problem with this is communications do not necessarily travel back and forth along the
+ * same path and protocol1 exhibited a pathology wherein one node was direct sending packets to
+ * another while the other was routing the responses via an intermediary.
+ * There were 2 CryptoAuth sessions between the two nodes and neither session was entering run
+ * state. So protocol1 was broken and the new protocol1 (protocol1.1) sends session handles on top
+ * of the CryptoAuth handshake headers even if the handshake is in the inner layer (under the Ipv6
+ * header). It does not however send handles in the inner layer when the inner layer CryptoAuth
+ * session is in HANDSHAKE3 state or above.
+ * Protocol1.1 still identifies itself as Protocol1, it will not be able to communicate with
+ * protocol0 in some circumstances. If it knows nothing about the other node and it forwards a
+ * message via an intermediary, the message will be unreadable at the other end.
  *
  * ----------------------------------
  *

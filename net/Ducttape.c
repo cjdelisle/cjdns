@@ -109,10 +109,11 @@ static inline uint8_t sendToRouter(struct Node* node,
 
     // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
     struct SessionManager_Session* session =
-        SessionManager_getSession(addr->ip6.bytes, addr->key, context->outerSm);
+        SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
     session->version = node->version;
 
     context->session = session;
+    context->layer = Ducttape_SessionLayer_OUTER;
     return session->iface.sendMessage(message, &session->iface);
 }
 
@@ -330,26 +331,6 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
                                    struct Ducttape_Private* context)
 {
-    struct SessionManager_Session* session = context->session;
-    if (session->version > 0) {
-        Message_shift(message, 4);
-        // If the session is established, we send their handle for the session,
-        // otherwise we send ours.
-        if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
-            debugHandles(context->logger, session, "Sending run message");
-
-            ((uint32_t*)message->bytes)[0] = session->sendHandle_be;
-        } else {
-            debugHandles(context->logger, session, "Sending start message");
-
-            // the most significant bit in a handle is reserved to tell the recipient if it is
-            // an initiation handle or a running handle which they should look up in their map.
-            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
-        }
-    } else {
-        Log_debug(context->logger, "Sending protocol 0 message.");
-    }
-
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
         (struct Headers_SwitchHeader*) message->bytes;
@@ -433,10 +414,11 @@ static inline uint8_t ip6FromTun(struct Message* message,
     Message_shift(message, -Headers_IP6Header_SIZE);
 
     struct SessionManager_Session* session =
-        SessionManager_getSession(headerStore.destinationAddr, NULL, context->innerSm);
+        SessionManager_getSession(headerStore.destinationAddr, NULL, context->sm);
 
     // This comes out at outgoingFromMe()
     context->session = session;
+    context->layer = Ducttape_SessionLayer_INNER;
     return session->iface.sendMessage(message, &session->iface);
 }
 
@@ -455,9 +437,22 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
         if (memcmp(context->session->ip6, context->ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
-            context->session =
-                SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->innerSm);
-            return context->session->iface.receiveMessage(message, &context->session->iface);
+            struct SessionManager_Session* session =
+                SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
+
+            if (!session->sendHandle_be && message->length > Headers_CryptoAuth_SIZE + 4) {
+                uint32_t nonce = ((uint32_t*)message->bytes)[1];
+                if (Endian_bigEndianToHost32(nonce) < 4) {
+                    uint32_t handle_be = ((uint32_t*)message->bytes)[0];
+                    session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
+                    session->version = (session->version) ? session->version : 1;
+                    debugHandles(context->logger, session, "New session");
+                }
+            }
+
+            context->session = session;
+            context->layer = Ducttape_SessionLayer_INNER;
+            return session->iface.receiveMessage(message, &session->iface);
         } else {
             // double encrypted, inner layer plaintext.
             // The session is still set from the router-to-router traffic and that is the one we use
@@ -544,23 +539,6 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_Pr
     return core(message, context);
 }
 
-static uint8_t incomingFromCryptoAuthInner(struct Message* message, struct Interface* iface)
-{
-    struct Ducttape_Private* context = (struct Ducttape_Private*) iface->receiverContext;
-    return incomingForMe(message,
-                         context,
-                         CryptoAuth_getHerPublicKey(&context->session->iface));
-}
-
-static uint8_t outgoingFromCryptoAuthInner(struct Message* message, struct Interface* iface)
-{
-    return outgoingFromMe(message, (struct Ducttape_Private*) iface->senderContext);
-}
-
-
-
-
-
 static inline int incomingFromRouter(struct Message* message, struct Ducttape_Private* context)
 {
     if (!validEncryptedIP6(message)) {
@@ -572,15 +550,64 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape_Pr
     return core(message, context);
 }
 
-static uint8_t incomingFromCryptoAuthOuter(struct Message* message, struct Interface* iface)
+static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-    return incomingFromRouter(message, (struct Ducttape_Private*) iface->receiverContext);
+    struct Ducttape_Private* context = (struct Ducttape_Private*) iface->receiverContext;
+    enum Ducttape_SessionLayer layer = context->layer;
+    context->layer = Ducttape_SessionLayer_INVALID;
+    switch (layer) {
+        case Ducttape_SessionLayer_OUTER:
+            return incomingFromRouter(message, context);
+        case Ducttape_SessionLayer_INNER:
+            return incomingForMe(message,
+                                 context,
+                                 CryptoAuth_getHerPublicKey(&context->session->iface));
+        default:
+            Assert_always(false);
+    }
+    // never reached.
+    return 0;
 }
 
-static uint8_t outgoingFromCryptoAuthOuter(struct Message* message, struct Interface* iface)
+static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_Private* context = (struct Ducttape_Private*) iface->senderContext;
-    return sendToSwitch(message, context->switchHeader, context);
+    enum Ducttape_SessionLayer layer = context->layer;
+    context->layer = Ducttape_SessionLayer_INVALID;
+
+    // Tag the message with the proper handle.
+    struct SessionManager_Session* session = context->session;
+    if (session->version > 0) {
+        // If the session is established, we send their handle for the session,
+        // otherwise we send ours.
+        int state = CryptoAuth_getState(&session->iface);
+        if (state >= CryptoAuth_HANDSHAKE3 && layer == Ducttape_SessionLayer_OUTER) {
+            debugHandles(context->logger, session, "Sending run message");
+
+            Message_shift(message, 4);
+            ((uint32_t*)message->bytes)[0] = session->sendHandle_be;
+        } else if (state < CryptoAuth_HANDSHAKE3) {
+            debugHandles(context->logger, session, "Sending start message");
+
+            // the most significant bit in a handle is reserved to tell the recipient if it is
+            // an initiation handle or a running handle which they should look up in their map.
+            Message_shift(message, 4);
+            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
+        }
+    } else {
+        Log_debug(context->logger, "Sending protocol 0 message.");
+    }
+
+    switch (layer) {
+        case Ducttape_SessionLayer_OUTER:
+            return sendToSwitch(message, context->switchHeader, context);
+        case Ducttape_SessionLayer_INNER:
+            return outgoingFromMe(message, context);
+        default:
+            Assert_always(false);
+    }
+    // never reached.
+    return 0;
 }
 
 /**
@@ -776,7 +803,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     if (handle_be & HANDLE_FLAG_BIT_be) {
         uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
-        session = SessionManager_sessionForHandle(realHandle, context->outerSm);
+        session = SessionManager_sessionForHandle(realHandle, context->sm);
         if (session) {
             if (session->version == 0) {
                 uint8_t hex[9];
@@ -800,7 +827,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint8_t ip6[16];
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
-            session = SessionManager_getSession(ip6, herKey, context->outerSm);
+            session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
             session->version = version;
             debugHandles(context->logger, session, "New session");
@@ -826,7 +853,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 Log_debug(context->logger, "Handling packet from legacy protocol version 0 node.");
                 session = SessionManager_getSession(context->addrMap.entries[herAddrIndex].address,
                                                     herKey,
-                                                    context->outerSm);
+                                                    context->sm);
                 session->version = 0;
             }
         }
@@ -846,9 +873,10 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // from the switch header can be passed on properly.
     context->switchHeader = switchHeader;
 
-    // This goes to incomingFromCryptoAuthOuter()
+    // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()
     context->session = session;
+    context->layer = Ducttape_SessionLayer_OUTER;
     session->iface.receiveMessage(message, &session->iface);
 
     return 0;
@@ -884,19 +912,12 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     Bits_memcpyConst(context->myAddr.key, cryptoAuth->publicKey, 32);
     Address_getPrefix(&context->myAddr);
 
-    context->outerSm = SessionManager_new(incomingFromCryptoAuthOuter,
-                                          outgoingFromCryptoAuthOuter,
-                                          context,
-                                          eventBase,
-                                          cryptoAuth,
-                                          allocator);
-
-    context->innerSm = SessionManager_new(incomingFromCryptoAuthInner,
-                                          outgoingFromCryptoAuthInner,
-                                          context,
-                                          eventBase,
-                                          cryptoAuth,
-                                          allocator);
+    context->sm = SessionManager_new(incomingFromCryptoAuth,
+                                     outgoingFromCryptoAuth,
+                                     context,
+                                     eventBase,
+                                     cryptoAuth,
+                                     allocator);
 
     Bits_memcpyConst(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",

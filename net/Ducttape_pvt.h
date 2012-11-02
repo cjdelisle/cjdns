@@ -30,6 +30,12 @@
 #include <stdint.h>
 #include <event2/event.h>
 
+enum Ducttape_SessionLayer {
+    Ducttape_SessionLayer_INVALID = 0,
+    Ducttape_SessionLayer_INNER,
+    Ducttape_SessionLayer_OUTER
+};
+
 /**
  * A network module which connects the DHT router to the SwitchCore.
  * This module's job is to grab messages off of the switch,
@@ -61,8 +67,7 @@ struct Ducttape_Private
 
     struct Address myAddr;
 
-    struct SessionManager* outerSm;
-    struct SessionManager* innerSm;
+    struct SessionManager* sm;
 
     #ifdef Version_0_COMPAT
         struct AddressMapper addrMap;
@@ -91,6 +96,11 @@ struct Ducttape_Private
 
     /** The interface for the SwitchPinger. */
     struct Interface* switchPingerIf;
+
+    /**
+     * This is to tell the code whether it is in the outer later of encryption or the inner layer.
+     */
+    enum Ducttape_SessionLayer layer;
 };
 
 #endif
