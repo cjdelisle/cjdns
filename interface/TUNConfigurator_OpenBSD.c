@@ -16,6 +16,7 @@
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
 #include "util/AddrTools.h"
+#include "util/Errno.h"
 #include "util/Bits.h"
 
 #include <ctype.h>
