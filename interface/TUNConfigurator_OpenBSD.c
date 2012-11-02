@@ -182,7 +182,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh,
                      TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed [%s]",
-                     Errno_getString(errno));
+                     Errno_getString());
     }
 
 

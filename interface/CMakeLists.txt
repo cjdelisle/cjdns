@@ -26,7 +26,10 @@ add_library(interface
     InterfaceConnector.c
     SessionManager.c
 )
-target_link_libraries(interface util ${LIBEVENT2_LIBRARIES})
+target_link_libraries(interface
+    util
+    ${LIBEVENT2_LIBRARIES}
+)
 
 add_library(cjdns-interface-pipeinterface
     PipeInterface.c
