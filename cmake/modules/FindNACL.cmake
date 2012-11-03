@@ -57,6 +57,7 @@ if(NOT NACL_FOUND)
     set(cNaClConfig "
         add_definitions(\"-fPIC\")
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
+        set(CMAKE_ASM_COMPILER \"${CMAKE_C_COMPILER}\")
     ")
     file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
     set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
