@@ -14,10 +14,7 @@ INCLUDE(CheckLibraryExists)
 INCLUDE(CheckFunctionExists)
 
 find_package(Socket REQUIRED)
-if(NOT WIN32)
-    # Libevent doesn't use gettime if it's in windows mode
-    find_package(ClockGettime REQUIRED)
-endif()
+find_package(ClockGettime)
 
 function(addDependencies)
     set_property(TARGET event2
