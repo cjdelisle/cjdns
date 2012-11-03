@@ -72,7 +72,7 @@ if(NOT NACL_FOUND)
     if(EXISTS ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
         set(url ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     else()
-        set(url "http://nodeload.github.com/cjdelisle/cnacl/tarball/${tag}")
+        set(url "http://nodeload.github.com/cjdelisle/cnacl/tar.gz/${tag}")
     endif()
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
     ExternalProject_Add(nacl_ep
