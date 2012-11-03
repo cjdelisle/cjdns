@@ -22,7 +22,7 @@ if (NOT NACL_FOUND)
             /usr/include/nacl
             /usr/local/include
             /opt/local/include
-            ${CMAKE_BINARY_DIR}/nacl/build/include/default
+            ${CMAKE_BINARY_DIR}/nacl_build/include/
         NO_DEFAULT_PATH
     )
 
@@ -30,8 +30,9 @@ if (NOT NACL_FOUND)
         NAMES
             nacl
         PATHS
-            ${NACL_INCLUDE_DIRS}/../lib/default
-            ${NACL_INCLUDE_DIRS}/../../lib/default
+            ${NACL_INCLUDE_DIRS}/../
+            ${NACL_INCLUDE_DIRS}/../lib
+            ${NACL_INCLUDE_DIRS}/../../lib/
         NO_DEFAULT_PATH
     )
 
@@ -49,42 +50,36 @@ if(NOT NACL_FOUND)
     # Without this, the build doesn't happen until link time.
     include_directories(${NACL_USE_FILES})
 
-    set(functions "")
-    list(APPEND functions crypto_verify_16)
-    list(APPEND functions crypto_stream_salsa20)
-    list(APPEND functions crypto_stream_hsalsa20)
-    list(APPEND functions crypto_auth_poly1305)
-    list(APPEND functions crypto_secretbox_xsalsa20poly1305)
-
-    list(APPEND functions crypto_scalarmult_curve25519)
-    list(APPEND functions crypto_box_curve25519xsalsa20poly1305)
-
-    list(APPEND functions crypto_hash_sha256)
-    list(APPEND functions crypto_hash_sha256)
-    list(APPEND functions crypto_hash_sha512)
-
-    string(REPLACE ";" "," func "${functions}")
-
     # the name of the tag
-    set(tag "be018fa84564e13334f95e6e8995f70459dd2738.tar.gz")
+    set(tag "37b0e3643530cf1a3b91af5645444cacdb0caf85.tar.gz")
 
-    # the sha256 of the tar.gz file
-    set(hash "14551abb645a312601d410c1f72a6ebc1c250df9982c80bdc054a2d3d9fcbc82")
+    # Configure cnacl
+    set(cNaClConfig "
+        add_definitions(\"-fPIC\")
+        set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
+    ")
+    file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
+    set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
+
+    if (CMAKE_TOOLCHAIN_FILE)
+        get_filename_component(toolchainFilePath "${CMAKE_TOOLCHAIN_FILE}" REALPATH)
+        list(APPEND cmakeArgs "-DCMAKE_TOOLCHAIN_FILE=${toolchainFilePath}")
+    endif()
 
     set(file ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
     set(check ${CMAKE_COMMAND} -DFILE=${file} -DEXPECTED=${hash} -P ${AssertSHA256})
     if(EXISTS ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
-        set(url ${CMAKE_BINARY_DIR}/${tag})
+        set(url ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     else()
-        set(url "http://nodeload.github.com/cjdelisle/nacl/tarball/${tag}")
+        set(url "http://nodeload.github.com/cjdelisle/cnacl/tarball/${tag}")
     endif()
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
     ExternalProject_Add(nacl_ep
         URL ${url}
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
-        BINARY_DIR "${CMAKE_BINARY_DIR}/nacl"
-        CONFIGURE_COMMAND "" # ${check}
-        BUILD_COMMAND ./do -primitives=${func} -cc=${CMAKE_C_COMPILER}
+        BINARY_DIR "${CMAKE_BINARY_DIR}/nacl_build"
+        CMAKE_ARGS ${cmakeArgs}
         INSTALL_COMMAND ""
         UPDATE_COMMAND ""
         PATCH_COMMAND ""
@@ -109,9 +104,9 @@ if(NOT NACL_FOUND)
 
     add_library(nacl STATIC IMPORTED)
     set_property(TARGET nacl
-        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl/build/lib/default/libnacl.a)
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/nacl_build/libnacl.a)
 
-    set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl/build/include/default/")
+    set(NACL_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/nacl_build/include/")
     set(NACL_LIBRARIES nacl nacl_test_dependency)
     set(NACL_FOUND TRUE)
 

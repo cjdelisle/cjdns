@@ -19,3 +19,6 @@ SET(CMAKE_RC_COMPILER i586-mingw32msvc-windres)
 
 # here is the target environment located
 SET(CMAKE_FIND_ROOT_PATH /usr/i586-mingw32msvc)
+
+# nacl needs this define for some of it's tests.
+add_definitions("-D random=rand")
