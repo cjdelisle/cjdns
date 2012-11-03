@@ -13,24 +13,16 @@
 INCLUDE(CheckLibraryExists)
 INCLUDE(CheckFunctionExists)
 
-# check additional dependencies if libevent is static linked.
-function(include_clock_gettime)
-    # TODO: check libevent2/libevent.pc instead of guessing...
+find_package(Socket REQUIRED)
+if(NOT WIN32)
+    # Libevent doesn't use gettime if it's in windows mode
+    find_package(ClockGettime REQUIRED)
+endif()
 
-    # clock_gettime is used only if it is available on the platform
-    # check whether it is in the default lib
-    CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
-
-    # may have been using librt for clock_gettime
-    if(NOT HAVE_CLOCK_GETTIME)
-        find_package(Librt)
-
-        if(LIBRT_FOUND)
-            set_property(TARGET event2
-                PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBRT_LIBRARIES})
-        endif()
-    endif()
-endfunction()
+function(addDependencies)
+    set_property(TARGET event2
+        PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${SOCKET_LIBRARIES} ${CLOCK_GETTIME_LIBRARIES})
+endFunction()
 
 if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
 
@@ -79,7 +71,7 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{STATIC}" STREQUAL "")
         if("${LIBEVENT2_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libevent2/include")
             add_library(event2 STATIC IMPORTED)
             set_property(TARGET event2 PROPERTY IMPORTED_LOCATION ${LIBEVENT2_LIBRARIES})
-            includeLibrt()
+            addDependencies()
             set(LIBEVENT2_LIBRARIES event2)
         endif()
     endif()
@@ -138,7 +130,8 @@ if (NOT LIBEVENT2_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     set_property(TARGET event2
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libevent2/.libs/libevent.a)
 
-    include_clock_gettime()
+    addDependencies()
+
     set(LIBEVENT2_LIBRARIES event2)
     set(LIBEVENT2_FOUND TRUE)
 endif()

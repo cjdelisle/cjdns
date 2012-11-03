@@ -16,6 +16,7 @@
 #include "memory/MallocAllocator.h"
 #include "util/Assert.h"
 #include "util/Process.h"
+#include "util/Pipe.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
     Assert_true(path[0] == '/');
 
     int fds[2];
-    Assert_true(!pipe(fds));
+    Assert_true(!Pipe_createUniPipe(fds));
 
     char fdName[32];
     snprintf(fdName, 32, "%d", fds[1]);

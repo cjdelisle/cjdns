@@ -31,9 +31,6 @@ if(WIN32)
 
     # proceed with ifdef hell :(
     add_definitions(-DWIN32)
-    set(PLATFORM_LIBRARIES
-        ws2_32
-    )
 
     # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
     set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
@@ -150,14 +147,16 @@ else()
     add_definitions(-g)
 endif()
 
-if(NOT DEFINED APPLE AND NOT WIN32 AND NOT ILLUMOS)
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
+if(WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
 elseif(ILLUMOS)
     # TODO make this less ugly
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -lsocket")
-else()
+else(APPLE)
     # apple seems to set noexecstack by default and not support relro.
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
+else()
+    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
 endif()
 
 # logging

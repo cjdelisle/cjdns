@@ -53,7 +53,6 @@ target_link_libraries(cjdns-core
     cjdns-admin
     cjdnet
     ${LIBEVENT2_LIBRARIES}
-    ${PLATFORM_LIBRARIES}
     cjdns-interface-waiter
     cjdns-util-log-writer
     cjdns-admin-logger
