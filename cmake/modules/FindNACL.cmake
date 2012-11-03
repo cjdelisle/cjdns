@@ -51,7 +51,7 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "2a1b2af636ff385c3a45d7873a0e7d7fcb3ef608.tar.gz")
+    set(tag "f22b95a778f4b18204c127c0e876708862aa0ff1.tar.gz")
 
     # Configure cnacl
     set(cNaClConfig "
