@@ -51,7 +51,7 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "0ccba33893688afe54330acc7d2f5f424ce1be72.tar.gz")
+    set(tag "apple-debug-ef286bd65e504afff169ca4dc5c6668b0408cd39.tar.gz")
 
     # Configure cnacl
     set(cNaClConfig "
