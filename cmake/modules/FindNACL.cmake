@@ -51,7 +51,7 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "e44e8f0c286ef164a32ee5474deed77c3dc643a8.tar.gz")
+    set(tag "0ccba33893688afe54330acc7d2f5f424ce1be72.tar.gz")
 
     # Configure cnacl
     set(cNaClConfig "
@@ -70,9 +70,12 @@ if(NOT NACL_FOUND)
     set(file ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
     set(AssertSHA256 ${CMAKE_SOURCE_DIR}/cmake/modules/AssertSHA256.cmake)
     set(check ${CMAKE_COMMAND} -DFILE=${file} -DEXPECTED=${hash} -P ${AssertSHA256})
-    if(EXISTS ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
+
+    set(url "${CMAKE_SOURCE_DIR}/cmake/externals/${tag}")
+    if(NOT EXISTS "${url}")
         set(url ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
-    else()
+    endif()
+    if(NOT EXISTS "${url}")
         set(url "http://nodeload.github.com/cjdelisle/cnacl/tar.gz/${tag}")
     endif()
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
