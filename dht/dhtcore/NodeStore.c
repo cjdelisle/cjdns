@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcpy
+#define string_strlen
+
 #include "admin/Admin.h"
 #include "benc/Int.h"
 #include "benc/List.h"
@@ -27,6 +30,7 @@
 #include "dht/dhtcore/NodeStore_pvt.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
+#include "util/platform/libc/string.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -83,7 +87,7 @@ struct Node* NodeStore_getNode(struct NodeStore* store, struct Address* addr)
     uint32_t bestReach = 0;
     for (int32_t i = 0; i < (int32_t) store->size; i++) {
         if (pfx == store->headers[i].addressPrefix
-            && memcmp(addr->key, store->nodes[i].address.key, Address_KEY_SIZE) == 0
+            && Bits_memcmp(addr->key, store->nodes[i].address.key, Address_KEY_SIZE) == 0
             && store->headers[i].reach >= bestReach)
         {
             bestIndex = i;
@@ -147,7 +151,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
     }
 
     Address_getPrefix(addr);
-    if (memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
+    if (Bits_memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
         printf("got introduced to ourselves\n");
         return NULL;
     }
@@ -217,7 +221,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                 else if (store->headers[i].addressPrefix == pfx) {
                     uint8_t realAddr[16];
                     AddressCalc_addressForPublicKey(realAddr, addr->key);
-                    Assert_true(!memcmp(realAddr, addr->ip6.bytes, 16));
+                    Assert_true(!Bits_memcmp(realAddr, addr->ip6.bytes, 16));
                 }
             #endif
         }
@@ -328,7 +332,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
     uint32_t outIndex = 0;
     for (uint32_t i = 0; i < max; i++) {
         if (collector->nodes[i].node != NULL
-            && !memcmp(collector->nodes[i].body->address.ip6.bytes, address->ip6.bytes, 16))
+            && !Bits_memcmp(collector->nodes[i].body->address.ip6.bytes, address->ip6.bytes, 16))
         {
             out->nodes[outIndex] = collector->nodes[i].body;
             outIndex++;

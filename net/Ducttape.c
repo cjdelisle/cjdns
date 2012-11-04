@@ -21,7 +21,6 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "interface/Interface.h"
-#include "interface/InterfaceMap.h"
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
@@ -68,7 +67,7 @@ static inline uint8_t incomingDHT(struct Message* message,
                                   struct Ducttape_Private* context)
 {
     struct DHTMessage dht;
-    memset(&dht, 0, sizeof(struct DHTMessage));
+    Bits_memset(&dht, 0, sizeof(struct DHTMessage));
 
     // TODO: These copies are not necessary at all.
     const uint32_t length = (message->length < DHTMessage_MAX_SIZE)
@@ -104,7 +103,7 @@ static inline uint8_t sendToRouter(struct Node* node,
     if (context->switchHeader) {
         Bits_memcpyConst(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
     } else {
-        memset(&header, 0, Headers_SwitchHeader_SIZE);
+        Bits_memset(&header, 0, Headers_SwitchHeader_SIZE);
     }
     header.label_be = Endian_hostToBigEndian64(addr->path);
     context->switchHeader = &header;
@@ -204,7 +203,7 @@ static inline uint8_t incomingForMe(struct Message* message,
     Bits_memcpyConst(addr.ip6.bytes, context->session->ip6, 16);
     //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
 
-    if (memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
+    if (Bits_memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
             uint8_t keyAddr[40];
             Address_printIp(keyAddr, &addr);
@@ -282,7 +281,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         context->ip6Header->payloadLength_be =
             Endian_hostToBigEndian16(
                 Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
-        memmove(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+        Bits_memmoveConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
     context->userIf->sendMessage(message, context->userIf);
     return Error_NONE;
@@ -340,7 +339,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
     // This will be false if an incoming connect-to-me packet caused the cryptoAuth to send
     // back a hello packet.
     if (destinationSwitchHeader != switchHeaderLocation) {
-        memmove(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
+        Bits_memmoveConst(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
     }
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
@@ -358,7 +357,7 @@ static inline bool validEncryptedIP6(struct Message* message)
 static inline bool isForMe(struct Message* message, struct Ducttape_Private* context)
 {
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
-    return (memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
+    return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
 // Called by the TUN device.
@@ -377,7 +376,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Error_INVALID;
     }
 
-    if (memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
+    if (Bits_memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
         uint8_t expectedSource[40];
         AddrTools_printIp(expectedSource, context->myAddr.ip6.bytes);
         uint8_t packetSource[40];
@@ -387,7 +386,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
                  (char*) packetSource, (char*) expectedSource);
         return Error_INVALID;
     }
-    if (!memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
+    if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
         interface->sendMessage(message, interface);
         return Error_NONE;
@@ -398,7 +397,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
     context->forwardTo = bestNext;
     if (bestNext) {
-        if (!memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
+        if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
             // Direct send, skip the innermost layer of encryption.
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
@@ -445,7 +444,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
     struct Node* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
     if (n) {
-        if (!memcmp(header->nodeKey, n->address.key, 32)) {
+        if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
             // Found the node.
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
@@ -498,7 +497,7 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
-        if (memcmp(context->session->ip6, context->ip6Header->sourceAddr, 16)) {
+        if (Bits_memcmp(context->session->ip6, context->ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
             struct SessionManager_Session* session =
@@ -545,7 +544,7 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
             struct Address* addr = &nextHop->address;
             uint8_t nhAddr[60];
             Address_print(nhAddr, addr);
-            if (memcmp(context->ip6Header->destinationAddr, addr->ip6.bytes, 16)) {
+            if (Bits_memcmp(context->ip6Header->destinationAddr, addr->ip6.bytes, 16)) {
                 // Potentially forwarding for ourselves.
                 struct Address destination;
                 Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);

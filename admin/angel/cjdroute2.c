@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strrchr
+#define string_strlen
 #include "admin/Admin.h"
 #include "admin/angel/Waiter.h"
 #include "admin/AuthorizedPasswords.h"
@@ -45,6 +48,7 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
@@ -293,7 +297,7 @@ static void reconf(struct event_base* eventbase,
     }
 
     struct sockaddr_storage addr;
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
+    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
     int addrLen = sizeof(struct sockaddr_storage);
     if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
         Log_critical(logger, "Unable to parse [%s] as an ip address port, "
@@ -469,7 +473,7 @@ int main(int argc, char** argv)
     Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
     struct sockaddr_storage adminAddr;
-    memset(&adminAddr, 0, sizeof(struct sockaddr_storage));
+    Bits_memset(&adminAddr, 0, sizeof(struct sockaddr_storage));
     int adminAddrLen = sizeof(struct sockaddr_storage);
     if (!adminBind) {
         Except_raise(eh, -1, "didn't get address and port back from angel");

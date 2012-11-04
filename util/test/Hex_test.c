@@ -12,12 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strlen
+#define string_strstr
+#define string_strcmp
 #include "crypto/Random.h"
 #include "memory/BufferAllocator.h"
+#include "util/platform/libc/string.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Assert.h"
 
-#include <string.h>
 #include <stdio.h>
 
 int main()
@@ -38,5 +42,5 @@ int main()
     uint8_t bytes2[32];
     Assert_always(Hex_decode(bytes2, 32, hex, 64) == 32);
 
-    Assert_always(memcmp(bytes, bytes2, 32) == 0);
+    Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
 }

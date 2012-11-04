@@ -18,8 +18,8 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
 
-#include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -52,7 +52,7 @@ int main()
     uint8_t* ptr2 = buffer2;
 
     #define SKIP(x) ptr1 += x
-    #define CMP(x) Assert_always(!memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
+    #define CMP(x) Assert_always(!Bits_memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
 
     CMP(128);
     SKIP(128);

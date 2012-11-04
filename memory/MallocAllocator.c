@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdint.h>
 #include <stdio.h>
 
@@ -145,7 +145,7 @@ static void freeAllocator(const struct Allocator* allocator)
         *(context->spaceAvailable) += loc->size;
         struct Allocation* nextLoc = loc->next;
         #ifdef Log_DEBUG
-            memset(loc, 0xff, loc->size);
+            Bits_memset(loc, 0xff, loc->size);
         #endif
         free(loc);
         loc = nextLoc;
@@ -162,7 +162,7 @@ static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
 static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator)
 {
     void* pointer = allocator->malloc(length * count, allocator);
-    memset(pointer, 0, length * count);
+    Bits_memset(pointer, 0, length * count);
     return pointer;
 }
 

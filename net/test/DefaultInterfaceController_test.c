@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strlen
 #include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
@@ -23,6 +25,7 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
+#include "util/platform/libc/string.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/NumberCompress.h"

@@ -15,7 +15,7 @@
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
 #include "memory/BufferAllocator.h"
-#include <string.h>
+#include "util/platform/libc/strlen.h"
 
 struct Context
 {

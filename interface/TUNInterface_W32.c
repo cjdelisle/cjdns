@@ -17,7 +17,7 @@
 #include "benc/String.h"
 #include "util/Endian.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <event2/event.h>
 
 #include <winsock2.h>

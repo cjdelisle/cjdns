@@ -31,7 +31,7 @@
 #include "util/Timeout.h"
 #include "util/Time.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdint.h>
 #include <stdbool.h>
 

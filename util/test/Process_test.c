@@ -18,7 +18,7 @@
 #include "util/Process.h"
 #include "util/Pipe.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <unistd.h>
 
 #define MESSAGE "IT WORKS!"

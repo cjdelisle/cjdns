@@ -22,7 +22,6 @@
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
 
-#include <string.h>
 #include <stddef.h>
 #include <event2/event.h>
 

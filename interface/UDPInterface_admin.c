@@ -22,7 +22,6 @@
 #include "crypto/Key.h"
 
 #include <event2/event.h>
-#include <string.h>
 
 struct Context
 {

@@ -37,7 +37,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 #include <event2/event.h>
 
 #ifdef WIN32
@@ -159,7 +158,7 @@ static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
         return NULL;
     }
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (memcmp(auth.bytes, &context->passwords[i], Headers_AuthChallenge_KEYSIZE) == 0) {
+        if (Bits_memcmp(auth.bytes, &context->passwords[i], Headers_AuthChallenge_KEYSIZE) == 0) {
             return &context->passwords[i];
         }
     }
@@ -222,7 +221,7 @@ static inline int decryptRndNonce(uint8_t nonce[24],
     uint8_t* startAt = msg->bytes - 16;
     uint8_t paddingSpace[16];
     Bits_memcpyConst(paddingSpace, startAt, 16);
-    memset(startAt, 0, 16);
+    Bits_memset(startAt, 0, 16);
     if (crypto_box_curve25519xsalsa20poly1305_open_afternm(
             startAt, startAt, msg->length + 16, nonce, secret) != 0)
     {
@@ -251,7 +250,7 @@ static inline void encryptRndNonce(uint8_t nonce[24],
     // This function trashes 16 bytes of the padding so we will put it back
     uint8_t paddingSpace[16];
     Bits_memcpyConst(paddingSpace, startAt, 16);
-    memset(startAt, 0, 32);
+    Bits_memset(startAt, 0, 32);
     crypto_box_curve25519xsalsa20poly1305_afternm(
         startAt, startAt, msg->length + 32, nonce, secret);
 
@@ -483,7 +482,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
             Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
             uint8_t myTempPubKey[32];
             crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
-            Assert_true(!memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
+            Assert_true(!Bits_memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
         #endif
     } else {
         if (wrapper->nextNonce == 2) {
@@ -733,7 +732,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             #endif
         } else {
             herPermKey = wrapper->herPerminentPubKey;
-            if (memcmp(header->handshake.publicKey, herPermKey, 32)) {
+            if (Bits_memcmp(header->handshake.publicKey, herPermKey, 32)) {
                 Log_debug(wrapper->context->logger, "Packet contains different perminent key.\n");
                 return Error_AUTHENTICATION;
             }
@@ -755,7 +754,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             Log_debug(wrapper->context->logger,
                        "Received a packet of unknown type! nonce=%u\n", nonce);
         }
-        if (memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
+        if (Bits_memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
             Log_debug(wrapper->context->logger, "Packet contains different perminent key.\n");
             return Error_AUTHENTICATION;
         }
@@ -789,7 +788,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // Decrypt her temp public key and the message.
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
-        memset(header, 0, Headers_CryptoAuth_SIZE);
+        Bits_memset(header, 0, Headers_CryptoAuth_SIZE);
         Log_debug(wrapper->context->logger,
                   "Dropped message because authenticated decryption failed.\n");
         return Error_AUTHENTICATION;
@@ -830,7 +829,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Log_debug(wrapper->context->logger, "There is a buffered message.\n");
     }
 
-    memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
+    Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 
     setRequiredPadding(wrapper);
     return callReceivedMessage(wrapper, message);
@@ -938,7 +937,7 @@ int32_t CryptoAuth_addUser(String* password,
     struct CryptoAuth_Auth a;
     hashPassword_sha256(&a, password);
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (!memcmp(a.secret, context->passwords[i].secret, 32)) {
+        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32)) {
             return CryptoAuth_addUser_DUPLICATE;
         }
     }
@@ -1029,7 +1028,7 @@ void CryptoAuth_reset(struct Interface* interface)
     struct CryptoAuth_Wrapper* wrapper = interface->senderContext;
     wrapper->nextNonce = 0;
     wrapper->isInitiator = false;
-    memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
+    Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 }
 
 int CryptoAuth_getState(struct Interface* interface)

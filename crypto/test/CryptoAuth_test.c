@@ -12,12 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strncmp
+#define string_strlen
 #include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -50,7 +54,7 @@ static struct Message msg;
 static uint8_t* textBuff;
 #define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
 #define MK_MSG(x) \
-    memset(textBuff, 0, BUFFER_SIZE);                                           \
+    Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
     Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
     msg.length = strlen(x);                                                     \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \

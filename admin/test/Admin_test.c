@@ -19,9 +19,9 @@
 #include "benc/Int.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
-#include <util/Errno.h>
+#include "util/Errno.h"
+#include "util/platform/libc/strlen.h"
 
-#include <string.h>
 #include <event2/event.h>
 
 struct Context {
@@ -75,7 +75,7 @@ static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vc
         && ctx->slowClient.buf[ctx->slowClient.have-1] == 'e') {
 
         Log_error(ctx->framework->logger, "Got cookie response '%s'", ctx->slowClient.buf);
-        Assert_always(0 == memcmp("d6:cookie", ctx->slowClient.buf, 9));
+        Assert_always(0 == Bits_memcmp("d6:cookie", ctx->slowClient.buf, 9));
 
         event_base_loopexit(ctx->framework->eventBase, NULL);
     }

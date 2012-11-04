@@ -18,7 +18,7 @@
 #include "util/Bits.h"
 
 #include <stdint.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <unistd.h>
 #include <sys/sysctl.h> // sysctl()
 #include <sys/param.h> // MAXPATHLEN

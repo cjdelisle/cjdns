@@ -17,11 +17,11 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Process.h"
 #include "util/Bits.h"
 
 #include <stdint.h>
-#include <string.h>
 #include <unistd.h>
 
 int Process_spawn(char* binaryPath, char** args)

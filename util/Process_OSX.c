@@ -20,7 +20,7 @@
 #include <mach-o/dyld.h> // _NSGetExecutablePath()
 #include <sys/param.h> // MAXPATHLEN
 #include <stdint.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <unistd.h>
 
 int Process_spawn(char* binaryPath, char** args)

@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {

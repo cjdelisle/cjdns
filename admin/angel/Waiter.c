@@ -22,7 +22,7 @@
 
 #include <event2/event.h>
 #include <unistd.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 struct Context
 {

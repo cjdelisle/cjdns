@@ -16,7 +16,8 @@
 #include "benc/String.h"
 #include "util/Bits.h"
 
-#include <string.h>
+#define string_strlen
+#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -35,7 +36,7 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
     if (bytes != NULL) {
         Bits_memcpy(copy, bytes, length);
     } else {
-        memset(copy, '\0', length);
+        Bits_memset(copy, '\0', length);
     }
     String* string = allocator->malloc(sizeof(String), allocator);
     string->len = length;
@@ -84,5 +85,5 @@ bool String_equals(const String* a, const String* b)
     if (a == NULL || b == NULL) {
         return a == NULL && b == NULL;
     }
-    return a->len == b->len && (memcmp(a->bytes, b->bytes, a->len) == 0);
+    return a->len == b->len && (Bits_memcmp(a->bytes, b->bytes, a->len) == 0);
 }

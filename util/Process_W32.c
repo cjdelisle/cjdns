@@ -18,7 +18,7 @@
 #include "util/Process.h"
 #include "util/Bits.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <windows.h>
 
 

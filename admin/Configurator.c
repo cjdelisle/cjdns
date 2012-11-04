@@ -18,10 +18,10 @@
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
+#include "util/platform/libc/strlen.h"
 #include "util/log/Log.h"
 
 #include <event2/event.h>
-#include <string.h>
 
 struct Context
 {

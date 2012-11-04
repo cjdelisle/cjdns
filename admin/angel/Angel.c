@@ -18,6 +18,7 @@
 #include "interface/Interface.h"
 #include "interface/PipeInterface.h"
 #include "interface/Interface.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Errno.h"
 #include "util/log/Log.h"
@@ -27,7 +28,6 @@
 #include "wire/Error.h"
 
 #include <event2/event.h>
-#include <string.h>
 #include <unistd.h>
 
 struct AngelContext;

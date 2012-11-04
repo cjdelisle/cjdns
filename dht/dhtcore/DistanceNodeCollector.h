@@ -19,7 +19,7 @@
 #include "dht/dhtcore/NodeCollector.h"
 #include "util/Bits.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdbool.h>
 
 /**
@@ -40,9 +40,9 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && memcmp(body->address.ip6.bytes,
-                  collector->targetAddress,
-                  Address_SEARCH_TARGET_SIZE) != 0)
+        && Bits_memcmp(body->address.ip6.bytes,
+                       collector->targetAddress,
+                       Address_SEARCH_TARGET_SIZE) != 0)
     {
         nodeDistance++;
     }
@@ -80,7 +80,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
 
         if (i > 0) {
             if (i > 1) {
-                memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
+                Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;

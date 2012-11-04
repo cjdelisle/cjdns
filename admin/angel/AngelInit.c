@@ -30,6 +30,7 @@
 #include "exception/Jmp.h"
 #include "exception/Except.h"
 #include "util/events/EventBase.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Errno.h"
@@ -43,7 +44,6 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <event2/event.h>
-#include <string.h>
 
 #ifdef BSD
     #include <netinet/in.h>

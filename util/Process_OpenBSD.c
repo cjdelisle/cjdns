@@ -19,7 +19,7 @@
 extern const char* __progname;
 
 #include <stdint.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <unistd.h>
 #include <sys/param.h> // MAXPATHLEN
 

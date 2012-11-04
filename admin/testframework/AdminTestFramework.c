@@ -37,8 +37,10 @@
 #include "util/log/WriterLog.h"
 #include "util/Pipe.h"
 #include "util/Process.h"
-
-#include <string.h>
+#define string_strlen
+#define string_strchr
+#define string_strcmp
+#include "util/platform/libc/string.h"
 #include <unistd.h>
 #include <event2/event.h>
 
@@ -106,7 +108,7 @@ static String* initAngel(int fromAngel,
     // This is angel->core data, we can throw this away.
     //Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);
     //Log_info(logger, "Init message from angel to core: [%s]", buff);
-    memset(buff, 0, BUFFER_SZ);
+    Bits_memset(buff, 0, BUFFER_SZ);
 
     struct PipeInterface* pi =
         PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc, rand);
@@ -192,7 +194,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
 
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
+    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
     Assert_true(!evutil_parse_sockaddr_port(addrStr->bytes, (struct sockaddr*) &addr, &addrLen));
 
     struct AdminClient* client =

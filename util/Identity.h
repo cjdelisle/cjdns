@@ -30,13 +30,14 @@
         pointer->Identity_verifier = &Identity_ID
 
     #define Identity_check(pointer) \
-        (pointer); Assert_always(pointer->Identity_verifier == &Identity_ID)
+        ((void*)pointer);           \
+        Assert_always(((Identity_TYPE*)pointer)->Identity_verifier == &Identity_ID)
 
 #else
 
     #define Identity
     #define Identity_set(pointer)
-    #define Identity_check(pointer) (pointer)
+    #define Identity_check(pointer) ((void*)pointer)
 
 #endif
 

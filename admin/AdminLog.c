@@ -22,10 +22,14 @@
 #include "util/log/Log.h"
 #include "util/Hex.h"
 
+#define string_strcmp
+#define string_strrchr
+#define string_strlen
+#include "util/platform/libc/string.h"
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 #include <stdbool.h>
 
@@ -255,7 +259,7 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
     } else {
         error = "No such subscription.";
         for (int i = 0; i < (int)log->subscriptionCount; i++) {
-            if (!memcmp(streamId, log->subscriptions[i].streamId, 8)) {
+            if (!Bits_memcmp(streamId, log->subscriptions[i].streamId, 8)) {
                 removeSubscription(log, &log->subscriptions[i]);
                 error = "none";
                 break;

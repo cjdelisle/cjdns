@@ -17,7 +17,7 @@
 #include "exception/Except.h"
 
 #include <stdarg.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <stdlib.h>
 

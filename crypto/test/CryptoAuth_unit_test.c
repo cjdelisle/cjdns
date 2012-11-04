@@ -12,12 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcpy
+#define string_strlen
 #include "crypto/CryptoAuth_pvt.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
+#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -42,13 +45,13 @@ static uint8_t* hello = (uint8_t*) "Hello World";
 void encryptRndNonceTest()
 {
     uint8_t buff[44];
-    memset(buff, 0, 44);
+    Bits_memset(buff, 0, 44);
 
     uint8_t nonce[24];
-    memset(nonce, 0, 24);
+    Bits_memset(nonce, 0, 24);
 
     uint8_t secret[32];
-    memset(secret, 0, 32);
+    Bits_memset(secret, 0, 32);
 
     struct Message m = { .bytes=&buff[32], .length=12, .padding=32};
     strcpy((char*) m.bytes, "hello world");
@@ -60,10 +63,10 @@ void encryptRndNonceTest()
     Hex_encode(output, 57, m.bytes, m.length);
 
     //printf("\n%s\n%s\n", (char*) expected, (char*) output);
-    Assert_always(!memcmp(expected, output, 56));
+    Assert_always(!Bits_memcmp(expected, output, 56));
 
     Assert_always(!Exports_decryptRndNonce(nonce, &m, secret));
-    Assert_always(m.length == 12 && !memcmp(m.bytes, "hello world", m.length));
+    Assert_always(m.length == 12 && !Bits_memcmp(m.bytes, "hello world", m.length));
 }
 
 void createNew()
@@ -74,7 +77,7 @@ void createNew()
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
-    Assert_always(memcmp(ca->publicKey, publicKey, 32) == 0);
+    Assert_always(Bits_memcmp(ca->publicKey, publicKey, 32) == 0);
 }
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
@@ -92,7 +95,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 // This needs to be determinent.
 void Random_bytes(struct Random* rand, uint8_t* buffer, uint64_t size)
 {
-    memset(buffer, 0xFF, size);
+    Bits_memset(buffer, 0xFF, size);
 }
 
 struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
@@ -155,7 +158,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
     uint8_t actual[265];
     Assert_always(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
     //printf("%s", actual);
-    if (memcmp(actual, expectedOutput, 264)) {
+    if (Bits_memcmp(actual, expectedOutput, 264)) {
         printf("Test failed.\n"
                "Expected %s\n"
                "     Got %s\n", expectedOutput, actual);
@@ -214,7 +217,7 @@ void receiveHelloWithNoAuth()
 
     Assert_always(finalOut);
     Assert_always(finalOut->length == 12);
-    Assert_always(memcmp(hello, finalOut->bytes, 12) == 0);
+    Assert_always(Bits_memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
 
@@ -255,7 +258,7 @@ void repeatHello()
     Exports_encryptHandshake(&msg2, &wrapper);
 
     // Check the nonce
-    Assert_always(!memcmp(msg2.bytes, "\0\0\0\1", 4));
+    Assert_always(!Bits_memcmp(msg2.bytes, "\0\0\0\1", 4));
 
     ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, NULL);
     struct Message* finalOut = NULL;
@@ -272,7 +275,7 @@ void repeatHello()
 
     Assert_always(finalOut);
     Assert_always(finalOut->length == 12);
-    Assert_always(memcmp(hello, finalOut->bytes, 12) == 0);
+    Assert_always(Bits_memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
 

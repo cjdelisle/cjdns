@@ -12,14 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#define string_strcmp
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
+#include "util/Bits.h"
 #include "util/Base32.h"
+#include "util/Assert.h"
+#include "util/platform/libc/string.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
-#include "util/Assert.h"
 #include <stdio.h>
 
 // hex: 751d3db85b848deaf221e0ed2b6cc17f587b29057d74cdd4dc0bd18b7157288e
@@ -77,7 +79,7 @@ int main()
            publicKeyBase32Out,
            addressOut);
 
-    Assert_always(0 == memcmp(address.key, publicKey, 32));
+    Assert_always(0 == Bits_memcmp(address.key, publicKey, 32));
     Assert_always(0 == strcmp(publicKeyBase32, (char*) publicKeyBase32Out));
     Assert_always(0 == strcmp(ipv6, (char*) addressOut));
 }

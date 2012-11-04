@@ -19,12 +19,12 @@
 #include "io/ArrayWriter.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
 #include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <crypto_hash_sha256.h>
-#include <string.h>
 #include <unistd.h>
 #include <event2/event.h>
 

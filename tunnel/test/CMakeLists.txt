@@ -10,14 +10,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_library(cjdns-tunnel-iptunnel
-    IpTunnel.c
-    IpTunnel_admin.c
+add_executable(IpTunnel_test
+    IpTunnel_test.c
 )
 
-target_link_libraries(cjdns-tunnel-iptunnel
+target_link_libraries(IpTunnel_test
+    cjdns-tunnel-iptunnel
     cjdbenc
+    cjdmemory
+    crypto
+    cjdns-util-log
+    cjdbenc_StandardBencSerializer
+    cjdns-crypto-random
+    cjdns-util-events-libevent
 )
-
-enable_testing()
-add_subdirectory(test)
+add_test(IpTunnel_test IpTunnel_test)

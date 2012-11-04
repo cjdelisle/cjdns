@@ -25,6 +25,7 @@
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Checksum.h"
 #include "util/AddrTools.h"
 #include "util/events/EventBase.h"
@@ -33,16 +34,16 @@
 #include "wire/Headers.h"
 
 #include <stddef.h>
-#include <string.h>
 
-static char IpTunnel_IDENTITY;
+#define Identity_TYPE struct IpTunnel_pvt
+#include "util/Identity.h"
 
 struct IpTunnel_pvt
 {
     struct IpTunnel pub;
 
     /** For verifying the integrity of the structure, must match IpTunnel_IDENTITY. */
-    char* identity;
+    Identity
 
     struct Allocator* allocator;
     struct Log* logger;
@@ -103,7 +104,7 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
                                                       struct IpTunnel_pvt* context)
 {
     for (int i = 0; i < (int)context->pub.connectionList.count; i++) {
-        if (!memcmp(pubKey, context->pub.connectionList.connections[i].header.nodeKey, 32)) {
+        if (!Bits_memcmp(pubKey, context->pub.connectionList.connections[i].header.nodeKey, 32)) {
             return &context->pub.connectionList.connections[i];
         }
     }
@@ -124,8 +125,7 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
                              uint8_t ip4Address[4],
                              struct IpTunnel* tunnel)
 {
-    struct IpTunnel_pvt* context = (struct IpTunnel_pvt*) tunnel;
-    Assert_true(context->identity == &IpTunnel_IDENTITY);
+    struct IpTunnel_pvt* context = Identity_check(tunnel);
 
     struct IpTunnel_Connection* conn = newConnection(false, context);
     Bits_memcpyConst(conn->header.nodeKey, publicKeyOfAuthorizedNode, 32);
@@ -228,8 +228,7 @@ static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
  */
 int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* tunnel)
 {
-    struct IpTunnel_pvt* context = (struct IpTunnel_pvt*) tunnel;
-    Assert_true(context->identity == &IpTunnel_IDENTITY);
+    struct IpTunnel_pvt* context = Identity_check(tunnel);
 
     struct IpTunnel_Connection* conn = newConnection(true, context);
     Bits_memcpyConst(conn->header.nodeKey, publicKeyOfNodeToConnectTo, 32);
@@ -254,8 +253,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  */
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
 {
-    struct IpTunnel_pvt* context = (struct IpTunnel_pvt*) tunnel;
-    Assert_true(context->identity == &IpTunnel_IDENTITY);
+    //struct IpTunnel_pvt* context = Identity_check(tunnel);
 
     return 0;
 }
@@ -362,9 +360,9 @@ static int incomingAddresses(Dict* d,
     if (number != conn->number) {
         for (int i = 0; i < (int)context->pub.connectionList.count; i++) {
             if (context->pub.connectionList.connections[i].number == number) {
-                if (memcmp(conn->header.nodeKey,
-                           context->pub.connectionList.connections[i].header.nodeKey,
-                           32))
+                if (Bits_memcmp(conn->header.nodeKey,
+                                context->pub.connectionList.connections[i].header.nodeKey,
+                                32))
                 {
                     Log_info(context->logger, "txid doesn't match origin");
                     return Error_INVALID;
@@ -486,7 +484,7 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
             : ((conn->isOutgoing) ? DESTINATION : source);
 
         uint8_t* connectionAddr = (sourceAndDestIp6) ? conn->connectionIp6 : conn->connectionIp4;
-        if (!memcmp(compareAddr, connectionAddr, length)) {
+        if (!Bits_memcmp(compareAddr, connectionAddr, length)) {
             return conn;
         }
         conn++;
@@ -497,8 +495,7 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
 
 static uint8_t incomingFromTun(struct Message* message, struct Interface* tunIf)
 {
-    struct IpTunnel_pvt* context = (struct IpTunnel_pvt*) tunIf;
-    Assert_true(context->identity = &IpTunnel_IDENTITY);
+    struct IpTunnel_pvt* context = Identity_check(tunIf);
 
     if (message->length < 20) {
         Log_debug(context->logger, "Dropping runt.");
@@ -577,8 +574,7 @@ static uint8_t ip4FromNode(struct Message* message,
 static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeIf)
 {
     struct IpTunnel_pvt* context =
-        (struct IpTunnel_pvt*) (((char*)nodeIf) - offsetof(struct IpTunnel, nodeInterface));
-    Assert_true(context->identity = &IpTunnel_IDENTITY);
+        Identity_check((((char*)nodeIf) - offsetof(struct IpTunnel, nodeInterface)));
 
     Assert_true(message->length >= IpTunnel_PacketInfoHeader_SIZE);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
@@ -647,12 +643,12 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
                 .tunInterface = { .sendMessage = incomingFromTun },
                 .nodeInterface = { .sendMessage = incomingFromNode }
             },
-            .identity = &IpTunnel_IDENTITY,
             .allocator = alloc,
             .logger = logger,
             .rand = rand
         });
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
+    Identity_set(context);
 
     return &context->pub;
 }
