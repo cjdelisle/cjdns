@@ -362,9 +362,9 @@ static inline bool isForMe(struct Message* message, struct Ducttape_Private* con
 
 // Called by the TUN device.
 static inline uint8_t incomingFromTun(struct Message* message,
-                                      struct Interface* interface)
+                                      struct Interface* iface)
 {
-    struct Ducttape_Private* context = (struct Ducttape_Private*) interface->receiverContext;
+    struct Ducttape_Private* context = (struct Ducttape_Private*) iface->receiverContext;
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     int version = Headers_getIpVersion(message->bytes);
@@ -388,7 +388,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
     if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
-        interface->sendMessage(message, interface);
+        iface->sendMessage(message, iface);
         return Error_NONE;
     }
 
