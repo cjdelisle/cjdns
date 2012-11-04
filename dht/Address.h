@@ -82,7 +82,7 @@ static inline void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE],
 static inline void Address_parse(struct Address* addr,
                                  const uint8_t input[Address_SERIALIZED_SIZE])
 {
-    memset(addr->ip6.bytes, 0, 16);
+    Bits_memset(addr->ip6.bytes, 0, 16);
     Bits_memcpyConst(addr->key, input, Address_SERIALIZED_SIZE);
     addr->path = Endian_bigEndianToHost64(addr->path);
 }
@@ -90,13 +90,13 @@ static inline void Address_parse(struct Address* addr,
 static inline bool Address_isSame(const struct Address* addr,
                                   const struct Address* addr2)
 {
-    return memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
+    return Bits_memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
 }
 
 static inline bool Address_isSameIp(const struct Address* addr,
                                     const struct Address* addr2)
 {
-    return memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
+    return Bits_memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
 }
 
 static inline bool Address_equalsSearchTarget(
@@ -104,7 +104,7 @@ static inline bool Address_equalsSearchTarget(
     const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
 {
     Address_getPrefix(addr);
-    return memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
+    return Bits_memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
 }
 
 static inline void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE])

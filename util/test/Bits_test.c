@@ -12,7 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
+#include "memory/BufferAllocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 
@@ -22,8 +23,12 @@
 
 int main()
 {
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 512);
+    struct Random* rand = Random_new(alloc, NULL);
+
     uint64_t x;
-    randombytes((uint8_t*) &x, 8);
+    Random_bytes(rand, (uint8_t*) &x, 8);
     printf("x = 0x%016" PRIx64 "\n", x);
 
     Assert_always(Bits_bitReverse64(Bits_bitReverse64(x)) == x);

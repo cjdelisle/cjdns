@@ -184,10 +184,12 @@ static int32_t serializeList(const struct Writer* writer,
                              const List* list)
 {
     int ret = writer->write("l", 1, writer);
-    const struct List_Item* entry = *list;
-    while (ret == 0 && entry != NULL) {
-        ret = serializeGeneric(writer, entry->elem);
-        entry = entry->next;
+    if (list) {
+        const struct List_Item* entry = *list;
+        while (ret == 0 && entry != NULL) {
+            ret = serializeGeneric(writer, entry->elem);
+            entry = entry->next;
+        }
     }
     if (ret == 0) {
         ret = writer->write("e", 1, writer);

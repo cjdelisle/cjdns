@@ -15,7 +15,7 @@
 #ifndef Timeout_H
 #define Timeout_H
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 /** An event which will happen after a given number of milliseconds. */
 struct Timeout;

@@ -214,6 +214,7 @@ add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(net)
 add_subdirectory(exception)
+add_subdirectory(tunnel)
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 

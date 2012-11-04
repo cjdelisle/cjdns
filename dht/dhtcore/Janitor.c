@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Node.h"
@@ -26,6 +26,7 @@
 #include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
+#include "util/events/EventBase.h"
 #include "util/Hex.h"
 #include "util/Timeout.h"
 #include "util/Time.h"
@@ -33,7 +34,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <event2/event.h>
 
 /**
  * The goal of this is to run searches in the local area of this node.
@@ -58,7 +58,8 @@ struct Janitor
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
+    struct Random* rand;
 };
 
 static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
@@ -93,7 +94,7 @@ static void maintanenceCycle(void* vcontext)
     if (randomNode && randomNode->reach == 0) {
         Bits_memcpyConst(&targetAddr, &randomNode->address, Address_SIZE);
     } else {
-        randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
+        Random_bytes(janitor->rand, targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
     struct Node* n = RouterModule_lookup(targetAddr.ip6.bytes, janitor->routerModule);
@@ -148,23 +149,25 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
-                            struct Allocator* allocator,
-                            struct event_base* eventBase)
+                            struct Allocator* alloc,
+                            struct EventBase* eventBase,
+                            struct Random* rand)
 {
-    struct Janitor* janitor = allocator->malloc(sizeof(struct Janitor), allocator);
-    uint64_t now = Time_currentTimeMilliseconds(eventBase);
+    struct Janitor* janitor = alloc->clone(sizeof(struct Janitor), alloc, &(struct Janitor) {
+        .eventBase = eventBase,
+        .routerModule = routerModule,
+        .nodeStore = nodeStore,
+        .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
+        .timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase),
+        .allocator = alloc,
+        .rand = rand
+    });
 
-    janitor->eventBase = eventBase;
-    janitor->routerModule = routerModule;
-    janitor->nodeStore = nodeStore;
     janitor->timeout = Timeout_setInterval(maintanenceCycle,
                                            janitor,
                                            localMaintainenceMilliseconds,
                                            eventBase,
-                                           allocator);
+                                           alloc);
 
-    janitor->globalMaintainenceMilliseconds = globalMaintainenceMilliseconds;
-    janitor->timeOfNextGlobalMaintainence = now;
-    janitor->allocator = allocator;
     return janitor;
 }

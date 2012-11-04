@@ -12,11 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ExceptionHandler_H
-#define ExceptionHandler_H
+#ifndef Events_H
+#define Events_H
 
-#include "exception/Except.h"
+// slow process of removing the libevent headers from places where they are not needed.
+struct event_base; // CHECKFILES_IGNORE
 
-#define ExceptionHandler Except
+#define Events event_base
 
 #endif

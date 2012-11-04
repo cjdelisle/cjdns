@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 #define Pinger_MAX_CONCURRENT_PINGS 256
 

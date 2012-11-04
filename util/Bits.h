@@ -21,7 +21,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 
 static inline int Bits_log2x64(uint64_t number)
 {
@@ -93,7 +92,7 @@ static inline void* Bits_memcpyDebug(void* out,
     const char* outc = out;
     // Check that pointers don't alias.
     Assert_always(outc < inc || outc >= inc + length);
-    return memcpy(out, in, length);
+    return __builtin_memcpy(out, in, length);
 }
 
 /**
@@ -107,11 +106,14 @@ static inline void* Bits_memcpyDebug(void* out,
 #ifdef Log_DEBUG
     #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
 #else
-    static inline void* Bits_memcpy(void* restrict out, const void* restrict in, size_t length)
-    {
-        return memcpy(out, in, length);
-    }
+    #define Bits_memcpy(a,b,c) __builtin_memcpy(a, b, c)
 #endif
+
+#define Bits_memmove(a,b,c) __builtin_memmove(a,b,c)
+
+#define Bits_memset(a,b,c) __builtin_memset(a,b,c)
+
+#define Bits_memcmp(a,b,c) __builtin_memcmp(a,b,c)
 
 /**
  * Bits_memcpyConst()
@@ -127,16 +129,13 @@ static inline void* Bits_memcpyDebug(void* out,
     #define Bits_memcpyConst(a, b, c) \
         Assert_compileTime(__builtin_constant_p(c) == 1); \
         Bits_memcpy(a, b, c)
+
+    #define Bits_memmoveConst(a,b,c) \
+        Assert_compileTime(__builtin_constant_p(c)); \
+        Bits_memmove(a,b,c)
 #else
     #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)
 #endif
-
-/** Stop the user from calling memcpy() directly. */
-#ifdef memcpy
-    #undef memcpy
-#endif
-#define memcpy "do not use memcpy directly, see Bits.h" /* CHECKFILES_IGNORE */
-
 
 static inline void* Bits_memmem(const void* haystack,
                                 const void* needle,
@@ -153,7 +152,7 @@ static inline void* Bits_memmem(const void* haystack,
 
         while (haystackC <= stopAt) {
             if (*haystackC == *needleC
-                && !memcmp(haystackC, needleC, needleLen))
+                && !__builtin_memcmp(haystackC, needleC, needleLen))
             {
                 return haystackC;
             }

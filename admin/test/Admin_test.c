@@ -83,7 +83,7 @@ static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vc
 
 static void slowClient(struct Context* ctx)
 {
-    struct sockaddr_storage* addr = &ctx->framework->addr;
+    struct sockaddr_storage* addr = ctx->framework->addr;
     int addrLen = ctx->framework->addrLen;
 
     int sock = socket(addr->ss_family, SOCK_STREAM, 0);
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 
     ctx.alloc = MallocAllocator_new(1<<20);
     ctx.logger.writer = FileWriter_new(stdout, ctx.alloc);
-    ctx.eventBase = event_base_new();
+    ctx.eventBase = EventBase_new( / / / );"
 
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);

@@ -12,19 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EvBufferWriter_H
-#define EvBufferWriter_H
-
-#include "Writer.h"
 #include "memory/Allocator.h"
-#include <event2/buffer.h>
+#include "util/events/EventBase.h"
+#include "util/Assert.h"
 
-/**
- * Create a new Writer which writes to a libevent buffer.
- *
- * @param buffer the libevent buffer to write to.
- * @param allocator the memory allocator to use for allocating the writer and context.
- */
-struct Writer* EvBufferWriter_new(struct evbuffer* buffer, const struct Allocator* allocator);
+#include <event2/event.h>
 
-#endif
+static void freeEventBase(void* vLibEventEvBase)
+{
+    event_base_free((struct event_base*) vLibEventEvBase);
+}
+
+struct EventBase* EventBase_new(struct Allocator* alloc)
+{
+    struct event_base* libEventBase = event_base_new();
+    Assert_true(libEventBase);
+    alloc->onFree(freeEventBase, libEventBase, alloc);
+    return (struct EventBase*) libEventBase;
+}
+
+void EventBase_beginLoop(struct EventBase* eventBase)
+{
+    event_base_dispatch(eventBase);
+}

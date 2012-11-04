@@ -18,14 +18,12 @@
 #include "admin/Configurator.h"
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/CryptoAuth_benchmark.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
-#include "exception/ExceptionHandler.h"
-#include "exception/AbortHandler.h"
+#include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
@@ -47,6 +45,7 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/Errno.h"
@@ -61,18 +60,20 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <event2/event.h>
 
 #define DEFAULT_TUN_DEV "tun0"
 
 static int genAddress(uint8_t addressOut[40],
                       uint8_t privateKeyHexOut[65],
-                      uint8_t publicKeyBase32Out[53])
+                      uint8_t publicKeyBase32Out[53],
+                      struct Random* rand)
 {
     struct Address address;
     uint8_t privateKey[32];
 
     for (;;) {
-        randombytes(privateKey, 32);
+        Random_bytes(rand, privateKey, 32);
         crypto_scalarmult_curve25519_base(address.key, privateKey);
         AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
         // Brute force for keys until one matches FC00:/8
@@ -83,13 +84,6 @@ static int genAddress(uint8_t addressOut[40],
             return 0;
         }
     }
-}
-
-static void randomBase32(uint8_t output[32])
-{
-    uint8_t bin[16];
-    randombytes(bin, 16);
-    Base32_encode(output, 32, bin, 16);
 }
 
 static bool fileExists(const char* filename)
@@ -118,26 +112,26 @@ static String* getCorePath(struct Allocator* alloc)
     return output;
 }
 
-static int genconf()
+static int genconf(struct Random* rand)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     String* corePath = getCorePath(alloc);
 
     uint8_t password[32];
-    randomBase32(password);
+    Random_base32(rand, password, 32);
 
     uint8_t adminPassword[32];
-    randomBase32(adminPassword);
+    Random_base32(rand, adminPassword, 32);
 
     uint16_t port = 0;
     while (port <= 1024) {
-        randombytes((uint8_t*) &port, 2);
+        port = Random_uint16(rand);
     }
 
     uint8_t publicKeyBase32[53];
     uint8_t address[40];
     uint8_t privateKeyHex[65];
-    genAddress(address, privateKeyHex, publicKeyBase32);
+    genAddress(address, privateKeyHex, publicKeyBase32, rand);
 
     printf("{\n");
     printf("    // The path to the cjdns core executable.\n");
@@ -314,7 +308,7 @@ static void reconf(struct event_base* eventbase,
 static int benchmark()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
-    struct event_base* base = event_base_new();
+    struct event_base* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     CryptoAuth_benchmark(base, logger, alloc);
@@ -326,16 +320,21 @@ int main(int argc, char** argv)
     #ifdef Log_KEYS
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
-    Crypto_init();
+
     Assert_true(argc > 0);
-    struct Except* eh = AbortHandler_INSTANCE;
+    struct Except* eh = NULL;
+
+    // Allow it to allocate 4MB
+    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Random* rand = Random_new(allocator, eh);
+    struct EventBase* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
         // one argument
         if (strcmp(argv[1], "--help") == 0) {
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
-            return genconf();
+            return genconf(rand);
         } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--reconf") == 0) {
@@ -367,8 +366,6 @@ int main(int argc, char** argv)
         // start routing
     }
 
-    // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
     struct Reader* stdinReader = FileReader_new(stdin, allocator);
     Dict config;
     if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
@@ -418,7 +415,7 @@ int main(int argc, char** argv)
     String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
     if (!adminPass) {
         adminPass = String_newBinary(NULL, 32, allocator);
-        randomBase32((uint8_t*) adminPass->bytes);
+        Random_base32(rand, (uint8_t*) adminPass->bytes, 32);
         adminPass->len = strlen(adminPass->bytes);
     }
     if (!adminBind) {
@@ -457,7 +454,6 @@ int main(int argc, char** argv)
     Log_keys(logger, "Sent [%s] to angel process.", buff);
 
     // --------------------- Get Response from Angel --------------------- //
-    struct event_base* eventBase = event_base_new();
 
     uint32_t amount = Waiter_getData(buff, CONFIG_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
     Dict responseFromAngel;
@@ -488,7 +484,7 @@ int main(int argc, char** argv)
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
-                        &adminAddr,
+                        (uint8_t*)&adminAddr,
                         adminAddrLen,
                         adminPass,
                         eventBase,

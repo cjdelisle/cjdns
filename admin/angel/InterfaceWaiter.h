@@ -19,7 +19,7 @@
 #include "interface/Interface.h"
 #include "exception/Except.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 /**
  * Wait for incoming data on an interface.

@@ -12,7 +12,7 @@
 project(cjdio C)
 cmake_minimum_required(VERSION 2.4)
 
-add_library(cjdio ArrayReader.c ArrayWriter.c FileReader.c FileWriter.c EvBufferWriter.c)
+add_library(cjdio ArrayReader.c ArrayWriter.c FileReader.c FileWriter.c)
 target_link_libraries(cjdio cjdmemory ${LIBEVENT2_LIBRARIES})
 
 # Everything must be tested.

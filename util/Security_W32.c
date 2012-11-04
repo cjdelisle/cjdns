@@ -15,17 +15,17 @@
 #ifndef W32Security_H
 #define W32Security_H
 
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include "util/Security.h"
 #include "util/log/Log.h"
 
 // lol windows security
 
-void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
+void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
 }
 
-void Security_noFiles(struct ExceptionHandler* eh)
+void Security_noFiles(struct Except* eh)
 {
 }
 

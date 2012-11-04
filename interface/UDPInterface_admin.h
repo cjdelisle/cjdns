@@ -20,7 +20,7 @@
 #include "net/InterfaceController.h"
 #include "util/log/Log.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 void UDPInterface_admin_register(struct event_base* base,
                                  struct Allocator* allocator,

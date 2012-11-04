@@ -26,6 +26,7 @@
 #include <crypto_hash_sha256.h>
 #include <string.h>
 #include <unistd.h>
+#include <event2/event.h>
 
 
 struct AdminClient
@@ -236,13 +237,15 @@ static void disconnect(void* vcontext)
     event_del(context->socketEvent);
 }
 
-struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
+struct AdminClient* AdminClient_new(uint8_t* sockAddr,
                                     int addrLen,
                                     String* adminPassword,
                                     struct event_base* eventBase,
                                     struct Log* logger,
                                     struct Allocator* alloc)
 {
+    struct sockaddr_storage* addr = (struct sockaddr_storage*) sockAddr;
+
     struct Context* context = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
         .eventBase = eventBase,
         .logger = logger,

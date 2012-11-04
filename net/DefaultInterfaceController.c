@@ -23,6 +23,8 @@
 #include "wire/Error.h"
 #include "wire/Message.h"
 
+#include <stddef.h> // offsetof
+
 #ifndef CJDNS_MAX_PEERS
     #error CJDNS_MAX_PEERS needs to be defined.
 #endif

@@ -17,6 +17,7 @@
 #include "util/AddrTools.h"
 #include "util/Errno.h"
 
+#include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>

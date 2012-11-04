@@ -22,7 +22,6 @@
 
 #include <event2/event.h>
 #include <unistd.h>
-
 #include <string.h>
 
 struct Context

@@ -19,14 +19,15 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/events/EventBase.h"
 
-#include <event2/event.h>
+#include <stdint.h>
 
 void Configurator_config(Dict* config,
-                         struct sockaddr_storage* addr,
+                         uint8_t* sockAddr,
                          int addrLen,
                          String* adminPassword,
-                         struct event_base* eventBase,
+                         struct EventBase* eventBase,
                          struct Log* logger,
                          struct Allocator* alloc);
 

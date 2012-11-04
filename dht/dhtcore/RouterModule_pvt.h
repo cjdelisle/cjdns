@@ -61,6 +61,8 @@ struct RouterModule
 
     uint8_t gitVersionBytes[20];
     String gitVersion;
+
+    struct Random* rand;
 };
 
 #endif

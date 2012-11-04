@@ -15,7 +15,7 @@
 #ifndef UDPInterface_H
 #define UDPInterface_H
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 #include "interface/Interface.h"
 #include "net/InterfaceController.h"
@@ -50,7 +50,7 @@ struct UDPInterface;
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
-                                      struct ExceptionHandler* exHandler,
+                                      struct Except* exHandler,
                                       struct Log* logger,
                                       struct InterfaceController* ic);
 

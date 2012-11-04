@@ -16,7 +16,7 @@
 #define ArrayReader_H
 
 #include "Reader.h"
-#include <memory/Allocator.h>
+#include "memory/Allocator.h"
 
 /**
  * Create a new Reader which reads a user supplied buffer.

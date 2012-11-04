@@ -22,7 +22,6 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "exception/AbortHandler.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
@@ -31,6 +30,7 @@
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
+#include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Errno.h"
 #include "util/log/Log.h"
@@ -38,10 +38,9 @@
 #include "util/Pipe.h"
 #include "util/Process.h"
 
-#include <event2/event.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <event2/event.h>
 
 static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 {
@@ -70,9 +69,10 @@ static String* initAngel(int fromAngel,
                          int toAngel,
                          int corePipes[2][2],
                          struct PipeInterface** piOut,
-                         struct event_base* eventBase,
+                         struct EventBase* eventBase,
                          struct Log* logger,
-                         struct Allocator* alloc)
+                         struct Allocator* alloc,
+                         struct Random* rand)
 {
     #define TO_CORE (corePipes[0][1])
     #define FROM_CORE (corePipes[1][0])
@@ -104,12 +104,12 @@ static String* initAngel(int fromAngel,
     write(toAngel, buff, w->bytesWritten(w));
 
     // This is angel->core data, we can throw this away.
-    //Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, AbortHandler_INSTANCE);
+    //Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);
     //Log_info(logger, "Init message from angel to core: [%s]", buff);
     memset(buff, 0, BUFFER_SZ);
 
     struct PipeInterface* pi =
-        PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc);
+        PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc, rand);
     *piOut = pi;
 
     Log_info(logger, "PipeInterface [%p] is now ready.", (void*)pi);
@@ -133,7 +133,7 @@ static String* initAngel(int fromAngel,
     pi->generic.sendMessage(&m, &pi->generic);
 
     // This is angel->client data, it will tell us which port was bound.
-    Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, AbortHandler_INSTANCE);
+    Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);
 
     printf("Response from angel to client: [%s]\n", buff);
 
@@ -166,7 +166,8 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     Assert_always(logwriter);
     struct Log* logger = WriterLog_new(logwriter, alloc);
 
-    struct event_base* eventBase = event_base_new();
+    struct EventBase* eventBase = EventBase_new(alloc);
+    struct Random* rand = Random_new(alloc, NULL);
 
     int fromAngel;
     int toAngel;
@@ -177,7 +178,8 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     spawnAngel(&fromAngel, &toAngel);
 
     struct PipeInterface* pi;
-    String* addrStr = initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc);
+    String* addrStr =
+        initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc, rand);
 
     Log_info(logger, "Angel initialized.");
 
@@ -194,7 +196,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     Assert_true(!evutil_parse_sockaddr_port(addrStr->bytes, (struct sockaddr*) &addr, &addrLen));
 
     struct AdminClient* client =
-        AdminClient_new(&addr, addrLen, password, eventBase, logger, alloc);
+        AdminClient_new((uint8_t*) &addr, addrLen, password, eventBase, logger, alloc);
 
     Assert_always(client);
 
@@ -204,7 +206,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .alloc = alloc,
         .eventBase = eventBase,
         .logger = logger,
-        .addr = addr,
+        .addr = alloc->clone(sizeof(addrLen), alloc, &addr),
         .addrLen = addrLen,
         .angelInterface = &pi->generic
     });

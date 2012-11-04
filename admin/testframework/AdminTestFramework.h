@@ -20,16 +20,16 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 struct AdminTestFramework
 {
     struct Admin* admin;
     struct AdminClient* client;
     struct Allocator* alloc;
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
     struct Log* logger;
-    struct sockaddr_storage addr;
+    struct sockaddr_storage* addr;
     int addrLen;
     struct Interface* angelInterface;
 };

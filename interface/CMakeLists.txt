@@ -26,8 +26,10 @@ add_library(interface
     InterfaceConnector.c
     SessionManager.c
 )
+
 target_link_libraries(interface
     util
+    cjdns-crypto-key
     ${LIBEVENT2_LIBRARIES}
 )
 

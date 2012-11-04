@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/Errno.h"
 #include "util/Security.h"

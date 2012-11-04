@@ -16,8 +16,9 @@
 #define Waiter_H
 
 #include "exception/Except.h"
+#include "util/events/EventBase.h"
 
-#include <event2/event.h>
+#include <stdint.h>
 
 /**
  * Wait for and read data from a file descriptor.
@@ -38,7 +39,7 @@
 uint32_t Waiter_getData(uint8_t* output,
                         uint32_t bufferSize,
                         int fd,
-                        struct event_base* eventBase,
+                        struct EventBase* eventBase,
                         struct Except* eh);
 
 #endif

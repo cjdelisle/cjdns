@@ -89,7 +89,7 @@ static void* allocatorMalloc(size_t length, const struct Allocator* allocator)
 static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator)
 {
     void* pointer = allocator->malloc(length * count, allocator);
-    memset(pointer, 0, length * count);
+    Bits_memset(pointer, 0, length * count);
     return pointer;
 }
 

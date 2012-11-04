@@ -13,9 +13,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
+#include "admin/AdminLog.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "io/Writer.h"
 #include "memory/BufferAllocator.h"
 #include "util/log/Log.h"
@@ -66,6 +67,7 @@ struct AdminLog
     const char* fileNames[FILE_NAME_COUNT];
     struct Admin* admin;
     struct Allocator* alloc;
+    struct Random* rand;
 };
 
 static inline bool isMatch(struct Subscription* subscription,
@@ -224,7 +226,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
         sub->file = file;
         sub->lineNum = (lineNumPtr) ? *lineNumPtr : 0;
         sub->txid = String_clone(txid, sub->alloc);
-        randombytes((uint8_t*) sub->streamId, 8);
+        Random_bytes(log->rand, (uint8_t*) sub->streamId, 8);
         uint8_t streamIdHex[20];
         Hex_encode(streamIdHex, 20, sub->streamId, 8);
         Dict response = Dict_CONST(
@@ -267,14 +269,15 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&response, txid, log->admin);
 }
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc)
+struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, struct Random* rand)
 {
     struct AdminLog* log = alloc->clone(sizeof(struct AdminLog), alloc, &(struct AdminLog) {
         .pub = {
             .callback = doLog
         },
         .admin = admin,
-        .alloc = alloc
+        .alloc = alloc,
+        .rand = rand
     });
 
     struct Admin_FunctionArg subscribeArgs[] = {

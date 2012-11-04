@@ -15,12 +15,12 @@
 #ifndef PipeInterface_H
 #define PipeInterface_H
 
+#include "crypto/Random.h"
 #include "interface/Interface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
 #include "util/log/Log.h"
-
-#include <event2/event.h>
 
 /** Raised if there was an error on the pipe. */
 #define PipeInterface_DISCONNECTED -1
@@ -60,6 +60,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
                                         int outPipe,
                                         struct event_base* eventBase,
                                         struct Log* logger,
-                                        struct Allocator* alloc);
+                                        struct Allocator* alloc,
+                                        struct Random* rand);
 
 #endif

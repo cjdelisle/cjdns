@@ -19,7 +19,7 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 /**
  * An interface which connects to the TUN/TAP device for
