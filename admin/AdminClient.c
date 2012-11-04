@@ -27,6 +27,7 @@
 #include <crypto_hash_sha256.h>
 #include <unistd.h>
 #include <event2/event.h>
+#include <netinet/in.h> // sizeof(struct sockaddr_in) on freebsd
 
 
 struct AdminClient

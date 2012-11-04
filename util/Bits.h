@@ -150,7 +150,7 @@ static inline void* Bits_memcpyDebug(void* out,
         Bits_memcpy(a, b, c)
 
     #define Bits_memmoveConst(a,b,c) \
-        Assert_compileTime(__builtin_constant_p(c)); \
+        Assert_compileTime(__builtin_constant_p(c) == 1); \
         Bits_memmove(a,b,c)
 #else
     #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)
