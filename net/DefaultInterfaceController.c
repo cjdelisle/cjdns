@@ -231,7 +231,7 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
     for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
         struct Endpoint* thisEp = &ic->endpointMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
-        if (!Bits_memcmp(thisKey, key, 32)) {
+        if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
             ep->switchLabel = thisEp->switchLabel;

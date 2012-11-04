@@ -114,7 +114,7 @@ static inline int Map_FUNCTION(indexForHandle)(uint32_t handle, struct Map_CONTE
  */
 static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
 {
-    if (index >= 0 && index < (int) map->count) {
+    if (index >= 0 && index < (int) map->count - 1) {
         #ifdef Map_ENABLE_HANDLES
             // If we use handels then we need to keep the map sorted.
             #ifdef Map_ENABLE_KEYS
@@ -142,6 +142,9 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
             Bits_memcpyConst(&map->keys[index], &map->keys[map->count], sizeof(Map_KEY_TYPE));
             Bits_memcpyConst(&map->values[index], &map->values[map->count], sizeof(Map_VALUE_TYPE));
         #endif
+        return 0;
+    } else if (index == (int) map->count - 1) {
+        map->count--;
         return 0;
     }
     return -1;
