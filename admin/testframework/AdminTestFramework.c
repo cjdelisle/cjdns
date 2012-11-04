@@ -208,7 +208,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .alloc = alloc,
         .eventBase = eventBase,
         .logger = logger,
-        .addr = alloc->clone(sizeof(addrLen), alloc, &addr),
+        .addr = alloc->clone(addrLen, alloc, &addr),
         .addrLen = addrLen,
         .angelInterface = &pi->generic
     });
