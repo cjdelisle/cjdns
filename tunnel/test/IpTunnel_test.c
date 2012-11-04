@@ -110,6 +110,7 @@ int main()
     uh->sourceAndDestPorts = 0;
     uh->length_be = Endian_hostToBigEndian16(message->length - Headers_UDPHeader_SIZE);
     uint16_t* checksum = &uh->checksum_be;
+    *checksum = 0;
     uint32_t length = message->length;
 
     Message_shift(message, Headers_IP6Header_SIZE);
