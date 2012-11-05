@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #define string_strcmp
+#define string_strlen
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "util/Bits.h"
