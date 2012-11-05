@@ -19,6 +19,7 @@
 #include "util/Bits.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
+#include "util/Identity.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -93,12 +94,14 @@ struct Endpoint
      * if they are not responsive.
      */
     uint32_t timeOfLastMessage;
+
+    Identity
 };
 
 
 #define Map_NAME OfEndpointsByKey
 #define Map_KEY_TYPE struct MapKey
-#define Map_VALUE_TYPE struct Endpoint
+#define Map_VALUE_TYPE struct Endpoint*
 #include "util/Map.h"
 
 struct Context
@@ -140,13 +143,15 @@ struct Context
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
     uint32_t pingCount;
+
+    Identity
 };
 
 //---------------//
 
 static inline struct Context* interfaceControllerForEndpoint(struct Endpoint* ep)
 {
-    return ep->internal.senderContext;
+    return Identity_cast((struct Context*)ep->internal.senderContext);
 }
 
 static void onPingResponse(enum SwitchPinger_Result result,
@@ -160,6 +165,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
         return;
     }
     struct Endpoint* ep = onResponseContext;
+    Identity_check(ep);
     struct Context* ic = interfaceControllerForEndpoint(ep);
     struct Address addr;
     Bits_memset(&addr, 0, sizeof(struct Address));
@@ -189,7 +195,7 @@ static void pingCallback(void* vic)
 
     // scan for endpoints have not sent anything recently.
     for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
-        struct Endpoint* ep = &ic->endpointMap.values[i];
+        struct Endpoint* ep = ic->endpointMap.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
                 uint8_t path[20];
@@ -219,7 +225,8 @@ static void pingCallback(void* vic)
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
 {
-    return (struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal));
+    return
+        Identity_cast((struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal)));
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -229,7 +236,7 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
-        struct Endpoint* thisEp = &ic->endpointMap.values[i];
+        struct Endpoint* thisEp = ic->endpointMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
@@ -246,6 +253,7 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
     struct Endpoint* ep = cryptoAuthIf->receiverContext;
+    Identity_check(ep);
     struct Context* ic = interfaceControllerForEndpoint(ep);
 
     if (ep->state != Endpoint_state_ESTABLISHED) {
@@ -272,6 +280,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
+    Identity_check(ep);
     Assert_true(ep->switchIf.senderContext == ep);
     Assert_true(ep->internal.sendMessage);
 
@@ -308,8 +317,8 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static void closeInterface(void* vendpoint)
 {
-    struct Endpoint* toClose = (struct Endpoint*) vendpoint;
-    struct Context* ic = toClose->internal.senderContext;
+    struct Endpoint* toClose = Identity_cast((struct Endpoint*) vendpoint);
+    struct Context* ic = interfaceControllerForEndpoint(toClose);
 
     int index = Map_OfEndpointsByKey_indexForKey(&toClose->key, &ic->endpointMap);
     Assert_true(index >= 0);
@@ -340,7 +349,8 @@ static inline struct Endpoint* getEndpoint(uint8_t key[InterfaceController_KEY_S
     struct MapKey* k = (struct MapKey*) key;
     int index = Map_OfEndpointsByKey_indexForKey(k, &ic->endpointMap);
     if (index > -1) {
-        struct Endpoint* ep = &ic->endpointMap.values[index];
+        struct Endpoint* ep = ic->endpointMap.values[index];
+        Identity_check(ep);
         #ifdef Log_DEBUG
             Assert_true(ep->external || !"Entry was not removed from the map but was null.");
             Assert_true(!Bits_memcmp(key, &ep->key, InterfaceController_KEY_SIZE));
@@ -393,18 +403,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         return NULL;
     }
 
-    int index = Map_OfEndpointsByKey_put(((struct MapKey*)key),
-                                         &(struct Endpoint){.state=0},
-                                         &ic->endpointMap);
 
-    struct Endpoint* ep = &ic->endpointMap.values[index];
-
-    // If the other end need not supply a valid password to connect
-    // we will set the connection state to HANDSHAKE because we don't
-    // want the connection to be trashed after the first invalid packet.
-    if (!requireAuth) {
-        ep->state = Endpoint_state_HANDSHAKE;
-    }
 
     // This is the same no matter what endpoint.
     externalInterface->receiverContext = ic;
@@ -412,7 +411,18 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
 
     struct Allocator* epAllocator =
         externalInterface->allocator->child(externalInterface->allocator);
+
+    struct Endpoint* ep = epAllocator->calloc(sizeof(struct Endpoint), 1, epAllocator);
+    Map_OfEndpointsByKey_put(((struct MapKey*)key), &ep, &ic->endpointMap);
+    Identity_set(ep);
     epAllocator->onFree(closeInterface, ep, epAllocator);
+
+    // If the other end need not supply a valid password to connect
+    // we will set the connection state to HANDSHAKE because we don't
+    // want the connection to be trashed after the first invalid packet.
+    if (!requireAuth) {
+        ep->state = Endpoint_state_HANDSHAKE;
+    }
 
     ep->external = externalInterface;
     Bits_memcpyConst(&ep->key, key, InterfaceController_KEY_SIZE);
