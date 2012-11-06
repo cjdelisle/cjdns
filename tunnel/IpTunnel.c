@@ -500,7 +500,9 @@ static uint8_t incomingFromTun(struct Message* message, struct Interface* tunIf)
     }
 
     struct IpTunnel_Connection* conn = NULL;
-    if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
+    if (!context->pub.connectionList.connections) {
+        // No connections authorized, fall through to "unrecognized address"
+    } else if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
         conn = getConnection(context->pub.connectionList.connections,
                              header->sourceAddr,
@@ -518,6 +520,7 @@ static uint8_t incomingFromTun(struct Message* message, struct Interface* tunIf)
         Log_info(context->logger, "Message of unknown type from TUN");
         return Error_INVALID;
     }
+
     if (!conn) {
         Log_info(context->logger, "Message with unrecognized address from TUN");
         return Error_INVALID;
