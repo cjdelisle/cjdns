@@ -534,6 +534,12 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                 }
             #endif
 
+            #ifdef Log_DEBUG
+                uint8_t addr[40];
+                AddrTools_printIp(addr, context->ip6Header->sourceAddr);
+                Log_debug(context->logger, "Incoming layer3 message, ostensibly from [%s]", addr);
+            #endif
+
             context->session = session;
             context->layer = Ducttape_SessionLayer_INNER;
             return session->iface.receiveMessage(message, &session->iface);

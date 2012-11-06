@@ -75,7 +75,10 @@ struct PipeInterface_pvt
     struct Log* logger;
 
     /** If true, the libevent event loop should be broken when the session is established. */
-    bool isWaiting;
+    bool isWaiting : 1;
+
+    /** True if the other end has missed a ping message. */
+    bool isLagging : 1;
 
     /** location for storing the message. */
     struct {
@@ -300,6 +303,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
 
     context->timeOfLastMessage = Time_currentTimeMilliseconds(context->eventBase);
+    context->isLagging = false;
 }
 
 static void handleTimeout(void* vcontext)
@@ -315,11 +319,14 @@ static void handleTimeout(void* vcontext)
         && (context->pub.state != PipeInterface_State_INITIALIZING
             || lag > LAG_MAX_BEFORE_DISCONNECT * 2))
     {
-        Except_raise(context->pub.exceptionHandler,
-                     PipeInterface_TIMEOUT,
-                     "Ping timeout");
+        if (context->isLagging) {
+            Except_raise(context->pub.exceptionHandler,
+                         PipeInterface_TIMEOUT,
+                         "Ping timeout");
+        }
     }
     if (lag > PING_FREQUENCY_MILLISECONDS * 2) {
+        context->isLagging = true;
         sendPing(context);
     }
 }
