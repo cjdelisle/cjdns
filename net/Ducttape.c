@@ -512,14 +512,27 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                 SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
 
             if (!session->sendHandle_be && message->length > Headers_CryptoAuth_SIZE + 4) {
-                uint32_t nonce = ((uint32_t*)message->bytes)[1];
-                if (Endian_bigEndianToHost32(nonce) < 4) {
+                uint32_t nonce_be = ((uint32_t*)message->bytes)[1];
+                if (Endian_bigEndianToHost32(nonce_be) < 4) {
                     uint32_t handle_be = ((uint32_t*)message->bytes)[0];
                     session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
                     session->version = (session->version) ? session->version : 1;
                     debugHandles(context->logger, session, "New session, incoming layer3");
                 }
             }
+
+            #ifdef Version_0_COMPAT
+                if (session->version > 0) {
+            #endif
+            // Handle + nonce.
+            if (message->length < 8) {
+                Log_debug(context->logger, "runt");
+                return Error_INVALID;
+            }
+            Message_shift(message, -4);
+            #ifdef Version_0_COMPAT
+                }
+            #endif
 
             context->session = session;
             context->layer = Ducttape_SessionLayer_INNER;
