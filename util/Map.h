@@ -186,7 +186,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
         map->capacity += 10;
     }
 
-    int i = 0;
+    int i = -1;
 
     #ifdef Map_ENABLE_KEYS
         i = Map_FUNCTION(indexForKey)(key, map);
@@ -198,12 +198,12 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
         #ifdef Map_ENABLE_HANDLES
             map->handles[i] = map->nextHandle++;
         #endif
+        #ifdef Map_ENABLE_KEYS
+            map->keySuffixes[i] = Map_getKeySuffix(key);
+            Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
+        #endif
     }
 
-    #ifdef Map_ENABLE_KEYS
-        map->keySuffixes[i] = Map_getKeySuffix(key);
-        Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
-    #endif
     Bits_memcpyConst(&map->values[i], value, sizeof(Map_VALUE_TYPE));
 
     return i;

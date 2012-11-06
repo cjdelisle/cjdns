@@ -111,7 +111,15 @@ static inline uint8_t sendToRouter(struct Node* node,
     // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
     struct SessionManager_Session* session =
         SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
-    session->version = node->version;
+
+    // Whichever has a declared version should transfer it to the other.
+    // Since 0 is the default version, if the router doesn't know the version
+    // it should not set the session's version to 0.
+    if (session->version) {
+        node->version = session->version;
+    } else if (node->version) {
+        session->version = node->version;
+    }
 
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
@@ -509,7 +517,7 @@ static inline int core(struct Message* message, struct Ducttape_Private* context
                     uint32_t handle_be = ((uint32_t*)message->bytes)[0];
                     session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
                     session->version = (session->version) ? session->version : 1;
-                    debugHandles(context->logger, session, "New session");
+                    debugHandles(context->logger, session, "New session, incoming layer3");
                 }
             }
 
@@ -669,7 +677,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
             ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
         }
     } else {
-        Log_debug(context->logger, "Sending protocol 0 message.");
+        debugHandles(context->logger, session, "Sending protocol 0 message");
     }
 
     switch (layer) {
