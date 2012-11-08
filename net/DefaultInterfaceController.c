@@ -16,6 +16,7 @@
 #include "net/DefaultInterfaceController.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
+#include "util/Base32.h"
 #include "util/Bits.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
