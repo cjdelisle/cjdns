@@ -21,7 +21,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 
 static inline int Bits_log2x64(uint64_t number)
 {
@@ -74,6 +73,31 @@ static inline bool Bits_isZero(void* buffer, size_t length)
     return true;
 }
 
+
+static inline void* Bits_memmove(void* dest, const void* src, size_t length)
+{
+    void* memmove(void* dest, const void* src, size_t length);
+    return memmove(dest, src, length);
+}
+
+static inline void* Bits_memset(void* location, int byte, size_t count)
+{
+    void* memset(void* location, int byte, size_t count);
+    return memset(location, byte, count);
+}
+
+static inline int Bits_memcmp(const void* loc1, const void* loc2, size_t length)
+{
+    int memcmp(const void* loc1, const void* loc2, size_t length);
+    return memcmp(loc1, loc2, length);
+}
+
+static inline void* Bits_memcpyNoDebug(void* restrict out, const void* restrict in, size_t length)
+{
+    void* memcpy(void* restrict out, const void* restrict in, size_t length);
+    return memcpy(out, in, length);
+}
+
 /**
  * @param out buffer to write to.
  * @param in buffer to read from.
@@ -93,7 +117,7 @@ static inline void* Bits_memcpyDebug(void* out,
     const char* outc = out;
     // Check that pointers don't alias.
     Assert_always(outc < inc || outc >= inc + length);
-    return memcpy(out, in, length);
+    return Bits_memcpyNoDebug(out, in, length);
 }
 
 /**
@@ -107,10 +131,7 @@ static inline void* Bits_memcpyDebug(void* out,
 #ifdef Log_DEBUG
     #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
 #else
-    static inline void* Bits_memcpy(void* restrict out, const void* restrict in, size_t length)
-    {
-        return memcpy(out, in, length);
-    }
+    #define Bits_memcpy(a,b,c) Bits_memcpyNoDebug(a,b,c)
 #endif
 
 /**
@@ -127,16 +148,13 @@ static inline void* Bits_memcpyDebug(void* out,
     #define Bits_memcpyConst(a, b, c) \
         Assert_compileTime(__builtin_constant_p(c) == 1); \
         Bits_memcpy(a, b, c)
+
+    #define Bits_memmoveConst(a,b,c) \
+        Assert_compileTime(__builtin_constant_p(c) == 1); \
+        Bits_memmove(a,b,c)
 #else
     #define Bits_memcpyConst(a, b, c) Bits_memcpy(a, b, c)
 #endif
-
-/** Stop the user from calling memcpy() directly. */
-#ifdef memcpy
-    #undef memcpy
-#endif
-#define memcpy "do not use memcpy directly, see Bits.h" /* CHECKFILES_IGNORE */
-
 
 static inline void* Bits_memmem(const void* haystack,
                                 const void* needle,
@@ -153,7 +171,7 @@ static inline void* Bits_memmem(const void* haystack,
 
         while (haystackC <= stopAt) {
             if (*haystackC == *needleC
-                && !memcmp(haystackC, needleC, needleLen))
+                && !__builtin_memcmp(haystackC, needleC, needleLen))
             {
                 return haystackC;
             }

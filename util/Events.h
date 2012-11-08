@@ -12,19 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EvBufferWriter_H
-#define EvBufferWriter_H
+#ifndef Events_H
+#define Events_H
 
-#include "Writer.h"
-#include "memory/Allocator.h"
-#include <event2/buffer.h>
+// slow process of removing the libevent headers from places where they are not needed.
+struct event_base; // CHECKFILES_IGNORE
 
-/**
- * Create a new Writer which writes to a libevent buffer.
- *
- * @param buffer the libevent buffer to write to.
- * @param allocator the memory allocator to use for allocating the writer and context.
- */
-struct Writer* EvBufferWriter_new(struct evbuffer* buffer, const struct Allocator* allocator);
+#define Events event_base
 
 #endif

@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <net/if.h>
-
+#include <string.h>
 #include <netdb.h>
 #include <net/if_var.h>
 #include <net/if_tun.h>

@@ -120,7 +120,7 @@ foreach my $fileName (split("\n", $files))
             error("cjd's editor window is only 100 characters wide");
         }
 
-        if ($fileName =~ /\.h$/) {
+        if ($fileName =~ /\.h$/ && !($fileName =~ /util\/platform\/libc\//)) {
 
             my $n = $name;
             # If the name is CryptoAuth_struct.h, it's ok to make a structure called CryptoAuth

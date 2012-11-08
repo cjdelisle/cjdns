@@ -17,11 +17,12 @@
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
+#include "util/platform/libc/strlen.h"
+#include "util/Bits.h"
 #include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -150,7 +151,7 @@ static int32_t serializeint64_t(const struct Writer* writer,
                                 int64_t integer)
 {
     char buffer[32];
-    memset(buffer, 0, 32);
+    Bits_memset(buffer, 0, 32);
 
     sprintf(buffer, "%" PRId64, integer);
 

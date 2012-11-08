@@ -14,9 +14,9 @@
  */
 #include "memory/MallocAllocator.h"
 #include "dht/AddressMapper.h"
+#include "util/Bits.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 /* collection of data required to run tests */
@@ -463,7 +463,7 @@ int main(int argc, char** argv)
         for (int rpt = 0; rpt < NUM_REPEAT; rpt++) {
             int testErr;
 
-            memset(&info, 0, sizeof(info));
+            Bits_memset(&info, 0, sizeof(info));
             initAppState(&state);
             testErr = testRunList[testNum](&state, state.map, &info);
             deinitAppState(&state);

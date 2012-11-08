@@ -18,7 +18,7 @@
 #include "AddressMapper.h"
 
 #include <stdint.h>
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdlib.h>
 
 /* if set, address mapper linked list entries are validated before use */

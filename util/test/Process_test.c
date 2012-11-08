@@ -12,13 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strlen
+#define string_strstr
+#define string_strcmp
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/string.h"
 #include "util/Assert.h"
 #include "util/Process.h"
 #include "util/Pipe.h"
 
-#include <string.h>
 #include <unistd.h>
 
 #define MESSAGE "IT WORKS!"

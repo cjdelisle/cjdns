@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 enum SwitchPinger_Result
 {

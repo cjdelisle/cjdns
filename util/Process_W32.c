@@ -12,13 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#define string_strcpy
+#define string_strlen
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/string.h"
 #include "util/Process.h"
 #include "util/Bits.h"
 
-#include <string.h>
 #include <windows.h>
 
 
@@ -40,9 +41,9 @@ int Process_spawn(char* binaryPath, char** args)
     }
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
-    memset(&si, 0, sizeof(si));
+    Bits_memset(&si, 0, sizeof(si));
     si.cb = sizeof(si);
-    memset(&pi, 0, sizeof(pi));
+    Bits_memset(&pi, 0, sizeof(pi));
 
     if (!CreateProcessA(binaryPath, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         return -1;

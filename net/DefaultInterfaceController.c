@@ -14,15 +14,17 @@
  */
 #include "crypto/CryptoAuth_pvt.h"
 #include "net/DefaultInterfaceController.h"
-#include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
-#include "util/Base32.h"
 #include "util/Bits.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
+#include "util/Identity.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
+
+#include <stddef.h> // offsetof
+
 
 #ifndef CJDNS_MAX_PEERS
     #error CJDNS_MAX_PEERS needs to be defined.
@@ -38,6 +40,10 @@
 #define TIMEOUT_MILLISECONDS 2000
 
 /*--------------------Structs--------------------*/
+struct MapKey {
+    uint8_t bytes[InterfaceController_KEY_SIZE];
+};
+Assert_compileTime(sizeof(struct MapKey) == InterfaceController_KEY_SIZE);
 
 struct Endpoint
 {
@@ -59,7 +65,7 @@ struct Endpoint
     struct Interface* external;
 
     /** The lookup key for this endpoint (ip/mac address) */
-    uint8_t key[InterfaceController_KEY_SIZE];
+    struct MapKey key;
 
     /** The label for this endpoint, needed to ping the endpoint. */
     uint64_t switchLabel;
@@ -88,7 +94,15 @@ struct Endpoint
      * if they are not responsive.
      */
     uint32_t timeOfLastMessage;
+
+    Identity
 };
+
+
+#define Map_NAME OfEndpointsByKey
+#define Map_KEY_TYPE struct MapKey
+#define Map_VALUE_TYPE struct Endpoint*
+#include "util/Map.h"
 
 struct Context
 {
@@ -96,9 +110,7 @@ struct Context
     struct InterfaceController pub;
 
     /** Used to get an endpoint by it's lookup key, endpoint.internal is entered into the map. */
-    struct InterfaceMap* const imap;
-
-    struct Endpoint endpoints[CJDNS_MAX_PEERS];
+    struct Map_OfEndpointsByKey endpointMap;
 
     struct Allocator* const allocator;
 
@@ -131,13 +143,15 @@ struct Context
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
     uint32_t pingCount;
+
+    Identity
 };
 
 //---------------//
 
 static inline struct Context* interfaceControllerForEndpoint(struct Endpoint* ep)
 {
-    return ep->internal.senderContext;
+    return Identity_cast((struct Context*)ep->internal.senderContext);
 }
 
 static void onPingResponse(enum SwitchPinger_Result result,
@@ -151,9 +165,10 @@ static void onPingResponse(enum SwitchPinger_Result result,
         return;
     }
     struct Endpoint* ep = onResponseContext;
+    Identity_check(ep);
     struct Context* ic = interfaceControllerForEndpoint(ep);
     struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
+    Bits_memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
@@ -179,19 +194,20 @@ static void pingCallback(void* vic)
     ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
-    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
-        struct Endpoint* ep = &ic->endpoints[i];
-        if (ep->external != NULL && now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
-            uint8_t key[32*5/4];
-            Base32_encode(key,32*5/4,
+    for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
+        struct Endpoint* ep = ic->endpointMap.values[i];
+        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+            #ifdef Log_DEBUG
+                  uint8_t key[32*5/4];
+                  Base32_encode(key,32*5/4,
                           CryptoAuth_getHerPublicKey(ep->cryptoAuthIf),32);
+            #endif
             if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
                 Log_debug(ic->logger, "Pinging unresponsive neighbor [%s.k].", key);
-
             } else {
                 Log_debug(ic->logger, "Pinging lazy neighbor [%s].", key);
             }
@@ -210,7 +226,8 @@ static void pingCallback(void* vic)
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
 {
-    return (struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal));
+    return
+        Identity_cast((struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal)));
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -219,18 +236,10 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
-        struct Endpoint* thisEp = &ic->endpoints[i];
-        if (thisEp >= ep) {
-            Assert_true(i == 0 || thisEp == ep);
-            break;
-        }
-        if (thisEp->external == NULL) {
-            // Removed endpoint.
-            continue;
-        }
+    for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
+        struct Endpoint* thisEp = ic->endpointMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
-        if (!memcmp(thisKey, key, 32)) {
+        if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
             ep->switchLabel = thisEp->switchLabel;
@@ -245,6 +254,7 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
     struct Endpoint* ep = cryptoAuthIf->receiverContext;
+    Identity_check(ep);
     struct Context* ic = interfaceControllerForEndpoint(ep);
 
     if (ep->state != Endpoint_state_ESTABLISHED) {
@@ -256,7 +266,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
-            if (msg->length < 8 || memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
+            if (msg->length < 8 || Bits_memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
                 Log_info(ic->logger, "Dropping message because CA is not established.");
                 return Error_NONE;
             }
@@ -271,6 +281,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct Endpoint* ep = switchIf->senderContext;
+    Identity_check(ep);
     Assert_true(ep->switchIf.senderContext == ep);
     Assert_true(ep->internal.sendMessage);
 
@@ -307,12 +318,12 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static void closeInterface(void* vendpoint)
 {
-    struct Endpoint* toClose = (struct Endpoint*) vendpoint;
-    struct Context* ic = toClose->internal.senderContext;
+    struct Endpoint* toClose = Identity_cast((struct Endpoint*) vendpoint);
+    struct Context* ic = interfaceControllerForEndpoint(toClose);
 
-    int index = InterfaceMap_indexOf(toClose->key, ic->imap);
+    int index = Map_OfEndpointsByKey_indexForKey(&toClose->key, &ic->endpointMap);
     Assert_true(index >= 0);
-    InterfaceMap_remove(index, ic->imap);
+    Map_OfEndpointsByKey_remove(index, &ic->endpointMap);
 
     // flag the entry as nolonger used.
     toClose->external = NULL;
@@ -327,7 +338,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     struct Endpoint* ep = endpointForInternalInterface(iface);
 
     Message_shift(message, InterfaceController_KEY_SIZE);
-    Bits_memcpyConst(message->bytes, ep->key, InterfaceController_KEY_SIZE);
+    Bits_memcpyConst(message->bytes, &ep->key, InterfaceController_KEY_SIZE);
 
     Assert_true(ep->external);
     return ep->external->sendMessage(message, ep->external);
@@ -336,13 +347,14 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 static inline struct Endpoint* getEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
                                            struct Context* ic)
 {
-    int index = InterfaceMap_indexOf(key, ic->imap);
+    struct MapKey* k = (struct MapKey*) key;
+    int index = Map_OfEndpointsByKey_indexForKey(k, &ic->endpointMap);
     if (index > -1) {
-        struct Endpoint* ep = endpointForInternalInterface(ic->imap->interfaces[index]);
+        struct Endpoint* ep = ic->endpointMap.values[index];
+        Identity_check(ep);
         #ifdef Log_DEBUG
             Assert_true(ep->external || !"Entry was not removed from the map but was null.");
-            Assert_true(&ep->internal == ic->imap->interfaces[index]);
-            Assert_true(!memcmp(key, ep->key, InterfaceController_KEY_SIZE));
+            Assert_true(!Bits_memcmp(key, &ep->key, InterfaceController_KEY_SIZE));
         #endif
         return ep;
     }
@@ -388,18 +400,23 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         return NULL;
     }
 
-    // scan for an unused endpoint slot.
-    struct Endpoint* ep = NULL;
-    for (int i = 0; i < CJDNS_MAX_PEERS; i++) {
-        if (ic->endpoints[i].external == NULL) {
-            Log_debug(ic->logger, "Using connection slot [%d]", i);
-            ep = &ic->endpoints[i];
-            break;
-        }
-    }
-    if (!ep) {
+    if (ic->endpointMap.count >= CJDNS_MAX_PEERS) {
         return NULL;
     }
+
+
+
+    // This is the same no matter what endpoint.
+    externalInterface->receiverContext = ic;
+    externalInterface->receiveMessage = receiveMessage;
+
+    struct Allocator* epAllocator =
+        externalInterface->allocator->child(externalInterface->allocator);
+
+    struct Endpoint* ep = epAllocator->calloc(sizeof(struct Endpoint), 1, epAllocator);
+    Map_OfEndpointsByKey_put(((struct MapKey*)key), &ep, &ic->endpointMap);
+    Identity_set(ep);
+    epAllocator->onFree(closeInterface, ep, epAllocator);
 
     // If the other end need not supply a valid password to connect
     // we will set the connection state to HANDSHAKE because we don't
@@ -408,18 +425,8 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         ep->state = Endpoint_state_HANDSHAKE;
     }
 
-    // This is the same no matter what endpoint.
-    externalInterface->receiverContext = ic;
-    externalInterface->receiveMessage = receiveMessage;
-
-
-    struct Allocator* epAllocator =
-        externalInterface->allocator->child(externalInterface->allocator);
-    epAllocator->onFree(closeInterface, ep, epAllocator);
-
     ep->external = externalInterface;
-    Bits_memcpyConst(ep->key, key, InterfaceController_KEY_SIZE);
-    InterfaceMap_put(key, &ep->internal, 0, ic->imap);
+    Bits_memcpyConst(&ep->key, key, InterfaceController_KEY_SIZE);
 
     Bits_memcpyConst(&ep->internal, (&(struct Interface) {
         .senderContext = ic,
@@ -445,7 +452,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     }), sizeof(struct Interface));
 
     struct Address addr;
-    memset(&addr, 0, sizeof(struct Address));
+    Bits_memset(&addr, 0, sizeof(struct Address));
     if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.path, ic->switchCore)) {
         return NULL;
     }
@@ -549,7 +556,9 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
             .insertEndpoint = insertEndpointPublic,
             .registerInterface = registerInterfacePublic
         },
-        .imap = InterfaceMap_new(InterfaceController_KEY_SIZE, allocator),
+        .endpointMap = {
+            .allocator = allocator
+        },
         .allocator = allocator,
         .ca = ca,
         .switchCore = switchCore,

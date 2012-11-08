@@ -16,6 +16,7 @@
 #define String_H
 
 #include "memory/Allocator.h"
+#include "util/platform/libc/strlen.h"
 
 #include <stdbool.h>
 #include <stdarg.h>

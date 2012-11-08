@@ -22,7 +22,7 @@
 #include "util/AverageRoller.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 /*--------------------Constants--------------------*/
 

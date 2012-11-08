@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "memory/BufferAllocator.h"
 #include "util/AverageRoller.c"
+#include "util/events/EventBase.h"
 
 #include <stdio.h>
-#include <event2/event.h>
-
-#include "memory/BufferAllocator.h"
 
 int main()
 {
@@ -49,7 +48,7 @@ int main()
     uint8_t buffer[4096];
     struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
 
-    struct event_base* eventBase = event_base_new();
+    struct EventBase* eventBase = EventBase_new(allocator);
 
     struct AverageRoller* roller =
         (struct AverageRoller*) AverageRoller_new(windowSeconds, eventBase, allocator);

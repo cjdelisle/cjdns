@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strlen
+
 #include "benc/Int.h"
 #include "benc/Object.h"
 #include "dht/Address.h"
@@ -37,8 +39,8 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 #include "util/version/Version.h"
+#include "util/platform/libc/string.h"
 
-#include <string.h>
 #include <stdint.h>
 #include <event2/event.h>
 #include <stdbool.h>
@@ -218,7 +220,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct event_base* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin)
+                                           struct Admin* admin,
+                                           struct Random* rand)
 {
     struct RouterModule* const out = allocator->calloc(sizeof(struct RouterModule), 1, allocator);
 
@@ -247,18 +250,20 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->logger = logger;
     out->allocator = allocator;
     out->admin = admin;
+    out->rand = rand;
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                                out,
                                out->nodeStore,
                                allocator,
-                               eventBase);
+                               eventBase,
+                               rand);
 
-    struct Admin_FunctionArg adma[2] = {
-        { .name = "path", .required = 1, .type = "String" },
-        { .name = "timeout", .required = 0, .type = "Int" },
-    };
-    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true, adma, admin);
+    Admin_registerFunction("RouterModule_pingNode", pingNode, out, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "path", .required = 1, .type = "String" },
+            { .name = "timeout", .required = 0, .type = "Int" },
+        }), admin);
 
     return out;
 }
@@ -298,7 +303,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
             err = "parsing address failed";
         } else {
             n = RouterModule_lookup(addr.ip6.bytes, router);
-            if (n && memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
+            if (n && Bits_memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
                 n = NULL;
             }
         }
@@ -414,7 +419,7 @@ static inline void sendRequest(struct Address* address,
                                struct DHTModuleRegistry* registry)
 {
     struct DHTMessage message;
-    memset(&message, 0, sizeof(struct DHTMessage));
+    Bits_memset(&message, 0, sizeof(struct DHTMessage));
 
     char buffer[4096];
     struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
@@ -507,7 +512,7 @@ static void searchStep(struct SearchCallbackContext* scc)
 
     // Get the node from the nodestore because there might be a much better path to the same node.
     struct Node* n = NodeStore_getBest(nextSearchNode->address, scc->routerModule->nodeStore);
-    if (n && !memcmp(n->address.ip6.bytes, nextSearchNode->address->ip6.bytes, 16)) {
+    if (n && !Bits_memcmp(n->address.ip6.bytes, nextSearchNode->address->ip6.bytes, 16)) {
         uint64_t nlabel = n->address.path;
         uint64_t nsn = nextSearchNode->address->path;
         if (nlabel < nsn) {
@@ -621,7 +626,7 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
         if (i == index) {
             continue;
         }
-        if (memcmp(&nodes->bytes[index], &nodes->bytes[i], Address_KEY_SIZE) == 0) {
+        if (Bits_memcmp(&nodes->bytes[index], &nodes->bytes[i], Address_KEY_SIZE) == 0) {
             return true;
         }
     }

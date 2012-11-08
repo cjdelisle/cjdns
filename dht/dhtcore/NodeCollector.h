@@ -21,7 +21,7 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdbool.h>
 
 struct NodeCollector_Element
@@ -118,9 +118,9 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && memcmp(body->address.ip6.bytes,
-                  collector->targetAddress,
-                  Address_SEARCH_TARGET_SIZE) != 0)
+        && Bits_memcmp(body->address.ip6.bytes,
+                       collector->targetAddress,
+                       Address_SEARCH_TARGET_SIZE) != 0)
     {
         Log_debug(collector->logger, "Increasing distance because addr is not exact match.\n");
         nodeDistance++;
@@ -153,7 +153,9 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                 }
                 if (i > 0
                     && nodes[i].body
-                    && memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0)
+                    && Bits_memcmp(body->address.ip6.bytes,
+                                   nodes[i].body->address.ip6.bytes,
+                                   16) == 0)
                 {
                     match = i + 1;
                 }
@@ -166,7 +168,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
             if (match > 0) {
                 i = match;
             } else if (i > 1) {
-                memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
+                Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;

@@ -12,8 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strlen // some systems implement strcmp as a macro using strlen.
 #include "admin/angel/AngelInit.h"
 #include "admin/angel/Core.h"
+#include "util/platform/libc/string.h"
 
 #include <stdio.h>
 #include <unistd.h>

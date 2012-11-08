@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <stdlib.h>

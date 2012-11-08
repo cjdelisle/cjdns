@@ -15,21 +15,12 @@
 #ifndef Time_H
 #define Time_H
 
-#include <sys/time.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
-static inline uint64_t Time_currentTimeMilliseconds(struct event_base* eventBase)
-{
-    struct timeval now;
-    event_base_gettimeofday_cached(eventBase, &now);
-    return (((uint64_t) now.tv_sec) * 1024) + (now.tv_usec / 1024);
-}
+#include <stdint.h>
 
-static inline uint64_t Time_currentTimeSeconds(struct event_base* eventBase)
-{
-    struct timeval now;
-    event_base_gettimeofday_cached(eventBase, &now);
-    return (uint64_t) now.tv_sec;
-}
+uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase);
+
+uint64_t Time_currentTimeSeconds(struct EventBase* eventBase);
 
 #endif

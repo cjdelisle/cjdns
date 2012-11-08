@@ -16,7 +16,7 @@ include_directories(${NACL_INCLUDE_DIRS})
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
-add_library(crypto Crypto.c CryptoAuth.c AddressCalc.c)
+add_library(crypto CryptoAuth.c AddressCalc.c)
 
 # This is needed because NACL must be built first because header files are generated.
 add_dependencies(crypto NACL)
@@ -29,11 +29,28 @@ target_link_libraries(crypto
     util
 )
 
-add_library(cjdns-crypto-bench CryptoAuth_benchmark.c)
-target_link_libraries(cjdns-crypto-bench crypto)
+add_library(cjdns-crypto-bench
+    CryptoAuth_benchmark.c)
+target_link_libraries(cjdns-crypto-bench
+    crypto
+)
 
-add_library(crypto_benchmark CryptoAuth_benchmark.c)
-target_link_libraries(crypto_benchmark crypto)
+add_library(cjdns-crypto-key
+    Key.c
+)
+target_link_libraries(cjdns-crypto-key
+    util
+    crypto
+)
+
+
+add_library(cjdns-crypto-random
+    Random.c
+)
+target_link_libraries(cjdns-crypto-random
+    cjdns-except
+    ${LIBEVENT2_LIBRARIES}
+)
 
 # Everything must be tested.
 enable_testing()

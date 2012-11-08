@@ -16,7 +16,9 @@
 #include "interface/TUNConfigurator.h"
 #include "util/AddrTools.h"
 #include "util/Errno.h"
-
+#define string_strncpy
+#define string_strlen
+#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -115,7 +117,7 @@ static int socketForIfName(const char* interfaceName,
                      "socket() failed: [%s]", Errno_getString());
     }
 
-    memset(ifRequestOut, 0, sizeof(struct ifreq));
+    Bits_memset(ifRequestOut, 0, sizeof(struct ifreq));
     strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
@@ -165,7 +167,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     int s = socketForIfName(interfaceName, eh, &ifRequest);
 
     struct in6_ifreq ifr6;
-    memset(&ifr6, 0, sizeof(struct in6_ifreq));
+    Bits_memset(&ifr6, 0, sizeof(struct in6_ifreq));
     // checkInterfaceUp() clobbers the ifindex.
     ifr6.ifr6_ifindex = ifRequest.ifr_ifindex;
 

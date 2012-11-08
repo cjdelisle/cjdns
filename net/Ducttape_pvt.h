@@ -28,7 +28,7 @@
 #include "net/Ducttape.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 enum Ducttape_SessionLayer {
     Ducttape_SessionLayer_INVALID = 0,
@@ -94,6 +94,12 @@ struct Ducttape_Private
     /** The current session, used for getting the key, ipv6, and version of the other party. */
     struct SessionManager_Session* session;
 
+    /** Number of milliseconds to wait between searches for a node to send arbitrary data to. */
+    uint32_t timeBetweenSearches;
+
+    /** Absolute time of last search for node to send arbitrary data to. */
+    uint64_t timeOfLastSearch;
+
     /** The interface for the SwitchPinger. */
     struct Interface* switchPingerIf;
 
@@ -101,6 +107,9 @@ struct Ducttape_Private
      * This is to tell the code whether it is in the outer later of encryption or the inner layer.
      */
     enum Ducttape_SessionLayer layer;
+
+    /** For tunneling IPv4 and ICANN IPv6 packets. */
+    struct IpTunnel* ipTunnel;
 };
 
 #endif

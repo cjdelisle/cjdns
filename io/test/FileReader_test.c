@@ -12,25 +12,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/Assert.h"
+#include "util/Bits.h"
 
-#include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 int main()
 {
+    struct Allocator* alloc = MallocAllocator_new(512);
+    struct Random* rand = Random_new(alloc, NULL);
+
     FILE* tmp = tmpfile();
     uint8_t buffer1[2048];
-    randombytes(buffer1, 2048);
+    Random_bytes(rand, buffer1, 2048);
     fwrite(buffer1, 1, 2048, tmp);
-
-    struct Allocator* alloc = MallocAllocator_new(256);
 
     uint8_t buffer2[1024];
     rewind(tmp);
@@ -50,7 +52,7 @@ int main()
     uint8_t* ptr2 = buffer2;
 
     #define SKIP(x) ptr1 += x
-    #define CMP(x) Assert_always(!memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
+    #define CMP(x) Assert_always(!Bits_memcmp(ptr1, ptr2, x)); ptr1 += x; ptr2 += x
 
     CMP(128);
     SKIP(128);

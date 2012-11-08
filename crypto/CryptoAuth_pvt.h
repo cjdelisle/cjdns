@@ -20,11 +20,12 @@
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 struct CryptoAuth_Auth {
     union Headers_AuthChallenge challenge;
@@ -45,9 +46,10 @@ struct CryptoAuth_pvt
     uint32_t passwordCapacity;
 
     struct Log* logger;
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     struct Allocator* allocator;
+    struct Random* rand;
 };
 
 /**

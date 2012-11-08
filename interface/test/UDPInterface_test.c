@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strlen
 #include "admin/testframework/AdminTestFramework.h"
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
@@ -24,10 +26,11 @@
 #include "net/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
+#include "util/Assert.h"
 #include "util/log/Log.h"
+#include "util/platform/libc/string.h"
 
 #include <event2/event.h>
-#include "util/Assert.h"
 
 static int insertEndpointCalls = 0;
 static int insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
@@ -79,7 +82,7 @@ int main(int argc, char** argv)
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!strcmp("d5:error37:publicKey must be 52 characters long.e",
+    Assert_always(!strcmp("d5:error30:key must be 52 characters longe",
                           (char*) res->messageBytes));
 
     //printf("result content: >>%s<<", res->messageBytes);

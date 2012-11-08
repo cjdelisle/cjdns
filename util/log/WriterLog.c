@@ -19,7 +19,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
+#define string_strlen
+#define string_strrchr
+#include "util/platform/libc/string.h"
 #include <strings.h>
 #include <time.h>
 

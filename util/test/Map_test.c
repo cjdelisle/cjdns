@@ -12,7 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
+#include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Assert.h"
 
@@ -27,11 +28,15 @@
 
 int main()
 {
+    struct Allocator* stackAlloc;
+    BufferAllocator_STACK(stackAlloc, 512);
+    struct Random* rand = Random_new(stackAlloc, NULL);
+
     for (int cycles = 0; cycles < CYCLES; cycles++) {
         struct Allocator* alloc = MallocAllocator_new(1<<18);
         struct Map_OfLongsByInteger* map = Map_OfLongsByInteger_new(alloc);
         uint32_t size;
-        randombytes((uint8_t*) &size, 4);
+        Random_bytes(rand, (uint8_t*) &size, 4);
         size = (size % 4096) + 101;
 
         uint32_t key = 3;

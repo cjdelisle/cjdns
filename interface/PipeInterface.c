@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "interface/PipeInterface.h"
 #include "wire/Error.h"
 #include "util/Errno.h"
@@ -75,7 +75,10 @@ struct PipeInterface_pvt
     struct Log* logger;
 
     /** If true, the libevent event loop should be broken when the session is established. */
-    bool isWaiting;
+    bool isWaiting : 1;
+
+    /** True if the other end has missed a ping message. */
+    bool isLagging : 1;
 
     /** location for storing the message. */
     struct {
@@ -146,7 +149,7 @@ static bool tryReestablish(struct PipeInterface_pvt* context)
     if (nextFrame) {
         uint8_t* endOfMessage = context->message.as.bytes + context->messageReceived;
         uint32_t newLength = endOfMessage - nextFrame;
-        memmove(context->message.as.bytes, nextFrame, newLength);
+        Bits_memmove(context->message.as.bytes, nextFrame, newLength);
         context->messageReceived = newLength;
         context->pub.state = PipeInterface_State_ESTABLISHED;
         Log_debug(context->logger, "Reestablished synchronization, off by [%u] bytes",
@@ -254,7 +257,9 @@ static bool handleMessage(struct PipeInterface_pvt* context)
 
     context->messageReceived = remainingLength;
     if (remainingLength) {
-        memmove(context->message.as.bytes, context->message.as.bytes + length, remainingLength);
+        Bits_memmove(context->message.as.bytes,
+                     context->message.as.bytes + length,
+                     remainingLength);
         return true;
     }
 
@@ -298,6 +303,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
     }
 
     context->timeOfLastMessage = Time_currentTimeMilliseconds(context->eventBase);
+    context->isLagging = false;
 }
 
 static void handleTimeout(void* vcontext)
@@ -313,11 +319,14 @@ static void handleTimeout(void* vcontext)
         && (context->pub.state != PipeInterface_State_INITIALIZING
             || lag > LAG_MAX_BEFORE_DISCONNECT * 2))
     {
-        Except_raise(context->pub.exceptionHandler,
-                     PipeInterface_TIMEOUT,
-                     "Ping timeout");
+        if (context->isLagging) {
+            Except_raise(context->pub.exceptionHandler,
+                         PipeInterface_TIMEOUT,
+                         "Ping timeout");
+        }
     }
     if (lag > PING_FREQUENCY_MILLISECONDS * 2) {
+        context->isLagging = true;
         sendPing(context);
     }
 }
@@ -341,7 +350,8 @@ struct PipeInterface* PipeInterface_new(int inPipe,
                                         int outPipe,
                                         struct event_base* eventBase,
                                         struct Log* logger,
-                                        struct Allocator* alloc)
+                                        struct Allocator* alloc,
+                                        struct Random* rand)
 {
     struct PipeInterface_pvt* context =
         alloc->clone(sizeof(struct PipeInterface_pvt), alloc, &(struct PipeInterface_pvt) {
@@ -371,7 +381,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
     event_add(context->pipeEvent, NULL);
     alloc->onFree(onFree, context, alloc);
 
-    randombytes((uint8_t*) &context->syncMagic, 8);
+    Random_bytes(rand, (uint8_t*) &context->syncMagic, 8);
 
     sendPing(context);
     return &context->pub;

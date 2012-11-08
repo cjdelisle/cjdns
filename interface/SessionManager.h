@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 struct SessionManager;
 

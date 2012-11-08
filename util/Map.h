@@ -16,6 +16,8 @@
 #define Map_H
 #endif // This header can be used multiple times as long as the name is different.
 
+#include "util/Bits.h"
+
 #if defined(Map_KEY_TYPE)
     Assert_compileTime(!(sizeof(Map_KEY_TYPE) % 4));
     #define Map_ENABLE_KEYS
@@ -78,7 +80,7 @@ static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEX
     uint32_t keySuffix = Map_getKeySuffix(key);
     for (uint32_t i = 0; i < map->count; i++) {
         if (map->keySuffixes[i] == keySuffix
-            && memcmp(key, &map->keys[i], sizeof(Map_KEY_TYPE)) == 0)
+            && Bits_memcmp(key, &map->keys[i], sizeof(Map_KEY_TYPE)) == 0)
         {
             return i;
         }
@@ -112,25 +114,25 @@ static inline int Map_FUNCTION(indexForHandle)(uint32_t handle, struct Map_CONTE
  */
 static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
 {
-    if (index >= 0 && index < (int) map->count) {
+    if (index >= 0 && index < (int) map->count - 1) {
         #ifdef Map_ENABLE_HANDLES
             // If we use handels then we need to keep the map sorted.
             #ifdef Map_ENABLE_KEYS
-                memmove(&map->keySuffixes[index],
-                        &map->keySuffixes[index + 1],
-                        (map->count - index) * sizeof(uint32_t));
+                Bits_memmove(&map->keySuffixes[index],
+                             &map->keySuffixes[index + 1],
+                             (map->count - index) * sizeof(uint32_t));
 
-                memmove(&map->keys[index],
-                        &map->keys[index + 1],
-                        (map->count - index) * sizeof(Map_KEY_TYPE));
+                Bits_memmove(&map->keys[index],
+                             &map->keys[index + 1],
+                             (map->count - index) * sizeof(Map_KEY_TYPE));
             #endif
-            memmove(&map->handles[index],
-                    &map->handles[index + 1],
-                    (map->count - index) * sizeof(uint32_t));
+            Bits_memmove(&map->handles[index],
+                         &map->handles[index + 1],
+                         (map->count - index) * sizeof(uint32_t));
 
-            memmove(&map->values[index],
-                    &map->values[index + 1],
-                    (map->count - index) * sizeof(Map_VALUE_TYPE));
+            Bits_memmove(&map->values[index],
+                         &map->values[index + 1],
+                         (map->count - index) * sizeof(Map_VALUE_TYPE));
 
             map->count--;
         #else
@@ -140,6 +142,9 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
             Bits_memcpyConst(&map->keys[index], &map->keys[map->count], sizeof(Map_KEY_TYPE));
             Bits_memcpyConst(&map->values[index], &map->values[map->count], sizeof(Map_VALUE_TYPE));
         #endif
+        return 0;
+    } else if (index == (int) map->count - 1) {
+        map->count--;
         return 0;
     }
     return -1;
@@ -181,7 +186,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
         map->capacity += 10;
     }
 
-    int i = 0;
+    int i = -1;
 
     #ifdef Map_ENABLE_KEYS
         i = Map_FUNCTION(indexForKey)(key, map);
@@ -193,12 +198,12 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
         #ifdef Map_ENABLE_HANDLES
             map->handles[i] = map->nextHandle++;
         #endif
+        #ifdef Map_ENABLE_KEYS
+            map->keySuffixes[i] = Map_getKeySuffix(key);
+            Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
+        #endif
     }
 
-    #ifdef Map_ENABLE_KEYS
-        map->keySuffixes[i] = Map_getKeySuffix(key);
-        Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
-    #endif
     Bits_memcpyConst(&map->values[i], value, sizeof(Map_VALUE_TYPE));
 
     return i;

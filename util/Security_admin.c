@@ -20,7 +20,8 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 
-#include <string.h>
+#define string_strlen
+#include "util/platform/libc/string.h"
 
 struct Context
 {

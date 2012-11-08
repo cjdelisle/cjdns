@@ -12,27 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Crypto_H
-#define Crypto_H
+#include "memory/Allocator.h"
+#include "util/events/EventBase.h"
+#include "util/Assert.h"
 
-#include "wire/Message.h"
+#include <event2/event.h>
 
-#include <stdint.h>
+static void freeEventBase(void* vLibEventEvBase)
+{
+    event_base_free((struct event_base*) vLibEventEvBase);
+}
 
-/**
- * Initialize the random number generator.
- * This must be called before doing anything else.
- */
-void Crypto_init();
+struct EventBase* EventBase_new(struct Allocator* alloc)
+{
+    struct event_base* libEventBase = event_base_new();
+    Assert_true(libEventBase);
+    alloc->onFree(freeEventBase, libEventBase, alloc);
+    return (struct EventBase*) libEventBase;
+}
 
-void randombytes(unsigned char* buffer, unsigned long long size); // CHECKFILES_IGNORE
-
-/**
- * Get random Base32 text, great for password material.
- *
- * @param output the buffer to write the output to.
- * @param length the number of bytes to write.
- */
-void Crypto_randomBase32(uint8_t* output, uint32_t length);
-
-#endif
+void EventBase_beginLoop(struct EventBase* eventBase)
+{
+    event_base_dispatch(eventBase);
+}

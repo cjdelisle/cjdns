@@ -42,7 +42,7 @@ static void lookup(Dict* args, void* vcontext, String* txid)
         struct Node* n = RouterModule_lookup(addr, ctx->routerModule);
         if (!n) {
             result = "not found";
-        } else if (memcmp(addr, n->address.ip6.bytes, 16)) {
+        } else if (Bits_memcmp(addr, n->address.ip6.bytes, 16)) {
             Address_print(resultBuff, &n->address);
         } else {
             AddrTools_printPath(resultBuff, n->address.path);

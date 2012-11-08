@@ -20,13 +20,13 @@
 #include "util/log/Log.h"
 #include "interface/Interface.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 #define Angel_MAX_CONNECTIONS 64
 #define Angel_INITIAL_CONF_BUFF_SIZE 1024
 
 void Angel_start(String* pass,
-                 evutil_socket_t tcpSocket,
+                 int tcpSocket,
                  struct Interface* coreIface,
                  struct event_base* eventBase,
                  struct Log* logger,

@@ -191,7 +191,7 @@ SET(CJDNS_MAX_PEERS 256 CACHE STRING "maximum number of peers")
 add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
 
 # make sure casts are done properly.
-add_definitions("-D Identity_CHECK")
+add_definitions("-D Identity_CHECK=1")
 
 
 
@@ -214,6 +214,7 @@ add_subdirectory(util)
 add_subdirectory(switch)
 add_subdirectory(net)
 add_subdirectory(exception)
+add_subdirectory(tunnel)
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 

@@ -29,7 +29,8 @@
 #include "memory/MallocAllocator.h"
 #include "exception/Jmp.h"
 #include "exception/Except.h"
-#include "exception/AbortHandler.h"
+#include "util/events/EventBase.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Errno.h"
@@ -41,8 +42,8 @@
 #include "wire/Message.h"
 
 #include <unistd.h>
-#include <event2/event.h>
 #include <stdint.h>
+#include <event2/event.h>
 
 #ifdef BSD
     #include <netinet/in.h>
@@ -140,7 +141,7 @@ static String* bindListener(String* bindAddr,
 {
     struct sockaddr_storage addr;
     int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
+    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
     if (evutil_parse_sockaddr_port(bindAddr->bytes, (struct sockaddr*) &addr, &addrLen)) {
         Except_raise(eh, -1, "Unable to parse [%s] as an ip address and port, "
                              "eg: 127.0.0.1:11234", bindAddr->bytes);
@@ -254,7 +255,7 @@ static void setUser(char* user, struct Log* logger, struct Except* eh)
  */
 int AngelInit_main(int argc, char** argv)
 {
-    struct Except* eh = AbortHandler_INSTANCE;
+    struct Except* eh = NULL;
 
     int inFromClientNo;
     int outToClientNo;
@@ -266,7 +267,8 @@ int AngelInit_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct event_base* eventBase = event_base_new();
+    struct EventBase* eventBase = EventBase_new(alloc);
+    struct Random* rand = Random_new(alloc, eh);
 
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
@@ -316,7 +318,8 @@ int AngelInit_main(int argc, char** argv)
     }
 
     Log_debug(logger, "Sending pre-configuration to core.");
-    struct PipeInterface* pif = PipeInterface_new(fromCore, toCore, eventBase, logger, alloc);
+    struct PipeInterface* pif =
+        PipeInterface_new(fromCore, toCore, eventBase, logger, alloc, rand);
     struct Interface* coreIface = &pif->generic;
     PipeInterface_waitUntilReady(pif);
 

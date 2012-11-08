@@ -18,6 +18,7 @@
 #include "interface/Interface.h"
 #include "interface/PipeInterface.h"
 #include "interface/Interface.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Errno.h"
 #include "util/log/Log.h"
@@ -27,7 +28,6 @@
 #include "wire/Error.h"
 
 #include <event2/event.h>
-
 #include <unistd.h>
 
 struct AngelContext;
@@ -56,7 +56,7 @@ static void handleMessageForAngel(struct Message* message, struct AngelContext* 
     Log_debug(context->logger, "Got message for angel with content [%s]", message->bytes);
     char* angelExit = "d1:q10:Angel_exite";
     if (message->length == strlen(angelExit)
-        && !memcmp((char*)message->bytes, angelExit, message->length))
+        && !Bits_memcmp((char*)message->bytes, angelExit, message->length))
     {
         Log_info(context->logger, "Got request to exit");
         exit(0);
@@ -232,7 +232,7 @@ void Angel_start(String* pass,
 {
     struct AngelContext contextStore;
     struct AngelContext* context = &contextStore;
-    memset(context, 0, sizeof(struct AngelContext));
+    Bits_memset(context, 0, sizeof(struct AngelContext));
 
     for (int i = 0; i < Angel_MAX_CONNECTIONS; i++) {
         context->connections[i].socket = -1;

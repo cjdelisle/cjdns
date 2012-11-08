@@ -16,14 +16,15 @@
 #define CryptoAuth_H
 
 #include "benc/Object.h"
+#include "crypto/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
 #include "util/log/Log.h"
+#include "util/events/EventBase.h"
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <event2/event.h>
 
 #define CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS 60
 
@@ -92,12 +93,14 @@ void* CryptoAuth_getUser(struct Interface* iface);
  * @param eventBase the libevent context for handling timeouts.
  * @param logger the mechanism for logging output from the CryptoAuth.
  *               if NULL then no logging will be done.
+ * @param rand random number generator.
  * @return a new CryptoAuth context.
  */
 struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
                                   struct event_base* eventBase,
-                                  struct Log* logger);
+                                  struct Log* logger,
+                                  struct Random* rand);
 
 /**
  * Wrap an interface with crypto authentication.

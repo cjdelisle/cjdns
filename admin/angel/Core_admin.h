@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "admin/Admin.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 #include <stdint.h>
 
 void Core_admin_register(uint8_t ipAddr[16],

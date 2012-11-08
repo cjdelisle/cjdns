@@ -27,13 +27,14 @@ target_link_libraries(cjdns-angel
     cjdbenc
     cjdbenc_StandardBencSerializer
     cjdmemory
-    ${LIBEVENT2_LIBRARIES}
+    cjdns-util-events-libevent
     cjdns-security
     cjdns-process
     cjdns-interface-waiter
     cjdns-waiter
     util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
+    cjdns-crypto-random
 )
 
 add_library(cjdns-core
@@ -52,11 +53,13 @@ target_link_libraries(cjdns-core
     cjdmemory
     cjdns-admin
     cjdnet
-    ${LIBEVENT2_LIBRARIES}
+    cjdns-util-events-libevent
     cjdns-interface-waiter
     cjdns-util-log-writer
     cjdns-admin-logger
     cjdns-util-log-indirect
+    cjdns-tunnel-iptunnel
+    cjdns-crypto-random
 )
 
 add_executable(cjdns
@@ -73,11 +76,13 @@ target_link_libraries(cjdroute2
     cjdns-admin-client
     crypto
     cjdns-crypto-bench
+    cjdns-util-events-libevent
     cjdbenc_StandardBencSerializer
     cjdbenc_JsonBencSerializer
     cjdns-process
     cjdns-waiter
     cjdns-util-log-writer
+    cjdns-crypto-random
 )
 
 

@@ -18,7 +18,7 @@
 #include "util/Endian.h"
 #include "util/Errno.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <event2/event.h>
 #include <net/if.h>
 #include <fcntl.h>

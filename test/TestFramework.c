@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
@@ -23,6 +24,7 @@
 #include "switch/SwitchCore.h"
 #include "test/TestFramework.h"
 #include "util/log/WriterLog.h"
+#include "util/events/EventBase.h"
 
 struct Ducttape* TestFramework_setUp()
 {
@@ -31,10 +33,10 @@ struct Ducttape* TestFramework_setUp()
         "\x3f\x5b\x96\x62\x11\x11\xd8\x9c\x7d\x3f\x51\x71\x68\x78\xfa\xb4"
         "\xc3\xcf\xd9\x7e\x32\x04\x12\xb4\xaf\x7e\x22\x92\xa5\xdf\x31\x71";
 
-    struct event_base* base = event_base_new();
-
     // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Random* rand = Random_new(allocator, NULL);
+    struct EventBase* base = EventBase_new(allocator);
 
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
@@ -46,10 +48,12 @@ struct Ducttape* TestFramework_setUp()
     ReplyModule_register(registry, allocator);
 
     struct RouterModule* routerModule =
-        RouterModule_register(registry, allocator, publicKey, base, logger, NULL);
+        RouterModule_register(registry, allocator, publicKey, base, logger, NULL, rand);
 
     SerializationModule_register(registry, logger, allocator);
 
+    struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand);
+
     return Ducttape_register(privateKey, registry, routerModule,
-                             switchCore, base, allocator, logger, NULL);
+                             switchCore, base, allocator, logger, NULL, ipTun, rand);
 }

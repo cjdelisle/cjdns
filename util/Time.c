@@ -12,29 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AbortHandler_H
-#define AbortHandler_H
+#ifndef Time_H
+#define Time_H
 
-#include "exception/ExceptionHandler.h"
+#include "util/events/EventBase.h"
 
-#include <stdio.h>
+#include <sys/time.h>
+#include <event2/event.h>
 
-/** Internal callback, please use AbortHandler_INSTANCE instead. */
-static void AbortHandler_callback(char* message, int code, struct ExceptionHandler* handler)
-    Gcc_NORETURN;
-static void AbortHandler_callback(char* message, int code, struct ExceptionHandler* handler)
+uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
 {
-    fprintf(stderr, "Error: %s (code: %d)\n", message, code);
-    abort();
+    struct timeval now;
+    event_base_gettimeofday_cached(eventBase, &now);
+    return (((uint64_t) now.tv_sec) * 1024) + (now.tv_usec / 1024);
 }
 
-/**
- * The exception handler.
- * Prints the message to stderr and aborts the program.
- */
-static struct ExceptionHandler* AbortHandler_INSTANCE = &(struct ExceptionHandler)
+uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
 {
-    .exception = AbortHandler_callback
-};
+    struct timeval now;
+    event_base_gettimeofday_cached(eventBase, &now);
+    return (uint64_t) now.tv_sec;
+}
 
 #endif

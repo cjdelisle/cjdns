@@ -15,7 +15,7 @@
 #ifndef Jmp_H
 #define Jmp_H
 
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include <setjmp.h>
 
 /**
@@ -35,7 +35,7 @@
 
 struct Jmp {
     /** The exception handler which will trigger the entry into the catch block. */
-    struct ExceptionHandler handler;
+    struct Except handler;
 
     /** The exception message if in the catch block, otherwise undefined. */
     char* message;
@@ -49,7 +49,7 @@ struct Jmp {
 
 /** Internal callback, this should not be called directly. */
 Gcc_NORETURN
-static void Jmp_callback(char* message, int code, struct ExceptionHandler* handler)
+static void Jmp_callback(char* message, int code, struct Except* handler)
 {
     struct Jmp* jmp = (struct Jmp*) handler;
     jmp->message = message;

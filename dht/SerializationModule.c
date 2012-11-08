@@ -27,7 +27,7 @@
 #include "util/Bits.h"
 #include "util/log/Log.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 #define SERIALIZER StandardBencSerializer_get()
 

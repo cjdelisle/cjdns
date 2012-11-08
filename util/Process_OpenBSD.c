@@ -14,12 +14,12 @@
  */
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Process.h"
 #include "util/Bits.h"
 extern const char* __progname;
 
 #include <stdint.h>
-#include <string.h>
 #include <unistd.h>
 #include <sys/param.h> // MAXPATHLEN
 

@@ -14,6 +14,7 @@ cmake_minimum_required(VERSION 2.4)
 
 add_subdirectory(log)
 add_subdirectory(version)
+add_subdirectory(events)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
@@ -27,6 +28,7 @@ endif()
 add_library(cjdns-security
     ${sec}
 )
+
 target_link_libraries(cjdns-security
     cjdns-except
 )
@@ -43,6 +45,7 @@ add_library(util
     Pipe.c
     Security_admin.c
     Timeout.c
+    Time.c
 )
 target_link_libraries(util
     cjdmemory
@@ -54,3 +57,4 @@ target_link_libraries(util
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)
+

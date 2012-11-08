@@ -12,9 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
-#include <stdio.h>
-
+#define string_strcmp
+#include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "io/Reader.h"
@@ -24,6 +23,8 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+
+#include <stdio.h>
 
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {

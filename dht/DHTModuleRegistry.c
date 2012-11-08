@@ -23,7 +23,7 @@
 #include "benc/serialization/standard/StandardBencSerializer.h"
 
 #include "util/Assert.h"
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */

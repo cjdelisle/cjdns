@@ -18,7 +18,7 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 void CryptoAuth_benchmark(struct event_base* base,
                           struct Log* logger,

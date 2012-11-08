@@ -12,11 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strncpy
+#define string_strlen
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape_pvt.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
+#include "util/platform/libc/string.h"
 
 #include "test/TestFramework.h"
 

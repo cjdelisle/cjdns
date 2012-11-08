@@ -16,16 +16,17 @@
 #define Admin_H
 
 #include "benc/Dict.h"
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/UniqueName.h"
 
 #ifdef FreeBSD
     #include <netinet/in.h>
 #endif
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 #include <stdbool.h>
 
 #define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)
@@ -73,6 +74,6 @@ int Admin_sendMessageToAngel(Dict* message, struct Admin* admin);
 struct Admin* Admin_new(struct Interface* toAngelInterface,
                         struct Allocator* alloc,
                         struct Log* logger,
-                        struct event_base* eventBase,
+                        struct EventBase* eventBase,
                         String* password);
 #endif

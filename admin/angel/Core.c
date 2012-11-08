@@ -23,11 +23,10 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
-#include "exception/AbortHandler.h"
 #include "interface/UDPInterface_admin.h"
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
@@ -44,6 +43,9 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "tunnel/IpTunnel.h"
+#include "tunnel/IpTunnel_admin.h"
+#include "util/events/EventBase.h"
 #include "util/log/WriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
@@ -121,7 +123,7 @@ static void adminExit(Dict* input, void* vcontext, String* txid)
 }
 
 static Dict* getInitialConfig(struct Interface* iface,
-                              struct event_base* eventBase,
+                              struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Except* eh)
 {
@@ -169,10 +171,7 @@ void Core_initTunnel(String* desiredDeviceName,
  */
 int Core_main(int argc, char** argv)
 {
-    uint8_t syncMagic[8];
-    randombytes(syncMagic, 8);
-
-    struct Except* eh = AbortHandler_INSTANCE;
+    struct Except* eh = NULL;
     int toAngel;
     int fromAngel;
     if (argc != 4
@@ -183,7 +182,8 @@ int Core_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct event_base* eventBase = event_base_new();
+    struct EventBase* eventBase = EventBase_new(alloc);
+    struct Random* rand = Random_new(alloc, eh);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
@@ -193,7 +193,8 @@ int Core_main(int argc, char** argv)
     struct Log* logger = &indirectLogger->pub;
 
     // The first read inside of getInitialConfig() will begin it waiting.
-    struct PipeInterface* pi = PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc);
+    struct PipeInterface* pi =
+        PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc, rand);
 
     Dict* config = getInitialConfig(&pi->generic, eventBase, alloc, eh);
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
@@ -217,7 +218,7 @@ int Core_main(int argc, char** argv)
 
     // --------------------- Setup the Logger --------------------- //
     // the prelogger will nolonger be used.
-    struct Log* adminLogger = AdminLog_registerNew(admin, alloc);
+    struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
     indirectLogger->wrappedLog = adminLogger;
     logger = adminLogger;
 
@@ -225,7 +226,7 @@ int Core_main(int argc, char** argv)
     // CryptoAuth
     struct Address addr;
     parsePrivateKey(privateKey, &addr, eh);
-    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger);
+    struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
@@ -237,9 +238,12 @@ int Core_main(int argc, char** argv)
                                                         addr.key,
                                                         eventBase,
                                                         logger,
-                                                        admin);
+                                                        admin,
+                                                        rand);
 
     SerializationModule_register(registry, logger, alloc);
+
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
@@ -248,7 +252,9 @@ int Core_main(int argc, char** argv)
                                             eventBase,
                                             alloc,
                                             logger,
-                                            admin);
+                                            admin,
+                                            ipTun,
+                                            rand);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);
@@ -272,6 +278,7 @@ int Core_main(int argc, char** argv)
     Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
+    IpTunnel_admin_register(ipTun, admin, alloc);
 
     struct MemoryContext* mc =
         alloc->clone(sizeof(struct MemoryContext), alloc,
@@ -281,6 +288,6 @@ int Core_main(int argc, char** argv)
             });
     Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
 
-    event_base_dispatch(eventBase);
+    EventBase_beginLoop(eventBase);
     return 0;
 }

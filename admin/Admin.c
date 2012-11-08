@@ -19,9 +19,8 @@
 #include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "crypto/Crypto.h"
 #include "dht/CJDHTConstants.h"
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include "interface/Interface.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
@@ -37,11 +36,14 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 
+#define string_strstr
+#define string_strcmp
+#define string_strlen
+#include "util/platform/libc/string.h"
 
 #include <crypto_hash_sha256.h>
 #include <event2/event.h>
 #include <limits.h>
-#include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
 
@@ -257,7 +259,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
 
     crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
     Hex_encode(hashPtr, 64, hash, 32);
-    return memcmp(hashPtr, submittedHash->bytes, 64) == 0;
+    return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
 }
 
 static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Admin* admin)

@@ -13,7 +13,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/ReplayProtector.h"
-#include "crypto/Crypto.h"
+#include "crypto/Random.h"
+#include "memory/BufferAllocator.h"
 
 #include "util/Assert.h"
 #include <stdint.h>
@@ -24,7 +25,12 @@ int main()
     uint16_t out[8192];
     struct ReplayProtector rp = {0,0};
 
-    randombytes((uint8_t*)randomShorts, sizeof(randomShorts));
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 1024);
+
+    struct Random* rand = Random_new(alloc, NULL);
+
+    Random_bytes(rand, (uint8_t*)randomShorts, sizeof(randomShorts));
 
     uint32_t outIdx = 0;
     for (uint32_t i = 0; i < 1024; i++) {

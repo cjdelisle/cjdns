@@ -262,7 +262,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 static void removeInterface(void* vcontext)
 {
     struct SwitchInterface* si = (struct SwitchInterface*) vcontext;
-    memset(si, 0, sizeof(struct SwitchInterface));
+    Bits_memset(si, 0, sizeof(struct SwitchInterface));
 }
 
 void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)

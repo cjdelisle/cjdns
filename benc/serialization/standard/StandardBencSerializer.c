@@ -13,16 +13,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdio.h>
-#include <string.h>
 /* for parseint64_t */
 #include <limits.h>
 
+#include "util/Bits.h"
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "util/Errno.h"
+#define string_strlen
+#include "util/platform/libc/string.h"
 
 static int32_t parseGeneric(const struct Reader* reader,
                             const struct Allocator* allocator,
@@ -40,7 +42,7 @@ static int32_t writeint64_t(const struct Writer* writer,
                             int64_t integer)
 {
     char buffer[32];
-    memset(buffer, 0, 32);
+    Bits_memset(buffer, 0, 32);
 
     sprintf(buffer, "%" PRId64, integer);
 
@@ -184,10 +186,12 @@ static int32_t serializeList(const struct Writer* writer,
                              const List* list)
 {
     int ret = writer->write("l", 1, writer);
-    const struct List_Item* entry = *list;
-    while (ret == 0 && entry != NULL) {
-        ret = serializeGeneric(writer, entry->elem);
-        entry = entry->next;
+    if (list) {
+        const struct List_Item* entry = *list;
+        while (ret == 0 && entry != NULL) {
+            ret = serializeGeneric(writer, entry->elem);
+            entry = entry->next;
+        }
     }
     if (ret == 0) {
         ret = writer->write("e", 1, writer);

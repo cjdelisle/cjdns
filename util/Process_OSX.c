@@ -14,13 +14,13 @@
  */
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/strlen.h"
 #include "util/Process.h"
 #include "util/Bits.h"
 
 #include <mach-o/dyld.h> // _NSGetExecutablePath()
 #include <sys/param.h> // MAXPATHLEN
 #include <stdint.h>
-#include <string.h>
 #include <unistd.h>
 
 int Process_spawn(char* binaryPath, char** args)

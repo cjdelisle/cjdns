@@ -583,9 +583,4 @@ static inline char* Errno_getString()
     return Errno_strerror(Errno_get());
 }
 
-// string.h gets mad if it can't define strerror but this
-// will make it pretty much impossible to call.
-#undef strerror
-#define strerror Assert_compileTime // CHECKFILES_IGNORE
-
 #endif

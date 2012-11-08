@@ -12,20 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strncmp
+#define string_strlen
+#include "crypto/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
+#include "util/platform/libc/string.h"
+#include "util/events/EventBase.h"
+#include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
 #include "util/log/WriterLog.h"
 #include "wire/Error.h"
 
-#include "util/Assert.h"
 #include <stdio.h>
-#include <event2/event.h>
 
 static uint8_t* privateKey = (uint8_t*)
     "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
@@ -49,7 +54,7 @@ static struct Message msg;
 static uint8_t* textBuff;
 #define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
 #define MK_MSG(x) \
-    memset(textBuff, 0, BUFFER_SIZE);                                           \
+    Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
     Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
     msg.length = strlen(x);                                                     \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
@@ -107,10 +112,11 @@ int init(const uint8_t* privateKey,
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
+    struct Random* rand = Random_new(allocator, NULL);
 
-    struct event_base* base = event_base_new();
+    struct EventBase* base = EventBase_new(allocator);
 
-    ca1 = CryptoAuth_new(allocator, NULL, base, logger);
+    ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
     if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
@@ -120,7 +126,7 @@ int init(const uint8_t* privateKey,
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(allocator, privateKey, base, logger);
+    ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
     if (password) {
         String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
         CryptoAuth_setAuth(&passStr, 1, cif1);

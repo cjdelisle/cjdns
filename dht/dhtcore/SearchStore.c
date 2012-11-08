@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"

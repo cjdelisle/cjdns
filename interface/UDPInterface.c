@@ -12,8 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
@@ -73,7 +72,7 @@ static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
                                   struct UDPInterface* udpif)
 {
     if (EFFECTIVE_KEY_SIZE < sizeof(struct sockaddr_in)) {
-        memset(sockaddr, 0, sizeof(struct sockaddr_in));
+        Bits_memset(sockaddr, 0, sizeof(struct sockaddr_in));
     }
     Bits_memcpyConst(sockaddr, key, EFFECTIVE_KEY_SIZE);
 }
@@ -83,7 +82,7 @@ static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
                                   struct UDPInterface* udpif)
 {
     if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
-        memset(key, 0, InterfaceController_KEY_SIZE);
+        Bits_memset(key, 0, InterfaceController_KEY_SIZE);
     }
     Bits_memcpyConst(key, sockaddr, EFFECTIVE_KEY_SIZE);
 }
@@ -140,7 +139,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_storage addrStore;
-    memset(&addrStore, 0, sizeof(struct sockaddr_storage));
+    Bits_memset(&addrStore, 0, sizeof(struct sockaddr_storage));
     ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
@@ -172,7 +171,7 @@ int UDPInterface_beginConnection(const char* address,
 {
     struct sockaddr_storage addr;
     ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, addrLen);
+    Bits_memset(&addr, 0, addrLen);
     if (evutil_parse_sockaddr_port(address, (struct sockaddr*) &addr, (int*) &addrLen)) {
         return UDPInterface_beginConnection_BAD_ADDRESS;
     }
@@ -201,7 +200,7 @@ int UDPInterface_beginConnection(const char* address,
 struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
-                                      struct ExceptionHandler* exHandler,
+                                      struct Except* exHandler,
                                       struct Log* logger,
                                       struct InterfaceController* ic)
 {
@@ -224,8 +223,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                             (struct sockaddr*) &addr,
                                             (int*) &context->addrLen))
         {
-            exHandler->exception("failed to parse address",
-                                 UDPInterface_new_PARSE_ADDRESS_FAILED, exHandler);
+            Except_raise(exHandler, UDPInterface_new_PARSE_ADDRESS_FAILED,
+                         "failed to parse address");
         }
         addrFam = addr.ss_family;
 
@@ -233,9 +232,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         // Expanding the key size just for IPv6 doesn't make a lot of sense
         // when ethernet, 802.11 and ipv4 are ok with a shorter key size
         if (addr.ss_family != AF_INET || context->addrLen != sizeof(struct sockaddr_in)) {
-            exHandler->exception("only IPv4 is supported",
-                                 UDPInterface_new_PROTOCOL_NOT_SUPPORTED,
-                                 exHandler);
+            Except_raise(exHandler, UDPInterface_new_PROTOCOL_NOT_SUPPORTED,
+                         "only IPv4 is supported");
         }
 
     } else {
@@ -245,14 +243,12 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     context->socket = socket(addrFam, SOCK_DGRAM, 0);
     if (context->socket == -1) {
-        exHandler->exception("call to socket() failed.",
-                             UDPInterface_new_SOCKET_FAILED, exHandler);
+        Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to socket() failed.");
     }
 
     if (bindAddr != NULL) {
         if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
-            exHandler->exception("call to bind() failed.",
-                                 UDPInterface_new_BIND_FAILED, exHandler);
+            Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to bind() failed.");
         }
     }
 
@@ -262,8 +258,8 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);
 
     if (!context->incomingMessageEvent || event_add(context->incomingMessageEvent, NULL)) {
-        exHandler->exception("failed to create UDPInterface event",
-                             UDPInterface_new_FAILED_CREATING_EVENT, exHandler);
+        Except_raise(exHandler, UDPInterface_new_FAILED_CREATING_EVENT,
+                     "failed to create UDPInterface event");
     }
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);

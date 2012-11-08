@@ -16,7 +16,7 @@
 #define ArrayWriter_H
 
 #include "Writer.h"
-#include <memory/Allocator.h>
+#include "memory/Allocator.h"
 
 /**
  * Create a new Writer which writes to a user supplied buffer.

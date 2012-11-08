@@ -19,16 +19,7 @@
 #include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-
-#ifdef FreeBSD
-#include <netinet/in.h>
-#endif
-
-#ifdef OpenBSD
-#include <netinet/in.h>
-#endif
-
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 enum AdminClient_Error
 {
@@ -88,10 +79,10 @@ struct AdminClient_Result* AdminClient_rpcCall(String* function,
                                                struct Allocator* requestAlloc);
 
 
-struct AdminClient* AdminClient_new(struct sockaddr_storage* addr,
+struct AdminClient* AdminClient_new(uint8_t* sockAddr,
                                     int addrLen,
                                     String* adminPassword,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
                                     struct Log* logger,
                                     struct Allocator* alloc);
 

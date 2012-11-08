@@ -12,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ExceptionHandler_H
-#define ExceptionHandler_H
+#ifndef strlen_H
+#define strlen_H
 
-#include "exception/Except.h"
-
-#define ExceptionHandler Except
+#define strlen(a) __builtin_strlen(a)
 
 #endif
