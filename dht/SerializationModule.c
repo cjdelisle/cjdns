@@ -90,8 +90,6 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    struct SerializationModule_context* context = vcontext;
-
     message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
 
     struct Reader* reader =
@@ -99,7 +97,10 @@ static int handleIncoming(struct DHTMessage* message,
 
     int ret = SERIALIZER->parseDictionary(reader, message->allocator, message->asDict);
     if (ret != 0) {
-        Log_info(context->logger, "Failed to parse message [%d]", ret);
+        #ifdef Log_INFO
+            struct SerializationModule_context* context = vcontext;
+            Log_info(context->logger, "Failed to parse message [%d]", ret);
+        #endif
         return -2;
     }
 

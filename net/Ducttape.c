@@ -344,6 +344,29 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct Headers_SwitchHeader* destinationSwitchHeader,
                                    struct Ducttape_pvt* context)
 {
+    // Tag the message with the proper handle.
+    struct SessionManager_Session* session = context->session;
+    if (session->version > 0) {
+        // If the session is established, we send their handle for the session,
+        // otherwise we send ours.
+        int state = CryptoAuth_getState(&session->iface);
+        if (state >= CryptoAuth_HANDSHAKE3) {
+            debugHandles(context->logger, session, "Sending run message");
+
+            Message_shift(message, 4);
+            ((uint32_t*)message->bytes)[0] = session->sendHandle_be;
+        } else if (state < CryptoAuth_HANDSHAKE3) {
+            debugHandles(context->logger, session, "Sending start message");
+
+            // the most significant bit in a handle is reserved to tell the recipient if it is
+            // an initiation handle or a running handle which they should look up in their map.
+            Message_shift(message, 4);
+            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
+        }
+    } else {
+        debugHandles(context->logger, session, "Sending protocol 0 message");
+    }
+
     Message_shift(message, Headers_SwitchHeader_SIZE);
     struct Headers_SwitchHeader* switchHeaderLocation =
         (struct Headers_SwitchHeader*) message->bytes;
@@ -446,16 +469,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
     //
     // The CryptoAuth may send a 120 byte CA header and it might only send a 4 byte
     // nonce and 16 byte authenticator depending on it's state.
-    if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
-        // shift, copy, shift because shifting asserts that there is enough buffer space.
-        Message_shift(message, Headers_CryptoAuth_SIZE);
-        Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
-        Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE));
-    } else {
-        Message_shift(message, 20);
-        Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
-        Message_shift(message, -(20 + Headers_IP6Header_SIZE));
-    }
+    // NOTE: We can't check it's state now, we have to assume it will use the 120 byte
+    //       header because we might be in a currently established session which has
+    //       timed out and will be in state HANDSHALE1 after we call sendMessage().
+
+    // shift, copy, shift because shifting asserts that there is enough buffer space.
+    Message_shift(message, Headers_CryptoAuth_SIZE);
+    Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
+    Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE));
     // The message is now aligned on the content.
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
@@ -616,10 +637,36 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
  */
 static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pvt* context)
 {
-    // incomingFromTun checks the state of the CA session and puts the IP6 header in the
-    // right place so that it will be right behind the cryptoauth header.
+    // incomingFromTun puts the IP6 header Headers_CryptoAuth_SIZE bytes behind
+    // the beginning of the data, depending on the state of the CA, it might need to be moved.
 
-    Message_shift(message, Headers_IP6Header_SIZE);
+    if (CryptoAuth_getState(&context->session->iface) >= CryptoAuth_HANDSHAKE3) {
+        //     [ ip6 ][        CA header  [  actual CA header ][ content.....
+        //                                ^-- you are here
+        // actual CA header == 20
+
+        uint8_t* beginningOfCaHeader = message->bytes;
+
+        Message_shift(message, Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE - 20);
+
+        //     [ ip6 ][        CA header  [  actual CA header ][ content.....
+        //     ^-- moved
+
+        Bits_memcpyConst(beginningOfCaHeader - Headers_IP6Header_SIZE,
+                         message->bytes,
+                         Headers_IP6Header_SIZE);
+
+        //                         [ ip6 ][  actual CA header ][ content.....
+        //     ^-- still here but ip6 header moved
+
+        Message_shift(message, -(Headers_CryptoAuth_SIZE - 20));
+
+        //                         [ ip6 ][  actual CA header ][ content.....
+        //                         ^-- you are here
+    } else {
+        Message_shift(message, Headers_IP6Header_SIZE);
+    }
+
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
@@ -696,29 +743,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     enum Ducttape_SessionLayer layer = context->layer;
     context->layer = Ducttape_SessionLayer_INVALID;
 
-    // Tag the message with the proper handle.
-    struct SessionManager_Session* session = context->session;
     if (layer == Ducttape_SessionLayer_OUTER) {
-        if (session->version > 0) {
-            // If the session is established, we send their handle for the session,
-            // otherwise we send ours.
-            int state = CryptoAuth_getState(&session->iface);
-            if (state >= CryptoAuth_HANDSHAKE3) {
-                debugHandles(context->logger, session, "Sending run message");
-
-                Message_shift(message, 4);
-                ((uint32_t*)message->bytes)[0] = session->sendHandle_be;
-            } else if (state < CryptoAuth_HANDSHAKE3) {
-                debugHandles(context->logger, session, "Sending start message");
-
-                // the most significant bit in a handle is reserved to tell the recipient if it is
-                // an initiation handle or a running handle which they should look up in their map.
-                Message_shift(message, 4);
-                ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
-            }
-        } else {
-            debugHandles(context->logger, session, "Sending protocol 0 message");
-        }
         return sendToSwitch(message, context->switchHeader, context);
     } else {
         Log_debug(context->logger, "Sending layer3 message");
@@ -983,6 +1008,16 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             Log_info(context->logger, "Dropped traffic packet from unknown node. [%s]", path);
         #endif
         return 0;
+    }
+
+    if (((uint32_t*)message->bytes)[0] == 0xffffffff) {
+        // Got a message from a node that doesn't know our key, this should never happen.
+        #ifdef Log_INFO
+            uint8_t path[20];
+            AddrTools_printPath(path, Endian_bigEndianToHost64(switchHeader->label_be));
+            Log_info(context->logger, "Dropped packet from node [%s] which doesn't know our key",
+                     path);
+        #endif
     }
 
     // This is needed so that the priority and other information
