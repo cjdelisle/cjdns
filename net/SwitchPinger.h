@@ -79,17 +79,24 @@ struct SwitchPinger;
 String* SwitchPinger_resultString(enum SwitchPinger_Result result);
 
 /**
- * Send a ping message.
+ * Allocate a ping message.
  *
  * @param label the HOST ORDER label of the node to send the ping message to.
  * @param data the content of the ping to send, if NULL, an empty string will be
  *             returned in the response.
  */
-struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
-                                            String* data,
-                                            uint32_t timeoutMilliseconds,
-                                            SwitchPinger_ResponseCallback onResponse,
-                                            struct SwitchPinger* sp);
+struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
+                                               String* data,
+                                               uint32_t timeoutMilliseconds,
+                                               SwitchPinger_ResponseCallback onResponse,
+                                               struct SwitchPinger* sp);
+
+/**
+ * Send a ping message after allocating a callback structure for it.
+ *
+ * @param ping the ping to send.
+ */
+void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping);
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct event_base* eventBase,

@@ -17,20 +17,21 @@
 
 #include "util/Assert.h"
 
-#ifdef Identity_CHECK
+#ifndef Identity_MAGIC
+    #define Identity_MAGIC ((uint64_t) 0x0123456789abcdefull)
+#endif
 
-    /** This is unique to each file. */
-    static char Identity_ID;
+#ifdef Identity_CHECK
 
     /** This goes in each structure which will be checked. */
     #define Identity \
-        char* Identity_verifier;
+        uint64_t Identity_verifier;
 
     #define Identity_set(pointer) \
-        pointer->Identity_verifier = &Identity_ID
+        pointer->Identity_verifier = Identity_MAGIC
 
     #define Identity_check(pointer) \
-        Assert_always((pointer)->Identity_verifier == &Identity_ID)
+        Assert_always((pointer)->Identity_verifier == Identity_MAGIC)
 
     #define Identity_cast(pointer) \
         (pointer); Identity_check(pointer)

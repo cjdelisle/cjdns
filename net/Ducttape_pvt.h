@@ -26,9 +26,10 @@
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "net/Ducttape.h"
+#include "util/events/EventBase.h"
+#include "util/Identity.h"
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
 
 enum Ducttape_SessionLayer {
     Ducttape_SessionLayer_INVALID = 0,
@@ -44,7 +45,7 @@ enum Ducttape_SessionLayer {
  * and send the message toward the DHT core.
  */
 
-struct Ducttape_Private
+struct Ducttape_pvt
 {
     /** the public fields. */
     struct Ducttape public;
@@ -110,6 +111,8 @@ struct Ducttape_Private
 
     /** For tunneling IPv4 and ICANN IPv6 packets. */
     struct IpTunnel* ipTunnel;
+
+    Identity
 };
 
 #endif

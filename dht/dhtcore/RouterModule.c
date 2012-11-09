@@ -1179,7 +1179,7 @@ int RouterModule_pingNode(struct Node* node,
 void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {
     Address_getPrefix(address);
-    NodeStore_addNode(module->nodeStore, address, 0, version);
+    NodeStore_addNode(module->nodeStore, address, 1, version);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.path != address->path) {
         RouterModule_pingNode(best, module, 0, NULL);

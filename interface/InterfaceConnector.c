@@ -19,7 +19,10 @@
 static uint8_t transferMessage(struct Message* msg, struct Interface* iface)
 {
     struct Interface* other = (struct Interface*) iface->receiverContext;
-    return other->sendMessage(msg, other);
+    if (other->sendMessage) {
+        return other->sendMessage(msg, other);
+    }
+    return 0;
 }
 
 /**

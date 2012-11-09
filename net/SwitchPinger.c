@@ -20,6 +20,7 @@
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "util/version/Version.h"
+#include "util/Identity.h"
 #include "wire/Headers.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
@@ -47,6 +48,8 @@ struct SwitchPinger
     uint32_t incomingVersion;
 
     bool isError;
+
+    Identity
 };
 
 struct Ping
@@ -57,12 +60,14 @@ struct Ping
     struct SwitchPinger* context;
     SwitchPinger_ResponseCallback onResponse;
     void* onResponseContext;
+    struct Pinger_Ping* pingerPing;
+    Identity
 };
 
 // incoming message from network, pointing to the beginning of the switch header.
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct SwitchPinger* ctx = iface->receiverContext;
+    struct SwitchPinger* ctx = Identity_cast((struct SwitchPinger*) iface->receiverContext);
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
     ctx->incomingVersion = 0;
@@ -107,9 +112,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         ctx->isError = true;
 
     } else {
-        Assert_true(false);
+        // If it gets here then Ducttape.c is failing.
+        Assert_always(false);
     }
-
 
     String* msgStr = &(String) { .bytes = (char*) msg->bytes, .len = msg->length };
     Pinger_pongReceived(msgStr, ctx->pinger);
@@ -118,7 +123,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
 {
-    struct Ping* p = vping;
+    struct Ping* p = Identity_cast((struct Ping*) vping);
     enum SwitchPinger_Result err = SwitchPinger_Result_OK;
     uint64_t label = p->context->incomingLabel;
     if (data) {
@@ -139,7 +144,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
 
 static void sendPing(String* data, void* sendPingContext)
 {
-    struct Ping* p = (struct Ping*) sendPingContext;
+    struct Ping* p = Identity_cast((struct Ping*) sendPingContext);
     #define BUFFER_SZ 4096
     uint8_t buffer[BUFFER_SZ];
     struct Message msg = {
@@ -201,18 +206,18 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
     };
 }
 
-struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
-                                            String* data,
-                                            uint32_t timeoutMilliseconds,
-                                            SwitchPinger_ResponseCallback onResponse,
-                                            struct SwitchPinger* ctx)
+struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
+                                               String* data,
+                                               uint32_t timeoutMilliseconds,
+                                               SwitchPinger_ResponseCallback onResponse,
+                                               struct SwitchPinger* ctx)
 {
     if (data && data->len > Control_Ping_MAX_SIZE) {
         return NULL;
     }
 
     struct Pinger_Ping* pp =
-        Pinger_ping(data, onPingResponse, sendPing, timeoutMilliseconds, ctx->pinger);
+        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, ctx->pinger);
 
     if (!pp) {
         return NULL;
@@ -227,11 +232,18 @@ struct SwitchPinger_Ping* SwitchPinger_ping(uint64_t label,
             .data = String_clone(data, pp->pingAlloc),
             .context = ctx,
             .onResponse = onResponse,
+            .pingerPing = pp
         });
-
+    Identity_set(ping);
     pp->context = ping;
 
     return &ping->public;
+}
+
+void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping)
+{
+    struct Ping* p = Identity_cast((struct Ping*) ping);
+    Pinger_sendPing(p->pingerPing);
 }
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
@@ -248,5 +260,6 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
     }), sizeof(struct SwitchPinger));
     iface->receiveMessage = receiveMessage;
     iface->receiverContext = sp;
+    Identity_set(sp);
     return sp;
 }

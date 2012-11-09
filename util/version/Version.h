@@ -124,6 +124,9 @@
  * protocol0 in some circumstances. If it knows nothing about the other node and it forwards a
  * message via an intermediary, the message will be unreadable at the other end.
  *
+ * Protocol1.2
+ * Changes in protocol1.1 are reverted as a solution was found in the implementation.
+ *
  * ----------------------------------
  *
  * Version 2:

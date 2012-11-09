@@ -16,12 +16,11 @@
 #define string_strlen
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
-#include "net/Ducttape_pvt.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
 #include "util/platform/libc/string.h"
-
 #include "test/TestFramework.h"
+#include "net/Ducttape_pvt.h"
 
 #include <stdio.h>
 
@@ -34,8 +33,9 @@ uint8_t catchResponse(struct Message* msg, struct Interface* iface)
 int main()
 {
     char* pingBenc = "d1:q4:ping4:txid4:abcde";
-
-    struct Ducttape_Private* dt = (struct Ducttape_Private*) TestFramework_setUp();
+    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct TestFramework* tf = TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL);
+    struct Ducttape_pvt* dt = Identity_cast((struct Ducttape_pvt*) tf->ducttape);
 
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(pingBenc);

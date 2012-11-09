@@ -80,7 +80,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
         err = String_CONST("path was not parsable.");
     } else {
         struct SwitchPinger_Ping* ping =
-            SwitchPinger_ping(path, data, timeout, adminPingOnResponse, context->switchPinger);
+            SwitchPinger_newPing(path, data, timeout, adminPingOnResponse, context->switchPinger);
         if (!ping) {
             err = String_CONST("no open slots to store ping, try later.");
         } else {
@@ -89,6 +89,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
                     .context = context,
                     .txid = String_clone(txid, ping->pingAlloc),
                 });
+            SwitchPinger_sendPing(ping);
         }
     }
 

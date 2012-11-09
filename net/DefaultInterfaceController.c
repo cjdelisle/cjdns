@@ -93,7 +93,7 @@ struct Endpoint
      * The time of the last incoming message in milliseconds, used to clear out endpoints
      * if they are not responsive.
      */
-    uint32_t timeOfLastMessage;
+    uint64_t timeOfLastMessage;
 
     Identity
 };
@@ -190,7 +190,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
 static void pingCallback(void* vic)
 {
     struct Context* ic = vic;
-    uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
@@ -212,13 +212,15 @@ static void pingCallback(void* vic)
             }
 
             struct SwitchPinger_Ping* ping =
-                SwitchPinger_ping(ep->switchLabel,
-                                  String_CONST(""),
-                                  ic->timeoutMilliseconds,
-                                  onPingResponse,
-                                  ic->switchPinger);
+                SwitchPinger_newPing(ep->switchLabel,
+                                     String_CONST(""),
+                                     ic->timeoutMilliseconds,
+                                     onPingResponse,
+                                     ic->switchPinger);
 
             ping->onResponseContext = ep;
+
+            SwitchPinger_sendPing(ping);
         }
     }
 }
@@ -265,9 +267,17 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
-            if (msg->length < 8 || Bits_memcmp(msg->bytes, "\0\0\0\0\0\0\0\1", 8)) {
+            if (msg->length < 8 || msg->bytes[7] != 1) {
                 Log_info(ic->logger, "Dropping message because CA is not established.");
                 return Error_NONE;
+            } else {
+                // When a "server" gets a new connection from a "client" the router doesn't
+                // know about that client so if the client sends a packet to the server, the
+                // server will be unable to handle it until the client has sent inter-router
+                // communication to the server. Here we will ping the client so when the
+                // server gets the ping response, it will insert the client into it's table
+                // and know it's version.
+                pingCallback(ic);
             }
         }
     }
@@ -296,7 +306,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
     // If this node is unresponsive then return an error.
     struct Context* ic = interfaceControllerForEndpoint(ep);
-    uint32_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
     {
         msg->bytes = messageBytes;
@@ -395,15 +405,17 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
                                        struct Interface* externalInterface,
                                        struct Context* ic)
 {
-    if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
-        return NULL;
+    uint8_t ip6[16];
+    if (herPublicKey) {
+        AddressCalc_addressForPublicKey(ip6, herPublicKey);
+        if (ip6[0] != 0xfc) {
+            return NULL;
+        }
     }
 
     if (ic->endpointMap.count >= CJDNS_MAX_PEERS) {
         return NULL;
     }
-
-
 
     // This is the same no matter what endpoint.
     externalInterface->receiverContext = ic;
@@ -450,21 +462,23 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         .allocator = epAllocator
     }), sizeof(struct Interface));
 
-    struct Address addr;
-    Bits_memset(&addr, 0, sizeof(struct Address));
-    if (SwitchCore_addInterface(&ep->switchIf, 0, &addr.path, ic->switchCore)) {
+    if (SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore)) {
         return NULL;
     }
-
-    ep->switchLabel = addr.path;
 
     authedIf->receiveMessage = receivedAfterCryptoAuth;
     authedIf->receiverContext = ep;
 
+    // We want the node to immedietly be pinged but we don't want it to appear unresponsive because
+    // the pinger will only ping every (PING_INTERVAL * 8) so we set timeOfLastMessage to
+    // (now - pingAfterMilliseconds - 1) so it will be considered a "lazy node".
+    ep->timeOfLastMessage =
+        Time_currentTimeMilliseconds(ic->eventBase) - ic->pingAfterMilliseconds - 1;
+
     if (herPublicKey) {
         #ifdef Log_INFO
             uint8_t printAddr[60];
-            Address_print(printAddr, &addr);
+            AddrTools_printIp(printAddr, ip6);
             Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
         #ifdef Log_KEYS

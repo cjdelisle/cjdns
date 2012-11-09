@@ -70,8 +70,11 @@ int main()
         "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
         "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
-    struct Ducttape* dt = TestFramework_setUp();
+    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Ducttape* dt =
+        TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL)->ducttape;
 
+    // This has to be limited because we are checking for an OOM issue.
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
     uint8_t* buff = allocator->calloc(buffLen, 1, allocator);
@@ -91,4 +94,7 @@ int main()
     struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
 
     Ducttape_injectIncomingForMe(&m, dt, herPublicKey);
+
+    alloc->free(alloc);
+    allocator->free(allocator);
 }

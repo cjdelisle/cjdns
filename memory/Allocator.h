@@ -129,4 +129,25 @@ struct Allocator
     struct Allocator* (* const child)(const struct Allocator* this);
 };
 
+#define Allocator_clone(alloc, content) \
+    alloc->clone(sizeof(*content), alloc, content)
+
+#define Allocator_malloc(alloc, size) \
+    alloc->malloc(size, alloc);
+
+#define Allocator_calloc(alloc, size, count) \
+    alloc->calloc(size, count, alloc)
+
+#define Allocator_onFree(alloc, callback, context) \
+    alloc->onFree(callback, context, alloc)
+
+#define Allocator_notOnFree(alloc, job) \
+    alloc->notOnFree(job, alloc)
+
+#define Allocator_realloc(alloc, orig, size) \
+    alloc->realloc(orig, size, alloc)
+
+#define Allocator_child(alloc) \
+    alloc->child(alloc)
+
 #endif /* MEMALLOCATOR_H */

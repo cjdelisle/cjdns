@@ -15,7 +15,6 @@
 #ifndef Assert_H
 #define Assert_H
 
-#include "util/log/Log.h"
 #include "util/UniqueName.h"
 #include <stdio.h>
 #include <stdlib.h>

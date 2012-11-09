@@ -162,6 +162,8 @@ static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
             return &context->passwords[i];
         }
     }
+    Log_debug(context->logger, "Got unrecognized auth, password count = [%d]",
+              context->passwordCount);
     return NULL;
 }
 
@@ -686,6 +688,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         message->length = 0;
         wrapper->nextNonce = 0;
         wrapper->user = NULL;
+        Log_debug(wrapper->context->logger, "Got a connect-to-me message, sending a hello");
         // Send an empty response (to initiate the connection).
         encryptHandshake(message, wrapper);
         return Error_NONE;
@@ -862,9 +865,15 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                             wrapper->tempKey,
                             NULL,
                             wrapper->context->logger);
+
+            // We'll optimistically advance the nextNonce value because decryptMessage()
+            // passes the message on to the upper level and if this message causes a
+            // response, we want the CA to be in ESTABLISHED state.
+            // if the decryptMessage() call fails, we CryptoAuth_reset() it back.
+            wrapper->nextNonce += 3;
+
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 Log_debug(wrapper->context->logger, "Final handshake step succeeded.\n");
-                wrapper->nextNonce += 3;
                 Bits_memcpyConst(wrapper->secret, secret, 32);
                 return Error_NONE;
             }

@@ -31,6 +31,7 @@
 #include "switch/NumberCompress.h"
 #include "switch/SwitchCore.h"
 #include "wire/Headers.h"
+#include "test/TestFramework.h"
 
 static uint8_t messageFromInterface(struct Message* message, struct Interface* thisIf)
 {
@@ -146,42 +147,31 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Random* rand = Random_new(alloc, NULL);
-    struct event_base* eventBase = EventBase_new(alloc);
 
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logwriter, alloc);
+    struct TestFramework* tf =
+        TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
+                            "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
+                            alloc, NULL);
 
-    struct CryptoAuth* ca = CryptoAuth_new(alloc, NULL, eventBase, logger, rand);
-    uint8_t publicKey[32];
-    Bits_memcpyConst(publicKey, ca->publicKey, 32);
-    CryptoAuth_addUser(String_CONST("passwd"), 1, (void*)0x01, ca);
+    CryptoAuth_addUser(String_CONST("passwd"), 1, (void*)0x01, tf->cryptoAuth);
 
-    struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
     struct Message* message;
     struct Interface iface = {
         .sendMessage = messageFromInterface,
         .senderContext = &message,
         .allocator = alloc
     };
-    SwitchCore_setRouterInterface(&iface, switchCore);
+    SwitchCore_setRouterInterface(&iface, tf->switchCore);
 
-    // These are unused.
-    struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
-    struct RouterModule* rm =
-        RouterModule_register(registry, alloc, publicKey, eventBase, logger, NULL, rand);
-
-    struct InterfaceController* ifController =
-        DefaultInterfaceController_new(ca, switchCore, rm, logger, eventBase, NULL, alloc);
 
     ////////////////////////
 
-    return reconnectionNewEndpointTest(ifController,
-                                       publicKey,
+    return reconnectionNewEndpointTest(tf->ifController,
+                                       tf->publicKey,
                                        &message,
                                        alloc,
-                                       eventBase,
-                                       logger,
+                                       tf->eventBase,
+                                       tf->logger,
                                        &iface,
-                                       rand);
+                                       tf->rand);
 }

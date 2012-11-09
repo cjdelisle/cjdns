@@ -17,6 +17,29 @@
 
 #include "net/Ducttape.h"
 
-struct Ducttape* TestFramework_setUp();
+struct TestFramework
+{
+    struct Allocator* alloc;
+    struct Random* rand;
+    struct EventBase* eventBase;
+    struct Log* logger;
+    struct SwitchCore* switchCore;
+    struct Ducttape* ducttape;
+    struct CryptoAuth* cryptoAuth;
+    struct RouterModule* router;
+    struct SwitchPinger* switchPinger;
+    struct InterfaceController* ifController;
+    uint8_t* publicKey;
+    uint8_t* ip;
+};
+
+
+struct TestFramework* TestFramework_setUp(char* privateKey,
+                                          struct Allocator* allocator,
+                                          struct Log* logger);
+
+void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server);
+
+void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16]);
 
 #endif
