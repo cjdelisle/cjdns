@@ -953,7 +953,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // #3 try the message as a protocol version 0 message.
     #ifdef Version_0_COMPAT
         if (!session) {
-            int herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, &context->addrMap);
+            int herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, context->addrMap);
             uint8_t* herKey = NULL;
             if (herAddrIndex == -1) {
                 uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
@@ -961,13 +961,13 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 if (n) {
                     herAddrIndex = AddressMapper_put(switchHeader->label_be,
                                                      n->address.ip6.bytes,
-                                                     &context->addrMap);
+                                                     context->addrMap);
                     herKey = n->address.key;
                 }
             }
             if (herAddrIndex != -1) {
                 Log_debug(context->logger, "Handling packet from legacy protocol version 0 node.");
-                session = SessionManager_getSession(context->addrMap.entries[herAddrIndex].address,
+                session = SessionManager_getSession(context->addrMap->entries[herAddrIndex].address,
                                                     herKey,
                                                     context->sm);
                 session->version = 0;
@@ -1023,7 +1023,8 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     Identity_set(context);
 
     #ifdef Version_0_COMPAT
-        AddressMapper_init(&context->addrMap);
+        context->addrMap = Allocator_calloc(allocator, sizeof(struct AddressMapper), 1);
+        AddressMapper_init(context->addrMap);
     #endif
 
     context->ipTunnel = ipTun;

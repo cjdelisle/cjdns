@@ -17,6 +17,7 @@
 
 #include "wire/Headers.h"
 #include "util/Endian.h"
+#include "util/Assert.h"
 
 /**
  * Type one, error.

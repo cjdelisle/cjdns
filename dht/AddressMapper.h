@@ -28,6 +28,7 @@
  */
 
 #include "memory/Allocator.h"
+#include "util/Assert.h"
 #include <stdint.h>
 
 struct AddressMapper_Entry
@@ -37,6 +38,8 @@ struct AddressMapper_Entry
     struct AddressMapper_Entry* next;
     struct AddressMapper_Entry* prev;
 };
+#define AddressMapper_Entry_SIZE (16 + 8 + sizeof(char*) + sizeof(char*))
+Assert_compileTime(sizeof(struct AddressMapper_Entry) == AddressMapper_Entry_SIZE);
 
 #define AddressMapper_MAX_ENTRIES 128
 struct AddressMapper
@@ -44,6 +47,8 @@ struct AddressMapper
     struct AddressMapper_Entry entries[AddressMapper_MAX_ENTRIES];
     struct AddressMapper_Entry* head;
 };
+#define AddressMapper_SIZE ((AddressMapper_Entry_SIZE * AddressMapper_MAX_ENTRIES) + sizeof(char*))
+Assert_compileTime(sizeof(struct AddressMapper) == AddressMapper_SIZE);
 
 /**
  * Allocate a new address map with the given allocator.

@@ -71,7 +71,7 @@ struct Ducttape_pvt
     struct SessionManager* sm;
 
     #ifdef Version_0_COMPAT
-        struct AddressMapper addrMap;
+        struct AddressMapper* addrMap;
     #endif
 
     struct event_base* eventBase;

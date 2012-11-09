@@ -76,4 +76,6 @@ struct Admin* Admin_new(struct Interface* toAngelInterface,
                         struct Log* logger,
                         struct EventBase* eventBase,
                         String* password);
+#else
+#include "util/UniqueName.h"
 #endif

@@ -44,4 +44,6 @@
 // Turn off assertions when the code is more stable.
 #define Assert_true(expr) Assert_always(expr)
 
+#else
+#include "util/UniqueName.h"
 #endif
