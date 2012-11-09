@@ -122,6 +122,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
             .context = (struct CryptoAuth_pvt*) ca,
             .wrappedInterface = iface
         });
+    Identity_set(wrapper);
 
     if (authPassword) {
         struct Interface temp = {
@@ -270,6 +271,7 @@ void repeatHello()
         },
         .wrappedInterface = &iface
     };
+    Identity_set(&wrapper2);
 
     Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
 

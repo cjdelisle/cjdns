@@ -23,9 +23,9 @@
 #include "util/events/EventBase.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
+#include "util/Identity.h"
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
 
 struct CryptoAuth_Auth {
     union Headers_AuthChallenge challenge;
@@ -50,6 +50,8 @@ struct CryptoAuth_pvt
 
     struct Allocator* allocator;
     struct Random* rand;
+
+    Identity
 };
 
 /**
@@ -116,6 +118,8 @@ struct CryptoAuth_Wrapper
 
     /** The interface which this wrapper provides. */
     struct Interface externalInterface;
+
+    Identity
 };
 
 #endif

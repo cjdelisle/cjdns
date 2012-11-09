@@ -28,7 +28,7 @@
         uint32_t Identity_verifier;
 
     #define Identity_set(pointer) \
-        pointer->Identity_verifier = Identity_MAGIC
+        (pointer)->Identity_verifier = Identity_MAGIC
 
     #define Identity_check(pointer) \
         Assert_always((pointer)->Identity_verifier == Identity_MAGIC)
