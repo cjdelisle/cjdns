@@ -152,7 +152,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    if (message->length < sizeof(struct Headers_SwitchHeader)) {
+    if (message->length < Headers_SwitchHeader_SIZE) {
         Log_debug(sourceIf->core->logger, "Dropped runt packet.");
         return Error_NONE;
     }

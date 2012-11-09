@@ -55,7 +55,7 @@ static void handleMessageForAngel(struct Message* message, struct AngelContext* 
 {
     Log_debug(context->logger, "Got message for angel with content [%s]", message->bytes);
     char* angelExit = "d1:q10:Angel_exite";
-    if (message->length == strlen(angelExit)
+    if (message->length == (int32_t)strlen(angelExit)
         && !Bits_memcmp((char*)message->bytes, angelExit, message->length))
     {
         Log_info(context->logger, "Got request to exit");

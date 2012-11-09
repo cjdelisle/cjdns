@@ -388,8 +388,6 @@ static uint8_t genReverseHandshake(struct Message* message,
 
 static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
 {
-    Assert_true(message->padding >= sizeof(union Headers_CryptoAuth) || !"not enough padding");
-
     Message_shift(message, sizeof(union Headers_CryptoAuth));
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
@@ -665,7 +663,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                                 struct Message* message,
                                 union Headers_CryptoAuth* header)
 {
-    if (message->length < sizeof(union Headers_CryptoAuth)) {
+    if (message->length < Headers_CryptoAuth_SIZE) {
         Log_debug(wrapper->context->logger, "Dropped runt packet\n");
         return Error_UNDERSIZE_MESSAGE;
     }

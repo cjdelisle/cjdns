@@ -63,7 +63,7 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
           "e"
           "4:txid" "4:abcd"
         "e";
-    Assert_always(message->length == strlen(expectedResponse));
+    Assert_always(message->length == (int32_t) strlen(expectedResponse));
     Assert_always(!Bits_memcmp(message->bytes, expectedResponse, message->length));
     called = 1;
     return 0;

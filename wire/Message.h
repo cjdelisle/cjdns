@@ -25,10 +25,10 @@
 struct Message
 {
     /** The length of the message. */
-    uint16_t length;
+    int32_t length;
 
     /** The number of bytes of padding BEFORE where bytes begins. */
-    uint16_t padding;
+    int32_t padding;
 
     /** The content. */
     uint8_t* bytes;
@@ -76,16 +76,15 @@ static inline void Message_copyOver(struct Message* output,
  */
 static inline bool Message_shift(struct Message* toShift, int32_t amount)
 {
-    Assert_true(toShift->padding >= amount);
-    Assert_true((amount >= 0) ? (((int32_t)UINT16_MAX) - toShift->length >= amount)
-                              : (((int32_t)toShift->length) >= -amount));
-    Assert_true(toShift->length < 60000);
+    if (amount > 0) {
+        Assert_true(toShift->padding >= amount);
+    } else {
+        Assert_true(toShift->length >= (-amount));
+    }
 
     toShift->length += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
-
-    Assert_true(toShift->length < 60000);
 
     return true;
 }
