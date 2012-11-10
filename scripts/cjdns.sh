@@ -32,49 +32,23 @@
 CJDPATH="`dirname $0`/"
 
 # path to the cjdroute process
-CJDROUTE="${CJDPATH}cjdroute"
+CJDROUTE="${CJDPATH}cjdns/cjdroute"
 
 # path to the configuration
 CONF="${CJDPATH}cjdroute.conf"
 
 # path ot the log file.
-LOGTO="${CJDPATH}cjdroute.log"
-
-# location of pid file.
-PIDFILE="`${CJDROUTE} --pidfile < $CONF`"
+LOGTO="/dev/null"
 
 stop()
 {
-    if [ -f $PIDFILE ] && kill -0 `cat $PIDFILE` > /dev/null; then
-        kill `cat $PIDFILE`
-        rm $PIDFILE
-    fi
-}
-
-noPid()
-{
-    echo 'Can''t find pid file, please edit cjdroute.conf and make sure'
-    echo 'it is configured to save a pid file. You can get this behavior by adding:'
-    echo '    "pidFile": "/path/to/your/pid.file",'
-    echo 'to your configuration.'
-    echo 'Stopping.'
-    exit 1
+    killall cjdns;
 }
 
 start()
 {
     $CJDROUTE < $CONF 2>&1 >> $LOGTO &
-
-    sleep 1
-
-    if [ ! -f $PIDFILE ]; then
-        noPid
-    fi
 }
-
-if [ "$PIDFILE" == "" ]; then
-    noPid
-fi
 
 case "$1" in
 "start" )
@@ -91,8 +65,6 @@ case "$1" in
     ;;
 
 "check" )
-    if [ ! -f $PIDFILE ] || ! kill -0 `cat $PIDFILE` > /dev/null; then
-        start
-    fi
+    ps aux | grep -v 'grep' | grep 'cjdns core' > /dev/null 2>/dev/null || start
     ;;
 esac
