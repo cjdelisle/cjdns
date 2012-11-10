@@ -42,6 +42,7 @@ int Process_spawn(char* binaryPath, char** args)
         }
         argv[0] = binaryPath;
         // Goodbye :)
+        setsid();
         execvp(binaryPath, argv);
         _exit(72);
     }
