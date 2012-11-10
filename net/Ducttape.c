@@ -1055,6 +1055,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->routerModule = routerModule;
     context->logger = logger;
     context->forwardTo = NULL;
+    context->eventBase = eventBase;
     Identity_set(context);
 
     #ifdef Version_0_COMPAT

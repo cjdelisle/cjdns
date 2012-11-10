@@ -476,14 +476,9 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
                         wrapper->herPerminentPubKey,
                         passwordHash,
                         wrapper->context->logger);
+
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
-        #ifdef Log_DEBUG
-            Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
-            uint8_t myTempPubKey[32];
-            crypto_scalarmult_curve25519_base(myTempPubKey, wrapper->secret);
-            Assert_true(!Bits_memcmp(header->handshake.encryptedTempKey, myTempPubKey, 32));
-        #endif
     } else {
         if (wrapper->nextNonce == 2) {
             Log_debug(wrapper->context->logger, "@%p Sending key packet\n", (void*) wrapper);
