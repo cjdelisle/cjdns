@@ -223,7 +223,7 @@ int ETHInterface_beginConnection(const char* macAddress,
 struct ETHInterface* ETHInterface_new(struct event_base* base,
                                       const char* bindDevice,
                                       struct Allocator* allocator,
-                                      struct ExceptionHandler* exHandler,
+                                      struct Except* exHandler,
                                       struct Log* logger,
                                       struct InterfaceController* ic)
 {
