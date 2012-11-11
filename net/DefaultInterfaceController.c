@@ -16,6 +16,7 @@
 #include "net/DefaultInterfaceController.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
+#include "util/Base32.h"
 #include "util/Bits.h"
 #include "util/Time.h"
 #include "util/Timeout.h"
@@ -198,17 +199,18 @@ static void pingCallback(void* vic)
         struct Endpoint* ep = ic->endpointMap.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
-                uint8_t path[20];
-                AddrTools_printPath(path, ep->switchLabel);
+                  uint8_t key[32*5/4];
+                  Base32_encode(key,32*5/4,
+                          CryptoAuth_getHerPublicKey(ep->cryptoAuthIf),32);
             #endif
             if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
-                Log_debug(ic->logger, "Pinging unresponsive neighbor [%s].", path);
+                Log_debug(ic->logger, "Pinging unresponsive neighbor [%s.k].", key);
             } else {
-                Log_debug(ic->logger, "Pinging lazy neighbor [%s].", path);
+                Log_debug(ic->logger, "Pinging lazy neighbor [%s].", key);
             }
 
             struct SwitchPinger_Ping* ping =
