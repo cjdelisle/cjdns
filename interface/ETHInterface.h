@@ -15,11 +15,11 @@
 #ifndef ETHInterface_H
 #define ETHInterface_H
 
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 #include "interface/Interface.h"
 #include "net/InterfaceController.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 
 struct ETHInterface;
