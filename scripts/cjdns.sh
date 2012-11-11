@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -28,43 +28,40 @@
 # to stop it and bring it back online immedietly.
 ##
 
-# path of cjdns
-CJDPATH="`dirname $0`/"
+CJDPATH="${0##*/}"
 
-# path to the cjdroute process
-CJDROUTE="${CJDPATH}cjdns/cjdroute"
+CJDROUTE="$CJDPATH/cjdns/cjdroute"
 
-# path to the configuration
-CONF="${CJDPATH}cjdroute.conf"
+CONF="$CJDPATH/cjdroute.conf"
 
-# path ot the log file.
 LOGTO="/dev/null"
 
-stop()
-{
-    killall cjdns;
+do_start() {
+    "$CJDROUTE" <"$CONF" >>"$LOGPATH" 2>&1 &
 }
 
-start()
-{
-    $CJDROUTE < $CONF 2>&1 >> $LOGTO &
+do_stop() {
+    pkill -x cjdns
 }
 
-case "$1" in
-"start" )
-    start
-    ;;
+is_running() {
+    pgrep -x cjdns >/dev/null
+}
 
-"restart" )
-    stop
-    start
+case $1 in
+start)
+    do_start
     ;;
-
-"stop" )
-    stop
+stop)
+    do_stop
     ;;
-
-"check" )
-    ps aux | grep -v 'grep' | grep 'cjdns core' > /dev/null 2>/dev/null || start
+restart)
+    do_stop && do_start
+    ;;
+status)
+    is_running
+    ;;
+check)
+    is_running || start
     ;;
 esac
