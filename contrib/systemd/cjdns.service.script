@@ -1,0 +1,12 @@
+#!/bin/bash
+
+. /etc/conf.d/cjdns
+
+case "$1" in
+    "start" )
+        . cjdns.sh start
+        ;;
+    "stop" )
+        . cjdns.sh stop
+        ;;
+esac
