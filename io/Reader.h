@@ -17,6 +17,7 @@
 
 /* size_t */
 #include <stdlib.h>
+#include <stdint.h>
 
 /**
  * Reader interface which reads data from a source and fails safe rather than overreading.
@@ -51,5 +52,23 @@ struct Reader {
      */
     size_t (* const bytesRead)(const struct Reader* thisReader);
 };
+
+
+#define Reader_readGeneric(bytes) \
+    static inline uint##bytes##_t Reader_read##bytes (struct Reader* reader) \
+    {                                                                        \
+        uint##bytes##_t num;                                                 \
+        reader->read(&num, bytes, reader);                                   \
+        return num;                                                          \
+    }
+
+Reader_readGeneric(8)
+Reader_readGeneric(16)
+Reader_readGeneric(32)
+Reader_readGeneric(64)
+
+
+#define Reader_read(reader, readInto, bytes) \
+    reader->read(readInto, bytes, reader)
 
 #endif

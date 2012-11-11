@@ -43,4 +43,19 @@ struct Writer {
     uint64_t (* const bytesWritten)(const struct Writer* writer);
 };
 
+#define Writer_writeGeneric(bytes) \
+    static inline int Writer_write##bytes (struct Writer* writer, uint##bytes##_t number) \
+    {                                                                                     \
+        uint##bytes##_t num = number;                                                     \
+        return writer->write(&num, bytes, writer);                                        \
+    }
+
+Writer_writeGeneric(8)
+Writer_writeGeneric(16)
+Writer_writeGeneric(32)
+Writer_writeGeneric(64)
+
+#define Writer_write(writer, bytes, amount) \
+    writer->write(bytes, amount, writer);
+
 #endif
