@@ -24,6 +24,9 @@
 # Stop cjdns if it's currently running (and set the above cronjob not to restart failed processes):
 #  ./cjdns.sh stop
 #
+# Check whether cjdns is currently running:
+#  ./cjdns.sh status
+#
 # Restart cjdns after upgrades and changes to the config:
 #  ./cjdns.sh restart
 ##
@@ -57,6 +60,18 @@ start()
     if [ $? -gt 0 ]; then return 1; fi
 }
 
+status()
+{
+    echo -n "* cjdns is "
+    if [ -z "$PID" ]; then
+        echo "not running"
+        exit 1
+    else
+        echo "running"
+        exit 0
+    fi
+}
+
 case "$1" in
     "start" )
         start
@@ -67,6 +82,9 @@ case "$1" in
         ;;
     "stop" )
         stop
+        ;;
+    "status" )
+        status
         ;;
     "check" )
         ps aux | grep -v 'grep' | grep 'cjdns core' > /dev/null 2>/dev/null || start
