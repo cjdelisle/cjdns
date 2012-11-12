@@ -58,7 +58,7 @@ struct Reader {
     static inline uint##bytes##_t Reader_read##bytes (struct Reader* reader) \
     {                                                                        \
         uint##bytes##_t num;                                                 \
-        reader->read(&num, bytes, reader);                                   \
+        reader->read(&num, bytes/8, reader);                                 \
         return num;                                                          \
     }
 

@@ -56,7 +56,7 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
         (struct ArrayReader_context*) reader->context;
 
     /* Prove that it doesn't run off the end of the buffer or roll over. */
-    if (context->pointer + length >= context->endPointer
+    if (context->pointer + length > context->endPointer
         || context->pointer + length < context->pointer)
     {
         return -1;

@@ -47,7 +47,7 @@ struct Writer {
     static inline int Writer_write##bytes (struct Writer* writer, uint##bytes##_t number) \
     {                                                                                     \
         uint##bytes##_t num = number;                                                     \
-        return writer->write(&num, bytes, writer);                                        \
+        return writer->write(&num, bytes/8, writer);                                      \
     }
 
 Writer_writeGeneric(8)
