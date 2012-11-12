@@ -21,6 +21,7 @@
 #include "util/Base32.h"
 
 #include <errno.h>
+#include <string.h>
 #include <event2/event.h>
 
 struct Context

@@ -21,7 +21,6 @@
 #include "admin/Configurator.h"
 #include "benc/Int.h"
 #include "crypto/AddressCalc.h"
-#include "crypto/Crypto.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/CryptoAuth_benchmark.h"
 #include "dht/ReplyModule.h"
