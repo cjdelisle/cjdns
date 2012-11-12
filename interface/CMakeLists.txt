@@ -21,8 +21,6 @@ endif()
 add_library(interface
     UDPInterface.c
     UDPInterface_admin.c
-    ETHInterface.c
-    ETHInterface_admin.c
     ${tunif}
     TUNConfigurator_${SYSTEM}.c
     InterfaceConnector.c
