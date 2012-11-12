@@ -19,10 +19,7 @@
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/Base32.h"
-
-#include <errno.h>
-#include <string.h>
-#include <event2/event.h>
+#include "util/Errno.h"
 
 struct Context
 {
@@ -107,7 +104,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
         if (jmp.code == ETHInterface_new_SOCKET_FAILED
             || jmp.code == ETHInterface_new_BIND_FAILED)
         {
-            char* err = strerror(EVUTIL_SOCKET_ERROR());
+            char* err = Errno_getString();
             Dict out2 = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
             Admin_sendMessage(&out2, txid, ctx->admin);
         } else {

@@ -16,7 +16,6 @@
 #define ETHInterface_H
 
 #include "util/events/EventBase.h"
-
 #include "interface/Interface.h"
 #include "net/InterfaceController.h"
 #include "util/log/Log.h"

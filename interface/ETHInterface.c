@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strncpy
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/ETHInterface.h"
@@ -21,16 +22,12 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 #include "util/Assert.h"
-
-#include <string.h>
-#include <stdio.h>
+#include "util/Errno.h"
+#include "util/platform/libc/string.h"
 
 #ifdef WIN32
     #include <winsock.h>
     #undef interface
-    #define EMSGSIZE WSAEMSGSIZE
-    #define ENOBUFS WSAENOBUFS
-    #define EWOULDBLOCK WSAEWOULDBLOCK
 #else
     #include <sys/socket.h>
     #include <linux/if_packet.h>
@@ -41,7 +38,6 @@
 #include <event2/event.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <errno.h>
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
@@ -116,20 +112,17 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
                (struct sockaddr*) &addr,
                sizeof(struct sockaddr_ll)) < 0)
     {
-        switch (EVUTIL_SOCKET_ERROR()) {
-            case EMSGSIZE:
+        enum Errno err = Errno_get();
+        switch (err) {
+            case Errno_EMSGSIZE:
                 return Error_OVERSIZE_MESSAGE;
 
-            case ENOBUFS:
-            case EAGAIN:
-            #if EWOULDBLOCK != EAGAIN
-                case EWOULDBLOCK:
-            #endif
+            case Errno_ENOBUFS:
+            case Errno_EAGAIN:
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info(context->logger, "Got error sending to socket errno=%d",
-                          EVUTIL_SOCKET_ERROR());
+                Log_info(context->logger, "Got error sending to socket [%s]", Errno_strerror(err));
         }
     }
     return 0;
@@ -154,7 +147,7 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_ll addr;
-    memset(&addr, 0, sizeof(struct sockaddr_ll));
+    Bits_memset(&addr, 0, sizeof(struct sockaddr_ll));
     ev_socklen_t addrLen = sizeof(struct sockaddr_ll);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
@@ -243,20 +236,20 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
     context->socket = socket(AF_PACKET, SOCK_DGRAM, Endian_hostToBigEndian16(ETH_P_CJDNS));
     if (context->socket == -1) {
         Except_raise(exHandler, ETHInterface_new_SOCKET_FAILED,
-                     "call to socket() failed. [%s]", strerror(errno));
+                     "call to socket() failed. [%s]", Errno_getString());
     }
     strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ);
     ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
         Except_raise(exHandler, ETHInterface_new_FAILED_FIND_IFACE,
-                     "failed to find interface index [%s]", strerror(errno));
+                     "failed to find interface index [%s]", Errno_getString());
     }
     context->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
        Except_raise(exHandler, ETHInterface_new_FAILED_FIND_MACADDR,
-                    "failed to find mac address of interface [%s]", strerror(errno));
+                    "failed to find mac address of interface [%s]", Errno_getString());
     }
 
     uint8_t srcMac[6];
@@ -281,7 +274,7 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
 
     if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
         Except_raise(exHandler, ETHInterface_new_BIND_FAILED,
-                     "call to bind() failed [%s]", strerror(errno));
+                     "call to bind() failed [%s]", Errno_getString());
     }
 
     evutil_make_socket_nonblocking(context->socket);
@@ -291,7 +284,7 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
 
     if (!context->incomingMessageEvent || event_add(context->incomingMessageEvent, NULL)) {
         Except_raise(exHandler, ETHInterface_new_FAILED_CREATING_EVENT,
-                     "failed to create ETHInterface event [%s]", strerror(errno));
+                     "failed to create ETHInterface event [%s]", Errno_getString());
     }
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
