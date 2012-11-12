@@ -36,6 +36,7 @@
 #define Headers_SwitchHeader_TYPE_DATA 0
 #define Headers_SwitchHeader_TYPE_CONTROL 1
 
+#pragma pack(push)
 #pragma pack(4)
 struct Headers_SwitchHeader
 {
@@ -55,6 +56,7 @@ struct Headers_SwitchHeader
 };
 #define Headers_SwitchHeader_SIZE 12
 Assert_compileTime(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
+#pragma pack(pop)
 
 
 static inline uint32_t Headers_getMessageType(const struct Headers_SwitchHeader* header)
