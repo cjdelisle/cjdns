@@ -216,6 +216,16 @@ add_subdirectory(net)
 add_subdirectory(exception)
 add_subdirectory(tunnel)
 
+add_executable(cleanconfig
+    cleanconfig.c
+)
+target_link_libraries(cleanconfig
+    cjdbenc_JsonBencSerializer
+    cjdbenc
+    cjdmemory
+    cjdio
+)
+
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 
 OPTION(NO_CODESYTLE "No codestyle checks")

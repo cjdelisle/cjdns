@@ -150,4 +150,7 @@ struct Allocator
 #define Allocator_child(alloc) \
     alloc->child(alloc)
 
+#define Allocator_free(alloc) \
+    alloc->free(alloc)
+
 #endif /* MEMALLOCATOR_H */
