@@ -79,7 +79,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
                                                          struct SessionManager* sm);
 
 /**
- * Get a session by it's handle.
+ * Get a session by its handle.
  *
  * @param handle an opaque handle associated with the session.
  * @param sm the session manager.

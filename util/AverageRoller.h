@@ -43,7 +43,7 @@ uint32_t AverageRoller_getAverage(struct AverageRoller* roller);
 /**
  * Update the roller with a new entry and get the average.
  * If there are no new updates then past seconds do not get trimmed off and
- * the average stays the same. This, though destroying it's mathmatical correctness,
+ * the average stays the same. This, though destroying its mathmatical correctness,
  * provides some forgiveness to the average since it will not drop to 0 if windowSeconds
  * seconds elapse with no update.
  *

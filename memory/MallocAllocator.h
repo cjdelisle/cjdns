@@ -21,14 +21,14 @@
  * Create a new Allocator which is a wrapper around malloc().
  *
  * @param sizeLimit the number of bytes which are allowed to be allocated by
- *                  this allocator or any of it's children before the program
+ *                  this allocator or any of its children before the program
  *                  will be halted with an error.
  */
 struct Allocator* MallocAllocator_new(size_t sizeLimit);
 
 /**
  * Get the number of bytes allocated so far by this allocator,
- * all of it's parents, and all of it's children.
+ * all of its parents, and all of its children.
  *
  * @param allocator this *must* be a MallocAllocator, no checking is done!
  * @return the number of bytes which have been allocated so far.

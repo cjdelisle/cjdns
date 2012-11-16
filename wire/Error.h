@@ -24,7 +24,7 @@
 /** Packet dropped because link is congested. */
 #define Error_FLOOD                2
 
-/** Packet dropped because node has oversent it's limit. */
+/** Packet dropped because node has oversent its limit. */
 #define Error_LINK_LIMIT_EXCEEDED  3
 
 /** Message too big to send. */
@@ -39,7 +39,7 @@
 /** Header is invalid or checksum failed. */
 #define Error_INVALID              7
 
-/** Message could not be sent to it's destination through no fault of the sender. */
+/** Message could not be sent to its destination through no fault of the sender. */
 #define Error_UNDELIVERABLE        8
 
 

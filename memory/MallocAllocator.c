@@ -61,7 +61,7 @@ struct Context
     /** The first child allocator, this will be freed when this allocator is freed. */
     struct Context* firstChild;
 
-    /** The number of bytes which can be allocated by this allocator and all of it's family. */
+    /** The number of bytes which can be allocated by this allocator and all of its family. */
     size_t* spaceAvailable;
 
     /** The number of bytes which can be allocated total. */

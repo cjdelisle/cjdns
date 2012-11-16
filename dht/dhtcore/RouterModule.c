@@ -48,8 +48,8 @@
 /*
  * The router module is the central part of the DHT engine.
  * It's job is to maintain a routing table which is updated by all incoming packets.
- * When it gets an incoming query, it's job is to add nodes to the reply so that the asking node
- * can find other nodes which are closer to it's target than us.
+ * When it gets an incoming query, its job is to add nodes to the reply so that the asking node
+ * can find other nodes which are closer to its target than us.
  *
  * This implementation does not split nodes explicitly into buckets not does it explicitly try to
  * distinguish between "good" and "bad" nodes. Instead it tries to determine which node will help
@@ -59,7 +59,7 @@
  * takes the node to respond, for each successful search, this number is added to an attribute of
  * the node called "reach".
  *
- * Visually representing a node as an area whose location is defined by the node id and it's size is
+ * Visually representing a node as an area whose location is defined by the node id and its size is
  * defined by the node reach, you can see that there is a possibility for a record to be closer in
  * key space to node2 while is is still further inside of node1's reach thus node1 is a better
  * choice for the next node to ask.
@@ -73,7 +73,7 @@
  * updated.
  *
  * Reach of a node is incremented by 2 every time the node responds to a query and incremented by 1
- * every time a node sends a query of it's own. This has almost no effect except that it means a
+ * every time a node sends a query of its own. This has almost no effect except that it means a
  * node which has recently sent data will be preferred over one which has not.
  *
  * When a search is carried out, the next K returned nodes are not necessarily the closest known
@@ -118,7 +118,7 @@
  * ---
  *
  * This implementation must never respond to a search by sending any node who's id is not closer
- * to the target than it's own. Such an event would lead to the possibility of "routing loops" and
+ * to the target than its own. Such an event would lead to the possibility of "routing loops" and
  * must be prevented. Searches for which this node has the lowest distance:reach ratio will be
  * replied to with nodes which have 0 reach but are closer than this node or, if there are no such
  * nodes, no nodes at all.
@@ -329,7 +329,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
 
 /**
  * The amount of time to wait before skipping over the first node and trying another in a search.
- * Any node which can't beat this time will have it's reach set to 0.
+ * Any node which can't beat this time will have its reach set to 0.
  *
  * @param module this module.
  * @return the timeout time.
@@ -924,7 +924,7 @@ static inline int handleQuery(struct DHTMessage* message,
     for (i = 0; i < nodeList->size; i++) {
 
         // We have to modify the reply in case this node uses a longer label discriminator
-        // in our switch than it's target address, the target address *must* have the same
+        // in our switch than its target address, the target address *must* have the same
         // length or longer.
         struct Address addr;
         Bits_memcpyConst(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
@@ -1088,7 +1088,7 @@ static void pingTimeoutCallback(void* vping)
                 Address_print(addr, &ping->node->address);
                 Log_debug(module->logger, "Ping timeout %s\n", addr);
             #endif
-            // If this node has been flushed by a brokenPath call then it's path is 0
+            // If this node has been flushed by a brokenPath call then its path is 0
             if (ping->node->address.path != 0) {
                 ping->node->reach = reachAfterPingTimeout(ping->node->reach);
                 NodeStore_updateReach(ping->node, module->nodeStore);

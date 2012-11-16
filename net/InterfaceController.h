@@ -42,7 +42,7 @@ struct InterfaceController
      * @param ic the interface controller, a child of the memory allocator for this controller
      *           will be used for the endpoint because we want to be able to free a single
      *           endpoint without freeing the whole network interface but if the network interface
-     *           is freed, we would expect all of it's children to deregister.
+     *           is freed, we would expect all of its children to deregister.
      * @return 0 if all goes well.
      *     InterfaceController_registerInterface_BAD_KEY if the key is not a valid cjdns key.
      *     InterfaceController_registerInterface_OUT_OF_SPACE if no space to store the entry.

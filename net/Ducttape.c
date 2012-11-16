@@ -47,7 +47,7 @@
 
 /**
  * In order to easily tell the incoming connection requests from messages which
- * are addressed to a specific interface by it's handle, the most significant bit
+ * are addressed to a specific interface by its handle, the most significant bit
  * in the big endian representation of the handle shall be cleared to indicate
  * that a session is new and set otherwise.
  */
@@ -468,8 +468,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
     // needs to be in the message buffer.
     //
     // The CryptoAuth may send a 120 byte CA header and it might only send a 4 byte
-    // nonce and 16 byte authenticator depending on it's state.
-    // NOTE: We can't check it's state now, we have to assume it will use the 120 byte
+    // nonce and 16 byte authenticator depending on its state.
+    // NOTE: We can't check its state now, we have to assume it will use the 120 byte
     //       header because we might be in a currently established session which has
     //       timed out and will be in state HANDSHALE1 after we call sendMessage().
 
@@ -690,7 +690,7 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pv
         Endian_hostToBigEndian16(message->length - Headers_IP6Header_SIZE);
 
 
-    // Forward this call to core() which will check it's validity
+    // Forward this call to core() which will check its validity
     // and since it's not to us, forward it to the correct node.
     return core(message, context);
 }

@@ -110,7 +110,7 @@ struct Context
     /** Public functions and fields for this ifcontroller. */
     struct InterfaceController pub;
 
-    /** Used to get an endpoint by it's lookup key, endpoint.internal is entered into the map. */
+    /** Used to get an endpoint by its lookup key, endpoint.internal is entered into the map. */
     struct Map_OfEndpointsByKey endpointMap;
 
     struct Allocator* const allocator;
@@ -277,8 +277,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 // know about that client so if the client sends a packet to the server, the
                 // server will be unable to handle it until the client has sent inter-router
                 // communication to the server. Here we will ping the client so when the
-                // server gets the ping response, it will insert the client into it's table
-                // and know it's version.
+                // server gets the ping response, it will insert the client into its table
+                // and know its version.
                 pingCallback(ic);
             }
         }
@@ -397,7 +397,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface);
  * @param ic the interface controller, a child of the memory allocator for this controller
  *           will be used for the endpoint because we want to be able to free a single
  *           endpoint without freeing the whole network interface but if the network interface
- *           is freed, we would expect all of it's children to deregister.
+ *           is freed, we would expect all of its children to deregister.
  * @return the newly inserted endpoint, NULL if there is no space to add one.
  */
 static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],

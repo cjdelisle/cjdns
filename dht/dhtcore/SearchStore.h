@@ -57,7 +57,7 @@ struct SearchStore
 
     /**
      * An array of pointers to all search slots.
-     * When a search completes, it will be freed and it's pointer will be set to NULL.
+     * When a search completes, it will be freed and its pointer will be set to NULL.
      */
     struct SearchStore_Search* searches[SearchStore_MAX_SEARCHES];
 

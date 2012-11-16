@@ -153,7 +153,7 @@ static String* initAngel(int fromAngel,
 
 /**
  * This spawns itself as the Angel process which spawns itself again as the core process.
- * The "core process" pipes all of it's inputs back to the originating process
+ * The "core process" pipes all of its inputs back to the originating process
  */
 
 struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)

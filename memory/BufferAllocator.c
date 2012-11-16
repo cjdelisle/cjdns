@@ -208,7 +208,7 @@ struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
                                                   char* file,
                                                   int line)
 {
-    /* Write itself into it's own buffer :) */
+    /* Write itself into its own buffer :) */
     struct BufferAllocator_context context = {
         /* Align the pointer to do the first write manually. */
         .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),

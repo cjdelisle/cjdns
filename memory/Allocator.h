@@ -30,7 +30,7 @@ struct Allocator
     void* const context;
 
     /**
-     * Free the heap allocations held by the allocator and any of it's children.
+     * Free the heap allocations held by the allocator and any of its children.
      *
      * @param this the Allocator which is being called. Use: allocator->free(allocator);
      */
@@ -121,7 +121,7 @@ struct Allocator
 
     /**
      * Get a new child of this allocator.
-     * When this allocator is freed all of it's children will be freed as well.
+     * When this allocator is freed all of its children will be freed as well.
      *
      * @param this the memory allocator, use allocator->child(allocator) to get a child.
      * @return a child allocator.

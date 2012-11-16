@@ -305,7 +305,7 @@ int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
                 }
                 node = &search->nodes[i];
                 search->indexOfLastInsertedNode = i;
-                // Find the node which points to this node as it's parent
+                // Find the node which points to this node as its parent
                 // Set that to NULL to prevent looping.
                 for (i++; i != search->indexOfLastInsertedNode; i++) {
                     if (i == SearchStore_SEARCH_NODES) {

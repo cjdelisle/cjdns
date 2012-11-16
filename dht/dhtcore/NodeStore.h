@@ -103,7 +103,7 @@ void NodeStore_updateReach(const struct Node* const node,
 uint32_t NodeStore_size(const struct NodeStore* const store);
 
 /**
- * Get a node by it's path.
+ * Get a node by its path.
  *
  * @param path the path to the node to get in host order. If zero, a random node will be returned.
  * @param store the node store.

@@ -142,7 +142,7 @@ static int genconf(struct Random* rand)
     if (corePath) {
         printf("    \"corePath\": \"%s\",\n", corePath->bytes);
     } else {
-        printf("    // cjdroute2 could not find this file, please specify it's location.\n");
+        printf("    // cjdroute2 could not find this file, please specify its location.\n");
         printf("    //\"corePath\": \"\",\n");
     }
     printf("\n");
@@ -223,7 +223,7 @@ static int genconf(struct Random* rand)
 #ifndef __APPLE__
            "\n"
            "            // The name of a persistent TUN device to use.\n"
-           "            // This for starting cjdroute as it's own user.\n"
+           "            // This for starting cjdroute as its own user.\n"
            "            // *MOST USERS DON'T NEED THIS*\n"
            "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
 #endif

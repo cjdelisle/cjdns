@@ -183,7 +183,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     if (sourceBits > bits) {
         if (destIndex == 1) {
             // If the destination index is this router, don't drop the packet since there no
-            // way for a node to know the size of the representation of it's source label.
+            // way for a node to know the size of the representation of its source label.
             // - label ends in 0001; if there are enough zeroes at the end after removing the 1,
             //   we can still fit in the source discriminator
             // - the return path probably doesn't start with 3 zeroes, but it will still be working,
