@@ -405,7 +405,7 @@ int main(int argc, char** argv)
                              "try specifying the location in your cjdroute.conf");
     } else {
         Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
-                         "guessing it's location.");
+                         "guessing its location.");
     }
 
     if (!privateKey) {
