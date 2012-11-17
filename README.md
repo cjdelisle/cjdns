@@ -6,7 +6,7 @@ I suppose you are here because you are interested in alternative networks,
 perhaps for censorship resistance, perhaps network security and I have no doubt
 you are wondering what the hell this thing is supposed to do.
 
-We can all find common ground in the statement that The Internet is painfully
+We can all find common ground in the statement that The Internet is
 insecure. Free speech and privacy advocates find it insecure against government
 listening and blocking, governments find it insecure against hackers taking
 systems over and leaking secrets, and internet service providers find it
@@ -15,7 +15,7 @@ enough traffic to overload a network link. These are, however, all different
 views of the same problem.
 
 We have a number of somewhat competing offerings to solve this problem from ISPs
-and government. We have IPSEC, DNSSEC, numerous proposals from the mundane to
+and governments. We have IPSEC, DNSSEC, numerous proposals from the mundane to
 the wild and wacky such as "internet drivers licenses".
 
 The people who have developed these proposals are unfortunately limited in
@@ -24,14 +24,12 @@ protocols which glue together the internet of today. Government actors are
 conditioned to think of something as secure when they have control over it.
 A quick look at x509 (the authentication system behind SSL) shows us that
 central points of failure inevitably live up to their name. In order to have a
-central authority, the people must not only be able to trust his motives but
-they must be able to trust his system's integrity as well. Recently people's
+central authority, the people must not only be able to trust its motives but
+they must be able to trust the system's integrity as well. In a recent example, user's
 e-mail was compromised when DigiNotar certificate authority was hacked and used
 to forge gmail certificates.
 
-It is worthy of note that the vulnerability in DNS which ICE exploited to take
-down websites they deemed "dedicated to copyright infringement" was also used
-by Anonymous to replace a movie industry website with a manifesto.
+The vulnerability in DNS which ICE exploited to take down websites they deemed "dedicated to copyright infringement" was also used by Anonymous to replace a movie industry website with a manifesto.
 
 *A System Is Only Secure When Nobody Has Total Control*
 
@@ -39,7 +37,7 @@ by Anonymous to replace a movie industry website with a manifesto.
 What is cjdns?
 --------------
 
-It is a routing engine designed for security, scalability, speed and ease of
+Cjdns is a routing engine designed for security, scalability, speed and ease of
 use. The dream: You type `./cjdroute` and give it an interface which connects
 another node and it gives you an ipv6 address generated from a public
 encryption key and a virtual network card (TUN device) which you can use to
@@ -50,17 +48,16 @@ How does it work?
 -----------------
 
 In order to understand how cjdns works, it is important to understand how the
-existing internet works when you send a packet, at each "intersection in the
+existing internet works when you send a packet. At each "intersection in the
 road" the router reads the address on the packet and decides which turn it
 should take. In the cjdns net, a packet goes to a router and the router labels
-the packet with directions to a router which will be able to best handle it.
-That is, a router which is near by in physical space and has an address which
-is numerically close to the destination address of the packet. The directions
-which are added to the packet allow it to go through a number of routers
-without much handling, they just read the label and bounce the packet wherever
+the packet with directions to the router best able to handle it.
+That is, a router which is physically nearby and has an address numerically 
+close to the destination address of the packet. The directions
+are added to the packet to allow it to go through a number of routers
+with minimal handling. They just read the label and bounce the packet wherever
 the next bits in the label tell them to. Routers have a responsibility to
-"keep in touch" with other routers that are numerically close to their address
-and also routers which are physically close to them.
+"keep in touch" with other routers that are both numerically and physically close to their address.
 
 The router engine is a modified implementation of the Kademlia DHT design.
 
@@ -72,8 +69,8 @@ A live testing network exists with at least 150 active nodes.
 The software has been tested and is known to work on x86, amd64, ARMv5, ARMv7,
 MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux and Apple OSX
 systems. While the software itself is stable, the protocols and algorithms are
-new inventions and we still don't understand how they work in the real world so
-please update early and often to give developers the maximum latitude to make
+new inventions and we still don't understand how they work in the real world. 
+Please update early and often to give developers the maximum latitude to make
 tweaks to the protocol and algorithms.
 
 
@@ -91,7 +88,7 @@ What about DNS?
 ---------------
 
 DNS is a complex system to implement and highly complex to implement without
-central authority, if you would like to offer help with this part, I invite you
+central authority. If you would like to offer help with this part, I invite you
 to come join.
 
 
@@ -169,7 +166,7 @@ If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS b
 
 In order to get into the network you need to meet someone who is also in the network and connect to them. This is required for a number of reasons:
 
-1. It is a preventitive against abuse because bad people will be less likely to abuse a system after they were, in an act of human kindness, given access to that system.
+1. It is a preventative measure against abuse because bad people will be less likely to abuse a system after they were, in an act of human kindness, given access to that system.
 2. This is not intended to overlay The Old Internet, it is intended to replace it. Each connection will in due time be replaced by a wire, a fiber optic cable, or a wireless network connection.
 3. In any case of a disagreement, there will be a "chain of friends" linking the people involved so there will already be a basis for coming to a resolution.
 
