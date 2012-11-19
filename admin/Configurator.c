@@ -172,6 +172,8 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, false);
 }
 
+#ifdef HAS_ETH_INTERFACE
+
 static void ethInterface(Dict* config, struct Context* ctx)
 {
     Dict* eth = Dict_getDict(config, String_CONST("ETHInterface"));
@@ -210,6 +212,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
         }
     }
 }
+
+#endif
 
 static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
@@ -254,7 +258,9 @@ void Configurator_config(Dict* config,
 
     Dict* ifaces = Dict_getDict(config, String_CONST("interfaces"));
     udpInterface(ifaces, &ctx);
+#ifdef HAS_ETH_INTERFACE
     ethInterface(ifaces, &ctx);
+#endif
 
     Dict* routerConf = Dict_getDict(config, String_CONST("router"));
     Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));

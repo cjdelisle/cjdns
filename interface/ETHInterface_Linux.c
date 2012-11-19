@@ -266,9 +266,7 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
         .sll_ifindex = context->ifindex,
         .sll_hatype = ARPHRD_ETHER,
         .sll_pkttype = PACKET_OTHERHOST,
-        .sll_halen = ETH_ALEN,
-        .sll_addr[6] = 0x00,
-        .sll_addr[7] = 0x00,
+        .sll_halen = ETH_ALEN
     };
 
 

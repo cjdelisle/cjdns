@@ -57,7 +57,12 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
     set(WINDOWS TRUE)
     set(SYSTEM W32)
 endif()
-add_definitions(-D ${SYSTEM}=1})
+add_definitions(-D ${SYSTEM}=1)
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/interface/ETHInterface_${SYSTEM}.c)
+  add_definitions(-D HAS_ETH_INTERFACE=1)
+  set(HAS_ETH_INTERFACE TRUE)
+endif()
 
 if(CMAKE_C_COMPILER MATCHES "(.*)-gcc")
     string(REGEX REPLACE "-gcc$" "" toolchain ${CMAKE_C_COMPILER})

@@ -31,7 +31,6 @@
 #include "interface/TUNInterface.h"
 #include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface_admin.h"
-#include "interface/ETHInterface_admin.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
@@ -213,6 +212,7 @@ static int genconf(struct Random* rand)
            "        }\n"
            "\n"
            "        /*\n"
+#ifdef HAS_ETH_INTERFACE
            "        \"ETHInterface\":\n"
            "        {\n"
            "            // Bind to this device.\n"
@@ -224,6 +224,7 @@ static int genconf(struct Random* rand)
            "            }\n"
            "         }\n"
            "         */\n"
+#endif
            "    },\n"
            "\n"
            "    // Configuration for the router.\n"
