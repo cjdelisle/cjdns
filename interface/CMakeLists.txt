@@ -18,11 +18,15 @@ else()
   set(tunif TUNInterface.c)
 endif()
 
+set(ethif "")
+if(HAS_ETH_INTERFACE)
+    set(ethif ETHInterface_${SYSTEM}.c ETHInterface_admin.c)
+endif()
+
 add_library(interface
     UDPInterface.c
     UDPInterface_admin.c
-    ETHInterface.c
-    ETHInterface_admin.c
+    ${ethif}
     ${tunif}
     TUNConfigurator_${SYSTEM}.c
     InterfaceConnector.c
