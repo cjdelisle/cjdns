@@ -28,6 +28,9 @@
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "interface/UDPInterface_admin.h"
+#ifdef HAS_ETH_INTERFACE
+#include "interface/ETHInterface_admin.h"
+#endif
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
 #include "interface/PipeInterface.h"
@@ -272,6 +275,9 @@ int Core_main(int argc, char** argv)
     // ------------------- Register RPC functions ----------------------- //
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
+#ifdef HAS_ETH_INTERFACE
+    ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController);
+#endif
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
