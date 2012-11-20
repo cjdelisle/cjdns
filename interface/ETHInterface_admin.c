@@ -39,7 +39,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
 
     String* password = Dict_getString(args, String_CONST("password"));
     String* publicKey = Dict_getString(args, String_CONST("publicKey"));
-    String* dstMac = Dict_getString(args, String_CONST("macAddress"));
+    String* macAddress = Dict_getString(args, String_CONST("macAddress"));
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* error = NULL;
@@ -63,7 +63,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
 
     } else {
         struct ETHInterface* ethif = ctx->ifaces[ifNum];
-        switch (ETHInterface_beginConnection(dstMac->bytes, pkBytes, password, ethif)) {
+        switch (ETHInterface_beginConnection(macAddress->bytes, pkBytes, password, ethif)) {
             case ETHInterface_beginConnection_OUT_OF_SPACE:
                 error = String_CONST("no more space to register with the switch.");
                 break;

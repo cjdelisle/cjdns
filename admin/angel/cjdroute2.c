@@ -79,9 +79,8 @@ static int genAddress(uint8_t addressOut[40],
     for (;;) {
         Random_bytes(rand, privateKey, 32);
         crypto_scalarmult_curve25519_base(address.key, privateKey);
-        AddressCalc_addressForPublicKey(address.ip6.bytes, address.key);
         // Brute force for keys until one matches FC00:/8
-        if (address.ip6.bytes[0] == 0xFC) {
+        if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)) {
             Hex_encode(privateKeyHexOut, 65, privateKey, 32);
             Base32_encode(publicKeyBase32Out, 53, address.key, 32);
             Address_printIp(addressOut, &address);

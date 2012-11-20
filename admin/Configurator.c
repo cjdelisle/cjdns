@@ -202,7 +202,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
                 struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
-                Dict_putString(value, String_CONST("dstMac"), key, perCallAlloc);
+                Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 perCallAlloc->free(perCallAlloc);
 
