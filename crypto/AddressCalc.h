@@ -24,7 +24,7 @@
  * @param addressOut put the address here.
  * @param key the 256 bit curve25519 public key.
  */
-void AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32]);
+bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32]);
 
 /**
  * Check if an address is valid given the key.
