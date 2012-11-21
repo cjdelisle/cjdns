@@ -118,9 +118,18 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 
 static void udpInterface(Dict* config, struct Context* ctx)
 {
-    Dict* udp = Dict_getDict(config, String_CONST("UDPInterface"));
+    List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
+    if (!ifaces) {
+        ifaces = List_addDict(ifaces,
+                Dict_getDict(config, String_CONST("UDPInterface")), ctx->alloc);
+    }
 
-    if (udp) {
+    uint32_t count = List_size(ifaces);
+    for (uint32_t i = 0; i < count; i++) {
+        Dict *udp = List_getDict(ifaces, i);
+        if (!udp) {
+            continue;
+        }
         // Setup the interface.
         String* bindStr = Dict_getString(udp, String_CONST("bind"));
         Dict* d = Dict_new(ctx->alloc);
