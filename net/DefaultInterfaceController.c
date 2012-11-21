@@ -541,7 +541,7 @@ static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
     struct Endpoint* ep =
         insertEndpoint(key, herPublicKey, false, password, externalInterface, ctx);
     if (!ep) {
-        if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
+        if (herPublicKey && !AddressCalc_validKey(herPublicKey)) {
             return InterfaceController_registerInterface_BAD_KEY;
         }
         return InterfaceController_registerInterface_OUT_OF_SPACE;
