@@ -175,13 +175,10 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
 #ifdef HAS_ETH_INTERFACE
 static void ethInterface(Dict* config, struct Context* ctx)
 {
-    List* ifaces = NULL;
-    if (List_size(Dict_getList(config, String_CONST("ETHInterface"))) == -1) {
+    List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
+    if (!ifaces) {
         ifaces = List_addDict(ifaces,
                 Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
-    }
-    else {
-        ifaces = Dict_getList(config, String_CONST("ETHInterface"));
     }
 
     uint32_t count = List_size(ifaces);
