@@ -48,7 +48,7 @@ int Key_parse(String* key, uint8_t keyBytesOut[32], uint8_t ip6Out[16])
     }
     if (ip6Out) {
         AddressCalc_addressForPublicKey(ip6Out, keyBytesOut);
-        if (ip6Out[0] != 0xfc) {
+        if (!AddressCalc_validAddress(ip6Out)) {
             return Key_parse_INVALID;
         }
     }
