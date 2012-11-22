@@ -199,8 +199,8 @@ static void pingCallback(void* vic)
         struct Endpoint* ep = ic->endpointMap.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
-                  uint8_t key[32*5/4];
-                  Base32_encode(key,32*5/4,
+                  uint8_t key[64];
+                  Base32_encode(key,64,
                           CryptoAuth_getHerPublicKey(ep->cryptoAuthIf),32);
             #endif
             if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
@@ -208,9 +208,13 @@ static void pingCallback(void* vic)
                 if (ic->pingCount % 8) {
                     continue;
                 }
+#ifdef Log_DEBUG
                 Log_debug(ic->logger, "Pinging unresponsive neighbor [%s.k].", key);
+#endif
             } else {
-                Log_debug(ic->logger, "Pinging lazy neighbor [%s].", key);
+#ifdef Log_DEBUG
+                Log_debug(ic->logger, "Pinging lazy neighbor [%s.k].", key);
+#endif
             }
 
             struct SwitchPinger_Ping* ping =
