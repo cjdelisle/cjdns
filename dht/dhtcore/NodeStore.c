@@ -21,6 +21,7 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Object.h"
+#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/DistanceNodeCollector.h"
@@ -155,7 +156,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         printf("got introduced to ourselves\n");
         return NULL;
     }
-    if (addr->ip6.bytes[0] != 0xfc) {
+    if (!AddressCalc_validAddress(addr->ip6.bytes)) {
         uint8_t address[60];
         Address_print(address, addr);
         Log_critical(store->logger,

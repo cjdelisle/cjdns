@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "net/DefaultInterfaceController.h"
 #include "memory/Allocator.h"
@@ -410,7 +411,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     uint8_t ip6[16];
     if (herPublicKey) {
         AddressCalc_addressForPublicKey(ip6, herPublicKey);
-        if (ip6[0] != 0xfc) {
+        if (!AddressCalc_validAddress(ip6)) {
             return NULL;
         }
     }
@@ -541,7 +542,7 @@ static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
     struct Endpoint* ep =
         insertEndpoint(key, herPublicKey, false, password, externalInterface, ctx);
     if (!ep) {
-        if (herPublicKey && !AddressCalc_validAddress(herPublicKey)) {
+        if (herPublicKey && !AddressCalc_validKey(herPublicKey)) {
             return InterfaceController_registerInterface_BAD_KEY;
         }
         return InterfaceController_registerInterface_OUT_OF_SPACE;
