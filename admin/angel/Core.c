@@ -23,6 +23,7 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "crypto/AddressCalc.h"
 #include "crypto/Random.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
@@ -93,7 +94,7 @@ static void parsePrivateKey(uint8_t privateKey[32],
 {
     crypto_scalarmult_curve25519_base(addr->key, privateKey);
     AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
-    if (addr->ip6.bytes[0] != 0xFC) {
+    if (!AddressCalc_validAddress(addr->ip6.bytes)) {
         Except_raise(eh, -1, "Ip address outside of the FC00/8 range, invalid private key.");
     }
 }

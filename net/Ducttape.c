@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth.h"
 #include "util/log/Log.h"
 #include "dht/Address.h"
@@ -385,8 +386,8 @@ static inline bool validEncryptedIP6(struct Message* message)
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     // Empty ipv6 headers are tolerated at this stage but dropped later.
     return message->length >= Headers_IP6Header_SIZE
-        && header->sourceAddr[0] == 0xFC
-        && header->destinationAddr[0] == 0xFC;
+        && AddressCalc_validAddress(header->sourceAddr)
+        && AddressCalc_validAddress(header->destinationAddr);
 }
 
 static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context)
@@ -403,7 +404,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     int version = Headers_getIpVersion(message->bytes);
-    if (version == 4 || (version == 6 && header->sourceAddr[0] != 0xfc)) {
+    if (version == 4 || (version == 6 && !AddressCalc_validAddress(header->sourceAddr))) {
         return context->ipTunnel->tunInterface.sendMessage(message,
                                                            &context->ipTunnel->tunInterface);
     } else if (version != 6) {
@@ -905,7 +906,7 @@ static inline uint8_t* extractPublicKey(struct Message* message,
     }
 
     AddressCalc_addressForPublicKey(ip6, caHeader->handshake.publicKey);
-    if (ip6[0] != 0xfc) {
+    if (!AddressCalc_validAddress(ip6)) {
         *version = *version - 1;
         return extractPublicKey(message, version, ip6);
     }
