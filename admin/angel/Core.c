@@ -64,32 +64,6 @@
 // Failsafe: abort if more than 2^22 bytes are allocated (4MB)
 #define ALLOCATOR_FAILSAFE (1<<22)
 
-/**
- * The worst possible packet overhead.
- * assuming the packet needs to be handed off to another node
- * because we have no route to the destination.
- * and the CryptoAuths to both the destination and the handoff node are both timed out.
- */
-#define WORST_CASE_OVERHEAD ( \
-    /* TODO: Headers_IPv4_SIZE */ 20 \
-    + Headers_UDPHeader_SIZE \
-    + 4 /* Nonce */ \
-    + 16 /* Poly1305 authenticator */ \
-    + Headers_SwitchHeader_SIZE \
-    + Headers_CryptoAuth_SIZE \
-    + Headers_IP6Header_SIZE \
-    + Headers_CryptoAuth_SIZE \
-)
-
-/** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
-#define DEFAULT_MTU ( \
-    1492 \
-  - WORST_CASE_OVERHEAD \
-  + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
-  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
-  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
-)
-
 static void parsePrivateKey(uint8_t privateKey[32],
                             struct Address* addr,
                             struct Except* eh)
@@ -167,7 +141,6 @@ void Core_initTunnel(String* desiredDeviceName,
     Ducttape_setUserInterface(dt, &icmp->internal);
 
     TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
-    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 
 /*

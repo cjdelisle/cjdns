@@ -246,11 +246,3 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     intptr_t ret = (intptr_t) tunFd;
     return (void*) ret;
 }
-
-void TUNConfigurator_setMTU(const char* interfaceName,
-                            uint32_t mtu,
-                            struct Log* logger,
-                            struct Except* eh)
-{
-    Except_raise(eh, TUNConfigurator_setMTU_INTERNAL, "Not implemented in IlLumos");
-}

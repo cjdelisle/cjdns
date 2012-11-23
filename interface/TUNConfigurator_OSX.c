@@ -203,35 +203,3 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
 
     close(s);
 }
-
-void TUNConfigurator_setMTU(const char* interfaceName,
-                            uint32_t mtu,
-                            struct Log* logger,
-                            struct Except* eh)
-{
-    int s = socket(AF_INET6, SOCK_DGRAM, 0);
-
-    if (s < 0) {
-        Except_raise(eh,
-                     TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
-                     "socket() failed [%s]",
-                     Errno_getString());
-    }
-
-
-    struct ifreq ifRequest;
-
-    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
-    ifRequest.ifr_mtu = mtu;
-
-    Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
-
-    if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-       enum Errno err = Errno_get();
-       close(s);
-       Except_raise(eh,
-                    TUNConfigurator_setMTU_INTERNAL,
-                    "ioctl(SIOCSIFMTU) failed [%s]",
-                    Errno_strerror(err));
-    }
-}

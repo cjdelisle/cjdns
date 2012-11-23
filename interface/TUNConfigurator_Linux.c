@@ -187,22 +187,3 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
                      "ioctl(SIOCSIFADDR) failed: [%s]", Errno_strerror(err));
     }
 }
-
-void TUNConfigurator_setMTU(const char* interfaceName,
-                            uint32_t mtu,
-                            struct Log* logger,
-                            struct Except* eh)
-{
-    struct ifreq ifRequest;
-    int s = socketForIfName(interfaceName, eh, &ifRequest);
-
-    Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
-
-    ifRequest.ifr_mtu = mtu;
-    if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
-        enum Errno err = Errno_get();
-        close(s);
-        Except_raise(eh, TUNConfigurator_setMTU_INTERNAL,
-                     "ioctl(SIOCSIFMTU) failed: [%s]", Errno_strerror(err));
-    }
-}
