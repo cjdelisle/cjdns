@@ -31,6 +31,7 @@ add_library(interface
     TUNConfigurator_${SYSTEM}.c
     InterfaceConnector.c
     SessionManager.c
+    ICMP6Generator.c
 )
 
 target_link_libraries(interface

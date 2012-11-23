@@ -35,6 +35,8 @@
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
 #include "interface/PipeInterface.h"
+#include "interface/InterfaceConnector.h"
+#include "interface/ICMP6Generator.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
@@ -159,7 +161,10 @@ void Core_initTunnel(String* desiredDeviceName,
                                            eh);
 
     struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
-    Ducttape_setUserInterface(dt, &tun->iface);
+
+    struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);
+    InterfaceConnector_connect(&icmp->external, &tun->iface);
+    Ducttape_setUserInterface(dt, &icmp->internal);
 
     TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
     TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);

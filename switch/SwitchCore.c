@@ -27,6 +27,12 @@
 
 #include <inttypes.h>
 
+#define EXPECTED_MTU \
+    (1492 /* PPPoE */                                   \
+        - Headers_IP4Header_SIZE                        \
+        - Headers_UDPHeader_SIZE                        \
+        - 20 /* CryptoAuth in ESTABLISHED state. */ )
+
 struct SwitchInterface
 {
     struct Interface* iface;
@@ -248,12 +254,18 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                sourceIndex, destIndex, label, targetLabel);
     */
 
+
+    if (message->length > EXPECTED_MTU)
+    {
+      return Error_OVERSIZE_MESSAGE;
+    }
+
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
         Log_debug(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
-        return Error_NONE;
+        return err;
     }
 
     return Error_NONE;

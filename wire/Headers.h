@@ -339,4 +339,13 @@ struct Headers_UDPHeader {
 #define Headers_UDPHeader_SIZE 8
 Assert_compileTime(sizeof(struct Headers_UDPHeader) == Headers_UDPHeader_SIZE);
 
+struct Headers_ICMP6Header {
+    uint8_t type;
+    uint8_t code;
+    uint16_t checksum;
+    uint32_t additional;
+};
+#define Headers_ICMP6Header_SIZE 8
+Assert_compileTime(sizeof(struct Headers_ICMP6Header) == Headers_ICMP6Header_SIZE);
+
 #endif
