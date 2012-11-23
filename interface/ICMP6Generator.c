@@ -22,13 +22,6 @@
 #include "wire/Error.h"
 
 #include <stddef.h>
-#ifdef Linux
-    #include <linux/ipv6.h>
-    #include <linux/icmpv6.h>
-#else
-    #include <netinet/in.h>
-    #include <netinet/ip_icmp.h>
-#endif
 
 /** MTU at switch layer, not including switch header overhead. */
 #define EXPECTED_MTU \
@@ -56,8 +49,8 @@ struct ICMP6Generator_pvt
 static inline uint8_t numForType(enum ICMP6Generator_Type type)
 {
     switch (type) {
-        case ICMP6Generator_Type_NO_ROUTE_TO_HOST: return ICMPV6_DEST_UNREACH;
-        case ICMP6Generator_Type_PACKET_TOO_BIG: return ICMPV6_PKT_TOOBIG;
+        case ICMP6Generator_Type_NO_ROUTE_TO_HOST: return 1; /* ICMPV6_DEST_UNREACH */
+        case ICMP6Generator_Type_PACKET_TOO_BIG: return 2; /* ICMPV6_PKT_TOOBIG */
         default: return 0;
     }
 }
@@ -99,7 +92,7 @@ void ICMP6Generator_generate(struct Message* msg,
     Headers_setIpVersion(ip6);
     ip6->flowLabelLow_be = 0;
     ip6->payloadLength_be = Endian_hostToBigEndian16(contentLen);
-    ip6->nextHeader = IPPROTO_ICMPV6;
+    ip6->nextHeader = 58; /* IPPROTO_ICMPV6 */
     ip6->hopLimit = 64;
 
     Bits_memcpyConst(ip6->sourceAddr, sourceAddr, 16);
