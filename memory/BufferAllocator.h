@@ -15,7 +15,8 @@
 #ifndef BufferAllocator_H
 #define BufferAllocator_H
 
-#include "Allocator.h"
+#include "memory/Allocator.h"
+#include "util/UniqueName.h"
 
 /**
  * Create a new Allocator which allocates from to a user supplied buffer.

@@ -16,6 +16,7 @@ cmake_minimum_required(VERSION 2.4)
 add_library(cjdmemory
     BufferAllocator.c
     MallocAllocator.c
+    CanaryAllocator.c
 )
 
 # Everything must be tested.
