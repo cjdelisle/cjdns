@@ -200,9 +200,8 @@ static void pingCallback(void* vic)
         struct Endpoint* ep = ic->endpointMap.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
-                  uint8_t key[32*5/4];
-                  Base32_encode(key,32*5/4,
-                          CryptoAuth_getHerPublicKey(ep->cryptoAuthIf),32);
+                  uint8_t key[56];
+                  Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
             if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
                 // Lets skip 87% of pings when they're really down.
