@@ -162,9 +162,11 @@ void Core_initTunnel(String* desiredDeviceName,
 
     struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
 
-    struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);
-    InterfaceConnector_connect(&icmp->external, &tun->iface);
-    Ducttape_setUserInterface(dt, &icmp->internal);
+    // broken
+    //struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);
+    //InterfaceConnector_connect(&icmp->external, &tun->iface);
+    //Ducttape_setUserInterface(dt, &icmp->internal);
+    Ducttape_setUserInterface(dt, &tun->iface);
 
     TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
     TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
