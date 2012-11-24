@@ -303,6 +303,42 @@ struct Headers_IP6Header
 #define Headers_IP6Header_SIZE 40
 Assert_compileTime(sizeof(struct Headers_IP6Header) == Headers_IP6Header_SIZE);
 
+struct Headers_IP6Fragment
+{
+    uint8_t nextHeader;
+    uint8_t zero;
+    uint16_t fragmentOffsetAndMoreFragments_be;
+    uint32_t identifier;
+};
+#define Headers_IP6Fragment_SIZE 8
+Assert_compileTime(sizeof(struct Headers_IP6Fragment) == Headers_IP6Fragment_SIZE);
+#define Headers_IP6Fragment_TYPE 44
+
+static inline uint32_t Headers_IP6Fragment_getOffset(struct Headers_IP6Fragment* frag)
+{
+    return Endian_bigEndianToHost16(frag->fragmentOffsetAndMoreFragments_be) >> 3;
+}
+
+static inline void Headers_IP6Fragment_setOffset(struct Headers_IP6Fragment* frag, uint16_t offset)
+{
+    frag->fragmentOffsetAndMoreFragments_be &= Endian_hostToBigEndian16(7);
+    frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(offset << 3);
+}
+
+static inline bool Headers_IP6Fragment_hasMoreFragments(struct Headers_IP6Fragment* frag)
+{
+    return frag->fragmentOffsetAndMoreFragments_be & Endian_hostToBigEndian16(1);
+}
+
+static inline void Headers_IP6Fragment_setMoreFragments(struct Headers_IP6Fragment* frag, bool more)
+{
+    if (more) {
+        frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(1);
+    } else {
+        frag->fragmentOffsetAndMoreFragments_be &= Endian_hostToBigEndian16(0xFFFF << 1);
+    }
+}
+
 struct Headers_IP4Header
 {
     uint8_t versionAndHeaderLength;

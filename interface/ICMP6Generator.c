@@ -13,11 +13,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "interface/ICMP6Generator.h"
+#include "interface/ICMP6Generator_pvt.h"
 #include "util/Checksum.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
-#include "util/Identity.h"
 #include "wire/Headers.h"
 #include "wire/Error.h"
 
@@ -38,13 +37,6 @@
         /* IPv6 header goes here but operating system subtracts it. */   \
         + Headers_CryptoAuth_SIZE)
 
-
-struct ICMP6Generator_pvt
-{
-    struct ICMP6Generator pub;
-
-    Identity
-};
 
 static inline uint8_t numForType(enum ICMP6Generator_Type type)
 {
@@ -101,6 +93,65 @@ void ICMP6Generator_generate(struct Message* msg,
     icmp6->checksum = Checksum_icmp6(ip6->sourceAddr, (uint8_t*)icmp6, contentLen);
 }
 
+static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
+                              struct Message* msg,
+                              uint32_t mtu,
+                              int offsetBytes)
+{
+    uint64_t msgHeader[(Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE) / 8];
+    Assert_true(msg->length > (int)sizeof(msgHeader));
+    Bits_memcpyConst(msgHeader, msg->bytes, sizeof(msgHeader));
+
+    const int headersSize = (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE);
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) msg->bytes;
+    struct Headers_IP6Fragment* frag = (struct Headers_IP6Fragment*) (&ip6[1]);
+    Message_shift(msg, -headersSize);
+
+    // prepare next message.
+    struct Message* nextMessage = &(struct Message) {
+        .bytes = msg->bytes,
+        .length = msg->length,
+        .padding = msg->padding
+    };
+    int nextMessageOffsetBytes = offsetBytes + (((mtu - headersSize) / 8) * 8);
+    Message_shift(nextMessage, -(nextMessageOffsetBytes - offsetBytes));
+
+    msg->length -= nextMessage->length;
+    ip6->payloadLength_be = Endian_hostToBigEndian16(msg->length + Headers_IP6Fragment_SIZE);
+    Message_shift(msg, headersSize);
+
+    // sanity check
+    Assert_true(!Bits_memcmp(&msg->bytes[msg->length], nextMessage->bytes, 8));
+    uint64_t msgNextPartFirstLong = ((uint64_t*)nextMessage->bytes)[0];
+
+    // Set the required fields.
+    // RFC-2460 includes the fragment header in the offset so we have to add another 8 bytes.
+    Headers_IP6Fragment_setOffset(frag, offsetBytes / 8);
+    Headers_IP6Fragment_setMoreFragments(frag, true);
+    Interface_sendMessage(msg, &ctx->pub.internal);
+
+    // sanity check
+    Assert_true(!Bits_memcmp(&msgNextPartFirstLong, nextMessage->bytes, 8));
+
+    Message_shift(nextMessage, sizeof(msgHeader));
+    Bits_memcpyConst(nextMessage->bytes, msgHeader, sizeof(msgHeader));
+
+    if (nextMessage->length > (int)mtu) {
+        return sendFragmented(ctx, nextMessage, mtu, nextMessageOffsetBytes);
+    }
+
+    // Set the required fields for the last fragment.
+    ip6 = (struct Headers_IP6Header*) nextMessage->bytes;
+    frag = (struct Headers_IP6Fragment*) (nextMessage->bytes + Headers_IP6Header_SIZE);
+    Headers_IP6Fragment_setOffset(frag, nextMessageOffsetBytes / 8);
+    // If the kernel did some fragmentation of it's own, we don't want to set the "last fragment"
+    // flag so we'll leave it as it is.
+    //Headers_IP6Fragment_setMoreFragments(frag, false);
+    ip6->payloadLength_be = Endian_hostToBigEndian16(nextMessage->length - Headers_IP6Header_SIZE);
+
+    return Interface_sendMessage(nextMessage, &ctx->pub.internal);
+}
+
 /** Message from the external (TUN facing) interface. */
 static uint8_t incoming(struct Message* msg, struct Interface* iface)
 {
@@ -108,22 +159,27 @@ static uint8_t incoming(struct Message* msg, struct Interface* iface)
         Identity_cast((struct ICMP6Generator_pvt*)
             (((uint8_t*)iface) - offsetof(struct ICMP6Generator, external)));
 
+    // TODO calculate this on a per-node basis.
+    int mtu = ctx->mtu;
+
     // source address for packets coming from the router.
     const uint8_t magicAddr[] = { 0xfc,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 };
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
-    // TODO calculate this on a per-node basis.
     if (msg->length >= Headers_IP6Header_SIZE
         && Headers_getIpVersion(header) == 6
-        && msg->length > (EXPECTED_MTU - CJDNS_OVERHEAD))
+        && msg->length > mtu)
     {
+        if (header->nextHeader == Headers_IP6Fragment_TYPE) {
+            return sendFragmented(ctx, msg, mtu, 0);
+        }
         uint8_t destAddr[16];
         Bits_memcpyConst(destAddr, header->sourceAddr, 16);
         ICMP6Generator_generate(msg,
                                 magicAddr,
                                 destAddr,
                                 ICMP6Generator_Type_PACKET_TOO_BIG,
-                                (EXPECTED_MTU - CJDNS_OVERHEAD));
+                                mtu);
 
         Interface_sendMessage(msg, &ctx->pub.external);
         return Error_NONE;
@@ -151,7 +207,8 @@ struct ICMP6Generator* ICMP6Generator_new(struct Allocator* alloc)
             .internal = {
                 .sendMessage = outgoing
             }
-        }
+        },
+        .mtu = EXPECTED_MTU - CJDNS_OVERHEAD
     }));
     Identity_set(out);
     return &out->pub;
