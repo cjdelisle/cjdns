@@ -74,4 +74,22 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   int prefixLen,
                                   struct Log* logger,
                                   struct Except* eh);
+
+/**
+ * Set the MTU of an interface.
+ *
+ * @param interfaceName the name of the interface to set the MTU for.
+ * @param mtu the desired MTU.
+ * @param logger where to write information.
+ * @param eh if this function fails, it will raise one of the following.
+ *           TUNConfigurator_setMTU_INTERNAL Catch all exception code for failures.
+ *           TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET Error getting admin socket for interface.
+ *           TUNConfigurator_ERROR_ENABLING_INTERFACE If the interface cannot be brought up.
+ */
+#define TUNConfigurator_setMTU_INTERNAL -1
+void TUNConfigurator_setMTU(const char* interfaceName,
+                            uint32_t mtu,
+                            struct Log* logger,
+                            struct Except* eh);
+
 #endif

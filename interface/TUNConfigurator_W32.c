@@ -30,3 +30,10 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
                                   struct Except* eh)
 {
 }
+
+void TUNConfigurator_setMTU(const char* interfaceName,
+                            uint32_t mtu,
+                            struct Log* logger,
+                            struct Except* eh)
+{
+}
