@@ -230,6 +230,16 @@ target_link_libraries(cleanconfig
     cjdmemory
     cjdio
 )
+add_executable(benc2json
+    benc2json.c
+)
+target_link_libraries(benc2json
+    cjdbenc_StandardBencSerializer
+    cjdbenc_JsonBencSerializer
+    cjdbenc
+    cjdmemory
+    cjdio
+)
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 

@@ -480,6 +480,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
     Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE));
     // The message is now aligned on the content.
 
+    #ifdef Log_DEBUG
+        uint8_t destAddr[40];
+        AddrTools_printIp(destAddr, header->destinationAddr);
+        uint8_t nhAddr[60];
+        Address_print(nhAddr, &bestNext->address);
+        Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
+    #endif
+
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
     context->session = session;
     context->layer = Ducttape_SessionLayer_INNER;
