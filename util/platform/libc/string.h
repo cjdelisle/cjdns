@@ -55,10 +55,6 @@
 #ifndef string_strncat
     #define strncat string_internal_strncat
 #endif
-#undef strcmp
-#ifndef string_strcmp
-    #define strcmp string_internal_strcmp
-#endif
 #undef strncmp
 #ifndef string_strncmp
     #define strncmp string_internal_strncmp
@@ -119,6 +115,17 @@
 #ifndef string_strtok_r
     #define strtok_r string_internal_strtok_r
 #endif
+
+#undef strcmp
+#ifndef string_strcmp
+    #define strcmp string_internal_strcmp
+#else
+    // some systems use a macro which relies on strlen.
+    #ifndef string_strlen
+        #define string_strlen
+    #endif
+#endif
+
 #undef strlen
 #ifndef string_strlen
     #define strlen string_internal_strlen
