@@ -1,3 +1,4 @@
+#!/bin/bash
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -9,17 +10,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-set(Test_FILES
-    IpTunnel_test.c
-)
-set(Test_LIBRARIES
-    cjdns-tunnel-iptunnel
-    cjdbenc
-    cjdmemory
-    crypto
-    cjdns-util-log
-    cjdbenc_StandardBencSerializer
-    cjdns-crypto-random
-    cjdns-util-events-libevent
-)
-include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)
+let line=0
+curl --data-binary @__TEST_FILE__ __REMOTE_TEST_IP_PORT__ 2>>/dev/null \
+| while read x
+do
+    [ "${line}" == "0" ] && echo "$x" | grep '4:codei0e' >/dev/null && exit 1;
+    echo "$x";
+    let "line = line + 1"
+done || exit 0;
+exit 1;
