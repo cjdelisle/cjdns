@@ -104,31 +104,42 @@ static inline int parseString(const struct Reader* reader,
                               const struct Allocator* allocator,
                               String** output)
 {
-    #define BUFF_SZ (1<<20)
+    #define BUFF_SZ (1<<8)
+    #define BUFF_MAX (1<<20)
 
-    uint8_t buffer[BUFF_SZ];
+    int curSize = BUFF_SZ;
+    struct Allocator* localAllocator = allocator->child(allocator);
+    uint8_t* buffer = localAllocator->malloc(curSize, localAllocator);
     if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
         printf("Unterminated string\n");
+        localAllocator->free(localAllocator);
         return OUT_OF_CONTENT_TO_READ;
     }
-    for (int i = 0; i < BUFF_SZ; i++) {
+    for (int i = 0; i < BUFF_MAX - 1; i++) {
         if (buffer[i] == '\\') {
             // \x01 (skip the x)
             reader->skip(1, reader);
             uint8_t hex[2];
             if (reader->read((char*)hex, 2, reader)) {
                 printf("Unexpected end of input parsing escape sequence\n");
+                localAllocator->free(localAllocator);
                 return OUT_OF_CONTENT_TO_READ;
             }
             int byte = Hex_decodeByte(hex[0], hex[1]);
             if (byte == -1) {
                 printf("Invalid escape \"%c%c\" after \"%.*s\"\n",hex[0],hex[1],i+1,buffer);
+                localAllocator->free(localAllocator);
                 return UNPARSABLE;
             }
             buffer[i] = (uint8_t) byte;
         } else if (buffer[i] == '"') {
             *output = String_newBinary((char*)buffer, i, allocator);
+            localAllocator->free(localAllocator);
             return 0;
+        }
+        if (i == curSize - 1) {
+            curSize <<= 1;
+            buffer = localAllocator->realloc(buffer, curSize, localAllocator);
         }
         if (reader->read(buffer + i + 1, 1, reader)) {
             if (i+1 <= 20) {
@@ -136,14 +147,17 @@ static inline int parseString(const struct Reader* reader,
             } else {
                 printf("Unterminated string starting with \"%.*s...\"\n", 20, buffer);
             }
+            localAllocator->free(localAllocator);
             return OUT_OF_CONTENT_TO_READ;
         }
     }
 
     printf("Maximum string length of %d bytes exceeded.\n",BUFF_SZ);
+    localAllocator->free(localAllocator);
     return UNPARSABLE;
 
     #undef BUFF_SZ
+    #undef BUFF_MAX
 }
 
 /** @see BencSerializer.h */
