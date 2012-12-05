@@ -35,6 +35,7 @@ target_link_libraries(cjdns-angel
     util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
     cjdns-crypto-random
+    cjdns-memory-canary
 )
 
 add_library(cjdns-core
@@ -60,6 +61,7 @@ target_link_libraries(cjdns-core
     cjdns-util-log-indirect
     cjdns-tunnel-iptunnel
     cjdns-crypto-random
+    cjdns-memory-canary
 )
 
 add_executable(cjdns

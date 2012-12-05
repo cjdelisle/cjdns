@@ -44,6 +44,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
@@ -193,8 +194,9 @@ int Core_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct EventBase* eventBase = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, eh);
+    alloc = CanaryAllocator_new(alloc, rand);
+    struct EventBase* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
     struct Writer* logWriter = FileWriter_new(stdout, alloc);

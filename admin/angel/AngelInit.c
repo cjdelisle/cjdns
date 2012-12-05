@@ -27,6 +27,7 @@
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "exception/Jmp.h"
 #include "exception/Except.h"
 #include "util/events/EventBase.h"
@@ -267,8 +268,9 @@ int AngelInit_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct EventBase* eventBase = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, eh);
+    alloc = CanaryAllocator_new(alloc, rand);
+    struct EventBase* eventBase = EventBase_new(alloc);
 
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
