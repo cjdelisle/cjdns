@@ -33,6 +33,10 @@
 #include "util/platform/libc/string.h"
 #include "util/Timeout.h"
 
+#ifdef BSD
+    #include <netinet/in.h>
+#endif
+
 #include <event2/event.h>
 
 /*
