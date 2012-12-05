@@ -191,6 +191,9 @@
 
 #define LINK_STATE_MULTIPLIER 536870
 
+/** All searches will be killed after this amount of time nomatter how bad the GMRT is. */
+#define MAX_TIMEOUT 10000
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -338,7 +341,8 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
-    return x + (rand() % (x | 1)) / 2;
+    x = x + (rand() % (x | 1)) / 2;
+    return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : x;
 }
 
 /**
