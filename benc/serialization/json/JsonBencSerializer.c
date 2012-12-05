@@ -111,7 +111,7 @@ static inline int parseString(const struct Reader* reader,
         printf("Unterminated string\n");
         return OUT_OF_CONTENT_TO_READ;
     }
-    for (int i = 0; i < BUFF_SZ; i++) {
+    for (int i = 0; i < BUFF_SZ - 1; i++) {
         if (buffer[i] == '\\') {
             // \x01 (skip the x)
             reader->skip(1, reader);
