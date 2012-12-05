@@ -18,6 +18,7 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "util/Identity.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
 
@@ -69,6 +70,9 @@ struct Context
 
     /** This allocator. */
     struct Allocator allocator;
+
+    /** For checking structure integrity. */
+    Identity
 };
 
 /** The first ("genesis") allocator, not a child of any other allocator. */
@@ -108,7 +112,7 @@ static inline void* newAllocation(struct Context* context, size_t size)
 /** @see Allocator->free() */
 static void freeAllocator(const struct Allocator* allocator)
 {
-    struct Context* context = (struct Context*) allocator->context;
+    struct Context* context = Identity_cast((struct Context*) allocator->context);
 
     // Do the onFree jobs.
     struct OnFreeJob* job = context->onFree;
@@ -183,7 +187,7 @@ static void* allocatorRealloc(const void* original,
         return allocatorMalloc(size, allocator);
     }
 
-    struct Context* context = allocator->context;
+    struct Context* context = Identity_cast((struct Context*) allocator->context);
     struct Allocation** locPtr = &context->allocations;
     struct Allocation* origLoc = ((struct Allocation*) original) - 1;
     for (;;) {
@@ -220,7 +224,7 @@ static void* allocatorRealloc(const void* original,
 /** @see Allocator->child() */
 static struct Allocator* childAllocator(const struct Allocator* allocator)
 {
-    struct Context* context = allocator->context;
+    struct Context* context = Identity_cast((struct Context*) allocator->context);
 
     if (*(context->spaceAvailable) <= sizeof(struct FirstContext)) {
         failure("Out of memory, limit exceeded.");
@@ -248,8 +252,7 @@ static void* addOnFreeJob(void (* callback)(void* callbackContext),
                           void* callbackContext,
                           const struct Allocator* this)
 {
-    struct Context* context =
-        (struct Context*) this->context;
+    struct Context* context = Identity_cast((struct Context*) this->context);
 
     struct OnFreeJob* newJob =
         this->calloc(sizeof(struct OnFreeJob), 1, this);
@@ -270,7 +273,7 @@ static void* addOnFreeJob(void (* callback)(void* callbackContext),
 
 static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
 {
-    struct Context* context = alloc->context;
+    struct Context* context = Identity_cast((struct Context*) alloc->context);
     struct OnFreeJob** jobPtr = &(context->onFree);
     while (*jobPtr != NULL) {
         if (*jobPtr == toRemove) {
@@ -311,11 +314,12 @@ struct Allocator* MallocAllocator_new(size_t sizeLimit)
     };
 
     Bits_memcpyConst(&context->allocator, &allocator, sizeof(struct Allocator));
+    Identity_set(context);
     return &context->allocator;
 }
 
 size_t MallocAllocator_bytesAllocated(struct Allocator* allocator)
 {
-    struct Context* context = ((struct Context*) allocator->context);
+    struct Context* context = Identity_cast((struct Context*) allocator->context);
     return context->maxSpace - *context->spaceAvailable;
 }

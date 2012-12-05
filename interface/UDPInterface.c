@@ -15,6 +15,7 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/UDPInterface.h"
+#include "interface/UDPInterface_pvt.h"
 #include "memory/Allocator.h"
 #include "net/InterfaceController.h"
 #include "util/Assert.h"
@@ -24,7 +25,6 @@
 
 #ifdef WIN32
     #include <winsock.h>
-    #undef interface
 #else
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -35,33 +35,8 @@
 #include <event2/event.h>
 
 
-#define MAX_PACKET_SIZE 8192
-
-#define PADDING 512
-
 #define MAX_INTERFACES 256
 
-struct UDPInterface
-{
-    struct Interface interface;
-
-    evutil_socket_t socket;
-
-    /**
-     * The event registered with libevent.
-     * Needed only so it can be freed.
-     */
-    struct event* incomingMessageEvent;
-
-    /** Used to tell what address type is being used. */
-    ev_socklen_t addrLen;
-
-    uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
-
-    struct Log* logger;
-
-    struct InterfaceController* ic;
-};
 
 #define EFFECTIVE_KEY_SIZE \
     ((InterfaceController_KEY_SIZE > sizeof(struct sockaddr_in)) \
@@ -69,7 +44,7 @@ struct UDPInterface
 
 static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
                                   uint8_t key[InterfaceController_KEY_SIZE],
-                                  struct UDPInterface* udpif)
+                                  struct UDPInterface_pvt* udpif)
 {
     if (EFFECTIVE_KEY_SIZE < sizeof(struct sockaddr_in)) {
         Bits_memset(sockaddr, 0, sizeof(struct sockaddr_in));
@@ -79,7 +54,7 @@ static inline void sockaddrForKey(struct sockaddr_in* sockaddr,
 
 static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
                                   struct sockaddr_in* sockaddr,
-                                  struct UDPInterface* udpif)
+                                  struct UDPInterface_pvt* udpif)
 {
     if (EFFECTIVE_KEY_SIZE < InterfaceController_KEY_SIZE) {
         Bits_memset(key, 0, InterfaceController_KEY_SIZE);
@@ -89,8 +64,8 @@ static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
-    struct UDPInterface* context = iface->senderContext;
-    Assert_true(&context->interface == iface);
+    struct UDPInterface_pvt* context = iface->senderContext;
+    Assert_true(&context->pub.generic == iface);
 
     struct sockaddr_in sin;
     sockaddrForKey(&sin, message->bytes, context);
@@ -133,10 +108,13 @@ static void freeEvent(void* vevent)
 
 static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 {
-    struct UDPInterface* context = (struct UDPInterface*) vcontext;
+    struct UDPInterface_pvt* context = (struct UDPInterface_pvt*) vcontext;
 
-    struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
+    struct Message message = {
+        .bytes = context->messageBuff + UDPInterface_PADDING,
+        .padding = UDPInterface_PADDING,
+        .length = UDPInterface_MAX_PACKET_SIZE
+    };
 
     struct sockaddr_storage addrStore;
     Bits_memset(&addrStore, 0, sizeof(struct sockaddr_storage));
@@ -161,14 +139,15 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
 
     keyForSockaddr(message.bytes, (struct sockaddr_in*) &addrStore, context);
 
-    context->interface.receiveMessage(&message, &context->interface);
+    context->pub.generic.receiveMessage(&message, &context->pub.generic);
 }
 
 int UDPInterface_beginConnection(const char* address,
                                  uint8_t cryptoKey[32],
                                  String* password,
-                                 struct UDPInterface* udpif)
+                                 struct UDPInterface* udp)
 {
+    struct UDPInterface_pvt* udpif = (struct UDPInterface_pvt*) udp;
     struct sockaddr_storage addr;
     ev_socklen_t addrLen = sizeof(struct sockaddr_storage);
     Bits_memset(&addr, 0, addrLen);
@@ -181,7 +160,7 @@ int UDPInterface_beginConnection(const char* address,
 
     uint8_t key[InterfaceController_KEY_SIZE];
     keyForSockaddr(key, (struct sockaddr_in*) &addr, udpif);
-    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password, &udpif->interface, udpif->ic);
+    int ret = udpif->ic->insertEndpoint(key, cryptoKey, password, &udpif->pub.generic, udpif->ic);
     switch(ret) {
         case 0:
             return 0;
@@ -204,34 +183,35 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       struct Log* logger,
                                       struct InterfaceController* ic)
 {
-    struct UDPInterface* context = allocator->malloc(sizeof(struct UDPInterface), allocator);
-    Bits_memcpyConst(context, (&(struct UDPInterface) {
-        .interface = {
-            .sendMessage = sendMessage,
-            .senderContext = context,
-            .allocator = allocator
+    struct UDPInterface_pvt* context = Allocator_malloc(allocator, sizeof(struct UDPInterface_pvt));
+    Bits_memcpyConst(context, (&(struct UDPInterface_pvt) {
+        .pub = {
+            .generic = {
+                .sendMessage = sendMessage,
+                .senderContext = context,
+                .allocator = allocator
+            },
         },
         .logger = logger,
         .ic = ic
-    }), sizeof(struct UDPInterface));
+    }), sizeof(struct UDPInterface_pvt));
 
     int addrFam;
-    struct sockaddr_storage addr;
     if (bindAddr != NULL) {
         context->addrLen = sizeof(struct sockaddr_storage);
         if (0 != evutil_parse_sockaddr_port(bindAddr,
-                                            (struct sockaddr*) &addr,
+                                            (struct sockaddr*) &context->addr,
                                             (int*) &context->addrLen))
         {
             Except_raise(exHandler, UDPInterface_new_PARSE_ADDRESS_FAILED,
                          "failed to parse address");
         }
-        addrFam = addr.ss_family;
+        addrFam = context->addr.ss_family;
 
         // This is because the key size is only 8 bytes.
         // Expanding the key size just for IPv6 doesn't make a lot of sense
         // when ethernet, 802.11 and ipv4 are ok with a shorter key size
-        if (addr.ss_family != AF_INET || context->addrLen != sizeof(struct sockaddr_in)) {
+        if (context->addr.ss_family != AF_INET || context->addrLen != sizeof(struct sockaddr_in)) {
             Except_raise(exHandler, UDPInterface_new_PROTOCOL_NOT_SUPPORTED,
                          "only IPv4 is supported");
         }
@@ -247,9 +227,15 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     }
 
     if (bindAddr != NULL) {
-        if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
+        if (bind(context->socket, (struct sockaddr*) &context->addr, context->addrLen)) {
             Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to bind() failed.");
         }
+    }
+
+    if (getsockname(context->socket, (struct sockaddr*) &context->addr, &context->addrLen)) {
+        enum Errno err = Errno_get();
+        EVUTIL_CLOSESOCKET(context->socket);
+        Except_raise(exHandler, -1, "Failed to get socket name [%s]", Errno_strerror(err));
     }
 
     evutil_make_socket_nonblocking(context->socket);
@@ -264,7 +250,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
 
-    ic->registerInterface(&context->interface, ic);
+    ic->registerInterface(&context->pub.generic, ic);
 
-    return context;
+    return &context->pub;
 }

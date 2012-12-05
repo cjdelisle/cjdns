@@ -22,7 +22,10 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 
-struct UDPInterface;
+struct UDPInterface
+{
+    struct Interface generic;
+};
 
 /**
  * @param base the LibEvent context.

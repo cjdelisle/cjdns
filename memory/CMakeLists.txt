@@ -16,7 +16,13 @@ cmake_minimum_required(VERSION 2.4)
 add_library(cjdmemory
     BufferAllocator.c
     MallocAllocator.c
+)
+
+add_library(cjdns-memory-canary
     CanaryAllocator.c
+)
+target_link_libraries(cjdns-memory-canary
+    cjdns-crypto-random
 )
 
 # Everything must be tested.

@@ -15,6 +15,6 @@ set(Test_FILES
 )
 set(Test_LIBRARIES
     cjdmemory
-    cjdns-crypto-random
+    cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

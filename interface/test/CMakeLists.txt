@@ -11,11 +11,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set(Test_FILES
     UDPInterface_test.c
+    UDPInterface_communication_test.c
     ICMP6Generator_test.c
 )
 set(Test_LIBRARIES
     cjdns-admin
     cjdns-admin-client
+    cjdns-memory-canary
     cjdns-interface-pipeinterface
     cjdadmintest
     interface

@@ -132,7 +132,8 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
             .realloc = allocatorRealloc,
             .child = childAllocator,
             .onFree = alloc->onFree,
-            .notOnFree = alloc->notOnFree
+            .notOnFree = alloc->notOnFree,
+            .context = alloc->context
         },
         .alloc = alloc,
         .rand = rand,
