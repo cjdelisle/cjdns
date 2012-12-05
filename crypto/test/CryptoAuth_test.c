@@ -21,6 +21,7 @@
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
@@ -108,7 +109,7 @@ int init(const uint8_t* privateKey,
          bool authenticatePackets)
 {
     printf("\nSetting up:\n");
-    struct Allocator* allocator = MallocAllocator_new(1048576);
+    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(1048576), NULL);
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);

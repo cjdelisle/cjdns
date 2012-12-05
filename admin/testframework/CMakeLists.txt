@@ -20,4 +20,5 @@ target_link_libraries(cjdadmintest
     cjdns-admin-client
     cjdns-waiter
     cjdns-process
+    cjdns-memory-canary
 )

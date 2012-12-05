@@ -18,5 +18,6 @@ set(Test_LIBRARIES
     cjdbenc_StandardBencSerializer
     cjdio
     cjdmemory
+    cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

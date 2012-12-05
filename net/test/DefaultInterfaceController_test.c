@@ -26,6 +26,7 @@
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
 #include "util/platform/libc/string.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/NumberCompress.h"
@@ -146,7 +147,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
 
     struct TestFramework* tf =
         TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"

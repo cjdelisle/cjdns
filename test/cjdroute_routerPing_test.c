@@ -15,6 +15,7 @@
 #define string_strncpy
 #define string_strlen
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
@@ -33,7 +34,7 @@ uint8_t catchResponse(struct Message* msg, struct Interface* iface)
 int main()
 {
     char* pingBenc = "d1:q4:ping4:txid4:abcde";
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<22), NULL);
     struct TestFramework* tf = TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL);
     struct Ducttape_pvt* dt = Identity_cast((struct Ducttape_pvt*) tf->ducttape);
 

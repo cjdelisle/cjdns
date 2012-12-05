@@ -16,6 +16,7 @@
 #define string_strlen
 #include "crypto/Key.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
@@ -122,7 +123,7 @@ void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<22), NULL);
     struct TwoNodes* tn = setUp(alloc);
 
     sendMessage(tn, "Hello World!", true);

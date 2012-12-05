@@ -20,10 +20,11 @@ set(Test_FILES
     ReplayProtector_test.c
 )
 set(Test_LIBRARIES
-      crypto
-      util
-      exports
-      cjdns-crypto-random
-      cjdns-util-events-libevent
+    crypto
+    util
+    exports
+    cjdns-crypto-random
+    cjdns-util-events-libevent
+    cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

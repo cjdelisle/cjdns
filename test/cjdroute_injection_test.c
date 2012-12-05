@@ -15,6 +15,7 @@
 #define string_strncpy
 #define string_strlen
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
 #include "util/platform/libc/string.h"
@@ -75,7 +76,7 @@ int main()
         TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL)->ducttape;
 
     // This has to be limited because we are checking for an OOM issue.
-    struct Allocator* allocator = MallocAllocator_new(85000);
+    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(85000), NULL);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
     uint8_t* buff = allocator->calloc(buffLen, 1, allocator);
 

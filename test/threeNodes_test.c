@@ -17,6 +17,7 @@
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
@@ -177,7 +178,7 @@ void sendMessage(struct ThreeNodes* tn,
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<22), NULL);
 
     struct ThreeNodes* tn = setUp(alloc);
 

@@ -97,6 +97,9 @@ static void* allocatorRealloc(const void* original,
                               const struct Allocator* allocator)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
+    if (((uint8_t*) original) == NULL) {
+        return allocatorMalloc(size, allocator);
+    }
     uint32_t* beginCanary = ((uint32_t*) original) - 1;
     Assert_always(*beginCanary == ctx->canaryValue);
     for (int i = 0; i < ctx->canaryCount; i++) {

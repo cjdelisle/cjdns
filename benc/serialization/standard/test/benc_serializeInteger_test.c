@@ -16,6 +16,7 @@
 #include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -59,7 +60,7 @@ int main()
 {
     char buffer[512];
     char out[512];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 512);
+    struct Allocator* alloc = CanaryAllocator_new(BufferAllocator_new(buffer, 512), NULL);
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 

@@ -14,6 +14,7 @@
  */
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -29,7 +30,7 @@ int parseEmptyList()
 {
     char* test = "d" "2:hi" "le" "e";
     char buffer[512];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 512);
+    struct Allocator* alloc = CanaryAllocator_new(BufferAllocator_new(buffer, 512), NULL);
     struct Reader* reader = ArrayReader_new(test, strlen(test), alloc);
     Dict d;
     int ret = StandardBencSerializer_get()->parseDictionary(reader, alloc, &d);
