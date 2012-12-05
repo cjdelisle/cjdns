@@ -118,9 +118,18 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 
 static void udpInterface(Dict* config, struct Context* ctx)
 {
-    Dict* udp = Dict_getDict(config, String_CONST("UDPInterface"));
+    List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
+    if (!ifaces) {
+        ifaces = List_addDict(ifaces,
+                Dict_getDict(config, String_CONST("UDPInterface")), ctx->alloc);
+    }
 
-    if (udp) {
+    uint32_t count = List_size(ifaces);
+    for (uint32_t i = 0; i < count; i++) {
+        Dict *udp = List_getDict(ifaces, i);
+        if (!udp) {
+            continue;
+        }
         // Setup the interface.
         String* bindStr = Dict_getString(udp, String_CONST("bind"));
         Dict* d = Dict_new(ctx->alloc);
@@ -175,9 +184,18 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
 #ifdef HAS_ETH_INTERFACE
 static void ethInterface(Dict* config, struct Context* ctx)
 {
-    Dict* eth = Dict_getDict(config, String_CONST("ETHInterface"));
+    List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
+    if (!ifaces) {
+        ifaces = List_addDict(ifaces,
+                Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
+    }
 
-    if (eth) {
+    uint32_t count = List_size(ifaces);
+    for (uint32_t i = 0; i < count; i++) {
+        Dict *eth = List_getDict(ifaces, i);
+        if (!eth) {
+            continue;
+        }
         // Setup the interface.
         String* deviceStr = Dict_getString(eth, String_CONST("bind"));
         Dict* d = Dict_new(ctx->alloc);
