@@ -614,15 +614,14 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
 static void timeout(void* vcontext)
 {
     struct IpTunnel_pvt* context = vcontext;
+    Log_debug(context->logger, "Checking for connections to poll. Total connections [%u]",
+                                context->pub.connectionList.count);
     if (!context->pub.connectionList.count) {
         return;
     }
-    int32_t beginning = (Random_int32(context->rand) % context->pub.connectionList.count) + 1;
-    for (int i = beginning; i != beginning - 1; i++) {
-        if (i >= (int)context->pub.connectionList.count) {
-            i = -1;
-            continue;
-        }
+    int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
+    int32_t i = beginning;
+    do {
         struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
         if (conn->isOutgoing
             && Bits_isZero(conn->connectionIp6, 16)
@@ -631,7 +630,7 @@ static void timeout(void* vcontext)
             requestAddresses(conn, context);
             break;
         }
-    }
+    } while ((++i % (int32_t)context->pub.connectionList.count) != beginning);
 }
 
 struct IpTunnel* IpTunnel_new(struct Log* logger,

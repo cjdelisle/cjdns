@@ -121,7 +121,13 @@ static int genconf(struct Random* rand)
     String* corePath = getCorePath(alloc);
 
     uint8_t password[32];
+    uint8_t password2[32];
+    uint8_t password3[32];
+    uint8_t password4[32];
     Random_base32(rand, password, 32);
+    Random_base32(rand, password2, 32);
+    Random_base32(rand, password3, 32);
+    Random_base32(rand, password4, 32);
 
     uint8_t adminPassword[32];
     Random_base32(rand, adminPassword, 32);
@@ -162,23 +168,23 @@ static int genconf(struct Random* rand)
            "    //\n"
            "    \"authorizedPasswords\":\n"
            "    [\n"
-           "        {\n"
-           "            // A unique string which is known to the client and server.\n"
-           "            \"password\": \"%s\"\n", password);
-    printf("        }\n"
-           "\n"
-           "        /* These are your connection credentials\n"
-           "           for people connecting to you with your default password.\n"
-           "           adding more passwords for different users is advisable\n"
-           "           so that leaks can be isolated.\n"
-           "\n"
-           "            \"your.external.ip.goes.here:%u\":\n", port);
-    printf("            {\n"
-           "                \"password\": \"%s\",\n", password);
-    printf("                \"publicKey\": \"%s.k\"\n", publicKeyBase32);
-    printf("            }\n"
-           "        */\n"
-           "    ],\n"
+           "        // A unique string which is known to the client and server.\n"
+           "        {\"password\": \"%s\"},\n", password);
+    printf("\n"
+           "        // More passwords should look like this.\n"
+           "        // {\"password\": \"%s\"},\n", password2);
+    printf("        // {\"password\": \"%s\"},\n", password3);
+    printf("        // {\"password\": \"%s\"},\n", password4);
+    printf("\n"
+           "        // These are your connection credentials\n"
+           "        // for people connecting to you with your default password.\n"
+           "        // adding more passwords for different users is advisable\n"
+           "        // so that leaks can be isolated.\n"
+           "        //\n"
+           "        // \"your.external.ip.goes.here:%u\":{", port);
+    printf("\"password\":\"%s\",", password);
+    printf("\"publicKey\":\"%s.k\"}\n", publicKeyBase32);
+    printf("    ],\n"
            "\n"
            "    // Settings for administering and extracting information from your router.\n"
            "    // This interface provides functions which can be called through a TCP socket.\n"
@@ -246,12 +252,46 @@ static int genconf(struct Random* rand)
            "            // *MOST USERS DON'T NEED THIS*\n"
            "            //\"tunDevice\": \"" DEFAULT_TUN_DEV "\"\n"
 #endif
+           "        },\n"
+           "\n"
+           "        // System for tunneling IPv4 and ICANN IPv6 through cjdns.\n"
+           "        // This is using the cjdns switch layer as a VPN carrier.\n"
+           "        \"ipTunnel\":\n"
+           "        {\n"
+           "            // Nodes allowed to connect to us.\n"
+           "            // When a node with the given public key connects, give them the\n"
+           "            // ip4 and/or ip6 addresses listed.\n"
+           "            \"allowedConnections\":\n"
+           "            [\n"
+           "                // {\n"
+           "                //     \"pubKey\": "
+           "\"f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k\",\n"
+           "                //     \"ip4Address\": \"192.168.1.24\",\n"
+           "                //     \"ip6Address\": \"2001:123:ab::10\"\n"
+           "                // },\n"
+           "\n"
+           "                // It's ok to only specify one address.\n"
+           "                // {\n"
+           "                //     \"pubKey\": "
+           "\"ydq8csdk8p8ThisIsJustAnExampleAddresstxuyqdf27hvn2z0.k\",\n"
+           "                //     \"ip4Address\": \"192.168.1.24\",\n"
+           "                //     \"ip6Address\": \"2001:123:ab::10\"\n"
+           "                // }\n"
+           "            ],\n"
+           "\n"
+           "            \"outgoingConnections\":\n"
+           "            [\n"
+           "                // Connect to one or more machines and ask them for IP addresses.\n"
+           "                // \"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k\",\n"
+           "                // \"pw9tfmr8pcrExampleExampleExampleExample8rhg1pgwpwf80.k\",\n"
+           "                // \"g91lxyxhq0kExampleExampleExampleExample6t0mknuhw75l0.k\"\n"
+           "            ]\n"
            "        }\n"
            "    },\n"
            "\n"
            "    // Tear down inactive CryptoAuth sessions after this number of seconds\n"
            "    // to make them more forgiving in the event that they become desynchronized.\n"
-           "    \"resetAfterInactivitySeconds\": 30,\n"
+           "    \"resetAfterInactivitySeconds\": 100,\n"
            "\n"
            "    // Save the pid of the running process to this file.\n"
            "    // If this file cannot be opened for writing, the router will not start.\n"
@@ -300,33 +340,6 @@ static int usage(char* appName)
 
     return 0;
 }
-/*
-static void reconf(struct event_base* eventbase,
-                   Dict* mainConf,
-                   struct Log* logger,
-                   struct Allocator* alloc)
-{
-    Dict* adminConf = Dict_getDict(mainConf, String_CONST("admin"));
-    String* address = Dict_getString(adminConf, String_CONST("bind"));
-    String* password = Dict_getString(adminConf, String_CONST("password"));
-
-    if (!(address && password)) {
-        Log_critical(logger, "Can't get the admin address and password from conf file.");
-        exit(-1);
-    }
-
-    struct sockaddr_storage addr;
-    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
-    int addrLen = sizeof(struct sockaddr_storage);
-    if (evutil_parse_sockaddr_port(address->bytes, (struct sockaddr*) &addr, &addrLen)) {
-        Log_critical(logger, "Unable to parse [%s] as an ip address port, "
-                             "eg: 127.0.0.1:11234", address->bytes);
-        exit(-1);
-    }
-
-    Configurator_config(mainConf, &addr, addrLen, password, eventbase, logger, alloc);
-}
-*/
 
 static int benchmark()
 {

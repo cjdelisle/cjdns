@@ -181,6 +181,45 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
     rpcCall0(String_CONST("Core_initTunnel"), args, ctx, tempAlloc, false);
 }
 
+static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    List* incoming = Dict_getList(ifaceConf, String_CONST("allowedConnections"));
+    Dict* d;
+    for (int i = 0; (d = List_getDict(incoming, i)) != NULL; i++) {
+        String* key = Dict_getString(d, String_CONST("publicKey"));
+        String* ip4 = Dict_getString(d, String_CONST("ip4Address"));
+        String* ip6 = Dict_getString(d, String_CONST("ip6Address"));
+        if (!key) {
+            Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                      "'publicKey' required.", i);
+            exit(1);
+        }
+        if (!ip4 && !ip6) {
+            Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                       "either ip4Address or ip6Address required.", i);
+            exit(1);
+        }
+        Log_debug(ctx->logger, "Allowing IpTunnel connections from [%s]", key->bytes);
+        Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
+        rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, true);
+    }
+
+    List* outgoing = Dict_getList(ifaceConf, String_CONST("outgoingConnections"));
+    String* s;
+    for (int i = 0; (s = List_getString(outgoing, i)) != NULL; i++) {
+        Log_debug(ctx->logger, "Initiating IpTunnel connection to [%s]", s->bytes);
+        Dict requestDict =
+            Dict_CONST(String_CONST("publicKeyOfNodeToConnectTo"), String_OBJ(s), NULL);
+        rpcCall0(String_CONST("IpTunnel_connectTo"), &requestDict, ctx, tempAlloc, true);
+    }
+}
+
+static void routerConfig(Dict* routerConf, struct Allocator* tempAlloc, struct Context* ctx)
+{
+    tunInterface(Dict_getDict(routerConf, String_CONST("interface")), tempAlloc, ctx);
+    ipTunnel(Dict_getDict(routerConf, String_CONST("ipTunnel")), tempAlloc, ctx);
+}
+
 #ifdef HAS_ETH_INTERFACE
 static void ethInterface(Dict* config, struct Context* ctx)
 {
@@ -280,8 +319,7 @@ void Configurator_config(Dict* config,
     #endif
 
     Dict* routerConf = Dict_getDict(config, String_CONST("router"));
-    Dict* iface = Dict_getDict(routerConf, String_CONST("interface"));
-    tunInterface(iface, tempAlloc, &ctx);
+    routerConfig(routerConf, tempAlloc, &ctx);
 
     List* securityList = Dict_getList(config, String_CONST("security"));
     security(securityList, tempAlloc, &ctx);
