@@ -547,7 +547,7 @@ static uint8_t ip6FromNode(struct Message* message,
     }
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
-        tunIf->receiveMessage(message, tunIf->receiverContext);
+        tunIf->receiveMessage(message, tunIf);
     }
     return 0;
 }
@@ -567,7 +567,7 @@ static uint8_t ip4FromNode(struct Message* message,
     }
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
-        return tunIf->receiveMessage(message, tunIf->receiverContext);
+        return tunIf->receiveMessage(message, tunIf);
     }
     return 0;
 }
