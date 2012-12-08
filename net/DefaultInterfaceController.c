@@ -376,10 +376,8 @@ static int registerPeer(struct InterfaceController* ifController,
         return InterfaceController_registerPeer_OUT_OF_SPACE;
     }
 
-    struct Allocator* epAllocator =
-        externalInterface->allocator->child(externalInterface->allocator);
-
-    struct Endpoint* ep = epAllocator->calloc(sizeof(struct Endpoint), 1, epAllocator);
+    struct Allocator* epAllocator = externalInterface->allocator;
+    struct Endpoint* ep = Allocator_calloc(epAllocator, sizeof(struct Endpoint), 1);
     int setIndex = Map_OfEndpointsByKey_put(&ep, &ic->endpointSet);
     ep->handle = ic->endpointSet.handles[setIndex];
     Identity_set(ep);
