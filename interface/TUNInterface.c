@@ -20,19 +20,7 @@
 #include "util/platform/Socket.h"
 #include "wire/Ethernet.h"
 
-#ifdef Linux
-    #include <linux/if_ether.h>
-#else
-    #include <sys/types.h>
-    #include <netinet/in.h>
-    #include <netinet/if_ether.h>
-#endif
-
-#include <net/if.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
-
 
 // Defined extra large so large MTU can be taken advantage of later.
 #define MAX_PACKET_SIZE 8192
