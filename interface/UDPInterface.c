@@ -192,7 +192,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         EVUTIL_CLOSESOCKET(context->socket);
         Except_raise(exHandler, -1, "Failed to get socket name [%s]", Errno_strerror(err));
     }
-    context->boundPort_be = ((struct sockaddr_in*)&addr)->sin_port;
+    Bits_memcpyConst(&context->boundPort_be, &((struct sockaddr_in*)&addr)->sin_port, 2);
 
     evutil_make_socket_nonblocking(context->socket);
 
