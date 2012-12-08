@@ -39,6 +39,7 @@
 
 #ifdef BSD
     #include <netinet/in.h>
+    #include <sys/socket.h>
 #endif
 
 // On loan from the DoD, thanks guys.

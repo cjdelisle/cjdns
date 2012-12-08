@@ -39,6 +39,7 @@
 
 #ifdef BSD
     #include <netinet/in.h>
+    #include <sys/socket.h>
 #endif
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
