@@ -39,6 +39,8 @@
 
 #ifdef BSD
     #include <netinet/in.h>
+#endif
+#if defined(BSD) || defined(Illumos)
     #include <sys/socket.h>
 #endif
 
