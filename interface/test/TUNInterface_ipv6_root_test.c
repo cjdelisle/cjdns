@@ -37,10 +37,8 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
-#ifdef BSD
-    #include <netinet/in.h>
-#endif
 #if defined(BSD) || defined(Illumos)
+    #include <netinet/in.h>
     #include <sys/socket.h>
 #endif
 
