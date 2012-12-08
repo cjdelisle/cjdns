@@ -87,6 +87,8 @@ struct MultiInterface_pvt
 
     struct Allocator* allocator;
 
+    struct MapKey* workSpace;
+
     Identity
 };
 
@@ -167,10 +169,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void* key)
 {
     struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) mIface);
-    uint8_t buff[mif->pub.keySize + 4];
-    Bits_memcpyConst(buff, &mif->pub.keySize, 4);
-    Bits_memcpy(buff+4, key, mif->pub.keySize);
-    struct Peer* p = peerForKey(mif, (struct MapKey*) buff, false);
+    mif->workSpace->keySize = mif->pub.keySize;
+    Bits_memcpy(mif->workSpace->bytes, key, mif->pub.keySize);
+    struct Peer* p = peerForKey(mif, mif->workSpace, false);
     return &p->internalIf;
 }
 
@@ -191,6 +192,8 @@ struct MultiInterface* MultiInterface_new(int keySize,
             .allocator = external->allocator
         }));
     Identity_set(out);
+
+    out->workSpace = Allocator_malloc(external->allocator, keySize + 4);
 
     external->receiveMessage = receiveMessage;
     external->receiverContext = out;

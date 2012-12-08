@@ -18,7 +18,7 @@
 #include "util/events/Event.h"
 #include "util/Identity.h"
 #include "util/platform/Socket.h"
-#include "util/Ethernet.h"
+#include "wire/Ethernet.h"
 
 #ifdef Linux
     #include <linux/if_ether.h>
