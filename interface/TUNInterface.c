@@ -23,6 +23,7 @@
 #ifdef Linux
     #include <linux/if_ether.h>
 #else
+    #include <sys/types.h>
     #include <netinet/in.h>
     #include <netinet/if_ether.h>
 #endif
