@@ -25,8 +25,6 @@
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
 
-#include <netinet/in.h> // sockaddr_storage
-
 #define UDPInterface_MAX_PACKET_SIZE 8192
 
 #define UDPInterface_PADDING 512
@@ -44,9 +42,6 @@ struct UDPInterface_pvt
      */
     struct Event* incomingMessageEvent;
 
-    /** Used for testing. */
-    struct sockaddr_storage addr;
-
     /** Used to tell what address type is being used. */
     uint32_t addrLen;
 
@@ -57,6 +52,9 @@ struct UDPInterface_pvt
     struct InterfaceController* ic;
 
     struct MultiInterface* multiIface;
+
+    /** used for testing. */
+    uint16_t boundPort_be;
 
     Identity
 };

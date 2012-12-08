@@ -38,9 +38,9 @@
 #include "wire/Headers.h"
 
 #if defined(BSD) || defined(Illumos)
-    #include <netinet/in.h>
     #include <sys/socket.h>
 #endif
+#include <netinet/in.h>
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
 const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};

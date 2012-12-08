@@ -52,16 +52,20 @@ static int registerPeer(struct InterfaceController* ic,
     return 0;
 }
 
+int receiveMessageACount = 0;
 static uint8_t receiveMessageA(struct Message* msg, struct Interface* iface)
 {
     // pong
+    receiveMessageACount++;
     return iface->sendMessage(msg, iface);
 }
 
 static uint8_t receiveMessageB(struct Message* msg, struct Interface* iface)
 {
-    // Got the message, test successful.
-    exit(0);
+    if (receiveMessageACount) {
+        // Got the message, test successful.
+        exit(0);
+    }
     return 0;
 }
 
@@ -85,16 +89,17 @@ int main(int argc, char** argv)
     struct UDPInterface* udpA = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
     struct UDPInterface* udpB = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
 
-    uint8_t key[8] = {0};
-    uint8_t length = sizeof(struct sockaddr_in);
-    length = (length > 8) ? 8 : length;
-    Bits_memcpy(key, &((struct UDPInterface_pvt*) udpA)->addr, length);
+
+    struct sockaddr_in sin = { .sin_family = AF_INET };
+    sin.sin_port = ((struct UDPInterface_pvt*) udpA)->boundPort_be;
+    uint8_t localHost[] = {127, 0, 0, 1};
+    Bits_memcpyConst(&sin.sin_addr, localHost, 4);
 
     struct Message* msg;
-    Message_STACK(msg, 12, 64);
-    Bits_memcpyConst((char*)msg->bytes, "Hello World", 12);
-    Message_shift(msg, 8);
-    Bits_memcpyConst((char*)msg->bytes, key, 8);
+    Message_STACK(msg, 0, 128);
+
+    Message_push(msg, "Hello World", 12);
+    Message_push(msg, &sin, sizeof(struct sockaddr_in));
 
     udpA->generic.receiveMessage = receiveMessageA;
     udpB->generic.receiveMessage = receiveMessageB;

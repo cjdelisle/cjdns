@@ -157,17 +157,18 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         .ic = ic
     }), sizeof(struct UDPInterface_pvt));
 
+    struct sockaddr_storage addr;
     int addrFam;
     if (bindAddr != NULL) {
         context->addrLen = sizeof(struct sockaddr_storage);
         if (0 != evutil_parse_sockaddr_port(bindAddr,
-                                            (struct sockaddr*) &context->addr,
+                                            (struct sockaddr*) &addr,
                                             (int*) &context->addrLen))
         {
             Except_raise(exHandler, UDPInterface_new_PARSE_ADDRESS_FAILED,
                          "failed to parse address");
         }
-        addrFam = context->addr.ss_family;
+        addrFam = addr.ss_family;
     } else {
         addrFam = AF_INET;
         context->addrLen = sizeof(struct sockaddr_in);
@@ -181,16 +182,17 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
     }
 
     if (bindAddr != NULL) {
-        if (bind(context->socket, (struct sockaddr*) &context->addr, context->addrLen)) {
+        if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
             Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to bind() failed.");
         }
     }
 
-    if (getsockname(context->socket, (struct sockaddr*) &context->addr, &context->addrLen)) {
+    if (getsockname(context->socket, (struct sockaddr*) &addr, &context->addrLen)) {
         enum Errno err = Errno_get();
         EVUTIL_CLOSESOCKET(context->socket);
         Except_raise(exHandler, -1, "Failed to get socket name [%s]", Errno_strerror(err));
     }
+    context->boundPort_be = ((struct sockaddr_in*)&addr)->sin_port;
 
     evutil_make_socket_nonblocking(context->socket);
 
