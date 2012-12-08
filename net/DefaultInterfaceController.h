@@ -21,8 +21,9 @@
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
 #include "net/SwitchPinger.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "util/log/Log.h"
+
 
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,

@@ -33,20 +33,42 @@
 
 #define Map_CONTEXT Map_GLUE(Map_, Map_NAME)
 #define Map_FUNCTION(name) Map_GLUE(Map_GLUE(Map_GLUE(Map_, Map_NAME),_), name)
-#ifdef Map_USE_HASH
-    #define Map_getKeySuffix(key) (Map_FUNCTION(hash)(key))
-#else
-    #define Map_getKeySuffix(key) (((uint32_t*) key)[(sizeof(Map_KEY_TYPE) / 4) - 1])
-#endif
-
 #define Map_GLUE(x, y) Map_GLUE2(x, y)
 #define Map_GLUE2(x, y) x ## y
 
+#ifdef Map_ENABLE_KEYS
+    // Hashcode calculator.
+    static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key);
+    #ifndef Map_USE_HASH
+        // Get the last 4 bytes of the key by default.
+        static inline uint32_t Map_FUNCTION(hash)(Map_KEY_TYPE* key)
+        {
+            return ((uint32_t*)key)[(sizeof(Map_KEY_TYPE) / 4) - 1];
+        }
+    #endif
+
+
+    static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB);
+    #ifndef Map_USE_COMPARATOR
+        // Get the last 4 bytes of the key by default.
+        static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB)
+        {
+            uint32_t* kA = (uint32_t*) keyA;
+            uint32_t* kB = (uint32_t*) keyB;
+            for (int i = 0; i < (int)(sizeof(Map_KEY_TYPE) / 4); i++) {
+                if (kA[i] != kB[i]) {
+                    return kA[i] < kB[i];
+                }
+            }
+            return 0;
+        }
+    #endif
+#endif
 
 struct Map_CONTEXT
 {
     #ifdef Map_ENABLE_KEYS
-        uint32_t* keySuffixes;
+        uint32_t* hashCodes;
         Map_KEY_TYPE* keys;
     #endif
 
@@ -77,10 +99,10 @@ static inline struct Map_CONTEXT* Map_FUNCTION(new)(struct Allocator* allocator)
 #ifdef Map_ENABLE_KEYS
 static inline int Map_FUNCTION(indexForKey)(Map_KEY_TYPE* key, struct Map_CONTEXT* map)
 {
-    uint32_t keySuffix = Map_getKeySuffix(key);
+    uint32_t hashCode = (Map_FUNCTION(hash)(key));
     for (uint32_t i = 0; i < map->count; i++) {
-        if (map->keySuffixes[i] == keySuffix
-            && Bits_memcmp(key, &map->keys[i], sizeof(Map_KEY_TYPE)) == 0)
+        if (map->hashCodes[i] == hashCode
+            && Map_FUNCTION(compare)(key, &map->keys[i]) == 0)
         {
             return i;
         }
@@ -118,8 +140,8 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
         #ifdef Map_ENABLE_HANDLES
             // If we use handels then we need to keep the map sorted.
             #ifdef Map_ENABLE_KEYS
-                Bits_memmove(&map->keySuffixes[index],
-                             &map->keySuffixes[index + 1],
+                Bits_memmove(&map->hashCodes[index],
+                             &map->hashCodes[index + 1],
                              (map->count - index) * sizeof(uint32_t));
 
                 Bits_memmove(&map->keys[index],
@@ -138,7 +160,7 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
         #else
             // No handles, we can just fold the top entry down on one to remove.
             map->count--;
-            map->keySuffixes[index] = map->keySuffixes[map->count];
+            map->hashCodes[index] = map->hashCodes[map->count];
             Bits_memcpyConst(&map->keys[index], &map->keys[map->count], sizeof(Map_KEY_TYPE));
             Bits_memcpyConst(&map->values[index], &map->values[map->count], sizeof(Map_VALUE_TYPE));
         #endif
@@ -161,8 +183,8 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
 {
     if (map->count == map->capacity) {
         #ifdef Map_ENABLE_KEYS
-            map->keySuffixes =
-                map->allocator->realloc(map->keySuffixes,
+            map->hashCodes =
+                map->allocator->realloc(map->hashCodes,
                                         sizeof(uint32_t) * (map->count + 10),
                                         map->allocator);
             map->keys =
@@ -199,7 +221,7 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
             map->handles[i] = map->nextHandle++;
         #endif
         #ifdef Map_ENABLE_KEYS
-            map->keySuffixes[i] = Map_getKeySuffix(key);
+            map->hashCodes[i] = (Map_FUNCTION(hash)(key));
             Bits_memcpyConst(&map->keys[i], key, sizeof(Map_KEY_TYPE));
         #endif
     }
@@ -212,7 +234,6 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
 #undef Map
 #undef Map_Entry
 #undef Map_FUNCTION
-#undef Map_getKeySuffix
 #undef Map_USE_HASH
 #undef Map_NAME
 #undef Map_VALUE_TYPE

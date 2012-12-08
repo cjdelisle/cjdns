@@ -131,11 +131,20 @@ void* TUNConfigurator_initTun(const char* interfaceName,
     return (void*) tunPtr;
 }
 
-void TUNConfigurator_setIpAddress(const char* interfaceName,
-                                  const uint8_t address[16],
-                                  int prefixLen,
-                                  struct Log* logger,
-                                  struct Except* eh)
+void TUNConfigurator_addIp4Address(const char* interfaceName,
+                                   const uint8_t address[4],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
+{
+    Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL, "unimplemented");
+}
+
+void TUNConfigurator_addIp6Address(const char* interfaceName,
+                                   const uint8_t address[16],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
 {
     /* stringify our IP address */
     char myIp[40];
@@ -156,7 +165,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     if (err) {
         // Should never happen since the address is specified as binary.
         Except_raise(eh,
-                     TUNConfigurator_setIpAddress_INTERNAL,
+                     TUNConfigurator_addIp6Address_INTERNAL,
                      "bad IPv6 address [%s]",
                      gai_strerror(err));
     }
@@ -185,7 +194,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s < 0) {
         Except_raise(eh,
-                     TUNConfigurator_setIpAddress_INTERNAL,
+                     TUNConfigurator_addIp6Address_INTERNAL,
                      "socket() failed [%s]",
                      Errno_getString());
     }
@@ -194,7 +203,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
         enum Errno err = Errno_get();
         close(s);
         Except_raise(eh,
-                     TUNConfigurator_setIpAddress_INTERNAL,
+                     TUNConfigurator_addIp6Address_INTERNAL,
                      "ioctl(SIOCAIFADDR) failed [%s]",
                      Errno_strerror(err));
     }

@@ -26,6 +26,8 @@
 #include "util/log/WriterLog.h"
 #include "io/FileWriter.h"
 #include "wire/Headers.h"
+#include "wire/Ethernet.h"
+#include "interface/TUNInterface.h"
 
 #include <stdio.h>
 
@@ -33,6 +35,7 @@
 #define TUNA 1
 uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
+    Assert_true(TUNInterface_popMessageType(msg) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE);
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNB;
@@ -40,6 +43,7 @@ uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 }
 uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
+    Assert_true(TUNInterface_popMessageType(msg) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE);
     printf("Message from TUN in node A [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNA;
@@ -111,9 +115,11 @@ void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
 
     if (bToA) {
         TestFramework_craftIPHeader(msg, tn->nodeB->ip, tn->nodeA->ip);
+        TUNInterface_pushMessageType(msg, Ethernet_TYPE_IP6);
         tn->tunIfB.receiveMessage(msg, &tn->tunIfB);
     } else {
         TestFramework_craftIPHeader(msg, tn->nodeA->ip, tn->nodeB->ip);
+        TUNInterface_pushMessageType(msg, Ethernet_TYPE_IP6);
         tn->tunIfA.receiveMessage(msg, &tn->tunIfA);
     }
 

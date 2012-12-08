@@ -23,31 +23,20 @@
 #include "interface/UDPInterface_admin.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/platform/libc/string.h"
 
-#include <event2/event.h>
-
-static int insertEndpointCalls = 0;
-static int insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                          uint8_t herPublicKey[32],
-                          String* password,
-                          struct Interface* externalInterface,
-                          struct InterfaceController* ic)
+static int registerPeer(struct InterfaceController* ic,
+                        uint8_t herPublicKey[32],
+                        String* password,
+                        bool requireAuth,
+                        struct Interface* iface)
 {
-    insertEndpointCalls++;
     return 0;
-}
-
-static int registerInterfaceCalls = 0;
-static void registerInterface(struct Interface* externalInterface,
-                              struct InterfaceController* ic)
-{
-    registerInterfaceCalls++;
 }
 
 int main(int argc, char** argv)
@@ -56,8 +45,7 @@ int main(int argc, char** argv)
 
     // mock interface controller.
     struct InterfaceController ifController = {
-        .insertEndpoint = insertEndpoint,
-        .registerInterface = registerInterface
+        .registerPeer = registerPeer
     };
 
     UDPInterface_admin_register(fw->eventBase,
@@ -74,7 +62,6 @@ int main(int argc, char** argv)
     Assert_always(!res->err);
     //printf("result content: >>%s<<", res->messageBytes);
     Assert_always(!strcmp("d5:error4:none15:interfaceNumberi0ee", (char*) res->messageBytes));
-    Assert_always(registerInterfaceCalls == 1);
 
     // bad key
     dict = Dict_new(fw->alloc);

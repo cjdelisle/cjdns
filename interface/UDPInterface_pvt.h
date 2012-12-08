@@ -16,13 +16,16 @@
 #define UDPInterface_pvt_H
 
 #include "util/events/EventBase.h"
+#include "interface/MultiInterface.h"
 #include "interface/UDPInterface.h"
-#include "net/InterfaceController.h"
-#include "util/log/Log.h"
+#include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "util/log/Log.h"
+#include "util/platform/Socket.h"
+#include "util/events/Event.h"
 
-#include <event2/event.h>
+#include <netinet/in.h> // sockaddr_storage
 
 #define UDPInterface_MAX_PACKET_SIZE 8192
 
@@ -33,25 +36,27 @@ struct UDPInterface_pvt
 {
     struct UDPInterface pub;
 
-    evutil_socket_t socket;
+    Socket socket;
 
     /**
      * The event registered with libevent.
      * Needed only so it can be freed.
      */
-    struct event* incomingMessageEvent;
+    struct Event* incomingMessageEvent;
 
     /** Used for testing. */
     struct sockaddr_storage addr;
 
     /** Used to tell what address type is being used. */
-    ev_socklen_t addrLen;
+    uint32_t addrLen;
 
     uint8_t messageBuff[UDPInterface_PADDING + UDPInterface_MAX_PACKET_SIZE];
 
     struct Log* logger;
 
     struct InterfaceController* ic;
+
+    struct MultiInterface* multiIface;
 
     Identity
 };

@@ -15,6 +15,7 @@ cmake_minimum_required(VERSION 2.4)
 add_subdirectory(log)
 add_subdirectory(version)
 add_subdirectory(events)
+add_subdirectory(platform)
 
 find_package(Libevent2 REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})

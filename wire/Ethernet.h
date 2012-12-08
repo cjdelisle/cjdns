@@ -12,20 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UDPInterface_admin_H
-#define UDPInterface_admin_H
+#ifndef Ethernet_H
+#define Ethernet_H
 
-#include "admin/Admin.h"
-#include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
-#include "util/log/Log.h"
+#include "util/Endian.h"
 
-#include "util/events/EventBase.h"
-
-void UDPInterface_admin_register(struct event_base* base,
-                                 struct Allocator* allocator,
-                                 struct Log* logger,
-                                 struct Admin* admin,
-                                 struct InterfaceController* ic);
+#define Ethernet_TYPE_IP4   Endian_hostToBigEndian16( 0x0800 )
+#define Ethernet_TYPE_IP6   Endian_hostToBigEndian16( 0x86DD )
+#define Ethernet_TYPE_CJDNS Endian_hostToBigEndian16( 0xFC00 )
 
 #endif

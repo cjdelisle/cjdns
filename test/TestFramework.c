@@ -117,20 +117,18 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
         .allocator = client->alloc
     }), sizeof(struct Interface));
 
-    client->ifController->registerInterface(ifaceA, client->ifController);
-    server->ifController->registerInterface(ifaceB, server->ifController);
+    // server knows nothing about the client.
+    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, ifaceB);
 
-    // The server gets the authorized password and the client gets the connectTo
+    // Except that it has an authorizedPassword added.
     CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, (void*)0x1, server->cryptoAuth);
 
-    uint8_t key[InterfaceController_KEY_SIZE];
-    Random_bytes(client->rand, key, InterfaceController_KEY_SIZE);
-
-    client->ifController->insertEndpoint(key,
-                                         server->publicKey,
-                                         String_CONST("abcdefg1234"),
-                                         ifaceA,
-                                         client->ifController);
+    // Client has pubKey and passwd for the server.
+    InterfaceController_registerPeer(client->ifController,
+                                     server->publicKey,
+                                     String_CONST("abcdefg1234"),
+                                     false,
+                                     ifaceA);
 }
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])

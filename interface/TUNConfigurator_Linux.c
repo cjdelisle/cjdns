@@ -101,18 +101,20 @@ void* TUNConfigurator_initTun(const char* interfaceName,
  * Get a socket and ifRequest for a given interface by name.
  *
  * @param interfaceName the name of the interface, eg: tun0
+ * @param af either AF_INET or AF_INET6
  * @param eg an exception handler in case something goes wrong.
  *           this will send a TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET for all errors.
  * @param ifRequestOut an ifreq which will be populated with the interface index of the interface.
  * @return a socket for interacting with this interface.
  */
 static int socketForIfName(const char* interfaceName,
+                           int af,
                            struct Except* eh,
                            struct ifreq* ifRequestOut)
 {
     int s;
 
-    if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+    if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
         Except_raise(eh, TUNConfigurator_ERROR_GETTING_ADMIN_SOCKET,
                      "socket() failed: [%s]", Errno_getString());
     }
@@ -157,14 +159,66 @@ static void checkInterfaceUp(int socket,
     }
 }
 
-void TUNConfigurator_setIpAddress(const char* interfaceName,
-                                  const uint8_t address[16],
-                                  int prefixLen,
-                                  struct Log* logger,
-                                  struct Except* eh)
+void TUNConfigurator_addIp4Address(const char* interfaceName,
+                                   const uint8_t address[4],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
 {
+    if (prefixLen < 0 || prefixLen > 32) {
+        Except_raise(eh, TUNConfigurator_BAD_INPUT,
+                     "for ipv4 addresses, prefixLen must be between 0 and 32");
+    }
+
+    struct ifreq ifRequest = { .ifr_ifindex = 0 };
+    int s = socketForIfName(interfaceName, AF_INET, eh, &ifRequest);
+
+    checkInterfaceUp(s, &ifRequest, logger, eh);
+
+    struct sockaddr_in sin = { .sin_family = AF_INET, .sin_port = 0 };
+    Bits_memcpyConst(&sin.sin_addr.s_addr, address, 4);
+    Bits_memcpyConst(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr));
+
+    uint8_t myIp[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, address, (char*)myIp, INET_ADDRSTRLEN);
+    Log_info(logger, "Setting IP4 address [%s] for device [%s]", myIp, interfaceName);
+
+    if (ioctl(s, SIOCSIFADDR, &ifRequest) < 0) {
+        enum Errno err = Errno_get();
+        close(s);
+        Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL,
+                     "ioctl(SIOCSIFADDR) failed: [%s]", Errno_strerror(err));
+    }
+
+
+    uint32_t x = ~0 << (32 - prefixLen);
+    x = Endian_hostToBigEndian32(x);
+    Bits_memcpyConst(&sin.sin_addr, &x, 4);
+    Bits_memcpyConst(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr_in));
+
+    if (ioctl(s, SIOCSIFNETMASK, &ifRequest) < 0) {
+        enum Errno err = Errno_get();
+        close(s);
+        Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL,
+                     "ioctl(SIOCSIFNETMASK) failed: [%s]", Errno_strerror(err));
+    }
+
+    close(s);
+}
+
+void TUNConfigurator_addIp6Address(const char* interfaceName,
+                                   const uint8_t address[16],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
+{
+    if (prefixLen < 0 || prefixLen > 128) {
+        Except_raise(eh, TUNConfigurator_BAD_INPUT,
+                     "for ipv6 addresses, prefixLen must be between 0 and 128");
+    }
+
     struct ifreq ifRequest;
-    int s = socketForIfName(interfaceName, eh, &ifRequest);
+    int s = socketForIfName(interfaceName, AF_INET6, eh, &ifRequest);
 
     struct in6_ifreq ifr6;
     Bits_memset(&ifr6, 0, sizeof(struct in6_ifreq));
@@ -183,9 +237,11 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
         enum Errno err = Errno_get();
         close(s);
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
                      "ioctl(SIOCSIFADDR) failed: [%s]", Errno_strerror(err));
     }
+
+    close(s);
 }
 
 void TUNConfigurator_setMTU(const char* interfaceName,
@@ -194,7 +250,7 @@ void TUNConfigurator_setMTU(const char* interfaceName,
                             struct Except* eh)
 {
     struct ifreq ifRequest;
-    int s = socketForIfName(interfaceName, eh, &ifRequest);
+    int s = socketForIfName(interfaceName, AF_INET6, eh, &ifRequest);
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
 
@@ -205,4 +261,6 @@ void TUNConfigurator_setMTU(const char* interfaceName,
         Except_raise(eh, TUNConfigurator_setMTU_INTERNAL,
                      "ioctl(SIOCSIFMTU) failed: [%s]", Errno_strerror(err));
     }
+
+    close(s);
 }

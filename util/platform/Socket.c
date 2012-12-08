@@ -12,20 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UDPInterface_admin_H
-#define UDPInterface_admin_H
+#include "util/platform/Socket.h"
+#include <event2/event.h>
 
-#include "admin/Admin.h"
-#include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
-#include "util/log/Log.h"
-
-#include "util/events/EventBase.h"
-
-void UDPInterface_admin_register(struct event_base* base,
-                                 struct Allocator* allocator,
-                                 struct Log* logger,
-                                 struct Admin* admin,
-                                 struct InterfaceController* ic);
-
-#endif
+int Socket_makeNonBlocking(Socket sock)
+{
+    return evutil_make_socket_nonblocking(sock);
+}

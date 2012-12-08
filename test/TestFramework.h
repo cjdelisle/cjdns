@@ -33,6 +33,8 @@ struct TestFramework
     uint8_t* ip;
 };
 
+#define TestFramework_KEY_SIZE 8
+
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,

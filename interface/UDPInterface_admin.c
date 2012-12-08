@@ -17,7 +17,7 @@
 #include "exception/Jmp.h"
 #include "interface/UDPInterface.h"
 #include "memory/Allocator.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "util/Errno.h"
 #include "crypto/Key.h"
 

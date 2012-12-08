@@ -15,11 +15,11 @@
 #ifndef TUNInterface_H
 #define TUNInterface_H
 
-#include "interface/Interface.h"
 #include "benc/String.h"
+#include "interface/Interface.h"
 #include "memory/Allocator.h"
-
 #include "util/events/EventBase.h"
+#include "wire/Message.h"
 
 /**
  * An interface which connects to the TUN/TAP device for
@@ -41,4 +41,19 @@ struct TUNInterface
 struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct event_base* base,
                                       struct Allocator* allocator);
+
+
+static inline void TUNInterface_pushMessageType(struct Message* message, uint16_t ethertype)
+{
+    Message_shift(message, 4);
+    ((uint16_t*) message->bytes)[0] = 0;
+    ((uint16_t*) message->bytes)[1] = ethertype;
+}
+
+static inline uint16_t TUNInterface_popMessageType(struct Message* message)
+{
+    Message_shift(message, -4);
+    return ((uint16_t*) message->bytes)[-1];
+}
+
 #endif

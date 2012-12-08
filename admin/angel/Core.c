@@ -169,7 +169,7 @@ void Core_initTunnel(String* desiredDeviceName,
     //Ducttape_setUserInterface(dt, &icmp->internal);
     Ducttape_setUserInterface(dt, &tun->iface);
 
-    TUNConfigurator_setIpAddress(assignedTunName, ipAddr, addressPrefix, logger, eh);
+    TUNConfigurator_addIp6Address(assignedTunName, ipAddr, addressPrefix, logger, eh);
     TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 

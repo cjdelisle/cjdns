@@ -21,6 +21,7 @@
 #include "crypto/Random.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
+#include "interface/TUNInterface.h"
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -33,6 +34,7 @@
 #include "util/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
+#include "wire/Ethernet.h"
 
 #include <stddef.h>
 
@@ -545,6 +547,9 @@ static uint8_t ip6FromNode(struct Message* message,
         Log_debug(context->logger, "Got message with wrong address for connection");
         return Error_INVALID;
     }
+
+    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP6);
+
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
         tunIf->receiveMessage(message, tunIf);
@@ -565,6 +570,9 @@ static uint8_t ip4FromNode(struct Message* message,
         Log_debug(context->logger, "Got message with wrong address for connection");
         return Error_INVALID;
     }
+
+    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP4);
+
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
         return tunIf->receiveMessage(message, tunIf);

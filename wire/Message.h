@@ -89,4 +89,20 @@ static inline bool Message_shift(struct Message* toShift, int32_t amount)
     return true;
 }
 
+static inline void Message_push(struct Message* restrict msg,
+                                const void* restrict object,
+                                size_t size)
+{
+    Message_shift(msg, (int)size);
+    Bits_memcpy(msg->bytes, object, size);
+}
+
+static inline void Message_pop(struct Message* restrict msg,
+                               void* restrict object,
+                               size_t size)
+{
+    Bits_memcpy(object, msg->bytes, size);
+    Message_shift(msg, -((int)size));
+}
+
 #endif

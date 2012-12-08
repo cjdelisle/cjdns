@@ -85,25 +85,34 @@ static void setupRoute(const uint8_t address[16],
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
                      "open route socket [%s]", Errno_getString());
     }
 
     ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
                      "insert route [%s]", Errno_getString());
     } else if (returnLen < rm.header.rtm_msglen) {
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL,
+        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
                      "insert route returned only [%d] of [%d]", returnLen, rm.header.rtm_msglen);
     }
 }
 
-void TUNConfigurator_setIpAddress(const char* interfaceName,
-                                  const uint8_t address[16],
-                                  int prefixLen,
-                                  struct Log* logger,
-                                  struct Except* eh)
+void TUNConfigurator_addIp4Address(const char* interfaceName,
+                                   const uint8_t address[4],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
+{
+    Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL, "unimplemented");
+}
+
+void TUNConfigurator_addIp6Address(const char* interfaceName,
+                                   const uint8_t address[16],
+                                   int prefixLen,
+                                   struct Log* logger,
+                                   struct Except* eh)
 {
     struct lifreq ifr = {
         .lifr_ppa = 0,
@@ -147,7 +156,7 @@ void TUNConfigurator_setIpAddress(const char* interfaceName,
     if (error) {
         enum Errno err = Errno_get();
         close(udpSock);
-        Except_raise(eh, TUNConfigurator_setIpAddress_INTERNAL, "%s [%s]",
+        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL, "%s [%s]",
                      error, Errno_strerror(err));
     }
     close(udpSock);

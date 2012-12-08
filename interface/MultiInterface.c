@@ -1,0 +1,199 @@
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "interface/MultiInterface.h"
+#include "interface/Interface.h"
+#include "interface/InterfaceController.h"
+#include "memory/Allocator.h"
+#include "util/Identity.h"
+
+/*
+ * An Interface such as Ethernet or UDP which may connect to multiple peers
+ * through the same socket, Interfaces are MultiInterface must send and expect
+ * a configurable length key to be sent in front of the message, this key
+ * indicates which peer the message is from/to.
+ */
+
+// if no key size is specified.
+#define DEFAULT_KEYSIZE 4
+
+
+struct MapKey
+{
+    int keySize;
+
+    /** Variable size. */
+    uint8_t bytes[DEFAULT_KEYSIZE];
+};
+
+struct Peer
+{
+    /** The InterfaceController facing iface. */
+    struct Interface internalIf;
+
+    /** The multi-iface containing this peer. */
+    struct MultiInterface* multiIface;
+
+    Identity
+
+    /** Variable size. */
+    struct MapKey key;
+};
+
+#define Map_USE_HASH
+#define Map_USE_COMPARATOR
+#define Map_NAME OfPeersByKey
+#define Map_KEY_TYPE struct MapKey*
+#define Map_VALUE_TYPE struct Peer*
+#include "util/Map.h"
+
+static inline uint32_t Map_OfPeersByKey_hash(struct MapKey** key)
+{
+    uint32_t* k = (uint32_t*) ((*key)->bytes);
+    return k[0];
+}
+
+static inline int Map_OfPeersByKey_compare(struct MapKey** keyA, struct MapKey** keyB)
+{
+    uint32_t* kA = (uint32_t*) (*keyA);
+    uint32_t* kB = (uint32_t*) (*keyB);
+    for (int i = 0; i <= ((*keyA)->keySize / 4); i++) {
+        if (kA[i] != kB[i]) {
+            return kA[i] < kB[i];
+        }
+    }
+    return 0;
+}
+
+struct MultiInterface_pvt
+{
+    struct MultiInterface pub;
+
+    /** Endpoints by their key. */
+    struct Map_OfPeersByKey peerMap;
+
+    struct InterfaceController* ic;
+
+    struct Allocator* allocator;
+
+    Identity
+};
+
+static uint8_t sendMessage(struct Message* msg, struct Interface* peerIface)
+{
+    struct Peer* p = Identity_cast((struct Peer*) peerIface);
+    Message_push(msg, p->key.bytes, p->key.keySize);
+    return p->multiIface->iface->sendMessage(msg, p->multiIface->iface);
+}
+
+static void removePeer(void* vpeer)
+{
+    struct Peer* p = Identity_cast((struct Peer*) vpeer);
+    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) p->multiIface);
+    struct Map_OfPeersByKey* peerMap = &mif->peerMap;
+    for (int i = 0; i < (int)peerMap->count; i++) {
+        if (peerMap->values[i] == p) {
+            Map_OfPeersByKey_remove(i, peerMap);
+        }
+    }
+}
+
+static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
+                                      struct MapKey* key,
+                                      bool regIfNew)
+{
+    int index = Map_OfPeersByKey_indexForKey(&key, &mif->peerMap);
+    if (index >= 0) {
+        return mif->peerMap.values[index];
+    }
+
+    // Per peer allocator.
+    struct Allocator* alloc = Allocator_child(mif->allocator);
+
+    size_t size = sizeof(struct Peer) + (mif->pub.keySize - DEFAULT_KEYSIZE);
+    struct Peer* peer = Allocator_malloc(mif->allocator, size);
+
+    Bits_memcpyConst(peer, (&(struct Peer) {
+        .internalIf = {
+            .sendMessage = sendMessage,
+            .allocator = alloc
+        },
+        .multiIface = &mif->pub,
+        .key = { .keySize = mif->pub.keySize }
+    }), sizeof(struct Peer));
+    Bits_memcpy(peer->key.bytes, key->bytes, mif->pub.keySize);
+
+    Identity_set(peer);
+
+    struct MapKey* kptr = &peer->key;
+    index = Map_OfPeersByKey_put(&kptr, &peer, &mif->peerMap);
+
+    // remove the peer from the map when the allocator is freed.
+    Allocator_onFree(alloc, removePeer, peer);
+
+    if (regIfNew) {
+        InterfaceController_registerPeer(mif->ic, NULL, NULL, true, &peer->internalIf);
+    }
+    return peer;
+}
+
+static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
+{
+    struct MultiInterface_pvt* mif =
+        Identity_cast((struct MultiInterface_pvt*) external->receiverContext);
+
+    // push the key size to the message.
+    Message_push(msg, &mif->pub.keySize, 4);
+
+    struct Peer* p = peerForKey(mif, (struct MapKey*) msg->bytes, true);
+
+    // pop the key size and key
+    Message_shift(msg, -(mif->pub.keySize + 4));
+
+    return p->internalIf.receiveMessage(msg, &p->internalIf);
+}
+
+struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void* key)
+{
+    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) mIface);
+    uint8_t buff[mif->pub.keySize + 4];
+    Bits_memcpyConst(buff, &mif->pub.keySize, 4);
+    Bits_memcpy(buff+4, key, mif->pub.keySize);
+    struct Peer* p = peerForKey(mif, (struct MapKey*) buff, false);
+    return &p->internalIf;
+}
+
+struct MultiInterface* MultiInterface_new(int keySize,
+                                          struct Interface* external,
+                                          struct InterfaceController* ic)
+{
+    Assert_true(!(keySize % 4));
+    Assert_true(keySize > 4);
+    struct MultiInterface_pvt* out =
+        Allocator_clone(external->allocator, (&(struct MultiInterface_pvt) {
+            .pub = {
+                .iface = external,
+                .keySize = keySize,
+            },
+            .peerMap = { .allocator = external->allocator },
+            .ic = ic,
+            .allocator = external->allocator
+        }));
+    Identity_set(out);
+
+    external->receiveMessage = receiveMessage;
+    external->receiverContext = out;
+
+    return &out->pub;
+}

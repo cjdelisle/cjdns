@@ -17,7 +17,7 @@
 #include "exception/Jmp.h"
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "util/Base32.h"
 #include "util/Errno.h"
 

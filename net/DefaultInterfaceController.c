@@ -42,10 +42,6 @@
 #define TIMEOUT_MILLISECONDS 2000
 
 /*--------------------Structs--------------------*/
-struct MapKey {
-    uint8_t bytes[InterfaceController_KEY_SIZE];
-};
-Assert_compileTime(sizeof(struct MapKey) == InterfaceController_KEY_SIZE);
 
 struct Endpoint
 {
@@ -60,17 +56,14 @@ struct Endpoint
      */
     struct Interface internal;
 
-    /**
-     * The external (network side) interface,
-     * this is the same for all endpoints using this network module.
-     */
+    /** The external (network side) interface. */
     struct Interface* external;
-
-    /** The lookup key for this endpoint (ip/mac address) */
-    struct MapKey key;
 
     /** The label for this endpoint, needed to ping the endpoint. */
     uint64_t switchLabel;
+
+    /** The handle which can be used to look up this endpoint in the endpoint set. */
+    uint32_t handle;
 
     /** If state is UNAUTHENTICATED, the other node has not sent a single valid packet. */
     #define Endpoint_state_UNAUTHENTICATED 0
@@ -100,9 +93,8 @@ struct Endpoint
     Identity
 };
 
-
 #define Map_NAME OfEndpointsByKey
-#define Map_KEY_TYPE struct MapKey
+#define Map_ENABLE_HANDLES
 #define Map_VALUE_TYPE struct Endpoint*
 #include "util/Map.h"
 
@@ -112,7 +104,7 @@ struct Context
     struct InterfaceController pub;
 
     /** Used to get an endpoint by its lookup key, endpoint.internal is entered into the map. */
-    struct Map_OfEndpointsByKey endpointMap;
+    struct Map_OfEndpointsByKey endpointSet;
 
     struct Allocator* const allocator;
 
@@ -196,8 +188,8 @@ static void pingCallback(void* vic)
     ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
-    for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
-        struct Endpoint* ep = ic->endpointMap.values[i];
+    for (uint32_t i = 0; i < ic->endpointSet.count; i++) {
+        struct Endpoint* ep = ic->endpointSet.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
                   uint8_t key[56];
@@ -229,8 +221,7 @@ static void pingCallback(void* vic)
 
 static inline struct Endpoint* endpointForInternalInterface(struct Interface* iface)
 {
-    return
-        Identity_cast((struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal)));
+    return Identity_cast((struct Endpoint*) (((char*)iface) - offsetof(struct Endpoint, internal)));
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -239,8 +230,8 @@ static void moveEndpointIfNeeded(struct Endpoint* ep, struct Context* ic)
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-    for (uint32_t i = 0; i < ic->endpointMap.count; i++) {
-        struct Endpoint* thisEp = ic->endpointMap.values[i];
+    for (uint32_t i = 0; i < ic->endpointSet.count; i++) {
+        struct Endpoint* thisEp = ic->endpointSet.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
@@ -332,12 +323,9 @@ static void closeInterface(void* vendpoint)
     struct Endpoint* toClose = Identity_cast((struct Endpoint*) vendpoint);
     struct Context* ic = interfaceControllerForEndpoint(toClose);
 
-    int index = Map_OfEndpointsByKey_indexForKey(&toClose->key, &ic->endpointMap);
+    int index = Map_OfEndpointsByKey_indexForHandle(toClose->handle, &ic->endpointSet);
     Assert_true(index >= 0);
-    Map_OfEndpointsByKey_remove(index, &ic->endpointMap);
-
-    // flag the entry as nolonger used.
-    toClose->external = NULL;
+    Map_OfEndpointsByKey_remove(index, &ic->endpointSet);
 }
 
 /**
@@ -347,40 +335,8 @@ static void closeInterface(void* vendpoint)
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct Endpoint* ep = endpointForInternalInterface(iface);
-
-    Message_shift(message, InterfaceController_KEY_SIZE);
-    Bits_memcpyConst(message->bytes, &ep->key, InterfaceController_KEY_SIZE);
-
     Assert_true(ep->external);
     return ep->external->sendMessage(message, ep->external);
-}
-
-static inline struct Endpoint* getEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                                           struct Context* ic)
-{
-    struct MapKey* k = (struct MapKey*) key;
-    int index = Map_OfEndpointsByKey_indexForKey(k, &ic->endpointMap);
-    if (index > -1) {
-        struct Endpoint* ep = ic->endpointMap.values[index];
-        Identity_check(ep);
-        #ifdef Log_DEBUG
-            Assert_true(ep->external || !"Entry was not removed from the map but was null.");
-            Assert_true(!Bits_memcmp(key, &ep->key, InterfaceController_KEY_SIZE));
-        #endif
-        return ep;
-    }
-    return NULL;
-}
-
-/**
- * Allow for a configurable which makes different network interfaces require or not require auth.
- * An IPv4 interface might require auth to connect while an 802.11 interface
- * allows anyone to connect.
- */
-static inline bool requiresAuth(struct Interface* networkInterface, struct Context* ic)
-{
-    // TODO: add configuration.
-    return true;
 }
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface);
@@ -400,36 +356,39 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface);
  *           is freed, we would expect all of its children to deregister.
  * @return the newly inserted endpoint, NULL if there is no space to add one.
  */
-static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE],
-                                       uint8_t herPublicKey[32],
-                                       bool requireAuth,
-                                       String* password,
-                                       struct Interface* externalInterface,
-                                       struct Context* ic)
+static int registerPeer(struct InterfaceController* ifController,
+                        uint8_t herPublicKey[32],
+                        String* password,
+                        bool requireAuth,
+                        struct Interface* externalInterface)
 {
+    struct Context* ic = Identity_cast((struct Context*) ifController);
+
     uint8_t ip6[16];
     if (herPublicKey) {
         AddressCalc_addressForPublicKey(ip6, herPublicKey);
         if (!AddressCalc_validAddress(ip6)) {
-            return NULL;
+            return InterfaceController_registerPeer_BAD_KEY;
         }
     }
 
-    if (ic->endpointMap.count >= CJDNS_MAX_PEERS) {
-        return NULL;
+    if (ic->endpointSet.count >= CJDNS_MAX_PEERS) {
+        return InterfaceController_registerPeer_OUT_OF_SPACE;
     }
-
-    // This is the same no matter what endpoint.
-    externalInterface->receiverContext = ic;
-    externalInterface->receiveMessage = receiveMessage;
 
     struct Allocator* epAllocator =
         externalInterface->allocator->child(externalInterface->allocator);
 
     struct Endpoint* ep = epAllocator->calloc(sizeof(struct Endpoint), 1, epAllocator);
-    Map_OfEndpointsByKey_put(((struct MapKey*)key), &ep, &ic->endpointMap);
+    int setIndex = Map_OfEndpointsByKey_put(&ep, &ic->endpointSet);
+    ep->handle = ic->endpointSet.handles[setIndex];
     Identity_set(ep);
     epAllocator->onFree(closeInterface, ep, epAllocator);
+
+
+    externalInterface->receiverContext = ep;
+    externalInterface->receiveMessage = receiveMessage;
+
 
     // If the other end need not supply a valid password to connect
     // we will set the connection state to HANDSHAKE because we don't
@@ -439,14 +398,12 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
     }
 
     ep->external = externalInterface;
-    Bits_memcpyConst(&ep->key, key, InterfaceController_KEY_SIZE);
 
     Bits_memcpyConst(&ep->internal, (&(struct Interface) {
         .senderContext = ic,
         .sendMessage = sendMessage,
         .allocator = epAllocator,
-        .maxMessageLength = externalInterface->maxMessageLength,
-        .requiredPadding = InterfaceController_KEY_SIZE + externalInterface->requiredPadding
+        .maxMessageLength = externalInterface->maxMessageLength
     }), sizeof(struct Interface));
 
     struct Interface* authedIf =
@@ -464,9 +421,7 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         .allocator = epAllocator
     }), sizeof(struct Interface));
 
-    if (SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore)) {
-        return NULL;
-    }
+    Assert_true(!SwitchCore_addInterface(&ep->switchIf, 0, &ep->switchLabel, ic->switchCore));
 
     authedIf->receiveMessage = receivedAfterCryptoAuth;
     authedIf->receiverContext = ep;
@@ -492,34 +447,13 @@ static struct Endpoint* insertEndpoint(uint8_t key[InterfaceController_KEY_SIZE]
         pingCallback(ic);
     }
 
-    return ep;
+    return 0;
 }
 
 // Get an incoming message from a network interface, doesn't matter what interface or what endpoint.
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct Context* ic = iface->receiverContext;
-    struct Endpoint* ep = getEndpoint(msg->bytes, ic);
-
-    if (!ep) {
-        // Not a known peer, add them.
-        ep = insertEndpoint(msg->bytes, NULL, requiresAuth(iface, ic), NULL, iface, ic);
-
-        if (!ep) {
-            Log_warn(ic->logger, "Could not insert endpoint, out of space in switch.");
-            return Error_NONE;
-        }
-
-        #ifdef Log_KEYS
-            uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
-            Hex_encode(keyHex, sizeof(keyHex), msg->bytes, InterfaceController_KEY_SIZE);
-            Log_keys(ic->logger, "Got incoming connection request from [%s]", keyHex);
-        #else
-            Log_info(ic->logger, "Got incoming connection request.");
-        #endif
-    }
-
-    Message_shift(msg, -InterfaceController_KEY_SIZE);
+    struct Endpoint* ep = Identity_cast((struct Endpoint*) iface->receiverContext);
     uint8_t out = ep->internal.receiveMessage(msg, &ep->internal);
 
     if (ep->state == Endpoint_state_UNAUTHENTICATED) {
@@ -531,31 +465,6 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return out;
 }
 
-static int insertEndpointPublic(uint8_t key[InterfaceController_KEY_SIZE],
-                                uint8_t herPublicKey[32],
-                                String* password,
-                                struct Interface* externalInterface,
-                                struct InterfaceController* ic)
-{
-    struct Context* ctx = (struct Context*) ic;
-    struct Endpoint* ep =
-        insertEndpoint(key, herPublicKey, false, password, externalInterface, ctx);
-    if (!ep) {
-        if (herPublicKey && !AddressCalc_validKey(herPublicKey)) {
-            return InterfaceController_registerInterface_BAD_KEY;
-        }
-        return InterfaceController_registerInterface_OUT_OF_SPACE;
-    }
-    return 0;
-}
-
-static void registerInterfacePublic(struct Interface* externalInterface,
-                                    struct InterfaceController* ic)
-{
-    externalInterface->receiverContext = ic;
-    externalInterface->receiveMessage = receiveMessage;
-}
-
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
@@ -564,14 +473,12 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                                            struct SwitchPinger* switchPinger,
                                                            struct Allocator* allocator)
 {
-    struct Context* out =
-        allocator->malloc(sizeof(struct Context), allocator);
+    struct Context* out = Allocator_malloc(allocator, sizeof(struct Context));
     Bits_memcpyConst(out, (&(struct Context) {
         .pub = {
-            .insertEndpoint = insertEndpointPublic,
-            .registerInterface = registerInterfacePublic
+            .registerPeer = registerPeer
         },
-        .endpointMap = {
+        .endpointSet = {
             .allocator = allocator
         },
         .allocator = allocator,
@@ -590,5 +497,6 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
             : NULL
 
     }), sizeof(struct Context));
+    Identity_set(out);
     return &out->pub;
 }

@@ -17,24 +17,24 @@
 #include "interface/Interface.h"
 #include "interface/ETHInterface.h"
 #include "memory/Allocator.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
+#include "interface/MultiInterface.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "wire/Ethernet.h"
 #include "util/Assert.h"
 #include "util/Errno.h"
 #include "util/platform/libc/string.h"
+#include "util/platform/Socket.h"
+#include "util/events/Event.h"
+#include "util/Identity.h"
+#include "util/AddrTools.h"
 
-#ifdef WIN32
-    #include <winsock.h>
-    #undef interface
-#else
-    #include <sys/socket.h>
-    #include <linux/if_packet.h>
-    #include <linux/if_ether.h>
-    #include <linux/if_arp.h>
-#endif
-
+#include <sys/socket.h>
+#include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/if_arp.h>
 #include <event2/event.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -44,10 +44,6 @@
 
 #define PADDING 512
 
-#define MAX_INTERFACES 256
-
-#define ETH_P_CJDNS 0xFC00
-
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
 
@@ -55,13 +51,7 @@ struct ETHInterface
 {
     struct Interface interface;
 
-    evutil_socket_t socket;
-
-    /**
-     * The event registered with libevent.
-     * Needed only so it can be freed.
-     */
-    struct event* incomingMessageEvent;
+    Socket socket;
 
     uint8_t messageBuff[PADDING + MAX_PACKET_SIZE];
 
@@ -72,37 +62,19 @@ struct ETHInterface
 
     struct InterfaceController* ic;
 
-    /** A base sockaddr_ll which is used to build the address to send packets to. */
+    struct MultiInterface* multiIface;
+
     struct sockaddr_ll addrBase;
+
+    Identity
 };
-
-static inline void sockaddrForKey(struct sockaddr_ll* sockaddr,
-                                  uint8_t key[InterfaceController_KEY_SIZE],
-                                  struct ETHInterface* ethIf)
-{
-    Assert_true(key[6] == 'e' && key[7] == 'n');
-    Bits_memcpyConst(sockaddr, &ethIf->addrBase, sizeof(struct sockaddr_ll));
-    Bits_memcpyConst(sockaddr->sll_addr, key, 6);
-}
-
-static inline void keyForSockaddr(uint8_t key[InterfaceController_KEY_SIZE],
-                                  struct sockaddr_ll* sockaddr,
-                                  struct ETHInterface* ethIf)
-{
-    Bits_memcpyConst(key, sockaddr->sll_addr, 6);
-    key[6] = 'e';
-    key[7] = 'n';
-}
 
 static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
 {
-    struct ETHInterface* context = ethIf->senderContext;
-    Assert_true(&context->interface == ethIf);
+    struct ETHInterface* context = Identity_cast((struct ETHInterface*) ethIf);
 
     struct sockaddr_ll addr;
-
-    sockaddrForKey(&addr, message->bytes, context);
-    Message_shift(message, -InterfaceController_KEY_SIZE);
+    Message_pop(message, &addr, sizeof(struct sockaddr_ll));
 
     if (sendto(context->socket,
                message->bytes,
@@ -127,32 +99,21 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     return 0;
 }
 
-/**
- * Release the event used by this module.
- *
- * @param vevent a void pointer cast of the event structure.
- */
-static void freeEvent(void* vevent)
+static void handleEvent(void* vcontext)
 {
-    event_del((struct event*) vevent);
-    event_free((struct event*) vevent);
-}
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct ETHInterface* context = (struct ETHInterface*) vcontext;
+    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
 
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
     struct sockaddr_ll addr = { .sll_family = 0 };
-    ev_socklen_t addrLen = sizeof(struct sockaddr_ll);
+    uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
     // keyForSockaddr() will write the key there.
-    int rc = recvfrom(socket,
-                      message.bytes + InterfaceController_KEY_SIZE,
-                      message.length - InterfaceController_KEY_SIZE,
+    int rc = recvfrom(context->socket,
+                      message.bytes,
+                      message.length,
                       0,
                       (struct sockaddr*) &addr,
                       &addrLen);
@@ -176,9 +137,8 @@ static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
         return;
     }
 
-    message.length = rc + InterfaceController_KEY_SIZE;
-
-    keyForSockaddr(message.bytes, &addr, context);
+    message.length = rc;
+    Message_push(&message, &addr, sizeof(struct sockaddr_ll));
 
     context->interface.receiveMessage(&message, &context->interface);
 }
@@ -188,50 +148,50 @@ int ETHInterface_beginConnection(const char* macAddress,
                                  String* password,
                                  struct ETHInterface* ethIf)
 {
-    struct sockaddr_ll addr = { .sll_family = 0 };
+    Identity_check(ethIf);
+    struct sockaddr_ll addr;
+    Bits_memcpyConst(&addr, &ethIf->addrBase, sizeof(struct sockaddr_ll));
     if (AddrTools_parseMac(addr.sll_addr, (const uint8_t*)macAddress)) {
         return ETHInterface_beginConnection_BAD_MAC;
     }
 
-    uint8_t key[InterfaceController_KEY_SIZE];
-    keyForSockaddr(key, &addr, ethIf);
-    int ret = ethIf->ic->insertEndpoint(key, cryptoKey, password, &ethIf->interface, ethIf->ic);
-    switch(ret) {
-        case 0:
-            return 0;
+    struct Interface* iface = MultiInterface_ifaceForKey(ethIf->multiIface, &addr);
+    int ret = InterfaceController_registerPeer(ethIf->ic, cryptoKey, password, false, iface);
+    if (ret) {
+        Allocator_free(iface->allocator);
+        switch(ret) {
+            case InterfaceController_registerPeer_BAD_KEY:
+                return ETHInterface_beginConnection_BAD_KEY;
 
-        case InterfaceController_registerInterface_BAD_KEY:
-            return ETHInterface_beginConnection_BAD_KEY;
+            case InterfaceController_registerPeer_OUT_OF_SPACE:
+                return ETHInterface_beginConnection_OUT_OF_SPACE;
 
-        case InterfaceController_registerInterface_OUT_OF_SPACE:
-            return ETHInterface_beginConnection_OUT_OF_SPACE;
-
-        default:
-            return ETHInterface_beginConnection_UNKNOWN_ERROR;
+            default:
+                return ETHInterface_beginConnection_UNKNOWN_ERROR;
+        }
     }
+    return 0;
 }
 
-struct ETHInterface* ETHInterface_new(struct event_base* base,
+struct ETHInterface* ETHInterface_new(struct EventBase* base,
                                       const char* bindDevice,
                                       struct Allocator* allocator,
                                       struct Except* exHandler,
                                       struct Log* logger,
                                       struct InterfaceController* ic)
 {
-    struct ETHInterface* context = allocator->malloc(sizeof(struct ETHInterface), allocator);
-    Bits_memcpyConst(context, (&(struct ETHInterface) {
+    struct ETHInterface* context = Allocator_clone(allocator, (&(struct ETHInterface) {
         .interface = {
             .sendMessage = sendMessage,
-            .senderContext = context,
             .allocator = allocator
         },
         .logger = logger,
         .ic = ic
-    }), sizeof(struct ETHInterface));
+    }));
 
     struct ifreq ifr = { .ifr_ifindex = 0 };
 
-    context->socket = socket(AF_PACKET, SOCK_DGRAM, Endian_hostToBigEndian16(ETH_P_CJDNS));
+    context->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
     if (context->socket == -1) {
         Except_raise(exHandler, ETHInterface_new_SOCKET_FAILED,
                      "call to socket() failed. [%s]", Errno_getString());
@@ -259,13 +219,12 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
 
     context->addrBase = (struct sockaddr_ll) {
         .sll_family = AF_PACKET,
-        .sll_protocol = Endian_hostToBigEndian16(ETH_P_CJDNS),
+        .sll_protocol = Ethernet_TYPE_CJDNS,
         .sll_ifindex = context->ifindex,
         .sll_hatype = ARPHRD_ETHER,
         .sll_pkttype = PACKET_OTHERHOST,
         .sll_halen = ETH_ALEN
     };
-
 
     if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
         Except_raise(exHandler, ETHInterface_new_BIND_FAILED,
@@ -274,17 +233,9 @@ struct ETHInterface* ETHInterface_new(struct event_base* base,
 
     evutil_make_socket_nonblocking(context->socket);
 
-    context->incomingMessageEvent =
-        event_new(base, context->socket, EV_READ | EV_PERSIST, handleEvent, context);
+    Event_socketRead(handleEvent, context, context->socket, base, allocator, exHandler);
 
-    if (!context->incomingMessageEvent || event_add(context->incomingMessageEvent, NULL)) {
-        Except_raise(exHandler, ETHInterface_new_FAILED_CREATING_EVENT,
-                     "failed to create ETHInterface event [%s]", Errno_getString());
-    }
-
-    allocator->onFree(freeEvent, context->incomingMessageEvent, allocator);
-
-    ic->registerInterface(&context->interface, ic);
+    context->multiIface = MultiInterface_new(sizeof(struct sockaddr_ll), &context->interface, ic);
 
     return context;
 }

@@ -21,6 +21,7 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "interface/TUNInterface.h"
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
@@ -38,6 +39,7 @@
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
+#include "wire/Ethernet.h"
 
 #include <stdint.h>
 #include <event2/event.h>
@@ -296,6 +298,9 @@ static inline uint8_t incomingForMe(struct Message* message,
                 Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
         Bits_memmoveConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
+
+    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP6);
+
     context->userIf->sendMessage(message, context->userIf);
     return Error_NONE;
 }
@@ -401,15 +406,23 @@ static inline uint8_t incomingFromTun(struct Message* message,
                                       struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
+
+    uint16_t ethertype = TUNInterface_popMessageType(message);
+
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     int version = Headers_getIpVersion(message->bytes);
-    if (version == 4 || (version == 6 && !AddressCalc_validAddress(header->sourceAddr))) {
+    if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
+        || (ethertype == Ethernet_TYPE_IP6 && version != 6))
+    {
+        Log_warn(context->logger, "dropped packet because ip version [%d] "
+                 "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
+        return Error_INVALID;
+    }
+
+    if (ethertype != Ethernet_TYPE_IP6 || !AddressCalc_validAddress(header->sourceAddr)) {
         return context->ipTunnel->tunInterface.sendMessage(message,
                                                            &context->ipTunnel->tunInterface);
-    } else if (version != 6) {
-        Log_warn(context->logger, "dropped packet with unexpected IP version [%d].", version);
-        return Error_INVALID;
     }
 
     if (Bits_memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {

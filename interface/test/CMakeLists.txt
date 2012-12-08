@@ -13,6 +13,11 @@ set(Test_FILES
     UDPInterface_test.c
     UDPInterface_communication_test.c
     ICMP6Generator_test.c
+    MultiInterface_test.c
+)
+set(Test_ROOT_FILES
+    TUNInterface_ipv4_root_test.c
+    TUNInterface_ipv6_root_test.c
 )
 set(Test_LIBRARIES
     cjdns-admin

@@ -17,7 +17,7 @@
 
 #include "admin/Admin.h"
 #include "memory/Allocator.h"
-#include "net/InterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 

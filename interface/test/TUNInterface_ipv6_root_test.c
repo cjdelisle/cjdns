@@ -21,6 +21,8 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "interface/UDPInterface_pvt.h"
+#include "interface/TUNInterface.h"
+#include "interface/TUNConfigurator.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
@@ -32,15 +34,18 @@
 #include "util/log/WriterLog.h"
 #include "util/platform/libc/string.h"
 #include "util/Timeout.h"
+#include "wire/Ethernet.h"
+#include "wire/Headers.h"
 
 #ifdef BSD
     #include <netinet/in.h>
 #endif
 
-#include <event2/event.h>
+const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
 
 /*
- * Setup 2 UDPInterface's, test sending traffic between them.
+ * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
  */
 
 static int registerPeer(struct InterfaceController* ic,
@@ -52,14 +57,33 @@ static int registerPeer(struct InterfaceController* ic,
     return 0;
 }
 
-static uint8_t receiveMessageA(struct Message* msg, struct Interface* iface)
+static int receivedMessageTUNCount = 0;
+static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
-    // pong
+    receivedMessageTUNCount++;
+    uint16_t ethertype = TUNInterface_popMessageType(msg);
+    Assert_always(ethertype == Ethernet_TYPE_IP6);
+
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+
+    Assert_always(msg->length == Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12);
+
+    Assert_always(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
+    Assert_always(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
+
+    Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
+    Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
+
+    TUNInterface_pushMessageType(msg, ethertype);
+
     return iface->sendMessage(msg, iface);
 }
 
-static uint8_t receiveMessageB(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 {
+    if (!receivedMessageTUNCount) {
+       // return 0;
+    }
     // Got the message, test successful.
     exit(0);
     return 0;
@@ -82,24 +106,26 @@ int main(int argc, char** argv)
         .registerPeer = registerPeer
     };
 
-    struct UDPInterface* udpA = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
-    struct UDPInterface* udpB = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
+    char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
+    void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
+    TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
+    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc);
 
-    uint8_t key[8] = {0};
-    uint8_t length = sizeof(struct sockaddr_in);
-    length = (length > 8) ? 8 : length;
-    Bits_memcpy(key, &((struct UDPInterface_pvt*) udpA)->addr, length);
+    struct UDPInterface* udp = UDPInterface_new(base, "[fd00::1]:5000", alloc, NULL, logger, &ic);
+
+    struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
+    sin.sin6_port = Endian_hostToBigEndian16(5000);
+    Bits_memcpy(&sin.sin6_addr, testAddrB, 16);
 
     struct Message* msg;
-    Message_STACK(msg, 12, 64);
-    Bits_memcpyConst((char*)msg->bytes, "Hello World", 12);
-    Message_shift(msg, 8);
-    Bits_memcpyConst((char*)msg->bytes, key, 8);
+    Message_STACK(msg, 0, 64);
+    Message_push(msg, "Hello World", 12);
+    Message_push(msg, &sin, sizeof(struct sockaddr_in6));
 
-    udpA->generic.receiveMessage = receiveMessageA;
-    udpB->generic.receiveMessage = receiveMessageB;
+    udp->generic.receiveMessage = receiveMessageUDP;
+    tun->iface.receiveMessage = receiveMessageTUN;
 
-    udpB->generic.sendMessage(msg, &udpB->generic);
+    udp->generic.sendMessage(msg, &udp->generic);
 
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 

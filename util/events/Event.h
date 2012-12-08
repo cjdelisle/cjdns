@@ -12,20 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef UDPInterface_admin_H
-#define UDPInterface_admin_H
+#ifndef Event_H
+#define Event_H
 
-#include "admin/Admin.h"
+#include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "interface/InterfaceController.h"
-#include "util/log/Log.h"
-
 #include "util/events/EventBase.h"
+#include "util/platform/Socket.h"
+#include "util/Identity.h"
 
-void UDPInterface_admin_register(struct event_base* base,
-                                 struct Allocator* allocator,
-                                 struct Log* logger,
-                                 struct Admin* admin,
-                                 struct InterfaceController* ic);
+struct Event
+{
+    int unused;
+};
+
+#define Event_socketRead_INTERNAL -1
+struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
+                               void* const callbackContext,
+                               Socket s,
+                               struct EventBase* base,
+                               struct Allocator* alloc,
+                               struct Except* eh);
+
+void Event_clearEvent(struct Event* event);
 
 #endif
