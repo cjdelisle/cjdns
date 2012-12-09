@@ -70,7 +70,11 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
 
-    Assert_always(msg->length == Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12);
+    if (msg->length != Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE + 12) {
+        int type = (msg->length >= Headers_IP6Header_SIZE) ? header->nextHeader : -1;
+        printf("Message of unexpected length [%u] ip6->nextHeader: [%d]\n", msg->length, type);
+        return 0;
+    }
 
     Assert_always(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
     Assert_always(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
