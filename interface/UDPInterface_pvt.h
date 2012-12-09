@@ -53,9 +53,6 @@ struct UDPInterface_pvt
 
     struct MultiInterface* multiIface;
 
-    /** used for testing. */
-    uint16_t boundPort_be;
-
     Identity
 };
 

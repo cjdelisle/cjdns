@@ -23,6 +23,7 @@
 #define CryptoAuth_reset Exports_CryptoAuth_reset
 #define CryptoAuth_flushUsers Exports_CryptoAuth_flushUsers
 #define CryptoAuth_getState Exports_CryptoAuth_getState
+#define CryptoAuth_getConnectedInterface Exports_CryptoAuth_getConnectedInterface
 
 #include "crypto/CryptoAuth.c"
 

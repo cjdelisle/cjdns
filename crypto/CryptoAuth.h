@@ -167,4 +167,15 @@ void CryptoAuth_reset(struct Interface* iface);
  */
 int CryptoAuth_getState(struct Interface* iface);
 
+/**
+ * Get the interface on the other side of this CryptoAuth session.
+ *
+ * Given a wrapped interface, get the wrapping interface.
+ * given a wrapping interface, get the one which is wrapped.
+ *
+ * @param iface the wrapped or wrapper iface.
+ * @return the opposite.
+ */
+struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface);
+
 #endif

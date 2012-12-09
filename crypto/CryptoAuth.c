@@ -1064,3 +1064,18 @@ int CryptoAuth_getState(struct Interface* interface)
             return CryptoAuth_ESTABLISHED;
     }
 }
+
+struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
+{
+    if (iface->sendMessage == sendMessage) {
+        // internal (plaintext side)
+        struct CryptoAuth_Wrapper* wrapper =
+            Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
+        return wrapper->wrappedInterface;
+    } else if (iface->receiveMessage == receiveMessage) {
+        struct CryptoAuth_Wrapper* wrapper =
+            Identity_cast((struct CryptoAuth_Wrapper*)iface->receiverContext);
+        return &wrapper->externalInterface;
+    }
+    return NULL;
+}

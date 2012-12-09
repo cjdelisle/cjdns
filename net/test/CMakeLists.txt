@@ -11,6 +11,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set(Test_FILES
     DefaultInterfaceController_test.c
+    DefaultInterfaceController_multiIface_test.c
 )
 set(Test_LIBRARIES
     TestFramework

@@ -44,6 +44,12 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct Random* rand = Random_new(allocator, NULL);
     struct EventBase* base = EventBase_new(allocator);
 
+    uint64_t pks[4];
+    if (!privateKey) {
+        Random_longs(rand, pks, 4);
+        privateKey = (char*)pks;
+    }
+
     if (!logger) {
         struct Writer* logwriter = FileWriter_new(stdout, allocator);
         logger = WriterLog_new(logwriter, allocator);

@@ -36,6 +36,14 @@ void Random_bytes(struct Random* rand, uint8_t* location, uint64_t count);
 void Random_base32(struct Random* rand, uint8_t* output, uint32_t length);
 
 
+static inline void Random_longs(struct Random* rand, uint64_t* location, uint64_t count)
+{
+    Random_bytes(rand, (uint8_t*) location, count*8);
+}
+static inline void Random_ints(struct Random* rand, uint32_t* location, uint64_t count)
+{
+    Random_bytes(rand, (uint8_t*) location, count*4);
+}
 static inline int16_t Random_int16(struct Random* rand)
 {
     int16_t ret;

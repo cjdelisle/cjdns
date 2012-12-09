@@ -63,7 +63,10 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
     uint16_t ethertype = TUNInterface_popMessageType(msg);
-    Assert_always(ethertype == Ethernet_TYPE_IP6);
+    if (ethertype != Ethernet_TYPE_IP6) {
+        printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
+        return 0;
+    }
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
 
@@ -83,7 +86,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 {
     if (!receivedMessageTUNCount) {
-       // return 0;
+        return 0;
     }
     // Got the message, test successful.
     exit(0);
@@ -112,10 +115,10 @@ int main(int argc, char** argv)
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc);
 
-    struct UDPInterface* udp = UDPInterface_new(base, "[fd00::1]:5000", alloc, NULL, logger, &ic);
+    struct UDPInterface* udp = UDPInterface_new(base, "[::]", alloc, NULL, logger, &ic);
 
     struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
-    sin.sin6_port = Endian_hostToBigEndian16(5000);
+    sin.sin6_port = udp->boundPort_be;
     Bits_memcpy(&sin.sin6_addr, testAddrB, 16);
 
     struct Message* msg;

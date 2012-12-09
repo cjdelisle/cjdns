@@ -315,7 +315,7 @@ int SwitchCore_addInterface(struct Interface* iface,
     }
 
     if (ifIndex == NumberCompress_INTERFACES) {
-        return -1;
+        return SwitchCore_addInterface_OUT_OF_SPACE;
     }
 
     struct SwitchInterface* newIf = &core->interfaces[ifIndex];
