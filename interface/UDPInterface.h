@@ -24,9 +24,6 @@
 struct UDPInterface
 {
     struct Interface generic;
-
-    /** Used for testing. */
-    uint16_t boundPort_be;
 };
 
 /**

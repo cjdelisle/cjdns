@@ -48,12 +48,7 @@ static void handleEvent(void* vcontext)
     }
     msg->length = length;
 
-    #ifdef OSX
-        // OSX tags the message with the AF type (AF_INET or AF_INET6) rather than the ethertype.
-        // pop it and scrap it then tag it the same as we do for Illumos.
-        TUNInterface_popMessageType(msg);
-    #endif
-    #if defined(Illumos) || defined(OSX)
+    #ifdef Illumos
         // Illumos does not send packet info, it only supports ip4 and ip6 over tun.
         uint16_t ethertype = ((msg->bytes[0] >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
         TUNInterface_pushMessageType(msg, ethertype);

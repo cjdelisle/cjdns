@@ -45,9 +45,6 @@ struct Peer
     /** The multi-iface containing this peer. */
     struct MultiInterface* multiIface;
 
-    /** The InterfaceController's structure which is used to detect unresponsive peers. */
-    struct InterfaceController_Peer* ifcPeer;
-
     Identity
 
     /** Variable size. */
@@ -153,7 +150,6 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     return peer;
 }
 
-/** Incoming from the network interface */
 static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 {
     struct MultiInterface_pvt* mif =
@@ -167,18 +163,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
     // pop the key size and key
     Message_shift(msg, -(mif->pub.keySize + 4));
 
-    // into the core.
-    uint8_t ret = p->internalIf.receiveMessage(msg, &p->internalIf);
-
-    enum InterfaceController_PeerState state =
-        InterfaceController_getPeerState(mif->ic, &p->internalIf);
-    if (state == InterfaceController_PeerState_UNAUTHENTICATED) {
-        // some random stray packet wandered in to the interface....
-        // This removes all of the state associated with the endpoint.
-        Allocator_free(p->internalIf.allocator);
-    }
-
-    return ret;
+    return p->internalIf.receiveMessage(msg, &p->internalIf);
 }
 
 struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void* key)

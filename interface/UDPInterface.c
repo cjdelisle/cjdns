@@ -178,20 +178,12 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
 
     context->socket = socket(addrFam, SOCK_DGRAM, 0);
     if (context->socket == -1) {
-        Except_raise(exHandler,
-                     UDPInterface_new_BIND_FAILED,
-                     "call to socket() failed [%s]",
-                     Errno_getString());
+        Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to socket() failed.");
     }
 
     if (bindAddr != NULL) {
         if (bind(context->socket, (struct sockaddr*) &addr, context->addrLen)) {
-            enum Errno err = Errno_get();
-            EVUTIL_CLOSESOCKET(context->socket);
-            Except_raise(exHandler,
-                         UDPInterface_new_BIND_FAILED,
-                         "call to bind() failed [%s]",
-                         Errno_strerror(err));
+            Except_raise(exHandler, UDPInterface_new_BIND_FAILED, "call to bind() failed.");
         }
     }
 
@@ -200,7 +192,7 @@ struct UDPInterface* UDPInterface_new(struct event_base* base,
         EVUTIL_CLOSESOCKET(context->socket);
         Except_raise(exHandler, -1, "Failed to get socket name [%s]", Errno_strerror(err));
     }
-    Bits_memcpyConst(&context->pub.boundPort_be, &((struct sockaddr_in*)&addr)->sin_port, 2);
+    Bits_memcpyConst(&context->boundPort_be, &((struct sockaddr_in*)&addr)->sin_port, 2);
 
     evutil_make_socket_nonblocking(context->socket);
 

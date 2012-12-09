@@ -62,10 +62,6 @@ static int registerPeer(struct InterfaceController* ic,
     return 0;
 }
 
-static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
-{
-    return InterfaceController_PeerState_HANDSHAKE;
-}
 
 int main()
 {
@@ -75,8 +71,7 @@ int main()
     // mock interface controller.
     struct Context ctx = {
         .ic = {
-            .registerPeer = registerPeer,
-            .getPeerState = getPeerState
+            .registerPeer = registerPeer
         }
     };
 
