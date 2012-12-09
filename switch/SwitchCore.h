@@ -41,8 +41,9 @@ struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocato
  * @param labelOut_be a buffer which will be filled with the label part for getting
  *                    to the newly added node. It will be set to the big endian value.
  * @param core the switchcore.
- * @return 0 on success, -1 if there are no more interface slots.
+ * @return 0 on success, SwitchCore_addInterface_OUT_OF_SPACE if there are no more interface slots.
  */
+#define SwitchCore_addInterface_OUT_OF_SPACE -1
 int SwitchCore_addInterface(struct Interface* iface,
                             const uint64_t trust,
                             uint64_t* labelOut_be,

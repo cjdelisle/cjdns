@@ -64,7 +64,10 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
     uint16_t ethertype = TUNInterface_popMessageType(msg);
-    Assert_always(ethertype == Ethernet_TYPE_IP4);
+    if (ethertype != Ethernet_TYPE_IP4) {
+        printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
+        return 0;
+    }
 
     struct Headers_IP4Header* header = (struct Headers_IP4Header*) msg->bytes;
 
@@ -113,10 +116,10 @@ int main(int argc, char** argv)
     TUNConfigurator_addIp4Address(assignedInterfaceName, testAddrA, 30, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc);
 
-    struct UDPInterface* udp = UDPInterface_new(base, "11.0.0.1:5000", alloc, NULL, logger, &ic);
+    struct UDPInterface* udp = UDPInterface_new(base, "0.0.0.0", alloc, NULL, logger, &ic);
 
     struct sockaddr_in sin = { .sin_family = AF_INET };
-    sin.sin_port = Endian_hostToBigEndian16(5000);
+    sin.sin_port = udp->boundPort_be;
     Bits_memcpy(&sin.sin_addr, testAddrB, 4);
 
     struct Message* msg;
