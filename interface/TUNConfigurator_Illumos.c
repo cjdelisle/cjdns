@@ -105,6 +105,7 @@ void TUNConfigurator_addIp4Address(const char* interfaceName,
                                    struct Log* logger,
                                    struct Except* eh)
 {
+    // TODO: implement this and then remove the exception from TUNInterface_ipv4_root_test.c
     Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL, "unimplemented");
 }
 

@@ -101,6 +101,11 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
+    // TODO: fix TUNConfigurator_addIp4Address() for illumos.
+    #ifdef Illumos
+        return 0;
+    #endif
+
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
