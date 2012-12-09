@@ -516,6 +516,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
 static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
+    context->switchHeader = NULL;
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
     struct Node* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);

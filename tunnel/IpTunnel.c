@@ -143,11 +143,11 @@ static uint8_t sendToNode(struct Message* message,
                           struct IpTunnel_Connection* connection,
                           struct IpTunnel_pvt* context)
 {
-    Message_shift(message, IpTunnel_PacketInfoHeader_SIZE);
-    Bits_memcpyConst(message->bytes, &connection->header, IpTunnel_PacketInfoHeader_SIZE);
+    Message_push(message, &connection->header, IpTunnel_PacketInfoHeader_SIZE);
     if (context->pub.nodeInterface.receiveMessage) {
         return context->pub.nodeInterface.receiveMessage(message, &context->pub.nodeInterface);
     }
+    Log_info(context->logger, "Message undeliverable because IpTunnel is not registered");
     return Error_UNDELIVERABLE;
 }
 
@@ -585,6 +585,8 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
     struct IpTunnel_pvt* context =
         (struct IpTunnel_pvt*)(((char*)nodeIf) - offsetof(struct IpTunnel, nodeInterface));
     Identity_check(context);
+
+    Log_debug(context->logger, "Got incoming message");
 
     Assert_true(message->length >= IpTunnel_PacketInfoHeader_SIZE);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
