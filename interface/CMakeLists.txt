@@ -29,6 +29,7 @@ add_library(interface
     ${ethif}
     ${tunif}
     TUNConfigurator_${SYSTEM}.c
+    TUNMessageType.c
     InterfaceConnector.c
     SessionManager.c
     ICMP6Generator.c
@@ -40,16 +41,6 @@ target_link_libraries(interface
     cjdns-crypto-key
     cjdns-util-events-libevent
     cjdns-util-platform-socket
-)
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/TUNMessageType_${SYSTEM}.c)
-    set(TUNMessageType TUNMessageType_${SYSTEM}.c)
-else()
-    set(TUNMessageType TUNMessageType.c)
-endif()
-
-add_library(cjdns-interface-tun-messagetype
-    ${TUNMessageType}
 )
 
 add_library(cjdns-interface-pipeinterface

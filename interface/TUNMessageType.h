@@ -19,6 +19,20 @@
 
 #include <stdint.h>
 
+#if defined(BSD) || defined(OSX)
+    #define TUNMessageType_push TUNMessageType_push_BSD
+    #define TUNMessageType_pop TUNMessageType_pop_BSD
+#elif defined(Illumos)
+    #define TUNMessageType_push TUNMessageType_push_Illumos
+    #define TUNMessageType_pop TUNMessageType_pop_Illumos
+#elif defined(Linux) || defined(WIN32)
+    // We'll assume that when the WIN32 implementation is written, it works like linux.
+    #define TUNMessageType_push TUNMessageType_push_Linux
+    #define TUNMessageType_pop TUNMessageType_pop_Linux
+#else
+    #error No TUNMessageType_push() and TUNMessageType_pop() implementations for your system.
+#endif
+
 void TUNMessageType_push(struct Message* message, uint16_t ethertype);
 
 uint16_t TUNMessageType_pop(struct Message* message);
