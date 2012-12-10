@@ -120,7 +120,7 @@ int main(int argc, char** argv)
     char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
     void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
     TUNConfigurator_addIp4Address(assignedInterfaceName, testAddrA, 30, logger, NULL);
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc);
+    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
     struct UDPInterface* udp = UDPInterface_new(base, "0.0.0.0", alloc, NULL, logger, &ic);
 

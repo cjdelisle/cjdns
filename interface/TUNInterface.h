@@ -34,9 +34,11 @@ struct TUNInterface
  * @param tunSocket an pointer to a file descriptor provided by TUNConfigurator_configure().
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param allocator a means of getting memory.
+ * @param logger for logging messages about the tun device.
  * @return a TUNInterface structure.
  */
 struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct EventBase* base,
-                                      struct Allocator* allocator);
+                                      struct Allocator* allocator,
+                                      struct Log* logger);
 #endif

@@ -161,7 +161,7 @@ void Core_initTunnel(String* desiredDeviceName,
                                            logger,
                                            eh);
 
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc);
+    struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc, logger);
 
     // broken
     //struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);

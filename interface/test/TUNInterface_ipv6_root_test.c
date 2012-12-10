@@ -80,8 +80,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     Assert_always(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
 
     if (Bits_memcmp(header->sourceAddr, testAddrA, 16)) {
-        Assert_always(header->sourceAddr[0] == 0xfc);
-        printf("Message has the wrong source address from existing TUN device.\n");
+        printf("Message has the wrong source address from existing TUN device.");
     }
 
     Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
@@ -122,9 +121,9 @@ int main(int argc, char** argv)
     char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
     void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc);
+    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
-    struct UDPInterface* udp = UDPInterface_new(base, "[::]", alloc, NULL, logger, &ic);
+    struct UDPInterface* udp = UDPInterface_new(base, "[fd00::1]", alloc, NULL, logger, &ic);
 
     struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
     sin.sin6_port = udp->boundPort_be;

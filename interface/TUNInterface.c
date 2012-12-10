@@ -18,6 +18,7 @@
 #include "util/events/Event.h"
 #include "util/Identity.h"
 #include "util/platform/Socket.h"
+#include "util/log/Log.h"
 #include "wire/Ethernet.h"
 
 #include <unistd.h>
@@ -30,6 +31,7 @@ struct TUNInterface_pvt
 {
     struct TUNInterface pub;
     Socket tunSocket;
+    struct Log* logger;
     Identity
 };
 
@@ -43,7 +45,7 @@ static void handleEvent(void* vcontext)
     ssize_t length = read(tun->tunSocket, msg->bytes, msg->length);
 
     if (length < 4) {
-        printf("Error reading from TUN device %d\n", (int) length);
+        Log_warn(tun->logger, "Error reading from TUN device [%s]", Errno_getString());
         return;
     }
     msg->length = length;
@@ -60,19 +62,39 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
     ssize_t ret = write(tun->tunSocket, message->bytes, message->length);
     if (ret < 0) {
-        printf("Error writing to TUN device %d\n", Errno_get());
+        Log_warn(tun->logger, "Error writing to TUN device [%s]", Errno_getString());
     }
     // TODO: report errors
     return 0;
 }
 
+/**
+ * When a TUN device first comes up, on some platforms (BSD)
+ * using it right away creates a race condition.
+ * This busy polls it until it becomes "ready" and then returns.
+ */
+static inline void pollTun(Socket sock, struct Log* logger)
+{
+    Log_debug(logger, "Waiting for tun device to become ready");
+    int i = 0;
+    ssize_t length;
+    do {
+        Assert_always(++i < 100000);
+        uint8_t buff[24];
+        length = read(sock, buff, 24);
+    } while (length > 0 || Errno_get() == Errno_EHOSTDOWN);
+    Log_debug(logger, "Polled tun [%d] times", i);
+}
+
 struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct EventBase* base,
-                                      struct Allocator* allocator)
+                                      struct Allocator* allocator,
+                                      struct Log* logger)
 {
     Socket tunSock = (Socket) ((intptr_t) tunSocket);
 
     Socket_makeNonBlocking(tunSock);
+    pollTun(tunSock, logger);
 
     struct TUNInterface_pvt* tun = Allocator_clone(allocator, (&(struct TUNInterface_pvt) {
         .pub = {
@@ -83,7 +105,8 @@ struct TUNInterface* TUNInterface_new(void* tunSocket,
                 .maxMessageLength = MAX_PACKET_SIZE
             }
         },
-        .tunSocket = tunSock
+        .tunSocket = tunSock,
+        .logger = logger
     }));
     Identity_set(tun);
 
