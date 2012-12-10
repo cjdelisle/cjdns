@@ -102,8 +102,8 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
-    // TODO: fix TUNConfigurator_addIp4Address() for illumos.
-    #ifdef Illumos
+    // TODO: fix TUNConfigurator_addIp4Address() for illumos, OSX, BSD.
+    #if defined(Illumos) || defined(OSX) || defined(BSD)
         return 0;
     #endif
 

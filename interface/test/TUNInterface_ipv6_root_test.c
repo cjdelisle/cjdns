@@ -38,9 +38,8 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
-#if defined(BSD) || defined(Illumos)
-    #include <sys/socket.h>
-#endif
+#include <unistd.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
@@ -119,6 +118,12 @@ int main(int argc, char** argv)
     void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
+
+    #if defined(OSX) || defined(BSD)
+        // Mac OSX and BSD do not set up their TUN devices synchronously.
+        // There should be a proper way to do this but I'm too lazy to look for it atm.
+        usleep(10 * 1000);
+    #endif
 
     struct UDPInterface* udp = UDPInterface_new(base, "[fd00::1]", alloc, NULL, logger, &ic);
 
