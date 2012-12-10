@@ -78,10 +78,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     }
 
     Assert_always(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
-
-    if (Bits_memcmp(header->sourceAddr, testAddrA, 16)) {
-        printf("Message has the wrong source address from existing TUN device.");
-    }
+    Assert_always(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
 
     Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
