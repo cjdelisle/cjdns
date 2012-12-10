@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "admin/Admin.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
@@ -21,7 +21,7 @@
 #include "crypto/Random.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
-#include "interface/TUNInterface.h"
+#include "interface/TUNMessageType.h"
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -42,9 +42,6 @@ struct IpTunnel_pvt
 {
     struct IpTunnel pub;
 
-    /** For verifying the integrity of the structure. */
-    Identity
-
     struct Allocator* allocator;
     struct Log* logger;
 
@@ -59,6 +56,11 @@ struct IpTunnel_pvt
      */
     struct Timeout* timeout;
     struct Random* rand;
+
+    struct Admin* admin;
+
+    /** For verifying the integrity of the structure. */
+    Identity
 };
 
 static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunnel_pvt* context)
@@ -548,7 +550,7 @@ static uint8_t ip6FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP6);
+    TUNMessageType_push(message, Ethernet_TYPE_IP6);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -571,7 +573,7 @@ static uint8_t ip4FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP4);
+    TUNMessageType_push(message, Ethernet_TYPE_IP4);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -646,7 +648,8 @@ static void timeout(void* vcontext)
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand)
+                              struct Random* rand,
+                              struct Admin* admin)
 {
     struct IpTunnel_pvt* context =
         alloc->clone(sizeof(struct IpTunnel_pvt), alloc, &(struct IpTunnel_pvt) {
@@ -656,7 +659,8 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
             },
             .allocator = alloc,
             .logger = logger,
-            .rand = rand
+            .rand = rand,
+            .admin = admin
         });
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

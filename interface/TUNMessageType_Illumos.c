@@ -12,15 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/platform/Socket.h"
-#include <event2/event.h>
+#include "wire/Message.h"
+#include "interface/TUNMessageType.h"
+#include "wire/Ethernet.h"
 
-int Socket_makeNonBlocking(Socket sock)
+#include <stdint.h>
+
+/**
+ * Illumos has no consept of packet info, it only supports IPv4 and IPv6
+ * through TUN devices and it detects it by reading the version byte.
+ */
+
+static inline ethertypeForPacketType(uint8_t highByte)
 {
-    return evutil_make_socket_nonblocking(sock);
+    return ((message->bytes[0] >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
 
-int Socket_close(Socket sock)
+void TUNMessageType_push(struct Message* message, uint16_t ethertype)
 {
-    return EVUTIL_CLOSESOCKET(sock);
+    Assert_true(ethertype == ethertypeForPacketType(message->bytes[0]));
+}
+
+uint16_t TUNMessageType_pop(struct Message* message)
+{
+    return ethertypeForPacketType(message->bytes[0]);
 }

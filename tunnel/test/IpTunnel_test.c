@@ -18,7 +18,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
 #include "io/FileWriter.h"
-#include "interface/TUNInterface.h"
+#include "interface/TUNMessageType.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
@@ -74,7 +74,7 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
 
 uint8_t messageToTun(struct Message* message, struct Interface* iface)
 {
-    Assert_true(TUNInterface_popMessageType(message) == Ethernet_TYPE_IP6);
+    Assert_true(TUNMessageType_pop(message) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
     Assert_always(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
@@ -94,7 +94,7 @@ int main()
     struct Random* rand = Random_new(alloc, NULL);
     struct EventBase* eb = EventBase_new(alloc);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand, NULL);
     IpTunnel_allowConnection(fakePubKey, fakeIp6ToGive, NULL, ipTun);
 
     struct Message* message;

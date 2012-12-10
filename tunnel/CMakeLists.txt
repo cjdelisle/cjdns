@@ -17,6 +17,7 @@ add_library(cjdns-tunnel-iptunnel
 
 target_link_libraries(cjdns-tunnel-iptunnel
     cjdbenc
+    cjdns-interface-tun-messagetype
 )
 
 enable_testing()

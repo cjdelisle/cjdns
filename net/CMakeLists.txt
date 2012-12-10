@@ -18,6 +18,7 @@ add_library(cjdnet
 )
 
 target_link_libraries(cjdnet
+    cjdns-interface-tun-messagetype
     cjdbenc
     crypto
     interface

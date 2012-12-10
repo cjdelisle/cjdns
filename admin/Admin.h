@@ -21,12 +21,8 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/UniqueName.h"
-
-#ifdef FreeBSD
-    #include <netinet/in.h>
-#endif
-
 #include "util/events/EventBase.h"
+
 #include <stdbool.h>
 
 #define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)

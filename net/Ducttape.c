@@ -21,7 +21,7 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "interface/TUNInterface.h"
+#include "interface/TUNMessageType.h"
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
@@ -299,7 +299,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         Bits_memmoveConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
     }
 
-    TUNInterface_pushMessageType(message, Ethernet_TYPE_IP6);
+    TUNMessageType_push(message, Ethernet_TYPE_IP6);
 
     context->userIf->sendMessage(message, context->userIf);
     return Error_NONE;
@@ -407,7 +407,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
 
-    uint16_t ethertype = TUNInterface_popMessageType(message);
+    uint16_t ethertype = TUNMessageType_pop(message);
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 

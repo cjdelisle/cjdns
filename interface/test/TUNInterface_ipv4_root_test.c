@@ -22,6 +22,7 @@
 #include "benc/Int.h"
 #include "interface/UDPInterface_pvt.h"
 #include "interface/TUNInterface.h"
+#include "interface/TUNMessageType.h"
 #include "interface/TUNConfigurator.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -63,7 +64,7 @@ static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
-    uint16_t ethertype = TUNInterface_popMessageType(msg);
+    uint16_t ethertype = TUNMessageType_pop(msg);
     if (ethertype != Ethernet_TYPE_IP4) {
         printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
         return 0;
@@ -79,7 +80,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     Bits_memcpyConst(header->destAddr, testAddrA, 4);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 4);
 
-    TUNInterface_pushMessageType(msg, ethertype);
+    TUNMessageType_push(msg, ethertype);
 
     return iface->sendMessage(msg, iface);
 }

@@ -12,17 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Socket_H
-#define Socket_H
+#include "interface/TUNMessageType.h"
+#include "wire/Message.h"
 
-#ifdef WIN32
-    #define Socket intptr_t
-#else
-    #define Socket int
-#endif
+#include <stdint.h>
 
-int Socket_makeNonBlocking(Socket sock);
+void TUNMessageType_push(struct Message* message, uint16_t ethertype)
+{
+    Message_shift(message, 4);
+    ((uint16_t*) message->bytes)[0] = 0;
+    ((uint16_t*) message->bytes)[1] = ethertype;
+}
 
-int Socket_close(Socket sock);
-
-#endif
+uint16_t TUNMessageType_pop(struct Message* message)
+{
+    Message_shift(message, -4);
+    return ((uint16_t*) message->bytes)[-1];
+}

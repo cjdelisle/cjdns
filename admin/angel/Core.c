@@ -256,7 +256,7 @@ int Core_main(int argc, char** argv)
 
     SerializationModule_register(registry, logger, alloc);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, admin);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,

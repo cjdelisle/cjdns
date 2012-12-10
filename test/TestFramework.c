@@ -72,7 +72,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     SerializationModule_register(registry, logger, allocator);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand, NULL);
 
     struct Ducttape* dt =
         Ducttape_register((uint8_t*)privateKey, registry, routerModule,

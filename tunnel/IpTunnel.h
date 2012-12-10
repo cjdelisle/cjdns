@@ -15,6 +15,7 @@
 #ifndef IpTunnel_H
 #define IpTunnel_H
 
+#include "admin/Admin.h"
 #include "crypto/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
@@ -88,7 +89,8 @@ struct IpTunnel
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
-                              struct Random* rand);
+                              struct Random* rand,
+                              struct Admin* admin);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
