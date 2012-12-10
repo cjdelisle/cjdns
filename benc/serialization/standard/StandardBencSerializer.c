@@ -41,11 +41,8 @@ static int32_t serializeGeneric(const struct Writer* writer,
 static int32_t writeint64_t(const struct Writer* writer,
                             int64_t integer)
 {
-    char buffer[32];
-    Bits_memset(buffer, 0, 32);
-
-    sprintf(buffer, "%" PRId64, integer);
-
+    char buffer[32] = {0};
+    snprintf(buffer, 32, "%" PRId64, integer);
     return writer->write(buffer, strlen(buffer), writer);
 }
 

@@ -75,10 +75,10 @@ static int32_t serializeString(const struct Writer* writer,
         chr = (uint8_t) string->bytes[i] & 0xFF;
         /* Nonprinting chars, \ and " are hex'd */
         if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
-            sprintf(buffer, "%c", chr);
+            snprintf(buffer, 4, "%c", chr);
             writer->write(buffer, 1, writer);
         } else {
-            sprintf(buffer, "\\x%.2X", chr);
+            snprintf(buffer, 4, "\\x%.2X", chr);
             writer->write(buffer, 4, writer);
         }
     }
