@@ -169,7 +169,7 @@ static int genconf(struct Random* rand)
            "    \"authorizedPasswords\":\n"
            "    [\n"
            "        // A unique string which is known to the client and server.\n"
-           "        {\"password\": \"%s\"},\n", password);
+           "        {\"password\": \"%s\"}\n", password);
     printf("\n"
            "        // More passwords should look like this.\n"
            "        // {\"password\": \"%s\"},\n", password2);
