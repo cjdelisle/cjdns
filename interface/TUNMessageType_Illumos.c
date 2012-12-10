@@ -23,7 +23,7 @@
  * through TUN devices and it detects it by reading the version byte.
  */
 
-static inline ethertypeForPacketType(uint8_t highByte)
+static inline uint16_t ethertypeForPacketType(uint8_t highByte)
 {
     return ((highByte >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }

@@ -19,6 +19,9 @@
 #include <stdint.h>
 #include <netinet/in.h>
 
+#define AF_INET6_BE Endian_hostToBigEndian16(AF_INET6)
+#define AF_INET_BE Endian_hostToBigEndian16(AF_INET)
+
 /**
  * OSX is broken and expects you to send the platform dependent
  * address family type rather than the ethertype.
@@ -26,17 +29,17 @@
 
 void TUNMessageType_push(struct Message* message, uint16_t ethertype)
 {
-    uint16_t afType = (ethertype == Ethernet_TYPE_IP6) ? AF_INET6 : AF_INET;
+    uint16_t afType_be = (ethertype == Ethernet_TYPE_IP6) ? AF_INET6_BE : AF_INET_BE;
 
     Message_shift(message, 4);
     ((uint16_t*) message->bytes)[0] = 0;
-    ((uint16_t*) message->bytes)[1] = afType;
+    ((uint16_t*) message->bytes)[1] = afType_be;
 }
 
 uint16_t TUNMessageType_pop(struct Message* message)
 {
     Message_shift(message, -4);
-    uint16_t afType = ((uint16_t*) message->bytes)[-1];
+    uint16_t afType_be = ((uint16_t*) message->bytes)[-1];
 
-    return (afType == AF_INET6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
+    return (afType_be == AF_INET6_BE) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
