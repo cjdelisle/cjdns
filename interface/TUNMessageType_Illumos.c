@@ -25,7 +25,7 @@
 
 static inline ethertypeForPacketType(uint8_t highByte)
 {
-    return ((message->bytes[0] >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
+    return ((highByte >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
 
 void TUNMessageType_push(struct Message* message, uint16_t ethertype)
