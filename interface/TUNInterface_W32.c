@@ -14,54 +14,11 @@
  */
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
-#include "benc/String.h"
-#include "util/Endian.h"
-
-#include "util/platform/libc/string.h"
-#include <event2/event.h>
-
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-#include <winbase.h>
-#include <io.h>
-
-// Windows maps interface names to NDIS names which are 256 bytes
-#define IFNAMSIZ 256
-
-#define EPERM WSAEPERM
-
-
-// Defined extra large so large MTU can be taken advantage of later.
-#define MAX_PACKET_SIZE 8192
-#define PADDING_SPACE (10240 - MAX_PACKET_SIZE)
-
-// The number of bytes at the beginning of the message which is used
-// to contain the type of packet.
-#define PACKET_INFO_SIZE 4
-
-
-static int openTunnel(const char* interfaceName, char assignedInterfaceName[IFNAMSIZ])
-{
-    return 0;
-}
-
-static void closeInterface(void* vcontext)
-{
-}
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
-{
-}
-
-static uint8_t sendMessage(struct Message* message, struct Interface* iface)
-{
-    return 0;
-}
 
 struct TUNInterface* TUNInterface_new(void* handle,
                                       struct event_base* base,
-                                      struct Allocator* allocator)
+                                      struct Allocator* allocator,
+                                      struct Log* logger)
 {
     return NULL;
 }

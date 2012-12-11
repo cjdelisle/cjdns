@@ -18,9 +18,11 @@
 #include "wire/Message.h"
 
 #include <stdint.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
+#ifndef WIN32
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+#endif
 
 /**
  * Simple and sane, the 4 bytes prior to the message contain flags and the
@@ -39,6 +41,7 @@ uint16_t TUNMessageType_pop_Linux(struct Message* message)
     return ((uint16_t*) message->bytes)[-1];
 }
 
+#ifndef WIN32
 
 /**
  * OSX and BSD is expect you to send the platform dependent
@@ -82,3 +85,5 @@ uint16_t TUNMessageType_pop_Illumos(struct Message* message)
 {
     return ethertypeForPacketType(message->bytes[0]);
 }
+
+#endif

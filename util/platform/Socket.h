@@ -16,6 +16,8 @@
 #define Socket_H
 
 #ifdef WIN32
+    #include <stdint.h>
+
     #define Socket intptr_t
 #else
     #define Socket int
