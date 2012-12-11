@@ -443,6 +443,7 @@ int main(int argc, char** argv)
     if (!privateKey) {
         Except_raise(eh, -1, "Need to specify privateKey.");
     }
+    Log_info(logger, "Forking angel to background.");
     Process_spawn(corePath->bytes, args);
 
     // --------------------- Get Admin  --------------------- //
