@@ -167,7 +167,7 @@ static int32_t serializeint64_t(const struct Writer* writer,
     char buffer[32];
     Bits_memset(buffer, 0, 32);
 
-    sprintf(buffer, "%" PRId64, integer);
+    snprintf(buffer, 32, "%" PRId64, integer);
 
     return writer->write(buffer, strlen(buffer), writer);
 }

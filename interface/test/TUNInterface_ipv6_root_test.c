@@ -106,28 +106,19 @@ static void fail(void* ignored)
     Assert_true(!"timeout");
 }
 
-// Mac OSX and BSD do not set up their TUN devices synchronously.
-// We'll just keep on trying until this works.
 static struct UDPInterface* setupUDP(struct EventBase* base,
                                      const char* bindAddr,
                                      struct Allocator* allocator,
                                      struct Log* logger,
                                      struct InterfaceController* ic)
 {
-    // try for 20 seconds.
-    for (int i = 0; i < 20; i++) {
-        struct Jmp jmp;
-        Jmp_try(jmp) {
-            return UDPInterface_new(base, bindAddr, allocator, &jmp.handler, logger, ic);
-        } Jmp_catch {
-            #ifdef BSD
-                usleep(1000);
-            #else
-                sleep(1);
-            #endif
-        }
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        return UDPInterface_new(base, bindAddr, allocator, &jmp.handler, logger, ic);
+    } Jmp_catch {
+        sleep(1);
+        return NULL;
     }
-    Assert_true(!"Couldn't setup UDP");
 }
 
 int main(int argc, char** argv)
@@ -147,7 +138,15 @@ int main(int argc, char** argv)
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
-    struct UDPInterface* udp = setupUDP(base, "[fd00::1]", alloc, logger, &ic);
+    // Mac OSX and BSD do not set up their TUN devices synchronously.
+    // We'll just keep on trying until this works.
+    struct UDPInterface* udp = NULL;
+    for (int i = 0; i < 20; i++) {
+        if ((udp = setupUDP(base, "[fd00::1]", alloc, logger, &ic))) {
+            break;
+        }
+    }
+    Assert_true(udp);
 
     struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
     sin.sin6_port = udp->boundPort_be;
