@@ -57,7 +57,7 @@ close to the destination address of the packet. The directions
 are added to the packet to allow it to go through a number of routers
 with minimal handling. They just read the label and bounce the packet wherever
 the next bits in the label tell them to. Routers have a responsibility to
-"keep in touch" with other routers that are both numerically and physically close to their address.
+"keep in touch" with other routers that are physically closeby and numerically nearby to their address.
 
 The router engine is a modified implementation of the Kademlia DHT design.
 
@@ -65,11 +65,12 @@ The router engine is a modified implementation of the Kademlia DHT design.
 How close is it to complete?
 ----------------------------
 
-A live testing network exists with at least 150 active nodes.
+A live testing network exists with roughly 200 active nodes.
 The software has been tested and is known to work on x86, amd64, ARMv5, ARMv7,
-MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux and Apple OSX
-systems. While the software itself is stable, the protocols and algorithms are
-new inventions and we still don't understand how they work in the real world.
+MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux, Apple OSX,
+Illumos, FreeBSD, and OpenBSD systems. While the software itself is stable,
+the protocols and algorithms are new inventions and we still don't understand
+how they work in the real world.
 Please update early and often to give developers the maximum latitude to make
 tweaks to the protocol and algorithms.
 
