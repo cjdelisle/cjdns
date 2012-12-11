@@ -236,13 +236,11 @@ If you want to have your logs written to a file:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-If you want to be able to close your terminal and you don't use screen:
+To stop cjdns:
 
-    sudo su
-    ./cjdroute < cjdroute.conf > /dev/null &
-
-NOTE: when you use `&`, remember that you will have cjdroute processes running in the background
-if you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
+    sudo killall cjdns
+ 
+If you are having problems use `killall cjdns` to return to sanity. Use `pgrep cjdns` or `top` to see if it running.
 
 ## 5: Get in IRC
 
