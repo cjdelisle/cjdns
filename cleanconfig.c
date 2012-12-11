@@ -30,7 +30,7 @@ int main(int argc, char** argv)
         printf("Cjdns accepts configuration which is not valid json but only outputs json\n"
                "which is valid. This tool deserialies and reserialized a conf file or other "
                "json file.\n");
-        printf("In honer of thefinn93, thanks for all of your hard work helping people.\n");
+        printf("In honor of thefinn93, thanks for all of your hard work helping people.\n");
         exit(0);
     }
 
