@@ -571,6 +571,13 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
 {
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
+    if (context->ip6Header->hopLimit == 0) {
+        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        // TODO: send back an error message in response.
+        return Error_UNDELIVERABLE;
+    }
+    context->ip6Header->hopLimit--;
+
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
@@ -608,13 +615,6 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
                                  CryptoAuth_getHerPublicKey(&context->session->iface));
         }
     }
-
-    if (context->ip6Header->hopLimit == 0) {
-        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
-        // TODO: send back an error message in response.
-        return Error_UNDELIVERABLE;
-    }
-    context->ip6Header->hopLimit--;
 
     struct Node* nextHop = context->forwardTo;
     context->forwardTo = NULL;
