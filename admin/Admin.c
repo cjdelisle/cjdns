@@ -123,7 +123,7 @@ static void freeChannel(void* vchannel)
 
 static void newChannel(struct Channel** location, struct Allocator* alloc)
 {
-    struct Allocator* childAlloc = alloc->child(alloc);
+    struct Allocator* childAlloc = Allocator_child(alloc);
     struct Channel* out = childAlloc->clone(sizeof(struct Channel), alloc, &(struct Channel) {
         .alloc = childAlloc
     });
@@ -396,7 +396,7 @@ static void handleMessage(struct Message* message,
 
     // Try to handle multiple stacked requests in the same frame.
     for (;;) {
-        struct Allocator* allocator = admin->allocator->child(admin->allocator);
+        struct Allocator* allocator = Allocator_child(admin->allocator);
         struct Reader* reader = ArrayReader_new(message->bytes, message->length, allocator);
 
         char nextByte;

@@ -22,7 +22,7 @@
  * Create a new Allocator which allocates from to a user supplied buffer.
  * This allocator will reset the pointer to the beginning of the buffer when
  * free() is called on it, it is up to the user to free their buffer.
- * allocator->child(allocator) always returns NULL.
+ * Allocator_child(allocator) always returns NULL.
  *
  * @param buffer an array to write to.
  * @param length the size of the array. If more is written than this length,

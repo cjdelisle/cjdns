@@ -101,7 +101,7 @@ static bool fileExists(const char* filename)
 
 static String* getCorePath(struct Allocator* alloc)
 {
-    struct Allocator* alloc2 = alloc->child(alloc);
+    struct Allocator* alloc2 = Allocator_child(alloc);
     char* cjdroute2Path = Process_getPath(alloc2);
     char* lastSlash = strrchr(cjdroute2Path, '/');
     Assert_always(lastSlash != NULL);
@@ -431,13 +431,13 @@ int main(int argc, char** argv)
 
     if (!corePath) {
         corePath = getCorePath(allocator);
-    }
-    if (!corePath) {
-        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
-                             "try specifying the location in your cjdroute.conf");
-    } else {
-        Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
-                         "guessing its location.");
+        if (!corePath) {
+            Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
+                                 "try specifying the location in your cjdroute.conf");
+        } else {
+            Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
+                             "guessing its location.");
+        }
     }
 
     if (!privateKey) {

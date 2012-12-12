@@ -18,13 +18,17 @@ add_subdirectory(events)
 add_subdirectory(platform)
 
 find_package(Libevent2 REQUIRED)
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
+find_package(Socket REQUIRED)
+
+add_library(cjdns-errno Errno.c)
 
 if(WIN32)
     set(sec Security_W32.c)
+    target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
 else()
     set(sec Security.c)
 endif()
+
 
 add_library(cjdns-security
     ${sec}
@@ -32,6 +36,7 @@ add_library(cjdns-security
 
 target_link_libraries(cjdns-security
     cjdns-except
+    cjdns-errno
 )
 
 add_library(cjdns-process
@@ -40,7 +45,6 @@ add_library(cjdns-process
 
 add_library(util
     AverageRoller.c
-    Errno.c
     Hex.c
     Pinger.c
     Pipe.c
@@ -53,6 +57,7 @@ target_link_libraries(util
     ${LIBEVENT2_LIBRARIES}
     cjdns-security
     cjdns-util-log-writer
+    cjdns-errno
 )
 
 # Everything must be tested.

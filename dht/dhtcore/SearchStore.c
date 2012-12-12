@@ -115,7 +115,7 @@ struct SearchStore_Search* SearchStore_newSearch(
         return NULL;
     }
 
-    struct Allocator* allocator = store->allocator->child(store->allocator);
+    struct Allocator* allocator = Allocator_child(store->allocator);
     struct SearchStore_Search* search =
         allocator->calloc(sizeof(struct SearchStore_Search), 1, allocator);
     search->searchIndex = i;

@@ -26,4 +26,6 @@ void Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
 void Security_noFiles(struct Except* eh);
 
+void Security_maxMemory(uint32_t maxMemory, struct Except* eh);
+
 #endif

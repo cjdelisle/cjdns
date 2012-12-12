@@ -77,7 +77,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
         return NULL;
     }
 
-    struct Allocator* alloc = pinger->allocator->child(pinger->allocator);
+    struct Allocator* alloc = Allocator_child(pinger->allocator);
 
     // Prefix the data with the slot number.
     String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 4, alloc);

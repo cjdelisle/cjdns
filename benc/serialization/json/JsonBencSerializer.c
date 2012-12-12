@@ -108,7 +108,7 @@ static inline int parseString(const struct Reader* reader,
     #define BUFF_MAX (1<<20)
 
     int curSize = BUFF_SZ;
-    struct Allocator* localAllocator = allocator->child(allocator);
+    struct Allocator* localAllocator = Allocator_child(allocator);
     uint8_t* buffer = localAllocator->malloc(curSize, localAllocator);
     if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
         printf("Unterminated string\n");

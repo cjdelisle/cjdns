@@ -53,3 +53,10 @@ void Security_noFiles(struct Except* eh)
         Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", Errno_getString());
     }
 }
+
+void Security_maxMemory(uint32_t max, struct Except* eh)
+{
+    if (setrlimit(RLIMIT_AS, &(struct rlimit){ max, max })) {
+        Except_raise(eh, -1, "Failed to limit available memory [%s]", Errno_getString());
+    }
+}

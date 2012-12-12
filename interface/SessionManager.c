@@ -89,7 +89,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
         // Make sure cleanup() doesn't get behind.
         cleanup(sm);
 
-        struct Allocator* ifAllocator = sm->allocator->child(sm->allocator);
+        struct Allocator* ifAllocator = Allocator_child(sm->allocator);
         struct Interface* outsideIf =
             ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
                 .sendMessage = sm->encryptedOutgoing,

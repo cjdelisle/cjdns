@@ -123,10 +123,14 @@ struct Allocator
      * Get a new child of this allocator.
      * When this allocator is freed all of its children will be freed as well.
      *
-     * @param this the memory allocator, use allocator->child(allocator) to get a child.
+     * @param this the memory allocator, use Allocator_child(allocator) to get a child.
+     * @param identFile the name of the file where this was called from to aid in debugging.
+     * @param identLine the line number where this was called.
      * @return a child allocator.
      */
-    struct Allocator* (* const child)(const struct Allocator* this);
+    struct Allocator* (* const child)(const struct Allocator* thisAlloc,
+                                      const char* identFile,
+                                      int identLine);
 };
 
 #define Allocator_clone(alloc, content) \
@@ -148,7 +152,7 @@ struct Allocator
     alloc->realloc(orig, size, alloc)
 
 #define Allocator_child(alloc) \
-    alloc->child(alloc)
+    alloc->child(alloc, __FILE__, __LINE__)
 
 #define Allocator_free(alloc) \
     alloc->free(alloc)

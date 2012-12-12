@@ -12,9 +12,12 @@
 set(Test_FILES
     CanaryAllocator_test.c
     MallocAllocator_test.c
+    MallocAllocator_oom_test.c
 )
 set(Test_LIBRARIES
     cjdmemory
     cjdns-memory-canary
+    cjdns-crypto-random
+    util # security
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

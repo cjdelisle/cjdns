@@ -91,6 +91,21 @@ static void* allocatorClone(size_t length, const struct Allocator* allocator, co
     return pointer;
 }
 
+/** @see Allocator->onFree() */
+static void* addOnFreeJob(void (* callback)(void* callbackContext),
+                          void* callbackContext,
+                          const struct Allocator* allocator)
+{
+    struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
+    return ctx->alloc->onFree(callback, callbackContext, ctx->alloc);
+}
+
+static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
+{
+    struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) alloc);
+    return ctx->alloc->notOnFree(toRemove, ctx->alloc);
+}
+
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
                               size_t size,
@@ -116,11 +131,13 @@ static void* allocatorRealloc(const void* original,
     return newAllocation(ctx, out, SIZE_INTS(size));
 }
 
-/** @see Allocator->child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator)
+/** @see Allocator_child() */
+static struct Allocator* childAllocator(const struct Allocator* allocator,
+                                        const char* identFile,
+                                        int identLine)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
-    return CanaryAllocator_new(ctx->alloc->child(ctx->alloc), ctx->rand);
+    return CanaryAllocator_new(ctx->alloc->child(ctx->alloc, identFile, identLine), ctx->rand);
 }
 
 /** @see MallocAllocator.h */
@@ -134,8 +151,8 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
             .clone = allocatorClone,
             .realloc = allocatorRealloc,
             .child = childAllocator,
-            .onFree = alloc->onFree,
-            .notOnFree = alloc->notOnFree,
+            .onFree = addOnFreeJob,
+            .notOnFree = removeOnFreeJob,
             .context = alloc->context
         },
         .alloc = alloc,
