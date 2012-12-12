@@ -287,6 +287,11 @@ static inline uint8_t incomingForMe(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
+    // prevent router advertizement schenanigans
+    if (context->ip6Header->hopLimit == 255) {
+        context->ip6Header->hopLimit--;
+    }
+
     // Now write a message to the TUN device.
     // Need to move the ipv6 header forward up to the content because there's a crypto header
     // between the ipv6 header and the content which just got eaten.
@@ -571,13 +576,6 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
 {
     context->ip6Header = (struct Headers_IP6Header*) message->bytes;
 
-    if (context->ip6Header->hopLimit == 0) {
-        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
-        // TODO: send back an error message in response.
-        return Error_UNDELIVERABLE;
-    }
-    context->ip6Header->hopLimit--;
-
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
@@ -615,6 +613,13 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
                                  CryptoAuth_getHerPublicKey(&context->session->iface));
         }
     }
+
+    if (context->ip6Header->hopLimit == 0) {
+        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        // TODO: send back an error message in response.
+        return Error_UNDELIVERABLE;
+    }
+    context->ip6Header->hopLimit--;
 
     struct Node* nextHop = context->forwardTo;
     context->forwardTo = NULL;
