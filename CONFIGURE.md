@@ -1,3 +1,15 @@
+Configuring cjdns
+=================
+
+In this document we are going to go over how to configure cjdns and what exactly each settings means. Note that this is a living document and this software is still in the alpha stages so things are subject to change.
+
+cjdroute.conf
+-------------
+
+Let's start from the top of the file. First off you may notice it's JSON, ecxcept this JSON has comments. Technically that's not valid but it's also not un-common. Cjdns strips out the comments before parsing it so no worries. 
+
+Your Keys and Address
+---------------------
 ````javascript
 {
     // The path to the cjdns core executable.
@@ -10,7 +22,16 @@
     // This key corresponds to the public key and ipv6 address:
     "publicKey": "u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k",
     "ipv6": "fcff:a215:1e7b:a4e9:c00d:0813:93b3:7c87",
+````
 
+- `corePath`: This specifies where the core cjdns executable file is. If you downloaded the source to /opt/cjdns, then the default is fine. If you downloaded it somewhere else, like your home directory for example, then this needs to be udpdated accordingly.
+- `privateKey`: Your private key is part of the system that ensures all the data coming and going out of your computer is encrypted. You must protect your private key. Do not give it out to anyone.
+- `publicKey`: The public key is what your computer gives to other computers to encrypt data with. This data can then only be decrypted with your private key, that way no one can access your information as it moves across the network.
+- `ipv6`: This is your IP address on the cjdns network. It is unique to you and is created by securely hashing your public key.
+
+Incoming Connections
+--------------------
+````javascript
     // Anyone connecting and offering these passwords on connection will be allowed.
     //
     // WARNING: Currently there is no key derivation done on the password field,
@@ -36,7 +57,14 @@
         //
         // "your.external.ip.goes.here:33808":{"password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
     ],
+````
 
+The `authorizedPasswords` section is the area where you can specify passwords to allow people to connect to you. Any system that presents a valud password will be allowed access. 
+**NOTE:** These passwords should be long and random. There is no reason to make them short, easily remembered words becuase they are only going to be used by cjdns software.
+
+Admin Interface
+---------------
+````javascript
     // Settings for administering and extracting information from your router.
     // This interface provides functions which can be called through a TCP socket.
     "admin":
@@ -47,10 +75,12 @@
         // Password for admin RPC server.
         "password": "j6mukf2khplcgpbzz0kulb8hu0xq2v9"
     },
+````
+The `admin ` section defines the settings for the administrative interface of cjdns. Many of the scripts in `/contrib/` use this to interact with cjdns. You probably wont need to use anything in there unless you are helping to test something out. 
 
-
-
-
+Connection Interface(s)
+-----------------------
+````javascript
     // Interfaces to connect to the switch core.
     "interfaces":
     {
@@ -86,7 +116,11 @@
         ]
         */
     },
+````
 
+Miscellaneous
+-------------
+````javascript
     // Configuration for the router.
     "router":
     {
@@ -101,7 +135,8 @@
             // *MOST USERS DON'T NEED THIS*
             //"tunDevice": "tun0"
         },
-
+````
+````javascript
         // System for tunneling IPv4 and ICANN IPv6 through cjdns.
         // This is using the cjdns switch layer as a VPN carrier.
         "ipTunnel":
@@ -134,7 +169,9 @@
             ]
         }
     },
-
+````
+ 
+````javascript
     // Tear down inactive CryptoAuth sessions after this number of seconds
     // to make them more forgiving in the event that they become desynchronized.
     "resetAfterInactivitySeconds": 100,
@@ -158,4 +195,7 @@
 
     // Version of the config file, used internally for migration.
     "version": 1
-}````
+}
+````
+
+
