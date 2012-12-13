@@ -3,13 +3,13 @@ Configuring cjdns
 
 In this document we are going to go over how to configure cjdns and what exactly each settings means. Note that this is a living document and this software is still in the alpha stages so things are subject to change.
 
-cjdroute.conf
--------------
-
 Let's start from the top of the file. First off you may notice it's JSON, ecxcept this JSON has comments. Technically that's not valid but it's also not un-common. Cjdns strips out the comments before parsing it so no worries. 
 
 Your Keys and Address
 ---------------------
+
+The top part of the file specifies where the cjdns executable is, your encryption keys, and your cjdns IPv6 IP address.
+
 ````javascript
 {
     // The path to the cjdns core executable.
@@ -31,6 +31,10 @@ Your Keys and Address
 
 Incoming Connections
 --------------------
+
+The `authorizedPasswords` section is the area where you can specify passwords to allow people to connect to you. Any system that presents a valud password will be allowed access. 
+**NOTE:** These passwords should be long and random. There is no reason to make them short, easily remembered words becuase they are only going to be used by cjdns software.
+
 ````javascript
     // Anyone connecting and offering these passwords on connection will be allowed.
     //
@@ -59,8 +63,6 @@ Incoming Connections
     ],
 ````
 
-The `authorizedPasswords` section is the area where you can specify passwords to allow people to connect to you. Any system that presents a valud password will be allowed access. 
-**NOTE:** These passwords should be long and random. There is no reason to make them short, easily remembered words becuase they are only going to be used by cjdns software.
 
 Admin Interface
 ---------------
@@ -80,6 +82,9 @@ The `admin ` section defines the settings for the administrative interface of cj
 
 Connection Interface(s)
 -----------------------
+
+This specifies the settings for the connection interfaces to your node. Right now most people use the `UDPInterface` to conect to other cjdns peers over The Internet or other traditional networks. You may also use `ETHInterface` to physically connect to another machine. Note that this is not a standard TCP/IP connection like you are used to. 
+
 ````javascript
     // Interfaces to connect to the switch core.
     "interfaces":
@@ -117,9 +122,11 @@ Connection Interface(s)
         */
     },
 ````
+Router
+------
 
-Miscellaneous
--------------
+This is where you configure routing settings of your cjdns node. 
+
 ````javascript
     // Configuration for the router.
     "router":
@@ -136,6 +143,10 @@ Miscellaneous
             //"tunDevice": "tun0"
         },
 ````
+IP Tunneling
+------------
+
+IP Tunneling will allow you to connect from the cjdns network to another outside network. This is still a work-in-progress; although it does function, it requires a bit of manual configuration on both ends to make it useful.
 ````javascript
         // System for tunneling IPv4 and ICANN IPv6 through cjdns.
         // This is using the cjdns switch layer as a VPN carrier.
@@ -170,7 +181,11 @@ Miscellaneous
         }
     },
 ````
- 
+
+Miscellaneous
+-------------
+
+This section contains the security section for configuring program options and a few other miscellaneous things that don't fit in with a broader category elsewhere. 
 ````javascript
     // Tear down inactive CryptoAuth sessions after this number of seconds
     // to make them more forgiving in the event that they become desynchronized.
