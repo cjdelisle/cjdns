@@ -1,7 +1,7 @@
 Configuring cjdns
 =================
 
-In this document we are going to go over how to configure cjdns and what exactly each settings means. Note that this is a living document and this software is still in the alpha stages so things are subject to change.
+In this document we are going to go over how to configure cjdns and what exactly each setting means. Note that this is a living document and this software is still in the alpha stages so things are subject to change.
 
 Let's start from the top of the file. First off you may notice it's JSON, ecxcept this JSON has comments. Technically that's not valid but it's also not un-common. Cjdns strips out the comments before parsing it so no worries. 
 
@@ -62,10 +62,14 @@ The `authorizedPasswords` section is the area where you can specify passwords to
         // "your.external.ip.goes.here:33808":{"password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
     ],
 ````
-
+- `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part. 
+- `your.external.ip.goes.here:33808` This section is what you would give to a friend so that they could connect with you. We suggest you add a `"name":"so-and-so"` section to it as well (don't forget the comma between sections!) so that it is easy to see who you have allowed access to. If it later turns out that you no longer wish to have this user connect to you then it is a simple matter to find them and delete or comment out the correct line.
 
 Admin Interface
 ---------------
+
+The `admin ` section defines the settings for the administrative interface of cjdns. Many of the scripts in `/contrib/` use this to interact with cjdns. You probably wont need to use anything in there unless you are helping to test something out. 
+
 ````javascript
     // Settings for administering and extracting information from your router.
     // This interface provides functions which can be called through a TCP socket.
@@ -78,7 +82,6 @@ Admin Interface
         "password": "j6mukf2khplcgpbzz0kulb8hu0xq2v9"
     },
 ````
-The `admin ` section defines the settings for the administrative interface of cjdns. Many of the scripts in `/contrib/` use this to interact with cjdns. You probably wont need to use anything in there unless you are helping to test something out. 
 
 Connection Interface(s)
 -----------------------
