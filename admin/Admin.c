@@ -381,6 +381,52 @@ static void handleRequest(Dict* messageDict,
     return;
 }
 
+#define handleFrame_PARTIAL 1 // got a valid partial request.
+#define handleFrame_INVALID 2 // invalid request.
+#define handleFrame_CONTINUE 0 // parsed frame, keep parsing to get next frame.
+static int handleFrame(struct Message* message,
+                       struct Channel* channel,
+                       struct Allocator* tempAlloc,
+                       struct Admin* admin)
+{
+    struct Reader* reader = ArrayReader_new(message->bytes, message->length, tempAlloc);
+
+    char nextByte;
+    int ret;
+    while (!(ret = reader->read(&nextByte, 1, reader)) && nextByte != 'd');
+
+    if (ret) {
+        // out of data.
+        channel->partialMessageLength = 0;
+        return handleFrame_INVALID;
+    }
+
+    // back the reader up by 1.
+    reader->skip(-1, reader);
+
+    Dict messageDict;
+    ret = StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, &messageDict);
+    if (ret == -2) {
+        // couldn't parse any more data.
+        return handleFrame_PARTIAL;
+    }
+    if (ret) {
+        Log_warn(admin->logger,
+                 "Got unparsable data from admin interface on channel [%u] content: [%s].",
+                 channel->number, message->bytes);
+        closeChannel(channel, admin);
+        return handleFrame_INVALID;
+    }
+
+    uint32_t amount = reader->bytesRead(reader);
+
+    struct Message tmpMessage = { .bytes = message->bytes, .length = amount, .padding = 0 };
+    handleRequest(&messageDict, &tmpMessage, channel, tempAlloc, admin);
+
+    Message_shift(message, -amount);
+    return handleFrame_CONTINUE;
+}
+
 static void handleMessage(struct Message* message,
                           struct Channel* channel,
                           struct Admin* admin)
@@ -397,43 +443,14 @@ static void handleMessage(struct Message* message,
     // Try to handle multiple stacked requests in the same frame.
     for (;;) {
         struct Allocator* allocator = Allocator_child(admin->allocator);
-        struct Reader* reader = ArrayReader_new(message->bytes, message->length, allocator);
-
-        char nextByte;
-        int ret;
-        while (!(ret = reader->read(&nextByte, 1, reader)) && nextByte != 'd');
-
-        if (ret) {
-            // out of data.
-            channel->partialMessageLength = 0;
-            return;
-        }
-
-        // back the reader up by 1.
-        reader->skip(-1, reader);
-
-        Dict messageDict;
-        ret = StandardBencSerializer_get()->parseDictionary(reader, allocator, &messageDict);
-        if (ret == -2) {
-            // couldn't parse any more data.
+        int ret = handleFrame(message, channel, allocator, admin);
+        Allocator_free(allocator);
+        if (ret == handleFrame_PARTIAL) {
             break;
         }
-        if (ret) {
-            Log_warn(admin->logger,
-                     "Got unparsable data from admin interface on channel [%u] content: [%s].",
-                     channel->number, message->bytes);
-            closeChannel(channel, admin);
+        if (ret == handleFrame_INVALID) {
             return;
         }
-
-        uint32_t amount = reader->bytesRead(reader);
-
-        struct Message tmpMessage = { .bytes = message->bytes, .length = amount, .padding = 0 };
-        handleRequest(&messageDict, &tmpMessage, channel, allocator, admin);
-
-        Message_shift(message, -amount);
-
-        allocator->free(allocator);
     }
 
     // This is an idea of just how much the incoming message can be shifted.
