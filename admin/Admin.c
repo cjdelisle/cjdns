@@ -363,10 +363,13 @@ static void handleRequest(Dict* messageDict,
 
     if (noFunctionsCalled) {
         Dict* d = Dict_new(allocator);
-        Dict_putString(d,
-                       String_CONST("error"),
-                       String_CONST("No functions matched your request."),
-                       allocator);
+        String* list = String_CONST("availableFunctions");
+        if (!String_equals(query, list)) {
+            Dict_putString(d,
+                           String_CONST("error"),
+                           String_CONST("No functions matched your request."),
+                           allocator);
+        }
         Dict* functions = Dict_new(allocator);
         for (int i = 0; i < admin->functionCount; i++) {
             Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, allocator);
