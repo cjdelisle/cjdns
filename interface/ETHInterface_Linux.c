@@ -189,6 +189,8 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
         .ic = ic
     }));
 
+    Identity_set(context);
+
     struct ifreq ifr = { .ifr_ifindex = 0 };
 
     context->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
