@@ -43,7 +43,7 @@ if (CMAKE_CROSSCOMPILING AND REMOTE_TEST_IP_PORT)
         
     endfunction()
 
-    function(remoteTest executable)
+    function(RemoteTest_addTest executable)
         string(REPLACE "__TEST_FILE__" "${CMAKE_CURRENT_BINARY_DIR}/${executable}${CMAKE_EXECUTABLE_SUFFIX}" fileContent "${FILE_CONTENT}")
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${executable}_remote.sh "${fileContent}")
         execute_process(COMMAND chmod

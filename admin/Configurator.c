@@ -110,7 +110,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
             String_CONST("authType"), Int_OBJ(1), Dict_CONST(
             String_CONST("password"), String_OBJ(passwd), NULL
         ));
-        struct Allocator* child = ctx->alloc->child(ctx->alloc);
+        struct Allocator* child = Allocator_child(ctx->alloc);
         rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx, child);
         child->free(child);
     }
@@ -153,7 +153,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
 
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
-                struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
+                struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
                 perCallAlloc->free(perCallAlloc);
@@ -258,7 +258,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
-                struct Allocator* perCallAlloc = ctx->alloc->child(ctx->alloc);
+                struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 perCallAlloc->free(perCallAlloc);
@@ -300,7 +300,7 @@ void Configurator_config(Dict* config,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
-    struct Allocator* tempAlloc = alloc->child(alloc);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
         AdminClient_new(sockAddr, addrLen, adminPassword, eventBase, logger, tempAlloc);
 

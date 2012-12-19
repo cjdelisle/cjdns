@@ -49,7 +49,26 @@ void Security_noFiles(struct Except* eh)
     #if !defined(RLIMIT_NOFILE) && defined(RLIMIT_OFILE)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
-    if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
+
+    #ifndef RLIMIT_INFINITY
+        #define LIM 1
+    #else
+        #define LIM 0
+    #endif
+
+    if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ LIM, LIM })) {
         Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", Errno_getString());
+    }
+}
+
+void Security_maxMemory(uint32_t max, struct Except* eh)
+{
+    // RLIMIT_DATA doesn't prevent malloc() on linux.
+    // see: http://lkml.indiana.edu/hypermail/linux/kernel/0707.1/0675.html
+    #if !defined(RLIMIT_AS) && defined(RLIMIT_DATA)
+        #define RLIMIT_AS RLIMIT_DATA
+    #endif
+    if (setrlimit(RLIMIT_AS, &(struct rlimit){ max, max })) {
+        Except_raise(eh, -1, "Failed to limit available memory [%s]", Errno_getString());
     }
 }

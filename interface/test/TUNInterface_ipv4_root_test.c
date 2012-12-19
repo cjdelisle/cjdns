@@ -38,10 +38,12 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
-#if defined(BSD) || defined(Illumos)
+#ifdef WIN32
+    #include <winsock2.h>
+#else
     #include <sys/socket.h>
+    #include <netinet/in.h>
 #endif
-#include <netinet/in.h>
 
 // On loan from the DoD, thanks guys.
 const uint8_t testAddrA[4] = {11, 0, 0, 1};
@@ -102,8 +104,8 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
-    // TODO: fix TUNConfigurator_addIp4Address() for illumos.
-    #ifdef Illumos
+    // TODO: fix TUNConfigurator_addIp4Address() for illumos, OSX, BSD.
+    #if defined(Illumos) || defined(OSX) || defined(BSD)
         return 0;
     #endif
 

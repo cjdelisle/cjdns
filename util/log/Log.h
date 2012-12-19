@@ -89,7 +89,7 @@ static inline void Log_internal(struct Log* logger,
 }
 
 #define Log_printf(log, level, ...) \
-    Log_internal(log, level, __FILE__, __LINE__, __VA_ARGS__);
+    Log_internal(log, level, __FILE__, __LINE__, __VA_ARGS__)
 
 #ifdef Log_KEYS
     #define Log_keys(log, ...) \

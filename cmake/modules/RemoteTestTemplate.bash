@@ -11,11 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 let line=0
-curl --data-binary @__TEST_FILE__ __REMOTE_TEST_IP_PORT__ 2>>/dev/null \
-| while read x
+for x in `curl --data-binary @__TEST_FILE__ __REMOTE_TEST_IP_PORT__ 2>>/dev/null`
 do
-    [ "${line}" == "0" ] && echo "$x" | grep '4:codei0e' >/dev/null && exit 1;
+    [ "${line}" == "0" ] && echo "$x" | grep '4:codei0e' >/dev/null && echo 'Passed' && exit 0;
+    echo 'Failed'
     echo "$x";
     let "line = line + 1"
-done || exit 0;
-exit 1;
+done && exit 1;
+

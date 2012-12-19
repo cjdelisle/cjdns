@@ -186,8 +186,10 @@ static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
     return false;
 }
 
-/** @see Allocator->child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator)
+/** @see Allocator_child() */
+static struct Allocator* childAllocator(const struct Allocator* allocator,
+                                        const char* identFile,
+                                        int identLine)
 {
     return allocator->clone(sizeof(struct Allocator), allocator, &(struct Allocator) {
         .context = allocator->context,

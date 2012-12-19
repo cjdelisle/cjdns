@@ -212,7 +212,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
     } else {
         struct Subscription* sub = &log->subscriptions[log->subscriptionCount];
         sub->level = level;
-        sub->alloc = log->alloc->child(log->alloc);
+        sub->alloc = Allocator_child(log->alloc);
         if (file) {
             int i;
             for (i = 0; i < FILE_NAME_COUNT; i++) {

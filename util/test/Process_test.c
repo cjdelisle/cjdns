@@ -43,8 +43,12 @@ int main(int argc, char** argv)
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     char* path = Process_getPath(alloc);
     Assert_true(path != NULL);
-    Assert_true(strstr(path, "/Process_test"));
-    Assert_true(path[0] == '/');
+    #ifdef WIN32
+        Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */
+        Assert_true(strstr(path, ".exe"));
+    #else
+        Assert_true(path[0] == '/');
+    #endif
 
     int fds[2];
     Assert_true(!Pipe_createUniPipe(fds));
@@ -54,6 +58,7 @@ int main(int argc, char** argv)
     char* args[] = { fdName, NULL };
 
     Assert_true(!Process_spawn(path, args));
+
     char output[32] = {0};
     ssize_t len = read(fds[0], output, 31);
     Assert_true(len == strlen(MESSAGE));

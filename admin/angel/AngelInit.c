@@ -327,7 +327,7 @@ int AngelInit_main(int argc, char** argv)
 
     sendConfToCore(coreIface, alloc, &config, eh, logger);
 
-    struct Allocator* tempAlloc = alloc->child(alloc);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
     InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
     tempAlloc->free(tempAlloc);
 

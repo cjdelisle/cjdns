@@ -18,10 +18,10 @@
 #include <stdio.h>
 
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.c"
+#include "memory/MallocAllocator_pvt.h"
 
-#define ALLOCATION_SIZE sizeof(struct Allocation)
-#define ALLOCATOR_SIZE sizeof(struct FirstContext)
+#define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation)
+#define ALLOCATOR_SIZE sizeof(struct MallocAllocator_FirstCtx)
 
 int main()
 {
@@ -33,7 +33,7 @@ int main()
     bytesUsed += 25 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
-    struct Allocator* child = alloc->child(alloc);
+    struct Allocator* child = Allocator_child(alloc);
     bytesUsed += ALLOCATION_SIZE + ALLOCATOR_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 

@@ -203,7 +203,8 @@ add_definitions("-D CJDNS_MAX_PEERS=${CJDNS_MAX_PEERS}")
 # make sure casts are done properly.
 add_definitions("-D Identity_CHECK=1")
 
-
+# add in a billion checks which slow things down but catch bugs.
+add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 

@@ -12,14 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strlen
+#ifdef WIN32
+    // todo fix
+    int main() { return 1; }
+#else
+
 #include "admin/testframework/AdminTestFramework.h"
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
+#include "exception/Jmp.h"
 #include "interface/UDPInterface_pvt.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNMessageType.h"
@@ -38,9 +42,8 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
-#if defined(BSD) || defined(Illumos)
-    #include <sys/socket.h>
-#endif
+#include <unistd.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
@@ -103,6 +106,21 @@ static void fail(void* ignored)
     Assert_true(!"timeout");
 }
 
+static struct UDPInterface* setupUDP(struct EventBase* base,
+                                     const char* bindAddr,
+                                     struct Allocator* allocator,
+                                     struct Log* logger,
+                                     struct InterfaceController* ic)
+{
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        return UDPInterface_new(base, bindAddr, allocator, &jmp.handler, logger, ic);
+    } Jmp_catch {
+        sleep(1);
+        return NULL;
+    }
+}
+
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
@@ -120,7 +138,15 @@ int main(int argc, char** argv)
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
-    struct UDPInterface* udp = UDPInterface_new(base, "[fd00::1]", alloc, NULL, logger, &ic);
+    // Mac OSX and BSD do not set up their TUN devices synchronously.
+    // We'll just keep on trying until this works.
+    struct UDPInterface* udp = NULL;
+    for (int i = 0; i < 20; i++) {
+        if ((udp = setupUDP(base, "[fd00::1]", alloc, logger, &ic))) {
+            break;
+        }
+    }
+    Assert_true(udp);
 
     struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
     sin.sin6_port = udp->boundPort_be;
@@ -140,3 +166,5 @@ int main(int argc, char** argv)
 
     EventBase_beginLoop(base);
 }
+
+#endif

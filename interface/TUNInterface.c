@@ -68,24 +68,6 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-/**
- * When a TUN device first comes up, on some platforms (BSD)
- * using it right away creates a race condition.
- * This busy polls it until it becomes "ready" and then returns.
- */
-static inline void pollTun(Socket sock, struct Log* logger)
-{
-    Log_debug(logger, "Waiting for tun device to become ready");
-    int i = 0;
-    ssize_t length;
-    do {
-        Assert_always(++i < 100000);
-        uint8_t buff[24];
-        length = read(sock, buff, 24);
-    } while (length > 0 || Errno_get() == Errno_EHOSTDOWN);
-    Log_debug(logger, "Polled tun [%d] times", i);
-}
-
 struct TUNInterface* TUNInterface_new(void* tunSocket,
                                       struct EventBase* base,
                                       struct Allocator* allocator,
@@ -94,7 +76,6 @@ struct TUNInterface* TUNInterface_new(void* tunSocket,
     Socket tunSock = (Socket) ((intptr_t) tunSocket);
 
     Socket_makeNonBlocking(tunSock);
-    pollTun(tunSock, logger);
 
     struct TUNInterface_pvt* tun = Allocator_clone(allocator, (&(struct TUNInterface_pvt) {
         .pub = {

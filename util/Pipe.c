@@ -17,22 +17,26 @@
 #include <unistd.h>
 
 #ifdef WIN32
-#include <windows.h>
+    #include <windows.h>
+    #include <io.h>
+    #include <fcntl.h>
+    #define pipe(fds) _pipe(fds, 65535, _O_BINARY)
 #endif
 
 int Pipe_createUniPipe(int fds[2])
 {
+/*
 #ifdef WIN32
     HANDLE readHandle, writeHandle;
-    /* XXX: Security context for inheritance? */
+    // XXX: Security context for inheritance?
     if (!CreatePipe(&readHandle, &writeHandle, NULL, 0)) {
         return 1;
     }
     fds[0] = _open_osfhandle((intptr_t)readHandle, 0);
     fds[1] = _open_osfhandle((intptr_t)writeHandle, 0);
-    /* TODO These should eventually need to be closed with _close */
+    // TODO These should eventually need to be closed with _close
     return 0;
 #else
+*/
     return pipe(fds);
-#endif
 }

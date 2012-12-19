@@ -1137,7 +1137,7 @@ int RouterModule_pingNode(struct Node* node,
         Log_debug(module->logger, "Ping %s\n", addr);
     #endif
 
-    struct Allocator* pingAllocator = module->allocator->child(module->allocator);
+    struct Allocator* pingAllocator = Allocator_child(module->allocator);
     struct RouterModule_Ping* ping =
         pingAllocator->calloc(sizeof(struct RouterModule_Ping), 1, pingAllocator);
     *location = ping;

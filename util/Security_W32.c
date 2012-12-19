@@ -12,9 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef W32Security_H
-#define W32Security_H
-
 #include "exception/Except.h"
 #include "util/Security.h"
 #include "util/log/Log.h"
@@ -29,4 +26,6 @@ void Security_noFiles(struct Except* eh)
 {
 }
 
-#endif
+void Security_maxMemory(uint32_t max, struct Except* eh)
+{
+}

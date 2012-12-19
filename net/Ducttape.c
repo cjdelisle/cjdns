@@ -287,6 +287,11 @@ static inline uint8_t incomingForMe(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
+    // prevent router advertizement schenanigans
+    if (context->ip6Header->hopLimit == 255) {
+        context->ip6Header->hopLimit--;
+    }
+
     // Now write a message to the TUN device.
     // Need to move the ipv6 header forward up to the content because there's a crypto header
     // between the ipv6 header and the content which just got eaten.
