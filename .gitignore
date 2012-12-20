@@ -4,6 +4,5 @@ buildw32
 .clang_complete
 cjdroute
 cjdns
-example.conf
 *~
 cmake/externals
