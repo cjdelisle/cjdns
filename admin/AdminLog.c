@@ -74,6 +74,15 @@ struct AdminLog
     struct Random* rand;
 };
 
+static inline const char* getShortName(const char* fullFilePath)
+{
+    const char* out = strrchr(fullFilePath, '/');
+    if (out) {
+        return out + 1;
+    }
+    return fullFilePath;
+}
+
 static inline bool isMatch(struct Subscription* subscription,
                            struct AdminLog* logger,
                            enum Log_Level logLevel,
@@ -85,19 +94,22 @@ static inline bool isMatch(struct Subscription* subscription,
             if (file != subscription->file) {
                 return false;
             }
-        } else if (strcmp(file, subscription->file)) {
-            return false;
         } else {
+            const char* shortFileName = getShortName(file);
+            if (strcmp(shortFileName, subscription->file)) {
+                return false;
+            }
+
             // It's the same name but so we'll swap the name for the internal name and then
             // it can be compared quickly with a pointer comparison.
-            subscription->file = file;
+            subscription->file = shortFileName;
             subscription->internalName = true;
             for (int i = 0; i < FILE_NAME_COUNT; i++) {
-                if (logger->fileNames[i] == file) {
+                if (logger->fileNames[i] == shortFileName) {
                     break;
                 }
                 if (logger->fileNames[i] == NULL) {
-                    logger->fileNames[i] = file;
+                    logger->fileNames[i] = shortFileName;
                     logger->fileNames[(i + 1) % FILE_NAME_COUNT] = NULL;
                     break;
                 }
@@ -117,7 +129,7 @@ static inline bool isMatch(struct Subscription* subscription,
 static Dict* makeLogMessage(struct Subscription* subscription,
                             struct AdminLog* logger,
                             enum Log_Level logLevel,
-                            const char* file,
+                            const char* fullFilePath,
                             uint32_t line,
                             const char* format,
                             va_list vaArgs,
@@ -135,7 +147,8 @@ static Dict* makeLogMessage(struct Subscription* subscription,
                    String_new("level", alloc),
                    String_new(Log_nameForLevel(logLevel), alloc),
                    alloc);
-    Dict_putString(out, String_new("file", alloc), String_new((char*)file, alloc), alloc);
+    const char* shortName = getShortName(fullFilePath);
+    Dict_putString(out, String_new("file", alloc), String_new((char*)shortName, alloc), alloc);
     Dict_putInt(out, String_new("line", alloc), line, alloc);
     String* message = String_vprintf(alloc, format, vaArgs);
 
@@ -167,19 +180,18 @@ static void doLog(struct Log* genericLog,
                   const char* format,
                   va_list args)
 {
-    const char* file = strrchr(fullFilePath, '/') + 1;
     struct AdminLog* log = (struct AdminLog*) genericLog;
     Dict* message = NULL;
     #define ALLOC_BUFFER_SZ 4096
     uint8_t allocBuffer[ALLOC_BUFFER_SZ];
     for (int i = 0; i < (int)log->subscriptionCount; i++) {
-        if (isMatch(&log->subscriptions[i], log, logLevel, file, line)) {
+        if (isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) {
             if (!message) {
                 struct Allocator* alloc = BufferAllocator_new(allocBuffer, ALLOC_BUFFER_SZ);
                 message = makeLogMessage(&log->subscriptions[i],
                                          log,
                                          logLevel,
-                                         file,
+                                         fullFilePath,
                                          line,
                                          format,
                                          args,
