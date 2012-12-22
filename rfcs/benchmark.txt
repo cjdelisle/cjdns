@@ -1321,3 +1321,58 @@ commit c9cc5fe5f54b89f014d832527aef767f24a5b4da
 Author: Caleb James DeLisle <calebdelisle@lavabit.com>
 Date:   Mon Oct 22 01:31:51 2012 -0400
 
+21 Dec 2012:
+
+Hardware:
+
+    Hardware Overview:
+
+      Model Name: Mac mini
+      Model Identifier: Macmini1,1
+      Processor Name: Intel Core Solo
+      Processor Speed: 1,5 GHz
+      Number Of Processors: 1
+      Total Number Of Cores: 1
+      L2 Cache: 2 MB
+      Memory: 2 GB
+      Bus Speed: 667 MHz
+      Boot ROM Version: MM11.0055.B08
+      SMC Version (system): 1.3f4
+
+
+$ uname -a 
+Darwin Gaius.local 10.8.0 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386 i386
+
+$ ./cjdroute --bench
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+
+
+
+Test sending 1000 64 byte  hello packets.	packet auth enabled.	Finished in 58425ms. 8 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 63471ms. 189 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 84541ms. 6 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 83907ms. 143 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 343ms. 149271 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2993ms. 400935 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 3973ms. 12886 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 12433ms. 96517 Kb/s
+
+
+$ gcc -v
+Using built-in specs.
+Target: i686-apple-darwin10
+Configured with: /private/var/tmp/llvmgcc42/llvmgcc42-2336.1~3/src/configure --disable-checking --enable-werror --prefix=/Developer/usr/llvm-gcc-4.2 --mandir=/Developer/usr/llvm-gcc-4.2/share/man --enable-languages=c,objc,c++,obj-c++ --program-prefix=llvm- --program-transform-name=/^[cg][^.-]*$/s/$/-4.2/ --with-slibdir=/usr/lib --build=i686-apple-darwin10 --enable-llvm=/private/var/tmp/llvmgcc42/llvmgcc42-2336.1~3/dst-llvmCore/Developer/usr/local --with-gxx-include-dir=/usr/include/c++/4.2.1 --host=i686-apple-darwin10 --target=i686-apple-darwin10
+Thread model: posix
+gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00)
+
+$  git log | head -1
+commit e6fda6a418f5e719fe07cf0c866e546288de6cb1
