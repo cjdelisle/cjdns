@@ -1,4 +1,4 @@
-#cjdns
+# cjdns
 
 Dear Reader,
 
@@ -114,20 +114,20 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 --------------------------------------------------------------------------------
 
 
-#How to install cjdns
+# How to install cjdns
 
-##0. Install the build tools you will need.
+## 0. Install the build tools you will need.
 
     sudo apt-get install cmake git build-essential
 
-##1. Retrieve cjdns from GitHub.
+## 1. Retrieve cjdns from GitHub.
 
 Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-##2. Build.
+## 2. Build.
 
     ./do
 
@@ -136,13 +136,13 @@ Look for `Build completed successfully, type ./cjdroute to begin setup.`, then p
 --------------------------------------------------------------------------------
 
 
-#Setup
+# Setup
 
 Run cjdroute without options for HELP:
 
     ./cjdroute
 
-##0: Make sure you've got the stuff.
+## 0: Make sure you've got the stuff.
 
     cat /dev/net/tun
 
@@ -292,7 +292,7 @@ This should result in an output like the following.
     Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
         Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
 
-##3: If you see anything open, fix it.
+## 3: If you see anything open, fix it.
 
 Examples for SSH and Samba are below.
 
