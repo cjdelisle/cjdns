@@ -176,10 +176,11 @@ static int genconf(struct Random* rand)
     printf("        // {\"password\": \"%s\"},\n", password3);
     printf("        // {\"password\": \"%s\"},\n", password4);
     printf("\n"
-           "        // These are your connection credentials\n"
-           "        // for people connecting to you with your default password.\n"
-           "        // adding more passwords for different users is advisable\n"
-           "        // so that leaks can be isolated.\n"
+           "        // Below is an example of your connection credentials\n"
+           "        // that you can give to other people so they can connect\n"
+           "        // to you using your default password (from above) \n"
+           "        // Adding a unique password for each user is advisable\n"
+           "        // so that leaks can be isolated. \n"
            "        //\n"
            "        // \"your.external.ip.goes.here:%u\":{", port);
     printf("\"password\":\"%s\",", password);
