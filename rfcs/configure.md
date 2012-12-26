@@ -17,7 +17,7 @@ The top part of the file specifies where the cjdns executable is, your encryptio
 
     // Private key:
     // Your confidentiality and data integrity depend on this key, keep it secret!
-    "privateKey": "823e45d5ca85b6f89d2a7feb56d5214d0e2e3afd5456eb0af2c4ac10350ebc70",
+    "privateKey": "823e4EXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEc70",
 
     // This key corresponds to the public key and ipv6 address:
     "publicKey": "u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k",
@@ -83,6 +83,9 @@ The `admin ` section defines the settings for the administrative interface of cj
     },
 ````
 
+- `bind`: This tells cjdns what IP and port the admin interface should bind to. Since you don't want random people connecting to your admin interface, it is probably fine to leave it like this.
+- `password`: This is the password that is needed in order to perform certain functions through the admin interface.
+
 Connection Interface(s)
 -----------------------
 
@@ -125,6 +128,21 @@ This specifies the settings for the connection interfaces to your node. Right no
         */
     },
 ````
+
+- `UDPInterface`:
+    - `bind`: This tells cjdns what IP and port to use for listening to connections.
+    - `connectTo`: This is where you put the connection details for peers that you want to connect to. The format for this generally looks like this,
+        "12.34.56.78:12345":
+        {
+            "password": "thisIsAnExampleOfAPassword",
+            "publicKey": "z4s2EXAMPLEPUBLICKEYEXAMPLEPUBLICKEYEXAMPLEKEY4yjp0.k"
+        },
+    It is important to note that while some people may put additional fields in such as `node`, only `password` and `publicKey` are actually read by cjdns.
+- `ETHInterface`:
+    - `bind`: This tells cjdns which device the ETHInterface should bind to. This may be different depending on your setup.
+    - `connectTo`: The connectTo for the ETHInterface functions almost exactly like it does for the the UDPInterface, except instead of an IP address and a port at the beginning, it is a MAC address.
+    - It is important to note that you must uncomment the ETHInterface if you want to use it
+
 Router
 ------
 
@@ -146,6 +164,10 @@ This is where you configure routing settings of your cjdns node.
             //"tunDevice": "tun0"
         },
 ````
+
+- `type`: This specifies the type of interface cjdns shoudl use to connect to the network. Only TUNInterface is supported at the moment.
+- `tunDevice`: This specifies which TUN device cjdns should use to connect to the network. Most users do not need this.
+
 IP Tunneling
 ------------
 
@@ -184,6 +206,9 @@ IP Tunneling will allow you to connect from the cjdns network to another outside
         }
     },
 ````
+
+- `allowedConnections`:
+- `outgoingConnections`:
 
 Miscellaneous
 -------------
