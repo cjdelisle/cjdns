@@ -84,7 +84,7 @@ The `admin ` section defines the settings for the administrative interface of cj
 ````
 
 - `bind`: This tells cjdns what IP and port the admin interface should bind to. Since you don't want random people connecting to your admin interface, it is probably fine to leave it like this.
-- `password`: This is the password applications must use in order to interact with the admin interface.
+- `password`: This is the password that is needed in order to perform certain functions through the admin interface.
 
 Connection Interface(s)
 -----------------------
