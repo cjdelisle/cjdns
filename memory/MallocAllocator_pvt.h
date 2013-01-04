@@ -67,6 +67,9 @@ struct MallocAllocator_pvt
     /** The number of bytes which can be allocated total. */
     size_t maxSpace;
 
+    /** The number of bytes allocated by *this* allocator (but not it's children). */
+    size_t allocatedHere;
+
     /** This is the location where the allocator was created. */
     const char* identFile;
     int identLine;

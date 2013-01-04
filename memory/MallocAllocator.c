@@ -14,7 +14,7 @@
  */
 #define string_strrchr
 #include "util/platform/libc/string.h"
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "memory/Allocator.h"
@@ -42,7 +42,10 @@ static void unroll(struct MallocAllocator_pvt* context, struct Unroller* unrolle
     writeUnroller(unroller);
     const char* ident = (context->identFile) ? strrchr(context->identFile, '/') : " UNKNOWN";
     ident = ident ? ident + 1 : context->identFile;
-    fprintf(stderr, "%s:%d\n", ident, context->identLine);
+    fprintf(stderr, "%s:%d  [%" PRIu64 "] bytes\n",
+            ident,
+            context->identLine,
+            (uint64_t)context->allocatedHere);
 
     if (context->firstChild) {
         unroll(context->firstChild, &(struct Unroller) {
@@ -66,7 +69,9 @@ static void failure(struct MallocAllocator_pvt* context, const char* message)
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    fprintf(stderr, "Fatal error: %s\n", message);
+    fprintf(stderr, "Fatal error: [%s] spaceAvailable [%" PRIu64 "]\n",
+            message,
+            *context->spaceAvailable);
     exit(0);
 }
 
@@ -76,7 +81,10 @@ static inline void* newAllocation(struct MallocAllocator_pvt* context, size_t si
     if (*(context->spaceAvailable) <= realSize) {
         failure(context, "Out of memory, limit exceeded.");
     }
+
     *(context->spaceAvailable) -= realSize;
+    context->allocatedHere += realSize;
+
     struct MallocAllocator_Allocation* alloc = malloc(realSize);
     if (alloc == NULL) {
         failure(context, "Out of memory, malloc() returned NULL.");
@@ -126,9 +134,10 @@ static void freeAllocator(const struct Allocator* allocator)
     while (loc != NULL) {
         *(context->spaceAvailable) += loc->size;
         struct MallocAllocator_Allocation* nextLoc = loc->next;
-        #ifdef Log_DEBUG
-            Bits_memset(loc, 0xff, loc->size);
-        #endif
+
+        // TODO: make this optional.
+        Bits_memset(loc, 0xff, loc->size);
+
         free(loc);
         loc = nextLoc;
     }
@@ -190,6 +199,8 @@ static void* allocatorRealloc(const void* original,
     }
     *(context->spaceAvailable) += origLoc->size;
     *(context->spaceAvailable) -= realSize;
+    context->allocatedHere -= origLoc->size;
+    context->allocatedHere += realSize;
 
     struct MallocAllocator_Allocation* alloc = realloc(origLoc, realSize);
 
