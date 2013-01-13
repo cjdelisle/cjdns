@@ -17,6 +17,7 @@
 
 #include "benc/String.h"
 #include "interface/Interface.h"
+#include "wire/Headers.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -70,6 +71,19 @@ struct InterfaceController
                                bool requireAuth,
                                struct Interface* iface);
 
+    /**
+     * Populate an empty beacon with password, public key, and version.
+     * Each startup, a password is generated consisting of Headers_Beacon_PASSWORD_LEN bytes.
+     * If beaconing is enabled for an interface, this password is sent out in each beacon message
+     * so that others can connect.
+     * NOTE: Anyone can connect to any interface, even those not beaconing, using this password.
+     * The public key attached to the beacon message is the public key for this node.
+     *
+     * @param ic the if controller
+     * @param beacon an empty buffer to place the beacon information in.
+     */
+    void (* const populateBeacon)(struct InterfaceController* ic, struct Headers_Beacon* beacon);
+
     /** Get the current state of a registered interface. */
     enum InterfaceController_PeerState (* const getPeerState)(struct Interface* iface);
 };
@@ -79,5 +93,8 @@ struct InterfaceController
 
 #define InterfaceController_registerPeer(ic, herPublicKey, password, requireAuth, iface) \
     ((ic)->registerPeer((ic), (herPublicKey), (password), (requireAuth), (iface)))
+
+#define InterfaceController_populateBeacon(ic, beacon) \
+    ((ic)->populateBeacon((ic), (beacon)))
 
 #endif

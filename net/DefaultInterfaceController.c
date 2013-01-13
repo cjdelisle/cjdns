@@ -22,6 +22,7 @@
 #include "util/Time.h"
 #include "util/Timeout.h"
 #include "util/Identity.h"
+#include "util/version/Version.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -69,8 +70,9 @@ struct IFCPeer
     Identity
 };
 
-#define Map_NAME SetOfIFCPeer
+#define Map_NAME OfIFCPeerByExernalIf
 #define Map_ENABLE_HANDLES
+#define Map_KEY_TYPE struct Interface*
 #define Map_VALUE_TYPE struct IFCPeer*
 #include "util/Map.h"
 
@@ -80,7 +82,7 @@ struct Context
     struct InterfaceController pub;
 
     /** Used to get a peer by its handle. */
-    struct Map_SetOfIFCPeer peerSet;
+    struct Map_OfIFCPeerByExernalIf peerMap;
 
     struct Allocator* const allocator;
 
@@ -113,6 +115,9 @@ struct Context
 
     /** For pinging lazy/unresponsive nodes. */
     struct SwitchPinger* const switchPinger;
+
+    /** A password which is generated per-startup and sent out in beacon messages. */
+    uint8_t beaconPassword[Headers_Beacon_PASSWORD_LEN];
 
     Identity
 };
@@ -164,8 +169,8 @@ static void pingCallback(void* vic)
     ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
-    for (uint32_t i = 0; i < ic->peerSet.count; i++) {
-        struct IFCPeer* ep = ic->peerSet.values[i];
+    for (uint32_t i = 0; i < ic->peerMap.count; i++) {
+        struct IFCPeer* ep = ic->peerMap.values[i];
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             #ifdef Log_DEBUG
                   uint8_t key[56];
@@ -202,8 +207,8 @@ static void moveEndpointIfNeeded(struct IFCPeer* ep, struct Context* ic)
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
-    for (uint32_t i = 0; i < ic->peerSet.count; i++) {
-        struct IFCPeer* thisEp = ic->peerSet.values[i];
+    for (uint32_t i = 0; i < ic->peerMap.count; i++) {
+        struct IFCPeer* thisEp = ic->peerMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
@@ -295,9 +300,9 @@ static void closeInterface(void* vendpoint)
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
-    int index = Map_SetOfIFCPeer_indexForHandle(toClose->handle, &ic->peerSet);
+    int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
-    Map_SetOfIFCPeer_remove(index, &ic->peerSet);
+    Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
 }
 
 static int registerPeer(struct InterfaceController* ifController,
@@ -307,6 +312,13 @@ static int registerPeer(struct InterfaceController* ifController,
                         struct Interface* externalInterface)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
+
+    Log_debug(ic->logger, "registerPeer [%p]", (void*)externalInterface);
+    if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
+        Log_debug(ic->logger, "Skipping registerPeer [%p] because peer is already registered",
+                  (void*)externalInterface);
+        return 0;
+    }
 
     uint8_t ip6[16];
     if (herPublicKey) {
@@ -319,8 +331,8 @@ static int registerPeer(struct InterfaceController* ifController,
     struct Allocator* epAllocator = externalInterface->allocator;
     struct IFCPeer* ep = Allocator_calloc(epAllocator, sizeof(struct IFCPeer), 1);
     ep->external = externalInterface;
-    int setIndex = Map_SetOfIFCPeer_put(&ep, &ic->peerSet);
-    ep->handle = ic->peerSet.handles[setIndex];
+    int setIndex = Map_OfIFCPeerByExernalIf_put(&externalInterface, &ep, &ic->peerMap);
+    ep->handle = ic->peerMap.handles[setIndex];
     Identity_set(ep);
     Allocator_onFree(epAllocator, closeInterface, ep);
 
@@ -372,11 +384,6 @@ static int registerPeer(struct InterfaceController* ifController,
             AddrTools_printIp(printAddr, ip6);
             Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
-        #ifdef Log_KEYS
-            uint8_t keyHex[2 * InterfaceController_KEY_SIZE + 1];
-            Hex_encode(keyHex, sizeof(keyHex), key, InterfaceController_KEY_SIZE);
-            Log_keys(ic->logger, "With connection identifier [%s]", keyHex);
-        #endif
         // Kick the ping callback so that the node will be pinged ASAP.
         pingCallback(ic);
     }
@@ -391,21 +398,31 @@ static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
     return p->state;
 }
 
+static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beacon* beacon)
+{
+    struct Context* ic = Identity_cast((struct Context*) ifc);
+    beacon->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+    Bits_memcpyConst(beacon->password, ic->beaconPassword, Headers_Beacon_PASSWORD_LEN);
+    Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
+}
+
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
                                                            struct Log* logger,
                                                            struct event_base* eventBase,
                                                            struct SwitchPinger* switchPinger,
+                                                           struct Random* rand,
                                                            struct Allocator* allocator)
 {
     struct Context* out = Allocator_malloc(allocator, sizeof(struct Context));
     Bits_memcpyConst(out, (&(struct Context) {
         .pub = {
             .registerPeer = registerPeer,
-            .getPeerState = getPeerState
+            .getPeerState = getPeerState,
+            .populateBeacon = populateBeacon
         },
-        .peerSet = {
+        .peerMap = {
             .allocator = allocator
         },
         .allocator = allocator,
@@ -425,5 +442,14 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
 
     }), sizeof(struct Context));
     Identity_set(out);
+
+    // Add the beaconing password.
+    Random_bytes(rand, out->beaconPassword, Headers_Beacon_PASSWORD_LEN);
+    String strPass = { .bytes=(char*)out->beaconPassword, .len=Headers_Beacon_PASSWORD_LEN };
+    int ret = CryptoAuth_addUser(&strPass, 1, (void*)0x1, ca);
+    if (ret) {
+        Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
+    }
+
     return &out->pub;
 }

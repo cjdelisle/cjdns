@@ -384,4 +384,16 @@ struct Headers_ICMP6Header {
 #define Headers_ICMP6Header_SIZE 8
 Assert_compileTime(sizeof(struct Headers_ICMP6Header) == Headers_ICMP6Header_SIZE);
 
+/**
+ * A message which is broadcast to signal to other nodes in the local network that they can connect.
+ */
+#define Headers_Beacon_PASSWORD_LEN 20
+struct Headers_Beacon {
+    uint32_t version_be;
+    uint8_t password[Headers_Beacon_PASSWORD_LEN];
+    uint8_t publicKey[32];
+};
+#define Headers_Beacon_SIZE 56
+Assert_compileTime(sizeof(struct Headers_Beacon) == Headers_Beacon_SIZE);
+
 #endif

@@ -88,6 +88,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                        logger,
                                        base,
                                        sp,
+                                       rand,
                                        allocator);
 
     struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {

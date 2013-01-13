@@ -80,4 +80,16 @@ int ETHInterface_beginConnection(const char* macAddress,
                                  String* password,
                                  struct ETHInterface* ethIf);
 
+/**
+ * Get or set the beaconing state of the ethernet interface.
+ *
+ * @param ethIf the ethernet iface.
+ * @param state if not NULL, the state will be set to this, if NULL then nothing will be changed.
+ * @return the current state after (possibly) setting.
+ */
+#define ETHInterface_beacon_DISABLED 0
+#define ETHInterface_beacon_ACCEPTING 1
+#define ETHInterface_beacon_ACCEPTING_AND_SENDING 2
+int ETHInterface_beacon(struct ETHInterface* ethIf, int* state);
+
 #endif

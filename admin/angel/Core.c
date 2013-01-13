@@ -280,6 +280,7 @@ int Core_main(int argc, char** argv)
                                        logger,
                                        eventBase,
                                        sp,
+                                       rand,
                                        alloc);
 
     // ------------------- Register RPC functions ----------------------- //

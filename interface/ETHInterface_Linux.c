@@ -30,12 +30,13 @@
 #include "util/events/Event.h"
 #include "util/Identity.h"
 #include "util/AddrTools.h"
+#include "util/version/Version.h"
+#include "util/Timeout.h"
 
 #include <sys/socket.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
-#include <event2/event.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -46,6 +47,9 @@
 
 // 2 last 0x00 of .sll_addr are removed from original size (20)
 #define SOCKADDR_LL_LEN 18
+
+/** Wait 16 seconds between sending beacon messages. */
+#define BEACON_INTERVAL 32768
 
 struct ETHInterface
 {
@@ -65,6 +69,8 @@ struct ETHInterface
     struct MultiInterface* multiIface;
 
     struct sockaddr_ll addrBase;
+
+    int beaconState;
 
     Identity
 };
@@ -99,6 +105,76 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     return 0;
 }
 
+static void handleBeacon(struct Message* msg, struct ETHInterface* context)
+{
+    if (!context->beaconState) {
+        // accepting beacons disabled.
+        return;
+    }
+
+    struct sockaddr_ll addr;
+    Message_pop(msg, &addr, sizeof(struct sockaddr_ll));
+    if (msg->length != Headers_Beacon_SIZE) {
+        return;
+    }
+    struct Headers_Beacon* beacon = (struct Headers_Beacon*) msg->bytes;
+
+    uint32_t theirVersion = Endian_bigEndianToHost32(beacon->version_be);
+    if (!Version_isCompatible(theirVersion, Version_CURRENT_PROTOCOL)) {
+        #ifdef Log_DEBUG
+            uint8_t mac[18];
+            AddrTools_printMac(mac, addr.sll_addr);
+            Log_debug(context->logger, "Dropped beacon from [%s] which was version [%d] "
+                      "our version is [%d] making them incompatable",
+                      mac, theirVersion, Version_CURRENT_PROTOCOL);
+        #endif
+        return;
+    }
+
+    #ifdef Log_DEBUG
+        uint8_t mac[18];
+        AddrTools_printMac(mac, addr.sll_addr);
+        Log_debug(context->logger, "Got beacon from [%s]", mac);
+    #endif
+
+    String passStr = { .bytes = (char*) beacon->password, .len = Headers_Beacon_PASSWORD_LEN };
+    struct Interface* iface = MultiInterface_ifaceForKey(context->multiIface, &addr);
+    int ret = InterfaceController_registerPeer(context->ic,
+                                               beacon->publicKey,
+                                               &passStr,
+                                               false,
+                                               iface);
+    if (ret != 0) {
+        uint8_t mac[18];
+        AddrTools_printMac(mac, addr.sll_addr);
+        Log_info(context->logger, "Got beacon from [%s] and registerPeer returned [%d]", mac, ret);
+    }
+}
+
+static void sendBeacon(void* vcontext)
+{
+    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
+    if (context->beaconState != ETHInterface_beacon_ACCEPTING_AND_SENDING) {
+        // beaconing disabled
+        return;
+    }
+
+    struct sockaddr_ll addr;
+    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
+    struct Headers_Beacon beacon;
+    InterfaceController_populateBeacon(context->ic, &beacon);
+
+    if (sendto(context->socket,
+               &beacon,
+               sizeof(struct Headers_Beacon),
+               0,
+               (struct sockaddr*) &addr,
+               sizeof(struct sockaddr_ll)) < 0)
+    {
+        Log_info(context->logger, "Got error sending beacon [%s]", Errno_getString());
+    }
+}
+
 static void handleEvent(void* vcontext)
 {
     struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
@@ -106,7 +182,7 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    struct sockaddr_ll addr = { .sll_family = 0 };
+    struct sockaddr_ll* addr = (struct sockaddr_ll*) (message.bytes - sizeof(struct sockaddr_ll));
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
@@ -138,7 +214,12 @@ static void handleEvent(void* vcontext)
     }
 
     message.length = rc;
-    Message_push(&message, &addr, sizeof(struct sockaddr_ll));
+
+    Message_shift(&message, -((int)sizeof(struct sockaddr_ll)));
+
+    if (addr->sll_pkttype == PACKET_BROADCAST) {
+        handleBeacon(&message, context);
+    }
 
     context->interface.receiveMessage(&message, &context->interface);
 }
@@ -171,6 +252,19 @@ int ETHInterface_beginConnection(const char* macAddress,
         }
     }
     return 0;
+}
+
+int ETHInterface_beacon(struct ETHInterface* ethIf, int* state)
+{
+    Identity_check(ethIf);
+    if (state) {
+        ethIf->beaconState = *state;
+        // Send out a beacon right away so we don't have to wait.
+        if (ethIf->beaconState == ETHInterface_beacon_ACCEPTING_AND_SENDING) {
+            sendBeacon(ethIf);
+        }
+    }
+    return ethIf->beaconState;
 }
 
 struct ETHInterface* ETHInterface_new(struct EventBase* base,
@@ -233,11 +327,13 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
                      "call to bind() failed [%s]", Errno_getString());
     }
 
-    evutil_make_socket_nonblocking(context->socket);
+    Socket_makeNonBlocking(context->socket);
 
     Event_socketRead(handleEvent, context, context->socket, base, allocator, exHandler);
 
     context->multiIface = MultiInterface_new(sizeof(struct sockaddr_ll), &context->interface, ic);
+
+    Timeout_setInterval(sendBeacon, context, BEACON_INTERVAL, base, allocator);
 
     return context;
 }

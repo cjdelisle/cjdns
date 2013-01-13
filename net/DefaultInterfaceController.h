@@ -31,5 +31,6 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                                            struct Log* logger,
                                                            struct event_base* eventBase,
                                                            struct SwitchPinger* switchPinger,
+                                                           struct Random* rand,
                                                            struct Allocator* allocator);
 #endif
