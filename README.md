@@ -1,100 +1,104 @@
 # cjdns
 
-Dear Reader,
+To give regular people more power over their communications.
 
-I suppose you are here because you are interested in alternative networks,
-perhaps for censorship resistance, perhaps network security and I have no doubt
-you are wondering what the hell this thing is supposed to do.
+Why are we lacking power and what does that mean? The Internet is in many ways the great equalizer,
+bringing to everyone the powers once reserved to those wealthy enough to own a radio station or a
+newspaper. Still the ownership of the actual infrastructure of the net is exclusive for many
+reasons, mostly because the protocols involved are simply too complex for regular people to use.
 
-We can all find common ground in the statement that The Internet is
-insecure. Free speech and privacy advocates find it insecure against government
-listening and blocking, governments find it insecure against hackers taking
-systems over and leaking secrets, and internet service providers find it
-insecure against DDoS kiddies who use large swarms of zombie machines to send
-enough traffic to overload a network link. These are, however, all different
-views of the same problem.
-
-We have a number of somewhat competing offerings to solve this problem from ISPs
-and governments. We have IPSEC, DNSSEC, numerous proposals from the mundane to
-the wild and wacky such as "internet drivers licenses".
-
-The people who have developed these proposals are unfortunately limited in
-their thinking. ISPs are unable to see past the now almost 30 year old routing
-protocols which glue together the internet of today. Government actors are
-conditioned to think of something as secure when they have control over it.
-A quick look at x509 (the authentication system behind SSL) shows us that
-central points of failure inevitably live up to their name. In order to have a
-central authority, the people must not only be able to trust its motives but
-they must be able to trust the system's integrity as well. In a recent example, user's
-e-mail was compromised when DigiNotar certificate authority was hacked and used
-to forge gmail certificates.
-
-The vulnerability in DNS which ICE exploited to take down websites they deemed "dedicated to copyright infringement" was also used by Anonymous to replace a movie industry website with a manifesto.
-
-*A System Is Only Secure When Nobody Has Total Control*
+The centralization of power is seen in closure of websites such as wikileaks amid public outcry.
+Without speaking to the validity of one type of speech or another, it is fair to say that in a
+truly democratic world, only the most unpopular content such as child abuse, fraud and spam would
+be censored.
 
 
-What is cjdns?
---------------
+## Anonymity (or lack thereof)
 
-Cjdns is a routing engine designed for security, scalability, speed and ease of
-use. The dream: You type `./cjdroute` and give it an interface which connects
-another node and it gives you an ipv6 address generated from a public
-encryption key and a virtual network card (TUN device) which you can use to
-send packets to anyone in the cjdns network to which you are connected.
+There has been some confusion about the status of cjdns as an anonymity tool. The short answer is
+it is not. It was designed with the hope of facilitating a better society where information is
+celebrated, not suppressed. The slightly longer answer is that while using cjdns, you have a
+measure of anonymity based on the fact that the network is decentralize and connections are made
+manually. Only your directly connected peers know who you are so finding out the identity of
+someone in the network is theoretically possible but only after getting a lot of people involved.
+Not exactly covert.
 
 
-How does it work?
------------------
+## Security
 
-In order to understand how cjdns works, it is important to understand how the
-existing internet works when you send a packet. At each "intersection in the
-road" the router reads the address on the packet and decides which turn it
-should take. In the cjdns net, a packet goes to a router and the router labels
-the packet with directions to the router best able to handle it.
-That is, a router which is physically nearby and has an address numerically
-close to the destination address of the packet. The directions
-are added to the packet to allow it to go through a number of routers
-with minimal handling. They just read the label and bounce the packet wherever
-the next bits in the label tell them to. Routers have a responsibility to
-"keep in touch" with other routers that are physically closeby and numerically nearby to their address.
+When you receive a packet of information from the Internet, it seems logical to assume that it was
+meant for you, that it came from the computer which it says it came from and that nobody else has
+been reading or modifying it on the way. While many popular software applications are designed
+around these assumptions, the existing Internet does not guarantee any of them and a number of
+network security exploits come from the cases where these assumptions break down.
+
+Cjdns aims to guarantee these assumptions by using modern cryptography in a non-intrusive way.
+
+
+## Simplicity
+
+Imagine a network where all the engineer has to do was plug in the wires, the computers
+instinctively know how to find each other. This is the ultimate goal of cjdns. It is understood
+that some network engineering will always be necessary but reducing it and simplifying what remains
+are top priorities.
+
+
+## Scalability
+
+Cjdns is built around a bold and unproven assumption. It is assumed that a non-hierarchical network
+can scale. Cjdns uses a technique similar to Distributed Hash Tables in order to spread the load of
+routing among a number of nodes rather than requiring every node to know the full path to every
+other node.
+
+
+## How does it work?
+
+In order to understand how cjdns works, it is important to understand how the existing Internet
+works when you send a packet. At each "intersection in the road" the router reads the address on
+the packet and decides which turn it should take. In the cjdns net, a packet goes to a router and
+the router labels the packet with directions to the router best able to handle it. That is, a
+router which is physically nearby and has an address numerically close to the destination address
+of the packet. The directions are added to the packet to allow it to go through a number of
+routers with minimal handling. They just read the label and bounce the packet wherever the next
+bits in the label tell them to. Routers have a responsibility to "keep in touch" with other
+routers that are physically close by and numerically near to their address.
 
 The router engine is a modified implementation of the Kademlia DHT design.
 
 
-How close is it to complete?
-----------------------------
+## How close is it to complete?
 
-A live testing network exists with roughly 200 active nodes.
-The software has been tested and is known to work on x86, amd64, ARMv5, ARMv7,
-MIPS, PowerPC32 and PowerPC64. It is continually tested on Linux, Apple OSX,
-Illumos, FreeBSD, and OpenBSD systems. While the software itself is stable,
-the protocols and algorithms are new inventions and we still don't understand
-how they work in the real world.
-Please update early and often to give developers the maximum latitude to make
+A live testing network exists with roughly 200 active nodes. The software has been tested and is
+known to work on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32 and PowerPC64. It is continually tested
+on Linux, Apple OSX, Illumos, FreeBSD, and OpenBSD systems. While the software itself is stable,
+the protocols and algorithms are new inventions and we still don't understand how they work in
+the real world. Please update early and often to give developers the maximum latitude to make
 tweaks to the protocol and algorithms.
 
 
-You Can Help!
--------------
+## You Can Help!
 
-If you have a system based on an alternative architecture, join the IRC channel
-and ask about running a buildbot. We are specifically looking for buildbots
-running on MIPS and ARM based systems but bots running on PowerPC, SPARC,
-Itanium or any other esoteric architectures are also helpful.
+If you have a system based on an alternative architecture, join the IRC channel and ask about
+running a buildbot. We are specifically looking for buildbots running on MIPS and ARM based systems
+but bots running on PowerPC, SPARC, Itanium or any other esoteric architectures are also helpful.
 
 Join the IRC channel and ask about other ways you can help.
 
-What about DNS?
----------------
 
-DNS is a complex system to implement and highly complex to implement without
-central authority. If you would like to offer help with this part, I invite you
-to come join.
+## What about DNS?
+
+DNS is a complex system to implement and highly complex to implement without central authority.
+If you would like to offer help with this part, I invite you to come join.
 
 
-Further Reading & Discussion
-----------------------------
+## Where did the name cjdns come from?
+
+Cjdns was based on a codebase which was originally intended to handle name resolution (DNS) and so
+it was a combination of 'cjd' and 'dns'. The project changed direction early on and currently is
+still lacking DNS resolution but the name stuck. Make up your own acronym for it if you like.
+
+
+## Further Reading & Discussion
 
 Please read the Whitepaper, or at least skim it:
 
@@ -322,7 +326,7 @@ Thats it for now! Got More? Tell us on IRC.
 
 # Non-Standard Setups
 
-**Most Users Don't Need To Read Below This Point**
+**Most Users Don't Need This**
 
 Instructions for building or installing in non-default ways.
 
