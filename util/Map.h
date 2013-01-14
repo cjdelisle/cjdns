@@ -56,8 +56,12 @@
             uint32_t* kA = (uint32_t*) keyA;
             uint32_t* kB = (uint32_t*) keyB;
             for (int i = 0; i < (int)(sizeof(Map_KEY_TYPE) / 4); i++) {
-                if (kA[i] != kB[i]) {
-                    return kA[i] < kB[i] ? 1 : -1;
+                if (kA[i] == kB[i]) {
+                    continue;
+                } else if (kA[i] < kB[i]) {
+                    return -1;
+                } else {
+                    return 1;
                 }
             }
             return 0;
