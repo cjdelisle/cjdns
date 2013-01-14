@@ -22,7 +22,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 # validation
-add_definitions(-Wall -Wextra -std=c99 -Werror -pedantic)
+add_definitions(-Wall -Wextra -std=c99 -pedantic)
+if ("$ENV{NO_WERROR}" STREQUAL "")
+    add_definitions(-Werror)
+endif()
 
 if(WIN32)
     # ISO C does not support the ‘I64’ ms_printf length modifier
