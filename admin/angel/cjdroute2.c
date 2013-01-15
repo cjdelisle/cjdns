@@ -115,6 +115,88 @@ static String* getCorePath(struct Allocator* alloc)
     return output;
 }
 
+static int genvalidconf(struct Random* rand)
+{
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    String* corePath = getCorePath(alloc);
+
+    uint8_t password[32];
+    uint8_t password2[32];
+    uint8_t password3[32];
+    uint8_t password4[32];
+    Random_base32(rand, password, 32);
+    Random_base32(rand, password2, 32);
+    Random_base32(rand, password3, 32);
+    Random_base32(rand, password4, 32);
+
+    uint8_t adminPassword[32];
+    Random_base32(rand, adminPassword, 32);
+
+    uint16_t port = 0;
+    while (port <= 1024) {
+        port = Random_uint16(rand);
+    }
+
+    uint8_t publicKeyBase32[53];
+    uint8_t address[40];
+    uint8_t privateKeyHex[65];
+    genAddress(address, privateKeyHex, publicKeyBase32, rand);
+
+    printf("{\n");
+    if (corePath) {
+        printf("    \"corePath\": \"%s\",\n", corePath->bytes);
+    }
+    printf("    \"privateKey\": \"%s\",\n", privateKeyHex);
+    printf("    \"publicKey\": \"%s.k\",\n", publicKeyBase32);
+    printf("    \"ipv6\": \"%s\",\n", address);
+    printf("    \"authorizedPasswords\":\n"
+           "    [\n"
+           "        {\"password\": \"%s\"}\n", password);
+    printf("    ],\n"
+           "    \"admin\":\n"
+           "    {\n"
+           "        \"bind\": \"127.0.0.1:11234\",\n"
+           "        \"password\": \"%s\"\n", adminPassword);
+    printf("    },\n"
+           "    \"interfaces\":\n"
+           "    {\n"
+           "        \"UDPInterface\":\n"
+           "        [\n"
+           "            {\n"
+           "                \"bind\": \"0.0.0.0:%u\",\n", port);
+    printf("                \"connectTo\":\n"
+           "                {\n"
+           "                }\n"
+           "            }\n"
+           "        ]\n"
+           "    },\n"
+           "    \"router\":\n"
+           "    {\n"
+           "        \"interface\":\n"
+           "        {\n"
+           "            \"type\": \"TUNInterface\"\n"
+           "        },\n"
+           "        \"ipTunnel\":\n"
+           "        {\n"
+           "            \"allowedConnections\":\n"
+           "            [\n"
+           "            ],\n"
+           "            \"outgoingConnections\":\n"
+           "            [\n"
+           "            ]\n"
+           "        }\n"
+           "    },\n"
+           "    \"security\":\n"
+           "    [\n"
+           "        \"nofiles\",\n"
+           "        {\"setuser\": \"nobody\"}\n"
+           "     ],\n"
+           "    \"version\": 1\n"
+           "}\n");
+
+    return 0;
+}
+
 static int genconf(struct Random* rand)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
@@ -320,7 +402,7 @@ static int genconf(struct Random* rand)
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--version]\n"
+    printf("Usage: %s [--help] [--genconf] [--genvalidconf] [--bench] [--version]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -372,6 +454,8 @@ int main(int argc, char** argv)
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
+        } else if (strcmp(argv[1], "--genvalidconf") == 0) {
+            return genvalidconf(rand);
         } else if (strcmp(argv[1], "--pidfile") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--reconf") == 0) {
