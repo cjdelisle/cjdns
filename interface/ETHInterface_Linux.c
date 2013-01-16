@@ -161,6 +161,7 @@ static void sendBeacon(void* vcontext)
 
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
+    Bits_memset(addr.sll_addr, 0xff, 6);
     struct Headers_Beacon beacon;
     InterfaceController_populateBeacon(context->ic, &beacon);
 

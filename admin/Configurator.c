@@ -226,7 +226,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
     List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
     if (!ifaces) {
         ifaces = List_addDict(ifaces,
-                Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
+                              Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
     }
 
     uint32_t count = List_size(ifaces);
@@ -264,6 +264,17 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 perCallAlloc->free(perCallAlloc);
 
                 entry = entry->next;
+            }
+        }
+
+        int64_t* beaconP = Dict_getInt(eth, String_CONST("beacon"));
+        if (beaconP) {
+            int64_t beacon = *beaconP;
+            if (beacon > 3 || beacon < 0) {
+                Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
+            } else {
+                Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
+                rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
             }
         }
     }
