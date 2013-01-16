@@ -53,18 +53,7 @@
         // Get the last 4 bytes of the key by default.
         static inline int Map_FUNCTION(compare)(Map_KEY_TYPE* keyA, Map_KEY_TYPE* keyB)
         {
-            uint32_t* kA = (uint32_t*) keyA;
-            uint32_t* kB = (uint32_t*) keyB;
-            for (int i = 0; i < (int)(sizeof(Map_KEY_TYPE) / 4); i++) {
-                if (kA[i] == kB[i]) {
-                    continue;
-                } else if (kA[i] < kB[i]) {
-                    return -1;
-                } else {
-                    return 1;
-                }
-            }
-            return 0;
+            return Bits_memcmp(keyA, keyB, sizeof(Map_KEY_TYPE));
         }
     #endif
 #endif
