@@ -192,7 +192,7 @@ static void handleEvent(void* vcontext)
                       message.bytes,
                       message.length,
                       0,
-                      (struct sockaddr*) &addr,
+                      (struct sockaddr*) addr,
                       &addrLen);
 
     Assert_true(addrLen == SOCKADDR_LL_LEN);
