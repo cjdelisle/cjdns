@@ -53,7 +53,7 @@
 
 struct ETHInterface
 {
-    struct Interface interface;
+    struct Interface generic;
 
     Socket socket;
 
@@ -82,6 +82,9 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     struct sockaddr_ll addr;
     Message_pop(message, &addr, sizeof(struct sockaddr_ll));
 
+    uint16_t messageLength_be = Endian_hostToBigEndian16(message->length);
+    Message_push(message, &messageLength_be, 2);
+
     if (sendto(context->socket,
                message->bytes,
                message->length,
@@ -109,12 +112,16 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
 {
     if (!context->beaconState) {
         // accepting beacons disabled.
+        Log_debug(context->logger, "Dropping beacon because beaconing is disabled");
         return;
     }
 
     struct sockaddr_ll addr;
     Message_pop(msg, &addr, sizeof(struct sockaddr_ll));
-    if (msg->length != Headers_Beacon_SIZE) {
+    if (msg->length < Headers_Beacon_SIZE) {
+        // Oversize messages are ok because beacons may contain more information in the future.
+        Log_debug(context->logger, "Dropping wrong size beacon, expected [%d] got [%d]",
+                  Headers_Beacon_SIZE, msg->length);
         return;
     }
     struct Headers_Beacon* beacon = (struct Headers_Beacon*) msg->bytes;
@@ -159,20 +166,20 @@ static void sendBeacon(void* vcontext)
         return;
     }
 
-    struct sockaddr_ll addr;
-    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
-    Bits_memset(addr.sll_addr, 0xff, 6);
-    struct Headers_Beacon beacon;
-    InterfaceController_populateBeacon(context->ic, &beacon);
+    struct {
+        struct sockaddr_ll addr;
+        struct Headers_Beacon beacon;
+    } content;
 
-    if (sendto(context->socket,
-               &beacon,
-               sizeof(struct Headers_Beacon),
-               0,
-               (struct sockaddr*) &addr,
-               sizeof(struct sockaddr_ll)) < 0)
-    {
-        Log_info(context->logger, "Got error sending beacon [%s]", Errno_getString());
+    Bits_memcpyConst(&content.addr, &context->addrBase, sizeof(struct sockaddr_ll));
+    Bits_memset(content.addr.sll_addr, 0xff, 6);
+    InterfaceController_populateBeacon(context->ic, &content.beacon);
+
+    struct Message m = { .bytes=(uint8_t*)&content, .padding=0, .length=sizeof(content) };
+
+    int ret;
+    if ((ret = sendMessage(&m, &context->generic)) != 0) {
+        Log_info(context->logger, "Got error [%d] sending beacon [%s]", ret, Errno_getString());
     }
 }
 
@@ -183,46 +190,50 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    struct sockaddr_ll* addr = (struct sockaddr_ll*) message.bytes;
-    Bits_memset(addr, 0, sizeof(struct sockaddr_ll));
-    Message_shift(&message, sizeof(struct sockaddr_ll));
+    struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
-    // Start writing InterfaceController_KEY_SIZE after the beginning,
-    // keyForSockaddr() will write the key there.
+    // Knock it out of alignment by 2 bytes so that it will be
+    // aligned when the declaredLength is shifted off.
+    Message_shift(&message, 2);
+
     int rc = recvfrom(context->socket,
                       message.bytes,
                       message.length,
                       0,
-                      (struct sockaddr*) addr,
+                      (struct sockaddr*) &addr,
                       &addrLen);
 
-    Assert_true(addrLen == SOCKADDR_LL_LEN);
-
-    /** "Magic" Warning!
-     *
-     * - smallest payload for AF_PACKET: 46 bytes
-     * - smallest packet (empyrical): 40 bytes (aka "ctrl packet")
-     */
-
-    /* Begin of "magic" */
-    if (rc == MIN_PACKET_SIZE) {
-        // remove extra 0x00 from the end of the paylod
-        rc = 40;
-    }
-    /* End of "magic" */
-
     if (rc < 0) {
+        Log_debug(context->logger, "Failed to receive eth frame");
         return;
     }
 
-    message.length = rc;
+    Assert_true(addrLen == SOCKADDR_LL_LEN);
 
-    if (addr->sll_pkttype == PACKET_BROADCAST) {
-        handleBeacon(&message, context);
+    uint16_t declaredLength_be;
+    Message_pop(&message, &declaredLength_be, 2);
+
+    const uint16_t declaredLength = Endian_bigEndianToHost16(declaredLength_be);
+    if (declaredLength != rc) {
+        if (rc != MIN_PACKET_SIZE) {
+            Log_debug(context->logger, "Frame length mismatch, declared length [%u], "
+                                       "real length [%u]", declaredLength, rc);
+            return;
+        }
+        message.length = declaredLength;
+    } else {
+        message.length = rc;
     }
 
-    context->interface.receiveMessage(&message, &context->interface);
+    Message_push(&message, &addr, sizeof(struct sockaddr_ll));
+
+    if (addr.sll_pkttype == PACKET_BROADCAST) {
+        handleBeacon(&message, context);
+        return;
+    }
+
+    context->generic.receiveMessage(&message, &context->generic);
 }
 
 int ETHInterface_beginConnection(const char* macAddress,
@@ -276,7 +287,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
                                       struct InterfaceController* ic)
 {
     struct ETHInterface* context = Allocator_clone(allocator, (&(struct ETHInterface) {
-        .interface = {
+        .generic = {
             .sendMessage = sendMessage,
             .allocator = allocator
         },
@@ -332,7 +343,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
 
     Event_socketRead(handleEvent, context, context->socket, base, allocator, exHandler);
 
-    context->multiIface = MultiInterface_new(sizeof(struct sockaddr_ll), &context->interface, ic);
+    context->multiIface = MultiInterface_new(sizeof(struct sockaddr_ll), &context->generic, ic);
 
     Timeout_setInterval(sendBeacon, context, BEACON_INTERVAL, base, allocator);
 
