@@ -215,15 +215,14 @@ static void handleEvent(void* vcontext)
     Message_pop(&message, &declaredLength_be, 2);
 
     const uint16_t declaredLength = Endian_bigEndianToHost16(declaredLength_be);
-    if (declaredLength != rc) {
+    message.length = rc - 2;
+    if (declaredLength != message.length) {
         if (rc != MIN_PACKET_SIZE) {
             Log_debug(context->logger, "Frame length mismatch, declared length [%u], "
                                        "real length [%u]", declaredLength, rc);
             return;
         }
         message.length = declaredLength;
-    } else {
-        message.length = rc;
     }
 
     Message_push(&message, &addr, sizeof(struct sockaddr_ll));
