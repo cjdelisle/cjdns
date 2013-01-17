@@ -183,7 +183,9 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    struct sockaddr_ll* addr = (struct sockaddr_ll*) (message.bytes - sizeof(struct sockaddr_ll));
+    struct sockaddr_ll* addr = (struct sockaddr_ll*) message.bytes;
+    Bits_memset(addr, 0, sizeof(struct sockaddr_ll));
+    Message_shift(&message, sizeof(struct sockaddr_ll));
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Start writing InterfaceController_KEY_SIZE after the beginning,
@@ -215,8 +217,6 @@ static void handleEvent(void* vcontext)
     }
 
     message.length = rc;
-
-    Message_shift(&message, -((int)sizeof(struct sockaddr_ll)));
 
     if (addr->sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(&message, context);
