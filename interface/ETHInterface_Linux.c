@@ -190,7 +190,7 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    struct sockaddr_ll addr;
+    struct sockaddr_ll addr = {0};
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Knock it out of alignment by 2 bytes so that it will be
@@ -231,6 +231,10 @@ static void handleEvent(void* vcontext)
         handleBeacon(&message, context);
         return;
     }
+
+    uint8_t buff[sizeof(struct sockaddr_ll) * 2 + 1] = {0};
+    Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
+    Log_debug(context->logger, "Got ethernet frame from [%s]", buff);
 
     context->generic.receiveMessage(&message, &context->generic);
 }

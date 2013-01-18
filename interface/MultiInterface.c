@@ -64,19 +64,12 @@ struct Peer
 static inline uint32_t Map_OfPeersByKey_hash(struct MapKey** key)
 {
     uint32_t* k = (uint32_t*) ((*key)->bytes);
-    return k[0];
+    return k[ ((*key)->keySize / 4)-1 ];
 }
 
 static inline int Map_OfPeersByKey_compare(struct MapKey** keyA, struct MapKey** keyB)
 {
-    uint32_t* kA = (uint32_t*) (*keyA);
-    uint32_t* kB = (uint32_t*) (*keyB);
-    for (int i = 0; i <= ((*keyA)->keySize / 4); i++) {
-        if (kA[i] != kB[i]) {
-            return kA[i] < kB[i];
-        }
-    }
-    return 0;
+    return Bits_memcmp(*keyA, *keyB, (*keyA)->keySize+4);
 }
 
 struct MultiInterface_pvt
