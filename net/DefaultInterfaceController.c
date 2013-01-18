@@ -29,13 +29,22 @@
 #include <stddef.h> // offsetof
 
 /** After this number of milliseconds, a node will be regarded as unresponsive. */
-#define UNRESPONSIVE_AFTER_MILLISECONDS 20000
+#define UNRESPONSIVE_AFTER_MILLISECONDS (20*1024)
 
-#define PING_AFTER_MILLISECONDS 3000
+/**
+ * After this number of milliseconds without a valid incoming message,
+ * a peer is "lazy" and should be pinged.
+ */
+#define PING_AFTER_MILLISECONDS (3*1024)
 
-#define PING_INTERVAL 1000
+/** How often to ping "lazy" peers, "unresponsive" peers are only pinged 20% of the time. */
+#define PING_INTERVAL_MILLISECONDS 1024
 
-#define TIMEOUT_MILLISECONDS 2000
+/** The number of milliseconds to wait for a ping response. */
+#define TIMEOUT_MILLISECONDS (2*1024)
+
+/** The number of seconds to wait before an incoming unresponsive peer is forgotten. */
+#define FORGET_AFTER_MILLISECONDS (256*1024)
 
 /*--------------------Structs--------------------*/
 
@@ -59,13 +68,16 @@ struct IFCPeer
     /** The handle which can be used to look up this endpoint in the endpoint set. */
     uint32_t handle;
 
+    /** True if we do not have a password for connecting to the peer. */
+    bool incoming : 1;
+
     /**
      * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
      * During transition from HANDSHAKE to ESTABLISHED, a check is done for a registeration of a
      * node which is already registered in a different switch slot, if there is one and the
      * handshake completes, it will be moved.
      */
-    enum InterfaceController_PeerState state;
+    int state : 31;
 
     Identity
 };
@@ -106,6 +118,9 @@ struct Context
 
     /** The number of milliseconds to let a ping go before timing it out. */
     uint32_t timeoutMilliseconds;
+
+    /** After this number of milliseconds, an incoming connection is forgotten entirely. */
+    uint32_t forgetAfterMilliseconds;
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
     uint32_t pingCount;
@@ -176,15 +191,22 @@ static void pingCallback(void* vic)
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
-            if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
+            if (ep->incoming && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
+                Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
+                                      "seconds, dropping connection",
+                                      key, ic->forgetAfterMilliseconds);
+                Allocator_free(ep->external->allocator);
+            } else if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
-                Log_debug(ic->logger, "Pinging unresponsive neighbor [%s.k].", key);
+                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
+                Log_debug(ic->logger, "Pinging unresponsive peer [%s.k] lag [%u]", key, lag);
             } else {
-                Log_debug(ic->logger, "Pinging lazy neighbor [%s].", key);
+                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
+                Log_debug(ic->logger, "Pinging lazy peer [%s] lag [%u]", key, lag);
             }
 
             struct SwitchPinger_Ping* ping =
@@ -249,11 +271,13 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 pingCallback(ic);
             }
         }
-    } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE) {
+    } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE
+        && CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3)
+    {
         ep->state = InterfaceController_PeerState_ESTABLISHED;
+    } else {
+        ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
     }
-
-    ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
 
     return ep->switchIf.receiveMessage(msg, &ep->switchIf);
 }
@@ -353,6 +377,9 @@ static int registerPeer(struct InterfaceController* ifController,
     // Always use authType 1 until something else comes along, then we'll have to refactor.
     if (password) {
         CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
+    } else {
+        // no password -> incoming connection.
+        ep->incoming = true;
     }
 
     Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
@@ -436,9 +463,14 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .unresponsiveAfterMilliseconds = UNRESPONSIVE_AFTER_MILLISECONDS,
         .pingAfterMilliseconds = PING_AFTER_MILLISECONDS,
         .timeoutMilliseconds = TIMEOUT_MILLISECONDS,
+        .forgetAfterMilliseconds = FORGET_AFTER_MILLISECONDS,
 
         .pingInterval = (switchPinger)
-            ? Timeout_setInterval(pingCallback, out, PING_INTERVAL, eventBase, allocator)
+            ? Timeout_setInterval(pingCallback,
+                                  out,
+                                  PING_INTERVAL_MILLISECONDS,
+                                  eventBase,
+                                  allocator)
             : NULL
 
     }), sizeof(struct Context));

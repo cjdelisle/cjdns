@@ -46,9 +46,16 @@ struct InterfaceController
      * set it's state to UNRESPONSIVE and it is the job of the caller to remove the peer by freeing
      * the allocator which is provided with iface.
      *
-     * If a peer is registered and it turns out to have the same cryptographic key as an existing
-     * peer, the existing one will be freed by the IC and the new one will take it's place.
      * BEWARE: the interface allocator you provide here may be freed by this code!
+     *
+     *   The following cases will cause the allocator to be freed:
+     *
+     *     1. If a peer is registered and it turns out to have the same cryptographic key as an
+     *        existing peer, the existing one will be freed by the IC and the new one will take it's
+     *        place.
+     *
+     *     2. If an peer which initiated the connection to us is unresponsive for more than
+     *        FORGET_AFTER_MILLISECONDS then the session will be removed.
      *
      * @param ic the interface controller.
      * @param herPublicKey the public key of the foreign node, NULL if unknown.
