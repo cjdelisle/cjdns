@@ -53,11 +53,12 @@ struct CryptoAuth_Wrapper;
  *                 based authentication.
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
  *             If this is NULL and requireAuthentication is enabled, authentication will fail.
+ *             Duplicate user entires are OK.
  * @param context The CryptoAuth context.
  * @return 0 if all goes well,
  *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
  *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
- *         CryptoAuth_addUser_DUPLICATE if the entry already exists.
+ *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
  */
 #define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
 #define CryptoAuth_addUser_OUT_OF_SPACE      -2
@@ -71,8 +72,10 @@ int32_t CryptoAuth_addUser(String* password,
  * Remove all users registered with this CryptoAuth.
  *
  * @param context the context to remove users for.
+ * @param user the identifier which was passed to addUser(), all users with this id will be removed.
+ * @return the number of users removed.
  */
-void CryptoAuth_flushUsers(struct CryptoAuth* context);
+int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.

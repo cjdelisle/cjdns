@@ -955,10 +955,29 @@ int32_t CryptoAuth_addUser(String* password,
     return 0;
 }
 
-void CryptoAuth_flushUsers(struct CryptoAuth* context)
+int CryptoAuth_removeUsers(struct CryptoAuth* context, void* uid)
 {
     struct CryptoAuth_pvt* ctx = Identity_cast((struct CryptoAuth_pvt*) context);
-    ctx->passwordCount = 0;
+    if (!uid) {
+        int count = ctx->passwordCount;
+        Log_debug(ctx->logger, "Flushing [%d] users", count);
+        ctx->passwordCount = 0;
+        return count;
+    }
+    int count = 0;
+    int i = 0;
+    while (i < (int)ctx->passwordCount) {
+        if (ctx->passwords[i].user == uid) {
+            Bits_memcpyConst(&ctx->passwords[i],
+                             &ctx->passwords[ctx->passwordCount--],
+                             sizeof(struct CryptoAuth_Auth));
+            count++;
+        } else {
+            i++;
+        }
+    }
+    Log_debug(ctx->logger, "Removing [%d] user(s) identified by [%p]", count, uid);
+    return count;
 }
 
 void* CryptoAuth_getUser(struct Interface* interface)

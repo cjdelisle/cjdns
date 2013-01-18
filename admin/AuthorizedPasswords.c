@@ -24,11 +24,6 @@ struct Context
     struct Allocator* allocator;
 };
 
-struct User
-{
-    uint64_t trust;
-};
-
 static void sendResponse(String* msg, struct Admin* admin, String* txid)
 {
     #define BUFFERSZ 1024
@@ -53,10 +48,7 @@ static void add(Dict* args, void* vcontext, String* txid)
         return;
     }
 
-    struct User* u = context->allocator->malloc(sizeof(struct User), context->allocator);
-    // At some point this will be implemented...
-    u->trust = 0;
-    int32_t ret = CryptoAuth_addUser(passwd, *authType, u, context->ca);
+    int32_t ret = CryptoAuth_addUser(passwd, *authType, context, context->ca);
 
     switch (ret) {
         case 0:
@@ -80,7 +72,8 @@ static void add(Dict* args, void* vcontext, String* txid)
 static void flush(Dict* args, void* vcontext, String* txid)
 {
     struct Context* context = (struct Context*) vcontext;
-    CryptoAuth_flushUsers(context->ca);
+    // We only remove users which were added using this api.
+    CryptoAuth_removeUsers(context->ca, context);
     sendResponse(String_CONST("none"), context->admin, txid);
 }
 

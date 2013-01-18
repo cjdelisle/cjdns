@@ -272,9 +272,6 @@ int Core_main(int argc, char** argv)
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);
 
-    // The ifcontroller adds an authed password and AP_init() flushes them.
-    AuthorizedPasswords_init(admin, cryptoAuth, alloc);
-
     // Interfaces.
     struct InterfaceController* ifController =
         DefaultInterfaceController_new(cryptoAuth,
@@ -293,6 +290,7 @@ int Core_main(int argc, char** argv)
     ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #endif
     RouterModule_admin_register(router, admin, alloc);
+    AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
     Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
