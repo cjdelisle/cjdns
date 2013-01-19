@@ -43,7 +43,7 @@
 /** The number of milliseconds to wait for a ping response. */
 #define TIMEOUT_MILLISECONDS (2*1024)
 
-/** The number of seconds to wait before an incoming unresponsive peer is forgotten. */
+/** The number of seconds to wait before a transient unresponsive peer is forgotten. */
 #define FORGET_AFTER_MILLISECONDS (256*1024)
 
 /*--------------------Structs--------------------*/
@@ -68,8 +68,8 @@ struct IFCPeer
     /** The handle which can be used to look up this endpoint in the endpoint set. */
     uint32_t handle;
 
-    /** True if we do not have a password for connecting to the peer. */
-    bool incoming : 1;
+    /** True if we should forget about the peer if they do not respond. */
+    bool transient : 1;
 
     /**
      * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
@@ -119,7 +119,7 @@ struct Context
     /** The number of milliseconds to let a ping go before timing it out. */
     uint32_t timeoutMilliseconds;
 
-    /** After this number of milliseconds, an incoming connection is forgotten entirely. */
+    /** After this number of milliseconds, an transient connection is forgotten entirely. */
     uint32_t forgetAfterMilliseconds;
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
@@ -191,10 +191,10 @@ static void pingCallback(void* vic)
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
-            if (ep->incoming && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
+            if (ep->transient && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
                 Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                       "seconds, dropping connection",
-                                      key, ic->forgetAfterMilliseconds);
+                                      key, ic->forgetAfterMilliseconds / 1024);
                 Allocator_free(ep->external->allocator);
             } else if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
                 // Lets skip 87% of pings when they're really down.
@@ -333,6 +333,7 @@ static int registerPeer(struct InterfaceController* ifController,
                         uint8_t herPublicKey[32],
                         String* password,
                         bool requireAuth,
+                        bool transient,
                         struct Interface* externalInterface)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
@@ -377,10 +378,9 @@ static int registerPeer(struct InterfaceController* ifController,
     // Always use authType 1 until something else comes along, then we'll have to refactor.
     if (password) {
         CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
-    } else {
-        // no password -> incoming connection.
-        ep->incoming = true;
     }
+
+    ep->transient = transient;
 
     Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
         .sendMessage = sendFromSwitch,

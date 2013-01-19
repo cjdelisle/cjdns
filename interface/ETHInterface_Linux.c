@@ -169,6 +169,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
                                                beacon->publicKey,
                                                &passStr,
                                                false,
+                                               true,
                                                iface);
     if (ret != 0) {
         uint8_t mac[18];
@@ -273,7 +274,7 @@ int ETHInterface_beginConnection(const char* macAddress,
     }
 
     struct Interface* iface = MultiInterface_ifaceForKey(ethIf->multiIface, &addr);
-    int ret = InterfaceController_registerPeer(ethIf->ic, cryptoKey, password, false, iface);
+    int ret = InterfaceController_registerPeer(ethIf->ic, cryptoKey, password, false, false, iface);
     if (ret) {
         Allocator_free(iface->allocator);
         switch(ret) {

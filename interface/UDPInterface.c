@@ -120,7 +120,7 @@ int UDPInterface_beginConnection(const char* address,
     }
 
     struct Interface* iface = MultiInterface_ifaceForKey(udpif->multiIface, &addr);
-    int ret = InterfaceController_registerPeer(udpif->ic, cryptoKey, password, false, iface);
+    int ret = InterfaceController_registerPeer(udpif->ic, cryptoKey, password, false, false, iface);
     if (ret) {
         Allocator_free(iface->allocator);
         switch(ret) {

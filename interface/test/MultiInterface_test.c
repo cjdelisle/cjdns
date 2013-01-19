@@ -55,6 +55,7 @@ static int registerPeer(struct InterfaceController* ic,
                         uint8_t herPublicKey[32],
                         String* password,
                         bool requireAuth,
+                        bool transient,
                         struct Interface* iface)
 {
     iface->receiveMessage = recieveInternal;

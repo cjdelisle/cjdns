@@ -54,13 +54,14 @@ struct InterfaceController
      *        existing peer, the existing one will be freed by the IC and the new one will take it's
      *        place.
      *
-     *     2. If an peer which initiated the connection to us is unresponsive for more than
-     *        FORGET_AFTER_MILLISECONDS then the session will be removed.
+     *     2. If a peer which is registered as "transient" and is unresponsive for more than
+     *        FORGET_AFTER_MILLISECONDS milliseconds then the session will be removed.
      *
      * @param ic the interface controller.
      * @param herPublicKey the public key of the foreign node, NULL if unknown.
      * @param password the password for authenticating with the other node or NULL if unspecified.
      * @param requireAuth true if the other node must authenticate (incoming connection).
+     * @param transient if true then this peer may be forgotten.
      * @param iface an interface which pipes messages to/from this peer. The peer will be
      *        deregistered if this allocator is freed.
      *
@@ -76,6 +77,7 @@ struct InterfaceController
                                uint8_t herPublicKey[32],
                                String* password,
                                bool requireAuth,
+                               bool transient,
                                struct Interface* iface);
 
     /**
@@ -98,8 +100,8 @@ struct InterfaceController
 #define InterfaceController_getPeerState(ic, iface) \
     ((ic)->getPeerState(iface))
 
-#define InterfaceController_registerPeer(ic, herPublicKey, password, requireAuth, iface) \
-    ((ic)->registerPeer((ic), (herPublicKey), (password), (requireAuth), (iface)))
+#define InterfaceController_registerPeer(ic, herPublicKey, password, requireAuth, transient, iface)\
+    ((ic)->registerPeer((ic), (herPublicKey), (password), (requireAuth), (transient), (iface)))
 
 #define InterfaceController_populateBeacon(ic, beacon) \
     ((ic)->populateBeacon((ic), (beacon)))

@@ -141,7 +141,7 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     Allocator_onFree(alloc, removePeer, peer);
 
     if (regIfNew) {
-        InterfaceController_registerPeer(mif->ic, NULL, NULL, true, &peer->internalIf);
+        InterfaceController_registerPeer(mif->ic, NULL, NULL, true, true, &peer->internalIf);
     }
     return peer;
 }

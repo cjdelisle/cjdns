@@ -38,7 +38,7 @@ int main()
     struct MultiInterface* mif = MultiInterface_new(8, &iface, tf->ifController);
 
     struct Interface* peerIf = MultiInterface_ifaceForKey(mif, "The Key ");
-    InterfaceController_registerPeer(tf->ifController, NULL, NULL, true, peerIf);
+    InterfaceController_registerPeer(tf->ifController, NULL, NULL, true, false, peerIf);
     Allocator_onFree(peerIf->allocator, allocatorFreed, NULL);
 
     struct Message* msg;

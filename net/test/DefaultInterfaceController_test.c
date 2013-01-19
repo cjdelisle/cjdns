@@ -71,7 +71,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .senderContext = &message
     };
 
-    InterfaceController_registerPeer(ifController, NULL, NULL, true, &icIface);
+    InterfaceController_registerPeer(ifController, NULL, NULL, true, false, &icIface);
 
     uint8_t hexBuffer[1025];
 

@@ -125,7 +125,7 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
     }), sizeof(struct Interface));
 
     // server knows nothing about the client.
-    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, ifaceB);
+    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, false, ifaceB);
 
     // Except that it has an authorizedPassword added.
     CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, (void*)0x1, server->cryptoAuth);
@@ -134,6 +134,7 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
     InterfaceController_registerPeer(client->ifController,
                                      server->publicKey,
                                      String_CONST("abcdefg1234"),
+                                     false,
                                      false,
                                      ifaceA);
 }
