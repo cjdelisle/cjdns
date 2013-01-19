@@ -201,7 +201,11 @@ static void sendBeacon(void* vcontext)
     Bits_memset(content.addr.sll_addr, 0xff, 6);
     InterfaceController_populateBeacon(context->ic, &content.beacon);
 
-    struct Message m = { .bytes=(uint8_t*)&content, .padding=0, .length=sizeof(content) };
+    struct Message m = {
+        .bytes=(uint8_t*)content.addr.sll_addr,
+        .padding=0,
+        .length=sizeof(struct Headers_Beacon) + 8
+    };
 
     int ret;
     if ((ret = sendMessage(&m, &context->generic)) != 0) {
