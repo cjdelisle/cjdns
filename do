@@ -60,8 +60,13 @@ while true; do
     break
 done
 
-${CMAKE} .. && make &&
-    make test || rm cjdroute &&
-    [ -f admin/angel/cjdroute2 ] && [ ! -f ../cjdroute ] || rm ../cjdroute && cp admin/angel/cjdroute2 ../cjdroute &&
-    [ -f admin/angel/cjdns ] && [ ! -f ../cjdns ] || rm ../cjdns && cp admin/angel/cjdns ../ &&
+(
+    ${CMAKE} .. && make || exit 1;
+    make test || [[ "${FORCE}" != "" ]] || exit 1;
+    [ -f admin/angel/cjdroute2 ] && [ -f admin/angel/cjdns ] || exit 1;
+    [ ! -f ../cjdroute ] || rm ../cjdroute || exit 1;
+    [ ! -f ../cjdns ] || rm ../cjdns || exit 1;
+    cp admin/angel/cjdroute2 ../cjdroute || exit 1;
+    cp admin/angel/cjdns ../ || exit 1;
     echo -e "\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m"
+) || echo -e "\033[1;31mFailed to build cjdns.\033[0m"
