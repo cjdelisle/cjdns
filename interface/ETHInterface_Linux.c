@@ -87,7 +87,12 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     struct ETHInterface* context = Identity_cast((struct ETHInterface*) ethIf);
 
     struct sockaddr_ll addr;
-    Message_pop(message, &addr, sizeof(struct sockaddr_ll));
+    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
+    Message_pop(message, addr.sll_addr, 8);
+
+    uint8_t buff[sizeof(addr) * 2 + 1] = {0};
+    Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
+    Log_debug(context->logger, "Sending ethernet frame to [%s]", buff);
 
     // Check if we will have to pad the message and pad if necessary.
     int pad = 0;
@@ -136,7 +141,8 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     }
 
     struct sockaddr_ll addr;
-    Message_pop(msg, &addr, sizeof(struct sockaddr_ll));
+    Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
+    Message_pop(msg, addr.sll_addr, 8);
     if (msg->length < Headers_Beacon_SIZE) {
         // Oversize messages are ok because beacons may contain more information in the future.
         Log_debug(context->logger, "Dropping wrong size beacon, expected [%d] got [%d]",
@@ -164,7 +170,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
     #endif
 
     String passStr = { .bytes = (char*) beacon->password, .len = Headers_Beacon_PASSWORD_LEN };
-    struct Interface* iface = MultiInterface_ifaceForKey(context->multiIface, &addr);
+    struct Interface* iface = MultiInterface_ifaceForKey(context->multiIface, addr.sll_addr);
     int ret = InterfaceController_registerPeer(context->ic,
                                                beacon->publicKey,
                                                &passStr,
@@ -210,15 +216,7 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    // The 2 bytes following the address will contain the ID.
-    union {
-        struct sockaddr_ll addr;
-        struct {
-            uint8_t pad[sizeof(struct sockaddr_ll)-2];
-            uint16_t id;
-        } id;
-    } addr;
-    Assert_compileTime(sizeof(addr) == sizeof(struct sockaddr_ll));
+    struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Knock it out of alignment by 2 bytes so that it will be
@@ -245,11 +243,11 @@ static void handleEvent(void* vcontext)
 
     const uint16_t idAndPadding = Endian_bigEndianToHost16(idAndPadding_be);
     message.length = rc - 2 - ((idAndPadding & 7) * 8);
-    addr.id.id = idAndPadding >> 3;
+    const uint16_t id = idAndPadding >> 3;
+    Message_push(&message, &id, 2);
+    Message_push(&message, addr.sll_addr, 6);
 
-    Message_push(&message, &addr, sizeof(addr));
-
-    if (addr.addr.sll_pkttype == PACKET_BROADCAST) {
+    if (addr.sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(&message, context);
         return;
     }
