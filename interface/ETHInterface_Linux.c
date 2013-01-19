@@ -39,6 +39,7 @@
 #include <linux/if_arp.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
@@ -72,6 +73,12 @@ struct ETHInterface
 
     int beaconState;
 
+    /**
+     * A unique(ish) id which will be different every time the router starts.
+     * This will prevent new eth frames from being confused with old frames from an expired session.
+     */
+    uint16_t id;
+
     Identity
 };
 
@@ -82,8 +89,20 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     struct sockaddr_ll addr;
     Message_pop(message, &addr, sizeof(struct sockaddr_ll));
 
-    uint16_t messageLength_be = Endian_hostToBigEndian16(message->length);
-    Message_push(message, &messageLength_be, 2);
+    // Check if we will have to pad the message and pad if necessary.
+    int pad = 0;
+    for (int length = message->length; length+2 < MIN_PACKET_SIZE; length += 8) {
+        pad++;
+    }
+    if (pad > 0) {
+        int length = message->length;
+        Message_shift(message, pad*8);
+        Bits_memset(message->bytes, 0, pad*8);
+        Bits_memmove(message->bytes, &message->bytes[pad*8], length);
+    }
+    Assert_true(pad < 8);
+    uint16_t padAndId_be = Endian_hostToBigEndian16((context->id << 3) | pad);
+    Message_push(message, &padAndId_be, 2);
 
     if (sendto(context->socket,
                message->bytes,
@@ -190,11 +209,19 @@ static void handleEvent(void* vcontext)
     struct Message message =
         { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
 
-    struct sockaddr_ll addr = {0};
+    // The 2 bytes following the address will contain the ID.
+    union {
+        struct sockaddr_ll addr;
+        struct {
+            uint8_t pad[sizeof(struct sockaddr_ll)-2];
+            uint16_t id;
+        } id;
+    } addr;
+    Assert_compileTime(sizeof(addr) == sizeof(struct sockaddr_ll));
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Knock it out of alignment by 2 bytes so that it will be
-    // aligned when the declaredLength is shifted off.
+    // aligned when the idAndPadding is shifted off.
     Message_shift(&message, 2);
 
     int rc = recvfrom(context->socket,
@@ -209,30 +236,24 @@ static void handleEvent(void* vcontext)
         return;
     }
 
-    Assert_true(addrLen == SOCKADDR_LL_LEN);
+    //Assert_true(addrLen == SOCKADDR_LL_LEN);
 
-    uint16_t declaredLength_be;
-    Message_pop(&message, &declaredLength_be, 2);
+    // Pop the first 2 bytes of the message containing the node id and amount of padding.
+    uint16_t idAndPadding_be;
+    Message_pop(&message, &idAndPadding_be, 2);
 
-    const uint16_t declaredLength = Endian_bigEndianToHost16(declaredLength_be);
-    message.length = rc - 2;
-    if (declaredLength != message.length) {
-        if (rc != MIN_PACKET_SIZE) {
-            Log_debug(context->logger, "Frame length mismatch, declared length [%u], "
-                                       "real length [%u]", declaredLength, rc);
-            return;
-        }
-        message.length = declaredLength;
-    }
+    const uint16_t idAndPadding = Endian_bigEndianToHost16(idAndPadding_be);
+    message.length = rc - 2 - ((idAndPadding & 7) * 8);
+    addr.id.id = idAndPadding >> 3;
 
-    Message_push(&message, &addr, sizeof(struct sockaddr_ll));
+    Message_push(&message, &addr, sizeof(addr));
 
-    if (addr.sll_pkttype == PACKET_BROADCAST) {
+    if (addr.addr.sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(&message, context);
         return;
     }
 
-    uint8_t buff[sizeof(struct sockaddr_ll) * 2 + 1] = {0};
+    uint8_t buff[sizeof(addr) * 2 + 1] = {0};
     Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
     Log_debug(context->logger, "Got ethernet frame from [%s]", buff);
 
@@ -295,7 +316,8 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
             .allocator = allocator
         },
         .logger = logger,
-        .ic = ic
+        .ic = ic,
+        .id = getpid()
     }));
 
     Identity_set(context);
