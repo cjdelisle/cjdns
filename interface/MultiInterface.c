@@ -120,7 +120,7 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     struct Allocator* alloc = Allocator_child(mif->allocator);
 
     size_t size = sizeof(struct Peer) + (mif->pub.keySize - DEFAULT_KEYSIZE);
-    struct Peer* peer = Allocator_malloc(mif->allocator, size);
+    struct Peer* peer = Allocator_malloc(alloc, size);
 
     Bits_memcpyConst(peer, (&(struct Peer) {
         .internalIf = {
