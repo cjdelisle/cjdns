@@ -90,9 +90,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
     Message_pop(message, addr.sll_addr, 8);
 
+    /* Cut down on the noise
     uint8_t buff[sizeof(addr) * 2 + 1] = {0};
     Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
     Log_debug(context->logger, "Sending ethernet frame to [%s]", buff);
+    */
 
     // Check if we will have to pad the message and pad if necessary.
     int pad = 0;
@@ -256,9 +258,11 @@ static void handleEvent(void* vcontext)
         return;
     }
 
+    /* Cut down on the noise
     uint8_t buff[sizeof(addr) * 2 + 1] = {0};
     Hex_encode(buff, sizeof(buff), (uint8_t*)&addr, sizeof(addr));
     Log_debug(context->logger, "Got ethernet frame from [%s]", buff);
+    */
 
     context->generic.receiveMessage(&message, &context->generic);
 }
