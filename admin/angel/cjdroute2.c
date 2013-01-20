@@ -117,9 +117,6 @@ static String* getCorePath(struct Allocator* alloc)
 
 static int genconf(struct Random* rand)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
-    String* corePath = getCorePath(alloc);
-
     uint8_t password[32];
     uint8_t password2[32];
     uint8_t password3[32];
