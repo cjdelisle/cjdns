@@ -143,14 +143,6 @@ static int genconf(struct Random* rand)
     genAddress(address, privateKeyHex, publicKeyBase32, rand);
 
     printf("{\n");
-    printf("    // The path to the cjdns core executable.\n");
-    if (corePath) {
-        printf("    \"corePath\": \"%s\",\n", corePath->bytes);
-    } else {
-        printf("    // cjdroute2 could not find this file, please specify its location.\n");
-        printf("    //\"corePath\": \"\",\n");
-    }
-    printf("\n");
     printf("    // Private key:\n"
            "    // Your confidentiality and data integrity depend on this key, keep it secret!\n"
            "    \"privateKey\": \"%s\",\n\n", privateKeyHex);
@@ -446,18 +438,12 @@ int main(int argc, char** argv)
     char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
 
     // --------------------- Spawn Angel --------------------- //
-    String* corePath = Dict_getString(&config, String_CONST("corePath"));
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
 
+    String* corePath = getCorePath(allocator);
     if (!corePath) {
-        corePath = getCorePath(allocator);
-        if (!corePath) {
-            Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
-                                 "try specifying the location in your cjdroute.conf");
-        } else {
-            Log_warn(logger, "Cjdns core executable was not specified in cjdroute.conf, "
-                             "guessing its location.");
-        }
+        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
+                             "make sure it is in the same directory as cjdroute");
     }
 
     if (!privateKey) {
