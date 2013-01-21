@@ -27,12 +27,12 @@ struct Event
 };
 
 #define Event_socketRead_INTERNAL -1
-void Event_socketRead(void (* const callback)(void* callbackContext),
-                      void* const callbackContext,
-                      Socket s,
-                      struct EventBase* base,
-                      struct Allocator* alloc,
-                      struct Except* eh);
+struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
+                               void* const callbackContext,
+                               Socket s,
+                               struct EventBase* base,
+                               struct Allocator* alloc,
+                               struct Except* eh);
 
 void Event_clearEvent(struct Event* event);
 

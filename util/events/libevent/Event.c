@@ -27,6 +27,7 @@ struct watcher {
 
 struct Event_pvt
 {
+    struct Event pub;
     void (* const callback)(void* callbackContext);
     void* const callbackContext;
     struct watcher watcher;
@@ -36,8 +37,8 @@ struct Event_pvt
 
 static void handleEvent(uv_poll_t *handle, int status, int events)
 {
-    struct watcher *watcher = (struct watcher *)handle;
-    struct Event_pvt *event = Identity_cast((struct Event_pvt *)watcher->data);
+    struct watcher* watcher = (struct watcher *)handle;
+    struct Event_pvt* event = Identity_cast((struct Event_pvt *)watcher->data);
 
     if ((status == 0) && (events == UV_READABLE)) {
         event->callback(event->callbackContext);
@@ -49,12 +50,12 @@ static void freeEvent(void* vevent)
     Event_clearEvent((struct Event*) vevent);
 }
 
-void Event_socketRead(void (* const callback)(void* callbackContext),
-                      void* const callbackContext,
-                      Socket s,
-                      struct EventBase* base,
-                      struct Allocator* alloc,
-                      struct Except* eh)
+struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
+                               void* const callbackContext,
+                               Socket s,
+                               struct EventBase* base,
+                               struct Allocator* alloc,
+                               struct Except* eh)
 {
     struct Event_pvt* out = Allocator_clone(alloc, (&(struct Event_pvt) {
         .callback = callback,
@@ -77,6 +78,7 @@ void Event_socketRead(void (* const callback)(void* callbackContext),
                      uv_strerror(uv_last_error(out->loop)));
     }
 
+    return &out->pub;
 }
 
 void Event_clearEvent(struct Event* event)
