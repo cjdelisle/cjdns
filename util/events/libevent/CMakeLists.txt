@@ -15,5 +15,5 @@ add_library(cjdns-util-events-libevent
 )
 target_link_libraries(cjdns-util-events-libevent
     cjdmemory
-    ${LIBEVENT2_LIBRARIES}
+    ${LIBUV_LIBRARIES}
 )

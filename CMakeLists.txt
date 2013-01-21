@@ -213,6 +213,7 @@ add_definitions("-D PARANOIA=1")
 include_directories(${CMAKE_SOURCE_DIR})
 
 find_package(Libevent2 REQUIRED)
+find_package(Libuv REQUIRED)
 include_directories(${LIBEVENT2_INCLUDE_DIRS})
 
 find_package(NACL REQUIRED)
