@@ -42,6 +42,10 @@ if (NOT LIBUV_FOUND)
     # May need to test linkage here (similarly to libevent), but I'll hold
     # off on that until it's needed.
 
+    if (LIBUV_INCLUDE_DIRS AND LIBUV_LIBRARIES)
+        set(LIBUV_FOUND TRUE)
+    endif()
+
     if (LIBUV_FOUND)
 	    if ("${LIBUV_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libuv/include")
 	        add_library(uv STATIC IMPORTED)
@@ -53,32 +57,39 @@ if (NOT LIBUV_FOUND)
       
 endif()
 
-if (NOT LIBUV_FOUND)
+if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     include(ExternalProject)
 
-	set(url "${CMAKE_SOURCE_DIR}/cmake/externals/node-v0.9.7.tar.gz")
-	if (NOT EXISTS "${url}")
-	    set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
-	endif()
+    set(url "${CMAKE_SOURCE_DIR}/cmake/externals/node-v0.9.7.tar.gz")
+    if (NOT EXISTS "${url}")
+        set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
+    endif()
 
-	ExternalProject_Add(libuv
-	    URL ${url}
-		URL_MD5 "caa8135e6f74628fbd7cf789e9c432e5"
-		SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
-		BINARY_DIR "${CMAKE_BINARY_DIR}/libuv"
-		CONFIGURE_COMMAND ""
-		BUILD_COMMAND make
-		INSTALL_COMMAND ""
-		UPDATE_COMMAND ""
-		PATCH_COMMAND "")
+    ExternalProject_Add(libuv
+        URL ${url}
+	URL_MD5 "caa8135e6f74628fbd7cf789e9c432e5"
+	SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
+	BINARY_DIR "${CMAKE_BINARY_DIR}/libuv"
+	CONFIGURE_COMMAND ""
+	BUILD_COMMAND make
+	INSTALL_COMMAND ""
+	UPDATE_COMMAND ""
+	PATCH_COMMAND "")
 
     set(LIBUV_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libuv/include")
 
-	add_library(uv STATIC IMPORTED)
-	set_property(TARGET uv
-	    PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libuv/libuv.a)
+    add_library(uv STATIC IMPORTED)
 
-	set(LIBUV_LIBRARIES uv)
-	set(LIBUV_FOUND TRUE)
+    set_property(TARGET uv
+        PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libuv/libuv.a)
+
+    if (APPLE)
+        find_library(CORE_SERVICES_LIB CoreServices)
+	set(LIBUV_LIBRARIES uv ${CORE_SERVICES_LIB})
+    else ()
+        set(LIBUV_LIBRARIES uv)
+    endif ()
+
+    set(LIBUV_FOUND TRUE)
 	
 endif()
