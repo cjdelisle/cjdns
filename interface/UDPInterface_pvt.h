@@ -43,7 +43,7 @@ struct UDPInterface_pvt
     struct Event* incomingMessageEvent;
 
     /** Used to tell what address type is being used. */
-    uint32_t addrLen;
+    int addrLen;
 
     uint8_t messageBuff[UDPInterface_PADDING + UDPInterface_MAX_PACKET_SIZE];
 

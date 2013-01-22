@@ -19,6 +19,8 @@
 #include "interface/PipeInterface.h"
 #include "interface/Interface.h"
 #include "util/platform/libc/strlen.h"
+#include "util/platform/Socket.h"
+#include "util/events/Event.h"
 #include "util/Bits.h"
 #include "util/Errno.h"
 #include "util/log/Log.h"
@@ -27,27 +29,34 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include <event2/event.h>
 #include <unistd.h>
+#include <sys/socket.h>
 
 struct AngelContext;
 
 struct Connection {
-    struct event* read; /** NULL: socket closed */
-    evutil_socket_t socket; /** -1: channel (to core) closed */
+    Socket socket;
+    struct Allocator* alloc;
+    uint32_t handle;
     struct AngelContext* context;
 };
 
+#define Map_NAME ConnectionSet
+#define Map_ENABLE_HANDLES
+#define Map_VALUE_TYPE struct Connection*
+#include "util/Map.h"
+
 struct AngelContext
 {
-    struct Connection connections[Angel_MAX_CONNECTIONS];
-
-    /** The event which listens for new connections. */
-    struct event* socketEvent;
+    /** Set of connections, referenced by map handle. */
+    struct Map_ConnectionSet connSet;
 
     struct Interface* coreIface;
 
-    struct event_base* eventBase;
+    Socket tcpSocket;
+
+    struct EventBase* eventBase;
+    struct Allocator* alloc;
     struct Log* logger;
 };
 
@@ -83,58 +92,31 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     Assert_true(message->length >= 4);
 
-    uint32_t connNumber;
-    Bits_memcpyConst(&connNumber, message->bytes, 4);
+    uint32_t handle;
+    Bits_memcpyConst(&handle, message->bytes, 4);
     Message_shift(message, -4);
 
-    if (connNumber == 0xffffffff) {
+    if (handle == 0xffffffff) {
         handleMessageForAngel(message, context);
         return Error_NONE;
     }
 
     //Log_debug(context->logger, "Got incoming message from [%u] with content [%s]",
-    //          connNumber, message->bytes);
+    //          handle, message->bytes);
 
-    if (connNumber <= 0xffff) {
-        if (connNumber >= Angel_MAX_CONNECTIONS) {
-            fprintf(stderr, "got message for connection #%u, max connections is %d\n",
-                    connNumber, Angel_MAX_CONNECTIONS);
-            return Error_NONE;
-        }
+    int index = Map_ConnectionSet_indexForHandle(handle, &context->connSet);
+    if (index == -1) {
+        Log_warn(context->logger, "got message for closed channel #%u", handle);
+        return Error_NONE;
+    }
+    struct Connection* conn = context->connSet.values[index];
 
-        struct Connection* conn = &context->connections[connNumber];
-        if (-1 == conn->socket) {
-            fprintf(stderr, "got message for closed channel #%u", connNumber);
-            return Error_NONE;
-        }
-
-        if (0 == message->length) {
-            /* close channel / recv ACK for close */
-            if (NULL != conn->read) {
-                // send close ACK
-                message->length = 0;
-                sendToCore(message, connNumber, context);
-                EVUTIL_CLOSESOCKET(conn->socket);
-                event_free(conn->read);
-                conn->read = NULL;
-            }
-            conn->socket = -1;
-        } else if (NULL == conn->read) {
-            /* drop message - channel is closed, wait for close ACK */
-        } else {
-            ssize_t sent;
-            sent = send(conn->socket, message->bytes, message->length, 0);
-            if (sent != (ssize_t) message->length) {
-                // All errors lead to closing the socket.
-                EVUTIL_CLOSESOCKET(conn->socket);
-                event_free(conn->read);
-                conn->read = NULL;
-                // send close channel
-                message->length = 0;
-                sendToCore(message, connNumber, context);
-                // set conn->socket = -1 later when we recv close ACK
-            }
-        }
+    ssize_t sent;
+    sent = send(conn->socket, message->bytes, message->length, 0);
+    if (sent != (ssize_t) message->length) {
+        Log_debug(context->logger, "Closing socket [%d]\n", conn->socket);
+        // All errors lead to closing the socket.
+        Allocator_free(conn->alloc);
     }
     return Error_NONE;
 }
@@ -142,111 +124,104 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 /**
  * handle incoming tcp data from client connections in the admin process
  */
-static void incomingFromClient(evutil_socket_t socket, short eventType, void* vconn)
+static void inFromClient(void* vconn)
 {
     struct Connection* conn = (struct Connection*) vconn;
     struct AngelContext* context = conn->context;
 
-    uint8_t buf[PipeInterface_MAX_MESSAGE_SIZE + PipeInterface_PADDING];
-    uint32_t connNumber = conn - context->connections;
+    uint8_t buf[PipeInterface_MAX_MESSAGE_SIZE + PipeInterface_PADDING+1];
 
     struct Message message = {
         .bytes = buf + PipeInterface_PADDING,
         .length = PipeInterface_MAX_MESSAGE_SIZE,
         .padding = PipeInterface_PADDING
     };
-    ssize_t result = recv(socket, message.bytes, message.length, 0);
+    ssize_t result = recv(conn->socket, message.bytes, message.length, 0);
 
     if (result > 0) {
+        message.bytes[result] = '\0';
+        Log_debug(context->logger, "Got message [%s]", message.bytes);
         message.length = result;
-        sendToCore(&message, connNumber, context);
+        sendToCore(&message, conn->handle, context);
     } else if (result < 0 && Errno_get() == Errno_EAGAIN) {
         return;
     } else {
+        Log_debug(context->logger, "Closing socket [%d]\n", conn->socket);
         // The return value will be 0 when the peer has performed an orderly shutdown.
-        EVUTIL_CLOSESOCKET(conn->socket);
-        event_free(conn->read);
-        conn->read = NULL;
-        // send close channel
-        message.length = 0;
-        sendToCore(&message, connNumber, context);
-        // set conn->socket = -1 later when we recv close ACK
+        Allocator_free(conn->alloc);
     }
 }
 
-static struct Connection* newConnection(struct AngelContext* context, evutil_socket_t fd)
+/** When a connection's allocator is freed, close the socket. */
+static void connectionFreed(void* vconn)
 {
-    struct Connection* conn = NULL;
-    for (int i = 0; i < Angel_MAX_CONNECTIONS; i++) {
-        if (context->connections[i].read == NULL && context->connections[i].socket == -1) {
-            conn = &context->connections[i];
-            break;
-        }
+    struct Connection* conn = (struct Connection*) vconn;
+    Socket_close(conn->socket);
+
+    int index = Map_ConnectionSet_indexForHandle(conn->handle, &conn->context->connSet);
+    if (index >= 0) {
+        Map_ConnectionSet_remove(index, &conn->context->connSet);
     }
-
-    if (!conn) {
-        return NULL;
-    }
-
-    conn->read = event_new(context->eventBase, fd, EV_READ | EV_PERSIST, incomingFromClient, conn);
-    conn->socket = fd;
-    conn->context = context;
-
-    if (!conn->read) {
-        return NULL;
-    }
-
-    event_add(conn->read, NULL);
-    return conn;
 }
 
-static void acceptConn(evutil_socket_t socket, short eventType, void* vcontext)
+static void newConnection(struct AngelContext* context, Socket fd)
+{
+    Socket_makeNonBlocking(fd);
+    struct Allocator* alloc = Allocator_child(context->alloc);
+    struct Connection* conn = Allocator_clone(alloc, (&(struct Connection) {
+        .alloc = alloc,
+        .socket = fd,
+        .context = context
+    }));
+
+    int index = Map_ConnectionSet_put(&conn, &context->connSet);
+    conn->handle = context->connSet.handles[index];
+
+    Event_socketRead(inFromClient, conn, fd, context->eventBase, alloc, NULL);
+    Allocator_onFree(alloc, connectionFreed, conn);
+}
+
+static void acceptConn(void* vcontext)
 {
     struct AngelContext* context = (struct AngelContext*) vcontext;
 
     struct sockaddr_storage ss;
-    ev_socklen_t slen = sizeof(ss);
-    evutil_socket_t fd = accept(socket, (struct sockaddr*)&ss, &slen);
+    uint32_t slen = sizeof(ss);
+    Socket fd = accept(context->tcpSocket, (struct sockaddr*)&ss, &slen);
     if (fd < 0) {
-        perror("acceptConn() fd < 0");
+        Log_error(context->logger, "acceptConn() fd < 0");
         return;
-    } else if (fd > (evutil_socket_t) FD_SETSIZE) {
-        EVUTIL_CLOSESOCKET(fd);
+    } else if (context->connSet.count > Angel_MAX_CONNECTIONS) {
+        Log_warn(context->logger, "Out of connection slots");
+    } else {
+        newConnection(context, fd);
         return;
     }
-
-    evutil_make_socket_nonblocking(fd);
-
-    struct Connection* conn = newConnection(context, fd);
-    if (!conn) {
-        EVUTIL_CLOSESOCKET(fd);
-    }
+    Socket_close(fd);
+    return;
 }
 
 void Angel_start(String* pass,
-                 evutil_socket_t tcpSocket,
+                 Socket tcpSocket,
                  struct Interface* coreIface,
-                 struct event_base* eventBase,
+                 struct EventBase* eventBase,
                  struct Log* logger,
                  struct Allocator* alloc)
 {
-    struct AngelContext contextStore;
-    struct AngelContext* context = &contextStore;
-    Bits_memset(context, 0, sizeof(struct AngelContext));
+    struct AngelContext ctx = {
+        .tcpSocket = tcpSocket,
+        .eventBase = eventBase,
+        .logger = logger,
+        .coreIface = coreIface,
+        .alloc = alloc,
+        .connSet = {
+            .allocator = alloc
+        }
+    };
 
-    for (int i = 0; i < Angel_MAX_CONNECTIONS; i++) {
-        context->connections[i].socket = -1;
-    }
-    context->eventBase = eventBase;
-    context->logger = logger;
+    coreIface->receiveMessage = receiveMessage;
+    coreIface->receiverContext = &ctx;
 
-    context->coreIface = coreIface;
-    context->coreIface->receiveMessage = receiveMessage;
-    context->coreIface->receiverContext = context;
-
-    context->socketEvent =
-        event_new(context->eventBase, tcpSocket, EV_READ | EV_PERSIST, acceptConn, context);
-    event_add(context->socketEvent, NULL);
-
-    event_base_dispatch(context->eventBase);
+    Event_socketRead(acceptConn, &ctx, tcpSocket, eventBase, alloc, NULL);
+    EventBase_beginLoop(eventBase);
 }

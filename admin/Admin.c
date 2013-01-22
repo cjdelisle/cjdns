@@ -42,7 +42,6 @@
 #include "util/platform/libc/string.h"
 
 #include <crypto_hash_sha256.h>
-#include <event2/event.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -68,39 +67,9 @@ struct Function
     Dict* args;
 };
 
-/**
- * This txid prefix is the inter-process communication txid.
- * the txid which is passed to the functions is these bytes followed by the bytes
- * that the user supplied in their "txid" entry. If the user didn't supply a txid
- * the txid which the function gets will be just these bytes and when it is sent back
- * the user will not get a txid back.
- */
-union Admin_TxidPrefix {
-    uint8_t raw[8];
-    struct {
-        uint32_t channelNum;
-        uint32_t serial;
-    } values;
-};
-#define Admin_TxidPrefix_SIZE 8
-Assert_compileTime(sizeof(union Admin_TxidPrefix) == Admin_TxidPrefix_SIZE);
-
-struct Channel
-{
-    /** True if the channel is waiting for the other end to close. */
-    bool isClosing;
-
-    /** The index of this channel in the admin->clientChannels array. */
-    uint32_t number;
-
-    uint32_t partialMessageLength;
-    uint8_t partialMessageBuffer[Admin_MAX_REQUEST_SIZE];
-    struct Allocator* alloc;
-};
-
 struct Admin
 {
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     struct Function* functions;
     int functionCount;
@@ -111,40 +80,7 @@ struct Admin
     struct Log* logger;
 
     struct Interface* toAngelInterface;
-
-    struct Channel* clientChannels[Angel_MAX_CONNECTIONS];
 };
-
-static void freeChannel(void* vchannel)
-{
-    struct Channel** channel = vchannel;
-    *channel = NULL;
-}
-
-static void newChannel(struct Channel** location, struct Allocator* alloc)
-{
-    struct Allocator* childAlloc = Allocator_child(alloc);
-    struct Channel* out = childAlloc->clone(sizeof(struct Channel), alloc, &(struct Channel) {
-        .alloc = childAlloc
-    });
-    childAlloc->onFree(freeChannel, location, childAlloc);
-    *location = out;
-}
-
-/**
- * find a channel by number; could allocate channels on the fly if needed
- * right now only 0..Angel_MAX_CONNECTIONS-1 numbers are valid and allocated in the Admin struct
- */
-static struct Channel* channelForNum(uint32_t channelNum, bool create, struct Admin* admin)
-{
-    Assert_true(channelNum < Angel_MAX_CONNECTIONS);
-    struct Channel** chanPtr = &admin->clientChannels[channelNum];
-    if (*chanPtr == NULL && create) {
-        newChannel(chanPtr, admin->allocator);
-        (*chanPtr)->number = channelNum;
-    }
-    return *chanPtr;
-}
 
 static void sendMessage(struct Message* message, uint32_t channelNum, struct Admin* admin)
 {
@@ -194,11 +130,6 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 
     uint32_t channelNum;
     Bits_memcpyConst(&channelNum, txid->bytes, 4);
-    struct Channel* channel = channelForNum(channelNum, false, admin);
-
-    if (!channel) {
-        return Admin_sendMessage_CHANNEL_CLOSED;
-    }
 
     struct Allocator* allocator;
     BufferAllocator_STACK(allocator, 256);
@@ -213,22 +144,6 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     }
 
     return sendBenc(message, channelNum, admin);
-}
-
-/**
- * close a channel (for example if an error happened or we received non-empty
- * messages on a invalid channel number)
- * also used to cleanup if we receive a close message
- */
-static void closeChannel(struct Channel* channel, struct Admin* admin)
-{
-    if (channel && !channel->isClosing) {
-        channel->isClosing = true;
-        uint8_t buff[128];
-        struct Message m = { .bytes = &buff[124], .length = 0, .padding = 128 };
-        sendMessage(&m, channel->number, admin);
-        channel->isClosing = true;
-    }
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin* admin)
@@ -298,17 +213,13 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
 
 static void handleRequest(Dict* messageDict,
                           struct Message* message,
-                          struct Channel* channel,
+                          uint32_t channelId,
                           struct Allocator* allocator,
                           struct Admin* admin)
 {
-    Log_debug(admin->logger, "Got a request on channel [%u]", channel->number);
     String* query = Dict_getString(messageDict, CJDHTConstants_QUERY);
     if (!query) {
-        Log_info(admin->logger,
-                 "Got a non-query from admin interface on channel [%u].",
-                 channel->number);
-        closeChannel(channel, admin);
+        Log_info(admin->logger, "Got a non-query from admin interface");
         return;
     }
 
@@ -316,7 +227,7 @@ static void handleRequest(Dict* messageDict,
     String* userTxid = Dict_getString(messageDict, TXID);
     uint32_t txidlen = ((userTxid) ? userTxid->len : 0) + 4;
     String* txid = String_newBinary(NULL, txidlen, allocator);
-    Bits_memcpyConst(txid->bytes, &channel->number, 4);
+    Bits_memcpyConst(txid->bytes, &channelId, 4);
     if (userTxid) {
         Bits_memcpy(txid->bytes + 4, userTxid->bytes, userTxid->len);
     }
@@ -388,7 +299,7 @@ static void handleRequest(Dict* messageDict,
 #define handleFrame_INVALID 2 // invalid request.
 #define handleFrame_CONTINUE 0 // parsed frame, keep parsing to get next frame.
 static int handleFrame(struct Message* message,
-                       struct Channel* channel,
+                       uint32_t channelId,
                        struct Allocator* tempAlloc,
                        struct Admin* admin)
 {
@@ -399,8 +310,6 @@ static int handleFrame(struct Message* message,
     while (!(ret = reader->read(&nextByte, 1, reader)) && nextByte != 'd');
 
     if (ret) {
-        // out of data.
-        channel->partialMessageLength = 0;
         return handleFrame_INVALID;
     }
 
@@ -416,52 +325,33 @@ static int handleFrame(struct Message* message,
     if (ret) {
         Log_warn(admin->logger,
                  "Got unparsable data from admin interface on channel [%u] content: [%s].",
-                 channel->number, message->bytes);
-        closeChannel(channel, admin);
+                 channelId, message->bytes);
         return handleFrame_INVALID;
     }
 
     uint32_t amount = reader->bytesRead(reader);
 
     struct Message tmpMessage = { .bytes = message->bytes, .length = amount, .padding = 0 };
-    handleRequest(&messageDict, &tmpMessage, channel, tempAlloc, admin);
+    handleRequest(&messageDict, &tmpMessage, channelId, tempAlloc, admin);
 
     Message_shift(message, -amount);
     return handleFrame_CONTINUE;
 }
 
 static void handleMessage(struct Message* message,
-                          struct Channel* channel,
+                          uint32_t channelId,
                           struct Admin* admin)
 {
     Log_debug(admin->logger, "Handling message.");
-    if (channel->partialMessageLength > 0) {
-        Log_debug(admin->logger, "Channel [%d] has [%u] bytes of existing data on it.",
-                  channel->number, channel->partialMessageLength);
-        Message_shift(message, channel->partialMessageLength);
-        Bits_memcpy(message->bytes, channel->partialMessageBuffer, channel->partialMessageLength);
-        channel->partialMessageLength = 0;
-    }
 
     // Try to handle multiple stacked requests in the same frame.
     for (;;) {
         struct Allocator* allocator = Allocator_child(admin->allocator);
-        int ret = handleFrame(message, channel, allocator, admin);
+        int ret = handleFrame(message, channelId, allocator, admin);
         Allocator_free(allocator);
-        if (ret == handleFrame_PARTIAL) {
-            break;
-        }
-        if (ret == handleFrame_INVALID) {
+        if (ret == handleFrame_PARTIAL || ret == handleFrame_INVALID) {
             return;
         }
-    }
-
-    // This is an idea of just how much the incoming message can be shifted.
-    // Pathological messages full of massive requests will fail.
-    if (0 != message->length && message->length <= Admin_MAX_REQUEST_SIZE) {
-        // move data to start of buffer, so we can append new data
-        Bits_memcpy(channel->partialMessageBuffer, message->bytes, message->length);
-        channel->partialMessageLength = message->length;
     }
 }
 
@@ -472,18 +362,10 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     Assert_true(message->length >= 4);
 
     uint32_t channelNum;
-    Bits_memcpyConst(&channelNum, message->bytes, 4);
-    Message_shift(message, -4);
+    Message_pop(message, &channelNum, 4);
 
-    Log_debug(admin->logger, "Got data from [%u]", channelNum);
-
-    struct Channel* channel = channelForNum(channelNum, true, admin);
-
-    if (0 == message->length) {
-        // empty message -> close channel
-        channel->alloc->free(channel->alloc);
-        return 0;
-    }
+    message->bytes[message->length] = '\0';
+    Log_debug(admin->logger, "Got data from [%u] [%s]", channelNum, message->bytes);
 
     // handle non empty message data
     if (message->length > Admin_MAX_REQUEST_SIZE) {
@@ -492,10 +374,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         Bits_memcpyConst(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
         message->length = TOO_BIG_STRLEN;
         sendMessage(message, channelNum, admin);
-    } else if (channel->isClosing) {
-        // Do nothing because the channel is in closing state.
     } else {
-        handleMessage(message, channel, admin);
+        handleMessage(message, channelNum, admin);
     }
     return 0;
 }
@@ -553,7 +433,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 struct Admin* Admin_new(struct Interface* toAngelInterface,
                         struct Allocator* alloc,
                         struct Log* logger,
-                        struct event_base* eventBase,
+                        struct EventBase* eventBase,
                         String* password)
 {
     struct Admin* admin = alloc->clone(sizeof(struct Admin), alloc, &(struct Admin) {
