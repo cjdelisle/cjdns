@@ -49,6 +49,7 @@ int main(int argc, char** argv)
     {
         enum Errno err = Errno_get();
         fprintf(stderr, "Reading private key failed: %s\n", Errno_strerror(err));
+	return 1;
     }
     for (uint8_t* n = privateKeyHexIn;n < privateKeyHexIn + 65;n++)
     {
