@@ -54,16 +54,25 @@ if (NOT LIBUV_FOUND)
 	        set(LIBUV_LIBRARIES uv)
 	    endif()
     endif()
-      
+
 endif()
 
 if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     include(ExternalProject)
+    include(FindThreads)
+
+    find_package(Threads)
 
     set(url "${CMAKE_SOURCE_DIR}/cmake/externals/node-v0.9.7.tar.gz")
     if (NOT EXISTS "${url}")
         set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
     endif()
+
+    if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
+    else ()
+        set(MAKE_COMMAND "make")
+    endif ()
 
     ExternalProject_Add(libuv
         URL ${url}
@@ -71,7 +80,7 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 	SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
 	BINARY_DIR "${CMAKE_BINARY_DIR}/libuv"
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND make
+        BUILD_COMMAND ${MAKE_COMMAND}
 	INSTALL_COMMAND ""
 	UPDATE_COMMAND ""
 	PATCH_COMMAND "")
@@ -85,11 +94,11 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     if (APPLE)
         find_library(CORE_SERVICES_LIB CoreServices)
-	set(LIBUV_LIBRARIES uv ${CORE_SERVICES_LIB})
+        set(LIBUV_LIBRARIES uv ${CORE_SERVICES_LIB} ${CMAKE_THREAD_LIBS_INIT})
     else ()
-        set(LIBUV_LIBRARIES uv)
+            set(LIBUV_LIBRARIES uv ${CMAKE_THREAD_LIBS_INIT})
     endif ()
 
     set(LIBUV_FOUND TRUE)
-	
+
 endif()

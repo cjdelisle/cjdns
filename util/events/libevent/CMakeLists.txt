@@ -20,3 +20,6 @@ target_link_libraries(cjdns-util-events-libevent
     cjdmemory
     ${LIBUV_LIBRARIES}
 )
+
+set_target_properties(cjdns-util-events-libevent
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
