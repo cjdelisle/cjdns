@@ -36,7 +36,6 @@ target_link_libraries(cjdns-angel
     cjdns-util-log-writer
     cjdns-crypto-random
     cjdns-memory-canary
-    cjdns-util-platform-socket
 )
 
 add_library(cjdns-core

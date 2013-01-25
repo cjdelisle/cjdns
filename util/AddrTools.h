@@ -229,7 +229,4 @@ static inline void AddrTools_printMac(uint8_t output[18], const uint8_t binMac[6
     output[17] = '\0';
 }
 
-
-int AddrTools_parseSockaddrPort(const char* addrStr, void* addrOut, int* addrLen);
-
 #endif

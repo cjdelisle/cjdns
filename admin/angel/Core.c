@@ -213,9 +213,8 @@ int Core_main(int argc, char** argv)
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
     String* pass = Dict_getString(adminConf, String_CONST("pass"));
-    String* bind = Dict_getString(config, String_CONST("bind"));
-    if (!(pass && privateKeyHex && bind)) {
-        Except_raise(eh, -1, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
+    if (!pass || !privateKeyHex) {
+        Except_raise(eh, -1, "Expected 'pass' and 'privateKey' in configuration.");
     }
     Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
@@ -224,8 +223,6 @@ int Core_main(int argc, char** argv)
     {
         Except_raise(eh, -1, "privateKey must be 64 bytes of hex.");
     }
-
-    int udpSock = bindUDP(bind);
 
     struct Admin* admin = Admin_new(&pi->generic, alloc, logger, eventBase, pass);
 

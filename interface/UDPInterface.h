@@ -26,7 +26,7 @@ struct UDPInterface
     struct Interface generic;
 
     /** Used for testing. */
-    uint16_t boundPort;
+    uint16_t boundPort_be;
 };
 
 /**
@@ -52,7 +52,7 @@ struct UDPInterface
 #define UDPInterface_new_SOCKET_FAILED -3
 #define UDPInterface_new_PROTOCOL_NOT_SUPPORTED -4
 #define UDPInterface_new_BIND_FAILED -5
-struct UDPInterface* UDPInterface_new(struct EventBase* base,
+struct UDPInterface* UDPInterface_new(struct event_base* base,
                                       const char* bindAddr,
                                       struct Allocator* allocator,
                                       struct Except* exHandler,

@@ -51,7 +51,6 @@ add_library(util
     Security_admin.c
     Timeout.c
     Time.c
-    AddrTools.c
 )
 target_link_libraries(util
     cjdmemory

@@ -311,7 +311,7 @@ int AngelInit_main(int argc, char** argv)
         Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", buff);
     }
 
-    int tcpSocket;
+    evutil_socket_t tcpSocket;
     String* boundAddr = bindListener(bind, alloc, eh, &tcpSocket);
 
     if (core) {
