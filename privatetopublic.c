@@ -27,10 +27,15 @@ static int usage(char* appName)
            "As private keys are very sensitive, %s reads them from stdin.\n"
            "If your shell, terminal, or other program keeps history,\n"
            "please avoid echo 'key' | %s, or similar constructs.\n"
+           "A heredoc is suitable for use in scripts, and will avoid\n"
+           "unwanted revealing of the key in process lists, like so:\n"
+           "%s <<EOF\n"
+           "key\n"
+           "EOF\n"
            "\n"
            "Key should be in hex form, maximum 64 characters.\n"
            "Extra characters will be silently ignored.\n",
-           appName, appName, appName);
+           appName, appName, appName, appName);
     return 0;
 }
 
@@ -72,7 +77,7 @@ int main(int argc, char** argv)
             ,privateKeyHexIn,publicKeyBase32Out,addressOut);
         return 0;
     } else {
-        printf("Not a valid cjdns address\n");
+        fprintf(stderr, "Not a valid cjdns address\n");
         return 1;
     }
 
