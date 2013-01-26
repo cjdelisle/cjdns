@@ -250,6 +250,14 @@ target_link_libraries(benc2json
     cjdmemory
     cjdio
 )
+add_executable(privatetopublic
+    privatetopublic.c
+)
+target_link_libraries(privatetopublic
+    util
+    crypto
+)
+
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 
