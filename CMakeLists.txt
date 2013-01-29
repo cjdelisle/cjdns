@@ -183,8 +183,8 @@ if (${Log_LEVEL} STREQUAL "KEYS")
 endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
-# vrooooooom
-add_definitions(-funroll-loops -O3)
+# https://github.com/cjdelisle/cjdns/issues/178
+add_definitions(-O2)
 
 #IF(NOT CMAKE_BUILD_TYPE)
 # default to RelWithDebInfo (-g -O2)
