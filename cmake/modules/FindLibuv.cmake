@@ -90,10 +90,10 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
         set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
     endif()
 
-    if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
-    else ()
+    if (OSX)
         set(MAKE_COMMAND "make")
+    else ()
+        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
     endif ()
 
     ExternalProject_Add(libuv
