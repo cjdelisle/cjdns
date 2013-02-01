@@ -173,7 +173,7 @@ def cjdns_connect(ipAddr, port, password):
 
     cjdns = Cjdns(sock);
 
-    kat = threading.Thread(target=receiverThread, args={cjdns});
+    kat = threading.Thread(target=receiverThread, args=[cjdns]);
     kat.setDaemon(True);
     kat.start();
 
