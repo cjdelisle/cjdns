@@ -1,0 +1,37 @@
+#!/usr/bin/env perl
+
+BEGIN {
+    use File::Basename 'dirname';
+    use File::Spec;
+    push @INC, join('/', File::Spec->splitdir(dirname(__FILE__)), '..', 'lib');
+}
+
+use CJDNS;
+use JSON;
+
+unless ($ARGV[0]) {
+    die "Usage: cexec <cjdns-admin-method> <arg1> .. <argN>\n";
+}
+
+if (open(CFG, '<', $ENV{HOME} . "/.cjdnsadmin")) {
+    local $/;
+    my $cfg = from_json(<CFG>); # slurrrrp!
+    my $cjdns = CJDNS->new($cfg->{addr}, $cfg->{port}, $cfg->{password});
+    my $method = $ARGV[0];
+    my @args = @ARGV[1..$#ARGV];
+    if ($method eq "capabilities") {
+        print $cjdns->$method(@args) . "\n";
+    } else {
+        print to_json($cjdns->$method(@args)) . "\n";
+    }
+} else {
+    print("Please create a file named .cjdnsadmin in your home directory with\n");
+    print("ip, port, and password of your cjdns engine in json.\n");
+    print("for example:\n");
+    print("{\n");
+    print("    \"addr\": \"127.0.0.1\",\n");
+    print("    \"port\": 11234,\n");
+    print("    \"password\": \"You tell me! (you\'ll find it in your cjdroute.conf)\"\n");
+    print("}\n");  
+}
+

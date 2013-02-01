@@ -31,7 +31,7 @@ sub new {
     );
 
     unless ($self->_ping) {
-        die "Error, cannot ping CJDNS admin service on $self->{connection}\n";
+        die "Can't ping CJDNS admin interface at udp://$addr:$port\n";
     }
 
     $self->_make_methods;
@@ -43,43 +43,40 @@ sub _make_methods {
     my ($self) = @_;
     my $s = $self->s;
 
-    my ($to_decode);
-    print $s "d1:q7:invalide";
+    my $availableFunctions;
+    my $page = 0;
     while (1) {
-        my $data;
-        recv($s, $data, BUFFER_SIZE, undef);
-        if (length($data)) {
-            $to_decode .= $data;
-            if (length($data) < BUFFER_SIZE) {
-                last;
-            }
-        }
-    }
+        my $to_decode;
+        print $s "d1:q24:Admin_availableFunctions4:argsd4:pagei$page" . "eee";
 
-    my $decoded = bdecode($to_decode);
+        # grab the data and rock it out!
+        recv($s, $to_decode, BUFFER_SIZE, undef);
+
+        my $decoded = bdecode($to_decode);
+
+        # copy the hash!
+        foreach my $key (keys %{$decoded->{availableFunctions}}) {
+            $availableFunctions->{$key} = $decoded->{availableFunctions}->{$key};
+        }
+        last unless exists $decoded->{more};
+
+        # get the next page.
+        $page++;
+    }
 
     # first let's start by loading them as named into the CJDNS namespace.
 
-    foreach my $method_name (keys %{$decoded->{availableFunctions}}) {
-        my $prototype = $decoded->{availableFunctions}->{$method_name};
+    foreach my $method_name (keys %$availableFunctions) {
+        my $prototype = $availableFunctions->{$method_name};
         $self->{capabilities}->{$method_name} = $prototype;
 
         # This is the code that actually calls the function!
         my $method = sub {
             my ($self, %args) = @_;
             my $s = $self->s;
-            my ($to_decode);
+            my $to_decode;
             print $s "d1:q6:cookiee";
-            while (1) {
-                my $data;
-                recv($s, $data, BUFFER_SIZE, undef);
-                if (length($data)) {
-                    $to_decode .= $data;
-                    if (length($data) < BUFFER_SIZE) {
-                        last;
-                    }
-                }
-            }
+            recv($s, $to_decode, BUFFER_SIZE, undef);
 
             my $dec = bdecode($to_decode);
 
@@ -102,18 +99,10 @@ sub _make_methods {
 
             print $s $req_benc;
 
-            my ($to_decode);
-            while (1) {
-                my $data;
-                recv($s, $data, BUFFER_SIZE, undef);
-                if (length($data)) {
-                    $to_decode .= $data;
-                    if (length($data) < BUFFER_SIZE) {
-                        last;
-                    }
-                }
-            }
+            my $to_decode;
+            recv($s, $to_decode, BUFFER_SIZE, undef);
             my $dec = bdecode($to_decode);
+
             if (ref($dec)) {
                 if ($dec->{error}) {
                     croak "[error] CJDNS method '$method_name': $dec->{error}";
