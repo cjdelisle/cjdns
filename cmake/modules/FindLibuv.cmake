@@ -90,7 +90,7 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
         set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
     endif()
 
-    if (OSX)
+    if (APPLE)
         set(MAKE_COMMAND "make")
     else ()
         separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
