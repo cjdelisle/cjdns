@@ -39,7 +39,7 @@ int main(int argc, char** argv)
     const struct BencSerializer* parser = StandardBencSerializer_get();
     const struct BencSerializer* serializer = JsonBencSerializer_get();
 
-    if (argc > 1 && !strcmp(argv[0], "-r")) {
+    if (argc > 1 && !strcmp(argv[1], "-r")) {
         const struct BencSerializer* p = parser;
         parser = serializer;
         serializer = p;
