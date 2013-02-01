@@ -44,13 +44,6 @@
 
 #include <unistd.h>
 #include <stdint.h>
-#include <event2/event.h>
-
-#ifdef BSD
-    #include <netinet/in.h>
-#elif defined(WIN32)
-    #include <ws2tcpip.h> /* sockaddr_in6 */
-#endif
 
 /**
  * Initialize the core.
@@ -60,13 +53,11 @@
  *               file descriptor for writing to the core.
  * @param fromCore a pointer to an int which will be set to the
  *                 file descriptor for reading from the core.
- * @param alloc an allocator.
  * @param eh an exception handler in case something goes wrong.
  */
 static void initCore(char* coreBinaryPath,
                      int* toCore,
                      int* fromCore,
-                     struct Allocator* alloc,
                      struct Except* eh)
 {
     int pipes[2][2];
@@ -124,89 +115,6 @@ static void sendConfToCore(struct Interface* toCoreInterface,
     };
     Log_keys(logger, "Sent [%d] bytes to core [%s].", m.length, m.bytes);
     toCoreInterface->sendMessage(&m, toCoreInterface);
-}
-
-/**
- * @param bindAddr a string representation of the address to bind to, if 0.0.0.0:0,
- *                 an address will be chosen automatically.
- * @param alloc an allocator to build the output.
- * @param eh an exception handler which will be triggered if anything goes wrong.
- * @param sock a pointer which will be set to the bound socket.
- * @return a dictionary containing: "addr" which is a string representation of the ip address
- *         which was bound and "port" which is the bound port as an integer.
- */
-static String* bindListener(String* bindAddr,
-                            struct Allocator* alloc,
-                            struct Except* eh,
-                            evutil_socket_t* sock)
-{
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
-    if (evutil_parse_sockaddr_port(bindAddr->bytes, (struct sockaddr*) &addr, &addrLen)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address and port, "
-                             "eg: 127.0.0.1:11234", bindAddr->bytes);
-    }
-
-    if (!addr.ss_family) {
-        addr.ss_family = AF_INET;
-        // Apple gets mad if the length is wrong.
-        addrLen = sizeof(struct sockaddr_in);
-    }
-
-    evutil_socket_t listener = socket(addr.ss_family, SOCK_STREAM, 0);
-    if (listener < 0) {
-        Except_raise(eh, -1, "Failed to allocate socket() [%s]", Errno_getString());
-    }
-
-    evutil_make_listen_socket_reuseable(listener);
-
-    if (bind(listener, (struct sockaddr*) &addr, addrLen) < 0) {
-        enum Errno err = Errno_get();
-        EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to bind() socket [%s]", Errno_strerror(err));
-    }
-
-    if (getsockname(listener, (struct sockaddr*) &addr, (ev_socklen_t*) &addrLen)) {
-        enum Errno err = Errno_get();
-        EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to get socket name [%s]", Errno_strerror(err));
-    }
-
-    if (listen(listener, 16) < 0) {
-        enum Errno err = Errno_get();
-        EVUTIL_CLOSESOCKET(listener);
-        Except_raise(eh, -1, "Failed to listen on socket [%s]", Errno_strerror(err));
-    }
-
-    #define ADDR_BUFF_SZ 64
-    char addrStr[ADDR_BUFF_SZ] = {0};
-    uint16_t port;
-    switch(addr.ss_family) {
-        case AF_INET:
-            evutil_inet_ntop(AF_INET,
-                             &(((struct sockaddr_in*)&addr)->sin_addr),
-                             addrStr,
-                             ADDR_BUFF_SZ);
-            Bits_memcpyConst(&port, &((struct sockaddr_in*)&addr)->sin_port, 2);
-            break;
-        case AF_INET6:
-            evutil_inet_ntop(AF_INET6,
-                             &(((struct sockaddr_in6*)&addr)->sin6_addr),
-                             addrStr + 1,
-                             ADDR_BUFF_SZ - 2);
-            addrStr[0] = '[';
-            addrStr[strlen(addrStr)] = ']';
-            Bits_memcpyConst(&port, &((struct sockaddr_in6*)&addr)->sin6_port, 2);
-            break;
-        default:
-            Assert_always(false);
-    }
-    port = Endian_bigEndianToHost16(port);
-    snprintf(addrStr + strlen(addrStr), 48 - strlen(addrStr), ":%u", port);
-
-    *sock = listener;
-    return String_new(addrStr, alloc);
 }
 
 static void setUser(char* user, struct Log* logger, struct Except* eh)
@@ -268,12 +176,13 @@ int AngelInit_main(int argc, char** argv)
     }
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Random* rand = Random_new(alloc, eh);
-    alloc = CanaryAllocator_new(alloc, rand);
-    struct EventBase* eventBase = EventBase_new(alloc);
-
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
+    struct Random* rand = Random_new(alloc, logger, eh);
+    alloc = CanaryAllocator_new(alloc, rand);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
+    struct EventBase* eventBase = EventBase_new(alloc);
+
 
     Log_debug(logger, "Initializing angel with input [%d] and output [%d]",
               inFromClientNo, outToClientNo);
@@ -285,9 +194,9 @@ int AngelInit_main(int argc, char** argv)
 
     Log_debug(logger, "Finished getting pre-configuration from client");
 
-    struct Reader* reader = ArrayReader_new(buff, CONFIG_BUFF_SIZE, alloc);
+    struct Reader* reader = ArrayReader_new(buff, CONFIG_BUFF_SIZE, tempAlloc);
     Dict config;
-    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, &config)) {
+    if (StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, &config)) {
         Except_raise(eh, -1, "Failed to parse configuration.");
     }
 
@@ -311,12 +220,9 @@ int AngelInit_main(int argc, char** argv)
         Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", buff);
     }
 
-    evutil_socket_t tcpSocket;
-    String* boundAddr = bindListener(bind, alloc, eh, &tcpSocket);
-
     if (core) {
         Log_info(logger, "Initializing core [%s]", core->bytes);
-        initCore(core->bytes, &toCore, &fromCore, alloc, eh);
+        initCore(core->bytes, &toCore, &fromCore, eh);
     }
 
     Log_debug(logger, "Sending pre-configuration to core.");
@@ -325,28 +231,23 @@ int AngelInit_main(int argc, char** argv)
     struct Interface* coreIface = &pif->generic;
     PipeInterface_waitUntilReady(pif);
 
-    sendConfToCore(coreIface, alloc, &config, eh, logger);
+    sendConfToCore(coreIface, tempAlloc, &config, eh, logger);
 
-    struct Allocator* tempAlloc = Allocator_child(alloc);
-    InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
-    tempAlloc->free(tempAlloc);
+    struct Message* coreResponse = InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
+    write(outToClientNo, coreResponse->bytes, coreResponse->length);
 
-    Dict* configResp = Dict_new(alloc);
-    Dict* adminResp = Dict_new(alloc);
-    Dict_putDict(configResp, String_CONST("admin"), adminResp, alloc);
-    Dict_putString(adminResp, String_CONST("bind"), boundAddr, alloc);
+    #ifdef Log_KEYS
+        uint8_t lastChar = coreResponse->bytes[coreResponse->length-1];
+        coreResponse->bytes[coreResponse->length-1] = 0;
+        Log_keys(logger, "Sent [%s%c] to client.", coreResponse->bytes, lastChar);
+        coreResponse->bytes[coreResponse->length-1] = lastChar;
+    #endif
 
-    struct Writer* toClientWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE, alloc);
-    if (StandardBencSerializer_get()->serializeDictionary(toClientWriter, configResp)) {
-        Except_raise(eh, -1, "Failed to serialize response");
-    }
-    write(outToClientNo, buff, toClientWriter->bytesWritten(toClientWriter));
-    buff[toClientWriter->bytesWritten(toClientWriter)] = 0;
-    Log_keys(logger, "Sent [%s] to client.", buff);
     if (user) {
         setUser(user->bytes, logger, eh);
     }
 
-    Angel_start(pass, tcpSocket, coreIface, eventBase, logger, alloc);
+    Allocator_free(tempAlloc);
+    Angel_start(coreIface, eventBase, logger, alloc);
     return 0;
 }

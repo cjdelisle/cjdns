@@ -15,7 +15,7 @@
 #define string_strcmp
 #define string_strncmp
 #define string_strlen
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
@@ -113,7 +113,7 @@ int init(const uint8_t* privateKey,
     textBuff = allocator->malloc(BUFFER_SIZE, allocator);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
-    struct Random* rand = Random_new(allocator, NULL);
+    struct Random* rand = Random_new(allocator, logger, NULL);
 
     struct EventBase* base = EventBase_new(allocator);
 

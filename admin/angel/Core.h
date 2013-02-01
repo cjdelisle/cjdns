@@ -26,7 +26,7 @@ void Core_initTunnel(String* desiredDeviceName,
                      uint8_t addressPrefix,
                      struct Ducttape* dt,
                      struct Log* logger,
-                     struct event_base* eventBase,
+                     struct EventBase* eventBase,
                      struct Allocator* alloc,
                      struct Except* eh);
 

@@ -12,26 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Time_H
-#define Time_H
+#ifndef LinuxRandomUuidSysctlRandomSeed_H
+#define LinuxRandomUuidSysctlRandomSeed_H
 
-#include "util/events/EventBase.h"
+#include "crypto/random/seed/RandomSeed.h"
+#include "memory/Allocator.h"
 
-#include <sys/time.h>
-#include <event2/event.h>
-
-uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
-{
-    struct timeval now;
-    event_base_gettimeofday_cached(eventBase, &now);
-    return (((uint64_t) now.tv_sec) * 1024) + (now.tv_usec / 1024);
-}
-
-uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
-{
-    struct timeval now;
-    event_base_gettimeofday_cached(eventBase, &now);
-    return (uint64_t) now.tv_sec;
-}
+struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc);
 
 #endif

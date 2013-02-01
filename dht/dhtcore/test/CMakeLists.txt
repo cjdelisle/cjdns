@@ -16,6 +16,6 @@ set(Test_LIBRARIES
     dht
     dhtcore
     cjdmemory
-    ${LIBEVENT2_LIBRARIES}
+    cjdns-util-events-libuv
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

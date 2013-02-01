@@ -12,10 +12,6 @@
 find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})
 
-# Libevent is used to get random numbers.
-find_package(Libevent2 REQUIRED)
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
-
 add_library(crypto CryptoAuth.c AddressCalc.c)
 
 # This is needed because NACL must be built first because header files are generated.
@@ -25,9 +21,10 @@ target_link_libraries(crypto
     cjdbenc
     cjdmemory
     ${NACL_LIBRARIES}
-    ${LIBEVENT2_LIBRARIES}
     util
 )
+
+add_subdirectory(random)
 
 add_library(cjdns-crypto-bench
     CryptoAuth_benchmark.c)
@@ -41,15 +38,6 @@ add_library(cjdns-crypto-key
 target_link_libraries(cjdns-crypto-key
     util
     crypto
-)
-
-
-add_library(cjdns-crypto-random
-    Random.c
-)
-target_link_libraries(cjdns-crypto-random
-    cjdns-except
-    ${LIBEVENT2_LIBRARIES}
 )
 
 # Everything must be tested.

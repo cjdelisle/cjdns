@@ -16,7 +16,7 @@
 #define AdminLog_H
 
 #include "admin/Admin.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 

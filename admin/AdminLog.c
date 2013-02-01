@@ -16,7 +16,7 @@
 #include "admin/AdminLog.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "io/Writer.h"
 #include "memory/BufferAllocator.h"
 #include "util/log/Log.h"
@@ -296,17 +296,17 @@ struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, s
         .rand = rand
     });
 
-    struct Admin_FunctionArg subscribeArgs[] = {
-        { .name = "level", .required = 0, .type = "String" },
-        { .name = "line", .required = 0, .type = "Int" },
-        { .name = "file", .required = 0, .type = "String" }
-    };
-    Admin_registerFunction("AdminLog_subscribe", subscribe, log, true, subscribeArgs, admin);
+    Admin_registerFunction("AdminLog_subscribe", subscribe, log, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "level", .required = 0, .type = "String" },
+            { .name = "line", .required = 0, .type = "Int" },
+            { .name = "file", .required = 0, .type = "String" }
+        }), admin);
 
-    struct Admin_FunctionArg unsubscribeArgs[] = {
-        { .name = "streamId", .required = 1, .type = "String" }
-    };
-    Admin_registerFunction("AdminLog_unsubscribe", unsubscribe, log, true, unsubscribeArgs, admin);
+    Admin_registerFunction("AdminLog_unsubscribe", unsubscribe, log, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "streamId", .required = 1, .type = "String" }
+        }), admin);
 
     return &log->pub;
 }

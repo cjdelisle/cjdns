@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Assert.h"
@@ -37,7 +37,7 @@ int main()
 {
     Security_maxMemory(1<<20, NULL);
     struct Allocator* alloc = MallocAllocator_new(1<<19);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
     overflow(alloc, rand);
     // sometimes it doesn't use up all of it's space.
     //Assert_always(0);

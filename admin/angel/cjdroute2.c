@@ -64,7 +64,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <event2/event.h>
 
 #define DEFAULT_TUN_DEV "tun0"
 
@@ -353,7 +352,7 @@ static int usage(char* appName)
 static int benchmark()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<22);
-    struct event_base* base = EventBase_new(alloc);
+    struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     CryptoAuth_benchmark(base, logger, alloc);
@@ -371,7 +370,7 @@ int main(int argc, char** argv)
 
     // Allow it to allocate 4MB
     struct Allocator* allocator = MallocAllocator_new(1<<22);
-    struct Random* rand = Random_new(allocator, eh);
+    struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
@@ -508,24 +507,19 @@ int main(int argc, char** argv)
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
     Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
-    struct sockaddr_storage adminAddr;
-    Bits_memset(&adminAddr, 0, sizeof(struct sockaddr_storage));
-    int adminAddrLen = sizeof(struct sockaddr_storage);
+
     if (!adminBind) {
         Except_raise(eh, -1, "didn't get address and port back from angel");
     }
-    if (evutil_parse_sockaddr_port(adminBind->bytes,
-                                   (struct sockaddr*) &adminAddr,
-                                   &adminAddrLen))
-    {
+    struct Sockaddr_storage adminAddr;
+    if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {
         Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
-                        (uint8_t*)&adminAddr,
-                        adminAddrLen,
+                        &adminAddr.addr,
                         adminPass,
                         eventBase,
                         logger,

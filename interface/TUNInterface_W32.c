@@ -16,7 +16,7 @@
 #include "interface/TUNInterface.h"
 
 struct TUNInterface* TUNInterface_new(void* handle,
-                                      struct event_base* base,
+                                      struct EventBase* base,
                                       struct Allocator* allocator,
                                       struct Log* logger)
 {

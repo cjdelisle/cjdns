@@ -14,7 +14,7 @@
  */
 #define string_strcmp
 #define string_strlen
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -44,7 +44,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
                                        uint8_t* pk,
                                        struct Message** fromSwitchPtr,
                                        struct Allocator* alloc,
-                                       struct event_base* eventBase,
+                                       struct EventBase* eventBase,
                                        struct Log* logger,
                                        struct Interface* routerIf,
                                        struct Random* rand)

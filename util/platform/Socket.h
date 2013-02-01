@@ -15,16 +15,44 @@
 #ifndef Socket_H
 #define Socket_H
 
-#ifdef WIN32
-    #include <stdint.h>
+#include "memory/Allocator.h"
+#include "util/platform/Sockaddr.h"
 
-    #define Socket intptr_t
-#else
-    #define Socket int
-#endif
+#include <stdint.h>
 
-int Socket_makeNonBlocking(Socket sock);
+#define Socket int
 
-int Socket_close(Socket sock);
+int Socket_makeNonBlocking(int sock);
+int Socket_makeReusable(int sock);
+
+int Socket_close(int sock);
+
+int Socket_recv(int sockfd, void* buff, size_t bufferSize, int flags);
+
+int Socket_recvfrom(int fd,
+                    void* buff,
+                    size_t bufferSize,
+                    int flags,
+                    struct Sockaddr_storage* ss);
+
+int Socket_connect(int fd, const struct Sockaddr* sa, struct Allocator* alloc);
+
+const int Socket_SOCK_DGRAM;
+const int Socket_SOCK_STREAM;
+int Socket_socket(int af, int type, int protocol, struct Allocator* alloc);
+
+int Socket_bind(int fd, const struct Sockaddr* sa);
+
+int Socket_send(int socket, const void *buffer, size_t length, int flags);
+
+int Socket_sendto(int fd,
+                  const void* buffer,
+                  size_t len,
+                  int flags,
+                  const struct Sockaddr* destination);
+
+int Socket_accept(int fd, struct Sockaddr_storage* addr, struct Allocator* alloc);
+
+int Socket_getsockname(int sockfd, struct Sockaddr_storage* addr);
 
 #endif

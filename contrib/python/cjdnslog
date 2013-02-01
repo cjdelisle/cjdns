@@ -29,25 +29,9 @@ def usage():
 def doLog(data):
     print str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message'];
 
-def recieve(sock):
-    allData = '';
-    error = 0;
+def recieve(cjdns, txid):
     while True:
-        data = sock.recv(8192);
-        allData = allData + data;
-        try:
-            output, index = bdecode_stream(allData);
-        except (KeyError, ValueError):
-            if (error > 5):
-                allData = "";
-                error = 0;
-            else:
-                error = error + 1;
-
-            continue;
-
-        doLog(output);
-        allData = allData[index:];
+        doLog(cjdns.getMessage(txid));
 
 
 
@@ -67,6 +51,6 @@ if (args > 2): line = int(sys.argv[3]);
 
 sub = cjdns.AdminLog_subscribe(line, fileName, level);
 if (sub['error'] == 'none'):
-    recieve(cjdns.socket);
+    recieve(cjdns, sub['txid']);
 else:
     print(sub);

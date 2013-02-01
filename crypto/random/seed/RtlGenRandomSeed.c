@@ -12,26 +12,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/Allocator.h"
-#include "util/events/EventBase.h"
-#include "util/Assert.h"
+#include "crypto/random/seed/RtlGenRandomSeed.h"
 
-#include <event2/event.h>
+#ifdef WIN32
+#include <stdint.h>
+#include <ntsecapi.h>
 
-static void freeEventBase(void* vLibEventEvBase)
+static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
-    event_base_free((struct event_base*) vLibEventEvBase);
+    Bits_memset(buff, 0, 64);
+    int ret = RtlGenRandom(buff, 64);
+    if (!ret || Bits_isZero(buff, 64)) {
+        return -1;
+    }
+    return 0;
 }
 
-struct EventBase* EventBase_new(struct Allocator* alloc)
+#else
+static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
-    struct event_base* libEventBase = event_base_new();
-    Assert_true(libEventBase);
-    alloc->onFree(freeEventBase, libEventBase, alloc);
-    return (struct EventBase*) libEventBase;
+    return -1;
 }
+#endif
 
-void EventBase_beginLoop(struct EventBase* eventBase)
+struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc)
 {
-    event_base_dispatch(eventBase);
+    return Allocator_clone(alloc, (&(struct RandomSeed) {
+        .get = get,
+        .name = "RtlGenRandom() (Windows)"
+    }));
 }

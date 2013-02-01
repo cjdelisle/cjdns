@@ -18,7 +18,7 @@
 #include "benc/List.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "interface/TUNMessageType.h"
@@ -31,7 +31,7 @@
 #include "util/AddrTools.h"
 #include "util/events/EventBase.h"
 #include "util/Identity.h"
-#include "util/Timeout.h"
+#include "util/events/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
@@ -117,17 +117,26 @@ static struct IpTunnel_Connection* connectionByPubKey(uint8_t pubKey[32],
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
  *
  * @param publicKeyOfAuthorizedNode the key for the node which will be allowed to connect.
- * @param ip6Address the IPv6 address which the node will be issued or NULL.
- * @param ip4Address the IPv4 address which the node will be issued or NULL.
+ * @param ip6Addr the IPv6 address which the node will be issued or NULL.
+ * @param ip4Addr the IPv4 address which the node will be issued or NULL.
  * @param tunnel the IpTunnel.
  * @return an connection number which is usable with IpTunnel_remove().
  */
 int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
-                             uint8_t ip6Address[16],
-                             uint8_t ip4Address[4],
+                             struct Sockaddr* ip6Addr,
+                             struct Sockaddr* ip4Addr,
                              struct IpTunnel* tunnel)
 {
     struct IpTunnel_pvt* context = Identity_cast((struct IpTunnel_pvt*)tunnel);
+
+    uint8_t* ip6Address = NULL;
+    uint8_t* ip4Address = NULL;
+    if (ip6Addr) {
+        Sockaddr_getAddress(ip6Addr, &ip6Address);
+    }
+    if (ip4Addr) {
+        Sockaddr_getAddress(ip4Addr, &ip4Address);
+    }
 
     struct IpTunnel_Connection* conn = newConnection(false, context);
     Bits_memcpyConst(conn->header.nodeKey, publicKeyOfAuthorizedNode, 32);

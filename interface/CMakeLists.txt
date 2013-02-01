@@ -9,7 +9,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-find_package(Libevent2 REQUIRED)
 
 if(WIN32)
   set(tunif TUNInterface_W32.c)
@@ -39,13 +38,14 @@ add_library(interface
 target_link_libraries(interface
     util
     cjdns-crypto-key
-    cjdns-util-events-libevent
     cjdns-util-platform-socket
 )
 
 add_library(cjdns-interface-pipeinterface
     PipeInterface.c
 )
+
+add_subdirectory(addressable)
 
 enable_testing()
 add_subdirectory(test)

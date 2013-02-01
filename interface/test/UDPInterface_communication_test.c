@@ -31,13 +31,7 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/platform/libc/string.h"
-#include "util/Timeout.h"
-
-#ifdef BSD
-    #include <netinet/in.h>
-#endif
-
-#include <event2/event.h>
+#include "util/events/Timeout.h"
 
 /*
  * Setup 2 UDPInterface's, test sending traffic between them.
@@ -87,25 +81,25 @@ int main(int argc, char** argv)
         .registerPeer = registerPeer
     };
 
-    struct UDPInterface* udpA = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
-    struct UDPInterface* udpB = UDPInterface_new(base, "127.0.0.1", alloc, NULL, logger, &ic);
+    struct Sockaddr_storage addr;
+    Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
 
-
-    struct sockaddr_in sin = { .sin_family = AF_INET };
-    sin.sin_port = udpA->boundPort_be;
-    uint8_t localHost[] = {127, 0, 0, 1};
-    Bits_memcpyConst(&sin.sin_addr, localHost, 4);
+    struct UDPInterface* udpA = UDPInterface_new(base, &addr.addr, alloc, NULL, logger, &ic);
+    struct UDPInterface* udpB = UDPInterface_new(base, &addr.addr, alloc, NULL, logger, &ic);
 
     struct Message* msg;
     Message_STACK(msg, 0, 128);
 
     Message_push(msg, "Hello World", 12);
-    Message_push(msg, &sin, sizeof(struct sockaddr_in));
+    Message_push(msg, udpA->addr, udpA->addr->addrLen);
 
-    udpA->generic.receiveMessage = receiveMessageA;
-    udpB->generic.receiveMessage = receiveMessageB;
+    struct Interface* ifA = &((struct UDPInterface_pvt*) udpA)->udpBase->generic;
+    struct Interface* ifB = &((struct UDPInterface_pvt*) udpB)->udpBase->generic;
 
-    udpB->generic.sendMessage(msg, &udpB->generic);
+    ifA->receiveMessage = receiveMessageA;
+    ifB->receiveMessage = receiveMessageB;
+
+    ifB->sendMessage(msg, ifB);
 
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 

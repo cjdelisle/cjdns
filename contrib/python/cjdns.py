@@ -15,45 +15,100 @@ import os;
 import socket;
 import hashlib;
 import json;
+import threading;
+import time;
+import Queue;
+import random;
+import string;
 from bencode import *;
 
 BUFFER_SIZE = 69632;
+KEEPALIVE_INTERVAL_SECONDS = 2;
+
+def randStr():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(10));
 
 def callfunc(cjdns, funcName, password, args):
+    txid = randStr();
     sock = cjdns.socket;
-
-    # empty the socket if there's anything on it.
-    try:
-        sock.recv(BUFFER_SIZE, socket.MSG_DONTWAIT);
-    except:
-        pass;
-
-    sock.send('d1:q6:cookiee');
-    data = sock.recv(BUFFER_SIZE);
-    benc = bdecode(data);
-    cookie = benc['cookie'];
+    sock.send('d1:q6:cookie4:txid10:'+ txid +'e');
+    msg = _getMessage(cjdns, txid);
+    cookie = msg['cookie'];
+    txid = randStr();
     req = {
         'q': 'auth',
         'aq': funcName,
         'hash': hashlib.sha256(password + cookie).hexdigest(),
         'cookie' : cookie,
-        'args': args
+        'args': args,
+        'txid': txid
     };
     reqBenc = bencode(req);
     req['hash'] = hashlib.sha256(reqBenc).hexdigest();
     reqBenc = bencode(req);
     sock.send(reqBenc);
-    data = sock.recv(BUFFER_SIZE);
+    return _getMessage(cjdns, txid);
+
+
+def receiverThread(cjdns):
+    timeOfLastSend = time.time();
+    timeOfLastRecv = time.time();
     try:
-        return bdecode(data);
-    except ValueError:
-        print("Failed to parse:\n" + data);
-        print("Length: " + str(len(data)));
-        raise;
+        while True:
+            if (timeOfLastSend + KEEPALIVE_INTERVAL_SECONDS < time.time()):
+                if (timeOfLastRecv + 10 < time.time()):
+                    raise Exception("ping timeout");
+                cjdns.socket.send('d1:q18:Admin_asyncEnabled4:txid8:keepalive');
+                timeOfLastSend = time.time();
+
+            try:
+                data = cjdns.socket.recv(BUFFER_SIZE);
+            except (socket.timeout): continue;
+
+            try:
+                benc = bdecode(data);
+            except (KeyError, ValueError):
+                print("error decoding [" + data + "]");
+                continue;
+
+            if benc['txid'] == 'keepaliv':
+                if benc['asyncEnabled'] == 0:
+                    raise Exception("lost session");
+                timeOfLastRecv = time.time();
+            else:
+                #print "putting to queue " + str(benc);
+                cjdns.queue.put(benc);
+
+    except KeyboardError:
+        print("interrupted");
+        import thread
+        thread.interrupt_main();
+
+
+def _getMessage(cjdns, txid):
+    while True:
+        if txid in cjdns.messages:
+            msg = cjdns.messages[txid];
+            del cjdns.messages[txid];
+            return msg;
+        else:
+            #print "getting from queue";
+            try:
+                # apparently any timeout at all allows the thread to be
+                # stopped but none make it unstoppable with ctrl+c
+                next = cjdns.queue.get(timeout=100);
+            except Queue.Empty: continue;
+            if 'txid' in next:
+                cjdns.messages[next['txid']] = next;
+                #print "adding message [" + str(next) + "]";
+            else:
+                print "message with no txid: " + str(next);
+    
 
 def cjdns_connect(ipAddr, port, password):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM);
     sock.connect((ipAddr, port));
+    sock.settimeout(2);
 
     # Make sure it pongs.
     sock.send('d1:q4:pinge');
@@ -62,19 +117,33 @@ def cjdns_connect(ipAddr, port, password):
         raise Exception("Looks like " + ipAddr + ":" + str(port) + " is to a non-cjdns socket.");
 
     # Get the functions and make the object
-    sock.send('d1:q7:invalide');
-    data = sock.recv(BUFFER_SIZE);
-    benc = bdecode(data);
+    page = 0;
+    availableFunctions = {};
+    while True:
+        sock.send('d1:q24:Admin_availableFunctions4:argsd4:pagei' + str(page) + 'eee');
+        data = sock.recv(BUFFER_SIZE);
+        benc = bdecode(data);
+        for func in benc['availableFunctions']:
+            availableFunctions[func] = benc['availableFunctions'][func];
+        if (not 'more' in benc):
+            break;
+        page = page+1;
+
     argLists = {};
     cc = ("class Cjdns:\n"
         + "    def __init__(self, socket):\n"
         + "        self.socket = socket;\n"
+        + "        self.queue = Queue.Queue();\n"
+        + "        self.messages = {};\n"
         + "    def disconnect(self):\n"
-        + "        self.socket.close();\n");
-    for func in benc['availableFunctions']:
+        + "        self.socket.close();\n"
+        + "    def getMessage(self, txid):\n"
+        + "        return _getMessage(self, txid);\n");
+
+    for func in availableFunctions:
         argList = [];
         argLists[func] = argList;
-        funcDict = benc['availableFunctions'][func];
+        funcDict = availableFunctions[func];
         cc += "    def " + func + "(self";
 
         # If the arg is required, put it first,
@@ -104,6 +173,10 @@ def cjdns_connect(ipAddr, port, password):
 
     cjdns = Cjdns(sock);
 
+    kat = threading.Thread(target=receiverThread, args={cjdns});
+    kat.setDaemon(True);
+    kat.start();
+
     # Check our password.
     ret = callfunc(cjdns, "ping", password, {});
     if ('error' in ret):
@@ -111,8 +184,8 @@ def cjdns_connect(ipAddr, port, password):
 
     cjdns.functions = "";
     nl = "";
-    for func in benc['availableFunctions']:
-        funcDict = benc['availableFunctions'][func];
+    for func in availableFunctions:
+        funcDict = availableFunctions[func];
         cjdns.functions += nl + func + "(";
         nl = "\n";
         sep = "";

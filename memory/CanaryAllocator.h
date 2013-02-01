@@ -15,7 +15,7 @@
 #ifndef CanaryAllocator_H
 #define CanaryAllocator_H
 
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 
 /**

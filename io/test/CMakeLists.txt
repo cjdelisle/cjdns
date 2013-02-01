@@ -16,6 +16,5 @@ set(Test_LIBRARIES
     cjdmemory
     cjdns-crypto-random
     cjdio
-    ${LIBEVENT2_LIBRARIES}
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

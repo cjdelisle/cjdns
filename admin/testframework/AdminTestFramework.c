@@ -27,6 +27,7 @@
 #include "memory/BufferAllocator.h"
 #include "memory/CanaryAllocator.h"
 #include "interface/PipeInterface.h"
+#include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
@@ -43,7 +44,6 @@
 #define string_strcmp
 #include "util/platform/libc/string.h"
 #include <unistd.h>
-#include <event2/event.h>
 
 static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 {
@@ -68,14 +68,14 @@ static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 }
 
 /** @return a string representing the address and port to connect to. */
-static String* initAngel(int fromAngel,
-                         int toAngel,
-                         int corePipes[2][2],
-                         struct PipeInterface** piOut,
-                         struct EventBase* eventBase,
-                         struct Log* logger,
-                         struct Allocator* alloc,
-                         struct Random* rand)
+static void initAngel(int fromAngel,
+                      int toAngel,
+                      int corePipes[2][2],
+                      struct PipeInterface** piOut,
+                      struct EventBase* eventBase,
+                      struct Log* logger,
+                      struct Allocator* alloc,
+                      struct Random* rand)
 {
     #define TO_CORE (corePipes[0][1])
     #define FROM_CORE (corePipes[1][0])
@@ -122,12 +122,11 @@ static String* initAngel(int fromAngel,
 
     // Send response on behalf of core.
     char coreToAngelResponse[128] = "           PADDING              "
-        "\xff\xff\xff\xff"
         "d"
           "5:error" "4:none"
         "e";
 
-    char* start = strchr(coreToAngelResponse, '\xff');
+    char* start = strchr(coreToAngelResponse, 'd');
     struct Message m = {
         .bytes = (uint8_t*) start,
         .length = strlen(start),
@@ -140,16 +139,7 @@ static String* initAngel(int fromAngel,
 
     printf("Response from angel to client: [%s]\n", buff);
 
-    struct Reader* reader = ArrayReader_new(buff, BUFFER_SZ, tempAlloc);
-    Dict configStore;
-    Dict* config = &configStore;
-    Assert_true(!StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, config));
-
-    Dict* responseAdmin = Dict_getDict(config, String_CONST("admin"));
-    String* bind = Dict_getString(responseAdmin, String_CONST("bind"));
-    Assert_true(bind);
-
-    return String_clone(bind, alloc);
+    return;
 }
 
 /**
@@ -170,7 +160,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     struct Log* logger = WriterLog_new(logwriter, alloc);
 
     struct EventBase* eventBase = EventBase_new(alloc);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, logger, NULL);
 
     int fromAngel;
     int toAngel;
@@ -180,26 +170,24 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     }
     spawnAngel(&fromAngel, &toAngel);
 
+    Log_info(logger, "Initializing Angel");
     struct PipeInterface* pi;
-    String* addrStr =
-        initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc, rand);
+    initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc, rand);
 
-    Log_info(logger, "Angel initialized.");
+    struct Sockaddr_storage addr;
+    Assert_true(!Sockaddr_parse("0.0.0.0", &addr));
+
+    Log_info(logger, "Binding UDP admin socket");
+    struct AddrInterface* udpAdmin =
+        UDPAddrInterface_new(eventBase, &addr.addr, alloc, NULL, logger);
 
     String* password = String_new("abcd", alloc);
-    struct Admin* admin =
-        Admin_new(&pi->generic, alloc, logger, eventBase, password);
-
+    struct Admin* admin = Admin_new(udpAdmin, alloc, logger, eventBase, password);
 
     // Now setup the client.
 
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    Bits_memset(&addr, 0, sizeof(struct sockaddr_storage));
-    Assert_true(!evutil_parse_sockaddr_port(addrStr->bytes, (struct sockaddr*) &addr, &addrLen));
-
     struct AdminClient* client =
-        AdminClient_new((uint8_t*) &addr, addrLen, password, eventBase, logger, alloc);
+        AdminClient_new(udpAdmin->addr, password, eventBase, logger, alloc);
 
     Assert_always(client);
 
@@ -209,8 +197,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .alloc = alloc,
         .eventBase = eventBase,
         .logger = logger,
-        .addr = alloc->clone(addrLen, alloc, &addr),
-        .addrLen = addrLen,
+        .addr = Sockaddr_clone(udpAdmin->addr, alloc),
         .angelInterface = &pi->generic
     });
 }

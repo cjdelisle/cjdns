@@ -19,7 +19,6 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Socket.h"
-#include "util/Identity.h"
 
 struct Event
 {
@@ -29,11 +28,9 @@ struct Event
 #define Event_socketRead_INTERNAL -1
 struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
-                               Socket s,
+                               int s,
                                struct EventBase* base,
                                struct Allocator* alloc,
                                struct Except* eh);
-
-void Event_clearEvent(struct Event* event);
 
 #endif

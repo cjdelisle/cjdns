@@ -19,6 +19,7 @@
 #include "admin/AdminClient.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/platform/Sockaddr.h"
 
 #include "util/events/EventBase.h"
 
@@ -29,8 +30,7 @@ struct AdminTestFramework
     struct Allocator* alloc;
     struct EventBase* eventBase;
     struct Log* logger;
-    struct sockaddr_storage* addr;
-    int addrLen;
+    struct Sockaddr* addr;
     struct Interface* angelInterface;
 };
 

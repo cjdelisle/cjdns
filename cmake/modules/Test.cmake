@@ -11,6 +11,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 include(${CMAKE_SOURCE_DIR}/cmake/modules/RemoteTest.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/modules/HasRoot.cmake)
+if(COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+endif(COMMAND cmake_policy)
 
 string(REGEX REPLACE "^.*/" "" main_dir_name ${CMAKE_SOURCE_DIR})
 string(REPLACE ${CMAKE_SOURCE_DIR} ${main_dir_name} this_dir ${CMAKE_CURRENT_SOURCE_DIR})

@@ -99,7 +99,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
 void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping);
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
-                                      struct event_base* eventBase,
+                                      struct EventBase* eventBase,
                                       struct Log* logger,
                                       struct Allocator* alloc);
 

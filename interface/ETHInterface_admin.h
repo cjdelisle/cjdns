@@ -21,7 +21,7 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 
-void ETHInterface_admin_register(struct event_base* base,
+void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
                                  struct Admin* admin,

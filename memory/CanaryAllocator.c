@@ -53,6 +53,7 @@ static inline void* newAllocation(struct CanaryAllocator_pvt* ctx,
                                   uint32_t* allocation,
                                   size_t sizeInts)
 {
+    //Assert_always(!CanaryAllocator_isOverflow(ctx));
     ctx->canaries =
         ctx->alloc->realloc(ctx->canaries, (ctx->canaryCount + 2) * sizeof(uint32_t*), ctx->alloc);
     allocation[0] = ctx->canaryValue;

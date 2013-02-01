@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "memory/Allocator.h"
@@ -27,7 +27,7 @@
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(512);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
     FILE* tmp = tmpfile();
     uint8_t buffer1[2048];

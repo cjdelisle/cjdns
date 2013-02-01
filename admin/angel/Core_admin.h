@@ -28,6 +28,6 @@ void Core_admin_register(uint8_t ipAddr[16],
                          struct Log* logger,
                          struct Allocator* alloc,
                          struct Admin* admin,
-                         struct event_base* eventBase);
+                         struct EventBase* eventBase);
 
 #endif

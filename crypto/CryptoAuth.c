@@ -14,7 +14,7 @@
  */
 #include "crypto/CryptoAuth_pvt.h"
 #include "crypto/ReplayProtector.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "benc/Object.h"
 #include "util/log/Log.h"
@@ -23,7 +23,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
-#include "util/Time.h"
+#include "util/events/Time.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -37,7 +37,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <event2/event.h>
 
 #ifdef WIN32
     #undef interface
@@ -890,7 +889,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
 struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
-                                  struct event_base* eventBase,
+                                  struct EventBase* eventBase,
                                   struct Log* logger,
                                   struct Random* rand)
 {

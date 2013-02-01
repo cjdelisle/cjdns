@@ -10,8 +10,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 project(cjdns C)
-cmake_minimum_required(VERSION 2.4)
-
+cmake_minimum_required(VERSION 2.8)
 message(${CMAKE_VERSION})
 
 if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR} AND NOT OPENWRT)
@@ -157,7 +156,7 @@ else()
     set(PIE "")
 endif()
 
-if (NOT "$ENV{DEBUG}" STREQUAL "")
+if ("$ENV{NO_DEBUG}" STREQUAL "")
     add_definitions(-g)
 endif()
 
@@ -183,7 +182,7 @@ if (${Log_LEVEL} STREQUAL "KEYS")
 endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
-# https://github.com/cjdelisle/cjdns/issues/178
+# vrooooooom
 add_definitions(-O2)
 
 #IF(NOT CMAKE_BUILD_TYPE)
@@ -212,8 +211,7 @@ add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-find_package(Libevent2 REQUIRED)
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
+find_package(Libuv REQUIRED)
 
 find_package(NACL REQUIRED)
 include_directories(${NACL_INCLUDE_DIRS})
@@ -250,6 +248,14 @@ target_link_libraries(benc2json
     cjdmemory
     cjdio
 )
+add_executable(privatetopublic
+    privatetopublic.c
+)
+target_link_libraries(privatetopublic
+    util
+    crypto
+)
+
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
 

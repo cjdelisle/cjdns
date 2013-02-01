@@ -62,7 +62,7 @@ struct SessionManager_Session
 struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           Interface_CALLBACK(encryptedOutgoing),
                                           void* interfaceContext,
-                                          struct event_base* eventBase,
+                                          struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,
                                           struct Allocator* allocator);
 

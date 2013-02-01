@@ -9,8 +9,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-find_package(Libevent2 REQUIRED)
-
 add_library(dhtcore
     NodeStore.c
     RouterModule.c
@@ -25,7 +23,6 @@ target_link_libraries(dhtcore
     util
     crypto
     switch
-    ${LIBEVENT2_LIBRARIES}
     cjdns-util-version-version
 )
 

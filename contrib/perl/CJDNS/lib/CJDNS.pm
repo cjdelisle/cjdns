@@ -6,7 +6,7 @@ use Digest::SHA2;
 use IO::Socket;
 
 # buffer size for reading from teh sawkets.
-use constant BUFFER_SIZE => 1024;
+use constant BUFFER_SIZE => 8192;
 
 our @ISA = qw();
 our $VERSION = '0.01';
@@ -26,8 +26,8 @@ sub new {
     $self->{s} = IO::Socket::INET->new(
         PeerAddr => $addr,
         PeerPort => $port,
-        Proto => 'tcp',
-        Type => SOCK_STREAM
+        Proto => 'udp',
+        Type => SOCK_DGRAM
     );
 
     unless ($self->_ping) {

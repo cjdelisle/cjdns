@@ -65,7 +65,7 @@ struct SearchStore
     struct AverageRoller* gmrtRoller;
 
     /** Libevent event base for getting current time. */
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     struct Log* logger;
 };
@@ -106,7 +106,7 @@ struct SearchStore_TraceElement
  */
 struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
                                     struct Log* logger);
 
 /**

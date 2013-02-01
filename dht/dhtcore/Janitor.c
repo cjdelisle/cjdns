@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Node.h"
@@ -28,8 +28,8 @@
 #include "util/Bits.h"
 #include "util/events/EventBase.h"
 #include "util/Hex.h"
-#include "util/Timeout.h"
-#include "util/Time.h"
+#include "util/events/Timeout.h"
+#include "util/events/Time.h"
 
 #include "util/platform/libc/string.h"
 #include <stdint.h>

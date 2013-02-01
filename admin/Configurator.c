@@ -18,10 +18,9 @@
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
+#include "util/events/Event.h"
 #include "util/platform/libc/strlen.h"
 #include "util/log/Log.h"
-
-#include <event2/event.h>
 
 struct Context
 {
@@ -48,11 +47,11 @@ static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allo
     exit(1);
 }
 
-static void rpcCall0(String* function,
-                     Dict* args,
-                     struct Context* ctx,
-                     struct Allocator* alloc,
-                     bool exitIfError)
+static int rpcCall0(String* function,
+                    Dict* args,
+                    struct Context* ctx,
+                    struct Allocator* alloc,
+                    bool exitIfError)
 {
     struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
     if (res->err) {
@@ -73,7 +72,9 @@ static void rpcCall0(String* function,
         }
         Log_warn(ctx->logger, "Got error [%s] calling [%s], ignoring.",
                  error->bytes, function->bytes);
+        return 1;
     }
+    return 0;
 }
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
@@ -241,7 +242,9 @@ static void ethInterface(Dict* config, struct Context* ctx)
         if (deviceStr) {
             Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
         }
-        rpcCall(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc);
+        if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, false)) {
+            continue;
+        }
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
@@ -304,16 +307,15 @@ static void security(List* securityConf, struct Allocator* tempAlloc, struct Con
 }
 
 void Configurator_config(Dict* config,
-                         uint8_t* sockAddr,
-                         int addrLen,
+                         struct Sockaddr* sockAddr,
                          String* adminPassword,
-                         struct event_base* eventBase,
+                         struct EventBase* eventBase,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
-        AdminClient_new(sockAddr, addrLen, adminPassword, eventBase, logger, tempAlloc);
+        AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
 
     struct Context ctx = { .logger = logger, .alloc = tempAlloc, .client = client };
 
@@ -335,5 +337,5 @@ void Configurator_config(Dict* config,
     List* securityList = Dict_getList(config, String_CONST("security"));
     security(securityList, tempAlloc, &ctx);
 
-    tempAlloc->free(tempAlloc);
+    Allocator_free(tempAlloc);
 }

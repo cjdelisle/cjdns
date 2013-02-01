@@ -16,7 +16,7 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "interface/ICMP6Generator_pvt.h"
 #include "wire/Headers.h"
 #include "util/Assert.h"
@@ -146,7 +146,7 @@ static void fragTest(struct Allocator* mainAlloc,
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
     mtuTest(alloc, rand, 2048, 1500);
     mtuTest(alloc, rand, 1500, 1492);
     mtuTest(alloc, rand, 1492, 1280);

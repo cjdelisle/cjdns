@@ -102,7 +102,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger);
  * @param logger
  * @param alloc
  */
-struct Pinger* Pinger_new(struct event_base* eventBase,
+struct Pinger* Pinger_new(struct EventBase* eventBase,
                           struct Log* logger,
                           struct Allocator* alloc);
 

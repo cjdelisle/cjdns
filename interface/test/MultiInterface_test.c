@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "interface/MultiInterface.h"
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
@@ -71,7 +71,7 @@ static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
 int main()
 {
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
     // mock interface controller.
     struct Context ctx = {

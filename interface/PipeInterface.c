@@ -12,16 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "interface/PipeInterface.h"
 #include "wire/Error.h"
 #include "util/Errno.h"
-#include "util/Time.h"
-#include "util/Timeout.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
+#include "util/events/EventBase.h"
+#include "util/events/Event.h"
 #include "util/log/Log.h"
 
 #include <unistd.h>
-#include <event2/event.h>
 
 #define PING_FREQUENCY_MILLISECONDS 3000
 #define LAG_MAX_BEFORE_DISCONNECT 10000
@@ -65,7 +66,7 @@ struct PipeInterface_pvt
     uint64_t timeOfLastMessage;
 
     /** the event base for getting the current time. */
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     /** The interval for pinging to make sure the pipe is still open. */
     struct Timeout* pingInterval;
@@ -235,7 +236,7 @@ static bool handleMessage(struct PipeInterface_pvt* context)
         context->pub.state = PipeInterface_State_ESTABLISHED;
     } else if (context->isWaiting) {
         context->isWaiting = false;
-        event_base_loopbreak(context->eventBase);
+        EventBase_endLoop(context->eventBase);
     }
 
     uint32_t length = context->message.as.header.length + FramedMessage_SIZE;
@@ -293,7 +294,7 @@ static void getMessage(struct PipeInterface_pvt* context)
     }
 }
 
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
+static void handleEvent(void* vcontext)
 {
     struct PipeInterface_pvt* context = vcontext;
     if (context->pub.state == PipeInterface_State_LOST) {
@@ -331,24 +332,18 @@ static void handleTimeout(void* vcontext)
     }
 }
 
-static void onFree(void* vcontext)
-{
-    struct PipeInterface_pvt* context = vcontext;
-    event_free(context->pipeEvent);
-}
-
 void PipeInterface_waitUntilReady(struct PipeInterface* pif)
 {
     if (pif->state == PipeInterface_State_INITIALIZING) {
         struct PipeInterface_pvt* context = (struct PipeInterface_pvt*) pif;
         context->isWaiting = true;
-        event_base_dispatch(context->eventBase);
+        EventBase_beginLoop(context->eventBase);
     }
 }
 
 struct PipeInterface* PipeInterface_new(int inPipe,
                                         int outPipe,
-                                        struct event_base* eventBase,
+                                        struct EventBase* eventBase,
                                         struct Log* logger,
                                         struct Allocator* alloc,
                                         struct Random* rand)
@@ -377,9 +372,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
                                                 eventBase,
                                                 alloc);
 
-    context->pipeEvent = event_new(eventBase, inPipe, EV_READ | EV_PERSIST, handleEvent, context);
-    event_add(context->pipeEvent, NULL);
-    alloc->onFree(onFree, context, alloc);
+    Event_socketRead(handleEvent, context, inPipe, eventBase, alloc, NULL);
 
     Random_bytes(rand, (uint8_t*) &context->syncMagic, 8);
 

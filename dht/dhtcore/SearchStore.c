@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "util/AverageRoller.h"
 #include "util/Endian.h"
-#include "util/Time.h"
+#include "util/events/Time.h"
 
 /*--------------------Structures--------------------*/
 
@@ -92,7 +92,7 @@ struct SearchNodeIndex
 /** See: SearchStore.h */
 struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
                                     struct Log* logger)
 {
     struct SearchStore* out = allocator->calloc(sizeof(struct SearchStore), 1, allocator);

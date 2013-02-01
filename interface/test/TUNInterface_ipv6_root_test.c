@@ -24,27 +24,24 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "exception/Jmp.h"
-#include "interface/UDPInterface_pvt.h"
+#include "interface/addressable/UDPAddrInterface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNMessageType.h"
 #include "interface/TUNConfigurator.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
-#include "interface/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/platform/libc/string.h"
-#include "util/Timeout.h"
+#include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
 const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
@@ -52,16 +49,6 @@ const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
 /*
  * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
  */
-
-static int registerPeer(struct InterfaceController* ic,
-                        uint8_t herPublicKey[32],
-                        String* password,
-                        bool requireAuth,
-                        bool transient,
-                        struct Interface* iface)
-{
-    return 0;
-}
 
 static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
@@ -107,15 +94,14 @@ static void fail(void* ignored)
     Assert_true(!"timeout");
 }
 
-static struct UDPInterface* setupUDP(struct EventBase* base,
-                                     const char* bindAddr,
-                                     struct Allocator* allocator,
-                                     struct Log* logger,
-                                     struct InterfaceController* ic)
+static struct AddrInterface* setupUDP(struct EventBase* base,
+                                      struct Sockaddr* bindAddr,
+                                      struct Allocator* allocator,
+                                      struct Log* logger)
 {
     struct Jmp jmp;
     Jmp_try(jmp) {
-        return UDPInterface_new(base, bindAddr, allocator, &jmp.handler, logger, ic);
+        return UDPAddrInterface_new(base, bindAddr, allocator, &jmp.handler, logger);
     } Jmp_catch {
         sleep(1);
         return NULL;
@@ -129,34 +115,33 @@ int main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
-    // mock interface controller.
-    struct InterfaceController ic = {
-        .registerPeer = registerPeer
-    };
-
     char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
     void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
     TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
+    struct Sockaddr_storage addr;
+    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
+
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
-    struct UDPInterface* udp = NULL;
+    struct AddrInterface* udp = NULL;
     for (int i = 0; i < 20; i++) {
-        if ((udp = setupUDP(base, "[fd00::1]", alloc, logger, &ic))) {
+        if ((udp = setupUDP(base, &addr.addr, alloc, logger))) {
             break;
         }
     }
     Assert_true(udp);
 
-    struct sockaddr_in6 sin = { .sin6_family = AF_INET6 };
-    sin.sin6_port = udp->boundPort_be;
-    Bits_memcpy(&sin.sin6_addr, testAddrB, 16);
+    struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
+    uint8_t* addrBytes;
+    Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
+    Bits_memcpy(addrBytes, testAddrB, 16);
 
     struct Message* msg;
     Message_STACK(msg, 0, 64);
     Message_push(msg, "Hello World", 12);
-    Message_push(msg, &sin, sizeof(struct sockaddr_in6));
+    Message_push(msg, dest, dest->addrLen);
 
     udp->generic.receiveMessage = receiveMessageUDP;
     tun->iface.receiveMessage = receiveMessageTUN;

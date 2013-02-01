@@ -15,7 +15,7 @@
 #ifndef PipeInterface_H
 #define PipeInterface_H
 
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
@@ -58,7 +58,7 @@ void PipeInterface_waitUntilReady(struct PipeInterface* pif);
 
 struct PipeInterface* PipeInterface_new(int inPipe,
                                         int outPipe,
-                                        struct event_base* eventBase,
+                                        struct EventBase* eventBase,
                                         struct Log* logger,
                                         struct Allocator* alloc,
                                         struct Random* rand);

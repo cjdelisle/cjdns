@@ -17,26 +17,26 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "io/FileWriter.h"
-#include "util/Timeout.h"
+#include "util/events/Timeout.h"
 
-#include <event2/event.h>
 
 struct Context
 {
-    struct event_base* eventBase;
-    struct Except* exceptionHandler;
+    struct EventBase* eventBase;
     struct Message* message;
     struct Allocator* alloc;
     struct Timeout* timeout;
+    int timedOut;
 };
 
 static void timeout(void* vcontext)
 {
     struct Context* ctx = vcontext;
-    Except_raise(ctx->exceptionHandler, InterfaceWaiter_waitForData_TIMEOUT,
-                 "Timed out waiting for data.");
+    ctx->timedOut = true;
+    EventBase_endLoop(ctx->eventBase);
 }
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
@@ -45,19 +45,18 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     ctx->message = Message_clone(message, ctx->alloc);
 
     Timeout_clearTimeout(ctx->timeout);
-    event_base_loopbreak(ctx->eventBase);
+    EventBase_endLoop(ctx->eventBase);
 
     return 0;
 }
 
 struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
-                                            struct event_base* eventBase,
+                                            struct EventBase* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh)
 {
     struct Context ctx = {
         .eventBase = eventBase,
-        .exceptionHandler = eh,
         .alloc = alloc
     };
 
@@ -68,9 +67,15 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
     iface->receiveMessage = receiveMessage;
 
     ctx.timeout = Timeout_setTimeout(timeout, &ctx, 2000, eventBase, tempAlloc);
-    event_base_dispatch(eventBase);
+    EventBase_beginLoop(eventBase);
 
     iface->receiveMessage = NULL;
+
+    Allocator_free(tempAlloc);
+    if (ctx.timedOut) {
+        Except_raise(eh, InterfaceWaiter_waitForData_TIMEOUT,
+                     "InterfaceWaiter Timed out waiting for data.");
+    }
 
     Assert_true(ctx.message);
     return ctx.message;

@@ -35,14 +35,13 @@
 #include "util/version/Version.h"
 #include "util/Assert.h"
 #include "tunnel/IpTunnel.h"
-#include "util/Time.h"
+#include "util/events/Time.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 
 #include <stdint.h>
-#include <event2/event.h>
 #include <setjmp.h>
 
 /** Size of the per-message workspace. */
@@ -1071,7 +1070,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
                                    struct SwitchCore* switchCore,
-                                   struct event_base* eventBase,
+                                   struct EventBase* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
                                    struct Admin* admin,

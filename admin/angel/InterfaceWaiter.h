@@ -33,7 +33,7 @@
  */
 #define InterfaceWaiter_waitForData_TIMEOUT -1
 struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
-                                            struct event_base* eventBase,
+                                            struct EventBase* eventBase,
                                             struct Allocator* alloc,
                                             struct Except* eh);
 

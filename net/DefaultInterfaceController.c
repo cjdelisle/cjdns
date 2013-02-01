@@ -19,8 +19,8 @@
 #include "net/SwitchPinger.h"
 #include "util/Base32.h"
 #include "util/Bits.h"
-#include "util/Time.h"
-#include "util/Timeout.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "util/version/Version.h"
 #include "wire/Error.h"
@@ -438,7 +438,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
                                                            struct Log* logger,
-                                                           struct event_base* eventBase,
+                                                           struct EventBase* eventBase,
                                                            struct SwitchPinger* switchPinger,
                                                            struct Random* rand,
                                                            struct Allocator* allocator)

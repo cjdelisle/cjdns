@@ -23,7 +23,7 @@
 
 struct Context
 {
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
     struct Allocator* allocator;
     struct Log* logger;
     struct Admin* admin;
@@ -171,7 +171,7 @@ static void beacon(Dict* args, void* vcontext, String* txid)
     }
 }
 
-void ETHInterface_admin_register(struct event_base* base,
+void ETHInterface_admin_register(struct EventBase* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
                                  struct Admin* admin,

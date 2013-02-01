@@ -9,10 +9,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-project(cjdmemory C)
-
-cmake_minimum_required(VERSION 2.4)
-
 add_library(cjdmemory
     BufferAllocator.c
     MallocAllocator.c

@@ -27,7 +27,7 @@ target_link_libraries(cjdns-angel
     cjdbenc
     cjdbenc_StandardBencSerializer
     cjdmemory
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdns-security
     cjdns-process
     cjdns-interface-waiter
@@ -36,11 +36,13 @@ target_link_libraries(cjdns-angel
     cjdns-util-log-writer
     cjdns-crypto-random
     cjdns-memory-canary
+    cjdns-util-platform-socket
 )
 
 add_library(cjdns-core
     Core.c
     Core_admin.c
+    Hermes.c
 )
 
 target_link_libraries(cjdns-core
@@ -54,14 +56,16 @@ target_link_libraries(cjdns-core
     cjdmemory
     cjdns-admin
     cjdnet
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdns-interface-waiter
     cjdns-util-log-writer
     cjdns-admin-logger
     cjdns-util-log-indirect
     cjdns-tunnel-iptunnel
     cjdns-crypto-random
+    cjdns-crypto-random-libuv
     cjdns-memory-canary
+    cjdns-interface-addressable
 )
 
 add_executable(cjdns
@@ -78,7 +82,7 @@ target_link_libraries(cjdroute2
     cjdns-admin-client
     crypto
     cjdns-crypto-bench
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdbenc_StandardBencSerializer
     cjdbenc_JsonBencSerializer
     cjdns-process

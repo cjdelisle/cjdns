@@ -26,7 +26,7 @@ struct Context
     struct Log* logger;
     struct Allocator* alloc;
     struct Admin* admin;
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 };
 
 static void sendResponse(String* error,
@@ -70,7 +70,7 @@ void Core_admin_register(uint8_t ipAddr[16],
                          struct Log* logger,
                          struct Allocator* alloc,
                          struct Admin* admin,
-                         struct event_base* eventBase)
+                         struct EventBase* eventBase)
 {
     struct Context* ctx = alloc->malloc(sizeof(struct Context), alloc);
     Bits_memcpyConst(ctx->ipAddr, ipAddr, 16);

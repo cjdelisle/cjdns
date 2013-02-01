@@ -16,6 +16,7 @@
 #define UDPInterface_pvt_H
 
 #include "util/events/EventBase.h"
+#include "interface/addressable/AddrInterface.h"
 #include "interface/MultiInterface.h"
 #include "interface/UDPInterface.h"
 #include "interface/InterfaceController.h"
@@ -34,24 +35,15 @@ struct UDPInterface_pvt
 {
     struct UDPInterface pub;
 
-    Socket socket;
-
-    /**
-     * The event registered with libevent.
-     * Needed only so it can be freed.
-     */
-    struct Event* incomingMessageEvent;
-
-    /** Used to tell what address type is being used. */
-    uint32_t addrLen;
-
-    uint8_t messageBuff[UDPInterface_PADDING + UDPInterface_MAX_PACKET_SIZE];
+    struct AddrInterface* udpBase;
 
     struct Log* logger;
 
     struct InterfaceController* ic;
 
     struct MultiInterface* multiIface;
+
+    uint8_t messageBuff[UDPInterface_PADDING + UDPInterface_MAX_PACKET_SIZE];
 
     Identity
 };

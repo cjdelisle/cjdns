@@ -16,6 +16,7 @@
 #define Timeout_H
 
 #include "util/events/EventBase.h"
+#include <stdint.h>
 
 /** An event which will happen after a given number of milliseconds. */
 struct Timeout;
@@ -33,7 +34,7 @@ struct Timeout;
 struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext),
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
-                                   struct event_base* eventBase,
+                                   struct EventBase* eventBase,
                                    const struct Allocator* allocator);
 
 /**
@@ -50,7 +51,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
 struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContext),
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
                                     const struct Allocator* allocator);
 
 /**

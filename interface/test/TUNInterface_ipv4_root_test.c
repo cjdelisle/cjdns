@@ -20,7 +20,7 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
-#include "interface/UDPInterface_pvt.h"
+#include "interface/addressable/UDPAddrInterface.h"
 #include "interface/TUNInterface.h"
 #include "interface/TUNMessageType.h"
 #include "interface/TUNConfigurator.h"
@@ -34,34 +34,18 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/platform/libc/string.h"
-#include "util/Timeout.h"
+#include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
-
-#ifdef WIN32
-    #include <winsock2.h>
-#else
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-#endif
 
 // On loan from the DoD, thanks guys.
 const uint8_t testAddrA[4] = {11, 0, 0, 1};
 const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
 /*
- * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
+ * Setup a UDPAddrInterface and a TUNInterface, test sending traffic between them.
  */
 
-static int registerPeer(struct InterfaceController* ic,
-                        uint8_t herPublicKey[32],
-                        String* password,
-                        bool requireAuth,
-                        bool transient,
-                        struct Interface* iface)
-{
-    return 0;
-}
 
 static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
@@ -115,26 +99,24 @@ int main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
-    // mock interface controller.
-    struct InterfaceController ic = {
-        .registerPeer = registerPeer
-    };
-
     char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
     void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
     TUNConfigurator_addIp4Address(assignedInterfaceName, testAddrA, 30, logger, NULL);
     struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
 
-    struct UDPInterface* udp = UDPInterface_new(base, "0.0.0.0", alloc, NULL, logger, &ic);
+    struct Sockaddr_storage ss;
+    Assert_true(!Sockaddr_parse("0.0.0.0", &ss));
+    struct AddrInterface* udp = UDPAddrInterface_new(base, &ss.addr, alloc, NULL, logger);
 
-    struct sockaddr_in sin = { .sin_family = AF_INET };
-    sin.sin_port = udp->boundPort_be;
-    Bits_memcpy(&sin.sin_addr, testAddrB, 4);
+    struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
+    uint8_t* addr;
+    Assert_true(4 == Sockaddr_getAddress(dest, &addr));
+    Bits_memcpy(addr, testAddrB, 4);
 
     struct Message* msg;
     Message_STACK(msg, 0, 64);
     Message_push(msg, "Hello World", 12);
-    Message_push(msg, &sin, sizeof(struct sockaddr_in));
+    Message_push(msg, dest, dest->addrLen);
 
     udp->generic.receiveMessage = receiveMessageUDP;
     tun->iface.receiveMessage = receiveMessageTUN;

@@ -74,7 +74,7 @@ struct Ducttape_pvt
         struct AddressMapper* addrMap;
     #endif
 
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     struct Log* logger;
 

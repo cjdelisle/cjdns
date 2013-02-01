@@ -16,7 +16,7 @@
 #define Events_H
 
 // slow process of removing the libevent headers from places where they are not needed.
-struct event_base; // CHECKFILES_IGNORE
+struct EventBase; // CHECKFILES_IGNORE
 
 #define Events event_base
 

@@ -20,7 +20,7 @@ set(Test_LIBRARIES
     cjdns-util-log
     cjdbenc_StandardBencSerializer
     cjdns-crypto-random
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

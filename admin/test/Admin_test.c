@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/testframework/AdminTestFramework.h"
-
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
@@ -21,8 +20,6 @@
 #include "util/Assert.h"
 #include "util/Errno.h"
 #include "util/platform/libc/strlen.h"
-
-#include <event2/event.h>
 
 struct Context {
     struct AdminTestFramework* framework;
@@ -35,81 +32,6 @@ struct Context {
 
     bool called;
 };
-
-static void pendingTimeout(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    event_base_loopexit(((struct Context*)vcontext)->framework->eventBase, NULL);
-}
-
-static void handlePendingEvents(struct Context* ctx)
-{
-    struct event* timeoutEvent = evtimer_new(ctx->framework->eventBase, pendingTimeout, ctx);
-    evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 0, .tv_usec = 10000 }));
-
-    event_base_dispatch(ctx->framework->eventBase);
-
-    evtimer_del(timeoutEvent);
-}
-
-static void slowClientIncoming(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    struct Context* ctx = vcontext;
-
-    ssize_t length = recv(socket,
-                          ctx->slowClient.buf + ctx->slowClient.have,
-                          sizeof(ctx->slowClient.buf) - ctx->slowClient.have, 0);
-
-    if (length < 0 && Errno_EAGAIN == Errno_get()) {
-        return;
-    }
-
-    Assert_always(length > 0);
-
-    ctx->slowClient.have += length;
-    Assert_always(ctx->slowClient.have < sizeof(ctx->slowClient.buf));
-    ctx->slowClient.buf[ctx->slowClient.have] = 0;
-
-    Assert_always(ctx->slowClient.have > 0);
-
-    if (ctx->slowClient.have > 11
-        && ctx->slowClient.buf[ctx->slowClient.have-1] == 'e') {
-
-        Log_error(ctx->framework->logger, "Got cookie response '%s'", ctx->slowClient.buf);
-        Assert_always(0 == Bits_memcmp("d6:cookie", ctx->slowClient.buf, 9));
-
-        event_base_loopexit(ctx->framework->eventBase, NULL);
-    }
-}
-
-static void slowClient(struct Context* ctx)
-{
-    struct sockaddr_storage* addr = ctx->framework->addr;
-    int addrLen = ctx->framework->addrLen;
-
-    int sock = socket(addr->ss_family, SOCK_STREAM, 0);
-
-    Assert_always(sock >= 0);
-    Assert_always(0 == connect(sock, (struct sockaddr*) addr, addrLen));
-
-    evutil_make_socket_nonblocking(sock);
-
-    struct event* socketEvent =
-        event_new(ctx->framework->eventBase, sock, EV_READ | EV_PERSIST, slowClientIncoming, ctx);
-    event_add(socketEvent, NULL);
-
-    send(sock, "d1:q6", 5, 0);
-    handlePendingEvents(ctx);
-    send(sock, ":cookie", 7, 0);
-    handlePendingEvents(ctx);
-    send(sock, "e", 1, 0);
-
-    event_base_dispatch(ctx->framework->eventBase);
-
-    event_del(socketEvent);
-    EVUTIL_CLOSESOCKET(sock);
-}
-
-
 
 static void adminFunc(Dict* input, void* vcontext, String* txid)
 {
@@ -128,6 +50,7 @@ static void standardClient(struct Context* ctx)
                             ctx->framework->client,
                             ctx->framework->alloc);
 
+    printf("%d\n", res->err);
     Assert_always(!res->err);
     Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
     Assert_always(ctx->called);
@@ -140,36 +63,8 @@ int main(int argc, char** argv)
         .framework = framework
     };
     Admin_registerFunction("adminFunc", adminFunc, &ctx, true, NULL, framework->admin);
-/*
-    struct Context ctx;
-    memset(&ctx, 0, sizeof(ctx));
-
-    ctx.alloc = MallocAllocator_new(1<<20);
-    ctx.logger.writer = FileWriter_new(stdout, ctx.alloc);
-    ctx.eventBase = EventBase_new( / / / );"
-
-    struct sockaddr_storage addr;
-    int addrLen = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(struct sockaddr_storage));
-
-    String* password = String_CONST("abcdefg12345");
-    ctx.admin = Admin_new(&addr,
-                          addrLen,
-                          password,
-                          NULL,
-                          ctx.eventBase,
-                          AbortHandler_INSTANCE,
-                          &ctx.logger,
-                          ctx.alloc);
-*/
-
-
-
-
-    //Assert_always(String_equals(password, ctx.password));
 
     standardClient(&ctx);
-    slowClient(&ctx);
 
     AdminTestFramework_tearDown(framework);
 }

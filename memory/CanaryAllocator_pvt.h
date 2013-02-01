@@ -15,7 +15,7 @@
 #ifndef CanaryAllocator_pvt_H
 #define CanaryAllocator_pvt_H
 
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/CanaryAllocator.h"
 #include "util/Identity.h"

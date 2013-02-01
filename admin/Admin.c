@@ -13,15 +13,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/Admin.h"
-#include "admin/angel/Angel.h"
 #include "benc/String.h"
+#include "benc/Int.h"
 #include "benc/Dict.h"
-#include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-#include "dht/CJDHTConstants.h"
-#include "exception/Except.h"
-#include "interface/Interface.h"
+#include "interface/addressable/AddrInterface.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
@@ -32,9 +29,10 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/log/Log.h"
-#include "util/Security.h"
-#include "util/Time.h"
-#include "util/Timeout.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
+#include "util/Identity.h"
+#include "util/platform/Sockaddr.h"
 
 #define string_strstr
 #define string_strcmp
@@ -42,14 +40,6 @@
 #include "util/platform/libc/string.h"
 
 #include <crypto_hash_sha256.h>
-#include <event2/event.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <unistd.h>
-
-#ifdef WIN32
-    #define EWOULDBLOCK WSAEWOULDBLOCK
-#endif
 
 static String* TYPE =     String_CONST_SO("type");
 static String* REQUIRED = String_CONST_SO("required");
@@ -58,6 +48,41 @@ static String* INTEGER =  String_CONST_SO("Int");
 static String* DICT =     String_CONST_SO("Dict");
 static String* LIST =     String_CONST_SO("List");
 static String* TXID =     String_CONST_SO("txid");
+
+/** Number of milliseconds before a session times out and outgoing messages are failed. */
+#define TIMEOUT_MILLISECONDS 30000
+
+/** map values for tracking time of last message by source address */
+struct MapValue
+{
+    /** time when the last incoming message was received. */
+    uint64_t timeOfLastMessage;
+
+    /** used to allocate the memory for the key (Sockaddr) and value (this). */
+    struct Allocator* allocator;
+};
+
+//////// generate time-of-last-message-by-address map
+
+#define Map_USE_HASH
+#define Map_USE_COMPARATOR
+#define Map_NAME LastMessageTimeByAddr
+#define Map_KEY_TYPE struct Sockaddr*
+#define Map_VALUE_TYPE struct MapValue*
+#include "util/Map.h"
+
+static inline uint32_t Map_LastMessageTimeByAddr_hash(struct Sockaddr** key)
+{
+    uint32_t* k = (uint32_t*) *key;
+    return k[ ((*key)->addrLen / 4)-1 ];
+}
+
+static inline int Map_LastMessageTimeByAddr_compare(struct Sockaddr** keyA, struct Sockaddr** keyB)
+{
+    return Bits_memcmp(*keyA, *keyB, (*keyA)->addrLen);
+}
+
+/////// end map
 
 struct Function
 {
@@ -68,39 +93,9 @@ struct Function
     Dict* args;
 };
 
-/**
- * This txid prefix is the inter-process communication txid.
- * the txid which is passed to the functions is these bytes followed by the bytes
- * that the user supplied in their "txid" entry. If the user didn't supply a txid
- * the txid which the function gets will be just these bytes and when it is sent back
- * the user will not get a txid back.
- */
-union Admin_TxidPrefix {
-    uint8_t raw[8];
-    struct {
-        uint32_t channelNum;
-        uint32_t serial;
-    } values;
-};
-#define Admin_TxidPrefix_SIZE 8
-Assert_compileTime(sizeof(union Admin_TxidPrefix) == Admin_TxidPrefix_SIZE);
-
-struct Channel
-{
-    /** True if the channel is waiting for the other end to close. */
-    bool isClosing;
-
-    /** The index of this channel in the admin->clientChannels array. */
-    uint32_t number;
-
-    uint32_t partialMessageLength;
-    uint8_t partialMessageBuffer[Admin_MAX_REQUEST_SIZE];
-    struct Allocator* alloc;
-};
-
 struct Admin
 {
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
 
     struct Function* functions;
     int functionCount;
@@ -110,52 +105,31 @@ struct Admin
     String* password;
     struct Log* logger;
 
-    struct Interface* toAngelInterface;
+    struct AddrInterface* iface;
 
-    struct Channel* clientChannels[Angel_MAX_CONNECTIONS];
+    struct Map_LastMessageTimeByAddr map;
+
+    /** non-zero if we are currently in an admin request. */
+    int inRequest;
+
+    /** non-zero if this session able to receive asynchronous messages. */
+    int asyncEnabled;
+
+    /** Length of addresses of clients which communicate with admin. */
+    uint32_t addrLen;
+
+    Identity
 };
 
-static void freeChannel(void* vchannel)
-{
-    struct Channel** channel = vchannel;
-    *channel = NULL;
-}
-
-static void newChannel(struct Channel** location, struct Allocator* alloc)
-{
-    struct Allocator* childAlloc = Allocator_child(alloc);
-    struct Channel* out = childAlloc->clone(sizeof(struct Channel), alloc, &(struct Channel) {
-        .alloc = childAlloc
-    });
-    childAlloc->onFree(freeChannel, location, childAlloc);
-    *location = out;
-}
-
-/**
- * find a channel by number; could allocate channels on the fly if needed
- * right now only 0..Angel_MAX_CONNECTIONS-1 numbers are valid and allocated in the Admin struct
- */
-static struct Channel* channelForNum(uint32_t channelNum, bool create, struct Admin* admin)
-{
-    Assert_true(channelNum < Angel_MAX_CONNECTIONS);
-    struct Channel** chanPtr = &admin->clientChannels[channelNum];
-    if (*chanPtr == NULL && create) {
-        newChannel(chanPtr, admin->allocator);
-        (*chanPtr)->number = channelNum;
-    }
-    return *chanPtr;
-}
-
-static void sendMessage(struct Message* message, uint32_t channelNum, struct Admin* admin)
+static uint8_t sendMessage(struct Message* message, struct Sockaddr* dest, struct Admin* admin)
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
-    Message_shift(message, 4);
-    Bits_memcpyConst(message->bytes, &channelNum, 4);
-    admin->toAngelInterface->sendMessage(message, admin->toAngelInterface);
+    Message_push(message, dest, dest->addrLen);
+    return admin->iface->generic.sendMessage(message, &admin->iface->generic);
 }
 
-static int sendBenc(Dict* message, uint32_t channelNum, struct Admin* admin)
+static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
 {
     struct Allocator* allocator;
     BufferAllocator_STACK(allocator, 256);
@@ -173,13 +147,38 @@ static int sendBenc(Dict* message, uint32_t channelNum, struct Admin* admin)
         .length = w->bytesWritten(w),
         .padding = SEND_MESSAGE_PADDING
     };
-    sendMessage(&m, channelNum, admin);
+    return sendMessage(&m, dest, admin);
+}
+
+/**
+ * If no incoming data has been sent by this address in TIMEOUT_MILLISECONDS
+ * then Admin_sendMessage() should fail so that it doesn't endlessly send
+ * udp packets into outer space after a logging client disconnects.
+ */
+static int checkAddress(struct Admin* admin, int index, uint64_t now)
+{
+    uint64_t diff = now - admin->map.values[index]->timeOfLastMessage;
+    // check for backwards time
+    if (diff > TIMEOUT_MILLISECONDS && diff < ((uint64_t)INT64_MAX)) {
+        Allocator_free(admin->map.values[index]->allocator);
+        Map_LastMessageTimeByAddr_remove(index, &admin->map);
+        return -1;
+    }
+
     return 0;
 }
 
-int Admin_sendMessageToAngel(Dict* message, struct Admin* admin)
+static void clearExpiredAddresses(void* vAdmin)
 {
-    return sendBenc(message, 0xFFFFFFFF, admin);
+    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    int count = 0;
+    for (int i = admin->map.count - 1; i >= 0; i--) {
+        if (checkAddress(admin, i, now)) {
+            count++;
+        }
+    }
+    Log_debug(admin->logger, "Cleared [%d] expired sessions", count);
 }
 
 /**
@@ -190,14 +189,22 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     if (!admin) {
         return 0;
     }
-    Assert_true(txid && txid->len >= 4);
+    Identity_check(admin);
+    Assert_true(txid && txid->len >= admin->addrLen);
 
-    uint32_t channelNum;
-    Bits_memcpyConst(&channelNum, txid->bytes, 4);
-    struct Channel* channel = channelForNum(channelNum, false, admin);
+    struct Sockaddr_storage addr;
+    Bits_memcpy(&addr, txid->bytes, admin->addrLen);
 
-    if (!channel) {
-        return Admin_sendMessage_CHANNEL_CLOSED;
+    // if this is an async call, check if we've got any input from that client.
+    // if the client is nresponsive then fail the call so logs don't get sent
+    // out forever after a disconnection.
+    if (!admin->inRequest) {
+        struct Sockaddr* addrPtr = (struct Sockaddr*) &addr.addr;
+        int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
+        uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+        if (index < 0 || checkAddress(admin, index, now)) {
+            return -1;
+        }
     }
 
     struct Allocator* allocator;
@@ -205,30 +212,14 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
 
     // Bounce back the user-supplied txid.
     String userTxid = {
-        .bytes = txid->bytes + 4,
-        .len = txid->len - 4
+        .bytes = txid->bytes + admin->addrLen,
+        .len = txid->len - admin->addrLen
     };
-    if (txid->len > 4) {
+    if (txid->len > admin->addrLen) {
         Dict_putString(message, TXID, &userTxid, allocator);
     }
 
-    return sendBenc(message, channelNum, admin);
-}
-
-/**
- * close a channel (for example if an error happened or we received non-empty
- * messages on a invalid channel number)
- * also used to cleanup if we receive a close message
- */
-static void closeChannel(struct Channel* channel, struct Admin* admin)
-{
-    if (channel && !channel->isClosing) {
-        channel->isClosing = true;
-        uint8_t buff[128];
-        struct Message m = { .bytes = &buff[124], .length = 0, .padding = 128 };
-        sendMessage(&m, channel->number, admin);
-        channel->isClosing = true;
-    }
+    return sendBenc(message, &addr.addr, admin);
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin* admin)
@@ -296,29 +287,58 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
     return !error;
 }
 
+static void asyncEnabled(Dict* args, void* vAdmin, String* txid)
+{
+    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    int64_t enabled = admin->asyncEnabled;
+    Dict d = Dict_CONST(String_CONST("asyncEnabled"), Int_OBJ(enabled), NULL);
+    Admin_sendMessage(&d, txid, admin);
+}
+
+#define ENTRIES_PER_PAGE 8
+static void availableFunctions(Dict* args, void* vAdmin, String* txid)
+{
+    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    int64_t* page = Dict_getInt(args, String_CONST("page"));
+    uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
+    struct Allocator* tempAlloc = Allocator_child(admin->allocator);
+
+    Dict* d = Dict_new(tempAlloc);
+    Dict* functions = Dict_new(tempAlloc);
+    int count = 0;
+    for (; i < (uint32_t)admin->functionCount && count++ < ENTRIES_PER_PAGE; i++) {
+        Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, tempAlloc);
+    }
+    String* more = String_CONST("more");
+    if (count >= ENTRIES_PER_PAGE) {
+        Dict_putInt(d, more, 1, tempAlloc);
+    }
+    Dict_putDict(d, String_CONST("availableFunctions"), functions, tempAlloc);
+
+    Admin_sendMessage(d, txid, admin);
+    Allocator_free(tempAlloc);
+    return;
+}
+
 static void handleRequest(Dict* messageDict,
                           struct Message* message,
-                          struct Channel* channel,
+                          struct Sockaddr* src,
                           struct Allocator* allocator,
                           struct Admin* admin)
 {
-    Log_debug(admin->logger, "Got a request on channel [%u]", channel->number);
-    String* query = Dict_getString(messageDict, CJDHTConstants_QUERY);
+    String* query = Dict_getString(messageDict, String_CONST("q"));
     if (!query) {
-        Log_info(admin->logger,
-                 "Got a non-query from admin interface on channel [%u].",
-                 channel->number);
-        closeChannel(channel, admin);
+        Log_info(admin->logger, "Got a non-query from admin interface");
         return;
     }
 
     // txid becomes the user supplied txid combined with the channel num.
     String* userTxid = Dict_getString(messageDict, TXID);
-    uint32_t txidlen = ((userTxid) ? userTxid->len : 0) + 4;
+    uint32_t txidlen = ((userTxid) ? userTxid->len : 0) + src->addrLen;
     String* txid = String_newBinary(NULL, txidlen, allocator);
-    Bits_memcpyConst(txid->bytes, &channel->number, 4);
+    Bits_memcpy(txid->bytes, src, src->addrLen);
     if (userTxid) {
-        Bits_memcpy(txid->bytes + 4, userTxid->bytes, userTxid->len);
+        Bits_memcpy(txid->bytes + src->addrLen, userTxid->bytes, userTxid->len);
     }
 
     // If they're asking for a cookie then lets give them one.
@@ -348,6 +368,24 @@ static void handleRequest(Dict* messageDict,
         authed = true;
     }
 
+    // Then sent a valid authed query, lets track their address so they can receive
+    // asynchronous messages.
+    int index = Map_LastMessageTimeByAddr_indexForKey(&src, &admin->map);
+    uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
+    admin->asyncEnabled = 1;
+    if (index >= 0) {
+        admin->map.values[index]->timeOfLastMessage = now;
+    } else if (authed) {
+        struct Allocator* entryAlloc = Allocator_child(admin->allocator);
+        struct MapValue* mv = Allocator_calloc(entryAlloc, sizeof(struct MapValue), 1);
+        mv->timeOfLastMessage = now;
+        mv->allocator = entryAlloc;
+        struct Sockaddr* storedAddr = Sockaddr_clone(src, entryAlloc);
+        Map_LastMessageTimeByAddr_put(&storedAddr, &mv, &admin->map);
+    } else {
+        admin->asyncEnabled = 0;
+    }
+
     Dict* args = Dict_getDict(messageDict, String_CONST("args"));
     bool noFunctionsCalled = true;
     for (int i = 0; i < admin->functionCount; i++) {
@@ -362,128 +400,26 @@ static void handleRequest(Dict* messageDict,
     }
 
     if (noFunctionsCalled) {
-        Dict* d = Dict_new(allocator);
-        String* list = String_CONST("availableFunctions");
-        if (!String_equals(query, list)) {
-            Dict_putString(d,
-                           String_CONST("error"),
-                           String_CONST("No functions matched your request."),
-                           allocator);
-        }
-        Dict* functions = Dict_new(allocator);
-        for (int i = 0; i < admin->functionCount; i++) {
-            Dict_putDict(functions, admin->functions[i].name, admin->functions[i].args, allocator);
-        }
-        if (functions) {
-            Dict_putDict(d, String_CONST("availableFunctions"), functions, allocator);
-        }
-        Admin_sendMessage(d, txid, admin);
-        return;
+        Dict d = Dict_CONST(
+            String_CONST("error"),
+            String_OBJ(String_CONST("No functions matched your request, "
+                                    "try Admin_availableFunctions()")),
+            NULL
+        );
+        Admin_sendMessage(&d, txid, admin);
     }
 
     return;
 }
 
-#define handleFrame_PARTIAL 1 // got a valid partial request.
-#define handleFrame_INVALID 2 // invalid request.
-#define handleFrame_CONTINUE 0 // parsed frame, keep parsing to get next frame.
-static int handleFrame(struct Message* message,
-                       struct Channel* channel,
-                       struct Allocator* tempAlloc,
-                       struct Admin* admin)
-{
-    struct Reader* reader = ArrayReader_new(message->bytes, message->length, tempAlloc);
-
-    char nextByte;
-    int ret;
-    while (!(ret = reader->read(&nextByte, 1, reader)) && nextByte != 'd');
-
-    if (ret) {
-        // out of data.
-        channel->partialMessageLength = 0;
-        return handleFrame_INVALID;
-    }
-
-    // back the reader up by 1.
-    reader->skip(-1, reader);
-
-    Dict messageDict;
-    ret = StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, &messageDict);
-    if (ret == -2) {
-        // couldn't parse any more data.
-        return handleFrame_PARTIAL;
-    }
-    if (ret) {
-        Log_warn(admin->logger,
-                 "Got unparsable data from admin interface on channel [%u] content: [%s].",
-                 channel->number, message->bytes);
-        closeChannel(channel, admin);
-        return handleFrame_INVALID;
-    }
-
-    uint32_t amount = reader->bytesRead(reader);
-
-    struct Message tmpMessage = { .bytes = message->bytes, .length = amount, .padding = 0 };
-    handleRequest(&messageDict, &tmpMessage, channel, tempAlloc, admin);
-
-    Message_shift(message, -amount);
-    return handleFrame_CONTINUE;
-}
-
 static void handleMessage(struct Message* message,
-                          struct Channel* channel,
+                          struct Sockaddr* src,
+                          struct Allocator* alloc,
                           struct Admin* admin)
 {
-    Log_debug(admin->logger, "Handling message.");
-    if (channel->partialMessageLength > 0) {
-        Log_debug(admin->logger, "Channel [%d] has [%u] bytes of existing data on it.",
-                  channel->number, channel->partialMessageLength);
-        Message_shift(message, channel->partialMessageLength);
-        Bits_memcpy(message->bytes, channel->partialMessageBuffer, channel->partialMessageLength);
-        channel->partialMessageLength = 0;
-    }
-
-    // Try to handle multiple stacked requests in the same frame.
-    for (;;) {
-        struct Allocator* allocator = Allocator_child(admin->allocator);
-        int ret = handleFrame(message, channel, allocator, admin);
-        Allocator_free(allocator);
-        if (ret == handleFrame_PARTIAL) {
-            break;
-        }
-        if (ret == handleFrame_INVALID) {
-            return;
-        }
-    }
-
-    // This is an idea of just how much the incoming message can be shifted.
-    // Pathological messages full of massive requests will fail.
-    if (0 != message->length && message->length <= Admin_MAX_REQUEST_SIZE) {
-        // move data to start of buffer, so we can append new data
-        Bits_memcpy(channel->partialMessageBuffer, message->bytes, message->length);
-        channel->partialMessageLength = message->length;
-    }
-}
-
-static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
-{
-    struct Admin* admin = iface->receiverContext;
-
-    Assert_true(message->length >= 4);
-
-    uint32_t channelNum;
-    Bits_memcpyConst(&channelNum, message->bytes, 4);
-    Message_shift(message, -4);
-
-    Log_debug(admin->logger, "Got data from [%u]", channelNum);
-
-    struct Channel* channel = channelForNum(channelNum, true, admin);
-
-    if (0 == message->length) {
-        // empty message -> close channel
-        channel->alloc->free(channel->alloc);
-        return 0;
-    }
+    message->bytes[message->length] = '\0';
+    Log_keys(admin->logger, "Got message from [%s] [%s]",
+             Sockaddr_print(src, alloc), message->bytes);
 
     // handle non empty message data
     if (message->length > Admin_MAX_REQUEST_SIZE) {
@@ -491,12 +427,45 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         #define TOO_BIG_STRLEN (sizeof(TOO_BIG) - 1)
         Bits_memcpyConst(message->bytes, TOO_BIG, TOO_BIG_STRLEN);
         message->length = TOO_BIG_STRLEN;
-        sendMessage(message, channelNum, admin);
-    } else if (channel->isClosing) {
-        // Do nothing because the channel is in closing state.
-    } else {
-        handleMessage(message, channel, admin);
+        sendMessage(message, src, admin);
+        return;
     }
+
+    struct Reader* reader = ArrayReader_new(message->bytes, message->length, alloc);
+    Dict messageDict;
+    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, &messageDict)) {
+        Log_warn(admin->logger,
+                 "Unparsable data from [%s] content: [%s]",
+                 Sockaddr_print(src, alloc), message->bytes);
+        return;
+    }
+
+    int amount = reader->bytesRead(reader);
+    if (amount < message->length) {
+        Log_warn(admin->logger,
+                 "Message from [%s] contained garbage after byte [%d] content: [%s]",
+                 Sockaddr_print(src, alloc), amount - 1, message->bytes);
+        return;
+    }
+
+    handleRequest(&messageDict, message, src, alloc, admin);
+}
+
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
+{
+    struct Admin* admin = Identity_cast((struct Admin*) iface->receiverContext);
+
+    Assert_true(message->length >= (int)admin->addrLen);
+    struct Sockaddr_storage addrStore;
+    Message_pop(message, &addrStore, admin->addrLen);
+
+    struct Allocator* alloc = Allocator_child(admin->allocator);
+    admin->inRequest = 1;
+
+    handleMessage(message, &addrStore.addr, alloc, admin);
+
+    admin->inRequest = 0;
+    Allocator_free(alloc);
     return 0;
 }
 
@@ -511,15 +480,13 @@ void Admin_registerFunctionWithArgCount(char* name,
     if (!admin) {
         return;
     }
+    Identity_check(admin);
+
     String* str = String_new(name, admin->allocator);
-    if (!admin->functionCount) {
-        admin->functions = admin->allocator->malloc(sizeof(struct Function), admin->allocator);
-    } else {
-        admin->functions =
-            admin->allocator->realloc(admin->functions,
-                                      sizeof(struct Function) * (admin->functionCount + 1),
-                                      admin->allocator);
-    }
+    admin->functions =
+        Allocator_realloc(admin->allocator,
+                          admin->functions,
+                          sizeof(struct Function) * (admin->functionCount + 1));
     struct Function* fu = &admin->functions[admin->functionCount];
     admin->functionCount++;
 
@@ -550,23 +517,36 @@ void Admin_registerFunctionWithArgCount(char* name,
     }
 }
 
-struct Admin* Admin_new(struct Interface* toAngelInterface,
+struct Admin* Admin_new(struct AddrInterface* iface,
                         struct Allocator* alloc,
                         struct Log* logger,
-                        struct event_base* eventBase,
+                        struct EventBase* eventBase,
                         String* password)
 {
-    struct Admin* admin = alloc->clone(sizeof(struct Admin), alloc, &(struct Admin) {
-        .toAngelInterface = toAngelInterface,
+    struct Admin* admin = Allocator_clone(alloc, (&(struct Admin) {
+        .iface = iface,
         .allocator = alloc,
         .logger = logger,
-        .functionCount = 0,
         .eventBase = eventBase,
-        .password = String_clone(password, alloc)
-    });
+        .addrLen = iface->addr->addrLen,
+        .map = {
+            .allocator = alloc
+        }
+    }));
+    Identity_set(admin);
 
-    toAngelInterface->receiveMessage = receiveMessage;
-    toAngelInterface->receiverContext = admin;
+    admin->password = String_clone(password, alloc);
+
+    Timeout_setInterval(clearExpiredAddresses, admin, TIMEOUT_MILLISECONDS * 3, eventBase, alloc);
+
+    iface->generic.receiveMessage = receiveMessage;
+    iface->generic.receiverContext = admin;
+
+    Admin_registerFunction("Admin_asyncEnabled", asyncEnabled, admin, false, NULL, admin);
+    Admin_registerFunction("Admin_availableFunctions", availableFunctions, admin, false,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "page", .required = 0, .type = "Int" }
+        }), admin);
 
     return admin;
 }

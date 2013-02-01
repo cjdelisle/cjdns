@@ -22,7 +22,7 @@
 
 #include "util/events/EventBase.h"
 
-void UDPInterface_admin_register(struct event_base* base,
+void UDPInterface_admin_register(struct EventBase* base,
                                  struct Allocator* allocator,
                                  struct Log* logger,
                                  struct Admin* admin,

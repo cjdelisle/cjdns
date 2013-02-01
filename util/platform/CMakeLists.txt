@@ -9,9 +9,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+include_directories(${LIBUV_INCLUDE_DIRS})
 add_library(cjdns-util-platform-socket
     Socket.c
+    Sockaddr.c
 )
 target_link_libraries(cjdns-util-platform-socket
-    ${LIBEVENT2_LIBRARIES}
+    ${LIBUV_LIBRARIES}
+    util
+    cjdbenc
 )
+
+set_target_properties(cjdns-util-platform-socket
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
+
+
+add_subdirectory(test)

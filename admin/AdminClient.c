@@ -15,22 +15,24 @@
 #include "admin/AdminClient.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "interface/addressable/AddrInterface.h"
+#include "interface/addressable/UDPAddrInterface.h"
+#include "exception/Except.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
+#include "util/Bits.h"
 #include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
 #include "util/Errno.h"
 #include "util/Hex.h"
+#include "util/events/Timeout.h"
+#include "util/Identity.h"
+#include "wire/Message.h"
 
+#include <stdio.h>
 #include <crypto_hash_sha256.h>
-#include <unistd.h>
-#include <event2/event.h>
-
-#ifdef BSD
-    #include <netinet/in.h> // sizeof(struct sockaddr_in) on BSD
-#endif
 
 struct AdminClient
 {
@@ -52,12 +54,13 @@ struct Result
 struct Context
 {
     struct AdminClient public;
+    struct EventBase* eventBase;
+    struct Sockaddr* targetAddr;
     struct Result* result;
-    evutil_socket_t socket;
-    struct event* socketEvent;
-    struct event_base* eventBase;
+    struct AddrInterface* addrIface;
     struct Log* logger;
     String* password;
+    Identity
 };
 
 static int calculateAuth(Dict* message,
@@ -97,10 +100,10 @@ static int calculateAuth(Dict* message,
 static void done(struct Context* ctx, enum AdminClient_Error err)
 {
     ctx->result->public.err = err;
-    event_base_loopexit(ctx->eventBase, NULL);
+    EventBase_endLoop(ctx->eventBase);
 }
 
-static void timeout(evutil_socket_t socket, short eventType, void* vcontext)
+static void timeout(void* vcontext)
 {
     done((struct Context*) vcontext, AdminClient_Error_TIMEOUT);
 }
@@ -139,50 +142,48 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
         }
     }
 
-    send(res->ctx->socket, res->public.messageBytes, writer->bytesWritten(writer), 0);
+    struct Timeout* to =
+        Timeout_setTimeout(timeout, res->ctx, 5000, res->ctx->eventBase, res->alloc);
 
-    struct event* timeoutEvent = evtimer_new(res->ctx->eventBase, timeout, res->ctx);
-    evtimer_add(timeoutEvent, (&(struct timeval) { .tv_sec = 5, .tv_usec = 0 }));
+    struct Message m = {
+        .bytes = res->public.messageBytes,
+        .padding = AdminClient_Result_PADDING_SIZE,
+        .length = writer->bytesWritten(writer)
+    };
+    Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen);
+    res->ctx->addrIface->generic.sendMessage(&m, &res->ctx->addrIface->generic);
 
-    event_base_dispatch(res->ctx->eventBase);
+    EventBase_beginLoop(res->ctx->eventBase);
 
-    evtimer_del(timeoutEvent);
+    Timeout_clearTimeout(to);
 }
 
-static void incoming(evutil_socket_t socket, short eventType, void* vcontext)
+static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct Context* ctx = vcontext;
+    struct Context* ctx = Identity_cast((struct Context*) iface->receiverContext);
     // Since this is a blocking api, one result per context.
     struct Result* res = ctx->result;
 
-    ssize_t length = recv(socket, res->public.messageBytes, AdminClient_MAX_MESSAGE_SIZE, 0);
-    if (length == AdminClient_MAX_MESSAGE_SIZE) {
-        while (length) {
-            // purge the socket.
-            length = recv(socket, res->public.messageBytes, AdminClient_MAX_MESSAGE_SIZE, 0);
-        }
-        done(ctx, AdminClient_Error_OVERLONG_RESPONSE);
-        return;
+    struct Sockaddr_storage source;
+    Message_pop(msg, &source, ctx->targetAddr->addrLen);
+    if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
+        return 0;
     }
-    if (length < 1) {
-        if (length < 0) {
-            done(ctx, AdminClient_Error_ERROR_READING_FROM_SOCKET);
-        } else {
-            done(ctx, AdminClient_Error_SOCKET_NOT_READY);
-        }
-        return;
-    }
-    res->public.messageBytes[length] = '\0';
 
-    struct Reader* reader = ArrayReader_new(res->public.messageBytes, length, res->alloc);
+    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, res->alloc);
     Dict* d = Dict_new(res->alloc);
     if (StandardBencSerializer_get()->parseDictionary(reader, res->alloc, d)) {
         done(ctx, AdminClient_Error_DESERIALIZATION_FAILED);
-        return;
+        return 0;
     }
     res->public.responseDict = d;
 
+    int len =
+        (msg->length > AdminClient_MAX_MESSAGE_SIZE) ? AdminClient_MAX_MESSAGE_SIZE : msg->length;
+    Bits_memset(res->public.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
+    Bits_memcpy(res->public.messageBytes, msg->bytes, len);
     done(ctx, AdminClient_Error_NONE);
+    return 0;
 }
 
 struct AdminClient_Result* AdminClient_rpcCall(String* function,
@@ -190,7 +191,7 @@ struct AdminClient_Result* AdminClient_rpcCall(String* function,
                                                struct AdminClient* client,
                                                struct Allocator* alloc)
 {
-    struct Context* ctx = (struct Context*) client;
+    struct Context* ctx = Identity_cast((struct Context*) client);
     Dict a = (args) ? *args : NULL;
     Dict message = Dict_CONST(
         String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
@@ -233,64 +234,34 @@ char* AdminClient_errorString(enum AdminClient_Error err)
     };
 }
 
-static void disconnect(void* vcontext)
-{
-    struct Context* context = vcontext;
-    EVUTIL_CLOSESOCKET(context->socket);
-    event_del(context->socketEvent);
-}
-
-struct AdminClient* AdminClient_new(uint8_t* sockAddr,
-                                    int addrLen,
+struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
                                     String* adminPassword,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
                                     struct Log* logger,
                                     struct Allocator* alloc)
 {
-    struct sockaddr_storage* addr = (struct sockaddr_storage*) sockAddr;
-
-    struct Context* context = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
+    struct Context* context = Allocator_clone(alloc, (&(struct Context) {
         .eventBase = eventBase,
         .logger = logger,
         .password = adminPassword,
-    });
+    }));
+    Identity_set(context);
 
-    context->socket = socket(addr->ss_family, SOCK_STREAM, 0);
-
-    if (context->socket < 0) {
-        Log_error(logger, "Failed to allocate socket [%s]", Errno_getString());
-        return NULL;
-    }
-
-    evutil_make_listen_socket_reuseable(context->socket);
-
-    if (addr->ss_family == AF_INET) {
-        struct sockaddr_in* inAddr = (struct sockaddr_in*) addr;
-        if (inAddr->sin_addr.s_addr == 0) {
+    context->targetAddr = Sockaddr_clone(connectToAddress, alloc);
+    if (Sockaddr_getFamily(context->targetAddr) == Sockaddr_AF_INET) {
+        uint8_t* addrBytes;
+        int len = Sockaddr_getAddress(context->targetAddr, &addrBytes);
+        if (Bits_isZero(addrBytes, len)) {
             // 127.0.0.1
-            inAddr->sin_addr.s_addr = Endian_hostToBigEndian32(0x7f000001);
+            uint32_t loopback = Endian_hostToBigEndian32(0x7f000001);
+            Bits_memcpyConst(addrBytes, &loopback, 4);
         }
     }
+    Log_debug(logger, "Connecting to [%s]", Sockaddr_print(context->targetAddr, alloc));
 
-    if (connect(context->socket, (struct sockaddr*)addr, addrLen)) {
-        #ifdef Log_ERROR
-            enum Errno err = Errno_get();
-            char printedAddr[128];
-            uint16_t port = Endian_bigEndianToHost16(((struct sockaddr_in*)addr)->sin_port);
-            evutil_inet_ntop(AF_INET, &((struct sockaddr_in*)addr)->sin_addr, printedAddr, 128);
-            Log_error(logger, "Failed to connect to admin port at [%s:%u], [%s]",
-                      printedAddr, port, Errno_strerror(err));
-        #endif
-        return NULL;
-    }
-
-    evutil_make_socket_nonblocking(context->socket);
-
-    context->socketEvent =
-        event_new(context->eventBase, context->socket, EV_READ | EV_PERSIST, incoming, context);
-    event_add(context->socketEvent, NULL);
-
-    alloc->onFree(disconnect, context, alloc);
+    context->addrIface = UDPAddrInterface_new(eventBase, NULL, alloc, NULL, logger);
+    context->addrIface->generic.receiveMessage = receiveMessage;
+    context->addrIface->generic.receiverContext = context;
 
     return &context->public;
 }

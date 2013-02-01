@@ -20,7 +20,7 @@
 
 #include "util/events/EventBase.h"
 
-void CryptoAuth_benchmark(struct event_base* base,
+void CryptoAuth_benchmark(struct EventBase* base,
                           struct Log* logger,
                           struct Allocator* alloc);
 

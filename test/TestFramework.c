@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
@@ -41,18 +41,18 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
                                           struct Log* logger)
 {
-    struct Random* rand = Random_new(allocator, NULL);
+    if (!logger) {
+        struct Writer* logwriter = FileWriter_new(stdout, allocator);
+        logger = WriterLog_new(logwriter, allocator);
+    }
+
+    struct Random* rand = Random_new(allocator, logger, NULL);
     struct EventBase* base = EventBase_new(allocator);
 
     uint64_t pks[4];
     if (!privateKey) {
         Random_longs(rand, pks, 4);
         privateKey = (char*)pks;
-    }
-
-    if (!logger) {
-        struct Writer* logwriter = FileWriter_new(stdout, allocator);
-        logger = WriterLog_new(logwriter, allocator);
     }
 
     uint8_t* publicKey = allocator->malloc(32, allocator);

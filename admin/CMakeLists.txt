@@ -29,7 +29,12 @@ add_library(cjdns-admin-client
     AdminClient.c
     Configurator.c
 )
-target_link_libraries(cjdns-admin-client crypto cjdbenc_StandardBencSerializer)
+target_link_libraries(cjdns-admin-client
+    crypto
+    cjdbenc_StandardBencSerializer
+    cjdns-util-platform-socket
+    cjdns-interface-addressable
+)
 
 add_subdirectory(testframework)
 add_subdirectory(angel)

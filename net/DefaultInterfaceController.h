@@ -29,7 +29,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
                                                            struct Log* logger,
-                                                           struct event_base* eventBase,
+                                                           struct EventBase* eventBase,
                                                            struct SwitchPinger* switchPinger,
                                                            struct Random* rand,
                                                            struct Allocator* allocator);

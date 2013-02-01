@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/BufferAllocator.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
@@ -24,8 +24,8 @@
 int main()
 {
     struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 512);
-    struct Random* rand = Random_new(alloc, NULL);
+    BufferAllocator_STACK(alloc, 2048);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint64_t x;
     Random_bytes(rand, (uint8_t*) &x, 8);

@@ -17,7 +17,7 @@
 
 #include "benc/Dict.h"
 #include "exception/Except.h"
-#include "interface/Interface.h"
+#include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/UniqueName.h"
@@ -45,11 +45,11 @@ struct Admin_FunctionArg
  * @param arguments an array of struct Admin_FunctionArg specifying what functions are available
  *                  and of those, which are required.
  *        Example C code:
- *            struct Admin_FunctionArg adma[2] = {
- *                { .name = "password", .required = 1, .type = "String" },
- *                { .name = "authType", .required = 0, .type = "Int" }
- *            };
- *            Admin_registerFunction("AuthorizedPasswords_add", add, context, true, adma, admin);
+ *            Admin_registerFunction("AuthorizedPasswords_add", addPass, ctx, true,
+ *                ((struct Admin_FunctionArg[]) {
+ *                    { .name = "password", .required = 1, .type = "String" },
+ *                    { .name = "authType", .required = 0, .type = "Int" }
+ *                }), admin);
  */
 void Admin_registerFunctionWithArgCount(char* name,
                                         Admin_FUNCTION(callback),
@@ -65,9 +65,7 @@ void Admin_registerFunctionWithArgCount(char* name,
 #define Admin_sendMessage_CHANNEL_CLOSED -1
 int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
 
-int Admin_sendMessageToAngel(Dict* message, struct Admin* admin);
-
-struct Admin* Admin_new(struct Interface* toAngelInterface,
+struct Admin* Admin_new(struct AddrInterface* iface,
                         struct Allocator* alloc,
                         struct Log* logger,
                         struct EventBase* eventBase,

@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
@@ -21,7 +21,7 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
-#include "util/Time.h"
+#include "util/events/Time.h"
 #include "util/events/EventBase.h"
 #include "wire/Error.h"
 
@@ -52,7 +52,7 @@ struct Context
     struct Interface* cif2;
     struct Message* if2Incoming;
 
-    struct event_base* base;
+    struct EventBase* base;
 };
 
 static inline uint8_t transferMessage(struct Message* message, struct Interface* iface)
@@ -110,11 +110,11 @@ static inline void sendMessages(struct Context* ctx,
     printf("\tFinished in %dms. %d Kb/s\n\n", (int)time, (int)kbps);
 }
 
-void CryptoAuth_benchmark(struct event_base* base,
+void CryptoAuth_benchmark(struct EventBase* base,
                           struct Log* logger,
                           struct Allocator* alloc)
 {
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, logger, NULL);
     struct Context ctx = {
         .ca1 = CryptoAuth_new(alloc, NULL, base, NULL, rand),
         .ca2 = CryptoAuth_new(alloc, privateKey, base, NULL, rand),

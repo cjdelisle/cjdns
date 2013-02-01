@@ -23,7 +23,7 @@ target_link_libraries(TestFramework
     cjdmemory
     cjdns-admin
     cjdnet
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdns-tunnel-iptunnel
     cjdns-crypto-random
     cjdns-memory-canary

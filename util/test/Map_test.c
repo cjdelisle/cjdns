@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Assert.h"
@@ -29,8 +29,8 @@
 int main()
 {
     struct Allocator* stackAlloc;
-    BufferAllocator_STACK(stackAlloc, 512);
-    struct Random* rand = Random_new(stackAlloc, NULL);
+    BufferAllocator_STACK(stackAlloc, 2048);
+    struct Random* rand = Random_new(stackAlloc, NULL, NULL);
 
     for (int cycles = 0; cycles < CYCLES; cycles++) {
         struct Allocator* alloc = MallocAllocator_new(1<<18);

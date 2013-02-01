@@ -17,6 +17,5 @@ set(Test_FILES
 set(Test_LIBRARIES
     dht
     cjdmemory
-    ${LIBEVENT2_LIBRARIES}
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

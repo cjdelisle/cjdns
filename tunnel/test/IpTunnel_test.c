@@ -22,7 +22,7 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
 #include "tunnel/IpTunnel.h"
 #include "util/platform/libc/string.h"
@@ -34,7 +34,7 @@
 
 static uint8_t* fakePubKey = (uint8_t*) "abcdefghijklmnopqrstuvwxyz012345";
 static uint8_t nodeCjdnsIp6[16];
-static uint8_t* fakeIp6ToGive = (uint8_t*) "0123456789abcdef";
+static uint8_t* fakeIp6ToGive = (uint8_t*) "\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1";
 static int called = 0;
 
 uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
@@ -62,7 +62,7 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
     char* expectedResponse =
         "d"
           "9:addresses" "d"
-            "3:ip6" "16:0123456789abcdef"
+            "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
           "e"
           "4:txid" "4:abcd"
         "e";
@@ -91,11 +91,13 @@ int main()
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
     struct Writer* w = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(w, alloc);
-    struct Random* rand = Random_new(alloc, NULL);
+    struct Random* rand = Random_new(alloc, logger, NULL);
     struct EventBase* eb = EventBase_new(alloc);
 
     struct IpTunnel* ipTun = IpTunnel_new(logger, eb, alloc, rand, NULL);
-    IpTunnel_allowConnection(fakePubKey, fakeIp6ToGive, NULL, ipTun);
+    struct Sockaddr_storage ip6ToGive;
+    Sockaddr_parse("fd01:0101:0101:0101:0101:0101:0101:0101", &ip6ToGive);
+    IpTunnel_allowConnection(fakePubKey, &ip6ToGive.addr, NULL, ipTun);
 
     struct Message* message;
     Message_STACK(message, 64, 512);

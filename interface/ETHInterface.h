@@ -48,7 +48,7 @@ struct ETHInterface;
 #define ETHInterface_new_FAILED_FIND_MACADDR -4
 #define ETHInterface_new_SOCKET_FAILED -5
 #define ETHInterface_new_BIND_FAILED -6
-struct ETHInterface* ETHInterface_new(struct event_base* base,
+struct ETHInterface* ETHInterface_new(struct EventBase* base,
                                       const char* bindDevice,
                                       struct Allocator* allocator,
                                       struct Except* exHandler,

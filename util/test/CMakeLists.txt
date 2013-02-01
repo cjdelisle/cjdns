@@ -21,7 +21,7 @@ set(Test_FILES
     UniqueName_test.c
 )
 set(Test_LIBRARIES
-    cjdns-util-events-libevent
+    cjdns-util-events-libuv
     cjdmemory
     util
     cjdns-process

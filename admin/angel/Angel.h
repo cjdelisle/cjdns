@@ -15,20 +15,13 @@
 #ifndef Angel_H
 #define Angel_H
 
-#include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "interface/Interface.h"
-
 #include "util/events/EventBase.h"
 
-#define Angel_MAX_CONNECTIONS 64
-#define Angel_INITIAL_CONF_BUFF_SIZE 1024
-
-void Angel_start(String* pass,
-                 int tcpSocket,
-                 struct Interface* coreIface,
-                 struct event_base* eventBase,
+void Angel_start(struct Interface* coreIface,
+                 struct EventBase* eventBase,
                  struct Log* logger,
                  struct Allocator* alloc);
 

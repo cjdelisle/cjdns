@@ -15,7 +15,7 @@
 #ifndef Janitor_H
 #define Janitor_H
 
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"

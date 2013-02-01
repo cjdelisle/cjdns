@@ -21,9 +21,9 @@
 #include "memory/BufferAllocator.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
+#include "util/platform/Sockaddr.h"
 
 #include <stddef.h>
-#include <event2/event.h>
 
 struct Context
 {
@@ -58,8 +58,8 @@ static void allowConnection(Dict* args, void* vcontext, String* txid)
     uint8_t pubKey[32];
     uint8_t ip6Addr[16];
 
-    uint8_t ip6ToGive[16];
-    uint8_t ip4ToGive[4];
+    struct Sockaddr_storage ip6ToGive;
+    struct Sockaddr_storage ip4ToGive;
 
     char* error;
     int ret;
@@ -67,14 +67,20 @@ static void allowConnection(Dict* args, void* vcontext, String* txid)
         error = "Must specify ip6Address or ip4Address";
     } else if ((ret = Key_parse(publicKeyOfAuthorizedNode, pubKey, ip6Addr)) != 0) {
         error = Key_parse_strerror(ret);
-    } else if (ip6Address && evutil_inet_pton(AF_INET6, ip6Address->bytes, ip6ToGive) < 1) {
+    } else if (ip6Address
+        && (Sockaddr_parse(ip6Address->bytes, &ip6ToGive)
+            || Sockaddr_getFamily(&ip6ToGive.addr) != Sockaddr_AF_INET6))
+    {
         error = "malformed ip6Address";
-    } else if (ip4Address && evutil_inet_pton(AF_INET, ip4Address->bytes, ip4ToGive) < 1) {
+    } else if (ip4Address
+        && (Sockaddr_parse(ip4Address->bytes, &ip4ToGive)
+            || Sockaddr_getFamily(&ip4ToGive.addr) != Sockaddr_AF_INET))
+    {
         error = "malformed ip4Address";
     } else {
         int conn = IpTunnel_allowConnection(pubKey,
-                                            (ip6Address) ? ip6ToGive : NULL,
-                                            (ip4Address) ? ip4ToGive : NULL,
+                                            (ip6Address) ? &ip6ToGive.addr : NULL,
+                                            (ip4Address) ? &ip4ToGive.addr : NULL,
                                             context->ipTun);
         sendResponse(conn, txid, context->admin);
         return;
@@ -135,16 +141,22 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     BufferAllocator_STACK(alloc, 1024);
     Dict* d = Dict_new(alloc);
 
-    char ip6[40];
     if (!Bits_isZero(conn->connectionIp6, 16)) {
-        Assert_always(evutil_inet_ntop(AF_INET6, conn->connectionIp6, ip6, 40));
-        Dict_putString(d, String_CONST("ip6Address"), String_CONST(ip6), alloc);
+        struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
+        uint8_t* address;
+        Assert_true(16 == Sockaddr_getAddress(addr, &address));
+        Bits_memcpyConst(address, conn->connectionIp6, 16);
+        char* printedAddr = Sockaddr_print(addr, alloc);
+        Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
     }
 
-    char ip4[16];
     if (!Bits_isZero(conn->connectionIp4, 4)) {
-        Assert_always(evutil_inet_ntop(AF_INET, conn->connectionIp4, ip4, 16));
-        Dict_putString(d, String_CONST("ip4Address"), String_CONST(ip4), alloc);
+        struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
+        uint8_t* address;
+        Assert_true(4 == Sockaddr_getAddress(addr, &address));
+        Bits_memcpyConst(address, conn->connectionIp4, 4);
+        char* printedAddr = Sockaddr_print(addr, alloc);
+        Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);
     }
 
     Dict_putString(d, String_CONST("key"), Key_stringify(conn->header.nodeKey, alloc), alloc);

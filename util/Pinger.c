@@ -14,8 +14,8 @@
  */
 #include "util/Bits.h"
 #include "util/Pinger.h"
-#include "util/Time.h"
-#include "util/Timeout.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
 #include "util/Identity.h"
 
 struct Ping
@@ -119,7 +119,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
     }
 }
 
-struct Pinger* Pinger_new(struct event_base* eventBase, struct Log* logger, struct Allocator* alloc)
+struct Pinger* Pinger_new(struct EventBase* eventBase, struct Log* logger, struct Allocator* alloc)
 {
     return alloc->clone(sizeof(struct Pinger), alloc, &(struct Pinger) {
         .eventBase = eventBase,

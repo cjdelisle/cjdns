@@ -15,7 +15,7 @@
 #define string_strlen
 #define string_strstr
 #define string_strcmp
-#include "crypto/Random.h"
+#include "crypto/random/Random.h"
 #include "memory/BufferAllocator.h"
 #include "util/platform/libc/string.h"
 #include "util/Bits.h"
@@ -27,8 +27,8 @@
 int main()
 {
     struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 512);
-    struct Random* rand = Random_new(alloc, NULL);
+    BufferAllocator_STACK(alloc, 2048);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t bytes[32];
     Random_bytes(rand, bytes, 32);

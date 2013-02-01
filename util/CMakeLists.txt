@@ -9,15 +9,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-project(util C)
-cmake_minimum_required(VERSION 2.4)
-
 add_subdirectory(log)
 add_subdirectory(version)
 add_subdirectory(events)
 add_subdirectory(platform)
 
-find_package(Libevent2 REQUIRED)
 find_package(Socket REQUIRED)
 
 add_library(cjdns-errno Errno.c)
@@ -49,12 +45,9 @@ add_library(util
     Pinger.c
     Pipe.c
     Security_admin.c
-    Timeout.c
-    Time.c
 )
 target_link_libraries(util
     cjdmemory
-    ${LIBEVENT2_LIBRARIES}
     cjdns-security
     cjdns-util-log-writer
     cjdns-errno
@@ -63,4 +56,3 @@ target_link_libraries(util
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)
-
