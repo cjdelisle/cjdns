@@ -269,11 +269,11 @@ unless it is running as root and will fail with `process cannot open more files`
 
 Parameters:
 
-required String **bindDevice** the name of the ethernet device to bind to, eg: `eth0` or `wlan0`.
+* required String **bindDevice** the name of the ethernet device to bind to, eg: `eth0` or `wlan0`.
 
 Returns:
 
-Int **interfaceNumber** an number which can be used to carry out other operations on the interface later.
+* Int **interfaceNumber** an number which can be used to carry out other operations on the interface later.
 
 
 #### ETHInterface_beginConnection()
@@ -284,14 +284,14 @@ Connect an ETHInterface to another computer which has an ETHInterface running.
 
 Parameters:
 
-required String **publicKey** The public key of the other node, similar to `UDPInterface_beginConnection()`
-required String **macAddress** The mac address of the other node.
-Int **interfaceNumber** The interface number to use, assumed 0 (first ETHinterface created) if not supplied.
-String **password** A password for connecting to the other node if required.
+* required String **publicKey** The public key of the other node, similar to `UDPInterface_beginConnection()`
+* required String **macAddress** The mac address of the other node.
+* Int **interfaceNumber** The interface number to use, assumed 0 (first ETHinterface created) if not supplied.
+* String **password** A password for connecting to the other node if required.
 
 Returns:
 
-String **error**: `none` if everything went well.
+* String **error**: `none` if everything went well.
 
 Other errors are self-explanitory.
 
@@ -311,14 +311,14 @@ Beacon States:
 
 Parameters:
 
-Int **interfaceNumber** The number of the ETHInterface to change the state of, assumed 0 if not provided.
-Int **state** What state to switch to, if not provided, the current state will be queried only.
+* Int **interfaceNumber** The number of the ETHInterface to change the state of, assumed 0 if not provided.
+* Int **state** What state to switch to, if not provided, the current state will be queried only.
 
 Returns:
 
-String **error**: `none` if all went well.
-Int **state**: the state number after the call is complete.
-String **stateName**: a description of the state.
+* String **error**: `none` if all went well.
+* Int **state**: the state number after the call is complete.
+* String **stateName**: a description of the state.
 
 
 Example:
@@ -357,8 +357,8 @@ List the connection numbers of all IPTunnel connections.
 
 Returns:
 
-List **connections**: A list of integers representing the connection numbers for each connection.
-String **error**: `none`
+* List **connections**: A list of integers representing the connection numbers for each connection.
+* String **error**: `none`
 
 
 Example:
@@ -375,15 +375,15 @@ Show information about a perticular IPTunnel connection.
 
 Parameters:
 
-required Int **connection**: the connection number for the connection to show information about.
+* required Int **connection**: the connection number for the connection to show information about.
 
 Returns:
 
-Int **outgoing**: 1 if the connection is outgoing, 0 if it's incoming.
-String **key**: the cjdns public key of the foreign node.
-String **ip6Address**: the IPv6 address which is assigned to this IPTunnel if applicable.
-String **ip4Address**: the IPv4 address which is assigned to this IPTunnel if applicable.
-String **error**: `none` unless the connection number is invalid.
+* Int **outgoing**: 1 if the connection is outgoing, 0 if it's incoming.
+* String **key**: the cjdns public key of the foreign node.
+* String **ip6Address**: the IPv6 address which is assigned to this IPTunnel if applicable.
+* String **ip4Address**: the IPv4 address which is assigned to this IPTunnel if applicable.
+* String **error**: `none` unless the connection number is invalid.
 
 Examples:
 
@@ -414,12 +414,12 @@ Initiate an *outgoing* connection to another node and request IP addresses from 
 
 Parameters:
 
-required String **publicKeyOfNodeToConnectTo** the pubkey of the node to connect to.
+* required String **publicKeyOfNodeToConnectTo** the pubkey of the node to connect to.
 
 Returns:
 
-String **error**: `none` if all went well
-Int **connection**: the connection number of the new connection
+* String **error**: `none` if all went well
+* Int **connection**: the connection number of the new connection
 
 Examples:
 
@@ -435,14 +435,14 @@ to complete the connection.
 **Auth Required**
 
 Parameters:
-required String **publicKeyOfAuthorizedNode** The key of the node which is authorized to connect.
-String **ip6Address** The IPv6 address to give them if applicable.
-String **ip4Address** The IPv4 address to give them if applicable.
+* required String **publicKeyOfAuthorizedNode** The key of the node which is authorized to connect.
+* String **ip6Address** The IPv6 address to give them if applicable.
+* String **ip4Address** The IPv4 address to give them if applicable.
 
 Returns:
 
-String **error** `none` if all went well.
-Int **connection** the connection number for the new connection.
+* String **error** `none` if all went well.
+* Int **connection** the connection number for the new connection.
 
 
 
@@ -461,12 +461,12 @@ is `Security_noFiles()` has already been called.
 
 Parameters:
 
-String **bindAddress**: the address/port to bind to, if unspecified, it is assumed to be `0.0.0.0`.
+* String **bindAddress**: the address/port to bind to, if unspecified, it is assumed to be `0.0.0.0`.
 
 Returns:
 
-String **error** `none` if all went well
-**interfaceNumber** the number of the interface, usable with `UDPInterface_beginConnection()`
+* String **error** `none` if all went well
+* Int **interfaceNumber** the number of the interface, usable with `UDPInterface_beginConnection()`
 
 
 #### UDPInterface_beginConnection()
