@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <sys/sysctl.h>
 
+#if defined(KERN_RANDOM) && defined(RANDOM_UUID)
 static int getUUID(uint64_t output[2])
 {
     int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };
@@ -41,6 +42,13 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return 0;
 }
+
+#else
+static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+{
+    return -1;
+}
+#endif
 
 struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)
 {
