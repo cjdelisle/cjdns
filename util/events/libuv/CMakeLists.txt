@@ -22,6 +22,10 @@ add_library(cjdns-util-events-libuv
     Time.c
     Timeout.c
 )
+
+# Force libuv to build first
+add_dependency(cjdns-util-events-libuv ${LIBUV_LIBRARIES})
+
 target_link_libraries(cjdns-util-events-libuv
     cjdmemory
     ${LIBUV_LIBRARIES}

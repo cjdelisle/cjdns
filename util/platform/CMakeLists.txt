@@ -20,6 +20,9 @@ target_link_libraries(cjdns-util-platform-socket
     cjdbenc
 )
 
+# Force libuv to build first
+add_dependency(cjdns-util-platform-socket ${LIBUV_LIBRARIES})
+
 set_target_properties(cjdns-util-platform-socket
         PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
 
