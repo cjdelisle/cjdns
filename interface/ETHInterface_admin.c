@@ -38,7 +38,7 @@ static int isValidIfNum(struct Context* ctx, int64_t* interfaceNumber, char** er
     if (ctx->ifCount == 0) {
         *error = "no interfaces are setup, call ETHInterface_new() first";
 
-    } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 1)) {
+    } else if (interfaceNumber && (*interfaceNumber >= ctx->ifCount || *interfaceNumber < 0)) {
         *error = "invalid interfaceNumber";
     } else {
         return true;
@@ -103,9 +103,8 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
     struct ETHInterface* ethIf = NULL;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        char* const bindBytes = (bindDevice) ? bindDevice->bytes : NULL;
         ethIf = ETHInterface_new(
-            ctx->eventBase, bindBytes, alloc, &jmp.handler, ctx->logger, ctx->ic);
+            ctx->eventBase, bindDevice->bytes, alloc, &jmp.handler, ctx->logger, ctx->ic);
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
@@ -188,7 +187,7 @@ void ETHInterface_admin_register(struct EventBase* base,
 
     Admin_registerFunction("ETHInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "bindDevice", .required = 0, .type = "String" }
+            { .name = "bindDevice", .required = 1, .type = "String" }
         }), admin);
 
     Admin_registerFunction("ETHInterface_beginConnection",

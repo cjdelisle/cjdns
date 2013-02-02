@@ -34,8 +34,8 @@ struct Context
 static void sendResponse(int conn, String* txid, struct Admin* admin)
 {
     Dict resp = Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
-        String_CONST("connection"), Int_OBJ(conn), NULL
+        String_CONST("connection"), Int_OBJ(conn), Dict_CONST(
+        String_CONST("error"), String_OBJ(String_CONST("none")), NULL
     ));
     Admin_sendMessage(&resp, txid, admin);
 }
@@ -110,13 +110,14 @@ static void connectTo(Dict* args, void* vcontext, String* txid)
 static void removeConnection(Dict* args, void* vcontext, String* txid)
 {
     struct Context* context = vcontext;
-
+/*
     int conn = (int) *(Dict_getInt(args, String_CONST("connection")));
     char* error = "none";
     if (IpTunnel_removeConnection_NOT_FOUND == IpTunnel_removeConnection(conn, context->ipTun)) {
         error = "not found";
     }
-    sendError(error, txid, context->admin);
+*/
+    sendError("not implemented", txid, context->admin);
 }
 
 static void listConnections(Dict* args, void* vcontext, String* txid)
@@ -160,7 +161,8 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     }
 
     Dict_putString(d, String_CONST("key"), Key_stringify(conn->header.nodeKey, alloc), alloc);
-    Dict_putInt(d, String_CONST("outgoing"), conn->isOutgoing, alloc);
+    Dict_putInt(d, String_CONST("outgoing"), (conn->isOutgoing) ? 1 : 0, alloc);
+    Dict_putString(d, String_CONST("error"), String_CONST("none"), alloc);
 
     Admin_sendMessage(d, txid, admin);
 }

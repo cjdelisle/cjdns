@@ -57,9 +57,9 @@ int Key_parse(String* key, uint8_t keyBytesOut[32], uint8_t ip6Out[16])
 
 String* Key_stringify(uint8_t key[32], struct Allocator* alloc)
 {
-    String* out = String_newBinary(NULL, 55, alloc);
+    String* out = String_newBinary(NULL, 54, alloc);
     Base32_encode((uint8_t*)out->bytes, 53, key, 32);
-    out->bytes[53] = '.';
-    out->bytes[54] = 'k';
+    out->bytes[52] = '.';
+    out->bytes[53] = 'k';
     return out;
 }

@@ -112,25 +112,47 @@ static void adminPing(Dict* input, void* vadmin, String* txid)
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
 }
 
-struct MemoryContext
+struct Context
 {
     struct Allocator* allocator;
     struct Admin* admin;
+    struct Log* logger;
+    struct Hermes* hermes;
+    String* exitTxid;
 };
 
 static void adminMemory(Dict* input, void* vcontext, String* txid)
 {
-    struct MemoryContext* context = vcontext;
+    struct Context* context = vcontext;
     Dict d = Dict_CONST(
         String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
     );
     Admin_sendMessage(&d, txid, context->admin);
 }
 
+static void onAngelExitResponse(Dict* message, void* vcontext)
+{
+    struct Context* context = vcontext;
+    Log_info(context->logger, "Angel stopped");
+    Log_info(context->logger, "Exiting");
+    Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
+    Admin_sendMessage(&d, context->exitTxid, context->admin);
+    exit(0);
+}
+
 static void adminExit(Dict* input, void* vcontext, String* txid)
 {
-    Log_info((struct Log*) vcontext, "Got request to exit.");
-    exit(0);
+    struct Context* context = vcontext;
+    Log_info(context->logger, "Got request to exit");
+    Log_info(context->logger, "Stopping angel");
+    context->exitTxid = String_clone(txid, context->allocator);
+    Dict angelExit = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("Angel_exit")), NULL);
+    Hermes_callAngel(&angelExit,
+                     onAngelExitResponse,
+                     context,
+                     context->allocator,
+                     NULL,
+                     context->hermes);
 }
 
 static Dict* getInitialConfig(struct Interface* iface,
@@ -335,18 +357,18 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Admin_registerFunction("Core_exit", adminExit, logger, true, NULL, admin);
     Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
 
-    struct MemoryContext* mc =
-        alloc->clone(sizeof(struct MemoryContext), alloc,
-            &(struct MemoryContext) {
-                .allocator = unsafeAlloc,
-                .admin = admin
-            });
-    Admin_registerFunction("memory", adminMemory, mc, false, NULL, admin);
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
+        .allocator = unsafeAlloc,
+        .admin = admin,
+        .logger = logger,
+        .hermes = hermes
+    }));
+    Admin_registerFunction("memory", adminMemory, ctx, false, NULL, admin);
+    Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 
     EventBase_beginLoop(eventBase);
     return 0;

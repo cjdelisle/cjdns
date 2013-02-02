@@ -205,12 +205,11 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
 void AdminTestFramework_tearDown(struct AdminTestFramework* framework)
 {
     char buff[128] = "           PADDING              "
-        "\xff\xff\xff\xff"
         "d"
           "1:q" "10:Angel_exit"
         "e";
 
-    char* start = strchr(buff, '\xff');
+    char* start = strchr(buff, 'd');
     struct Message m = {
         .bytes = (uint8_t*) start,
         .length = strlen(start),

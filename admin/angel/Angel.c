@@ -12,13 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strstr
+#define string_strlen
 #include "admin/angel/Angel.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "interface/PipeInterface.h"
 #include "interface/Interface.h"
-#include "util/platform/libc/strlen.h"
+#include "util/platform/libc/string.h"
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
 #include "util/Bits.h"
@@ -39,11 +41,10 @@ struct AngelContext
 
 static void handleMessageForAngel(struct Message* message, struct AngelContext* context)
 {
+    message->bytes[message->length] = '\0';
     Log_debug(context->logger, "Got message for angel with content [%s]", message->bytes);
-    char* angelExit = "d1:q10:Angel_exite";
-    if (message->length == (int32_t)strlen(angelExit)
-        && !Bits_memcmp((char*)message->bytes, angelExit, message->length))
-    {
+    char* angelExit = "1:q10:Angel_exit";
+    if (strstr((char*)message->bytes, angelExit)) {
         Log_info(context->logger, "Got request to exit");
         exit(0);
     }
@@ -67,16 +68,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct AngelContext* context = iface->receiverContext;
 
-    Assert_true(message->length >= 4);
-
-    uint32_t handle;
-    Bits_memcpyConst(&handle, message->bytes, 4);
-    Message_shift(message, -4);
-
-    if (handle == 0xffffffff) {
-        handleMessageForAngel(message, context);
-        return Error_NONE;
-    }
+    handleMessageForAngel(message, context);
 
     return Error_NONE;
 }
