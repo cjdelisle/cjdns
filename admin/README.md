@@ -119,7 +119,7 @@ be broke by changes in the future.
 For this step, you will need the admin password from your cjdroute.conf file, it's to be found
 inside of the block which says `"admin": {`.
 
-    ADMIN_PASS=nk7txgdc0kcfjz186258x77sm3 \
+    ADMIN_PASS=you_will_find_this_in_your_cjdroute_dot_conf \
     REQUEST='{"q": "auth", "aq": "ping", "hash": "__HASH__", "cookie": "__COOKIE__"}' \
     COOKIE_RESP=`echo -n 'd1:q6:cookiee' | nc6 -u -t 1 -n -w3 127.0.0.1 11234` \
     COOKIE=`echo ${COOKIE_RESP} | sed 's/d6:cookie10:\([0-9]*\)e/\1/'` \
