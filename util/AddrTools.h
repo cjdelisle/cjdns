@@ -18,6 +18,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
+#include "util/platform/Sockaddr.h"
 
 #include <stdint.h>
 
@@ -152,25 +153,15 @@ static inline void AddrTools_printIp(uint8_t output[40], const uint8_t binIp[16]
  */
 static inline int AddrTools_parseIp(uint8_t out[16], const uint8_t hexAddr[40])
 {
-    for (int i = 4; i < 39; i += 5) {
-        if (hexAddr[i] != ':') {
-            return -1;
-        }
-    }
-
-    uint8_t hex[32];
-    int j = 0;
-    for (int i = 0; i < 40; i++) {
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-        hex[j++] = hexAddr[i++];
-    }
-
-    if (Hex_decode(out, 16, hex, 32) != 16) {
+    struct Sockaddr_storage ss;
+    if (Sockaddr_parse((const char*) hexAddr, &ss)
+        || Sockaddr_getFamily(&ss.addr) != Sockaddr_AF_INET6)
+    {
         return -1;
     }
-
+    uint8_t* addr = NULL;
+    Sockaddr_getAddress(&ss.addr, &addr);
+    Bits_memcpyConst(out, addr, 16);
     return 0;
 }
 

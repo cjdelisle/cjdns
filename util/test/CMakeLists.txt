@@ -19,6 +19,7 @@ set(Test_FILES
     Map_test.c
     Process_test.c
     UniqueName_test.c
+    AddrTools_test.c
 )
 set(Test_LIBRARIES
     cjdns-util-events-libuv

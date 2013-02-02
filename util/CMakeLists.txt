@@ -51,6 +51,7 @@ target_link_libraries(util
     cjdns-security
     cjdns-util-log-writer
     cjdns-errno
+    cjdns-util-platform-socket
 )
 
 # Everything must be tested.
