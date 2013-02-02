@@ -12,19 +12,12 @@
 
 include_directories(${LIBUV_INCLUDE_DIRS})
 
-#if(COMMAND cmake_policy)
-#    cmake_policy(SET CMP0003 NEW)
-#endif(COMMAND cmake_policy)
-
 add_library(cjdns-util-events-libuv
     EventBase.c
     Event.c
     Time.c
     Timeout.c
 )
-
-# Force libuv to build first
-add_dependency(cjdns-util-events-libuv ${LIBUV_LIBRARIES})
 
 target_link_libraries(cjdns-util-events-libuv
     cjdmemory

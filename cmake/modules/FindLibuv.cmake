@@ -82,9 +82,6 @@ endif()
 if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     include(ExternalProject)
 
-    # Without this, the build doesn't happen until link time.
-    include_directories(${UV_USE_FILES})
-
     set(url "${CMAKE_SOURCE_DIR}/cmake/externals/node-v0.9.7.tar.gz")
     if (NOT EXISTS "${url}")
         set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
@@ -96,7 +93,7 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
         separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
     endif ()
 
-    ExternalProject_Add(libuv
+    ExternalProject_Add(libuv_ep
         URL ${url}
 	URL_MD5 "caa8135e6f74628fbd7cf789e9c432e5"
 	SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
@@ -114,9 +111,18 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     set_property(TARGET uv
         PROPERTY IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libuv/libuv.a)
 
+    # The source of this uglyness is a limit on adding dependencies to imported libraries.
+    # see: http://www.cmake.org/Bug/print_bug_page.php?bug_id=10395
+    # It's fixed in cmake 2.8.4 but it would be nice to continue supporting 2.8.2 and 2.8.3
+    if(NOT EXISTS ${CMAKE_BINARY_DIR}/DoNothing_libuv.c)
+        file(WRITE ${CMAKE_BINARY_DIR}/DoNothing_libuv.c "int DoNothing() { return 0; }\n")
+    endif()
+    add_library(libuv_dep ${CMAKE_BINARY_DIR}/DoNothing_libuv.c)
+    add_dependencies(libuv_dep libuv_ep)
+
     addDependencies()
 
-    set(LIBUV_LIBRARIES uv)
+    set(LIBUV_LIBRARIES uv libuv_dep)
     set(LIBUV_FOUND TRUE)
 
 endif()

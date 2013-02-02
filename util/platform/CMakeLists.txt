@@ -9,6 +9,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+find_package(Libuv REQUIRED)
 include_directories(${LIBUV_INCLUDE_DIRS})
 add_library(cjdns-util-platform-socket
     Socket.c
@@ -21,7 +22,7 @@ target_link_libraries(cjdns-util-platform-socket
 )
 
 # Force libuv to build first
-add_dependency(cjdns-util-platform-socket ${LIBUV_LIBRARIES})
+add_dependencies(cjdns-util-platform-socket ${LIBUV_LIBRARIES})
 
 set_target_properties(cjdns-util-platform-socket
         PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
