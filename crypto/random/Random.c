@@ -240,6 +240,11 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
     rand->nextByte = BUFFSIZE;
 
     Identity_set(rand);
+
+    rand->addRandomCounter = 1000;
+    Random_addRandom(rand, 0);
+    stir(rand);
+
     return rand;
 }
 

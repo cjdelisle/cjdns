@@ -72,6 +72,21 @@ void checkBytes(struct Random* rand, int alignment, int length)
     }
 }
 
+/** https://github.com/cjdelisle/cjdns/issues/179 */
+void test179(struct Allocator* alloc, struct Log* logger)
+{
+    uint8_t buff[32] = {0};
+    uint8_t buff2[32] = {0};
+
+    struct Random* rand = Random_new(alloc, logger, NULL);
+    struct Random* rand2 = Random_new(alloc, logger, NULL);
+
+    Random_bytes(rand, buff, 32);
+    Random_bytes(rand2, buff, 32);
+
+    Assert_true(Bits_memcmp(buff, buff2, 32));
+}
+
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
@@ -104,6 +119,9 @@ int main()
     checkBytes(rand, 4, 19); // 4,1 byte aligned
     checkBytes(rand, 4, 10); // 4,2 byte aligned
     checkBytes(rand, 4, 32); // 4,4 byte aligned
+
+
+    test179(alloc, logger);
 
 
     /* torture
