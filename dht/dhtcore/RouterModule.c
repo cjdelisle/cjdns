@@ -321,7 +321,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
         if (!n) {
             err = "could not find node to ping";
         } else if (RouterModule_pingNode(n, router, timeout, txid)) {
-            err = "no open slots to store ping, try later.";
+            err = "insert ping coin into slot or try later";
         }
     }
 
