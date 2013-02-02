@@ -1,0 +1,6 @@
+#!/bin/bash
+
+( ls && ls ./build ) 2>/dev/null | grep 'cjdroute.conf' >/dev/null &&
+    echo "Oh look, a file called cjdroute.conf I'm not going to delete that even though you just asked me to." && exit 1
+
+git reset --hard && git clean -dxf
