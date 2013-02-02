@@ -241,7 +241,7 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
     Identity_set(rand);
 
-    rand->addRandomCounter = 1000;
+    rand->addRandomCounter = 255;
     Random_addRandom(rand, 0);
     stir(rand);
 
