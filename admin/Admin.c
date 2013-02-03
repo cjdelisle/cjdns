@@ -456,7 +456,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     struct Admin* admin = Identity_cast((struct Admin*) iface->receiverContext);
 
     Assert_true(message->length >= (int)admin->addrLen);
-    struct Sockaddr_storage addrStore;
+    struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };
     Message_pop(message, &addrStore, admin->addrLen);
 
     struct Allocator* alloc = Allocator_child(admin->allocator);

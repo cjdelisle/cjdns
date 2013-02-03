@@ -128,7 +128,7 @@ static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
     // RFC-2460 includes the fragment header in the offset so we have to add another 8 bytes.
     Headers_IP6Fragment_setOffset(frag, offsetBytes / 8);
     Headers_IP6Fragment_setMoreFragments(frag, true);
-    Interface_sendMessage(msg, &ctx->pub.internal);
+    Interface_receiveMessage(&ctx->pub.internal, msg);
 
     // sanity check
     Assert_true(!Bits_memcmp(&msgNextPartFirstLong, nextMessage->bytes, 8));
@@ -149,7 +149,7 @@ static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
     //Headers_IP6Fragment_setMoreFragments(frag, false);
     ip6->payloadLength_be = Endian_hostToBigEndian16(nextMessage->length - Headers_IP6Header_SIZE);
 
-    return Interface_sendMessage(nextMessage, &ctx->pub.internal);
+    return Interface_receiveMessage(&ctx->pub.internal, nextMessage);
 }
 
 /** Message from the external (TUN facing) interface. */
@@ -181,10 +181,10 @@ static uint8_t incoming(struct Message* msg, struct Interface* iface)
                                 ICMP6Generator_Type_PACKET_TOO_BIG,
                                 mtu);
 
-        Interface_sendMessage(msg, &ctx->pub.external);
+        Interface_receiveMessage(&ctx->pub.external, msg);
         return Error_NONE;
     }
-    return Interface_sendMessage(msg, &ctx->pub.internal);
+    return Interface_receiveMessage(&ctx->pub.internal, msg);
 }
 
 /** Message from the internal (Ducttape facing) interface. */
@@ -194,7 +194,7 @@ static uint8_t outgoing(struct Message* msg, struct Interface* iface)
         Identity_cast((struct ICMP6Generator_pvt*)
             (((uint8_t*)iface) - offsetof(struct ICMP6Generator, internal)));
 
-    return Interface_sendMessage(msg, &ctx->pub.external);
+    return Interface_receiveMessage(&ctx->pub.external, msg);
 }
 
 struct ICMP6Generator* ICMP6Generator_new(struct Allocator* alloc)

@@ -76,12 +76,17 @@ struct Interface
     Interface_CALLBACK(receiveMessage);
 };
 
-static inline uint8_t Interface_sendMessage(struct Message* msg, struct Interface* iface)
+static inline uint8_t Interface_receiveMessage(struct Interface* iface, struct Message* msg)
 {
     if (iface->receiveMessage) {
         return iface->receiveMessage(msg, iface);
     }
     return 0;
+}
+
+static inline uint8_t Interface_sendMessage(struct Interface* iface, struct Message* msg)
+{
+    return iface->sendMessage(msg, iface);
 }
 
 

@@ -175,7 +175,7 @@ int AngelInit_main(int argc, char** argv)
         outToClientNo = STDOUT_FILENO;
     }
 
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = MallocAllocator_new(1<<21);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     struct Random* rand = Random_new(alloc, logger, eh);

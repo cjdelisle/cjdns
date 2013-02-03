@@ -21,5 +21,9 @@ target_link_libraries(cjdns-interface-addressable
     cjdns-util-platform-socket
 )
 
+add_library(cjdns-interface-addressable-adapter
+    AddrInterfaceAdapter.c
+)
+
 enable_testing()
 #add_subdirectory(test)
