@@ -18,6 +18,7 @@ add_library(cjdns-tunnel-iptunnel
 target_link_libraries(cjdns-tunnel-iptunnel
     cjdbenc
     interface
+    cjdns-admin-hermes
 )
 
 enable_testing()

@@ -23,6 +23,7 @@
 #include "util/log/Log.h"
 
 #include <unistd.h>
+#include <inttypes.h>
 
 #define PING_FREQUENCY_MILLISECONDS 3000
 #define LAG_MAX_BEFORE_DISCONNECT 10000
@@ -156,6 +157,8 @@ static bool tryReestablish(struct PipeInterface_pvt* context)
         Log_debug(context->logger, "Reestablished synchronization, off by [%u] bytes",
                   (uint32_t) (nextFrame - context->message.as.bytes));
         return true;
+    } else {
+        Log_debug(context->logger, "Failed to reestablish connection");
     }
     return false;
 }
@@ -224,6 +227,7 @@ static bool handleMessage(struct PipeInterface_pvt* context)
             }
         } else {
             Log_debug(context->logger, "Lost synchronization");
+
             context->pub.state = PipeInterface_State_LOST;
             bool ret = tryReestablish(context);
             sendPing(context);
@@ -232,7 +236,8 @@ static bool handleMessage(struct PipeInterface_pvt* context)
             }
         }
     } else if (context->pub.state == PipeInterface_State_INITIALIZING) {
-        Log_debug(context->logger, "[%p] Established Synchronization", (void*) context);
+        Log_debug(context->logger, "[%p] Established Synchronization with magic [%" PRIX64 "]",
+                  (void*) context, Endian_bigEndianToHost64(context->syncMagic));
         context->pub.state = PipeInterface_State_ESTABLISHED;
     } else if (context->isWaiting) {
         context->isWaiting = false;
@@ -365,6 +370,9 @@ struct PipeInterface* PipeInterface_new(int inPipe,
         });
 
     Log_info(logger, "Creating new PipeInterface [%p]", (void*)context);
+
+    Socket_makeNonBlocking(inPipe);
+    Socket_makeNonBlocking(outPipe);
 
     context->pingInterval = Timeout_setInterval(handleTimeout,
                                                 context,

@@ -15,7 +15,7 @@
 #ifndef IpTunnel_H
 #define IpTunnel_H
 
-#include "admin/Admin.h"
+#include "admin/angel/Hermes.h"
 #include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
@@ -86,12 +86,14 @@ struct IpTunnel
  * @param logger a logger or NULL.
  * @param eventBase the event base.
  * @param alloc an allocator.
+ * @param rand a random generator.
+ * @param hermes the Hermes admin connector.
  */
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
-                              struct Admin* admin);
+                              struct Hermes* hermes);
 
 /**
  * Allow another node to tunnel IPv4 and/or ICANN IPv6 through this node.
@@ -126,6 +128,9 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  */
 #define IpTunnel_removeConnection_NOT_FOUND -1
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel);
+
+
+void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun);
 
 
 #endif

@@ -27,6 +27,7 @@ struct Context
     struct Allocator* alloc;
     struct Admin* admin;
     struct EventBase* eventBase;
+    struct IpTunnel* ipTunnel;
 };
 
 static void sendResponse(String* error,
@@ -53,6 +54,7 @@ static void initTunnel(Dict* args, void* vcontext, String* txid)
                         8,
                         ctx->ducttape,
                         ctx->logger,
+                        ctx->ipTunnel,
                         ctx->eventBase,
                         ctx->alloc,
                         &jmp.handler);
@@ -68,6 +70,7 @@ static void initTunnel(Dict* args, void* vcontext, String* txid)
 void Core_admin_register(uint8_t ipAddr[16],
                          struct Ducttape* dt,
                          struct Log* logger,
+                         struct IpTunnel* ipTunnel,
                          struct Allocator* alloc,
                          struct Admin* admin,
                          struct EventBase* eventBase)
@@ -79,6 +82,7 @@ void Core_admin_register(uint8_t ipAddr[16],
     ctx->alloc = alloc;
     ctx->admin = admin;
     ctx->eventBase = eventBase;
+    ctx->ipTunnel = ipTunnel;
 
     struct Admin_FunctionArg args[] = {
         { .name = "desiredTunName", .required = 0, .type = "String" }

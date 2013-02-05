@@ -38,12 +38,14 @@ typedef void (* Hermes_onResponse)(Dict* responseMessage, void* context);
  * @param message the message to send, the txid key is reserved and will
  *                be overwritten.
  * @param onResponse a callback which will be called with the response
- *                   from the angel.
+ *                   from the angel. This callback will also be called if
+ *                   there is no response and the request times out.
  * @param onResponseContext a pointer which will be provided to onResponse.
  * @param alloc an allocator for the request, if this allocator is freed
  *              before the response happens, the onResponse will not be
  *              called, this prevents a race condition when the structure
- *              pointed to be context is freed after a call.
+ *              pointed to be context is freed after a call. The allocator
+ *              need not be freed after the request is complete.
  * @param eh an exception handler which might raise:
  *           Hermes_callAngel_ESERIALIZE if serializing the message failed.
  *           Hermes_callAngel_ESEND if sending the message failed.

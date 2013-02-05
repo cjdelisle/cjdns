@@ -26,6 +26,7 @@
 void Core_admin_register(uint8_t ipAddr[16],
                          struct Ducttape* dt,
                          struct Log* logger,
+                         struct IpTunnel* ipTunnel,
                          struct Allocator* alloc,
                          struct Admin* admin,
                          struct EventBase* eventBase);

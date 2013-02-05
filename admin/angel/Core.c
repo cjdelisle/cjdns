@@ -175,6 +175,7 @@ void Core_initTunnel(String* desiredDeviceName,
                      uint8_t addressPrefix,
                      struct Ducttape* dt,
                      struct Log* logger,
+                     struct IpTunnel* ipTunnel,
                      struct EventBase* eventBase,
                      struct Allocator* alloc,
                      struct Except* eh)
@@ -197,6 +198,7 @@ void Core_initTunnel(String* desiredDeviceName,
 
     TUNConfigurator_addIp6Address(assignedTunName, ipAddr, addressPrefix, logger, eh);
     TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
+    IpTunnel_setTunName(assignedTunName, ipTunnel);
 }
 
 /** This is a response from a call which is intended only to send information to the angel. */
@@ -247,9 +249,11 @@ int Core_main(int argc, char** argv)
     // The first read inside of getInitialConfig() will begin it waiting.
     struct PipeInterface* pi =
         PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc, rand);
-    struct Hermes* hermes = Hermes_new(&pi->generic, eventBase, logger, alloc);
 
     Dict* config = getInitialConfig(&pi->generic, eventBase, tempAlloc, eh);
+
+    struct Hermes* hermes = Hermes_new(&pi->generic, eventBase, logger, alloc);
+
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
     String* pass = Dict_getString(adminConf, String_CONST("pass"));
@@ -321,7 +325,7 @@ int Core_main(int argc, char** argv)
 
     SerializationModule_register(registry, logger, alloc);
 
-    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, admin);
+    struct IpTunnel* ipTun = IpTunnel_new(logger, eventBase, alloc, rand, hermes);
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
@@ -357,7 +361,7 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Core_admin_register(addr.ip6.bytes, dt, logger, alloc, admin, eventBase);
+    Core_admin_register(addr.ip6.bytes, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
 

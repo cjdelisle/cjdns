@@ -22,13 +22,16 @@ if(HAS_ETH_INTERFACE)
     set(ethif ETHInterface_${SYSTEM}.c ETHInterface_admin.c)
 endif()
 
+add_library(cjdns-interface-tuntap
+    TUNConfigurator_${SYSTEM}.c
+    TUNMessageType.c
+    ${tunif}
+)
+
 add_library(interface
     UDPInterface.c
     UDPInterface_admin.c
     ${ethif}
-    ${tunif}
-    TUNConfigurator_${SYSTEM}.c
-    TUNMessageType.c
     InterfaceConnector.c
     SessionManager.c
     ICMP6Generator.c
@@ -36,6 +39,7 @@ add_library(interface
 )
 
 target_link_libraries(interface
+    cjdns-interface-tuntap
     util
     cjdns-crypto-key
     cjdns-util-platform-socket

@@ -12,13 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "admin/Admin.h"
+#include "admin/angel/Hermes.h"
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/List.h"
+#include "benc/Int.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
 #include "crypto/random/Random.h"
+#include "exception/Jmp.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "interface/TUNMessageType.h"
@@ -50,6 +52,9 @@ struct IpTunnel_pvt
     /** An always incrementing number which represents the connections. */
     uint32_t nextConnectionNumber;
 
+    /** The name of the TUN interface so that ip addresses can be added. */
+    String* ifName;
+
     /**
      * Every 10 seconds check for connections which the other end has
      * not provided ip addresses and send more requests.
@@ -57,7 +62,8 @@ struct IpTunnel_pvt
     struct Timeout* timeout;
     struct Random* rand;
 
-    struct Admin* admin;
+    /** The angel connector for setting IP addresses. */
+    struct Hermes* hermes;
 
     /** For verifying the integrity of the structure. */
     Identity
@@ -345,6 +351,42 @@ static uint8_t requestForAddresses(Dict* request,
     return sendControlMessage(msg, conn, context);
 }
 
+static void addAddressCallback(Dict* responseMessage, void* vcontext)
+{
+    struct IpTunnel_pvt* ctx = Identity_cast((struct IpTunnel_pvt*) vcontext);
+    char* err = "invalid response";
+    String* error = Dict_getString(responseMessage, String_CONST("error"));
+    if (error) {
+        err = error->bytes;
+    }
+    if (!error || !String_equals(error, String_CONST("none"))) {
+        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", err);
+    }
+}
+
+static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
+{
+    if (!ctx->ifName) {
+        Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
+        return;
+    }
+    struct Jmp j;
+    Jmp_try(j) {
+        Dict args = Dict_CONST(
+            String_CONST("address"), String_OBJ(String_CONST(printedAddr)), Dict_CONST(
+            String_CONST("interfaceName"), String_OBJ(ctx->ifName), Dict_CONST(
+            String_CONST("prefixLen"), Int_OBJ(0), NULL
+        )));
+        Dict msg = Dict_CONST(
+            String_CONST("args"), Dict_OBJ(&args), Dict_CONST(
+            String_CONST("q"), String_OBJ(String_CONST("Angel_addIp")), NULL
+        ));
+        Hermes_callAngel(&msg, addAddressCallback, ctx, ctx->allocator, &j.handler, ctx->hermes);
+    } Jmp_catch {
+        Log_error(ctx->logger, "Error setting ip address on TUN [%s]", j.message);
+    }
+}
+
 static int incomingAddresses(Dict* d,
                              struct IpTunnel_Connection* conn,
                              struct Allocator* alloc,
@@ -389,21 +431,33 @@ static int incomingAddresses(Dict* d,
     String* ip4 = Dict_getString(addresses, String_CONST("ip4"));
     if (ip4 && ip4->len == 4) {
         Bits_memcpyConst(conn->connectionIp4, ip4->bytes, 4);
-        #ifdef Log_INFO
-            Log_info(context->logger, "Got issued address [%u.%u.%u.%u] for connection [%d]",
-                     ip4->bytes[0], ip4->bytes[1], ip4->bytes[2], ip4->bytes[3], conn->number);
-        #endif
+
+        struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
+        uint8_t* addrBytes = NULL;
+        Sockaddr_getAddress(sa, &addrBytes);
+        Bits_memcpy(addrBytes, ip4->bytes, 4);
+        char* printedAddr = Sockaddr_print(sa, alloc);
+
+        Log_info(context->logger, "Got issued address [%s] for connection [%d]",
+                 printedAddr, conn->number);
+
+        addAddress(printedAddr, context);
     }
 
     String* ip6 = Dict_getString(addresses, String_CONST("ip6"));
     if (ip6 && ip6->len == 16) {
         Bits_memcpyConst(conn->connectionIp6, ip6->bytes, 16);
-        #ifdef Log_INFO
-            uint8_t addr[40];
-            AddrTools_printIp(addr, (uint8_t*)ip6->bytes);
-            Log_info(context->logger, "Got issued address [%s] for connection [%d]",
-                     addr, conn->number);
-        #endif
+
+        struct Sockaddr* sa = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
+        uint8_t* addrBytes = NULL;
+        Sockaddr_getAddress(sa, &addrBytes);
+        Bits_memcpy(addrBytes, ip6->bytes, 16);
+        char* printedAddr = Sockaddr_print(sa, alloc);
+
+        Log_info(context->logger, "Got issued address [%s] for connection [%d]",
+                 printedAddr, conn->number);
+
+        addAddress(printedAddr, context);
     }
     return 0;
 }
@@ -654,11 +708,17 @@ static void timeout(void* vcontext)
     } while ((++i % (int32_t)context->pub.connectionList.count) != beginning);
 }
 
+void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
+{
+    struct IpTunnel_pvt* ctx = Identity_cast((struct IpTunnel_pvt*) ipTun);
+    ctx->ifName = String_new(interfaceName, ctx->allocator);
+}
+
 struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
                               struct Random* rand,
-                              struct Admin* admin)
+                              struct Hermes* hermes)
 {
     struct IpTunnel_pvt* context =
         alloc->clone(sizeof(struct IpTunnel_pvt), alloc, &(struct IpTunnel_pvt) {
@@ -669,7 +729,7 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
             .allocator = alloc,
             .logger = logger,
             .rand = rand,
-            .admin = admin
+            .hermes = hermes
         });
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);

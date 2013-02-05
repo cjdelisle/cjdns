@@ -322,7 +322,16 @@ static int genconf(struct Random* rand)
            "        \"nofiles\",\n"
            "\n"
            "        // Change the user id to this user after starting up and getting resources.\n"
-           "        {\"setuser\": \"nobody\"}\n"
+           "        {\n"
+           "            \"setuser\": \"nobody\"\n"
+           "\n"
+           "            // Exempt the Angel process from setting userId, the Angel is a small\n"
+           "            // isolated piece of code which exists outside of the core's strict\n"
+           "            // sandbox but does not handle network traffic.\n"
+           "            // This must be enabled for IpTunnel to automatically set IP addresses\n"
+           "            // for the TUN device.\n"
+           "            \"exemptAngel\": 1\n"
+           "        }\n"
            "     ],\n"
            "\n"
            "    // Version of the config file, used internally for migration.\n"
@@ -474,6 +483,10 @@ int main(int argc, char** argv)
     for (int i = 0; i < List_size(securityConf); i++) {
         securityUser = Dict_getString(List_getDict(securityConf, i), String_CONST("setuser"));
         if (securityUser) {
+            int64_t* ea = Dict_getInt(List_getDict(securityConf, i), String_CONST("exemptAngel"));
+            if (ea && *ea) {
+                securityUser = NULL;
+            }
             break;
         }
     }

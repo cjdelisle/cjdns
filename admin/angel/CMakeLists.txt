@@ -38,15 +38,20 @@ target_link_libraries(cjdns-angel
     cjdns-memory-canary
     cjdns-util-platform-socket
     cjdns-interface-addressable-adapter
+    cjdns-interface-tuntap
+)
+
+add_library(cjdns-admin-hermes
+    Hermes.c
 )
 
 add_library(cjdns-core
     Core.c
     Core_admin.c
-    Hermes.c
 )
 
 target_link_libraries(cjdns-core
+    cjdns-admin-hermes
     crypto
     interface
     switch

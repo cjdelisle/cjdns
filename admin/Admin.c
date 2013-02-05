@@ -417,9 +417,13 @@ static void handleMessage(struct Message* message,
                           struct Allocator* alloc,
                           struct Admin* admin)
 {
-    message->bytes[message->length] = '\0';
-    Log_keys(admin->logger, "Got message from [%s] [%s]",
-             Sockaddr_print(src, alloc), message->bytes);
+    #ifdef Log_KEYS
+        uint8_t lastChar = message->bytes[message->length - 1];
+        message->bytes[message->length - 1] = '\0';
+        Log_keys(admin->logger, "Got message from [%s] [%s]",
+                 Sockaddr_print(src, alloc), message->bytes);
+        message->bytes[message->length - 1] = lastChar;
+    #endif
 
     // handle non empty message data
     if (message->length > Admin_MAX_REQUEST_SIZE) {

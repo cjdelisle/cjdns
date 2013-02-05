@@ -29,7 +29,7 @@
 #include "util/Identity.h"
 #include "util/Hex.h"
 
-#define REQ_TIMEOUT 2048
+#define REQ_TIMEOUT 10000
 
 struct Request
 {
@@ -80,8 +80,10 @@ static void timeout(void* vrequest)
 static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct Allocator* tempAlloc)
 {
     #ifdef Log_KEYS
-        msg->bytes[msg->length] = '\0';
-        Log_keys(hermes->logger, "Got message from angel [%s]", msg->bytes);
+        char lastChr = msg->bytes[msg->length - 1];
+        msg->bytes[msg->length - 1] = '\0';
+        Log_keys(hermes->logger, "Got message from angel [%s%c]", msg->bytes, lastChr);
+        msg->bytes[msg->length - 1] = lastChr;
     #else
         Log_debug(hermes->logger, "Got message from angel");
     #endif
@@ -95,7 +97,8 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
 
     String* txid = Dict_getString(&d, String_CONST("txid"));
     uint32_t handle;
-    if (!txid || txid->len != 8 || Hex_decode((uint8_t*)&handle, 4, (uint8_t*)txid->bytes, 8)) {
+    if (!txid || txid->len != 8 || 4 != Hex_decode((uint8_t*)&handle, 4, (uint8_t*)txid->bytes, 8))
+    {
         Log_warn(hermes->logger, "Message from angel; txid missing or unrecognized");
         return;
     }
