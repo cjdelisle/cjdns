@@ -167,6 +167,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct Sockaddr_storage source;
     Message_pop(msg, &source, ctx->targetAddr->addrLen);
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
+        Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
+                 Sockaddr_print(&source.addr, res->alloc),
+                 Sockaddr_print(ctx->targetAddr, res->alloc));
         return 0;
     }
 
