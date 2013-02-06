@@ -68,19 +68,18 @@ The router engine is a modified implementation of the Kademlia DHT design.
 
 ## How close is it to complete?
 
-A live testing network exists with roughly 200 active nodes. The software has been tested and is
+A live testing network exists with roughly 300 active nodes. The software has been tested and is
 known to work on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32 and PowerPC64. It is continually tested
-on Linux, Apple OSX, Illumos, FreeBSD, and OpenBSD systems. While the software itself is stable,
-the protocols and algorithms are new inventions and we still don't understand how they work in
-the real world. Please update early and often to give developers the maximum latitude to make
-tweaks to the protocol and algorithms.
+on Linux systems. While the software itself is stable, the protocols and algorithms are new
+inventions and we still don't understand how they work in the real world. Please update early and
+often to give developers the maximum latitude to make tweaks to the protocol and algorithms.
 
 
 ## You Can Help!
 
 If you have a system based on an alternative architecture, join the IRC channel and ask about
-running a buildbot. We are specifically looking for buildbots running on MIPS and ARM based systems
-but bots running on PowerPC, SPARC, Itanium or any other esoteric architectures are also helpful.
+running a buildbot. We are specifically looking for buildbots running on Apple OSX systems but
+bots running on PowerPC, SPARC, Itanium or any other esoteric architectures are also helpful.
 
 Join the IRC channel and ask about other ways you can help.
 
@@ -374,69 +373,9 @@ To delete a tunnel, use this command:
 
 
 
-
-
-## Dynamically linking to Libevent2
-
-
-By default, the build process will search your system for Libevent2 and if it is not found,
-it will download, compile, and statically link it. If you would like to link it dynamically
-follow these instructions.
-
-### 1: Remove older versions of dependencies: `libevent` and `libevent-dev`.
-
-Be sure libevent is gone and remove if found.
-It will cause problems during the build.
-
-Check to see which libevent is installed:
-
-    dpkg -l | grep ^ii| grep libevent
-
-This should produce:
-
-    ii  libevent-dev            1.3e-3     Development libraries, header files and docs
-    ii  libevent1               1.3e-3     An asynchronous event notification library
-
-In such a case:
-
-    sudo apt-get remove libevent-dev
-
-**Note: You may need to (re)compile TOR if you use it.**
-
-
-### 2: Obtain latest `libevent2` dependency manually.
-
-CHECK https://github.com/libevent/libevent for LATEST version.
-(This document assumes 2.0.16.)
-
-Grab the stable tarball from libevent and untar:
-
-    wget https://github.com/downloads/libevent/libevent/libevent-2.0.16-stable.tar.gz
-    tar -xzf libevent-2.0.16-stable.tar.gz
-
-Enter directory and compile libevent:
-
-    cd libevent-2.0.16-stable
-    ./configure
-
-Resolve missing dependencies if needed and run again until all errors gone:
-
-    make
-    sudo make install
-
-### 3: Compile cjdns using NO_STATIC.
-
-By compiling with NO_STATIC, the process will fail rather than defaulting to static link.
-
-    NO_STATIC=1 cmake ..
-    make
-
-You can also force a static build even if you have libevent2 by using:
-
-    STATIC=1 cmake ..
-    make
-
 ## Installing cjdns on OpenIndiana
+
+**currently broken by recent changes**
 
 In order to install cjdns on an OpenIndiana system, do the following:
 
@@ -460,23 +399,7 @@ When cjdnroute is up and running, an administrative interface will listen on loc
 
 You can access this api using the following tools, to get interesting information.
 
-
-cjdns-tool
-----------
-
-[cjdns-tool](https://github.com/kechagia/cjdns-tool) is a toolset for querying the admin api using the command line.
-It is written in ruby and maintained by [kris kechagia](https://github.com/kechagia/). To install it, simply type
-
-    sudo apt-get install rubygems
-    clone https://github.com/kechagia/cjdns-tool.git cjdns-tool
-    cd cjdns-tool
-    sudo gem install cjdns-tool
-
-cjdns-tool can dump the local routing table in a traceroute-like fashion, as count routes as well as doing a ping sweep to see which nodes are alive and what their response time is. For usage information you can either type
-
-    cjdns-tool help
-
-and expore for yourself, or visit the [readme](https://github.com/kechagia/cjdns-tool/blob/master/README.md).
+More information about the Admin interface: https://github.com/cjdelisle/cjdns/blob/master/admin/README.md
 
 
 python library
