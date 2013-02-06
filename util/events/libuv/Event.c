@@ -51,9 +51,7 @@ static void freeEvent2(uv_handle_t* handle)
 static void freeEvent(void* vevent)
 {
     struct Event_pvt* event = Identity_cast((struct Event_pvt*) vevent);
-    if (uv_is_closing((uv_handle_t*) &event->handler)) {
-        freeEvent2((uv_handle_t*) &event->handler);
-    } else {
+    if (!uv_is_closing((uv_handle_t*) &event->handler)) {
         uv_close((uv_handle_t*) &event->handler, freeEvent2);
     }
 }

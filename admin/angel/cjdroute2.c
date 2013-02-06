@@ -537,6 +537,9 @@ int main(int argc, char** argv)
                      adminBind->bytes);
     }
 
+    // sanity check
+    Assert_true(EventBase_eventCount(eventBase) == 0);
+
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
                         &adminAddr.addr,

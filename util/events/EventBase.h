@@ -28,6 +28,8 @@ struct EventBase
 
 struct EventBase* EventBase_new(struct Allocator* alloc);
 
+int EventBase_eventCount(struct EventBase* eventBase);
+
 void EventBase_beginLoop(struct EventBase* eventBase);
 
 void EventBase_endLoop(struct EventBase* eventBase);

@@ -108,3 +108,19 @@ void EventBase_endLoop(struct EventBase* eventBase)
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
     uv_walk(ctx->loop, unrefEvent, NULL);
 }
+
+static void countCallback(uv_handle_t* event, void* vEventCount)
+{
+    int* eventCount = (int*) vEventCount;
+    if (!uv_is_closing(event)) {
+        *eventCount = *eventCount + 1;
+    }
+}
+
+int EventBase_eventCount(struct EventBase* eventBase)
+{
+    int eventCount = 0;
+    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
+    uv_walk(ctx->loop, countCallback, &eventCount);
+    return eventCount;
+}

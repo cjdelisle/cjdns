@@ -24,12 +24,6 @@
 struct Context {
     struct AdminTestFramework* framework;
 
-    /* slow client recv buffer */
-    struct {
-        char buf[256];
-        unsigned int have;
-    } slowClient;
-
     bool called;
 };
 

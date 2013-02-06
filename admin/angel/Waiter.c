@@ -68,11 +68,16 @@ uint32_t Waiter_getData(uint8_t* output,
     };
     Identity_set(&ctx);
 
+    int count = EventBase_eventCount(eventBase);
+
     Timeout_setTimeout(timeoutAwaitingResponse, &ctx, 2048, eventBase, alloc);
     Event_socketRead(responseFromCore, &ctx, fromCoreFd, eventBase, alloc, eh);
     EventBase_beginLoop(eventBase);
 
     Allocator_free(alloc);
+
+    Assert_always(count == EventBase_eventCount(eventBase));
+
     if (ctx.failed) {
         Except_raise(eh, -1, "Timed out waiting for data");
     }
