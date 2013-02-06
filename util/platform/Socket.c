@@ -70,6 +70,9 @@ int Socket_recvfrom(int fd,
     uint32_t size = Sockaddr_MAXSIZE;
     int ret = recvfrom(fd, buff, bufferSize, flags, (struct sockaddr*)ss->nativeAddr, &size);
     if (ret > -1) {
+        #ifdef OSX
+            ((struct sockaddr*)ss->nativeAddr)->sa_len = 0;
+        #endif
         ss->addr.addrLen = size + Sockaddr_OVERHEAD;
     }
     return ret;
@@ -129,6 +132,9 @@ int Socket_accept(int sock, struct Sockaddr_storage* addrOut, struct Allocator* 
     if (fd > -1) {
         addrOut->addr.addrLen = len + Sockaddr_OVERHEAD;
         Allocator_onFree(alloc, closeSock, (void*)(intptr_t)fd);
+        #ifdef OSX
+            ((struct sockaddr*)addrOut->nativeAddr)->sa_len = 0;
+        #endif
     }
     return fd;
 }
@@ -139,6 +145,9 @@ int Socket_getsockname(int sockfd, struct Sockaddr_storage* addr)
     int ret = getsockname(sockfd, (struct sockaddr*) addr->nativeAddr, &len);
     if (!ret) {
         addr->addr.addrLen = len + Sockaddr_OVERHEAD;
+        #ifdef OSX
+            ((struct sockaddr*)addr->nativeAddr)->sa_len = 0;
+        #endif
     }
     return ret;
 }
