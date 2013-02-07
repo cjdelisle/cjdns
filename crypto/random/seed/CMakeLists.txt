@@ -1,3 +1,4 @@
+# vim: set expandtab ts=4 sw=4:
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -11,10 +12,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # This is needed because NACL must be built first because header files are generated.
+
+if (APPLE)
+    find_library(SECURITY_LIBRARY Security)
+    find_path(SECURITY_INCLUDE_DIR Security/Security.h)
+    set(SEED_LIBRARIES util ${NACL_LIBRARIES} ${SECURITY_LIBRARY})
+else()
+    set(SEED_LIBRARIES util ${NACL_LIBRARIES})
+endif()
+
+include_directories(${SECURITY_INCLUDE_DIR})
+
 add_library(cjdns-crypto-random-seed
     BsdKernArndSysctlRandomSeed.c
     DevUrandomRandomSeed.c
     LinuxRandomUuidSysctlRandomSeed.c
+    AppleSecRandomCopyBytesRandomSeed.c
     ProcSysKernelRandomUuidRandomSeed.c
     RandomSeed.c
     RtlGenRandomSeed.c
@@ -23,6 +36,5 @@ add_library(cjdns-crypto-random-seed
 add_dependencies(cjdns-crypto-random-seed NACL)
 
 target_link_libraries(cjdns-crypto-random-seed
-    util
-    ${NACL_LIBRARIES}
+    ${SEED_LIBRARIES}
 )

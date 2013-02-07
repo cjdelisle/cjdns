@@ -24,10 +24,14 @@
 #include "crypto/random/seed/DevUrandomRandomSeed.h"
 #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
 #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
+#include "crypto/random/seed/AppleSecRandomCopyBytesRandomSeed.h"
 
 static RandomSeed_Provider PROVIDERS[] = {
     /** windows */
     RtlGenRandomSeed_new,
+
+    /** SecRandomCopyBytes(Rnd, Count, Bytes) (OS X) */
+    AppleSecRandomCopyBytesRandomSeed_new,
 
     /** bsd syscall(KERN_ARND) */
     BsdKernArndSysctlRandomSeed_new,
