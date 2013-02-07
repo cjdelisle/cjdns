@@ -15,10 +15,10 @@
 
 #include "crypto/random/seed/AppleSecRandomCopyBytesRandomSeed.h"
 
+#ifdef OSX
 #include <Security/SecRandom.h>
 #include <inttypes.h>
 
-#ifdef OSX
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
     if (SecRandomCopyBytes(NULL, 64, (uint8_t *)output) != 0) {
