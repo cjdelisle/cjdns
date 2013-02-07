@@ -371,7 +371,7 @@ static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
 #else
     int prefixLen = 0;
 #endif
-// Apple doesn't handle prefix length of 1 properly
+// Apple doesn't handle prefix length of 0 properly. 3 covers all IPv6 unicast space.
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
