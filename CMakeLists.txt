@@ -255,6 +255,13 @@ target_link_libraries(privatetopublic
     util
     crypto
 )
+add_executable(publictoip6
+    publictoip6.c
+)
+target_link_libraries(publictoip6
+    util
+    cjdns-crypto-key
+)
 
 
 #INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
