@@ -107,7 +107,7 @@ forwarded correctly.
 
     ip -6 route add dev eth0 1111:1111:1111:1111::1
     ip -6 route add dev tun0 1111:1111:1111:1111::0/64
-    ip -6 route add default gw 1111:1111:1111:1111::1
+    ip -6 route add default via 1111:1111:1111:1111::1
 
 Finally you will need to enable IPv6 forwarding, to do this, run:
 
