@@ -174,18 +174,14 @@ void TUNConfigurator_addIp6Address(const char* interfaceName,
 
     /* turn the prefixlen into a mask, and add it to the request */
     struct sockaddr_in6* mask = &in6_addreq.ifra_prefixmask;
-    u_char *cp;
 
-    int len = prefixLen;
     mask->sin6_len = sizeof(*mask);
-    if ((prefixLen == 0) || (prefixLen == 128)) {
+    if (prefixLen >= 128 || prefixLen <= 0) {
         memset(&mask->sin6_addr, 0xff, sizeof(struct in6_addr));
     } else {
         memset((void *)&mask->sin6_addr, 0x00, sizeof(mask->sin6_addr));
-        for (cp = (u_char *)&mask->sin6_addr; len > 7; len -= 8) {
-            *cp++ = 0xff;
-        }
-        *cp = 0xff << (8 - len);
+        memset((void *)&mask->sin6_addr, 0xff, prefixLen>>3);
+        ((uint8_t*)&mask->sin6_addr)[prefixLen>>3] = 0xff << (8 - (prefixLen%8));
     }
 
     strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
