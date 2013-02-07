@@ -27,7 +27,7 @@
 
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
-    Bits_memset(output, 0, sizeof(output));
+    Bits_memset(output, 0, sizeof(*output));
     int fd = -1;
     int tries = 0;
     while ((fd = open("/dev/urandom", O_RDONLY, 0)) < 0) {
@@ -38,7 +38,7 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     tries = 0;
     uint8_t* buff = (uint8_t*) output;
-    int count = sizeof(output);
+    int count = sizeof(*output);
     while (count > 0) {
         int r = read(fd, buff, count);
         if (r < 1) {
@@ -52,7 +52,7 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
         count -= r;
     }
     close(fd);
-    if (count == 0 && !Bits_isZero(output, sizeof(output))) {
+    if (count == 0 && !Bits_isZero(output, sizeof(*output))) {
         return 0;
     }
     return -1;
