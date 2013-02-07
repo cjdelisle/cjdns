@@ -366,6 +366,12 @@ static void addAddressCallback(Dict* responseMessage, void* vcontext)
 
 static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
 {
+#ifdef OSX
+    int prefixLen = 3;
+#else
+    int prefixLen = 0;
+#endif
+// Apple doesn't handle prefix length of 1 properly
     if (!ctx->ifName) {
         Log_error(ctx->logger, "Failed to set IP address because TUN interface is not setup");
         return;
@@ -375,7 +381,7 @@ static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
         Dict args = Dict_CONST(
             String_CONST("address"), String_OBJ(String_CONST(printedAddr)), Dict_CONST(
             String_CONST("interfaceName"), String_OBJ(ctx->ifName), Dict_CONST(
-            String_CONST("prefixLen"), Int_OBJ(0), NULL
+            String_CONST("prefixLen"), Int_OBJ(prefixLen), NULL
         )));
         Dict msg = Dict_CONST(
             String_CONST("args"), Dict_OBJ(&args), Dict_CONST(
