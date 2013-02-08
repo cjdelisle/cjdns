@@ -682,8 +682,10 @@ static inline void responseFromNode(struct Node* node,
 {
     if (node) {
         uint64_t worst = tryNextNodeAfter(module);
-        node->reach = (worst - millisecondsSinceRequest) * LINK_STATE_MULTIPLIER;
-        NodeStore_updateReach(node, module->nodeStore);
+        if (worst > millisecondsSinceRequest) {
+            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
+            NodeStore_updateReach(node, module->nodeStore);
+        }
     }
 }
 
