@@ -194,6 +194,9 @@
 /** All searches will be killed after this amount of time nomatter how bad the GMRT is. */
 #define MAX_TIMEOUT 10000
 
+/** Never allow a search to be timed out in less than this number of milliseconds. */
+#define MIN_TIMEOUT 10
+
 /*--------------------Structures--------------------*/
 /**
  * A structure to give the user when performing a search so they can cancel it.
@@ -342,7 +345,7 @@ static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
     x = x + (rand() % (x | 1)) / 2;
-    return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : x;
+    return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
 /**
