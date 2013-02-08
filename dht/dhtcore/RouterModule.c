@@ -1046,11 +1046,11 @@ struct RouterModule_Search* RouterModule_beginSearch(
     struct SearchCallbackContext* scc =
         searchAllocator->malloc(sizeof(struct SearchCallbackContext), searchAllocator);
 
-    scc->timeoutMilliseconds = tryNextNodeAfter(module);
+    uint64_t timeoutMilliseconds = tryNextNodeAfter(module);
 
     struct Timeout* timeout = Timeout_setTimeout(searchRequestTimeout,
                                                  scc,
-                                                 scc->timeoutMilliseconds,
+                                                 timeoutMilliseconds,
                                                  module->eventBase,
                                                  searchAllocator);
 
@@ -1063,6 +1063,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
         .requestType = CJDHTConstants_QUERY_FN,
         .targetKey = CJDHTConstants_TARGET,
         .lastNodeCalled = firstSearchNode,
+        .timeoutMilliseconds = timeoutMilliseconds
     };
     Bits_memcpyConst(scc, &sccLocal, sizeof(struct SearchCallbackContext));
     Bits_memcpyConst(&scc->targetAddress, &targetAddr, sizeof(struct Address));
