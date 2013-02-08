@@ -566,6 +566,14 @@ static void searchRequestTimeout(void* vcontext)
         #endif
 
         n->reach /= 2;
+
+        if (LabelSplicer_isOneHop(n->address.path)) {
+            // If the node is directly connected, don't allow the reach to be zeroed
+            // because because the node is being periodically pinged at the switch level
+            // if the link is broken, the node will be zeroed anyway.
+            n->reach++;
+        }
+
         NodeStore_updateReach(n, scc->routerModule->nodeStore);
     }
 
