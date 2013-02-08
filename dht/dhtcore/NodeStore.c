@@ -125,15 +125,33 @@ static inline void replaceNode(struct Node* nodeToReplace,
     Bits_memcpyConst(&nodeToReplace->address, addr, sizeof(struct Address));
 }
 
+#ifdef Log_DEBUG
+    static void logNodeZeroed(struct Log* logger, struct Node* node)
+    {
+        uint8_t ip6[40];
+        AddrTools_printIp(ip6, node->address.ip6.bytes);
+        Log_debug(logger, "Zeroing reach for node [%s]", ip6);
+    }
+#else
+    #define logNodeZeroed(x, y)
+#endif
+
+static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)
+{
+    return nodeForIndex(store, header - store->headers);
+}
+
 static inline void adjustReach(struct NodeHeader* header,
-                               const int64_t reachDiff)
+                               const int64_t reachDiff,
+                               struct NodeStore* store)
 {
     if (reachDiff == 0) {
         return;
     }
     int64_t newReach = reachDiff + header->reach;
-    if (newReach < 0) {
+    if (newReach <= 0) {
         header->reach = 0;
+        logNodeZeroed(store->logger, nodeForHeader(header, store));
     } else if (newReach > INT32_MAX) {
         header->reach = INT32_MAX;
     } else {
@@ -195,7 +213,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                     uint32_t oldReach = store->headers[i].reach;
                 #endif*/
 
-                adjustReach(&store->headers[i], reachDifference);
+                adjustReach(&store->headers[i], reachDifference, store);
 
                 if (version) {
                     store->headers[i].version = version;
@@ -238,7 +256,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
         // Free space, regular insert.
         replaceNode(&store->nodes[store->size], &store->headers[store->size], addr, store);
-        adjustReach(&store->headers[store->size], reachDifference);
+        adjustReach(&store->headers[store->size], reachDifference, store);
         store->headers[store->size].version = version;
 
         return nodeForIndex(store, store->size++);
@@ -254,7 +272,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
         if (distance == 0 && Address_isSame(&store->nodes[i].address, addr)) {
             // Node already exists
-            adjustReach(&store->headers[i], reachDifference);
+            adjustReach(&store->headers[i], reachDifference, store);
             return &store->nodes[i];
         }
 
@@ -271,16 +289,11 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                 addr,
                 store);
 
-    adjustReach(&store->headers[indexOfNodeToReplace], reachDifference);
+    adjustReach(&store->headers[indexOfNodeToReplace], reachDifference, store);
 
     store->headers[indexOfNodeToReplace].version = version;
 
     return nodeForIndex(store, indexOfNodeToReplace);
-}
-
-static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore* store)
-{
-    return nodeForIndex(store, header - store->headers);
 }
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store)
@@ -403,10 +416,16 @@ void NodeStore_updateReach(const struct Node* const node,
         if (LabelSplicer_routesThrough(dest, path)) {
             if (store->headers[i].reach > node->reach) {
                 store->headers[i].reach = node->reach;
+                if (node->reach == 0) {
+                    logNodeZeroed(store->logger, &store->nodes[i]);
+                }
             }
         } else if (LabelSplicer_routesThrough(path, dest)) {
             if (store->headers[i].reach < node->reach) {
                 store->headers[i].reach = node->reach;
+                if (node->reach == 0) {
+                    logNodeZeroed(store->logger, &store->nodes[i]);
+                }
             }
         }
     }
@@ -463,6 +482,7 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
                 NodeStore_remove(&store->nodes[i], store);
                 out++;
             } else {
+                logNodeZeroed(store->logger, &store->nodes[i]);
                 store->headers[i].reach = 0;
             }
         }
