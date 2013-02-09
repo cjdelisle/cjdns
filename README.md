@@ -1,38 +1,143 @@
 # cjdns
 
+Encrypted networking for regular people.
+
+Cjdns implements an encrypted IPv6 network using public key cryptography for
+address allocation and a distributed hash table for routing. This provides
+near zero-configuration networking without many of the security and robustness
+issues that regular IPv4 and IPv6 networks have.
+
+
+## Why?
+
 To give regular people more power over their communications.
 
-Why are we lacking power and what does that mean? The Internet is in many ways the great equalizer,
-bringing to everyone the powers once reserved to those wealthy enough to own a radio station or a
-newspaper. Still the ownership of the actual infrastructure of the net is exclusive for many
-reasons, mostly because the protocols involved are simply too complex for regular people to use.
+Why are we lacking power and what does that mean? The Internet is in many ways
+the great equalizer, bringing to everyone the powers once reserved to those
+wealthy enough to own a radio station or a newspaper. Still the ownership of
+the actual infrastructure of the net is exclusive for many reasons, mostly
+because the protocols involved are simply too complex for regular people to
+use. (For instance, how many isolated wifi networks are in your neighbourhood -
+why are they not meshed and providing backhaul transit amongst each other in
+a robust, secure fashion : complexity).
 
-The centralization of power is seen in closure of websites such as wikileaks amid public outcry.
-Without speaking to the validity of one type of speech or another, it is fair to say that in a
-truly democratic world, only the most unpopular content such as child abuse, fraud and spam would
-be censored.
+The centralization of power is seen in closure of websites such as wikileaks
+amid public outcry.  Without speaking to the validity of one type of speech or
+another, it is fair to say that in a truly democratic world, only the most
+unpopular content such as child abuse, fraud and spam would be censored.
 
 
-## Anonymity (or lack thereof)
+## How close is it to complete?
 
-There has been some confusion about the status of cjdns as an anonymity tool. The short answer is
-it is not. It was designed with the hope of facilitating a better society where information is
-celebrated, not suppressed. The slightly longer answer is that while using cjdns, you have a
-measure of anonymity based on the fact that the network is decentralize and connections are made
-manually. Only your directly connected peers know who you are so finding out the identity of
-someone in the network is theoretically possible but only after getting a lot of people involved.
-Not exactly covert.
+A live testing network exists with roughly 300 active nodes. The software has
+been tested and is known to work on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32
+and PowerPC64. It is continually tested on Linux systems. While the software
+itself is stable, the protocols and algorithms are new inventions and we still
+don't understand how they work in the real world. Please update early and often
+to give developers the maximum latitude to make tweaks to the protocol and
+algorithms.
+
+
+## You Can Help!
+
+We are in desperate need for buildbots running on Apple OSX systems.
+
+If you an Apple OSX system, or another alternative or esoteric architecture 
+please join the IRC channel (see the end of this document) and ask about
+running a buildbot. Or about other ways you can help too :)
+
+Current list of known needs:
+
+* buildbot for Apple OSX
+
+* buildbot for PowerPC
+
+* buildbot for SPARC
+
+* buildbot for Itanium
+
+
+## Anonymity
+
+Cjdns does not provide anonymity. Governments and their representatives can
+almost certainly compel answers to questions like 'who sent this traffic' - but
+these are not technical issues, rather legal and political.
+
+Technically, only directly connected peers know where a node connects to the
+cjdns network (either by a tunnel endpoint, or by being on the same
+ethernet/wifi network).  Routers may know up to about 20 hops within the cjdns
+network leading towards a node. Because of these two properties cjdns does not
+provide anonymity, though it may be quite hard to determine where a node is
+(and who runs it) if the adjacent node(s) do not want to answer. It can also be
+hard to prove that a particular node is or is not the source of some traffic
+(as they may be forwarding for someone else - or claim to be forwarding when
+they initiated it).
+
+Short story - if another individual wants to know who owns a particular cjdns
+address that will be very hard for them to establish conclusively. If the
+government or law governing the person who provides the connection for the
+address in question wants to know, they can very likely get a pretty good idea
+very rapidly.
+
+### Details
+
+Tracing a node's location requires interrogating a router to establish where
+traffic will be forwarded. Because all routers participate in a single global
+data structure, this data is essentially public. Routers that are close (within
+20 or so hops) of the node being traced may well know the exact path to send
+packets along to reach the node. Establishing more detail about the node such
+as who runs it or where it is physically can be done asking the adjacent nodes.
+(And if you do not have contact information for that node, the same process
+can be used to obtain that).
+
+Cjdns has two basic modes - it can run as an overlay network (which is how it
+is largely used today - via UDP tunnels to other cooperating machines). Or it
+can run as a replacement for IPv4, replacing the entire network. We need to
+consider these cases separately. In both cases attackers need to make a series
+of queries which may be rebuffed, may be disclosed to the person under
+investigation, or may require coercion to get answers.
+
+### Overlay network
+
+When running as an overlay network, actual connectivity is happening on top
+of the IPv4 Internet. So the process to establish contact details for a
+particular node is: Establish details for any node on the path to them, and
+ask for the IPv4 endpoint of the next node on the path. Lookup their details
+via the IPv4 address allocation registry. Contact them. Rinse and repeat.
+
+This is time consuming and probably jumps across many national borders, but
+most of the details are public record, so it is conceptually straight forward.
+
+### Replacement Internet
+
+When running as a replacement for the Internet - the long term ambition for
+Cjdns - end users will probably still buy transit from ISPs. ISP routers will
+be well known - even if the ISPs don't make them visible and public, the very
+nature of large routers which many different paths flow through will make them
+extremely obvious to anyone trying to map the network. The physical backbones
+that make up the Internet are relatively small mesh. So the process for
+determining who owns a given node will be to find the first well known node -
+an ISP router - and ask them for the contact details for the next hop on the
+path to the node you want to find out about.
+
+Note that this will tend to be geographically close to the node in question,
+because the whole point of efficient routing is to route to nodes :). As such
+it will usually be contained in a small geopolitical area.
 
 
 ## Security
 
-When you receive a packet of information from the Internet, it seems logical to assume that it was
-meant for you, that it came from the computer which it says it came from and that nobody else has
-been reading or modifying it on the way. While many popular software applications are designed
-around these assumptions, the existing Internet does not guarantee any of them and a number of
-network security exploits come from the cases where these assumptions break down.
+Cjdns encrypts all traffic and nodes cannot pretend to be other existing nodes.
+They can make up as many distinct identities as they want - they just will not
+be the identity of other machines. This eliminates the ability to perform
+anonymous attacks on other machines and eliminates the ability to observe
+sensitive material in transit.
 
-Cjdns aims to guarantee these assumptions by using modern cryptography in a non-intrusive way.
+Many popular software applications are not designed to cope with attackers
+pretending to be a well known or trusted machine, or with data being observed
+while in transit: the existing Internet is not a safe place to run those
+applications, which leads to a number of security exploits existing that are
+impossible in cjdns.
 
 
 ## Simplicity
@@ -51,43 +156,31 @@ routing among a number of nodes rather than requiring every node to know the ful
 other node.
 
 
-## How does it work?
+## How does routing work?
 
-In order to understand how cjdns works, it is important to understand how the existing Internet
-works when you send a packet. At each "intersection in the road" the router reads the address on
-the packet and decides which turn it should take. In the cjdns net, a packet goes to a router and
-the router labels the packet with directions to the router best able to handle it. That is, a
-router which is physically nearby and has an address numerically close to the destination address
-of the packet. The directions are added to the packet to allow it to go through a number of
-routers with minimal handling. They just read the label and bounce the packet wherever the next
-bits in the label tell them to. Routers have a responsibility to "keep in touch" with other
-routers that are physically close by and numerically near to their address.
+In order to understand how cjdns routing works, it is important to understand
+how the existing Internet works when you send a packet. At each "intersection
+in the road" the router reads the address on the packet and decides which turn
+it should take.
+
+In the cjdns net, a packet goes to a router and the router labels the packet
+with directions to the router best able to handle it. That is, a router which
+is physically nearby and has an address numerically close to the destination
+address of the packet. The directions are added to the packet to allow it to go
+through a number of routers with minimal handling - a verifiable form of source
+routing. They just read the label and bounce the packet wherever the next bits
+in the label tell them to. Routers have a responsibility to "keep in touch"
+with other routers that are physically close by and numerically near to their
+address.
 
 The router engine is a modified implementation of the Kademlia DHT design.
 
 
-## How close is it to complete?
-
-A live testing network exists with roughly 300 active nodes. The software has been tested and is
-known to work on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32 and PowerPC64. It is continually tested
-on Linux systems. While the software itself is stable, the protocols and algorithms are new
-inventions and we still don't understand how they work in the real world. Please update early and
-often to give developers the maximum latitude to make tweaks to the protocol and algorithms.
-
-
-## You Can Help!
-
-If you have a system based on an alternative architecture, join the IRC channel and ask about
-running a buildbot. We are specifically looking for buildbots running on Apple OSX systems but
-bots running on PowerPC, SPARC, Itanium or any other esoteric architectures are also helpful.
-
-Join the IRC channel and ask about other ways you can help.
-
-
 ## What about DNS?
 
-DNS is a complex system to implement and highly complex to implement without central authority.
-If you would like to offer help with this part, I invite you to come join.
+DNS is a complex system to implement and highly complex to implement without
+central authority.  If you would like to offer help with this part, I invite
+you to come join.
 
 
 ## Where did the name cjdns come from?
@@ -118,6 +211,10 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 
 # How to install cjdns
+
+These instructions are for Debian / Debian derived distributions. They should
+be informative enough for user on other distributions - just don't expect them
+to work verbatim.
 
 ## 0. Install the build tools you will need.
 
@@ -228,6 +325,10 @@ It looks like this:
 
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
+
+https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md contains more
+details on configuration, including how to peer with other cjdns nodes over
+ethernet (including wifi).
 
 ## 4: Start it up!
 
