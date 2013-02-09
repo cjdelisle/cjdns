@@ -494,7 +494,9 @@ static int32_t parseGeneric(const struct Reader* reader,
         case '9':;
             // int64_t. Int is special because it is not a pointer but a int64_t.
             int64_t bint;
-            ret = parseint64_t(reader, &bint);
+            if ((ret = parseint64_t(reader, &bint)) == UNPARSABLE) {
+                break;
+            }
             out->type = Object_INTEGER;
             out->as.number = bint;
             break;
