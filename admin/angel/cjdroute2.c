@@ -323,7 +323,7 @@ static int genconf(struct Random* rand)
            "\n"
            "        // Change the user id to this user after starting up and getting resources.\n"
            "        {\n"
-           "            \"setuser\": \"nobody\"\n"
+           "            \"setuser\": \"nobody\",\n"
            "\n"
            "            // Exempt the Angel process from setting userId, the Angel is a small\n"
            "            // isolated piece of code which exists outside of the core's strict\n"
