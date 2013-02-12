@@ -40,89 +40,26 @@ algorithms.
 
 ## You Can Help!
 
-We are in desperate need for buildbots running on Apple OSX systems.
-
-If you an Apple OSX system, or another alternative or esoteric architecture 
-please join the IRC channel (see the end of this document) and ask about
-running a buildbot. Or about other ways you can help too :)
-
-Current list of known needs:
-
-* buildbot for Apple OSX
-
-* buildbot for PowerPC
-
-* buildbot for SPARC
-
-* buildbot for Itanium
+We are in desperate need for buildbots running on Apple OSX systems. If you would
+like to donate one, you could mail it or set it up to run all of the time and
+provide remote shell access. Please join the IRC channel (see the end of this
+document) and ask about this and other ways you can help. :)
 
 
 ## Anonymity
 
-Cjdns does not provide anonymity. Governments and their representatives can
-almost certainly compel answers to questions like 'who sent this traffic' - but
-these are not technical issues, rather legal and political.
+Unlike TOR, I2P and Freenet, cjdns was not designed to provide anonymity against
+a determined adversary, cjdns does not use sub-optimal routing to bolster
+anonymity the at cost of performance. Cjdns users do have a measure of anonymity
+based on the fact that information is only shared between nodes on a
+need-to-know basis and only those peers who you have manually connected to need
+to know your IPv4 address.
 
-Technically, only directly connected peers know where a node connects to the
-cjdns network (either by a tunnel endpoint, or by being on the same
-ethernet/wifi network).  Routers may know up to about 20 hops within the cjdns
-network leading towards a node. Because of these two properties cjdns does not
-provide anonymity, though it may be quite hard to determine where a node is
-(and who runs it) if the adjacent node(s) do not want to answer. It can also be
-hard to prove that a particular node is or is not the source of some traffic
-(as they may be forwarding for someone else - or claim to be forwarding when
-they initiated it).
-
-Short story - if another individual wants to know who owns a particular cjdns
-address that will be very hard for them to establish conclusively. If the
-government or law governing the person who provides the connection for the
-address in question wants to know, they can very likely get a pretty good idea
-very rapidly.
-
-### Details
-
-Tracing a node's location requires interrogating a router to establish where
-traffic will be forwarded. Because all routers participate in a single global
-data structure, this data is essentially public. Routers that are close (within
-20 or so hops) of the node being traced may well know the exact path to send
-packets along to reach the node. Establishing more detail about the node such
-as who runs it or where it is physically can be done asking the adjacent nodes.
-(And if you do not have contact information for that node, the same process
-can be used to obtain that).
-
-Cjdns has two basic modes - it can run as an overlay network (which is how it
-is largely used today - via UDP tunnels to other cooperating machines). Or it
-can run as a replacement for IPv4, replacing the entire network. We need to
-consider these cases separately. In both cases attackers need to make a series
-of queries which may be rebuffed, may be disclosed to the person under
-investigation, or may require coercion to get answers.
-
-### Overlay network
-
-When running as an overlay network, actual connectivity is happening on top
-of the IPv4 Internet. So the process to establish contact details for a
-particular node is: Establish details for any node on the path to them, and
-ask for the IPv4 endpoint of the next node on the path. Lookup their details
-via the IPv4 address allocation registry. Contact them. Rinse and repeat.
-
-This is time consuming and probably jumps across many national borders, but
-most of the details are public record, so it is conceptually straight forward.
-
-### Replacement Internet
-
-When running as a replacement for the Internet - the long term ambition for
-Cjdns - end users will probably still buy transit from ISPs. ISP routers will
-be well known - even if the ISPs don't make them visible and public, the very
-nature of large routers which many different paths flow through will make them
-extremely obvious to anyone trying to map the network. The physical backbones
-that make up the Internet are relatively small mesh. So the process for
-determining who owns a given node will be to find the first well known node -
-an ISP router - and ask them for the contact details for the next hop on the
-path to the node you want to find out about.
-
-Note that this will tend to be geographically close to the node in question,
-because the whole point of efficient routing is to route to nodes :). As such
-it will usually be contained in a small geopolitical area.
+The most obvious way to get someone's identifying information would be to trace
+the path through the network between you and them, then demand that each 
+operator along the path reveal the identity of the next. If your directly linked
+peers have secure computers and are [beyond pain] then you have very little to
+worry about.
 
 
 ## Security
@@ -133,11 +70,11 @@ be the identity of other machines. This eliminates the ability to perform
 anonymous attacks on other machines and eliminates the ability to observe
 sensitive material in transit.
 
-Many popular software applications are not designed to cope with attackers
-pretending to be a well known or trusted machine, or with data being observed
-while in transit: the existing Internet is not a safe place to run those
-applications, which leads to a number of security exploits existing that are
-impossible in cjdns.
+Many popular software applications are not designed with the assumption that
+attackers will not pretend to be a well known or trusted machine, and that data
+being is not observed or modified while in transit. Most network based security
+exploits come from situations where these assumptions break down and cjdns aims
+to guarantee them.
 
 
 ## Simplicity
@@ -167,11 +104,11 @@ In the cjdns net, a packet goes to a router and the router labels the packet
 with directions to the router best able to handle it. That is, a router which
 is physically nearby and has an address numerically close to the destination
 address of the packet. The directions are added to the packet to allow it to go
-through a number of routers with minimal handling - a verifiable form of source
-routing. They just read the label and bounce the packet wherever the next bits
-in the label tell them to. Routers have a responsibility to "keep in touch"
-with other routers that are physically close by and numerically near to their
-address.
+through a number of routers with minimal handling,
+*a verifiable form of source routing*. They just read the label and bounce the
+packet wherever the next bits in the label tell them to. Routers have a
+responsibility to "keep in touch" with other routers that are physically close
+by and numerically near to their address.
 
 The router engine is a modified implementation of the Kademlia DHT design.
 
@@ -515,3 +452,6 @@ perl library
 The perl port of the python api library is maintained by Mikey. For usage instructions, head over to the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/perl/CJDNS/README).
 
 
+
+
+[beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
