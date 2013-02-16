@@ -120,10 +120,10 @@ static inline uint8_t sendToRouter(struct Node* node,
     if (session->version) {
         node->version = session->version;
     } else if (node->version) {
-        // If the session is already running, we have to reset it otherwise we
-        // will have a version 1 session but not know the handle for the other
-        // node.
         session->version = node->version;
+    }
+    if (session->version && !session->sendHandle_be) {
+        // If we have a v1 session and don't know the send handle, reset the session.
         CryptoAuth_reset(&session->iface);
     }
 
@@ -338,10 +338,16 @@ static void debugHandles(struct Log* logger, struct SessionManager_Session* sess
 {
     uint8_t ip[40];
     AddrTools_printIp(ip, session->ip6);
-    Log_debug(logger, "%s ver[%u] send[%u] recv[%u] ip[%s]",
+    int sendHandle;
+    if (!session->sendHandle_be) {
+        sendHandle = -1;
+    } else {
+        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
+    }
+    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s]",
               message,
               session->version,
-              Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be),
+              sendHandle,
               Endian_hostToBigEndian32(session->receiveHandle_be),
               ip);
 }
