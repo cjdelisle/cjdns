@@ -659,11 +659,6 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
     } else {
         decrypt(nonce, content, secret, wrapper->isInitiator, false);
     }
-    int ret = callReceivedMessage(wrapper, content);
-    if (ret) {
-        cryptoAuthDebug(wrapper, "Call received message failed returning %u", ret);
-        return false;
-    }
     return true;
 }
 
@@ -878,16 +873,20 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 cryptoAuthDebug0(wrapper, "Final handshake step succeeded");
                 Bits_memcpyConst(wrapper->secret, secret, 32);
-                return Error_NONE;
+                return callReceivedMessage(wrapper, received);
             }
             CryptoAuth_reset(&wrapper->externalInterface);
             cryptoAuthDebug0(wrapper, "Final handshake step failed");
         }
-    } else if (nonce > 2 && decryptMessage(wrapper, nonce, received, wrapper->secret)) {
-        // If decryptMessage returns false then we will try the packet as a handshake.
-        return Error_NONE;
+    } else if (nonce > 4) {
+        if (decryptMessage(wrapper, nonce, received, wrapper->secret) {
+            return callReceivedMessage(wrapper, received);
+        } else {
+            cryptoAuthDebug0(wrapper, "Failed to decrypt message");
+            return Error_UNDELIVERABLE;
+        }
     } else {
-        cryptoAuthDebug0(wrapper, "Decryption failed, trying message as a handshake");
+        cryptoAuthDebug0(wrapper, "Received handshake message during established connection");
     }
     Message_shift(received, 4);
     return decryptHandshake(wrapper, nonce, received, header);
