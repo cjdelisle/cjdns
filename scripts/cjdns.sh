@@ -46,7 +46,7 @@ if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 # path ot the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
 
-PID=`pidof -o %PPID $CJDNS`
+PID=$(pgrep -d " " -f "$CJDNS")
 
 stop()
 {
@@ -56,8 +56,11 @@ stop()
 
 start()
 {
-    $CJDROUTE < $CONF 2>&1 >> $LOGTO &
-    if [ $? -gt 0 ]; then return 1; fi
+    $CJDROUTE < $CONF &>> $LOGTO
+    if [ $? -gt 0 ]; then
+        echo "Failed to start. (CJDNS already running?)"
+        return 1
+    fi
 }
 
 status()
