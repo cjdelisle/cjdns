@@ -178,7 +178,7 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     struct Node ns;
     if (!n) {
         // TODO: this is a mess
-        Bits_memcpyConst(&ns.address, &dmessage->address, sizeof(struct Address));
+        Bits_memcpyConst(&ns.address, dmessage->address, sizeof(struct Address));
         if (dmessage->replyTo) {
             int64_t* verPtr = Dict_getInt(dmessage->replyTo->asDict, String_CONST("p"));
             ns.version = (verPtr) ? *verPtr : 0;
