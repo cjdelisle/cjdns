@@ -46,7 +46,7 @@ if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 # path ot the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
 
-PID=`pidof -o %PPID $CJDNS`
+PID=$(pgrep -d " " -f "$CJDNS")
 
 stop()
 {
