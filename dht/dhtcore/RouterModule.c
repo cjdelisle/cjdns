@@ -540,6 +540,16 @@ static void searchStep(struct SearchCallbackContext* scc)
     Timeout_resetTimeout(scc->timeout, scc->timeoutMilliseconds);
 }
 
+static uint32_t reachAfterTimeout(const uint32_t oldReach)
+{
+    switch (oldReach) {
+        case 2: return 1;
+        case 1:
+        case 0: return 0;
+        default: return oldReach / 2 + 2;
+    }
+}
+
 /**
  * Callback for when a search has timed out.
  *
@@ -554,18 +564,22 @@ static void searchRequestTimeout(void* vcontext)
     // Search timeout -> set to 0 reach.
     if (n) {
 
+        uint32_t newReach = reachAfterTimeout(n->reach);
+
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &n->address);
             Log_debug(scc->routerModule->logger,
-                       "Search timeout for %s, after %lums. halving reach\n",
+                       "Search timeout for %s, after %lums. changing reach from %u to %u\n",
                        addr,
-                       (unsigned long)scc->timeoutMilliseconds);
+                       (unsigned long)scc->timeoutMilliseconds,
+                       n->reach,
+                       newReach);
         #endif
 
-        n->reach /= 2;
+        n->reach = newReach;
 
-        if (LabelSplicer_isOneHop(n->address.path)) {
+        if (newReach == 0 && LabelSplicer_isOneHop(n->address.path)) {
             // If the node is directly connected, don't allow the reach to be zeroed
             // because because the node is being periodically pinged at the switch level
             // if the link is broken, the node will be zeroed anyway.
@@ -1095,11 +1109,6 @@ int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
     return NodeStore_brokenPath(path, module->nodeStore);
 }
 
-static uint32_t reachAfterPingTimeout(const uint32_t oldReach)
-{
-    return oldReach / 32;
-}
-
 static void pingTimeoutCallback(void* vping)
 {
     struct RouterModule_Ping* ping = (struct RouterModule_Ping*) vping;
@@ -1114,7 +1123,7 @@ static void pingTimeoutCallback(void* vping)
             #endif
             // If this node has been flushed by a brokenPath call then its path is 0
             if (ping->node->address.path != 0) {
-                ping->node->reach = reachAfterPingTimeout(ping->node->reach);
+                ping->node->reach = reachAfterTimeout(ping->node->reach);
                 NodeStore_updateReach(ping->node, module->nodeStore);
             }
             module->pings[i] = NULL;
