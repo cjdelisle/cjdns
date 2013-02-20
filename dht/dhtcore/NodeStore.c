@@ -169,7 +169,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         return NULL;
     }
 
-    Address_getPrefix(addr);
+    uint32_t pfx = Address_getPrefix(addr);
     if (Bits_memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
         printf("got introduced to ourselves\n");
         return NULL;
@@ -183,7 +183,6 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         Assert_true(false);
     }
 
-    uint32_t pfx = Address_getPrefix(addr);
     if (store->size < store->capacity) {
         for (uint32_t i = 0; i < store->size; i++) {
             if (store->headers[i].addressPrefix == pfx
