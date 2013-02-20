@@ -295,8 +295,7 @@ static int runTest_orderCheck(struct AppState* state,
     const uint64_t labelMin = 0xF000000000000000;
     const uint64_t labelMax = 0xFFFFFFFFFFFFFFFF;
 
-    labels = state->allocator->calloc(AddressMapper_MAX_ENTRIES, sizeof(uint64_t),
-                                                                state->allocator);
+    labels = Allocator_calloc(state->allocator, AddressMapper_MAX_ENTRIES, sizeof(uint64_t));
 
     if (labels == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
@@ -413,7 +412,7 @@ static void initAppState(struct AppState* state)
 
 static void deinitAppState(struct AppState* state)
 {
-    state->allocator->free(state->allocator);
+    Allocator_free(state->allocator);
 }
 
 /* if the user passed an unsigned integer then use that as a seed,

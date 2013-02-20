@@ -26,15 +26,24 @@
 
 int CanaryAllocator_isOverflow(struct CanaryAllocator_pvt* ctx)
 {
-    if (ctx->canaryCount > 0) {
-        if (ctx->firstCanary != ctx->canaries[0]
-            || ctx->lastCanary != ctx->canaries[ctx->canaryCount - 1])
-        {
+    if (ctx->allocCount <= 0) {
+        return 0;
+    }
+    if (ctx->firstFile != ctx->allocations[0].file) {
+        fprintf(stderr, "CanaryAllocator:%d Allocations list is corrupt\n", __LINE__);
+        return 1;
+    }
+    for (int i = 0; i < ctx->allocCount; i++) {
+        if (ctx->allocations[i].canaryValue != ctx->canaryValue) {
+            fprintf(stderr, "CanaryAllocator:%d Allocations list is corrupt\n", __LINE__);
             return 1;
         }
-    }
-    for (int i = 0; i < ctx->canaryCount; i++) {
-        if (*ctx->canaries[i] != ctx->canaryValue) {
+        if (*ctx->allocations[i].beginCanary != ctx->canaryValue
+            || *ctx->allocations[i].endCanary != ctx->canaryValue)
+        {
+            fprintf(stderr, "%s:%d Buffer overflow, %s canary corrupt\n",
+                    ctx->allocations[i].file, ctx->allocations[i].line,
+                    (*ctx->allocations[i].beginCanary != ctx->canaryValue) ? "begin" : "end");
             return 1;
         }
     }
@@ -42,52 +51,72 @@ int CanaryAllocator_isOverflow(struct CanaryAllocator_pvt* ctx)
 }
 
 /** @see Allocator->free() */
-static void freeAllocator(const struct Allocator* allocator)
+static void freeAllocator(const struct Allocator* allocator, const char* identFile, int identLine)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
-    Assert_always(!CanaryAllocator_isOverflow(ctx));
-    ctx->alloc->free(ctx->alloc);
+    CanaryAllocator_check(allocator);
+    ctx->alloc->free(ctx->alloc, identFile, identLine);
 }
 
 static inline void* newAllocation(struct CanaryAllocator_pvt* ctx,
                                   uint32_t* allocation,
-                                  size_t sizeInts)
+                                  size_t sizeInts,
+                                  const char* identFile,
+                                  int identLine)
 {
-    //Assert_always(!CanaryAllocator_isOverflow(ctx));
-    ctx->canaries =
-        ctx->alloc->realloc(ctx->canaries, (ctx->canaryCount + 2) * sizeof(uint32_t*), ctx->alloc);
-    allocation[0] = ctx->canaryValue;
-    if (ctx->canaryCount == 0) {
-        ctx->firstCanary = allocation;
+    Assert_always(!CanaryAllocator_isOverflow(ctx));
+    ctx->allocCount++;
+    ctx->allocations =
+        Allocator_realloc(ctx->alloc,
+                          ctx->allocations,
+                          ctx->allocCount * sizeof(struct CanaryAllocator_Allocation));
+    if (ctx->allocCount == 1) {
+        // This is used to check the integrity of the first element in the list.
+        ctx->firstFile = identFile;
     }
-    ctx->canaries[ctx->canaryCount++] = allocation;
+    struct CanaryAllocator_Allocation* a = &ctx->allocations[ctx->allocCount - 1];
+    a->canaryValue = ctx->canaryValue;
+    a->file = identFile;
+    a->line = identLine;
+    a->beginCanary = allocation;
+    a->endCanary = &allocation[sizeInts - 1];
+    allocation[0] = ctx->canaryValue;
     allocation[sizeInts - 1] = ctx->canaryValue;
-    ctx->canaries[ctx->canaryCount++] = &allocation[sizeInts - 1];
-    ctx->lastCanary = &allocation[sizeInts - 1];
     return (void*) (&allocation[1]);
 }
 
 /** @see Allocator->malloc() */
-static void* allocatorMalloc(size_t size, const struct Allocator* allocator)
+static void* allocatorMalloc(size_t size,
+                             const struct Allocator* allocator,
+                             const char* identFile,
+                             int identLine)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     // get it on an even number of ints.
-    uint32_t* out = ctx->alloc->malloc(SIZE_BYTES(size), ctx->alloc);
-    return newAllocation(ctx, out, SIZE_INTS(size));
+    uint32_t* out = ctx->alloc->malloc(SIZE_BYTES(size), ctx->alloc, identFile, identLine);
+    return newAllocation(ctx, out, SIZE_INTS(size), identFile, identLine);
 }
 
 /** @see Allocator->calloc() */
-static void* allocatorCalloc(size_t length, size_t count, const struct Allocator* allocator)
+static void* allocatorCalloc(size_t length,
+                             size_t count,
+                             const struct Allocator* allocator,
+                             const char* identFile,
+                             int identLine)
 {
-    void* pointer = allocatorMalloc(length * count, allocator);
+    void* pointer = allocatorMalloc(length * count, allocator, identFile, identLine);
     Bits_memset(pointer, 0, length * count);
     return pointer;
 }
 
 /** @see Allocator->clone() */
-static void* allocatorClone(size_t length, const struct Allocator* allocator, const void* toClone)
+static void* allocatorClone(size_t length,
+                            const struct Allocator* allocator,
+                            const void* toClone,
+                            const char* identFile,
+                            int identLine)
 {
-    void* pointer = allocatorMalloc(length, allocator);
+    void* pointer = allocatorMalloc(length, allocator, identFile, identLine);
     Bits_memcpy(pointer, toClone, length);
     return pointer;
 }
@@ -110,26 +139,28 @@ static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
                               size_t size,
-                              const struct Allocator* allocator)
+                              const struct Allocator* allocator,
+                              const char* identFile,
+                              int identLine)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     if (((uint8_t*) original) == NULL) {
-        return allocatorMalloc(size, allocator);
+        return allocatorMalloc(size, allocator, identFile, identLine);
     }
     uint32_t* beginCanary = ((uint32_t*) original) - 1;
     Assert_always(*beginCanary == ctx->canaryValue);
-    for (int i = 0; i < ctx->canaryCount; i++) {
-        if (ctx->canaries[i] == beginCanary) {
-            Assert_always(ctx->canaryCount > i + 1 && *ctx->canaries[i + 1] == ctx->canaryValue);
-            for (int j = i + 2; j < ctx->canaryCount; j++) {
-                ctx->canaries[j - 2] = ctx->canaries[j];
-            }
-            ctx->canaryCount -= 2;
-            break;
+    for (int i = 0; i < ctx->allocCount; i++) {
+        if (ctx->allocations[i].beginCanary == beginCanary) {
+            Bits_memmove(&ctx->allocations[i],
+                         &ctx->allocations[i + 1],
+                         (ctx->allocCount - i - 1) * sizeof(struct CanaryAllocator_Allocation));
+            ctx->allocCount--;
+            uint32_t* out = ctx->alloc->realloc(
+                ((uint32_t*)original) - 1, SIZE_BYTES(size), ctx->alloc, identFile, identLine);
+            return newAllocation(ctx, out, SIZE_INTS(size), identFile, identLine);
         }
     }
-    uint32_t* out = ctx->alloc->realloc(((uint32_t*)original) - 1, SIZE_BYTES(size), ctx->alloc);
-    return newAllocation(ctx, out, SIZE_INTS(size));
+    Assert_true(0);
 }
 
 /** @see Allocator_child() */
@@ -167,7 +198,7 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
     return &ctx->pub;
 }
 
-void CanaryAllocator_check(struct Allocator* allocator)
+void CanaryAllocator_check(const struct Allocator* allocator)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     Assert_always(!CanaryAllocator_isOverflow(ctx));

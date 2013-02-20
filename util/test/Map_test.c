@@ -67,6 +67,6 @@ int main()
                 Assert_true(false);
             }
         }
-        alloc->free(alloc);
+        Allocator_free(alloc);
     }
 }

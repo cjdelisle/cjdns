@@ -93,8 +93,8 @@ static int32_t parseString(const struct Reader* reader,
     number[i] = '\0';
     size_t length = strtoul(number, NULL, 10);
 
-    char* bytes = allocator->malloc(length + 1, allocator);
-    String* string = allocator->malloc(sizeof(String), allocator);
+    char* bytes = Allocator_malloc(allocator, length + 1);
+    String* string = Allocator_malloc(allocator, sizeof(String));
 
     /* Put a null terminator after the end so it can be treated as a normal string. */
     bytes[length] = '\0';
@@ -227,7 +227,7 @@ static int32_t parseList(const struct Reader* reader,
         if (ret != 0) {
             return ret;
         }
-        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
+        thisEntry = Allocator_malloc(allocator, sizeof(struct List_Item));
         thisEntry->elem = element;
 
         /* Read backwards so that the list reads out forward. */
@@ -311,7 +311,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
 
         entryPointer->next = lastEntryPointer;
         entryPointer->key = key;
@@ -354,7 +354,7 @@ static int32_t parseGeneric(const struct Reader* reader,
         return OUT_OF_CONTENT_TO_READ;
     }
 
-    Object* out = allocator->malloc(sizeof(Object), allocator);
+    Object* out = Allocator_malloc(allocator, sizeof(Object));
 
     if (firstChar <= '9' && firstChar >= '0') {
         /* It's a string! */
@@ -373,14 +373,14 @@ static int32_t parseGeneric(const struct Reader* reader,
                 break;
             case 'l':;
                 /* List. */
-                List* list = allocator->calloc(sizeof(List), 1, allocator);
+                List* list = Allocator_calloc(allocator, sizeof(List), 1);
                 ret = parseList(reader, allocator, list);
                 out->type = Object_LIST;
                 out->as.list = list;
                 break;
             case 'd':;
                 /* Dictionary. */
-                Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+                Dict* dict = Allocator_calloc(allocator, sizeof(Dict), 1);
                 ret = parseDictionary(reader, allocator, dict);
                 out->type = Object_DICT;
                 out->as.dictionary = dict;

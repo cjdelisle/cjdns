@@ -35,7 +35,7 @@ int Process_spawn(char* binaryPath, char** args)
             int argCount;
             for (argCount = 0; args[argCount]; argCount++);
             struct Allocator* alloc = MallocAllocator_new((argCount + 2) * sizeof(char*));
-            argv = alloc->calloc((argCount + 2), sizeof(char*), alloc);
+            argv = Allocator_calloc(alloc, (argCount + 2), sizeof(char*));
         }
         for (int i = 1; args[i-1]; i++) {
             argv[i] = args[i-1];
@@ -56,7 +56,7 @@ char* Process_getPath(struct Allocator* alloc)
         return NULL;
     }
     uint32_t length = strlen(buff);
-    char* output = alloc->calloc(length + 1, 1, alloc);
+    char* output = Allocator_calloc(alloc, length + 1, 1);
     Bits_memcpy(output, buff, length);
     return output;
 }

@@ -31,9 +31,9 @@ struct Writer* ArrayWriter_new(void* writeToBuffer,
                                const struct Allocator* allocator)
 {
     struct Writer* writer =
-        allocator->calloc(sizeof(struct Writer), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct Writer), 1);
     struct ArrayWriter_context* context =
-        allocator->calloc(sizeof(struct ArrayWriter_context), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct ArrayWriter_context), 1);
 
     if (context == NULL || writer == NULL) {
         return NULL;

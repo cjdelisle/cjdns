@@ -55,7 +55,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         privateKey = (char*)pks;
     }
 
-    uint8_t* publicKey = allocator->malloc(32, allocator);
+    uint8_t* publicKey = Allocator_malloc(allocator, 32);
     crypto_scalarmult_curve25519_base(publicKey, (uint8_t*)privateKey);
 
     uint8_t* ip = Allocator_malloc(allocator, 16);

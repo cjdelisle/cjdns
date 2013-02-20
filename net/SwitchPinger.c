@@ -223,17 +223,16 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         return NULL;
     }
 
-    struct Ping* ping =
-        pp->pingAlloc->clone(sizeof(struct Ping), pp->pingAlloc, &(struct Ping) {
-            .public = {
-                .pingAlloc = pp->pingAlloc
-            },
-            .label = label,
-            .data = String_clone(data, pp->pingAlloc),
-            .context = ctx,
-            .onResponse = onResponse,
-            .pingerPing = pp
-        });
+    struct Ping* ping = Allocator_clone(pp->pingAlloc, (&(struct Ping) {
+        .public = {
+            .pingAlloc = pp->pingAlloc
+        },
+        .label = label,
+        .data = String_clone(data, pp->pingAlloc),
+        .context = ctx,
+        .onResponse = onResponse,
+        .pingerPing = pp
+    }));
     Identity_set(ping);
     pp->context = ping;
 
@@ -251,7 +250,7 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct Log* logger,
                                       struct Allocator* alloc)
 {
-    struct SwitchPinger* sp = alloc->malloc(sizeof(struct SwitchPinger), alloc);
+    struct SwitchPinger* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger));
     Bits_memcpyConst(sp, (&(struct SwitchPinger) {
         .iface = iface,
         .pinger = Pinger_new(eventBase, logger, alloc),

@@ -354,7 +354,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
                                         struct Random* rand)
 {
     struct PipeInterface_pvt* context =
-        alloc->clone(sizeof(struct PipeInterface_pvt), alloc, &(struct PipeInterface_pvt) {
+        Allocator_clone(alloc, (&(struct PipeInterface_pvt) {
             .pub = {
                 .generic = {
                     .sendMessage = sendMessage
@@ -367,7 +367,7 @@ struct PipeInterface* PipeInterface_new(int inPipe,
             .timeOfLastMessage = Time_currentTimeMilliseconds(eventBase),
             .eventBase = eventBase,
             .logger = logger
-        });
+        }));
 
     Log_info(logger, "Creating new PipeInterface [%p]", (void*)context);
 

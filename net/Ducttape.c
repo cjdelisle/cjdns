@@ -1083,7 +1083,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct IpTunnel* ipTun,
                                    struct Random* rand)
 {
-    struct Ducttape_pvt* context = allocator->calloc(sizeof(struct Ducttape_pvt), 1, allocator);
+    struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
     context->routerModule = routerModule;
     context->logger = logger;

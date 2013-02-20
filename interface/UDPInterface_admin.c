@@ -110,9 +110,9 @@ static void newInterface2(struct Context* ctx,
     }
 
     // sizeof(struct UDPInterface*) the size of a pointer.
-    ctx->ifaces = ctx->allocator->realloc(ctx->ifaces,
-                                          sizeof(struct UDPInterface*) * (ctx->ifCount + 1),
-                                          ctx->allocator);
+    ctx->ifaces = Allocator_realloc(ctx->allocator,
+                                    ctx->ifaces,
+                                    sizeof(struct UDPInterface*) * (ctx->ifCount + 1));
     ctx->ifaces[ctx->ifCount] = udpIf;
 
     Dict out = Dict_CONST(
@@ -145,14 +145,13 @@ void UDPInterface_admin_register(struct EventBase* base,
                                  struct Admin* admin,
                                  struct InterfaceController* ic)
 {
-    struct Context* ctx = allocator->clone(
-        sizeof(struct Context), allocator, &(struct Context) {
-            .eventBase = base,
-            .allocator = allocator,
-            .logger = logger,
-            .admin = admin,
-            .ic = ic
-        });
+    struct Context* ctx = Allocator_clone(allocator, (&(struct Context) {
+        .eventBase = base,
+        .allocator = allocator,
+        .logger = logger,
+        .admin = admin,
+        .ic = ic
+    }));
 
     struct Admin_FunctionArg adma[1] = {
         { .name = "bindAddress", .required = 0, .type = "String" }

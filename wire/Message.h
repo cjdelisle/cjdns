@@ -45,13 +45,13 @@ struct Message
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
-    uint8_t* allocation = allocator->malloc(toClone->length + toClone->padding, allocator);
+    uint8_t* allocation = Allocator_malloc(allocator, toClone->length + toClone->padding);
     Bits_memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
-    return allocator->clone(sizeof(struct Message), allocator, &(struct Message) {
+    return Allocator_clone(allocator, (&(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
         .bytes = allocation + toClone->padding
-    });
+    }));
 }
 
 static inline void Message_copyOver(struct Message* output,
@@ -62,7 +62,7 @@ static inline void Message_copyOver(struct Message* output,
     size_t outTotalLength = output->length + output->padding;
     uint8_t* allocation = output->bytes - output->padding;
     if (inTotalLength > outTotalLength) {
-        allocation = allocator->realloc(allocation, inTotalLength, allocator);
+        allocation = Allocator_realloc(allocator, allocation, inTotalLength);
     }
     Bits_memcpy(allocation, input->bytes - input->padding, inTotalLength);
     output->bytes = allocation + input->padding;

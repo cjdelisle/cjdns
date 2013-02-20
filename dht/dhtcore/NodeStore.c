@@ -52,10 +52,10 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Log* logger,
                                 struct Admin* admin)
 {
-    struct NodeStore* out = allocator->malloc(sizeof(struct NodeStore), allocator);
+    struct NodeStore* out = Allocator_malloc(allocator, sizeof(struct NodeStore));
     out->thisNodeAddress = myAddress;
-    out->headers = allocator->calloc(sizeof(struct NodeHeader), capacity, allocator);
-    out->nodes = allocator->calloc(sizeof(struct Node), capacity, allocator);
+    out->headers = Allocator_calloc(allocator, sizeof(struct NodeHeader), capacity);
+    out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
     out->capacity = capacity;
     out->logger = logger;
     out->size = 0;
@@ -340,8 +340,8 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
         DistanceNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
-    struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
-    out->nodes = allocator->malloc(max * sizeof(char*), allocator);
+    struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
+    out->nodes = Allocator_malloc(allocator, max * sizeof(char*));
 
     uint32_t outIndex = 0;
     for (uint32_t i = 0; i < max; i++) {
@@ -390,8 +390,8 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
         LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
-    struct NodeList* out = allocator->malloc(sizeof(struct NodeList), allocator);
-    out->nodes = allocator->malloc(count * sizeof(char*), allocator);
+    struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
+    out->nodes = Allocator_malloc(allocator, count * sizeof(char*));
 
     uint32_t outIndex = 0;
     for (uint32_t i = 0; i < count; i++) {

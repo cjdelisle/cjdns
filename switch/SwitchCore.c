@@ -70,7 +70,7 @@ struct SwitchCore
 
 struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocator)
 {
-    struct SwitchCore* core = allocator->calloc(sizeof(struct SwitchCore), 1, allocator);
+    struct SwitchCore* core = Allocator_calloc(allocator, sizeof(struct SwitchCore), 1);
     core->allocator = allocator;
     core->interfaceCount = 0;
     core->logger = logger;

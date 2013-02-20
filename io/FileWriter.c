@@ -28,7 +28,7 @@ static uint64_t bytesWritten(const struct Writer* writer);
 struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator)
 {
     struct FileWriter_context* context =
-        allocator->calloc(sizeof(struct FileWriter_context), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct FileWriter_context), 1);
 
     if (context == NULL) {
         return NULL;

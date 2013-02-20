@@ -44,7 +44,7 @@ static void callback(String* data, struct Ping* ping)
     uint32_t now = Time_currentTimeMilliseconds(ping->pinger->eventBase);
     ping->onResponse(data, now - ping->timeSent, ping->public.context);
     *(ping->selfPtr) = NULL;
-    ping->public.pingAlloc->free(ping->public.pingAlloc);
+    Allocator_free(ping->public.pingAlloc);
 }
 
 static void timeoutCallback(void* vping)
@@ -86,7 +86,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
         Bits_memcpy(toSend->bytes + 4, data->bytes, data->len);
     }
 
-    struct Ping* ping = alloc->clone(sizeof(struct Ping), alloc, &(struct Ping) {
+    struct Ping* ping = Allocator_clone(alloc, (&(struct Ping) {
         .public = {
             .pingAlloc = alloc,
         },
@@ -96,7 +96,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
         .data = toSend,
         .timeSent = Time_currentTimeMilliseconds(pinger->eventBase),
         .onResponse = onResponse
-    });
+    }));
     Identity_set(ping);
     ping->timeout =
         Timeout_setTimeout(timeoutCallback, ping, timeoutMilliseconds, pinger->eventBase, alloc);
@@ -121,9 +121,9 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
 
 struct Pinger* Pinger_new(struct EventBase* eventBase, struct Log* logger, struct Allocator* alloc)
 {
-    return alloc->clone(sizeof(struct Pinger), alloc, &(struct Pinger) {
+    return Allocator_clone(alloc, (&(struct Pinger) {
         .eventBase = eventBase,
         .logger = logger,
         .allocator = alloc
-    });
+    }));
 }

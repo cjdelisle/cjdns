@@ -37,7 +37,7 @@ void tryOverflow(struct Allocator* alloc, int bytes)
     struct Allocator* child = Allocator_child(alloc);
     tryOverflowLow(child, bytes);
     child = Allocator_child(alloc);
-    tryOverflowHigh(alloc, bytes);
+    tryOverflowHigh(child, bytes);
 }
 
 void tryCalloc(struct Allocator* alloc, int bytes)

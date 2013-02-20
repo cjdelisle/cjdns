@@ -22,17 +22,26 @@
 
 #include <stdint.h>
 
+struct CanaryAllocator_Allocation {
+    const char* file;
+    int line;
+    uint32_t* beginCanary;
+    uint32_t* endCanary;
+    uint32_t canaryValue;
+};
+
 struct CanaryAllocator_pvt
 {
     struct Allocator pub;
     struct Allocator* alloc;
-    uint32_t** canaries;
 
-    /** Store the first and last canary pointers to make sure the list hasn't been corrupted. */
-    uint32_t* firstCanary;
-    uint32_t* lastCanary;
+    struct CanaryAllocator_Allocation* allocations;
 
-    int canaryCount;
+    /** Store the first file to make sure the list hasn't been corrupted. */
+    const char* firstFile;
+
+    int allocCount;
+
     uint32_t canaryValue;
     struct Random* rand;
     Identity

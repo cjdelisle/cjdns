@@ -113,7 +113,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         ));
         struct Allocator* child = Allocator_child(ctx->alloc);
         rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx, child);
-        child->free(child);
+        Allocator_free(child);
     }
 }
 
@@ -157,7 +157,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
-                perCallAlloc->free(perCallAlloc);
+                Allocator_free(perCallAlloc);
 
                 entry = entry->next;
             }
@@ -264,7 +264,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
-                perCallAlloc->free(perCallAlloc);
+                Allocator_free(perCallAlloc);
 
                 entry = entry->next;
             }

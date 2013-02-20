@@ -201,13 +201,13 @@ struct AdminClient_Result* AdminClient_rpcCall(String* function,
         String_CONST("aq"), String_OBJ(function), Dict_CONST(
         String_CONST("args"), Dict_OBJ(&a), NULL
     )));
-    struct Result* res = alloc->clone(sizeof(struct Result), alloc, &(struct Result) {
+    struct Result* res = Allocator_clone(alloc, (&(struct Result) {
         .public = {
             .err = AdminClient_Error_NONE
         },
         .ctx = ctx,
         .alloc = alloc
-    });
+    }));
     ctx->result = res;
     doCall(&message, res, false);
     return &res->public;

@@ -35,18 +35,18 @@
 struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator)
 {
     struct DHTModuleRegistry* reg =
-        allocator->calloc(sizeof(struct DHTModuleRegistry), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct DHTModuleRegistry), 1);
     reg->allocator = allocator;
-    reg->members = allocator->calloc(sizeof(char*), 1, allocator);
+    reg->members = Allocator_calloc(allocator, sizeof(char*), 1);
     return reg;
 }
 
 int DHTModuleRegistry_register(struct DHTModule* module,
                                struct DHTModuleRegistry* registry)
 {
-    registry->members = registry->allocator->realloc(registry->members,
-                                                     sizeof(char*) * (registry->memberCount + 2),
-                                                     registry->allocator);
+    registry->members = Allocator_realloc(registry->allocator,
+                                          registry->members,
+                                          sizeof(char*) * (registry->memberCount + 2));
 
     registry->members[registry->memberCount] = module;
     registry->memberCount++;

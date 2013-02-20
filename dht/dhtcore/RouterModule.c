@@ -230,17 +230,15 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Admin* admin,
                                            struct Random* rand)
 {
-    struct RouterModule* const out = allocator->calloc(sizeof(struct RouterModule), 1, allocator);
+    struct RouterModule* const out = Allocator_calloc(allocator, sizeof(struct RouterModule), 1);
 
-    DHTModuleRegistry_register(allocator->clone(sizeof(struct DHTModule),
-                                                allocator,
-                                                &(struct DHTModule)
-    {
+    struct DHTModule* dm = Allocator_clone(allocator, (&(struct DHTModule) {
         .name = "RouterModule",
         .context = out,
         .handleIncoming = handleIncoming,
         .handleOutgoing = handleOutgoing
-    }), registry);
+    }));
+    DHTModuleRegistry_register(dm, registry);
 
     Hex_decode(out->gitVersionBytes, 20, Version_gitVersion(), 40);
     out->gitVersion.len = 20;
@@ -743,7 +741,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             }
 
             struct Allocator* pa = module->pings[index]->allocator;
-            pa->free(pa);
+            Allocator_free(pa);
             module->pings[index] = NULL;
 
         } else {
@@ -939,10 +937,9 @@ static inline int handleQuery(struct DHTMessage* message,
                                                           version,
                                                           message->allocator);
 
-    String* nodes = message->allocator->malloc(sizeof(String), message->allocator);
+    String* nodes = Allocator_malloc(message->allocator, sizeof(String));
     nodes->len = nodeList->size * Address_SERIALIZED_SIZE;
-    nodes->bytes = message->allocator->malloc(nodeList->size * Address_SERIALIZED_SIZE,
-                                              message->allocator);
+    nodes->bytes = Allocator_malloc(message->allocator, nodeList->size * Address_SERIALIZED_SIZE);
 
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
@@ -1054,7 +1051,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     SearchStore_requestSent(firstSearchNode, module->searchStore);
 
     struct SearchCallbackContext* scc =
-        searchAllocator->malloc(sizeof(struct SearchCallbackContext), searchAllocator);
+        Allocator_malloc(searchAllocator, sizeof(struct SearchCallbackContext));
 
     uint64_t timeoutMilliseconds = tryNextNodeAfter(module);
 
@@ -1081,7 +1078,7 @@ struct RouterModule_Search* RouterModule_beginSearch(
     SearchStore_setContext(scc, search);
 
     struct RouterModule_Search* out =
-        searchAllocator->malloc(sizeof(struct RouterModule_Search), searchAllocator);
+        Allocator_malloc(searchAllocator, sizeof(struct RouterModule_Search));
     out->search = search;
 
     return out;
@@ -1131,7 +1128,7 @@ static void pingTimeoutCallback(void* vping)
         pingResponse(ping, true, lag, NULL, module);
     }
 
-    ping->allocator->free(ping->allocator);
+    Allocator_free(ping->allocator);
 }
 
 /** See: RouterModule.h */
@@ -1161,7 +1158,7 @@ int RouterModule_pingNode(struct Node* node,
 
     struct Allocator* pingAllocator = Allocator_child(module->allocator);
     struct RouterModule_Ping* ping =
-        pingAllocator->calloc(sizeof(struct RouterModule_Ping), 1, pingAllocator);
+        Allocator_calloc(pingAllocator, sizeof(struct RouterModule_Ping), 1);
     *location = ping;
     ping->node = node;
     ping->module = module;

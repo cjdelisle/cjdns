@@ -191,7 +191,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
 
     Assert_always(client);
 
-    return alloc->clone(sizeof(struct AdminTestFramework), alloc, &(struct AdminTestFramework) {
+    return Allocator_clone(alloc, (&(struct AdminTestFramework) {
         .admin = admin,
         .client = client,
         .alloc = alloc,
@@ -199,7 +199,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .logger = logger,
         .addr = Sockaddr_clone(udpAdmin->addr, alloc),
         .angelInterface = &pi->generic
-    });
+    }));
 }
 
 void AdminTestFramework_tearDown(struct AdminTestFramework* framework)

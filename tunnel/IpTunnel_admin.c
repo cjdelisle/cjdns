@@ -183,10 +183,10 @@ static void showConnection(Dict* args, void* vcontext, String* txid)
 
 void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct Allocator* alloc)
 {
-    struct Context* context = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
+    struct Context* context = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
         .ipTun = ipTun
-    });
+    }));
 
     Admin_registerFunction("IpTunnel_allowConnection", allowConnection, context, true,
         ((struct Admin_FunctionArg[]) {

@@ -110,7 +110,7 @@ int init(const uint8_t* privateKey,
 {
     printf("\nSetting up:\n");
     struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(1048576), NULL);
-    textBuff = allocator->malloc(BUFFER_SIZE, allocator);
+    textBuff = Allocator_malloc(allocator, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
     struct Random* rand = Random_new(allocator, logger, NULL);
@@ -118,11 +118,11 @@ int init(const uint8_t* privateKey,
     struct EventBase* base = EventBase_new(allocator);
 
     ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
-    if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+    if1 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
-    });
+    }));
     cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
@@ -133,10 +133,10 @@ int init(const uint8_t* privateKey,
         CryptoAuth_setAuth(&passStr, 1, cif1);
         CryptoAuth_addUser(&passStr, 1, userObj, ca2);
     }
-    if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+    if2 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
-    });
+    }));
     cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 

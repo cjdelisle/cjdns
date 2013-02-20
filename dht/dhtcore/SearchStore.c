@@ -95,7 +95,7 @@ struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct EventBase* eventBase,
                                     struct Log* logger)
 {
-    struct SearchStore* out = allocator->calloc(sizeof(struct SearchStore), 1, allocator);
+    struct SearchStore* out = Allocator_calloc(allocator, sizeof(struct SearchStore), 1);
     out->allocator = allocator;
     out->gmrtRoller = gmrtRoller;
     out->eventBase = eventBase;
@@ -117,7 +117,7 @@ struct SearchStore_Search* SearchStore_newSearch(
 
     struct Allocator* allocator = Allocator_child(store->allocator);
     struct SearchStore_Search* search =
-        allocator->calloc(sizeof(struct SearchStore_Search), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct SearchStore_Search), 1);
     search->searchIndex = i;
     search->nodeCount = 0;
     Bits_memcpyConst(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
@@ -152,7 +152,7 @@ void* SearchStore_getContext(struct SearchStore_Search* search)
 void SearchStore_freeSearch(struct SearchStore_Search* search)
 {
     search->store->searches[search->searchIndex] = NULL;
-    search->allocator->free(search->allocator);
+    Allocator_free(search->allocator);
 }
 
 /** See: SearchStore.h */
@@ -270,7 +270,7 @@ struct SearchStore_Node* SearchStore_getNode(const String* tid,
     }
 
     struct SearchStore_Node* out =
-        allocator->malloc(sizeof(struct SearchStore_Node), allocator);
+        Allocator_malloc(allocator, sizeof(struct SearchStore_Node));
 
     struct SearchNode* node = &search->nodes[index.node];
 
@@ -362,7 +362,7 @@ struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* sear
         if (search->nodes[index].timeOfRequest == 0) {
             // Found the next node.
             struct SearchStore_Node* out =
-                allocator->malloc(sizeof(struct SearchStore_Node), allocator);
+                Allocator_malloc(allocator, sizeof(struct SearchStore_Node));
             out->address = &search->nodes[index].address;
             out->searchIndex = search->searchIndex;
             out->nodeIndex = index;
@@ -387,7 +387,7 @@ struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_
     struct SearchNode* const lastSearchNode = &store->searches[searchIndex]->nodes[nodeIndex];
     struct SearchNode* searchNode = lastSearchNode;
     struct SearchStore_TraceElement* element =
-        allocator->malloc(sizeof(struct SearchStore_TraceElement), allocator);
+        Allocator_malloc(allocator, sizeof(struct SearchStore_TraceElement));
     struct SearchStore_TraceElement* const out = element;
 
     for (;;) {
@@ -399,7 +399,7 @@ struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_
             break;
         }
 
-        element->next = allocator->malloc(sizeof(struct SearchStore_TraceElement), allocator);
+        element->next = Allocator_malloc(allocator, sizeof(struct SearchStore_TraceElement));
         element = element->next;
     }
 

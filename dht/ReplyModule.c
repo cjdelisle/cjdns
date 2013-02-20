@@ -42,16 +42,14 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  */
 void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
 {
-    DHTModuleRegistry_register(allocator->clone(sizeof(struct DHTModule),
-                                                allocator,
-                                                &(struct DHTModule)
-    {
+    struct DHTModule* dm = Allocator_clone(allocator, (&(struct DHTModule) {
         .name = "ReplyModule",
         // We use the registry itself as the context
         .context = registry,
         .handleIncoming = handleIncoming,
         .handleOutgoing = handleOutgoing
-    }), registry);
+    }));
+    DHTModuleRegistry_register(dm, registry);
 }
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
@@ -62,15 +60,11 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
 
-    struct DHTMessage* reply =
-        message->allocator->clone(sizeof(struct DHTMessage),
-                                  message->allocator,
-                                  &(struct DHTMessage)
-        {
-            .replyTo = message,
-            .address = message->address,
-            .allocator = message->allocator
-        });
+    struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
+        .replyTo = message,
+        .address = message->address,
+        .allocator = message->allocator
+    }));
 
     DHTModuleRegistry_handleOutgoing(reply, registry);
 

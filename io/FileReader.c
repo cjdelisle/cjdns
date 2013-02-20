@@ -79,7 +79,7 @@ static void skip(size_t length, const struct Reader* reader)
 /** @see FileReader.h */
 struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
 {
-    struct Context* context = allocator->calloc(sizeof(struct Context), 1, allocator);
+    struct Context* context = Allocator_calloc(allocator, sizeof(struct Context), 1);
 
     context->toRead = toRead;
 

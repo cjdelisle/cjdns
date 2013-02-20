@@ -64,10 +64,10 @@ static void noFiles(Dict* args, void* vcontext, String* txid)
 
 void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin)
 {
-    struct Context* ctx = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .logger = logger,
         .admin = admin
-    });
+    }));
     struct Admin_FunctionArg setUserArgs[] = {
         { .name = "user", .required = 1, .type = "String" }
     };

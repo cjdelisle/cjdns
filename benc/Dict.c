@@ -89,7 +89,7 @@ List* Dict_getList(const Dict* dictionary, const String* key)
 /** @see Object.h */
 Dict* Dict_new(const struct Allocator* allocator)
 {
-    return allocator->calloc(sizeof(Dict), 1, allocator);
+    return Allocator_calloc(allocator, sizeof(Dict), 1);
 }
 
 /**
@@ -126,7 +126,7 @@ static Object* putObject(Dict* dictionary,
         prev_p = &(current->next);
         current = current->next;
     }
-    struct Dict_Entry* entry = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+    struct Dict_Entry* entry = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
     entry->key = key;
     entry->val = value;
     entry->next = current;
@@ -141,10 +141,10 @@ Object* Dict_putInt(Dict* dictionary,
                         int64_t value,
                         const struct Allocator* allocator)
 {
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_INTEGER,
         .as.number = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -157,10 +157,10 @@ Object* Dict_putString(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_STRING,
         .as.string = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -173,11 +173,11 @@ Object* Dict_putList(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_LIST,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.list = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -189,11 +189,11 @@ Object* Dict_putDict(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_DICT,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.dictionary = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 

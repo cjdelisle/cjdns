@@ -36,6 +36,6 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
  *
  * @param allocator the canary allocator.
  */
-void CanaryAllocator_check(struct Allocator* allocator);
+void CanaryAllocator_check(const struct Allocator* allocator);
 
 #endif

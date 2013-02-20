@@ -75,7 +75,7 @@ void Core_admin_register(uint8_t ipAddr[16],
                          struct Admin* admin,
                          struct EventBase* eventBase)
 {
-    struct Context* ctx = alloc->malloc(sizeof(struct Context), alloc);
+    struct Context* ctx = Allocator_malloc(alloc, sizeof(struct Context));
     Bits_memcpyConst(ctx->ipAddr, ipAddr, 16);
     ctx->ducttape = dt;
     ctx->logger = logger;

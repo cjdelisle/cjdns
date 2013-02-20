@@ -80,9 +80,9 @@ struct Map_CONTEXT
 
 static inline struct Map_CONTEXT* Map_FUNCTION(new)(struct Allocator* allocator)
 {
-    return allocator->clone(sizeof(struct Map_CONTEXT), allocator, &(struct Map_CONTEXT) {
+    return Allocator_clone(allocator, (&(struct Map_CONTEXT) {
         .allocator = allocator
-    });
+    }));
 }
 
 /**
@@ -135,19 +135,19 @@ static inline int Map_FUNCTION(remove)(int index, struct Map_CONTEXT* map)
             #ifdef Map_ENABLE_KEYS
                 Bits_memmove(&map->hashCodes[index],
                              &map->hashCodes[index + 1],
-                             (map->count - index) * sizeof(uint32_t));
+                             (map->count - index - 1) * sizeof(uint32_t));
 
                 Bits_memmove(&map->keys[index],
                              &map->keys[index + 1],
-                             (map->count - index) * sizeof(Map_KEY_TYPE));
+                             (map->count - index - 1) * sizeof(Map_KEY_TYPE));
             #endif
             Bits_memmove(&map->handles[index],
                          &map->handles[index + 1],
-                         (map->count - index) * sizeof(uint32_t));
+                         (map->count - index - 1) * sizeof(uint32_t));
 
             Bits_memmove(&map->values[index],
                          &map->values[index + 1],
-                         (map->count - index) * sizeof(Map_VALUE_TYPE));
+                         (map->count - index - 1) * sizeof(Map_VALUE_TYPE));
 
             map->count--;
         #else
@@ -176,27 +176,23 @@ static inline int Map_FUNCTION(put)(Map_VALUE_TYPE* value,
 {
     if (map->count == map->capacity) {
         #ifdef Map_ENABLE_KEYS
-            map->hashCodes =
-                map->allocator->realloc(map->hashCodes,
-                                        sizeof(uint32_t) * (map->count + 10),
-                                        map->allocator);
-            map->keys =
-                map->allocator->realloc(map->keys,
-                                        sizeof(Map_KEY_TYPE) * (map->count + 10),
-                                        map->allocator);
+            map->hashCodes = Allocator_realloc(map->allocator,
+                                               map->hashCodes,
+                                               sizeof(uint32_t) * (map->count + 10));
+            map->keys = Allocator_realloc(map->allocator,
+                                          map->keys,
+                                          sizeof(Map_KEY_TYPE) * (map->count + 10));
         #endif
 
         #ifdef Map_ENABLE_HANDLES
-            map->handles =
-                map->allocator->realloc(map->handles,
-                                        sizeof(uint32_t) * (map->count + 10),
-                                        map->allocator);
+            map->handles = Allocator_realloc(map->allocator,
+                                             map->handles,
+                                             sizeof(uint32_t) * (map->count + 10));
         #endif
 
-        map->values =
-            map->allocator->realloc(map->values,
-                                    sizeof(Map_VALUE_TYPE) * (map->count + 10),
-                                    map->allocator);
+        map->values = Allocator_realloc(map->allocator,
+                                        map->values,
+                                        sizeof(Map_VALUE_TYPE) * (map->count + 10));
 
         map->capacity += 10;
     }

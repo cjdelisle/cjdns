@@ -56,7 +56,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         .allocator = alloc
     };
 
-    uint8_t* buffer = alloc->malloc(512, alloc);
+    uint8_t* buffer = Allocator_malloc(alloc, 512);
 
     struct Message* outgoing =
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };

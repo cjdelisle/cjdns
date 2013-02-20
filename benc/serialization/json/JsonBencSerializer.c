@@ -109,10 +109,10 @@ static inline int parseString(const struct Reader* reader,
 
     int curSize = BUFF_SZ;
     struct Allocator* localAllocator = Allocator_child(allocator);
-    uint8_t* buffer = localAllocator->malloc(curSize, localAllocator);
+    uint8_t* buffer = Allocator_malloc(localAllocator, curSize);
     if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
         printf("Unterminated string\n");
-        localAllocator->free(localAllocator);
+        Allocator_free(localAllocator);
         return OUT_OF_CONTENT_TO_READ;
     }
     for (int i = 0; i < BUFF_MAX - 1; i++) {
@@ -122,24 +122,24 @@ static inline int parseString(const struct Reader* reader,
             uint8_t hex[2];
             if (reader->read((char*)hex, 2, reader)) {
                 printf("Unexpected end of input parsing escape sequence\n");
-                localAllocator->free(localAllocator);
+                Allocator_free(localAllocator);
                 return OUT_OF_CONTENT_TO_READ;
             }
             int byte = Hex_decodeByte(hex[0], hex[1]);
             if (byte == -1) {
                 printf("Invalid escape \"%c%c\" after \"%.*s\"\n",hex[0],hex[1],i+1,buffer);
-                localAllocator->free(localAllocator);
+                Allocator_free(localAllocator);
                 return UNPARSABLE;
             }
             buffer[i] = (uint8_t) byte;
         } else if (buffer[i] == '"') {
             *output = String_newBinary((char*)buffer, i, allocator);
-            localAllocator->free(localAllocator);
+            Allocator_free(localAllocator);
             return 0;
         }
         if (i == curSize - 1) {
             curSize <<= 1;
-            buffer = localAllocator->realloc(buffer, curSize, localAllocator);
+            buffer = Allocator_realloc(localAllocator, buffer, curSize);
         }
         if (reader->read(buffer + i + 1, 1, reader)) {
             if (i+1 <= 20) {
@@ -147,13 +147,13 @@ static inline int parseString(const struct Reader* reader,
             } else {
                 printf("Unterminated string starting with \"%.*s...\"\n", 20, buffer);
             }
-            localAllocator->free(localAllocator);
+            Allocator_free(localAllocator);
             return OUT_OF_CONTENT_TO_READ;
         }
     }
 
     printf("Maximum string length of %d bytes exceeded.\n",BUFF_SZ);
-    localAllocator->free(localAllocator);
+    Allocator_free(localAllocator);
     return UNPARSABLE;
 
     #undef BUFF_SZ
@@ -337,7 +337,7 @@ static int32_t parseList(const struct Reader* reader,
         if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
             return ret;
         }
-        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
+        thisEntry = Allocator_malloc(allocator, sizeof(struct List_Item));
         thisEntry->elem = element;
         thisEntry->next = NULL;
 
@@ -437,7 +437,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
 
         entryPointer->next = lastEntryPointer;
         entryPointer->key = key;
@@ -479,7 +479,7 @@ static int32_t parseGeneric(const struct Reader* reader,
         break;
     }
 
-    Object* out = allocator->malloc(sizeof(Object), allocator);
+    Object* out = Allocator_malloc(allocator, sizeof(Object));
 
     switch (firstChar) {
         case '0':
@@ -503,7 +503,7 @@ static int32_t parseGeneric(const struct Reader* reader,
 
         case '[':;
             // List.
-            List* list = allocator->calloc(sizeof(List), 1, allocator);
+            List* list = Allocator_calloc(allocator, sizeof(List), 1);
             ret = parseList(reader, allocator, list);
             out->type = Object_LIST;
             out->as.list = list;
@@ -511,7 +511,7 @@ static int32_t parseGeneric(const struct Reader* reader,
 
         case '{':;
             // Dictionary
-            Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+            Dict* dict = Allocator_calloc(allocator, sizeof(Dict), 1);
             ret = parseDictionary(reader, allocator, dict);
             out->type = Object_DICT;
             out->as.dictionary = dict;

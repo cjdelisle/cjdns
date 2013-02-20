@@ -68,10 +68,10 @@ static void doLog(struct Log* genericLog,
 
 struct Log* WriterLog_new(struct Writer* w, struct Allocator* alloc)
 {
-    return alloc->clone(sizeof(struct WriterLog), alloc, &(struct WriterLog) {
+    return Allocator_clone(alloc, (&(struct WriterLog) {
         .pub = {
             .callback = doLog
         },
         .writer = w
-    });
+    }));
 }

@@ -201,5 +201,5 @@ int main()
     sendMessage(tn, "can", tn->nodeC, tn->nodeA);
     sendMessage(tn, "establish", tn->nodeA, tn->nodeC);
 
-    alloc->free(alloc);
+    Allocator_free(alloc);
 }

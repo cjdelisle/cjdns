@@ -109,20 +109,15 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     struct Log* logger = WriterLog_new(writer, allocator);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger, NULL);
 
-    struct Interface* iface =
-        allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
-            .sendMessage = sendMessage,
-            .senderContext = resultMessage
-        });
+    struct Interface* iface = Allocator_clone(allocator, (&(struct Interface) {
+        .sendMessage = sendMessage,
+        .senderContext = resultMessage
+    }));
 
-    struct CryptoAuth_Wrapper* wrapper =
-        allocator->clone(sizeof(struct CryptoAuth_Wrapper),
-                         allocator,
-                         &(struct CryptoAuth_Wrapper)
-        {
-            .context = (struct CryptoAuth_pvt*) ca,
-            .wrappedInterface = iface
-        });
+    struct CryptoAuth_Wrapper* wrapper = Allocator_clone(allocator, (&(struct CryptoAuth_Wrapper) {
+        .context = (struct CryptoAuth_pvt*) ca,
+        .wrappedInterface = iface
+    }));
     Identity_set(wrapper);
 
     if (authPassword) {

@@ -84,11 +84,10 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
         if (!ping) {
             err = String_CONST("no open slots to store ping, try later.");
         } else {
-            ping->onResponseContext =
-                ping->pingAlloc->clone(sizeof(struct Ping), ping->pingAlloc, &(struct Ping) {
-                    .context = context,
-                    .txid = String_clone(txid, ping->pingAlloc),
-                });
+            ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
+                .context = context,
+                .txid = String_clone(txid, ping->pingAlloc),
+            }));
             SwitchPinger_sendPing(ping);
         }
     }
@@ -103,10 +102,10 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
                                  struct Admin* admin,
                                  struct Allocator* alloc)
 {
-    struct Context* ctx = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .switchPinger = sp,
         .admin = admin
-    });
+    }));
 
     Admin_registerFunction("SwitchPinger_ping", adminPing, ctx, true,
         ((struct Admin_FunctionArg[]) {

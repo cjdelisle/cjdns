@@ -119,14 +119,14 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
             Admin_sendMessage(&out, txid, ctx->admin);
         }
 
-        alloc->free(alloc);
+        Allocator_free(alloc);
         return;
     }
 
     // sizeof(struct ETHInterface*) the size of a pointer.
-    ctx->ifaces = ctx->allocator->realloc(ctx->ifaces,
-                                          sizeof(struct ETHInterface*) * (ctx->ifCount + 1),
-                                          ctx->allocator);
+    ctx->ifaces = Allocator_realloc(ctx->allocator,
+                                    ctx->ifaces,
+                                    sizeof(struct ETHInterface*) * (ctx->ifCount + 1));
     ctx->ifaces[ctx->ifCount] = ethIf;
 
     Dict out = Dict_CONST(
@@ -176,14 +176,13 @@ void ETHInterface_admin_register(struct EventBase* base,
                                  struct Admin* admin,
                                  struct InterfaceController* ic)
 {
-    struct Context* ctx = allocator->clone(
-        sizeof(struct Context), allocator, &(struct Context) {
-            .eventBase = base,
-            .allocator = allocator,
-            .logger = logger,
-            .admin = admin,
-            .ic = ic
-        });
+    struct Context* ctx = Allocator_clone(allocator, (&(struct Context) {
+        .eventBase = base,
+        .allocator = allocator,
+        .logger = logger,
+        .admin = admin,
+        .ic = ic
+    }));
 
     Admin_registerFunction("ETHInterface_new", newInterface, ctx, true,
         ((struct Admin_FunctionArg[]) {

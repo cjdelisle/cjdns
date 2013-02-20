@@ -893,10 +893,10 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   struct Log* logger,
                                   struct Random* rand)
 {
-    struct CryptoAuth_pvt* ca = allocator->calloc(sizeof(struct CryptoAuth_pvt), 1, allocator);
+    struct CryptoAuth_pvt* ca = Allocator_calloc(allocator, sizeof(struct CryptoAuth_pvt), 1);
     ca->allocator = allocator;
 
-    ca->passwords = allocator->calloc(sizeof(struct CryptoAuth_Auth), 256, allocator);
+    ca->passwords = Allocator_calloc(allocator, sizeof(struct CryptoAuth_Auth), 256);
     ca->passwordCount = 0;
     ca->passwordCapacity = 256;
     ca->eventBase = eventBase;
@@ -1005,17 +1005,16 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            struct CryptoAuth* ca)
 {
     struct CryptoAuth_pvt* context = Identity_cast((struct CryptoAuth_pvt*) ca);
-    struct CryptoAuth_Wrapper* wrapper =
-        toWrap->allocator->clone(sizeof(struct CryptoAuth_Wrapper), toWrap->allocator,
-            &(struct CryptoAuth_Wrapper) {
-                .user = NULL,
-                .nextNonce = 0,
-                .context = context,
-                .wrappedInterface = toWrap,
-                .requireAuth = requireAuth,
-                .authenticatePackets = authenticatePackets,
-                .timeOfLastPacket = Time_currentTimeSeconds(context->eventBase)
-            });
+    struct CryptoAuth_Wrapper* wrapper = Allocator_clone(toWrap->allocator,
+        (&(struct CryptoAuth_Wrapper) {
+            .user = NULL,
+            .nextNonce = 0,
+            .context = context,
+            .wrappedInterface = toWrap,
+            .requireAuth = requireAuth,
+            .authenticatePackets = authenticatePackets,
+            .timeOfLastPacket = Time_currentTimeSeconds(context->eventBase)
+        }));
 
     Identity_set(wrapper);
     toWrap->receiverContext = wrapper;

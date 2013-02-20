@@ -78,8 +78,8 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
                                                struct Log* logger,
                                                const struct Allocator* allocator)
 {
-    struct NodeCollector* out = allocator->malloc(sizeof(struct NodeCollector), allocator);
-    out->nodes = allocator->malloc(capacity * sizeof(struct NodeCollector_Element), allocator);
+    struct NodeCollector* out = Allocator_malloc(allocator, sizeof(struct NodeCollector));
+    out->nodes = Allocator_malloc(allocator, capacity * sizeof(struct NodeCollector_Element));
 
     for (uint32_t i = 0; i < capacity; i++) {
         out->nodes[i].value = 0;

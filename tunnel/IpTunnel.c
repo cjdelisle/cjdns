@@ -74,9 +74,7 @@ static struct IpTunnel_Connection* newConnection(bool isOutgoing, struct IpTunne
     if (context->pub.connectionList.count == context->connectionCapacity) {
         uint32_t newSize = (context->connectionCapacity + 4) * sizeof(struct IpTunnel_Connection);
         context->pub.connectionList.connections =
-            context->allocator->realloc(context->pub.connectionList.connections,
-                                       newSize,
-                                       context->allocator);
+            Allocator_realloc(context->allocator, context->pub.connectionList.connections, newSize);
         context->connectionCapacity += 4;
     }
     struct IpTunnel_Connection* conn =
@@ -726,17 +724,16 @@ struct IpTunnel* IpTunnel_new(struct Log* logger,
                               struct Random* rand,
                               struct Hermes* hermes)
 {
-    struct IpTunnel_pvt* context =
-        alloc->clone(sizeof(struct IpTunnel_pvt), alloc, &(struct IpTunnel_pvt) {
-            .pub = {
-                .tunInterface = { .sendMessage = incomingFromTun },
-                .nodeInterface = { .sendMessage = incomingFromNode }
-            },
-            .allocator = alloc,
-            .logger = logger,
-            .rand = rand,
-            .hermes = hermes
-        });
+    struct IpTunnel_pvt* context = Allocator_clone(alloc, (&(struct IpTunnel_pvt) {
+        .pub = {
+            .tunInterface = { .sendMessage = incomingFromTun },
+            .nodeInterface = { .sendMessage = incomingFromNode }
+        },
+        .allocator = alloc,
+        .logger = logger,
+        .rand = rand,
+        .hermes = hermes
+    }));
     context->timeout = Timeout_setInterval(timeout, context, 10000, eventBase, alloc);
     Identity_set(context);
 

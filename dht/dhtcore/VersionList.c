@@ -68,11 +68,10 @@ String* VersionList_stringify(struct VersionList* list, struct Allocator* alloc)
 
 struct VersionList* VersionList_new(uint32_t length, struct Allocator* alloc)
 {
-    struct VersionList* out = alloc->clone(sizeof(struct VersionList), alloc,
-        &(struct VersionList) {
-            .length = length,
-            .alloc = alloc
-        });
-    out->versions = alloc->calloc(4, length, alloc);
+    struct VersionList* out = Allocator_clone(alloc, (&(struct VersionList) {
+        .length = length,
+        .alloc = alloc
+    }));
+    out->versions = Allocator_calloc(alloc, 4, length);
     return out;
 }

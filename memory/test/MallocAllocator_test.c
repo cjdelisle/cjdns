@@ -29,7 +29,7 @@ int main()
     size_t bytesUsed;
 
     Assert_always((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
-    alloc->malloc(25, alloc);
+    Allocator_malloc(alloc, 25);
     bytesUsed += 25 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
@@ -37,11 +37,11 @@ int main()
     bytesUsed += ALLOCATION_SIZE + ALLOCATOR_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
-    child->malloc(30, child);
+    Allocator_malloc(child, 30);
     bytesUsed += 30 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
-    child->free(child);
+    Allocator_free(child);
     bytesUsed -= 30 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);

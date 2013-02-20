@@ -153,7 +153,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct EventBase* eventBase,
                             struct Random* rand)
 {
-    struct Janitor* janitor = alloc->clone(sizeof(struct Janitor), alloc, &(struct Janitor) {
+    struct Janitor* janitor = Allocator_clone(alloc, (&(struct Janitor) {
         .eventBase = eventBase,
         .routerModule = routerModule,
         .nodeStore = nodeStore,
@@ -161,7 +161,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase),
         .allocator = alloc,
         .rand = rand
-    });
+    }));
 
     janitor->timeout = Timeout_setInterval(maintanenceCycle,
                                            janitor,

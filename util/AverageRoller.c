@@ -68,9 +68,9 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
                                         struct EventBase* eventBase,
                                         const struct Allocator* allocator)
 {
-    struct AverageRoller* roller = allocator->calloc(
-        sizeof(struct AverageRoller) + (sizeof(struct SumAndEntryCount) * (windowSeconds - 1)),
-        1, allocator);
+    size_t size =
+        sizeof(struct AverageRoller) + (sizeof(struct SumAndEntryCount) * (windowSeconds - 1));
+    struct AverageRoller* roller = Allocator_calloc(allocator, size, 1);
 
     struct AverageRoller tempRoller = {
         .windowSeconds = windowSeconds,

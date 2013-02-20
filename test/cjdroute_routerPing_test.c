@@ -40,7 +40,7 @@ int main()
 
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(pingBenc);
-    uint8_t* buff = allocator->calloc(buffLen, 1, allocator);
+    uint8_t* buff = Allocator_calloc(allocator, buffLen, 1);
     struct Headers_SwitchHeader* sh = (struct Headers_SwitchHeader*) buff;
     sh->label_be = Endian_hostToBigEndian64(4);
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) &sh[1];

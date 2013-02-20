@@ -30,7 +30,7 @@ static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* regist
                                                 const struct Allocator* allocator)
 {
     struct DHTModule* module =
-        allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+        Allocator_clone(allocator, (&(struct DHTModule) {
             .context = registry,
             .handleIncoming = bounceMessage
         });
@@ -42,7 +42,7 @@ static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePoint
                                                 const struct Allocator* allocator)
 {
     struct DHTModule* module =
-        allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+        Allocator_clone(allocator, (&(struct DHTModule) {
             .context = messagePointer,
             .handleOutgoing = catchOutgoing
         });

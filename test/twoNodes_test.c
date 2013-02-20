@@ -139,5 +139,5 @@ int main()
     sendMessage(tn, "ok bye now", true);
     sendMessage(tn, "byebye", false);
 
-    alloc->free(alloc);
+    Allocator_free(alloc);
 }

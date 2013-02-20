@@ -55,7 +55,7 @@ struct AddressMapper* AddressMapper_new(struct Allocator* allocator)
 {
     struct AddressMapper* map;
 
-    map = allocator->calloc(sizeof(struct AddressMapper), 1, allocator);
+    map = Allocator_calloc(allocator, sizeof(struct AddressMapper), 1);
     AddressMapper_init(map);
 
     return map;

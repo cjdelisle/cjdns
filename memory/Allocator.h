@@ -34,7 +34,7 @@ struct Allocator
      *
      * @param this the Allocator which is being called. Use: allocator->free(allocator);
      */
-    void (* const free)(const struct Allocator* this);
+    void (* const free)(const struct Allocator* this, const char* identFile, int identLine);
 
     /**
      * Add a function to be called when the allocator is freed.
@@ -70,7 +70,9 @@ struct Allocator
      * @see malloc()
      */
     void* (* const malloc)(size_t numberOfBytes,
-                           const struct Allocator* this);
+                           const struct Allocator* thisAlloc,
+                           const char* identFile,
+                           int identLine);
 
     /**
      * Allocate some memory from this memory allocator.
@@ -86,7 +88,9 @@ struct Allocator
      */
     void* (* const calloc)(size_t numberOfBytes,
                            size_t multiplier,
-                           const struct Allocator* this);
+                           const struct Allocator* thisAlloc,
+                           const char* identFile,
+                           int identLine);
 
     /**
      * Allocate some memory and copy something into that memory space.
@@ -102,7 +106,9 @@ struct Allocator
      */
     void* (* const clone)(size_t numberOfBytes,
                           const struct Allocator* thisAllocator,
-                          const void* toClone);
+                          const void* toClone,
+                          const char* identFile,
+                          int identLine);
 
     /**
      * Re-allocate memory so that an allocation can be expanded.
@@ -117,7 +123,9 @@ struct Allocator
      */
     void* (* const realloc)(const void* originalAllocation,
                             size_t numberOfBytes,
-                            const struct Allocator* thisAllocator);
+                            const struct Allocator* thisAllocator,
+                            const char* identFile,
+                            int identLine);
 
     /**
      * Get a new child of this allocator.
@@ -134,13 +142,13 @@ struct Allocator
 };
 
 #define Allocator_clone(alloc, content) \
-    alloc->clone(sizeof(*content), alloc, content)
+    alloc->clone(sizeof(*content), alloc, content, __FILE__, __LINE__)
 
 #define Allocator_malloc(alloc, size) \
-    alloc->malloc(size, alloc);
+    alloc->malloc(size, alloc, __FILE__, __LINE__);
 
 #define Allocator_calloc(alloc, size, count) \
-    alloc->calloc(size, count, alloc)
+    alloc->calloc(size, count, alloc, __FILE__, __LINE__)
 
 #define Allocator_onFree(alloc, callback, context) \
     alloc->onFree(callback, context, alloc)
@@ -149,12 +157,12 @@ struct Allocator
     alloc->notOnFree(job, alloc)
 
 #define Allocator_realloc(alloc, orig, size) \
-    alloc->realloc(orig, size, alloc)
+    alloc->realloc(orig, size, alloc, __FILE__, __LINE__)
 
 #define Allocator_child(alloc) \
     alloc->child(alloc, __FILE__, __LINE__)
 
 #define Allocator_free(alloc) \
-    alloc->free(alloc)
+    alloc->free(alloc, __FILE__, __LINE__)
 
 #endif /* MEMALLOCATOR_H */

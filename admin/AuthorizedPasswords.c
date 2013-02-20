@@ -81,7 +81,7 @@ void AuthorizedPasswords_init(struct Admin* admin,
                               struct CryptoAuth* ca,
                               struct Allocator* allocator)
 {
-    struct Context* context = allocator->malloc(sizeof(struct Context), allocator);
+    struct Context* context = Allocator_malloc(allocator, sizeof(struct Context));
     context->admin = admin;
     context->allocator = allocator;
     context->ca = ca;

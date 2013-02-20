@@ -110,7 +110,7 @@ static String* getCorePath(struct Allocator* alloc)
     if (fileExists(tempOutput->bytes)) {
         output = String_clone(tempOutput, alloc);
     }
-    alloc2->free(alloc2);
+    Allocator_free(alloc2);
     return output;
 }
 

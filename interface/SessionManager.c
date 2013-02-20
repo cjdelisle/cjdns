@@ -72,7 +72,7 @@ static void cleanup(void* vsm)
     for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
         if (sm->ifaceMap.values[i].lastMessageTime < (nowSecs - SESSION_TIMEOUT_SECONDS)) {
             struct Allocator* ifAllocator = sm->ifaceMap.values[i].iface.allocator;
-            ifAllocator->free(ifAllocator);
+            Allocator_free(ifAllocator);
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             i--;
         }
@@ -89,12 +89,11 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
         cleanup(sm);
 
         struct Allocator* ifAllocator = Allocator_child(sm->allocator);
-        struct Interface* outsideIf =
-            ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
-                .sendMessage = sm->encryptedOutgoing,
-                .senderContext = sm->interfaceContext,
-                .allocator = ifAllocator
-            });
+        struct Interface* outsideIf = Allocator_clone(ifAllocator, (&(struct Interface) {
+            .sendMessage = sm->encryptedOutgoing,
+            .senderContext = sm->interfaceContext,
+            .allocator = ifAllocator
+        }));
         struct Interface* insideIf =
             CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, true, sm->cryptoAuth);
         insideIf->receiveMessage = sm->decryptedIncoming;
@@ -144,7 +143,7 @@ struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           struct CryptoAuth* cryptoAuth,
                                           struct Allocator* allocator)
 {
-    struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
+    struct SessionManager* sm = Allocator_malloc(allocator, sizeof(struct SessionManager));
     Bits_memcpyConst(sm, (&(struct SessionManager) {
         .decryptedIncoming = decryptedIncoming,
         .encryptedOutgoing = encryptedOutgoing,

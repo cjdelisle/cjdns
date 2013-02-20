@@ -139,7 +139,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
     time(&now);
 
     Dict* out = Dict_new(alloc);
-    char* buff = alloc->malloc(20, alloc);
+    char* buff = Allocator_malloc(alloc, 20);
     Hex_encode((uint8_t*)buff, 20, subscription->streamId, 8);
     Dict_putString(out, String_new("streamId", alloc), String_new(buff, alloc), alloc);
     Dict_putInt(out, String_new("time", alloc), now, alloc);
@@ -163,7 +163,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
 
 static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 {
-    sub->alloc->free(sub->alloc);
+    Allocator_free(sub->alloc);
     log->subscriptionCount--;
     if (log->subscriptionCount == 0) {
         return;
@@ -287,14 +287,14 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid)
 
 struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, struct Random* rand)
 {
-    struct AdminLog* log = alloc->clone(sizeof(struct AdminLog), alloc, &(struct AdminLog) {
+    struct AdminLog* log = Allocator_clone(alloc, (&(struct AdminLog) {
         .pub = {
             .callback = doLog
         },
         .admin = admin,
         .alloc = alloc,
         .rand = rand
-    });
+    }));
 
     Admin_registerFunction("AdminLog_subscribe", subscribe, log, true,
         ((struct Admin_FunctionArg[]) {

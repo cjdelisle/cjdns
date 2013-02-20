@@ -31,11 +31,11 @@ int32_t List_size(const List* list)
 static List* addObject(List* list, Object* item, const struct Allocator* allocator)
 {
     if (list == NULL) {
-        List* newList = allocator->calloc(sizeof(List), 1, allocator);
+        List* newList = Allocator_calloc(allocator, sizeof(List), 1);
         return addObject(newList, item, allocator);
     }
 
-    struct List_Item* entry = allocator->malloc(sizeof(struct List_Item), allocator);
+    struct List_Item* entry = Allocator_malloc(allocator, sizeof(struct List_Item));
     entry->next = *list;
     entry->elem = item;
     *list = entry;
@@ -46,40 +46,40 @@ static List* addObject(List* list, Object* item, const struct Allocator* allocat
 /** @see Object.h */
 List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_INTEGER,
         .as.number = toAdd
-    });
+    }));
     return addObject(list, obj, allocator);
 }
 
 /** @see Object.h */
 List* List_addString(List* list, String* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_STRING,
         .as.string = toAdd
-    });
+    }));
     return addObject(list, obj, allocator);
 }
 
 /** @see Object.h */
 List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_DICT,
         .as.dictionary = toAdd
-    });
+    }));
     return addObject(list, obj, allocator);
 }
 
 /** @see Object.h */
 List* List_addList(List* list, List* toAdd, const struct Allocator* allocator)
 {
-    Object* obj = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_LIST,
         .as.list = toAdd
-    });
+    }));
     return addObject(list, obj, allocator);
 }
 

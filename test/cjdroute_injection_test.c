@@ -78,7 +78,7 @@ int main()
     // This has to be limited because we are checking for an OOM issue.
     struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(85000), NULL);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
-    uint8_t* buff = allocator->calloc(buffLen, 1, allocator);
+    uint8_t* buff = Allocator_calloc(allocator, buffLen, 1);
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
     uint8_t* herPublicKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
@@ -96,6 +96,6 @@ int main()
 
     Ducttape_injectIncomingForMe(&m, dt, herPublicKey);
 
-    alloc->free(alloc);
-    allocator->free(allocator);
+    Allocator_free(alloc);
+    Allocator_free(allocator);
 }

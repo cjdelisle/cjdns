@@ -49,7 +49,7 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
                                   struct Allocator* allocator)
 {
     struct SerializationModule_context* context =
-        allocator->malloc(sizeof(struct SerializationModule_context), allocator);
+        Allocator_malloc(allocator, sizeof(struct SerializationModule_context));
     Bits_memcpyConst(context, (&(struct SerializationModule_context) {
         .module = {
             .name = "SerializationModule",
@@ -90,7 +90,7 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
+    message->asDict = Allocator_malloc(message->allocator, sizeof(Dict));
 
     struct Reader* reader =
         ArrayReader_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);

@@ -30,9 +30,9 @@ static void doLog(struct Log* genericLog,
 
 struct IndirectLog* IndirectLog_new(struct Allocator* alloc)
 {
-    return alloc->clone(sizeof(struct IndirectLog), alloc, &(struct IndirectLog) {
+    return Allocator_clone(alloc, (&(struct IndirectLog) {
         .pub = {
             .callback = doLog
         }
-    });
+    }));
 }

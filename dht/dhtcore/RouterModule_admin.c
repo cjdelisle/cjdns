@@ -59,11 +59,11 @@ void RouterModule_admin_register(struct RouterModule* module,
                                  struct Admin* admin,
                                  struct Allocator* alloc)
 {
-    struct Context* ctx = alloc->clone(sizeof(struct Context), alloc, &(struct Context) {
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
         .allocator = alloc,
         .routerModule = module
-    });
+    }));
 
     struct Admin_FunctionArg adma[] = {
         { .name = "address", .required = 1, .type = "String" }
