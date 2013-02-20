@@ -879,7 +879,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             cryptoAuthDebug0(wrapper, "Final handshake step failed");
         }
     } else if (nonce > 4) {
-        if (decryptMessage(wrapper, nonce, received, wrapper->secret) {
+        if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
             return callReceivedMessage(wrapper, received);
         } else {
             cryptoAuthDebug0(wrapper, "Failed to decrypt message");
