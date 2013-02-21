@@ -875,6 +875,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             }
             CryptoAuth_reset(&wrapper->externalInterface);
             cryptoAuthDebug0(wrapper, "Final handshake step failed");
+            return Error_UNDELIVERABLE;
         }
     } else if (nonce > 4) {
         if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
