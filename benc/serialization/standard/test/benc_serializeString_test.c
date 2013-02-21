@@ -15,7 +15,7 @@
 #define string_strcmp
 #include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
@@ -24,11 +24,13 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "util/Assert.h"
 
 #include <stdio.h>
 
-int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
+int expect(char* str, struct Writer* writer, struct Reader* reader)
 {
+    int ret = 0;
     char buffer[32];
     writer->write("\0", 1, writer);
     reader->read(buffer, strlen(str) + 1, reader);
@@ -39,30 +41,36 @@ int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
     return ret;
 }
 
-int testSerialize(struct Writer* writer, struct Reader* reader)
+void testSerialize(struct Writer* writer, struct Reader* reader)
 {
-    int ret = 0;
+    Assert_always(!StandardBencSerializer_get()->serializeString(writer, String_CONST("hello")));
+    Assert_always(!expect("5:hello", writer, reader));
 
-    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1);
-    ret |= expect("i1e", writer, reader, ret);
+    Assert_always(!StandardBencSerializer_get()->serializeString(writer, String_CONST("")));
+    Assert_always(!expect("0:", writer, reader));
+}
 
-    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1000);
-    ret |= expect("i1000e", writer, reader, ret);
-
-    ret |= StandardBencSerializer_get()->serializeint64_t(writer, -100);
-    ret |= expect("i-100e", writer, reader, ret);
-
-    return ret;
+void testParse(struct Writer* w, struct Reader* r, struct Allocator* alloc)
+{
+    char* badBenc = "d2:aq21:RouterModule_pingNode4:argsd4:path39:fcd9:6a75:6c9c7:timeouti4000ee"
+                    "6:cookie0:4:hash64:09c6bcd1482df339757c99bbc5e796192968a28562f701fb53a57ed6"
+                    "e26b15511:q4:auth4:txid19:43866780dc455e15619e";
+    Writer_write(w, badBenc, strlen(badBenc)+1);
+    Dict dict;
+    Assert_always(StandardBencSerializer_get()->parseDictionary(r, alloc, &dict));
 }
 
 
 int main()
 {
-    char buffer[2048];
     char out[512];
-    struct Allocator* alloc = CanaryAllocator_new(BufferAllocator_new(buffer, 2048), NULL);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+ for (int i = 0; i < 10000; i++) {
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 
-    return testSerialize(writer, reader);
+    testSerialize(writer, reader);
+    testParse(writer, reader, alloc);
+ }
+    Allocator_free(alloc);
 }

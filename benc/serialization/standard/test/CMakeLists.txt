@@ -12,6 +12,7 @@
 set(Test_FILES
     benc_serializeInteger_test.c
     benc_serializeList_test.c
+    benc_serializeString_test.c
 )
 set(Test_LIBRARIES
     cjdbenc

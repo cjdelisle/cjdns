@@ -27,5 +27,5 @@ add_dependencies(cjdns-util-platform-socket ${LIBUV_LIBRARIES})
 set_target_properties(cjdns-util-platform-socket
         PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
 
-
+enable_testing()
 add_subdirectory(test)
