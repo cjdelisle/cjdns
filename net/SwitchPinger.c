@@ -82,18 +82,8 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
             ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
             Message_shift(msg, -Control_Pong_HEADER_SIZE);
             if (pongHeader->magic != Control_Pong_MAGIC) {
-                #ifdef Version_0_COMPAT
-                    if (pongHeader->magic == Control_Ping_MAGIC) {
-                        Log_info(ctx->logger, "got pong from legacy version 0 node.");
-                        ctx->incomingVersion = 0;
-                    } else {
-                        Log_debug(ctx->logger, "dropped invalid switch pong");
-                        return Error_INVALID;
-                    }
-                #else
-                    Log_debug(ctx->logger, "dropped invalid switch pong");
-                    return Error_INVALID;
-                #endif
+                Log_debug(ctx->logger, "dropped invalid switch pong");
+                return Error_INVALID;
             }
         } else {
             Log_debug(ctx->logger, "got runt pong message, length: [%d]", msg->length);

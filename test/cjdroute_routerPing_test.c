@@ -71,7 +71,7 @@ int main()
     udp->checksum_be = 0;
     struct Message m2 = { .bytes = buff, .length = buffLen, .padding = 0 };
     Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
-    Assert_always(dt->switchInterface.receiverContext);
+    Assert_always(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =

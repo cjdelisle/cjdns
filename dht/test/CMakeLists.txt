@@ -10,7 +10,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set(Test_FILES
-    address_mapper_lru_test.c
     DHTModules_handleIncoming_test.c
     DHTModules_handleOutgoing_test.c
 )

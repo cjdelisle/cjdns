@@ -251,19 +251,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         // Check the checksum.
         struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
 
-        if (uh->checksum_be == 0) {
-            #ifdef Version_0_COMPAT
-                uint8_t keyAddr[40];
-                Address_printIp(keyAddr, &addr);
-                Log_warn(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
-            #else
-                #ifdef Log_DEBUG
-                uint8_t keyAddr[40];
-                Address_printIp(keyAddr, &addr);
-                Log_debug(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
-                #endif
-            #endif
-        } else if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
+        if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
             #ifdef Log_DEBUG
                 uint8_t keyAddr[40];
                 Address_printIp(keyAddr, &addr);
@@ -809,11 +797,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
     if (Checksum_engine(message->bytes, message->length)) {
         Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
-        #ifndef Version_0_COMPAT
-            return Error_NONE;
-        #endif
-        // This will break error responses since they were
-        // not sending proper checksums as of 5610464f7bc44ec09ffac81b3507d4df905d6d98
+        return Error_NONE;
     }
 
     bool pong = false;
@@ -873,9 +857,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     } else if (ctrl->type_be == Control_PING_be) {
 
         Message_shift(message, -Control_HEADER_SIZE);
-        #ifdef Version_0_COMPAT
-            if (message->length >= Control_Ping_MIN_SIZE) {
-        #endif
+
         if (message->length < Control_Ping_MIN_SIZE) {
             Log_info(context->logger, "dropped runt ping");
             return Error_INVALID;
@@ -883,9 +865,6 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
         ping->magic = Control_Pong_MAGIC;
         ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-        #ifdef Version_0_COMPAT
-            }
-        #endif
         Message_shift(message, Control_HEADER_SIZE);
 
         ctrl->type_be = Control_PONG_be;
@@ -917,11 +896,7 @@ static inline uint8_t* extractPublicKey(struct Message* message,
         return NULL;
     }
     if (*version == 0) {
-        #ifndef Version_0_COMPAT
-            return NULL;
-        #endif
-        // version 0 nodes are missing the handle
-        Message_shift(message, 4);
+        return NULL;
     }
 
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -1008,32 +983,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         }
     }
 
-    // #3 try the message as a protocol version 0 message.
-    #ifdef Version_0_COMPAT
-        if (!session) {
-            int herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, context->addrMap);
-            uint8_t* herKey = NULL;
-            if (herAddrIndex == -1) {
-                uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-                struct Node* n = RouterModule_getNode(label, context->routerModule);
-                if (n) {
-                    herAddrIndex = AddressMapper_put(switchHeader->label_be,
-                                                     n->address.ip6.bytes,
-                                                     context->addrMap);
-                    herKey = n->address.key;
-                }
-            }
-            if (herAddrIndex != -1) {
-                Log_debug(context->logger, "Handling packet from legacy protocol version 0 node.");
-                session = SessionManager_getSession(context->addrMap->entries[herAddrIndex].address,
-                                                    herKey,
-                                                    context->sm);
-                session->version = 0;
-            }
-        }
-    #endif
-
-
     if (!session) {
         #ifdef Log_INFO
             uint8_t path[20];
@@ -1090,11 +1039,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->forwardTo = NULL;
     context->eventBase = eventBase;
     Identity_set(context);
-
-    #ifdef Version_0_COMPAT
-        context->addrMap = Allocator_calloc(allocator, sizeof(struct AddressMapper), 1);
-        AddressMapper_init(context->addrMap);
-    #endif
 
     context->ipTunnel = ipTun;
 

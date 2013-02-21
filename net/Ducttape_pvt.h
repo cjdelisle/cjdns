@@ -17,9 +17,6 @@
 
 #include "dht/Address.h"
 #include "util/version/Version.h"
-#ifdef Version_0_COMPAT
-    #include "dht/AddressMapper.h"
-#endif
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/RouterModule.h"
@@ -69,10 +66,6 @@ struct Ducttape_pvt
     struct Address myAddr;
 
     struct SessionManager* sm;
-
-    #ifdef Version_0_COMPAT
-        struct AddressMapper* addrMap;
-    #endif
 
     struct EventBase* eventBase;
 

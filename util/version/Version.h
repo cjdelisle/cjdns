@@ -130,7 +130,7 @@
  * ----------------------------------
  *
  * Version 2:
- * Future
+ * February 21, 2013
  */
 #define Version_isCompat2(x, y) \
     (Version_isCompat1(x, y) || (x == 2 && y > 0))
@@ -154,8 +154,7 @@
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 1
-#define Version_0_COMPAT
+#define Version_CURRENT_PROTOCOL 2
 
 
 /**
