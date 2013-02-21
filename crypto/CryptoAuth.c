@@ -625,15 +625,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 static inline uint8_t callReceivedMessage(struct CryptoAuth_Wrapper* wrapper,
                                           struct Message* message)
 {
+    if (wrapper->authenticatePackets) {
+        wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
+    }
+
     uint8_t ret = 0;
     if (wrapper->externalInterface.receiveMessage != NULL) {
         ret = wrapper->externalInterface.receiveMessage(message, &wrapper->externalInterface);
-    }
-
-    // If the message is authenticated OR if the packet is considered valid by the next level,
-    // then don't allow the connection to timeout.
-    if (!ret || wrapper->authenticatePackets) {
-        wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
     }
 
     return ret;
