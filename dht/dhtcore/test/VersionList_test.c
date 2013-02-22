@@ -24,7 +24,7 @@ int main()
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    for (int cycles = 0; cycles < 10000; cycles++) {
+    for (int cycles = 0; cycles < 1; cycles++) {
         for (int bytes = 1; bytes < 5; bytes++) {
             uint32_t count = Random_uint32(rand) % 30;
             uint32_t max = Random_uint32(rand) % UINT32_MAX >> ((4-bytes) * 8);
