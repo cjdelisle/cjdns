@@ -65,7 +65,7 @@ static int write(const void* toWrite, size_t length, const struct Writer* writer
     }
 
     /* Prove that it doesn't run off the end of the buffer or roll over. */
-    if (context->pointer + length >= context->endPointer
+    if (context->pointer + length > context->endPointer
         || context->pointer + length < context->pointer)
     {
         context->returnCode = -1;

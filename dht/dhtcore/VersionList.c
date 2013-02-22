@@ -19,6 +19,7 @@
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "util/Endian.h"
+#include <stdio.h>
 
 struct VersionList* VersionList_parse(String* str, struct Allocator* alloc)
 {
@@ -38,7 +39,8 @@ struct VersionList* VersionList_parse(String* str, struct Allocator* alloc)
     for (int i = 0; i < (int)list->length; i++) {
         uint32_t ver = 0;
         r->read((uint8_t*) &ver, numberSize, r);
-        list->versions[i] = Endian_bigEndianToHost32(ver);
+        ver = Endian_bigEndianToHost32(ver);
+        list->versions[i] = ver >> ((4-numberSize) * 8);
     }
     return list;
 }
@@ -55,13 +57,17 @@ String* VersionList_stringify(struct VersionList* list, struct Allocator* alloc)
     }
 
     String* out = String_newBinary(NULL, (numberSize * list->length + 1), alloc);
-    out->bytes[0] = numberSize;
 
-    struct Writer* w = ArrayWriter_new(out->bytes + 1, out->len - 1, alloc);
+    struct Writer* w = ArrayWriter_new(out->bytes, out->len, alloc);
+    Writer_write(w, &numberSize, 1);
+
     for (int i = 0; i < (int)list->length; i++) {
-        uint32_t ver = Endian_hostToBigEndian32(list->versions[i]);
-        w->write((uint8_t*) &ver, numberSize, w);
+printf("writing [%d]\n", list->versions[i]);
+        uint32_t ver = list->versions[i] << ((4-numberSize) * 8);
+        ver = Endian_hostToBigEndian32(ver);
+        Writer_write(w, (uint8_t*) &ver, numberSize);
     }
+    Writer_write(w, &numberSize, 1);
 
     return out;
 }
