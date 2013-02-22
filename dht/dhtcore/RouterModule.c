@@ -811,6 +811,14 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     String* versionsStr = Dict_getString(message->asDict, CJDHTConstants_NODE_PROTOCOLS);
     if (versionsStr) {
         versions = VersionList_parse(versionsStr, message->allocator);
+        #ifdef Version_1_COMPAT
+            // Version 1 lies about the versions of other nodes, assume they're all v1.
+            if (version < 2) {
+                for (int i = 0; i < (int)versions->length; i++) {
+                    versions->versions[i] = 1;
+                }
+            }
+        #endif
     }
 
     // If this node has sent us any entries which are further from the target than it is,
@@ -867,8 +875,8 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             break;
         }
 
-        // Nodes we are told about are inserted with 0 reach.
-        uint32_t version = (versions) ? versions->versions[i / Address_SERIALIZED_SIZE] : 0;
+        // Nodes we are told about are inserted with 0 reach and assumed version 1.
+        uint32_t version = (versions) ? versions->versions[i / Address_SERIALIZED_SIZE] : 1;
         NodeStore_addNode(module->nodeStore, &addr, 0, version);
 
         if ((newNodePrefix ^ targetPrefix) >= parentDistance

@@ -156,6 +156,7 @@
  */
 #define Version_CURRENT_PROTOCOL 1
 #define Version_0_COMPAT
+#define Version_1_COMPAT
 
 
 /**
