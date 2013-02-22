@@ -47,12 +47,12 @@ struct VersionList* VersionList_parse(String* str, struct Allocator* alloc)
 
 String* VersionList_stringify(struct VersionList* list, struct Allocator* alloc)
 {
-    uint8_t numberSize = 0;
-    uint32_t max = 0;
+    uint8_t numberSize = 1;
+    uint32_t max = 0xff;
     for (int i = 0; i < (int)list->length; i++) {
-        if (list->versions[i] >= max) {
+        while (list->versions[i] >= max) {
             numberSize++;
-            max = UINT32_MAX >> (32 - (numberSize * 8));
+            max = max << 8 | 0xff;
         }
     }
 
@@ -67,7 +67,6 @@ printf("writing [%d]\n", list->versions[i]);
         ver = Endian_hostToBigEndian32(ver);
         Writer_write(w, (uint8_t*) &ver, numberSize);
     }
-    Writer_write(w, &numberSize, 1);
 
     return out;
 }

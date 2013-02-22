@@ -24,29 +24,31 @@ int main()
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    for (int bytes = 1; bytes < 5; bytes++) {
-        uint32_t count = Random_uint32(rand) % 30;
-        uint32_t max = Random_uint32(rand) % UINT32_MAX >> ((4-bytes) * 8);
-        if (max < 2) {
-            max += 2;
-        }
-        struct VersionList* vl = VersionList_new(count, alloc);
-        for (uint32_t i = 0; i < count; i++) {
-            vl->versions[i] = Random_uint32(rand) % max;
-        }
+    for (int cycles = 0; cycles < 10000; cycles++) {
+        for (int bytes = 1; bytes < 5; bytes++) {
+            uint32_t count = Random_uint32(rand) % 30;
+            uint32_t max = Random_uint32(rand) % UINT32_MAX >> ((4-bytes) * 8);
+            if (max < 2) {
+                max += 2;
+            }
+            struct VersionList* vl = VersionList_new(count, alloc);
+            for (uint32_t i = 0; i < count; i++) {
+                vl->versions[i] = Random_uint32(rand) % max;
+            }
 
-        String* str = VersionList_stringify(vl, alloc);
+            String* str = VersionList_stringify(vl, alloc);
 
-        uint8_t* buff = Allocator_malloc(alloc, (str->len+1) * 2 + 1);
-        Hex_encode(buff, (str->len+1) * 2 + 1, (uint8_t*)str->bytes, str->len+1);
-        printf("Got versions [%s]\n", buff);
+            uint8_t* buff = Allocator_malloc(alloc, (str->len+1) * 2 + 1);
+            Hex_encode(buff, (str->len+1) * 2 + 1, (uint8_t*)str->bytes, str->len+1);
+            printf("Got versions [%s]\n", buff);
 
-        struct VersionList* vl2 = VersionList_parse(str, alloc);
+            struct VersionList* vl2 = VersionList_parse(str, alloc);
 
-        Assert_always(vl->length == vl2->length && vl->length == count);
-        for (uint32_t i = 0; i < count; i++) {
-            printf("[%d] [%d]\n", vl2->versions[i], vl->versions[i]);
-            Assert_always(vl2->versions[i] == vl->versions[i]);
+            Assert_always(vl->length == vl2->length && vl->length == count);
+            for (uint32_t i = 0; i < count; i++) {
+                printf("[%d] [%d]\n", vl2->versions[i], vl->versions[i]);
+                Assert_always(vl2->versions[i] == vl->versions[i]);
+            }
         }
     }
 }
