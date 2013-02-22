@@ -114,18 +114,8 @@ static inline uint8_t sendToRouter(struct Node* node,
     struct SessionManager_Session* session =
         SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
 
-    // Whichever has a declared version should transfer it to the other.
-    // Since 0 is the default version, if the router doesn't know the version
-    // it should not set the session's version to 0.
-    if (session->version) {
-        node->version = session->version;
-    } else if (node->version) {
-        session->version = node->version;
-    }
-    if (session->version && !session->sendHandle_be) {
-        // If we have a v1 session and don't know the send handle, reset the session.
-        CryptoAuth_reset(&session->iface);
-    }
+    node->version = session->version =
+        (node->version > session->version) ? node->version : session->version;
 
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
@@ -314,6 +304,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
 
     struct SessionManager_Session s;
     AddressCalc_addressForPublicKey(s.ip6, herPublicKey);
+    s.version = Version_CURRENT_PROTOCOL;
 
     context->session = &s;
     uint8_t ret = incomingForMe(message, context, herPublicKey);
@@ -369,6 +360,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         }
     } else {
         debugHandles(context->logger, session, "Sending protocol 0 message");
+        Assert_always(!"wtf why are we communicating with a v0 node?!");
     }
 
     Message_shift(message, Headers_SwitchHeader_SIZE);
@@ -583,7 +575,8 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
                 if (Endian_bigEndianToHost32(nonce_be) < 4) {
                     uint32_t handle_be = ((uint32_t*)message->bytes)[0];
                     session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-                    session->version = (session->version) ? session->version : 1;
+                    session->version =
+                        (session->version) ? session->version : Version_CURRENT_PROTOCOL;
                     debugHandles(context->logger, session, "New session, incoming layer3");
                 }
             }
@@ -940,39 +933,26 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return handleControlMessage(context, message, switchHeader, switchIf);
     }
 
-    if (message->length < 4) {
+    if (message->length < 8) {
         Log_info(context->logger, "runt");
         return Error_INVALID;
     }
 
     // #1 try to get the session using the handle.
     uint32_t version = 1;
-    uint32_t handle_be = ((uint32_t*)message->bytes)[0];
+    uint32_t handle_be;
+    Message_pop(message, &handle_be, 4);
+    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
+
     struct SessionManager_Session* session = NULL;
 
-    if (handle_be & HANDLE_FLAG_BIT_be) {
+    if (nonce > 3) {
         uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
         session = SessionManager_sessionForHandle(realHandle, context->sm);
         if (session) {
-            if (session->version == 0) {
-                uint8_t hex[9];
-                Hex_encode(hex, 9, message->bytes, 4);
-                Log_debug(context->logger, "0 version session input: [%s] [%u]", hex, realHandle);
-                debugHandles(context->logger, session, "Got 0 version session");
-                session = NULL;
-                version = 0;
-            } else {
-                debugHandles(context->logger, session, "Got running session");
-                Message_shift(message, -4);
-            }
-        } else {
-            version = 0;
+            debugHandles(context->logger, session, "Got running session");
         }
-    }
-
-    // #2 no session, try the message as a handshake.
-    if (!session && message->length >= Headers_CryptoAuth_SIZE) {
-        Message_shift(message, -4);
+    } else if (message->length >= Headers_CryptoAuth_SIZE) {
         uint8_t ip6[16];
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
