@@ -737,10 +737,16 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     if (nodes == NULL && tid && tid->len == 2 && tid->bytes[0] == 'p') {
         uint8_t index = tid->bytes[1];
         if (index < RouterModule_MAX_CONCURRENT_PINGS && module->pings[index] != NULL) {
+            String* versionBin = Dict_getString(message->asDict, CJDHTConstants_VERSION);
             #ifdef Log_DEBUG
                 uint8_t printedAddr[60];
                 Address_print(printedAddr, message->address);
-                Log_debug(module->logger, "Got pong! %s\n", printedAddr);
+
+                uint8_t versionStr[41] = "old";
+                if (versionBin && versionBin->len == 20) {
+                    Hex_encode(versionStr, 41, (uint8_t*) versionBin->bytes, 20);
+                }
+                Log_debug(module->logger, "Got pong! [%s] ver[%s]\n", printedAddr, versionStr);
             #endif
 
             Timeout_clearTimeout(module->pings[index]->timeout);
@@ -750,8 +756,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
             responseFromNode(node, lag, module);
 
             if (module->pings[index]->isFromAdmin) {
-                String* version = Dict_getString(message->asDict, CJDHTConstants_VERSION);
-                pingResponse(module->pings[index], false, lag, version, module);
+                pingResponse(module->pings[index], false, lag, versionBin, module);
             }
 
             struct Allocator* pa = module->pings[index]->allocator;
