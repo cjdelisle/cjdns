@@ -114,18 +114,8 @@ static inline uint8_t sendToRouter(struct Node* node,
     struct SessionManager_Session* session =
         SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
 
-    // Whichever has a declared version should transfer it to the other.
-    // Since 0 is the default version, if the router doesn't know the version
-    // it should not set the session's version to 0.
-    if (session->version) {
-        node->version = session->version;
-    } else if (node->version) {
-        session->version = node->version;
-    }
-    if (session->version && !session->sendHandle_be) {
-        // If we have a v1 session and don't know the send handle, reset the session.
-        CryptoAuth_reset(&session->iface);
-    }
+    node->version = session->version =
+        (node->version > session->version) ? node->version : session->version;
 
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
@@ -251,19 +241,7 @@ static inline uint8_t incomingForMe(struct Message* message,
         // Check the checksum.
         struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
 
-        if (uh->checksum_be == 0) {
-            #ifdef Version_0_COMPAT
-                uint8_t keyAddr[40];
-                Address_printIp(keyAddr, &addr);
-                Log_warn(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
-            #else
-                #ifdef Log_DEBUG
-                uint8_t keyAddr[40];
-                Address_printIp(keyAddr, &addr);
-                Log_debug(context->logger, "Router packet with blank checksum from [%s].", keyAddr);
-                #endif
-            #endif
-        } else if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
+        if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
             #ifdef Log_DEBUG
                 uint8_t keyAddr[40];
                 Address_printIp(keyAddr, &addr);
@@ -326,6 +304,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
 
     struct SessionManager_Session s;
     AddressCalc_addressForPublicKey(s.ip6, herPublicKey);
+    s.version = Version_CURRENT_PROTOCOL;
 
     context->session = &s;
     uint8_t ret = incomingForMe(message, context, herPublicKey);
@@ -381,6 +360,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         }
     } else {
         debugHandles(context->logger, session, "Sending protocol 0 message");
+        Assert_always(!"wtf why are we communicating with a v0 node?!");
     }
 
     Message_shift(message, Headers_SwitchHeader_SIZE);
@@ -595,7 +575,8 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
                 if (Endian_bigEndianToHost32(nonce_be) < 4) {
                     uint32_t handle_be = ((uint32_t*)message->bytes)[0];
                     session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-                    session->version = (session->version) ? session->version : 1;
+                    session->version =
+                        (session->version) ? session->version : Version_CURRENT_PROTOCOL;
                     debugHandles(context->logger, session, "New session, incoming layer3");
                 }
             }
@@ -809,11 +790,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
     if (Checksum_engine(message->bytes, message->length)) {
         Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
-        #ifndef Version_0_COMPAT
-            return Error_NONE;
-        #endif
-        // This will break error responses since they were
-        // not sending proper checksums as of 5610464f7bc44ec09ffac81b3507d4df905d6d98
+        return Error_NONE;
     }
 
     bool pong = false;
@@ -873,9 +850,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     } else if (ctrl->type_be == Control_PING_be) {
 
         Message_shift(message, -Control_HEADER_SIZE);
-        #ifdef Version_0_COMPAT
-            if (message->length >= Control_Ping_MIN_SIZE) {
-        #endif
+
         if (message->length < Control_Ping_MIN_SIZE) {
             Log_info(context->logger, "dropped runt ping");
             return Error_INVALID;
@@ -883,9 +858,6 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
         ping->magic = Control_Pong_MAGIC;
         ping->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
-        #ifdef Version_0_COMPAT
-            }
-        #endif
         Message_shift(message, Control_HEADER_SIZE);
 
         ctrl->type_be = Control_PONG_be;
@@ -917,11 +889,7 @@ static inline uint8_t* extractPublicKey(struct Message* message,
         return NULL;
     }
     if (*version == 0) {
-        #ifndef Version_0_COMPAT
-            return NULL;
-        #endif
-        // version 0 nodes are missing the handle
-        Message_shift(message, 4);
+        return NULL;
     }
 
     union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -965,39 +933,26 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return handleControlMessage(context, message, switchHeader, switchIf);
     }
 
-    if (message->length < 4) {
+    if (message->length < 8) {
         Log_info(context->logger, "runt");
         return Error_INVALID;
     }
 
     // #1 try to get the session using the handle.
     uint32_t version = 1;
-    uint32_t handle_be = ((uint32_t*)message->bytes)[0];
+    uint32_t handle_be;
+    Message_pop(message, &handle_be, 4);
+    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
+
     struct SessionManager_Session* session = NULL;
 
-    if (handle_be & HANDLE_FLAG_BIT_be) {
+    if (nonce > 3) {
         uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
         session = SessionManager_sessionForHandle(realHandle, context->sm);
         if (session) {
-            if (session->version == 0) {
-                uint8_t hex[9];
-                Hex_encode(hex, 9, message->bytes, 4);
-                Log_debug(context->logger, "0 version session input: [%s] [%u]", hex, realHandle);
-                debugHandles(context->logger, session, "Got 0 version session");
-                session = NULL;
-                version = 0;
-            } else {
-                debugHandles(context->logger, session, "Got running session");
-                Message_shift(message, -4);
-            }
-        } else {
-            version = 0;
+            debugHandles(context->logger, session, "Got running session");
         }
-    }
-
-    // #2 no session, try the message as a handshake.
-    if (!session && message->length >= Headers_CryptoAuth_SIZE) {
-        Message_shift(message, -4);
+    } else if (message->length >= Headers_CryptoAuth_SIZE) {
         uint8_t ip6[16];
         uint8_t* herKey = extractPublicKey(message, &version, ip6);
         if (herKey) {
@@ -1007,32 +962,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             debugHandles(context->logger, session, "New session");
         }
     }
-
-    // #3 try the message as a protocol version 0 message.
-    #ifdef Version_0_COMPAT
-        if (!session) {
-            int herAddrIndex = AddressMapper_indexOf(switchHeader->label_be, context->addrMap);
-            uint8_t* herKey = NULL;
-            if (herAddrIndex == -1) {
-                uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
-                struct Node* n = RouterModule_getNode(label, context->routerModule);
-                if (n) {
-                    herAddrIndex = AddressMapper_put(switchHeader->label_be,
-                                                     n->address.ip6.bytes,
-                                                     context->addrMap);
-                    herKey = n->address.key;
-                }
-            }
-            if (herAddrIndex != -1) {
-                Log_debug(context->logger, "Handling packet from legacy protocol version 0 node.");
-                session = SessionManager_getSession(context->addrMap->entries[herAddrIndex].address,
-                                                    herKey,
-                                                    context->sm);
-                session->version = 0;
-            }
-        }
-    #endif
-
 
     if (!session) {
         #ifdef Log_INFO
@@ -1090,11 +1019,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->forwardTo = NULL;
     context->eventBase = eventBase;
     Identity_set(context);
-
-    #ifdef Version_0_COMPAT
-        context->addrMap = Allocator_calloc(allocator, sizeof(struct AddressMapper), 1);
-        AddressMapper_init(context->addrMap);
-    #endif
 
     context->ipTunnel = ipTun;
 

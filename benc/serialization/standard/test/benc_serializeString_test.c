@@ -65,10 +65,12 @@ int main()
 {
     char out[512];
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 
     testSerialize(writer, reader);
     testParse(writer, reader, alloc);
+
     Allocator_free(alloc);
 }

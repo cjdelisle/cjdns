@@ -67,6 +67,7 @@ printf("writing [%d]\n", list->versions[i]);
         ver = Endian_hostToBigEndian32(ver);
         Writer_write(w, (uint8_t*) &ver, numberSize);
     }
+    Writer_write(w, &numberSize, 1);
 
     return out;
 }

@@ -33,7 +33,7 @@ uint8_t catchResponse(struct Message* msg, struct Interface* iface)
 
 int main()
 {
-    char* pingBenc = "d1:q4:ping4:txid4:abcde";
+    char* pingBenc = "d1:q4:ping4:txid4:abcd1:pi2ee";
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<22), NULL);
     struct TestFramework* tf = TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL);
     struct Ducttape_pvt* dt = Identity_cast((struct Ducttape_pvt*) tf->ducttape);
@@ -71,7 +71,7 @@ int main()
     udp->checksum_be = 0;
     struct Message m2 = { .bytes = buff, .length = buffLen, .padding = 0 };
     Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
-    Assert_always(dt->switchInterface.receiverContext);
+    Assert_always(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
