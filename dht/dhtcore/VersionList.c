@@ -62,7 +62,6 @@ String* VersionList_stringify(struct VersionList* list, struct Allocator* alloc)
     Writer_write(w, &numberSize, 1);
 
     for (int i = 0; i < (int)list->length; i++) {
-printf("writing [%d]\n", list->versions[i]);
         uint32_t ver = list->versions[i] << ((4-numberSize) * 8);
         ver = Endian_hostToBigEndian32(ver);
         Writer_write(w, (uint8_t*) &ver, numberSize);
