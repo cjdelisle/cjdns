@@ -15,11 +15,14 @@
 
 #include "crypto/random/seed/AppleSecRandomCopyBytesRandomSeed.h"
 
-#ifdef __APPLE__
-#include <Availability.h>
+#ifdef OSX
+    #include <Availability.h>
+    #if __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_2_0)
+        #define HAS_SecRandomCopyBytes
+    #endif
 #endif
 
-#if __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_2_0)
+#ifdef HAS_SecRandomCopyBytes
 #include <Security/SecRandom.h>
 #include <inttypes.h>
 
