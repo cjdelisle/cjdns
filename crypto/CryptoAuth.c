@@ -580,16 +580,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
-    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
-
-    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
-        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
-                  (int) (nowSecs - wrapper->timeOfLastPacket));
-
-        wrapper->timeOfLastPacket = nowSecs;
-        CryptoAuth_reset(interface);
-        return encryptHandshake(message, wrapper);
-    }
+    // this will reset the session if it has timed out.
+    CryptoAuth_getState(interface);
 
     #ifdef Log_DEBUG
         Assert_true(!((uintptr_t)message->bytes % 4) || !"alignment fault");
@@ -1070,6 +1062,16 @@ int CryptoAuth_getState(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
+
+    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
+    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
+        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
+                  (int) (nowSecs - wrapper->timeOfLastPacket));
+
+        wrapper->timeOfLastPacket = nowSecs;
+        CryptoAuth_reset(interface);
+    }
+
     switch (wrapper->nextNonce) {
         case 0:
             return CryptoAuth_NEW;

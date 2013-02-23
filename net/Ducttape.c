@@ -195,16 +195,44 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
             (message->length - Headers_UDPHeader_SIZE);
 }
 
+static void debugHandles(struct Log* logger, struct SessionManager_Session* session, char* message)
+{
+    uint8_t ip[40];
+    AddrTools_printIp(ip, session->ip6);
+    int sendHandle;
+    if (!session->sendHandle_be) {
+        sendHandle = -1;
+    } else {
+        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
+    }
+    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s]",
+              message,
+              session->version,
+              sendHandle,
+              Endian_hostToBigEndian32(session->receiveHandle_be),
+              ip);
+}
+
 /**
  * Message which is for us, message is aligned on the beginning of the content.
  * this is called from core() which calls through an interfaceMap.
  */
 static inline uint8_t incomingForMe(struct Message* message,
                                     struct Ducttape_pvt* context,
-                                    uint8_t herPubKey[32])
+                                    uint8_t herPubKey[32],
+                                    bool containsHandle)
 {
+    struct SessionManager_Session* session = context->session;
+    if (containsHandle) {
+        uint32_t handle_be;
+        Message_pop(message, &handle_be, 4);
+        session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
+        session->version = (session->version) ? session->version : Version_CURRENT_PROTOCOL;
+        debugHandles(context->logger, session, "New session, incoming layer3");
+    }
+
     struct Address addr;
-    Bits_memcpyConst(addr.ip6.bytes, context->session->ip6, 16);
+    Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
     //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
 
     if (Bits_memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
@@ -307,28 +335,10 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
     s.version = Version_CURRENT_PROTOCOL;
 
     context->session = &s;
-    uint8_t ret = incomingForMe(message, context, herPublicKey);
+    uint8_t ret = incomingForMe(message, context, herPublicKey, false);
     context->session = NULL;
 
     return ret;
-}
-
-static void debugHandles(struct Log* logger, struct SessionManager_Session* session, char* message)
-{
-    uint8_t ip[40];
-    AddrTools_printIp(ip, session->ip6);
-    int sendHandle;
-    if (!session->sendHandle_be) {
-        sendHandle = -1;
-    } else {
-        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
-    }
-    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s]",
-              message,
-              session->version,
-              sendHandle,
-              Endian_hostToBigEndian32(session->receiveHandle_be),
-              ip);
 }
 
 /**
@@ -348,15 +358,13 @@ static inline uint8_t sendToSwitch(struct Message* message,
         if (state >= CryptoAuth_HANDSHAKE3) {
             debugHandles(context->logger, session, "Sending run message");
 
-            Message_shift(message, 4);
-            ((uint32_t*)message->bytes)[0] = session->sendHandle_be;
+            Message_push(message, &session->sendHandle_be, 4);
         } else if (state < CryptoAuth_HANDSHAKE3) {
             debugHandles(context->logger, session, "Sending start message");
 
             // the most significant bit in a handle is reserved to tell the recipient if it is
             // an initiation handle or a running handle which they should look up in their map.
-            Message_shift(message, 4);
-            ((uint32_t*)message->bytes)[0] = session->receiveHandle_be;
+            Message_push(message, &session->receiveHandle_be, 4);
         }
     } else {
         debugHandles(context->logger, session, "Sending protocol 0 message");
@@ -473,15 +481,22 @@ static inline uint8_t incomingFromTun(struct Message* message,
     //
     // The CryptoAuth may send a 120 byte CA header and it might only send a 4 byte
     // nonce and 16 byte authenticator depending on its state.
-    // NOTE: We can't check its state now, we have to assume it will use the 120 byte
-    //       header because we might be in a currently established session which has
-    //       timed out and will be in state HANDSHALE1 after we call sendMessage().
 
-    // shift, copy, shift because shifting asserts that there is enough buffer space.
-    Message_shift(message, Headers_CryptoAuth_SIZE);
-    Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
-    Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE));
-    // The message is now aligned on the content.
+    if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+        // shift, copy, shift because shifting asserts that there is enough buffer space.
+        Message_shift(message, Headers_CryptoAuth_SIZE + 4);
+        Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
+        Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE + 4));
+        // now push the receive handle *under* the CA header.
+        Message_push(message, &session->receiveHandle_be, 4);
+        Log_debug(context->logger, "Sending layer3 start message");
+    } else {
+        // shift, copy, shift because shifting asserts that there is enough buffer space.
+        Message_shift(message, 20);
+        Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
+        Message_shift(message, -(20 + Headers_IP6Header_SIZE));
+        Log_debug(context->logger, "Sending layer3 run message");
+    }
 
     #ifdef Log_DEBUG
         uint8_t destAddr[40];
@@ -570,16 +585,10 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
             struct SessionManager_Session* session =
                 SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
 
-            if (!session->sendHandle_be && message->length > Headers_CryptoAuth_SIZE + 4) {
-                uint32_t nonce_be = ((uint32_t*)message->bytes)[1];
-                if (Endian_bigEndianToHost32(nonce_be) < 4) {
-                    uint32_t handle_be = ((uint32_t*)message->bytes)[0];
-                    session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-                    session->version =
-                        (session->version) ? session->version : Version_CURRENT_PROTOCOL;
-                    debugHandles(context->logger, session, "New session, incoming layer3");
-                }
-            }
+            // Used to determine whether there is a handle under the CA header,
+            // see incomingFromCryptoAuth()
+            uint32_t nonce_be = ((uint32_t*)message->bytes)[0];
+            context->initMessage = (Endian_bigEndianToHost32(nonce_be) <= 3);
 
             #ifdef Log_DEBUG
                 uint8_t addr[40];
@@ -596,7 +605,8 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
             // to determine the node's id.
             return incomingForMe(message,
                                  context,
-                                 CryptoAuth_getHerPublicKey(&context->session->iface));
+                                 CryptoAuth_getHerPublicKey(&context->session->iface),
+                                 false);
         }
     }
 
@@ -651,36 +661,8 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
  */
 static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pvt* context)
 {
-    // incomingFromTun puts the IP6 header Headers_CryptoAuth_SIZE bytes behind
-    // the beginning of the data, depending on the state of the CA, it might need to be moved.
-
-    if (CryptoAuth_getState(&context->session->iface) >= CryptoAuth_HANDSHAKE3) {
-        //     [ ip6 ][        CA header  [  actual CA header ][ content.....
-        //                                ^-- you are here
-        // actual CA header == 20
-
-        uint8_t* beginningOfCaHeader = message->bytes;
-
-        Message_shift(message, Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE - 20);
-
-        //     [ ip6 ][        CA header  [  actual CA header ][ content.....
-        //     ^-- moved
-
-        Bits_memcpyConst(beginningOfCaHeader - Headers_IP6Header_SIZE,
-                         message->bytes,
-                         Headers_IP6Header_SIZE);
-
-        //                         [ ip6 ][  actual CA header ][ content.....
-        //     ^-- still here but ip6 header moved
-
-        Message_shift(message, -(Headers_CryptoAuth_SIZE - 20));
-
-        //                         [ ip6 ][  actual CA header ][ content.....
-        //                         ^-- you are here
-    } else {
-        Message_shift(message, Headers_IP6Header_SIZE);
-    }
-
+    // Move back to the beginning of the ip6Header behind the crypto.
+    Message_shift(message, Headers_IP6Header_SIZE);
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
 
     if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
@@ -742,7 +724,8 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
         case Ducttape_SessionLayer_INNER:
             return incomingForMe(message,
                                  context,
-                                 CryptoAuth_getHerPublicKey(&context->session->iface));
+                                 CryptoAuth_getHerPublicKey(&context->session->iface),
+                                 context->initMessage);
         default:
             Assert_always(false);
     }
@@ -881,39 +864,6 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     return Error_NONE;
 }
 
-static inline uint8_t* extractPublicKey(struct Message* message,
-                                        uint32_t* version,
-                                        uint8_t ip6[16])
-{
-    if (*version == 0xFFFFFFFF) {
-        return NULL;
-    }
-    if (*version == 0) {
-        return NULL;
-    }
-
-    union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
-    uint32_t nonce = Endian_bigEndianToHost32(caHeader->nonce);
-
-    if (nonce > 3 && nonce < UINT32_MAX) {
-        *version = *version - 1;
-        return extractPublicKey(message, version, ip6);
-    }
-
-    if (message->length < Headers_CryptoAuth_SIZE) {
-        *version = *version - 1;
-        return extractPublicKey(message, version, ip6);
-    }
-
-    AddressCalc_addressForPublicKey(ip6, caHeader->handshake.publicKey);
-    if (!AddressCalc_validAddress(ip6)) {
-        *version = *version - 1;
-        return extractPublicKey(message, version, ip6);
-    }
-
-    return caHeader->handshake.publicKey;
-}
-
 /**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
@@ -953,9 +903,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             debugHandles(context->logger, session, "Got running session");
         }
     } else if (message->length >= Headers_CryptoAuth_SIZE) {
+        union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
         uint8_t ip6[16];
-        uint8_t* herKey = extractPublicKey(message, &version, ip6);
-        if (herKey) {
+        uint8_t* herKey = caHeader->handshake.publicKey;
+        AddressCalc_addressForPublicKey(ip6, herKey);
+        if (AddressCalc_validAddress(ip6)) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
             session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
             session->version = version;
@@ -972,7 +924,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return 0;
     }
 
-    if (((uint32_t*)message->bytes)[0] == 0xffffffff) {
+    if (nonce == 0xffffffff) {
         // Got a message from a node that doesn't know our key, this should never happen.
         #ifdef Log_INFO
             uint8_t path[20];
@@ -980,6 +932,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             Log_info(context->logger, "Dropped packet from node [%s] which doesn't know our key",
                      path);
         #endif
+        return 0;
     }
 
     // This is needed so that the priority and other information
