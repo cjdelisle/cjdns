@@ -64,17 +64,16 @@ worry about.
 
 ## Security
 
-Cjdns encrypts all traffic and nodes cannot pretend to be other existing nodes.
-They can make up as many distinct identities as they want - they just will not
-be the identity of other machines. This eliminates the ability to perform
-anonymous attacks on other machines and eliminates the ability to observe
-sensitive material in transit.
+When you receive a packet of information from the Internet, it seems logical to assume that it was
+meant for you, that it came from the computer which it says it came from and that nobody else has
+been reading or modifying it on the way. While many popular software applications are designed
+around these assumptions, the existing Internet does not guarantee any of them and a number of
+network security exploits come from the cases where these assumptions break down.
+Cjdns aims to guarantee these assumptions by using modern cryptography in a non-intrusive way.
 
-Many popular software applications are not designed with the assumption that
-attackers will not pretend to be a well known or trusted machine, and that data
-being is not observed or modified while in transit. Most network based security
-exploits come from situations where these assumptions break down and cjdns aims
-to guarantee them.
+Cjdns protects your information from being altered en-route and while you can
+create arbitrary identities, you cannot impersonate another existing node on
+the network, making man-in-the-middle attacks unfeasible.
 
 
 ## Simplicity
