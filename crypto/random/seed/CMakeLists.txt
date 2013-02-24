@@ -27,7 +27,6 @@ add_library(cjdns-crypto-random-seed
     BsdKernArndSysctlRandomSeed.c
     DevUrandomRandomSeed.c
     LinuxRandomUuidSysctlRandomSeed.c
-    AppleSecRandomCopyBytesRandomSeed.c
     ProcSysKernelRandomUuidRandomSeed.c
     RandomSeed.c
     RtlGenRandomSeed.c
