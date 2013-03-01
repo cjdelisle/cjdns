@@ -300,10 +300,15 @@ int Core_main(int argc, char** argv)
     Hermes_callAngel(&response, angelResponse, NULL, alloc, eh, hermes);
 
     // --------------------- Setup the Logger --------------------- //
-    // the prelogger will nolonger be used.
-    struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
-    indirectLogger->wrappedLog = adminLogger;
-    logger = adminLogger;
+    Dict* logging = Dict_getDict(config, String_CONST("logging"));
+    String* logTo = Dict_getString(logging, String_CONST("logTo"));
+    if (logTo && String_equals(logTo, String_CONST("stdout"))) {
+        // do nothing, continue logging to stdout.
+    } else {
+        struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
+        indirectLogger->wrappedLog = adminLogger;
+        logger = adminLogger;
+    }
 
     // CryptoAuth
     struct Address addr;

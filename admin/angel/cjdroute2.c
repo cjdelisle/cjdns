@@ -334,8 +334,13 @@ static int genconf(struct Random* rand)
            "        }\n"
            "     ],\n"
            "\n"
-           "    // Version of the config file, used internally for migration.\n"
-           "    \"version\": 1\n"
+           "    // Logging\n"
+           "    \"logging\":\n"
+           "    {\n"
+           "        // Uncomment to have cjdns log to stdout rather than making logs available\n"
+           "        // via the admin socket.\n"
+           "        // \"logTo\":\"stdout\"\n"
+           "    }\n"
            "}\n");
 
     return 0;
@@ -501,6 +506,10 @@ int main(int argc, char** argv)
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
     if (securityUser) {
         Dict_putString(adminPreConf, String_CONST("user"), securityUser, allocator);
+    }
+    Dict* logging = Dict_getDict(&config, String_CONST("logging"));
+    if (logging) {
+        Dict_putDict(preConf, String_CONST("logging"), logging, allocator);
     }
 
     #define CONFIG_BUFF_SIZE 1024
