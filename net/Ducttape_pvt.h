@@ -108,6 +108,13 @@ struct Ducttape_pvt
     /** True if the message being handled currently is a layer 3 CryptoAuth init message. */
     bool initMessage;
 
+    /**
+     * Cache the session handle and version so that if an incoming (stray) packet fails to
+     * authenticate it won't assasinate the session.
+     */
+    uint32_t currentSessionSendHandle_be;
+    uint32_t currentSessionVersion;
+
     Identity
 };
 

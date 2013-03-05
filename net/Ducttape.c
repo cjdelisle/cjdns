@@ -213,6 +213,30 @@ static void debugHandles(struct Log* logger, struct SessionManager_Session* sess
               ip);
 }
 
+static void debugHandlesAndLabel(struct Log* logger,
+                                 struct SessionManager_Session* session,
+                                 uint64_t label,
+                                 char* message)
+{
+    uint8_t ip[40];
+    uint8_t path[20];
+    AddrTools_printIp(ip, session->ip6);
+    AddrTools_printPath(path, label);
+    int sendHandle;
+    if (!session->sendHandle_be) {
+        sendHandle = -1;
+    } else {
+        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
+    }
+    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s@%s]",
+              message,
+              session->version,
+              sendHandle,
+              Endian_hostToBigEndian32(session->receiveHandle_be),
+              ip,
+              path);
+}
+
 /**
  * Message which is for us, message is aligned on the beginning of the content.
  * this is called from core() which calls through an interfaceMap.
@@ -693,6 +717,13 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pv
 
 static inline int incomingFromRouter(struct Message* message, struct Ducttape_pvt* context)
 {
+    // If the packet came from a new session, put the send handle in the session.
+    if (context->currentSessionVersion > 0) {
+        context->session->sendHandle_be = context->currentSessionSendHandle_be;
+        context->session->version = context->currentSessionVersion;
+        context->currentSessionVersion = 0;
+    }
+
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
@@ -900,7 +931,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
         session = SessionManager_sessionForHandle(realHandle, context->sm);
         if (session) {
-            debugHandles(context->logger, session, "Got running session");
+            debugHandlesAndLabel(context->logger, session,
+                                 Endian_bigEndianToHost64(switchHeader->label_be),
+                                 "Got running session");
         }
     } else if (message->length >= Headers_CryptoAuth_SIZE) {
         union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -909,9 +942,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         AddressCalc_addressForPublicKey(ip6, herKey);
         if (AddressCalc_validAddress(ip6)) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
-            session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-            session->version = version;
-            debugHandles(context->logger, session, "New session");
+            context->currentSessionSendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
+            context->currentSessionVersion = version;
+            debugHandlesAndLabel(context->logger, session,
+                                 Endian_bigEndianToHost64(switchHeader->label_be),
+                                 "New session");
         }
     }
 
@@ -944,6 +979,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
     session->iface.receiveMessage(message, &session->iface);
+
+    context->currentSessionVersion = 0;
 
     return 0;
 }
