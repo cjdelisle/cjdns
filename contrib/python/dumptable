@@ -1,0 +1,64 @@
+#!/usr/bin/python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from cjdns import cjdns_connectWithAdminInfo;
+
+cjdns = cjdns_connectWithAdminInfo();
+
+class route:
+    def __init__(self, ip, name, path, link):
+        self.ip = ip
+        self.name = name
+        route = path
+        route = route.replace('.','')
+        route = route.replace('0','x')
+        route = route.replace('1','y')
+        route = route.replace('f','1111')
+        route = route.replace('e','1110')
+        route = route.replace('d','1101')
+        route = route.replace('c','1100')
+        route = route.replace('b','1011')
+        route = route.replace('a','1010')
+        route = route.replace('9','1001')
+        route = route.replace('8','1000')
+        route = route.replace('7','0111')
+        route = route.replace('6','0110')
+        route = route.replace('5','0101')
+        route = route.replace('4','0100')
+        route = route.replace('3','0011')
+        route = route.replace('2','0010')
+        route = route.replace('y','0001')
+        route = route.replace('x','0000')
+        self.route = route[::-1].rstrip('0')[:-1]
+        self.quality = link / 5366870.0 # LINK_STATE_MULTIPLIER
+        
+    def find_parent(self, routes):
+        parents = [(len(other.route),other) for other in routes if self.route.startswith(other.route) and self != other]
+
+        parents.sort(reverse=True)
+        if parents:
+            parent = parents[0][1]
+            return parent
+        return None
+
+routes = [];
+names = {};
+i = 0;
+while True:
+    table = cjdns.NodeStore_dumpTable(i)
+    for r in table['routingTable']:
+        print r['ip'] + '@' + r['path']
+    if not 'more' in table:
+        break
+    i += 1
+
