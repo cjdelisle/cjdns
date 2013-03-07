@@ -97,7 +97,12 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     if (APPLE)
         set(MAKE_COMMAND "make")
     else ()
-        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC make")
+        if (BSD)
+            set(make gmake)
+        else()
+            set(make make)
+        endif ()
+        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC ${make}")
     endif ()
 
     ExternalProject_Add(libuv_ep

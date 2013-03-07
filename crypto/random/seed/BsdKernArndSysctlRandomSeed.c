@@ -29,10 +29,10 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
     int mib[] = { CTL_KERN, KERN_ARND };
     Bits_memset(output, 0, 64);
-    int len = 64;
+    size_t len = 64;
     if (sysctl(mib, 2, output, &len, NULL, 0) == -1) {
         // TOR/Libevent retry this 4 bytes at a time if it fails initially.
-        int four = 4;
+        size_t four = 4;
         int tries = 0;
         union {
             uint64_t longs[8];
