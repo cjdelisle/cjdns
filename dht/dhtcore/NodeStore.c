@@ -202,7 +202,11 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                    newAddr);
                     #endif
 
-                    store->nodes[i].address.path = addr->path;
+                    // Remove the node and continue on to add this one.
+                    // If we just change the path, we get duplicates.
+                    NodeStore_remove(&store->nodes[i], store);
+                    i--;
+                    continue;
                 } else if (!LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path)) {
                     // Completely different routes, store seperately.
                     continue;
