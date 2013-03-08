@@ -234,7 +234,9 @@ int AngelInit_main(int argc, char** argv)
     sendConfToCore(coreIface, tempAlloc, &config, eh, logger);
 
     struct Message* coreResponse = InterfaceWaiter_waitForData(coreIface, eventBase, tempAlloc, eh);
-    write(outToClientNo, coreResponse->bytes, coreResponse->length);
+    if (write(outToClientNo, coreResponse->bytes, coreResponse->length)) {
+        // ignore the return value of the call to write()
+    }
 
     #ifdef Log_KEYS
         uint8_t lastChar = coreResponse->bytes[coreResponse->length-1];
