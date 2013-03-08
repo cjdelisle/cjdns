@@ -123,6 +123,12 @@ int main(int argc, char** argv)
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
 
+    #ifdef BSD
+        // tun is not setup synchronously in bsd but it lets you bind to the tun's
+        // address anyway.
+        sleep(1);
+    #endif
+
     // Mac OSX and BSD do not set up their TUN devices synchronously.
     // We'll just keep on trying until this works.
     struct AddrInterface* udp = NULL;
