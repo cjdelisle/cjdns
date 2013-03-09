@@ -72,22 +72,17 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
  *                 if it returns true then the search is assumed to be complete.
  * @param callbackContext a pointer which will be passed back to the callback when it is called.
  * @param module the router module which should perform the search.
+ * @param searchAllocator a temporary allocator to use for allocating the search data.
+ *                        freeing this allocator will cancel the search.
  * @return a search if all goes well, NULL if the search could not be completed because there are
  *         no nodes closer to the destination than us or if there is not enough empty search slots.
  */
-struct RouterModule_Search*
-    RouterModule_beginSearch(const uint8_t target[Address_SEARCH_TARGET_SIZE],
-                             bool (* const callback)(void* callbackContext,
-                                                     struct DHTMessage* result),
-                             void* callbackContext,
-                             struct RouterModule* module);
-
-/**
- * Cancel a search before it is complete.
- *
- * @param toCancel the result of calling RouterModule_beginSearch() for this search.
- */
-void RouterModule_cancelSearch(struct RouterModule_Search* toCancel);
+struct RouterModule_Search* RouterModule_beginSearch(
+    uint8_t searchTarget[16],
+    bool (* const callback)(void* callbackContext, struct DHTMessage* result),
+    void* callbackContext,
+    struct RouterModule* module,
+    struct Allocator* searchAllocator);
 
 /**
  * Manually add a node to the routing table.

@@ -42,22 +42,25 @@ sub error {
     }
 };
 
-undef $/;
-my $files = <>;
-foreach my $fileName (split("\n", $files))
-{
+my $now = time;
+
+sub parse_file {
+    my $fileName = shift;
+    # Anything older than 24 hours gets a pass.
+    if ((stat($fileName))[10] < $now - (3600 * 24)) { return; }
+    #print "$fileName\n";
     $fileName =~ /^.*\/(.*)\..*$/ or die;
     my $name = $1;
-    open FILE, "$fileName" or die $!;
-    my $lineNum = 0;
+    open my $file, "$fileName" or die $!;
     my $parenthCount = 0;
     my $functionParenthCount = 0;
     my $expectBracket = 0;
 
-    foreach my $line (split("\n", <FILE>)) {
-        $lineNum++;
+    while (my $line = <$file>) {
+        chomp($line);
+        my $lineNum = $.;
         $lineInfo = "$fileName:" . ($lineNum);
-
+#print "$line\n";
         if ($lineNum < scalar(@headerArray) + 1) {
             my $expectedLine = $headerArray[$lineNum - 1];
             if (index($line, $expectedLine) == -1) {
@@ -164,4 +167,27 @@ foreach my $fileName (split("\n", $files))
             }
         }
     }
+    close($file);
 }
+
+sub add_dir {
+    my $dir = shift;
+
+    opendir(DIR, $dir) or die $!;
+    my @f = grep { !/^\.{1,2}$/ } readdir (DIR);
+    closedir(DIR);
+
+    @f = grep {!/^build/} @f;
+    @f = grep {!/^.git/} @f;
+    @f = map { $dir . '/' . $_ } @f;
+
+    for my $file (@f) {
+        if (-d $file) {
+            add_dir($file);
+        } elsif ($file =~ /\.[ch]$/) {
+            #print "$file\n";
+            parse_file($file);
+        }
+    }
+}
+add_dir('.');

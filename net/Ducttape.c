@@ -571,7 +571,8 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
     if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
         context->timeOfLastSearch = now;
-        RouterModule_beginSearch(header->nodeIp6Addr, NULL, NULL, context->routerModule);
+        RouterModule_beginSearch(
+            header->nodeIp6Addr, NULL, NULL, context->routerModule, context->alloc);
     }
     return 0;
 }
@@ -1008,6 +1009,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->logger = logger;
     context->forwardTo = NULL;
     context->eventBase = eventBase;
+    context->alloc = allocator;
     Identity_set(context);
 
     context->ipTunnel = ipTun;

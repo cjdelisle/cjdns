@@ -105,6 +105,8 @@ struct Ducttape_pvt
     /** For tunneling IPv4 and ICANN IPv6 packets. */
     struct IpTunnel* ipTunnel;
 
+    struct Allocator* alloc;
+
     /** True if the message being handled currently is a layer 3 CryptoAuth init message. */
     bool initMessage;
 

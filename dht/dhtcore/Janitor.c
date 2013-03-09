@@ -114,7 +114,8 @@ static void maintanenceCycle(void* vcontext)
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
-                                 janitor->routerModule);
+                                 janitor->routerModule,
+                                 janitor->allocator);
         return;
     }
 
@@ -140,7 +141,8 @@ static void maintanenceCycle(void* vcontext)
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
-                                 janitor->routerModule);
+                                 janitor->routerModule,
+                                 janitor->allocator);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }

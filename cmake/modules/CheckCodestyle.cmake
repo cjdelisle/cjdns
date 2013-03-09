@@ -14,34 +14,8 @@ find_program(perl perl)
 if(NOT perl)
     message("Couldn't find perl, skipping codestyle check.")
 else()
-    string(REPLACE "," ";" skipDirs "${SKIP}")
-    set(filesToCheck "")
-    file(GLOB_RECURSE files "${CSD}/*.[ch]")
-    foreach(f ${files})
-        set(skip FALSE)
-        foreach(dir ${skipDirs})
-            if (${f} MATCHES "${CSD}/${dir}/.*")
-                set(skip TRUE)
-                break()
-            endif()
-        endforeach()
-        # ignore all *build* subdirectories
-        if (${f} MATCHES "${CSD}/[^/]*build[^/]*/.*")
-            set(skip TRUE)
-        endif()
-        if (skip OR IS_DIRECTORY ${f})
-            # skip
-        elseif(${f} MATCHES "${CSD}/.*")
-            #message("checking ${f}")
-            list(APPEND filesToCheck "${f}\n")
-        endif()
-    endforeach()
-    string(REPLACE ";" "" fileList "${filesToCheck}")
-    file(REMOVE ${CMAKE_BINARY_DIR}/files_to_check.txt)
-    file(WRITE ${CMAKE_BINARY_DIR}/files_to_check.txt ${fileList})
-
     execute_process(COMMAND ${perl} ${CSD}/scripts/checkfiles.pl
-        INPUT_FILE ${CMAKE_BINARY_DIR}/files_to_check.txt
+        WORKING_DIRECTORY ${CSD}
         OUTPUT_VARIABLE out
     )
     if (NOT "${out}" STREQUAL "")
