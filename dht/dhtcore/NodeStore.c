@@ -411,11 +411,24 @@ void NodeStore_updateReach(const struct Node* const node,
                 }
             }
         } else if (LabelSplicer_routesThrough(path, dest)) {
-            if (store->headers[i].reach < node->reach) {
+            /* BUG:
+             * When a switch restarts, it repopulates it's slots in random order.
+             * Nodes have stale entries in their tables that predate the switch restart.
+             * these entries contain valid keys with valid paths but the key does not match
+             * the path. Worse these nodes share the stale routes with others.
+             *
+             * Normally the reach of nodes which are invalid is set to 0 and they are not
+             * bothered with anymore. Unfortunately in this case, the path is valid and
+             * there are valid entries which are "behind" that node.
+             * When one of these nodes is pinged, it's reach is updated and the invalid node
+             * gets it's reach updated at the same time so it will potentially be selected for
+             * forwarding a packet to.
+             *
+             * This is a temporary workaround which just skips increasing the reach for a node
+             * whose reach is 0 so that these stale nodes will not do damage.
+             */
+            if (store->headers[i].reach < node->reach && store->headers[i].reach != 0) {
                 store->headers[i].reach = node->reach;
-                if (node->reach == 0) {
-                    logNodeZeroed(store->logger, &store->nodes[i]);
-                }
             }
         }
     }
