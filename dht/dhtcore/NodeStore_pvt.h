@@ -34,10 +34,10 @@ struct NodeStore
     struct Node* nodes;
 
     /** The maximum number of nodes which can be allocated. */
-    uint32_t capacity;
+    int capacity;
 
     /** The number of nodes in the list. */
-    uint32_t size;
+    int size;
 
     /** The sum of the logs base 2 of all node labels. */
     int32_t labelSum;

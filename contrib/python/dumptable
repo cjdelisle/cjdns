@@ -23,6 +23,7 @@ while True:
     for r in table['routingTable']:
         print(r['ip'] + ' ' + r['path'] + ' ' + str(r['link']) + ' ' + str(r['version']));
     if not 'more' in table:
+        print("count " + str(table['count']));
         break
     i += 1
 

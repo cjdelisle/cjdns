@@ -120,14 +120,16 @@ static void maintanenceCycle(void* vcontext)
     }
 
     #ifdef Log_DEBUG
-        uint32_t nonZeroNodes = 0;
-        for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
+        int nonZeroNodes = 0;
+        for (int i = 0; i < janitor->routerModule->nodeStore->size; i++) {
             nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
         }
         Log_debug(janitor->routerModule->logger,
-                   "Global Mean Response Time: %u non-zero nodes: %u\n",
-                   (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
-                   (unsigned int) nonZeroNodes);
+                  "Global Mean Response Time: %u non-zero nodes: [%d] zero nodes [%d] total [%d]",
+                  (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
+                  nonZeroNodes,
+                  janitor->routerModule->nodeStore->size - nonZeroNodes,
+                  janitor->routerModule->nodeStore->size);
 
         /* Accessible via admin interface.
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);

@@ -892,7 +892,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
         SearchStore_addNodeToSearch((n) ? &n->address : &addr, search);
     }
 
-    if (scc->resultCallback == NULL) {
+    if (scc->resultCallback != NULL) {
         scc->resultCallback(scc->resultCallbackContext, message);
     }
     searchStep(scc);
