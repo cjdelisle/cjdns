@@ -215,32 +215,31 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                 continue;
             }
 
-            /*#ifdef Log_DEBUG
-                uint32_t oldReach = store->headers[i].reach;
-            #endif*/
-
             adjustReach(&store->headers[i], reachDifference, store);
-
-            if (version) {
-                store->headers[i].version = version;
-            }
-
-            /*#ifdef Log_DEBUG
-                if (oldReach != store->headers[i].reach) {
-                    uint8_t nodeAddr[60];
-                    Address_print(nodeAddr, addr);
-                    Log_debug(store->logger,
-                               "Altering reach for node %s, old reach %u, new reach %u.\n",
-                               nodeAddr,
-                               oldReach,
-                               store->headers[i].reach);
-                    if (oldReach > store->headers[i].reach) {
-                        Log_debug(store->logger, "Reach was decreased!\n");
-                    }
-                }
-            #endif*/
-
+            store->headers[i].version = version;
             return nodeForIndex(store, i);
+
+        } else if (store->nodes[i].address.path == addr->path) {
+            // When a node restarts, it's switch renumbers meaning that the paths to other nodes
+            // change. This causes a previously valid path to A to now point to B. The problem
+            // is that there is a real node at the end of the path to B and worse, there are real
+            // nodes behind that one. When those nodes respond to pings and searches, their reach
+            // is updated along with the now-invalid node A.
+            // This will allow incoming packets from B to clear A out of the table and replace
+            // them with B while preventing another node's memory of B from causing A to be
+            // replaced.
+            if (reachDifference > 0) {
+                replaceNode(&store->nodes[i], &store->headers[i], addr, store);
+                store->headers[i].reach = reachDifference;
+                store->headers[i].version = version;
+                return nodeForIndex(store, i);
+            } else {
+                // TODO:
+                // We were told about another node, it might be B and it might be A (invalid).
+                // the only way to know for sure it to queue a ping to that node and wait for it
+                // to respond. We need a system for queueing pings so we don't send out a flood.
+                return NULL;
+            }
         }
 
         if (store->size >= store->capacity) {
@@ -411,7 +410,7 @@ void NodeStore_updateReach(const struct Node* const node,
                 }
             }
         } else if (LabelSplicer_routesThrough(path, dest)) {
-            /* BUG:
+            /*
              * When a switch restarts, it repopulates it's slots in random order.
              * Nodes have stale entries in their tables that predate the switch restart.
              * these entries contain valid keys with valid paths but the key does not match

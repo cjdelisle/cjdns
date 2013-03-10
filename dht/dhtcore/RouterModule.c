@@ -714,7 +714,7 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     // it probably means that we just flushed them from the table because
     // a node further up the tree has become unresponsive.
     // ignore their message because it would add orphaned entries to the node tree.
-    struct Node* node = RouterModule_lookup(message->address->ip6.bytes, module);
+    struct Node* node = NodeStore_getNodeByNetworkAddr(message->address->path, module->nodeStore);
     if (!node || Bits_memcmp(node->address.key, message->address->key, 32)) {
         return 0;
     }
@@ -723,7 +723,9 @@ static inline int handleReply(struct DHTMessage* message, struct RouterModule* m
     uint32_t version = ((versionPtr) ? *versionPtr : 0);
 
     // this implementation only pings to get the address of a node, so lets add the node.
-    node = NodeStore_addNode(module->nodeStore, message->address, 0, version);
+    node = NodeStore_addNode(module->nodeStore, message->address, 2, version);
+
+    Assert_true(node);
 
     String* tid = Dict_getString(message->asDict, CJDHTConstants_TXID);
 
