@@ -183,9 +183,9 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
         Assert_true(false);
     }
 
-    // Keep track of the worst node so if the store is full, it can be replaced.
+    // Keep track of the node with the longest label so if the store is full, it can be replaced.
     int worstNode = 0;
-    int64_t worstValue = INT64_MAX;
+    uint64_t worstPath = 0;
 
     for (int i = 0; i < store->size; i++) {
         if (store->headers[i].addressPrefix == pfx
@@ -242,14 +242,9 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
             }
         }
 
-        if (store->size >= store->capacity) {
-            // keep track of the worst node so it can be replaced.
-            int64_t value = ((int64_t)store->headers[i].reach)
-                - (Address_getPrefix(store->thisNodeAddress) ^ store->headers[i].addressPrefix);
-            if (value < worstValue) {
-                worstValue = value;
-                worstNode = i;
-            }
+        if (store->size >= store->capacity && store->nodes[i].address.path > worstPath) {
+            worstPath = store->nodes[i].address.path;
+            worstNode = i;
         }
 
         #ifdef Log_DEBUG
