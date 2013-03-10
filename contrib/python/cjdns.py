@@ -79,7 +79,7 @@ def receiverThread(cjdns):
                 #print "putting to queue " + str(benc);
                 cjdns.queue.put(benc);
 
-    except KeyboardError:
+    except KeyboardInterrupt:
         print("interrupted");
         import thread
         thread.interrupt_main();
