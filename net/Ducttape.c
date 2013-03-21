@@ -247,7 +247,7 @@ static inline uint8_t incomingForMe(struct Message* message,
                                     bool containsHandle)
 {
     struct SessionManager_Session* session = context->session;
-    if (containsHandle) {
+    if (containsHandle && message->length >= 4) {
         uint32_t handle_be;
         Message_pop(message, &handle_be, 4);
         session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
