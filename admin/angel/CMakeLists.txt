@@ -95,6 +95,7 @@ target_link_libraries(cjdroute2
     cjdns-waiter
     cjdns-util-log-writer
     cjdns-crypto-random
+    cjdns-util-version-version
 )
 
 
