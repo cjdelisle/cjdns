@@ -408,7 +408,7 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
         } else if (strcmp(argv[1], "--version") == 0) {
-            printf("CJDNS Git Version ID: %s\n", Version_gitVersion());
+            printf("Cjdns Git Version ID: %s\n", Version_gitVersion());
             return 0;
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
