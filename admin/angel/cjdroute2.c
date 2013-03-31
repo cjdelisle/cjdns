@@ -58,6 +58,7 @@
 #include "util/Process.h"
 #include "util/Security.h"
 #include "util/log/WriterLog.h"
+#include "util/version/Version.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -407,7 +408,7 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
         } else if (strcmp(argv[1], "--version") == 0) {
-            //printf("Version ID: %s\n", RouterModule_gitVersion());
+            printf("CJDNS Git Version ID: %s\n", Version_gitVersion());
             return 0;
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
