@@ -92,6 +92,11 @@ routing among a number of nodes rather than requiring every node to know the ful
 other node.
 
 
+## Testimonials
+
+    23:26 <@jercos> well, cjdns is now officially more reliable than the open internet for getting to my cheaper VPSes :|
+
+
 ## How does routing work?
 
 In order to understand how cjdns routing works, it is important to understand
