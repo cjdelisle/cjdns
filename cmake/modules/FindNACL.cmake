@@ -51,7 +51,7 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "f23fbf8e17771d3623a91db13239f456277ba945.tar.gz")
+    set(tag "cnacl-28cc11253e5fc3dd98a270c8df53680f7ea3ccd8.tar.gz")
 
     # Configure cnacl
     set(cNaClConfig "
@@ -74,9 +74,6 @@ if(NOT NACL_FOUND)
     set(url "${CMAKE_SOURCE_DIR}/cmake/externals/${tag}")
     if(NOT EXISTS "${url}")
         set(url ${CMAKE_BINARY_DIR}/nacl_ep-prefix/src/${tag})
-    endif()
-    if(NOT EXISTS "${url}")
-        set(url "http://nodeload.github.com/cjdelisle/cnacl/tar.gz/${tag}")
     endif()
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
     ExternalProject_Add(nacl_ep
