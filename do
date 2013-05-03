@@ -40,7 +40,7 @@ if [ -f cmake-build/bin/cmake ]; then
     CMAKE=`pwd`/cmake-build/bin/cmake
 fi
 
-[ ${CMAKE} ] && ${CMAKE} --version | grep 2.8.[2-9] ||
+[ ${CMAKE} ] && ${CMAKE} --version | grep '2.8.\([2-9]\|1[0-9]\)' ||
 while true; do
     [ -d cmake-build ] && rm -r cmake-build
     mkdir cmake-build
