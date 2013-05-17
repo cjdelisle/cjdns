@@ -156,10 +156,9 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
     Assert_always(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
     //printf("%s", actual);
     if (Bits_memcmp(actual, expectedOutput, 264)) {
-        printf("Test failed.\n"
-               "Expected %s\n"
-               "     Got %s\n", expectedOutput, actual);
-        abort();
+        Assert_failure("Test failed.\n"
+                       "Expected %s\n"
+                       "     Got %s\n", expectedOutput, actual);
     }
 }
 

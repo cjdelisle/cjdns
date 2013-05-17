@@ -33,6 +33,8 @@
 #include "util/platform/libc/string.h"
 #include "util/events/Timeout.h"
 
+#include <stdlib.h>
+
 /*
  * Setup 2 UDPInterface's, test sending traffic between them.
  */

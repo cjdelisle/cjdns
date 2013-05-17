@@ -12,22 +12,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Except_H
-#define Except_H
+#ifndef Log_impl_H
+#define Log_impl_H
 
-#include "util/Gcc.h"
+#include "util/log/Log.h"
 
-#define Except_BUFFER_SZ 1024
+#include <stdarg.h>
 
-struct Except
+typedef void (* Log_callback) (struct Log* log,
+                               enum Log_Level logLevel,
+                               const char* file,
+                               int line,
+                               const char* format,
+                               va_list args);
+
+struct Log
 {
-    void (* exception)(char* message, int code, struct Except* handler);
-
-    char message[Except_BUFFER_SZ];
+    Log_callback print;
 };
-
-Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
 
 #endif

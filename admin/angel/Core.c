@@ -235,7 +235,7 @@ int Core_main(int argc, char** argv)
     // -------------------- Setup the Pre-Logger ---------------------- //
     struct IndirectLog* indirectLogger = IndirectLog_new(unsafeAlloc);
     indirectLogger->wrappedLog = preLogger;
-    struct Log* logger = &indirectLogger->pub;
+    struct Log* logger = indirectLogger->log;
 
     // -------------------- Setup the PRNG ---------------------- //
     struct Random* rand =

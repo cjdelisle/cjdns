@@ -26,7 +26,7 @@
  * @param identFile the file where this allocator was created.
  * @param identLine the line where this was called from.
  */
-struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
+struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
                                                   const char* identFile,
                                                   int identLine);
 #define MallocAllocator_new(sl) \
@@ -39,6 +39,6 @@ struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
  * @param allocator this *must* be a MallocAllocator, no checking is done!
  * @return the number of bytes which have been allocated so far.
  */
-size_t MallocAllocator_bytesAllocated(struct Allocator* allocator);
+unsigned long MallocAllocator_bytesAllocated(struct Allocator* allocator);
 
 #endif

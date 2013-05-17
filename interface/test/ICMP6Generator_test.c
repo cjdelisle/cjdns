@@ -22,6 +22,8 @@
 #include "util/Assert.h"
 #include "util/Bits.h"
 
+#include <stdio.h>
+
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 
 static struct Message* newMessage(struct Allocator* alloc, int messageSize)

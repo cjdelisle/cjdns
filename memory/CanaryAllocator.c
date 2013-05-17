@@ -20,6 +20,7 @@
 #include "util/Identity.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define SIZE_INTS(size) ((size + 11) / 4)
 #define SIZE_BYTES(size) (SIZE_INTS(size) * 4)
@@ -51,7 +52,7 @@ int CanaryAllocator_isOverflow(struct CanaryAllocator_pvt* ctx)
 }
 
 /** @see Allocator->free() */
-static void freeAllocator(const struct Allocator* allocator, const char* identFile, int identLine)
+static void freeAllocator(struct Allocator* allocator, const char* identFile, int identLine)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     CanaryAllocator_check(allocator);
@@ -60,7 +61,7 @@ static void freeAllocator(const struct Allocator* allocator, const char* identFi
 
 static inline void* newAllocation(struct CanaryAllocator_pvt* ctx,
                                   uint32_t* allocation,
-                                  size_t sizeInts,
+                                  unsigned long sizeInts,
                                   const char* identFile,
                                   int identLine)
 {
@@ -86,8 +87,8 @@ static inline void* newAllocation(struct CanaryAllocator_pvt* ctx,
 }
 
 /** @see Allocator->malloc() */
-static void* allocatorMalloc(size_t size,
-                             const struct Allocator* allocator,
+static void* allocatorMalloc(unsigned long size,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -98,9 +99,9 @@ static void* allocatorMalloc(size_t size,
 }
 
 /** @see Allocator->calloc() */
-static void* allocatorCalloc(size_t length,
-                             size_t count,
-                             const struct Allocator* allocator,
+static void* allocatorCalloc(unsigned long length,
+                             unsigned long count,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -110,8 +111,8 @@ static void* allocatorCalloc(size_t length,
 }
 
 /** @see Allocator->clone() */
-static void* allocatorClone(size_t length,
-                            const struct Allocator* allocator,
+static void* allocatorClone(unsigned long length,
+                            struct Allocator* allocator,
                             const void* toClone,
                             const char* identFile,
                             int identLine)
@@ -122,24 +123,18 @@ static void* allocatorClone(size_t length,
 }
 
 /** @see Allocator->onFree() */
-static void* addOnFreeJob(void (* callback)(void* callbackContext),
-                          void* callbackContext,
-                          const struct Allocator* allocator)
+static struct Allocator_OnFreeJob* addOnFreeJob(void (* callback)(void* callbackContext),
+                                                void* callbackContext,
+                                                struct Allocator* allocator)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     return ctx->alloc->onFree(callback, callbackContext, ctx->alloc);
 }
 
-static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
-{
-    struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) alloc);
-    return ctx->alloc->notOnFree(toRemove, ctx->alloc);
-}
-
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
-                              size_t size,
-                              const struct Allocator* allocator,
+                              unsigned long size,
+                              struct Allocator* allocator,
                               const char* identFile,
                               int identLine)
 {
@@ -164,7 +159,7 @@ static void* allocatorRealloc(const void* original,
 }
 
 /** @see Allocator_child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator,
+static struct Allocator* childAllocator(struct Allocator* allocator,
                                         const char* identFile,
                                         int identLine)
 {
@@ -183,9 +178,7 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
             .clone = allocatorClone,
             .realloc = allocatorRealloc,
             .child = childAllocator,
-            .onFree = addOnFreeJob,
-            .notOnFree = removeOnFreeJob,
-            .context = alloc->context
+            .onFree = addOnFreeJob
         },
         .alloc = alloc,
         .rand = rand,
@@ -198,7 +191,7 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
     return &ctx->pub;
 }
 
-void CanaryAllocator_check(const struct Allocator* allocator)
+void CanaryAllocator_check(struct Allocator* allocator)
 {
     struct CanaryAllocator_pvt* ctx = Identity_cast((struct CanaryAllocator_pvt*) allocator);
     Assert_always(!CanaryAllocator_isOverflow(ctx));

@@ -25,6 +25,8 @@
 #include "util/log/Log.h"
 #include "util/Identity.h"
 
+#include <stdlib.h>
+
 struct AngelContext
 {
     struct Interface* coreIface;

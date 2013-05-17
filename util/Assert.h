@@ -16,8 +16,7 @@
 #define Assert_H
 
 #include "util/UniqueName.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "util/Gcc.h"
 
 #define Assert_STRING(x) #x
 
@@ -30,14 +29,16 @@
 #define Assert_compileTime(isTrue) \
     struct UniqueName_get() { unsigned int assertFailed : (isTrue); }
 
+Gcc_PRINTF(1, 2)
+Gcc_NORETURN
+void Assert_failure(const char* format, ...);
 
 /** Runtime assertion which is always applied. */
 #define Assert_always(expr) do { \
-        if (!(expr)) { \
-            fprintf(stderr, "%s:%d Assertion failed: %s\n", \
-                    __FILE__, __LINE__, Assert_STRING(expr)); \
-            abort(); \
-        } \
+        if (!(expr)) {                                                                \
+            Assert_failure("Assertion failure [%s:%d] [%s]", __FILE__, __LINE__,      \
+                           Assert_STRING(expr));                                      \
+        }                                                                             \
     } while (0)
 /* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 

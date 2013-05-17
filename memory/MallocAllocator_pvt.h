@@ -18,6 +18,8 @@
 #include "memory/MallocAllocator.h"
 #include "util/Identity.h"
 
+#include <stdint.h>
+
 struct MallocAllocator_pvt;
 
 struct MallocAllocator_OnFreeJob;

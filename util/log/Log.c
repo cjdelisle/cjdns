@@ -14,6 +14,9 @@
  */
 
 #include "util/log/Log.h"
+#include "util/log/Log_impl.h"
+
+#include <stdarg.h>
 
 #ifdef Illumos
     #define _XPG4_2
@@ -23,6 +26,19 @@
 #ifdef WIN32
     #define strcasecmp strcmp
 #endif
+
+void Log_print(struct Log* log,
+               enum Log_Level logLevel,
+               const char* file,
+               int line,
+               const char* format,
+               ...)
+{
+    va_list args;
+    va_start(args, format);
+    log->print(log, logLevel, file, line, format, args);
+    va_end(args);
+}
 
 char* Log_nameForLevel(enum Log_Level logLevel)
 {

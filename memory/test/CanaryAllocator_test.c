@@ -17,6 +17,8 @@
 #include "memory/CanaryAllocator_pvt.h"
 #include "util/Assert.h"
 
+#include <stddef.h>
+
 void tryOverflowLow(struct Allocator* alloc, int bytes)
 {
     uint8_t* buff = Allocator_malloc(alloc, bytes);

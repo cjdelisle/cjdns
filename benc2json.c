@@ -31,7 +31,7 @@ int main(int argc, char** argv)
     if (isatty(STDIN_FILENO)) {
         printf("Usage: %s < input.benc > output.json\n", argv[0]);
         printf("Or:    %s -r < input.json > output.benc\n", argv[0]);
-        exit(0);
+        return 0;
     }
 
     struct Allocator* allocator = MallocAllocator_new(1<<20);

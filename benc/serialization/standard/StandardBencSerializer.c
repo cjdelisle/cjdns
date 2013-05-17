@@ -12,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdio.h>
-/* for parseint64_t */
-#include <limits.h>
-
 #include "util/Bits.h"
 #include "memory/Allocator.h"
 #include "io/Reader.h"
@@ -25,6 +21,11 @@
 #include "util/Errno.h"
 #define string_strlen
 #include "util/platform/libc/string.h"
+
+#include <stdio.h>
+/* for parseint64_t */
+#include <limits.h>
+#include <stdlib.h> // strtol()
 
 static int32_t parseGeneric(struct Reader* reader,
                             struct Allocator* allocator,

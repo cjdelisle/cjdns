@@ -26,7 +26,7 @@
 
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(512);
+    struct Allocator* alloc = MallocAllocator_new(1024);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     FILE* tmp = tmpfile();
@@ -38,15 +38,15 @@ int main()
     rewind(tmp);
     struct Reader* r = FileReader_new(tmp, alloc);
 
-    r->read(buffer2, 128, r);
-    r->skip(128, r);
-    r->read(buffer2+128, 128, r);
-    r->skip(512, r);
-    r->read(buffer2+128+128, 256, r);
-    r->skip(300, r);
-    r->read(buffer2+128+128+256, 128, r);
+    Reader_read(r, buffer2, 128);
+    Reader_skip(r, 128);
+    Reader_read(r, buffer2+128, 128);
+    Reader_skip(r, 512);
+    Reader_read(r, buffer2+128+128, 256);
+    Reader_skip(r, 300);
+    Reader_read(r, buffer2+128+128+256, 128);
 
-    Assert_always(r->bytesRead(r) == 128+128+128+512+256+300+128);
+    Assert_always(r->bytesRead == 128+128+128+512+256+300+128);
 
     uint8_t* ptr1 = buffer1;
     uint8_t* ptr2 = buffer2;

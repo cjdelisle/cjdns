@@ -13,6 +13,9 @@ add_library(cjdmemory
     BufferAllocator.c
     MallocAllocator.c
 )
+target_link_libraries(cjdmemory
+    cjdns-except
+)
 
 add_library(cjdns-memory-canary
     CanaryAllocator.c

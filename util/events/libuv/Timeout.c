@@ -77,7 +77,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   const uint64_t milliseconds,
                                   const uint32_t interval,
                                   struct EventBase* eventBase,
-                                  const struct Allocator* allocator)
+                                  struct Allocator* allocator)
 {
     struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
     struct Allocator* asyncAllocator = Allocator_child(base->asyncAllocator);
@@ -103,7 +103,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
                                    struct EventBase* eventBase,
-                                   const struct Allocator* allocator)
+                                   struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 0, eventBase, allocator);
 }
@@ -113,7 +113,7 @@ struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContex
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct EventBase* eventBase,
-                                    const struct Allocator* allocator)
+                                    struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 1, eventBase, allocator);
 }

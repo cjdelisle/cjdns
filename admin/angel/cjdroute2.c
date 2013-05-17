@@ -519,7 +519,7 @@ int main(int argc, char** argv)
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
         Except_raise(eh, -1, "Failed to serialize pre-configuration");
     }
-    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten(toAngelWriter));
+    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten);
     Log_keys(logger, "Sent [%s] to angel process.", buff);
 
     // --------------------- Get Response from Angel --------------------- //

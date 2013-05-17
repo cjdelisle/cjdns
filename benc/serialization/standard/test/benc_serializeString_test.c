@@ -32,8 +32,8 @@ int expect(char* str, struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
     char buffer[32];
-    writer->write("\0", 1, writer);
-    reader->read(buffer, strlen(str) + 1, reader);
+    Writer_write(writer, "\0", 1);
+    Reader_read(reader, buffer, strlen(str) + 1);
     if (strcmp(str, buffer) != 0) {
         printf("Expected %s\n Got %s\n", str, buffer);
         return -1;

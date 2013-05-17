@@ -22,6 +22,9 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <uv.h>
 

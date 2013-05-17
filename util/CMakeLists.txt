@@ -45,6 +45,7 @@ add_library(util
     Pinger.c
     Pipe.c
     Security_admin.c
+    Assert.c
 )
 target_link_libraries(util
     cjdmemory

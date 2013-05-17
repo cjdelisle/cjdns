@@ -33,7 +33,7 @@ struct SwitchInterface
 
     struct SwitchCore* core;
 
-    void* onFree;
+    struct Allocator_OnFreeJob* onFree;
 
     /**
      * How much traffic has flowed down an interface as the sum of all packet priority.
@@ -270,8 +270,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     struct SwitchInterface* si1 = (struct SwitchInterface*) if1->receiverContext;
     struct SwitchInterface* si2 = (struct SwitchInterface*) if2->receiverContext;
 
-    Assert_true(if1->allocator->notOnFree(si1->onFree, if1->allocator));
-    Assert_true(if2->allocator->notOnFree(si2->onFree, if2->allocator));
+    Assert_true(Allocator_cancelOnFree(si1->onFree));
+    Assert_true(Allocator_cancelOnFree(si2->onFree));
 
     struct SwitchInterface si3;
     Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));

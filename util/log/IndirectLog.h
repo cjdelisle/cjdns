@@ -20,7 +20,7 @@
 
 struct IndirectLog
 {
-    struct Log pub;
+    struct Log* const log;
     struct Log* wrappedLog;
 };
 

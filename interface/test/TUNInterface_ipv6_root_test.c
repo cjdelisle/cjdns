@@ -42,6 +42,7 @@
 #include "wire/Headers.h"
 
 #include <unistd.h>
+#include <stdlib.h>
 
 const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
 const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};

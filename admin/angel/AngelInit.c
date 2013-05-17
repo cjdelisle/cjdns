@@ -44,6 +44,7 @@
 
 #include <unistd.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /**
  * Initialize the core.
@@ -110,7 +111,7 @@ static void sendConfToCore(struct Interface* toCoreInterface,
     }
     struct Message m = {
         .bytes = start,
-        .length = writer->bytesWritten(writer),
+        .length = writer->bytesWritten,
         .padding = 32
     };
     Log_keys(logger, "Sent [%d] bytes to core [%s].", m.length, m.bytes);

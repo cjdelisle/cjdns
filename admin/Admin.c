@@ -41,6 +41,9 @@
 
 #include <crypto_hash_sha256.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+
 static String* TYPE =     String_CONST_SO("type");
 static String* REQUIRED = String_CONST_SO("required");
 static String* STRING =   String_CONST_SO("String");
@@ -144,7 +147,7 @@ static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
 
     struct Message m = {
         .bytes = buff + SEND_MESSAGE_PADDING,
-        .length = w->bytesWritten(w),
+        .length = w->bytesWritten,
         .padding = SEND_MESSAGE_PADDING
     };
     return sendMessage(&m, dest, admin);
@@ -444,7 +447,7 @@ static void handleMessage(struct Message* message,
         return;
     }
 
-    int amount = reader->bytesRead(reader);
+    int amount = reader->bytesRead;
     if (amount < message->length) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",

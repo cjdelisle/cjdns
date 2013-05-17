@@ -168,7 +168,7 @@ void Hermes_callAngel(Dict* message,
 
     struct Message m = {
         .bytes = buff.message,
-        .length = writer->bytesWritten(writer),
+        .length = writer->bytesWritten,
         .padding = PADDING
     };
 

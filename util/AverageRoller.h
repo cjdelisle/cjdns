@@ -30,7 +30,7 @@ struct AverageRoller;
  */
 struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
                                         struct EventBase* eventBase,
-                                        const struct Allocator* allocator);
+                                        struct Allocator* allocator);
 
 /**
  * Get the average.

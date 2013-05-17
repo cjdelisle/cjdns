@@ -19,6 +19,9 @@
 #include "util/Assert.h"
 #include "util/Hex.h"
 
+#include <stddef.h>
+#include <stdio.h>
+
 int main()
 {
     struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);

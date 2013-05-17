@@ -12,22 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Except_H
-#define Except_H
-
+#include "util/Assert.h"
 #include "util/Gcc.h"
 
-#define Except_BUFFER_SZ 1024
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
-struct Except
+Gcc_PRINTF(1, 2)
+void Assert_failure(const char* format, ...)
 {
-    void (* exception)(char* message, int code, struct Except* handler);
-
-    char message[Except_BUFFER_SZ];
-};
-
-Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
-
-#endif
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    abort();
+    va_end(args);
+}

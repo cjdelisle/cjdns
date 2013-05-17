@@ -249,7 +249,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
     out->searchStore = SearchStore_new(allocator, out->gmrtRoller, eventBase, rand, logger);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, admin);
+    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
@@ -342,7 +342,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
-    x = x + (rand() % (x | 1)) / 2;
+    x = x + (Random_int32(module->rand) % (x | 1)) / 2;
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 

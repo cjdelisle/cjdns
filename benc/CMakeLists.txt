@@ -11,7 +11,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_subdirectory(serialization)
 
-add_library(cjdbenc String.c Dict.c List.c)
+add_library(cjdbenc
+    String.c
+    Dict.c
+    List.c
+)
 target_link_libraries(cjdbenc cjdmemory cjdio util)
 
 enable_testing()

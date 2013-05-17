@@ -40,12 +40,19 @@ struct Job {
 /** Internal state for Allocator. */
 struct BufferAllocator {
     struct Allocator generic;
+
+    /** Pointer to the beginning of the buffer. */
     char* basePointer;
-    char* pointer;
+
+    /** Pointer to a pointer to the place in the buffer to allocate the next block of memory. */
+    char** pPointer;
+
+    /** Pointer to the end of the buffer. */
     char* const endPointer;
+
     struct Job* onFree;
     struct Except* onOOM;
-    char* file;
+    const char* file;
     int line;
     Identity
 };
@@ -67,7 +74,7 @@ static void* allocatorMalloc(unsigned long length,
 {
     struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
 
-    char* pointer = getAligned(context->pointer, ALIGNMENT);
+    char* pointer = getAligned((*context->pPointer), ALIGNMENT);
     char* endOfAlloc = pointer + length;
 
     if (endOfAlloc >= context->endPointer) {
@@ -75,12 +82,12 @@ static void* allocatorMalloc(unsigned long length,
                      identFile, identLine);
     }
 
-    if (endOfAlloc < context->pointer) {
+    if (endOfAlloc < *(context->pPointer)) {
         Except_raise(context->onOOM, -2, "BufferAllocator integer overflow [%s:%d]",
                      identFile, identLine);
     }
 
-    context->pointer = endOfAlloc;
+    (*context->pPointer) = endOfAlloc;
     return (void*) pointer;
 }
 
@@ -121,7 +128,7 @@ static void* allocatorRealloc(const void* original,
 
     // Need to pointer to make sure we dont copy too much.
     struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
-    char* pointer = context->pointer;
+    char* pointer = *context->pPointer;
     uint32_t amountToClone = (length < (uint32_t)(pointer - (char*)original))
         ? length
         : (uint32_t)(pointer - (char*)original);
@@ -138,14 +145,17 @@ static void* allocatorRealloc(const void* original,
 static void freeAllocator(struct Allocator* allocator, const char* identFile, int identLine)
 {
     struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
-
+    if ((uintptr_t) context > (uintptr_t) context->pPointer) {
+        // pPointer points to a destination which is > context unless this is a child alloc.
+        return;
+    }
     struct Job* job = context->onFree;
     while (job != NULL) {
         job->callback(job->callbackContext);
         job = job->next;
     }
 
-    context->pointer = context->basePointer;
+    (*context->pPointer) = context->basePointer;
 }
 
 static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
@@ -194,11 +204,15 @@ static struct Allocator_OnFreeJob* onFree(void (* callback)(void* callbackContex
 
 /** @see Allocator_child() */
 static struct Allocator* childAllocator(struct Allocator* alloc,
-                                        const char* identFile,
-                                        int identLine)
+                                        const char* file,
+                                        int line)
 {
-    Assert_always(!"Unimplemented");
-    return alloc;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) alloc);
+    struct BufferAllocator* child =
+        allocatorClone(sizeof(struct BufferAllocator), alloc, context, file, line);
+    child->file = file;
+    child->line = line;
+    return &child->generic;
 }
 
 static struct Allocator* adopt(struct Allocator* alloc,
@@ -216,41 +230,52 @@ struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
                                                   char* file,
                                                   int line)
 {
-    struct BufferAllocator tempAlloc = {
-        .generic = {
-            .free = freeAllocator,
-            .malloc = allocatorMalloc,
-            .calloc = allocatorCalloc,
-            .clone = allocatorClone,
-            .realloc = allocatorRealloc,
-            .child = childAllocator,
-            .onFree = onFree,
-            .adopt = adopt
-        },
-
-        // Align the pointer to do the first write manually.
-        .pointer = getAligned(buffer, sizeof(char*)),
-        .basePointer = getAligned(buffer, sizeof(char*)),
-        .endPointer = ((char*)buffer) + length,
-        .file = file,
-        .line = line
+    struct FirstAlloc {
+        struct BufferAllocator alloc;
+        char* pointer;
     };
 
-    if (tempAlloc.endPointer < tempAlloc.pointer) {
+    struct FirstAlloc tempAlloc = {
+        .alloc = {
+            .generic = {
+                .free = freeAllocator,
+                .malloc = allocatorMalloc,
+                .calloc = allocatorCalloc,
+                .clone = allocatorClone,
+                .realloc = allocatorRealloc,
+                .child = childAllocator,
+                .onFree = onFree,
+                .adopt = adopt
+            },
+
+            // Align the pointer to do the first write manually.
+            .pPointer = NULL,
+            .basePointer = getAligned(buffer, sizeof(char*)),
+            .endPointer = ((char*)buffer) + length,
+            .file = file,
+            .line = line
+        },
+        .pointer = getAligned(buffer, sizeof(char*))
+    };
+    tempAlloc.alloc.pPointer = &tempAlloc.pointer;
+    Identity_set(&tempAlloc.alloc);
+
+    if (tempAlloc.alloc.endPointer < (*tempAlloc.alloc.pPointer)) {
         // int64_t overflow.
         return NULL;
     }
 
-    if (length + (char*) buffer < tempAlloc.pointer + sizeof(struct BufferAllocator)) {
+    if (length + (char*) buffer < (*tempAlloc.alloc.pPointer) + sizeof(struct BufferAllocator)) {
         // Not enough space to allocate the context.
         return NULL;
     }
 
-    struct BufferAllocator* alloc = (struct BufferAllocator*) tempAlloc.pointer;
-    Bits_memcpyConst(alloc, &tempAlloc, sizeof(struct BufferAllocator));
-    alloc->pointer += sizeof(struct BufferAllocator);
-    Identity_set(alloc);
-    return &alloc->generic;
+    struct FirstAlloc* alloc = (struct FirstAlloc*) (*tempAlloc.alloc.pPointer);
+    Bits_memcpyConst(alloc, &tempAlloc, sizeof(struct FirstAlloc));
+    alloc->pointer += sizeof(struct FirstAlloc);
+    alloc->alloc.pPointer = &alloc->pointer;
+
+    return &alloc->alloc.generic;
 }
 
 void BufferAllocator_onOOM(struct Allocator* alloc,

@@ -43,7 +43,9 @@
 #define string_strchr
 #define string_strcmp
 #include "util/platform/libc/string.h"
+
 #include <unistd.h>
+#include <stdlib.h>
 
 static void spawnAngel(int* fromAngelOut, int* toAngelOut)
 {
@@ -104,7 +106,7 @@ static void initAngel(int fromAngel,
     StandardBencSerializer_get()->serializeDictionary(w, &message);
 
     Log_info(logger, "Writing intial configuration to angel on [%d] config: [%s]", toAngel, buff);
-    write(toAngel, buff, w->bytesWritten(w));
+    write(toAngel, buff, w->bytesWritten);
 
     // This is angel->core data, we can throw this away.
     //Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);

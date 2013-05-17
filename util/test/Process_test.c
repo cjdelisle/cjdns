@@ -23,6 +23,8 @@
 #include "util/Pipe.h"
 
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define MESSAGE "IT WORKS!"
 
@@ -60,7 +62,7 @@ int main(int argc, char** argv)
     Assert_true(!Process_spawn(path, args));
 
     char output[32] = {0};
-    //ssize_t len = read(fds[0], output, 31);
-    //Assert_true(len == strlen(MESSAGE));
-    //Assert_true(!strcmp(MESSAGE, output));
+    ssize_t len = read(fds[0], output, 31);
+    Assert_true(len == strlen(MESSAGE));
+    Assert_true(!strcmp(MESSAGE, output));
 }

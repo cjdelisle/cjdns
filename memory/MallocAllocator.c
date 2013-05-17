@@ -14,14 +14,16 @@
  */
 #define string_strrchr
 #include "util/platform/libc/string.h"
-#include <inttypes.h>
-#include <stdio.h>
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/MallocAllocator_pvt.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
+
+#include <inttypes.h>
+#include <stdio.h>
+#include <malloc.h>
 
 /** This provides the padding for each line based on the depth in the stack. */
 struct Unroller;
@@ -72,12 +74,8 @@ static void failure(struct MallocAllocator_pvt* context,
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    fprintf(stderr, "%s:%d Fatal error: [%s] spaceAvailable [%" PRIu64 "]\n",
-            identFile,
-            identLine,
-            message,
-            *context->spaceAvailable);
-    exit(0);
+    Assert_failure("%s:%d Fatal error: [%s] spaceAvailable [%" PRIu64 "]",
+                   identFile, identLine, message, *context->spaceAvailable);
 }
 
 static inline void* newAllocation(struct MallocAllocator_pvt* context,
@@ -284,6 +282,15 @@ static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
     return -1;
 }
 
+static struct Allocator* adopt(struct Allocator* alloc,
+                               struct Allocator* allocB,
+                               const char* file,
+                               int line)
+{
+    Assert_always(!"Unimplemented");
+    return alloc;
+}
+
 /** @see Allocator->onFree() */
 static struct Allocator_OnFreeJob* addOnFreeJob(void (* callback)(void* callbackContext),
                                                 void* callbackContext,
@@ -314,7 +321,7 @@ static struct Allocator_OnFreeJob* addOnFreeJob(void (* callback)(void* callback
 }
 
 /** @see MallocAllocator.h */
-struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
+struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
                                                   const char* identFile,
                                                   int identLine)
 {
@@ -345,7 +352,8 @@ struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
         .clone = allocatorClone,
         .realloc = allocatorRealloc,
         .child = childAllocator,
-        .onFree = addOnFreeJob
+        .onFree = addOnFreeJob,
+        .adopt = adopt
     };
 
     Bits_memcpyConst(&context->pub, &allocator, sizeof(struct Allocator));

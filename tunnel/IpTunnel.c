@@ -178,7 +178,7 @@ static uint8_t sendControlMessage(Dict* dict,
 
     struct Writer* w = ArrayWriter_new(message->bytes, message->length, alloc);
     StandardBencSerializer_get()->serializeDictionary(w, dict);
-    message->length = w->bytesWritten(w);
+    message->length = w->bytesWritten;
 
     #ifdef Log_DEBUG
         message->bytes[message->length] = '\0';
@@ -191,7 +191,7 @@ static uint8_t sendControlMessage(Dict* dict,
     Message_shift(message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     uh->sourceAndDestPorts = 0;
-    uh->length_be = Endian_hostToBigEndian16(w->bytesWritten(w));
+    uh->length_be = Endian_hostToBigEndian16(w->bytesWritten);
     uh->checksum_be = 0;
 
     uint16_t payloadLength = message->length;

@@ -22,6 +22,9 @@
 #include "util/platform/libc/strlen.h"
 #include "util/log/Log.h"
 
+#include <stdlib.h>
+#include <stdbool.h>
+
 struct Context
 {
     struct Log* logger;

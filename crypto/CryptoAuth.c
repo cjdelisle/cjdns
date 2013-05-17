@@ -139,8 +139,7 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
             hashPassword_sha256(auth, password);
             break;
         default:
-            // Unsupported auth type.
-            abort();
+            Assert_always(!"Unsupported auth type.");
     };
     return auth->secret;
 }

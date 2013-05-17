@@ -38,6 +38,8 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 
+#include <stdlib.h>
+
 // On loan from the DoD, thanks guys.
 const uint8_t testAddrA[4] = {11, 0, 0, 1};
 const uint8_t testAddrB[4] = {11, 0, 0, 2};
