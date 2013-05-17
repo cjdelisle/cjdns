@@ -14,50 +14,21 @@
  */
 #include "ArrayWriter.h"
 #include "util/Bits.h"
+#include "util/Identity.h"
 
 struct ArrayWriter_context {
+    struct Writer generic;
     char* beginPointer;
     char* pointer;
     char* endPointer;
     int returnCode;
+    Identity
 };
 
-static int write(const void* toWrite, size_t length, const struct Writer* writer);
-static uint64_t bytesWritten(const struct Writer* writer);
-
-/** @see ArrayWriter.h */
-struct Writer* ArrayWriter_new(void* writeToBuffer,
-                               size_t length,
-                               const struct Allocator* allocator)
-{
-    struct Writer* writer =
-        Allocator_calloc(allocator, sizeof(struct Writer), 1);
-    struct ArrayWriter_context* context =
-        Allocator_calloc(allocator, sizeof(struct ArrayWriter_context), 1);
-
-    if (context == NULL || writer == NULL) {
-        return NULL;
-    }
-
-    context->beginPointer = (char*) writeToBuffer;
-    context->pointer = (char*) writeToBuffer;
-    context->endPointer = (char*) writeToBuffer + length;
-
-    struct Writer localWriter = {
-        .context = context,
-        .write = write,
-        .bytesWritten = bytesWritten
-    };
-    Bits_memcpyConst(writer, &localWriter, sizeof(struct Writer));
-
-    return writer;
-}
-
 /** @see Writer->write() */
-static int write(const void* toWrite, size_t length, const struct Writer* writer)
+static int write(struct Writer* writer, const void* toWrite, unsigned long length)
 {
-    struct ArrayWriter_context* context =
-        (struct ArrayWriter_context*) writer->context;
+    struct ArrayWriter_context* context = Identity_cast((struct ArrayWriter_context*) writer);
 
     /* If there was a previous failure then don't allow any more writing. */
     if (context->returnCode != 0) {
@@ -74,14 +45,24 @@ static int write(const void* toWrite, size_t length, const struct Writer* writer
 
     Bits_memcpy(context->pointer, toWrite, length);
     context->pointer += length;
+    context->generic.bytesWritten += length;
 
     return 0;
 }
 
-static uint64_t bytesWritten(const struct Writer* writer)
+/** @see ArrayWriter.h */
+struct Writer* ArrayWriter_new(void* writeToBuffer,
+                               unsigned long length,
+                               struct Allocator* alloc)
 {
-    struct ArrayWriter_context* context =
-        (struct ArrayWriter_context*) writer->context;
-
-    return context->pointer - context->beginPointer;
+    struct ArrayWriter_context* context = Allocator_clone(alloc, (&(struct ArrayWriter_context) {
+        .generic = {
+            .write = write
+        },
+        .beginPointer = writeToBuffer,
+        .pointer = writeToBuffer,
+        .endPointer = (char*) writeToBuffer + length
+    }));
+    Identity_set(context);
+    return &context->generic;
 }

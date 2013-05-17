@@ -26,7 +26,7 @@
  * @param allocator the memory allocator to use for allocating the writer and context.
  */
 struct Writer* ArrayWriter_new(void* writeTo,
-                               size_t length,
-                               const struct Allocator* allocator);
+                               unsigned long length,
+                               struct Allocator* allocator);
 
 #endif

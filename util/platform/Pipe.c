@@ -12,21 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ArrayReader_H
-#define ArrayReader_H
-
-#include "Reader.h"
+#include "util/platform/Pipe.h"
 #include "memory/Allocator.h"
 
-/**
- * Create a new Reader which reads a user supplied buffer.
- *
- * @param bufferToRead the array which should be read from.
- * @param length the size of the given buffer.
- * @param allocator the memory allocator to use for allocating the writer and context.
- */
-struct Reader* ArrayReader_new(const void* bufferToRead,
-                               unsigned long length,
-                               struct Allocator* allocator);
+#include <unistd.h>
 
+#ifdef WIN32
+    #include <windows.h>
+    #include <io.h>
+    #include <fcntl.h>
+    #define pipe(fds) _pipe(fds, 65535, _O_BINARY)
 #endif
+
+struct Pipe* Pipe_new(const char* name, struct EventBase* eb, struct Allocator* alloc)
+{
+    uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, 0)
+}
+
+typedef Pipe_connect_cb(struct Pipe* p, int status);
+
+void Pipe_connect(const char* name, Pipe_connect_cb callback)
+{
+}

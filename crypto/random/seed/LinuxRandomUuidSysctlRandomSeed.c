@@ -17,10 +17,11 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 
+#ifdef Linux
+
 #include <unistd.h>
 #include <sys/sysctl.h>
 
-#ifdef Linux
 static int getUUID(uint64_t output[2])
 {
     int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };

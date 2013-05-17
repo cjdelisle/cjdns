@@ -104,7 +104,7 @@ static inline void* newAllocation(struct MallocAllocator_pvt* context,
 }
 
 /** @see Allocator->free() */
-static void freeAllocator(const struct Allocator* allocator, const char* identFile, int identLine)
+static void freeAllocator(struct Allocator* allocator, const char* identFile, int identLine)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
 
@@ -154,7 +154,7 @@ static void freeAllocator(const struct Allocator* allocator, const char* identFi
 
 /** @see Allocator->malloc() */
 static void* allocatorMalloc(size_t length,
-                             const struct Allocator* allocator,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -165,7 +165,7 @@ static void* allocatorMalloc(size_t length,
 /** @see Allocator->calloc() */
 static void* allocatorCalloc(size_t length,
                              size_t count,
-                             const struct Allocator* allocator,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -176,7 +176,7 @@ static void* allocatorCalloc(size_t length,
 
 /** @see Allocator->clone() */
 static void* allocatorClone(size_t length,
-                            const struct Allocator* allocator,
+                            struct Allocator* allocator,
                             const void* toClone,
                             const char* identFile,
                             int identLine)
@@ -189,7 +189,7 @@ static void* allocatorClone(size_t length,
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
                               size_t size,
-                              const struct Allocator* allocator,
+                              struct Allocator* allocator,
                               const char* identFile,
                               int identLine)
 {
@@ -238,7 +238,7 @@ static void* allocatorRealloc(const void* original,
 }
 
 /** @see Allocator_child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator,
+static struct Allocator* childAllocator(struct Allocator* allocator,
                                         const char* identFile,
                                         int identLine)
 {
@@ -269,17 +269,37 @@ static struct Allocator* childAllocator(const struct Allocator* allocator,
     return childAlloc;
 }
 
+static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
+{
+    struct MallocAllocator_OnFreeJob* job = (struct MallocAllocator_OnFreeJob*) toRemove;
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+    struct MallocAllocator_OnFreeJob** jobPtr = &(context->onFree);
+    while (*jobPtr != NULL) {
+        if (*jobPtr == job) {
+            *jobPtr = (*jobPtr)->next;
+            return 0;
+        }
+        jobPtr = &(*jobPtr)->next;
+    }
+    return -1;
+}
+
 /** @see Allocator->onFree() */
-static void* addOnFreeJob(void (* callback)(void* callbackContext),
-                          void* callbackContext,
-                          const struct Allocator* allocator)
+static struct Allocator_OnFreeJob* addOnFreeJob(void (* callback)(void* callbackContext),
+                                                void* callbackContext,
+                                                struct Allocator* allocator)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
 
     struct MallocAllocator_OnFreeJob* newJob =
-        Allocator_calloc(allocator, sizeof(struct MallocAllocator_OnFreeJob), 1);
-    newJob->callback = callback;
-    newJob->callbackContext = callbackContext;
+        Allocator_clone(allocator, (&(struct MallocAllocator_OnFreeJob) {
+            .generic = {
+                .cancel = removeOnFreeJob
+            },
+            .callback = callback,
+            .callbackContext = callbackContext,
+            .alloc = context
+        }));
 
     struct MallocAllocator_OnFreeJob* job = context->onFree;
     if (job == NULL) {
@@ -290,21 +310,7 @@ static void* addOnFreeJob(void (* callback)(void* callbackContext),
         }
         job->next = newJob;
     }
-    return newJob;
-}
-
-static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
-{
-    struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) alloc);
-    struct MallocAllocator_OnFreeJob** jobPtr = &(context->onFree);
-    while (*jobPtr != NULL) {
-        if (*jobPtr == toRemove) {
-            *jobPtr = (*jobPtr)->next;
-            return true;
-        }
-        jobPtr = &(*jobPtr)->next;
-    }
-    return false;
+    return &newJob->generic;
 }
 
 /** @see MallocAllocator.h */
@@ -333,15 +339,13 @@ struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
     context->maxSpace = firstContext->spaceAvailable;
 
     struct Allocator allocator = {
-        .context = context,
         .free = freeAllocator,
         .malloc = allocatorMalloc,
         .calloc = allocatorCalloc,
         .clone = allocatorClone,
         .realloc = allocatorRealloc,
         .child = childAllocator,
-        .onFree = addOnFreeJob,
-        .notOnFree = removeOnFreeJob
+        .onFree = addOnFreeJob
     };
 
     Bits_memcpyConst(&context->pub, &allocator, sizeof(struct Allocator));

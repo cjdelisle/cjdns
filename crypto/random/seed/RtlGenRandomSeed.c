@@ -13,13 +13,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "crypto/random/seed/RtlGenRandomSeed.h"
+#include "util/Bits.h"
 
 #ifdef WIN32
 #include <stdint.h>
-#include <ntsecapi.h>
+#include <windows.h>
+
+static BOOLEAN (APIENTRY *RtlGenRandom)(void*, ULONG) = 0;
 
 static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
+    if (!RtlGenRandom) {
+        return -1;
+    }
     Bits_memset(buff, 0, 64);
     int ret = RtlGenRandom(buff, 64);
     if (!ret || Bits_isZero(buff, 64)) {
@@ -28,7 +34,17 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
     return 0;
 }
 
+static void init()
+{
+    HMODULE hLib = LoadLibrary("ADVAPI32.DLL");
+    RtlGenRandom = (BOOLEAN (APIENTRY *)(void*,ULONG))GetProcAddress(hLib,"SystemFunction036");
+}
+
 #else
+static void init()
+{
+}
+
 static int get(struct RandomSeed* rand, uint64_t buff[8])
 {
     return -1;
@@ -37,6 +53,7 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
 
 struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc)
 {
+    init();
     return Allocator_clone(alloc, (&(struct RandomSeed) {
         .get = get,
         .name = "RtlGenRandom() (Windows)"

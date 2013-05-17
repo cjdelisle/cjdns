@@ -16,10 +16,12 @@
 #include "util/Identity.h"
 #include "util/Bits.h"
 
-#include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
+#ifndef WIN32
+    #include <unistd.h>
+    #include <errno.h>
+    #include <sys/types.h>
+    #include <sys/sysctl.h>
+#endif
 
 /** Number of times to try each operation. */
 #define MAX_TRIES 10

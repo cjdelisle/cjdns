@@ -18,10 +18,14 @@
 #include "memory/MallocAllocator.h"
 #include "util/Identity.h"
 
+struct MallocAllocator_pvt;
+
 struct MallocAllocator_OnFreeJob;
 struct MallocAllocator_OnFreeJob {
+    struct Allocator_OnFreeJob generic;
     void (* callback)(void* callbackContext);
     void* callbackContext;
+    struct MallocAllocator_pvt* alloc;
     struct MallocAllocator_OnFreeJob* next;
 };
 
@@ -32,7 +36,6 @@ struct MallocAllocator_Allocation {
 };
 
 /** Internal state for Allocator. */
-struct MallocAllocator_pvt;
 struct MallocAllocator_pvt
 {
     /** This allocator. */

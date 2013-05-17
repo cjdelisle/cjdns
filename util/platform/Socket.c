@@ -14,9 +14,19 @@
  */
 #include "util/platform/Socket.h"
 
-#include <sys/socket.h>
+#ifdef WIN32
+    #include <winsock2.h>
+#else
+    #include <sys/socket.h>
+#endif
 #include <unistd.h>
 #include <fcntl.h>
+
+#ifdef WIN32
+    #define SIGNED_IF_WIN32_uint32_t int32_t
+#else
+    #define SIGNED_IF_WIN32_uint32_t uint32_t
+#endif
 
 const int Socket_AF_INET = AF_INET;
 const int Socket_AF_INET6 = AF_INET6;
@@ -27,7 +37,7 @@ int Socket_makeNonBlocking(int sock)
 {
     #ifdef WIN32
         u_long one = 1;
-        return ioctlsocket(sock, FIONBIO, &nonblocking);
+        return ioctlsocket(sock, FIONBIO, &one);
     #else
         int flags;
         if ((flags = fcntl(sock, F_GETFL, NULL)) < 0) {
@@ -67,7 +77,7 @@ int Socket_recvfrom(int fd,
                     int flags,
                     struct Sockaddr_storage* ss)
 {
-    uint32_t size = Sockaddr_MAXSIZE;
+    SIGNED_IF_WIN32_uint32_t size = Sockaddr_MAXSIZE;
     int ret = recvfrom(fd, buff, bufferSize, flags, (struct sockaddr*)ss->nativeAddr, &size);
     if (ret > -1) {
         #ifdef OSX
@@ -127,7 +137,7 @@ int Socket_sendto(int fd,
 
 int Socket_accept(int sock, struct Sockaddr_storage* addrOut, struct Allocator* alloc)
 {
-    uint32_t len = sizeof(addrOut->nativeAddr);
+    SIGNED_IF_WIN32_uint32_t len = sizeof(addrOut->nativeAddr);
     int fd = accept(sock, (struct sockaddr*) addrOut->nativeAddr, &len);
     if (fd > -1) {
         addrOut->addr.addrLen = len + Sockaddr_OVERHEAD;
@@ -141,7 +151,7 @@ int Socket_accept(int sock, struct Sockaddr_storage* addrOut, struct Allocator* 
 
 int Socket_getsockname(int sockfd, struct Sockaddr_storage* addr)
 {
-    uint32_t len = sizeof(addr->nativeAddr);
+    SIGNED_IF_WIN32_uint32_t len = sizeof(addr->nativeAddr);
     int ret = getsockname(sockfd, (struct sockaddr*) addr->nativeAddr, &len);
     if (!ret) {
         addr->addr.addrLen = len + Sockaddr_OVERHEAD;

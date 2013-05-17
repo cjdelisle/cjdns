@@ -26,6 +26,8 @@
 /** Number of times to try each operation. */
 #define MAX_TRIES 10
 
+#ifndef WIN32
+
 static int getUUID(uint64_t output[2])
 {
     uint8_t buffer[40] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
@@ -89,6 +91,12 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return 0;
 }
+#else // WIN32
+static int get(struct RandomSeed* randomSeed, uint64_t output[8])
+{
+    return -1;
+}
+#endif
 
 struct RandomSeed* ProcSysKernelRandomUuidRandomSeed_new(struct Allocator* alloc)
 {

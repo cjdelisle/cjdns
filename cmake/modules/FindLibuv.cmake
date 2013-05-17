@@ -37,6 +37,14 @@ if (NOT LIBUV_FOUND)
                 ${CMAKE_THREAD_LIBS_INIT}
                 kvm
             )
+        elseif (WIN32)
+            set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
+                ${SOCKET_LIBRARIES}
+                ${CLOCK_GETTIME_LIBRARIES}
+                ${CMAKE_THREAD_LIBS_INIT}
+                psapi # GetProcessMemoryInfo()
+                iphlpapi # GetAdapterAddresses()
+            )
         else ()
             set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
                 ${SOCKET_LIBRARIES}
@@ -89,13 +97,14 @@ endif()
 if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     include(ExternalProject)
 
-    set(url "${CMAKE_SOURCE_DIR}/cmake/externals/node-v0.9.7.tar.gz")
-    if (NOT EXISTS "${url}")
-        set(url "https://github.com/joyent/libuv/archive/node-v0.9.7.tar.gz")
-    endif()
+    set(url "${CMAKE_SOURCE_DIR}/cmake/externals/libuv-v0.11.1.tar.gz")
 
+    set(PATCH_LIBUV "")
     if (APPLE)
         set(MAKE_COMMAND "make")
+    elseif (WIN32)
+        set(PATCH_LIBUV patch -p1 < ${CMAKE_SOURCE_DIR}/cmake/patches/uv_mingw32.patch)
+        set(MAKE_COMMAND make -f Makefile PLATFORM=mingw PREFIX=${TOOLCHAIN_PREFIX}-)
     else ()
         if (FREEBSD)
             set(make gmake)
@@ -107,14 +116,14 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     ExternalProject_Add(libuv_ep
         URL ${url}
-	URL_MD5 "caa8135e6f74628fbd7cf789e9c432e5"
-	SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
-	BINARY_DIR "${CMAKE_BINARY_DIR}/libuv"
-	CONFIGURE_COMMAND ""
+        SOURCE_DIR "${CMAKE_BINARY_DIR}/libuv"
+        BINARY_DIR "${CMAKE_BINARY_DIR}/libuv"
+        CONFIGURE_COMMAND ""
         BUILD_COMMAND ${MAKE_COMMAND}
-	INSTALL_COMMAND ""
-	UPDATE_COMMAND ""
-	PATCH_COMMAND "")
+        INSTALL_COMMAND ""
+        UPDATE_COMMAND ""
+        PATCH_COMMAND ${PATCH_LIBUV}
+    )
 
     set(LIBUV_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/libuv/include")
 

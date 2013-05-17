@@ -12,23 +12,37 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EventBase_H
-#define EventBase_H
+#ifndef Pipe_H
+#define Pipe_H
 
 #include "memory/Allocator.h"
+#include "exception/Except.h"
+#include "util/events/EventBase.h"
 
-struct EventBase
+typedef void (Pipe_callback)(struct Pipe* p, int status);
+
+struct Pipe
 {
-    /** Allocator used for allocating buffers for storing incoming data. */
-    struct Allocator* bufferAlloc;
+    struct Interface iface;
+
+    const char* const name;
+
+    struct EventBase* const base;
+
+    Pipe_callback* onConnection;
+    void* onConnectionContext;
+
+    struct Log* logger;
 };
 
-struct EventBase* EventBase_new(struct Allocator* alloc);
+struct Pipe* Pipe_new(struct EventBase* eb,
+                      const char* name,
+                      struct Except* eh,
+                      struct Allocator* alloc);
 
-int EventBase_eventCount(struct EventBase* eventBase);
-
-void EventBase_beginLoop(struct EventBase* eventBase);
-
-void EventBase_endLoop(struct EventBase* eventBase);
+struct Pipe* Pipe_connect(struct EventBase* eb,
+                          const char* name,
+                          struct Except* eh,
+                          struct Allocator* alloc);
 
 #endif

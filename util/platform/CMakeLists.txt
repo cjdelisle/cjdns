@@ -11,6 +11,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 find_package(Libuv REQUIRED)
 include_directories(${LIBUV_INCLUDE_DIRS})
+
+if (WIN32)
+    # uv.h
+    remove_definitions(-pedantic)
+endif ()
+
 add_library(cjdns-util-platform-socket
     Socket.c
     Sockaddr.c

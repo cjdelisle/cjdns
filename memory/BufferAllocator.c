@@ -13,11 +13,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
-#include <stdio.h>
 
-#include "memory/AllocatorTools.h"
+#include "exception/Except.h"
 #include "memory/BufferAllocator.h"
 #include "util/Bits.h"
+#include "util/Identity.h"
 
 /**
  * TODO: addOnFreeJob adds a job which is only run when the root allocator is freed
@@ -28,60 +28,56 @@
 /* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */
 #define ALIGNMENT sizeof(char*)
 
-struct Job;
 struct Job {
+    struct Allocator_OnFreeJob generic;
     void (* callback)(void* callbackContext);
     void* callbackContext;
+    struct Allocator* alloc;
     struct Job* next;
+    Identity
 };
 
 /** Internal state for Allocator. */
-struct BufferAllocator_context {
+struct BufferAllocator {
+    struct Allocator generic;
     char* basePointer;
     char* pointer;
     char* const endPointer;
     struct Job* onFree;
-    struct Job onOOM;
+    struct Except* onOOM;
     char* file;
     int line;
+    Identity
 };
 
-Gcc_NORETURN
-static void failure(struct BufferAllocator_context* context, const char* message)
-{
-    fprintf(stderr, "BufferAllocator [%s:%d] Fatal error: %s\n",
-            context->file, context->line, message);
-    abort();
-}
+/**
+ * Get a pointer which is aligned on memory boundries.
+ *
+ * @param pointer the location where the pointer should be.
+ * @param alignedOn how big the word is that the boundry should be aligned on.
+ */
+#define getAligned(pointer, alignedOn) \
+    ((char*) ((uintptr_t)( ((char*)(pointer)) + (alignedOn) - 1) & ~ ((alignedOn) - 1)))
 
-static void oom(struct BufferAllocator_context* context)
-{
-    if (context->onOOM.callback) {
-        context->onOOM.callback(context->onOOM.callbackContext);
-    }
-}
-
-/** @see Allocator->malloc() */
-static void* allocatorMalloc(size_t length,
-                             const struct Allocator* allocator,
+/** @see Allocator_malloc() */
+static void* allocatorMalloc(unsigned long length,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
-    struct BufferAllocator_context* context =
-        (struct BufferAllocator_context*) allocator->context;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
 
-    char* pointer = AllocatorTools_getAligned(context->pointer, ALIGNMENT);
+    char* pointer = getAligned(context->pointer, ALIGNMENT);
     char* endOfAlloc = pointer + length;
 
     if (endOfAlloc >= context->endPointer) {
-        /* out of bounds. */
-        oom(context);
-        failure(context, "BufferAllocator ran out of memory.");
+        Except_raise(context->onOOM, -1, "BufferAllocator ran out of memory [%s:%d]",
+                     identFile, identLine);
     }
 
     if (endOfAlloc < context->pointer) {
-        /* integer overflow. */
-        failure(context, "BufferAllocator ran off the top end of the memory range.");
+        Except_raise(context->onOOM, -2, "BufferAllocator integer overflow [%s:%d]",
+                     identFile, identLine);
     }
 
     context->pointer = endOfAlloc;
@@ -89,9 +85,9 @@ static void* allocatorMalloc(size_t length,
 }
 
 /** @see Allocator->calloc() */
-static void* allocatorCalloc(size_t length,
-                             size_t count,
-                             const struct Allocator* allocator,
+static void* allocatorCalloc(unsigned long length,
+                             unsigned long count,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -101,8 +97,8 @@ static void* allocatorCalloc(size_t length,
 }
 
 /** @see Allocator->clone() */
-static void* allocatorClone(size_t length,
-                            const struct Allocator* allocator,
+static void* allocatorClone(unsigned long length,
+                            struct Allocator* allocator,
                             const void* toClone,
                             const char* identFile,
                             int identLine)
@@ -114,8 +110,8 @@ static void* allocatorClone(size_t length,
 
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
-                              size_t length,
-                              const struct Allocator* allocator,
+                              unsigned long length,
+                              struct Allocator* allocator,
                               const char* identFile,
                               int identLine)
 {
@@ -124,12 +120,11 @@ static void* allocatorRealloc(const void* original,
     }
 
     // Need to pointer to make sure we dont copy too much.
-    struct BufferAllocator_context* context =
-        (struct BufferAllocator_context*) allocator->context;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
     char* pointer = context->pointer;
-    size_t amountToClone = (length < (size_t)(pointer - (char*)original))
+    uint32_t amountToClone = (length < (uint32_t)(pointer - (char*)original))
         ? length
-        : (size_t)(pointer - (char*)original);
+        : (uint32_t)(pointer - (char*)original);
 
     // The likelyhood of nothing having been allocated since is
     // almost 0 so we will always create a new
@@ -140,10 +135,9 @@ static void* allocatorRealloc(const void* original,
 }
 
 /** @see Allocator->free() */
-static void freeAllocator(const struct Allocator* allocator, const char* identFile, int identLine)
+static void freeAllocator(struct Allocator* allocator, const char* identFile, int identLine)
 {
-    struct BufferAllocator_context* context =
-        (struct BufferAllocator_context*) allocator->context;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
 
     struct Job* job = context->onFree;
     while (job != NULL) {
@@ -154,22 +148,36 @@ static void freeAllocator(const struct Allocator* allocator, const char* identFi
     context->pointer = context->basePointer;
 }
 
-/** Fake freeAllocator so that child allocators don't get freed. */
-static void doNothing(const struct Allocator* allocator, const char* identFile, int identLine)
+static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
 {
+    struct Job* j = Identity_cast((struct Job*) toRemove);
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) j->alloc);
+    struct Job** jobPtr = &(context->onFree);
+    while (*jobPtr != NULL) {
+        if (*jobPtr == j) {
+            *jobPtr = (*jobPtr)->next;
+            return 0;
+        }
+        jobPtr = &(*jobPtr)->next;
+    }
+    return -1;
 }
 
 /** @see Allocator->onFree() */
-static void* addOnFreeJob(void (* callback)(void* callbackContext),
-                          void* callbackContext,
-                          const struct Allocator* this)
+static struct Allocator_OnFreeJob* onFree(void (* callback)(void* callbackContext),
+                                          void* callbackContext,
+                                          struct Allocator* alloc)
 {
-    struct BufferAllocator_context* context =
-        (struct BufferAllocator_context*) this->context;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) alloc);
 
-    struct Job* newJob = Allocator_calloc(this, sizeof(struct Job), 1);
-    newJob->callback = callback;
-    newJob->callbackContext = callbackContext;
+    struct Job* newJob = Allocator_clone(alloc, (&(struct Job) {
+        .generic = {
+            .cancel = removeOnFreeJob
+        },
+        .callback = callback,
+        .callbackContext = callbackContext,
+        .alloc = (struct Allocator*) alloc,
+    }));
 
     struct Job* job = context->onFree;
     if (job == NULL) {
@@ -181,107 +189,73 @@ static void* addOnFreeJob(void (* callback)(void* callbackContext),
         }
         job->next = newJob;
     }
-    return newJob;
-}
-
-static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
-{
-    struct BufferAllocator_context* context = alloc->context;
-    struct Job** jobPtr = &(context->onFree);
-    while (*jobPtr != NULL) {
-        if (*jobPtr == toRemove) {
-            *jobPtr = (*jobPtr)->next;
-            return true;
-        }
-        jobPtr = &(*jobPtr)->next;
-    }
-    return false;
+    return &newJob->generic;
 }
 
 /** @see Allocator_child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator,
+static struct Allocator* childAllocator(struct Allocator* alloc,
                                         const char* identFile,
                                         int identLine)
 {
-    return allocator->clone(sizeof(struct Allocator), allocator, &(struct Allocator) {
-        .context = allocator->context,
-        .free = doNothing,
-        .malloc = allocatorMalloc,
-        .calloc = allocatorCalloc,
-        .clone = allocatorClone,
-        .realloc = allocatorRealloc,
-        .child = childAllocator,
-        .onFree = addOnFreeJob,
-        .notOnFree = removeOnFreeJob
-    }, identFile, identLine);
+    Assert_always(!"Unimplemented");
+    return alloc;
+}
+
+static struct Allocator* adopt(struct Allocator* alloc,
+                               struct Allocator* allocB,
+                               const char* file,
+                               int line)
+{
+    Assert_always(!"Unimplemented");
+    return alloc;
 }
 
 /** @see BufferAllocator.h */
 struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
-                                                  size_t length,
+                                                  unsigned long length,
                                                   char* file,
                                                   int line)
 {
-    /* Write itself into its own buffer :) */
-    struct BufferAllocator_context context = {
-        /* Align the pointer to do the first write manually. */
-        .pointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
-        .basePointer = AllocatorTools_getAligned(buffer, sizeof(char*)),
+    struct BufferAllocator tempAlloc = {
+        .generic = {
+            .free = freeAllocator,
+            .malloc = allocatorMalloc,
+            .calloc = allocatorCalloc,
+            .clone = allocatorClone,
+            .realloc = allocatorRealloc,
+            .child = childAllocator,
+            .onFree = onFree,
+            .adopt = adopt
+        },
+
+        // Align the pointer to do the first write manually.
+        .pointer = getAligned(buffer, sizeof(char*)),
+        .basePointer = getAligned(buffer, sizeof(char*)),
         .endPointer = ((char*)buffer) + length,
         .file = file,
         .line = line
     };
 
-    if (context.endPointer < context.pointer) {
-        /* int64_t overflow. */
+    if (tempAlloc.endPointer < tempAlloc.pointer) {
+        // int64_t overflow.
         return NULL;
     }
 
-    if (length + (char*) buffer < context.pointer + sizeof(struct BufferAllocator_context)) {
-        /* Not enough space to allocate the context. */
+    if (length + (char*) buffer < tempAlloc.pointer + sizeof(struct BufferAllocator)) {
+        // Not enough space to allocate the context.
         return NULL;
     }
 
-    /* put the context into the buffer. */
-    Bits_memcpyConst(context.pointer, &context, sizeof(struct BufferAllocator_context));
-
-    struct Allocator allocator = {
-        .context = context.pointer,
-        .free = freeAllocator,
-        .malloc = allocatorMalloc,
-        .calloc = allocatorCalloc,
-        .clone = allocatorClone,
-        .realloc = allocatorRealloc,
-        .child = childAllocator,
-        .onFree = addOnFreeJob
-    };
-
-    /* Get the pointer to the context where it's written in the buffer. */
-    struct BufferAllocator_context* contextPtr = allocator.context;
-
-    /* have to advance the pointer so as not to clobber the context. */
-    contextPtr->pointer += sizeof(struct BufferAllocator_context);
-
-    /* Now that the context is in place we can begin using the allocater. */
-    struct Allocator* allocatorPtr =
-        allocator.malloc(sizeof(struct Allocator), &allocator, file, line);
-    if (allocatorPtr == NULL) {
-        return NULL;
-    }
-
-    /* Reset the base pointer so as not to clobber the context on free() */
-    contextPtr->basePointer = contextPtr->pointer;
-
-    Bits_memcpyConst(allocatorPtr, &allocator, sizeof(struct Allocator));
-    return allocatorPtr;
+    struct BufferAllocator* alloc = (struct BufferAllocator*) tempAlloc.pointer;
+    Bits_memcpyConst(alloc, &tempAlloc, sizeof(struct BufferAllocator));
+    alloc->pointer += sizeof(struct BufferAllocator);
+    Identity_set(alloc);
+    return &alloc->generic;
 }
 
-void BufferAllocator_onOOM(const struct Allocator* bufferAllocator,
-                           void (* electronicThumb)(void* towel),
-                           void* towel)
+void BufferAllocator_onOOM(struct Allocator* alloc,
+                           struct Except* exceptionHandler)
 {
-    struct BufferAllocator_context* context =
-        (struct BufferAllocator_context*) bufferAllocator->context;
-    context->onOOM.callback = electronicThumb;
-    context->onOOM.callbackContext = towel;
+    struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) alloc);
+    context->onOOM = exceptionHandler;
 }

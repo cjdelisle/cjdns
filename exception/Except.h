@@ -17,7 +17,7 @@
 
 #include "util/Gcc.h"
 
-#include <stdarg.h>
+//#include <stdarg.h>
 
 #define Except_BUFFER_SZ 1024
 

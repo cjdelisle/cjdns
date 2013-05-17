@@ -12,6 +12,12 @@
 
 include_directories(${LIBUV_INCLUDE_DIRS})
 
+if (WIN32)
+    # uv.h
+    remove_definitions(-pedantic)
+endif ()
+
+
 add_library(cjdns-crypto-random-libuv
     LibuvEntropyProvider.c
 )

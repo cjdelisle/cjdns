@@ -29,7 +29,10 @@ endif()
 if(WIN32)
     # ISO C does not support the ‘I64’ ms_printf length modifier
     # but PRId64 is #defined as "I64d"
-    add_definitions(-Wno-error)
+    remove_definitions(-Werror)
+
+    # SRWLOCK is vista or newer and needed by libuv
+    add_definitions(-D_WIN32_WINNT=0x0600)
 
     # proceed with ifdef hell :(
     add_definitions(-DWIN32)
