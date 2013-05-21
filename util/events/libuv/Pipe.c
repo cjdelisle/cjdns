@@ -101,7 +101,6 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(pipe->alloc);
-
     Allocator_adopt(reqAlloc, m->alloc);
 
     struct Pipe_WriteRequest_pvt* req =

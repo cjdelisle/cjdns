@@ -38,7 +38,6 @@
 #endif
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
-#include "interface/PipeInterface.h"
 #include "interface/InterfaceConnector.h"
 #include "interface/ICMP6Generator.h"
 #include "io/ArrayReader.h"
@@ -57,7 +56,8 @@
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
 #include "util/events/EventBase.h"
-#include "util/log/WriterLog.h"
+#include "util/events/Pipe.h"
+#include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
 
@@ -218,24 +218,18 @@ static void angelResponse(Dict* resp, void* vNULL)
 int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
-    int toAngel;
-    int fromAngel;
-    if (argc != 4
-        || !(toAngel = atoi(argv[2]))
-        || !(fromAngel = atoi(argv[3])))
-    {
+
+    if (argc != 3) {
         Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
     }
 
     struct Allocator* unsafeAlloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct Writer* logWriter = FileWriter_new(stderr, unsafeAlloc);
-    struct Log* preLogger = WriterLog_new(logWriter, unsafeAlloc);
+    struct Log* preLogger = FileWriterLog_new(stderr, unsafeAlloc);
     struct EventBase* eventBase = EventBase_new(unsafeAlloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
-    struct IndirectLog* indirectLogger = IndirectLog_new(unsafeAlloc);
-    indirectLogger->wrappedLog = preLogger;
-    struct Log* logger = indirectLogger->log;
+    struct Log* logger = IndirectLog_new(unsafeAlloc);
+    IndirectLog_set(logger, preLogger);
 
     // -------------------- Setup the PRNG ---------------------- //
     struct Random* rand =
@@ -247,12 +241,12 @@ int Core_main(int argc, char** argv)
 
 
     // The first read inside of getInitialConfig() will begin it waiting.
-    struct PipeInterface* pi =
-        PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc, rand);
+    struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
+    angelPipe->logger = logger;
 
-    Dict* config = getInitialConfig(&pi->generic, eventBase, tempAlloc, eh);
+    Dict* config = getInitialConfig(&angelPipe->iface, eventBase, tempAlloc, eh);
 
-    struct Hermes* hermes = Hermes_new(&pi->generic, eventBase, logger, alloc);
+    struct Hermes* hermes = Hermes_new(&angelPipe->iface, eventBase, logger, alloc);
 
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
@@ -306,7 +300,7 @@ int Core_main(int argc, char** argv)
         // do nothing, continue logging to stdout.
     } else {
         struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
-        indirectLogger->wrappedLog = adminLogger;
+        IndirectLog_set(logger, adminLogger);
         logger = adminLogger;
     }
 

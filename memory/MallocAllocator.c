@@ -69,7 +69,7 @@ static void failure(struct MallocAllocator_pvt* context,
 {
     // get the root allocator.
     struct MallocAllocator_pvt* rootAlloc = context;
-    while (rootAlloc->lastSibling) {
+    while (rootAlloc->lastSibling && rootAlloc->lastSibling != rootAlloc) {
         rootAlloc = rootAlloc->lastSibling;
     }
     // can't use this allocator because it failed.
@@ -178,6 +178,10 @@ static void disconnectAllocator(struct Allocator* allocator, const char* file, i
 
     } else if (context->lastSibling != NULL && context->lastSibling->firstChild == context) {
         context->lastSibling->firstChild = context->nextSibling;
+
+    } else if (context->lastSibling == context) {
+        // root alloc
+        Assert_always(!context->nextSibling);
 
     } else if (context->lastSibling != NULL) {
         failure(context, "The last sibling of this allocator has no reference to it.", file, line);
@@ -332,9 +336,13 @@ static struct MallocAllocator_pvt* getParent(struct MallocAllocator_pvt* child)
         if (ls->firstChild == child) {
            return ls;
         }
+        if (ls == ls->lastSibling) {
+            // root alloc
+            return NULL;
+        }
         ls = ls->lastSibling;
     }
-    return NULL;
+    Assert_true(0);
 }
 
 static bool isAncestorOf(struct MallocAllocator_pvt* maybeParent,
@@ -470,6 +478,9 @@ struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
         sizeof(struct MallocAllocator_FirstCtx) + sizeof(struct MallocAllocator_Allocation);
 
     Bits_memcpyConst(&context->pub, &allocator, sizeof(struct Allocator));
+
+    context->lastSibling = context;
+
     Identity_set(context);
     return &context->pub;
 }

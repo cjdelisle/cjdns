@@ -42,6 +42,7 @@
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/log/Log.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
@@ -391,7 +392,7 @@ int main(int argc, char** argv)
     struct Except* eh = NULL;
 
     // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(1<<22), NULL);
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
@@ -445,13 +446,15 @@ int main(int argc, char** argv)
     // --------------------- Setup Pipes to Angel --------------------- //
     char angelPipeName[32] = {0};
     Random_base32(rand, (uint8_t*)angelPipeName, 31);
+    Assert_true(EventBase_eventCount(eventBase) == 0);
     struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
+    Assert_true(EventBase_eventCount(eventBase) == 2);
+    angelPipe->logger = logger;
 
     char* args[] = { "angel", angelPipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
-
     String* corePath = getCorePath(allocator);
     if (!corePath) {
         Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
@@ -549,8 +552,8 @@ int main(int argc, char** argv)
                      adminBind->bytes);
     }
 
-    // sanity check
-    Assert_true(EventBase_eventCount(eventBase) == 0);
+    // sanity check, Pipe_named() creates 2 events, see above.
+    Assert_true(EventBase_eventCount(eventBase) == 2);
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
@@ -560,6 +563,6 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
-    Allocator_free(allocator);
+    //Allocator_free(allocator);
     return 0;
 }

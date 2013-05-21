@@ -18,12 +18,8 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 
-struct IndirectLog
-{
-    struct Log* const log;
-    struct Log* wrappedLog;
-};
+struct Log* IndirectLog_new(struct Allocator* alloc);
 
-struct IndirectLog* IndirectLog_new(struct Allocator* alloc);
+void IndirectLog_set(struct Log* indirectLog, struct Log* wrapped);
 
 #endif

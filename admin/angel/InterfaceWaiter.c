@@ -16,7 +16,6 @@
 #include "admin/angel/InterfaceWaiter.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "io/FileWriter.h"
@@ -60,8 +59,7 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
         .alloc = alloc
     };
 
-    struct Allocator* tempAlloc;
-    BufferAllocator_STACK(tempAlloc, 512);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
 
     iface->receiverContext = &ctx;
     iface->receiveMessage = receiveMessage;

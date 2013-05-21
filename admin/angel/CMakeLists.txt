@@ -63,7 +63,7 @@ target_link_libraries(cjdns-core
     cjdnet
     cjdns-util-events-libuv
     cjdns-interface-waiter
-    cjdns-util-log-writer
+    cjdns-util-log-filewriter
     cjdns-admin-logger
     cjdns-util-log-indirect
     cjdns-tunnel-iptunnel
@@ -95,6 +95,7 @@ target_link_libraries(cjdroute2
     cjdns-crypto-random
     cjdns-util-version-version
     cjdns-interface-waiter
+    cjdns-memory-canary
 )
 
 

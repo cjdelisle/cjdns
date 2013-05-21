@@ -166,15 +166,16 @@ void Hermes_callAngel(Dict* message,
     // Remove the txid string so there is not a dangling pointer in the message.
     Dict_remove(message, String_CONST("txid"));
 
-    struct Message m = {
+    struct Message* m = &(struct Message) {
         .bytes = buff.message,
         .length = writer->bytesWritten,
         .padding = PADDING
     };
+    m = Message_clone(m, reqAlloc);
 
-    Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m.length, m.bytes);
+    Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
 
-    int ret = hermes->iface->sendMessage(&m, hermes->iface);
+    int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {
         Except_raise(eh, Hermes_callAngel_ESEND, "Failed to send message to angel [%d]", ret);
     }
