@@ -23,7 +23,6 @@ set(Test_LIBRARIES
     cjdns-admin
     cjdns-admin-client
     cjdns-memory-canary
-    cjdns-interface-pipeinterface
     cjdadmintest
     interface
 )

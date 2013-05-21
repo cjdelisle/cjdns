@@ -10,10 +10,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_library(cjdns-waiter
-    Waiter.c
-)
-
 add_library(cjdns-interface-waiter
     InterfaceWaiter.c
 )
@@ -30,7 +26,6 @@ target_link_libraries(cjdns-angel
     cjdns-util-events-libuv
     cjdns-security
     cjdns-interface-waiter
-    cjdns-waiter
     util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
     cjdns-crypto-random
@@ -90,7 +85,6 @@ target_link_libraries(cjdroute2
     cjdns-util-events-libuv
     cjdbenc_StandardBencSerializer
     cjdbenc_JsonBencSerializer
-    cjdns-waiter
     cjdns-util-log-writer
     cjdns-crypto-random
     cjdns-util-version-version

@@ -15,7 +15,6 @@
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "admin/angel/Angel.h"
-#include "admin/angel/Waiter.h"
 #include "admin/angel/Core.h"
 #include "admin/angel/Core_admin.h"
 #include "admin/angel/InterfaceWaiter.h"

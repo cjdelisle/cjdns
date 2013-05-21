@@ -25,7 +25,6 @@
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/CanaryAllocator.h"
-#include "interface/PipeInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"

@@ -13,14 +13,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/angel/Angel.h"
-#include "admin/angel/Waiter.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
 #include "interface/Interface.h"
-#include "interface/PipeInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileReader.h"

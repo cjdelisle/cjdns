@@ -45,10 +45,6 @@ target_link_libraries(interface
     cjdns-util-platform-socket
 )
 
-add_library(cjdns-interface-pipeinterface
-    PipeInterface.c
-)
-
 add_subdirectory(addressable)
 
 enable_testing()

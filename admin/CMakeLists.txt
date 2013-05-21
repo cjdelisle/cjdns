@@ -17,7 +17,6 @@ add_library(cjdns-admin
 target_link_libraries(cjdns-admin
     crypto
     cjdbenc_StandardBencSerializer
-    cjdns-interface-pipeinterface
 )
 
 add_library(cjdns-admin-logger
