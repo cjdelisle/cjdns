@@ -22,10 +22,13 @@ add_library(cjdns-util-events-libuv
     Event.c
     Time.c
     Timeout.c
+    Pipe.c
+    Process.c
 )
 
 target_link_libraries(cjdns-util-events-libuv
     cjdmemory
+    cjdns-memory-canary
     ${LIBUV_LIBRARIES}
 )
 

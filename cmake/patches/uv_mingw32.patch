@@ -1,10 +1,9 @@
---- ./src/win/util.c	2013-04-10 13:43:07.000000000 -0400
-+++ ./src/win/util.c	2013-05-12 01:04:16.955664000 -0400
-@@ -31,7 +31,22 @@
+--- ./src/win/util.c	2013-05-14 19:50:19.000000000 -0400
++++ ./src/win/util.c	2013-05-17 11:36:11.461019000 -0400
+@@ -31,6 +31,20 @@
  #include "uv.h"
  #include "internal.h"
  
--#include <Winsock2.h>
 +#ifdef __MINGW32__
 +    // MINGW64 previous to version 0.2.7 and 0.1.7 did not properly pull in
 +    // dependencies needed for iphlpapi.h leading to compiler errors such as
@@ -19,9 +18,6 @@
 +        #include <ntddndis.h>
 +    #endif
 +#endif
-+
-+#include <winsock2.h>
  #include <iphlpapi.h>
  #include <psapi.h>
  #include <tlhelp32.h>
-

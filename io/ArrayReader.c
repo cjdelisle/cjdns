@@ -49,7 +49,7 @@ static int read(struct Reader* reader, void* readInto, unsigned long length)
 }
 
 /** @see Reader->skip() */
-static void skip(struct Reader* reader, size_t byteCount)
+static void skip(struct Reader* reader, unsigned long byteCount)
 {
     struct ArrayReader_context* context = Identity_cast((struct ArrayReader_context*) reader);
     context->pointer += byteCount;

@@ -61,4 +61,6 @@ int main()
     CMP(256);
     SKIP(300);
     CMP(128);
+
+    Allocator_free(alloc);
 }

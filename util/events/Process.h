@@ -23,9 +23,11 @@
  *
  * @param binaryPath the path to the file to execute.
  * @param args a list of strings representing the arguments to the command followed by NULL.
+ * @param base the event base.
+ * @param alloc an allocator. The process to be killed when it is freed.
  * @return 0 if all went well, -1 if forking fails.
  */
-int Process_spawn(char* binaryPath, char** args);
+int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc);
 
 /**
  * Get the path to the binary of the current process.

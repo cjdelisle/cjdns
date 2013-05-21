@@ -22,6 +22,7 @@
 #include "util/events/Event.h"
 #include "util/log/Log.h"
 
+#include <stdbool.h>
 #include <unistd.h>
 #include <inttypes.h>
 

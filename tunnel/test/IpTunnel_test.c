@@ -155,4 +155,6 @@ int main()
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
     Assert_true(called);
+
+    Allocator_free(alloc);
 }

@@ -16,11 +16,11 @@
 #define Message_H
 
 #include "util/Assert.h"
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "memory/Allocator.h"
 #include "util/Bits.h"
+#include "util/UniqueName.h"
 
 struct Message
 {
@@ -87,7 +87,7 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline bool Message_shift(struct Message* toShift, int32_t amount)
+static inline int Message_shift(struct Message* toShift, int32_t amount)
 {
     if (amount > 0) {
         Assert_true(toShift->padding >= amount);
@@ -99,7 +99,7 @@ static inline bool Message_shift(struct Message* toShift, int32_t amount)
     toShift->bytes -= amount;
     toShift->padding -= amount;
 
-    return true;
+    return 1;
 }
 
 static inline void Message_push(struct Message* restrict msg,

@@ -61,7 +61,8 @@ static uint8_t receiveMessageB(struct Message* msg, struct Interface* iface)
 {
     if (receiveMessageACount) {
         // Got the message, test successful.
-        exit(0);
+        struct Allocator* alloc = iface->receiverContext;
+        Allocator_free(alloc);
     }
     return 0;
 }
@@ -100,6 +101,7 @@ int main(int argc, char** argv)
 
     ifA->receiveMessage = receiveMessageA;
     ifB->receiveMessage = receiveMessageB;
+    ifB->receiverContext = alloc;
 
     ifB->sendMessage(msg, ifB);
 

@@ -48,4 +48,6 @@ int main()
     iface.receiveMessage(msg, &iface);
 
     Assert_true(allocatorsFreed == 1);
+
+    Allocator_free(alloc);
 }

@@ -21,6 +21,14 @@ target_link_libraries(cjdns-util-log-writer
     cjdns-util-log
 )
 
+add_library(cjdns-util-log-filewriter
+    FileWriterLog.c
+)
+target_link_libraries(cjdns-util-log-filewriter
+    cjdns-util-log-writer
+    cjdio
+)
+
 add_library(cjdns-util-log-indirect
     IndirectLog.c
 )

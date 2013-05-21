@@ -79,4 +79,7 @@ int main()
     struct Message m3 = { .bytes = buff, .length = buffLen, .padding = 0 };
     Ducttape_injectIncomingForMe(&m3, &dt->public, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
+
+    Allocator_free(alloc);
+    Allocator_free(allocator);
 }

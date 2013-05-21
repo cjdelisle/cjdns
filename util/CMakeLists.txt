@@ -35,15 +35,10 @@ target_link_libraries(cjdns-security
     cjdns-errno
 )
 
-add_library(cjdns-process
-    Process_${SYSTEM}.c
-)
-
 add_library(util
     AverageRoller.c
     Hex.c
     Pinger.c
-    Pipe.c
     Security_admin.c
     Assert.c
 )

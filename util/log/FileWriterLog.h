@@ -12,16 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AllocatorTools_H
-#define AllocatorTools_H
+#ifndef FileWriterLog_H
+#define FileWriterLog_H
 
-/**
- * Get a pointer which is aligned on memory boundries.
- *
- * @param pointer the location where the pointer should be.
- * @param alignedOn how big the word is that the boundry should be aligned on.
- */
-#define AllocatorTools_getAligned(pointer, alignedOn) \
-    ((char*) ((uintptr_t)( ((char*)(pointer)) + (alignedOn) - 1) & ~ ((alignedOn) - 1)))
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include <stdio.h>
+
+struct Log* FileWriterLog_new(FILE* writeTo, struct Allocator* alloc);
 
 #endif

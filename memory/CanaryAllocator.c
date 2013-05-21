@@ -167,6 +167,13 @@ static struct Allocator* childAllocator(struct Allocator* allocator,
     return CanaryAllocator_new(ctx->alloc->child(ctx->alloc, identFile, identLine), ctx->rand);
 }
 
+static void adopt(struct Allocator* parent, struct Allocator* child, const char* file, int line)
+{
+    struct CanaryAllocator_pvt* p = Identity_cast((struct CanaryAllocator_pvt*) parent);
+    struct CanaryAllocator_pvt* c = Identity_cast((struct CanaryAllocator_pvt*) child);
+    p->alloc->adopt(p->alloc, c->alloc, file, line);
+}
+
 /** @see MallocAllocator.h */
 struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* rand)
 {
@@ -178,7 +185,8 @@ struct Allocator* CanaryAllocator_new(struct Allocator* alloc, struct Random* ra
             .clone = allocatorClone,
             .realloc = allocatorRealloc,
             .child = childAllocator,
-            .onFree = addOnFreeJob
+            .onFree = addOnFreeJob,
+            .adopt = adopt
         },
         .alloc = alloc,
         .rand = rand,

@@ -66,14 +66,14 @@ int Socket_close(int sock)
     #endif
 }
 
-int Socket_recv(int sockfd, void* buff, size_t bufferSize, int flags)
+int Socket_recv(int sockfd, void* buff, unsigned long bufferSize, int flags)
 {
     return (int) recv(sockfd, buff, bufferSize, flags);
 }
 
 int Socket_recvfrom(int fd,
                     void* buff,
-                    size_t bufferSize,
+                    unsigned long bufferSize,
                     int flags,
                     struct Sockaddr_storage* ss)
 {
@@ -116,14 +116,14 @@ int Socket_bind(int fd, const struct Sockaddr* sa)
     return bind(fd, Sockaddr_asNativeConst(sa), sa->addrLen - Sockaddr_OVERHEAD);
 }
 
-int Socket_send(int socket, const void *buffer, size_t length, int flags)
+int Socket_send(int socket, const void *buffer, unsigned long length, int flags)
 {
     return (int) send(socket, buffer, length, flags);
 }
 
 int Socket_sendto(int fd,
                   const void* buffer,
-                  size_t len,
+                  unsigned long len,
                   int flags,
                   const struct Sockaddr* dest)
 {

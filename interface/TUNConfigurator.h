@@ -18,6 +18,8 @@
 #include "exception/Except.h"
 #include "util/log/Log.h"
 
+#include <stdint.h>
+
 /**
  * This is the maximum size that will be accepted as an interface name.
  * If this runs on a system where IFNAMSIZ is less then 16, names larger

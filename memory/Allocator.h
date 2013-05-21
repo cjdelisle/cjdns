@@ -64,8 +64,7 @@ struct Allocator_OnFreeJob {
  * things lying around expecting someone else to clean up after you. Sometimes you want to "take
  * ownership" of some memory which somebody else allocated and they are passing to you. Rather
  * than slowly allocate your own memory and copy the data over, you can use Allocator_adopt() to
- * create a new allocator which will hold that memory in existance until you and the creator both
- * are finished with it.
+ * hold that memory in existance until you and the creator both are finished with it.
  *
  * #3 Assume that any allocator may be freed at any time.
  * A typical example is the ping message. When a ping is sent, a structure is allocated to hold
@@ -107,7 +106,7 @@ struct Allocator
                           int identLine);
 
 
-    void (* const free)(struct Allocator* alloc, const char* identFile, int identLine);
+    void (*  free)(struct Allocator* alloc, const char* identFile, int identLine);
 
     struct Allocator_OnFreeJob* (* const onFree)(void (*callback)(void* callbackContext),
                                                  void* callbackContext,
@@ -118,10 +117,10 @@ struct Allocator
                                       const char* identFile,
                                       int identLine);
 
-    struct Allocator* (* const adopt)(struct Allocator* parentAlloc,
-                                      struct Allocator* alloc,
-                                      const char* identFile,
-                                      int identLine);
+    void (* const adopt)(struct Allocator* parentAlloc,
+                         struct Allocator* alloc,
+                         const char* identFile,
+                         int identLine);
 };
 
 
@@ -242,7 +241,8 @@ struct Allocator
  * Allocator_free(somebodyElsesAllocator);  <-- WRONG: you freed an allocator that is not yours.
  *
  *
- * struct Allocator* adoptedParent = Allocator_adopt(myAlloc, somebodyElsesAllocator);
+ * struct Allocator* adoptedParent = Allocator_child(myAlloc);
+ * Allocator_adopt(adoptedParent, somebodyElsesAllocator);
  * asynchronousStuff();
  * .... some time later...
  * Allocator_free(adoptedParent);  <-- RIGHT
@@ -253,6 +253,6 @@ struct Allocator
  * @return a new allocator which is an adopted parent of toAdopt.
  */
 #define Allocator_adopt(parentAlloc, toAdopt) \
-    (alloc)->adopt(parentAlloc, allocToClaim, __FILE__, __LINE__)
+    (parentAlloc)->adopt((parentAlloc), (toAdopt), __FILE__, __LINE__)
 
 #endif

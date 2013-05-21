@@ -45,4 +45,6 @@ int main()
     bytesUsed -= 30 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+
+    Allocator_free(alloc);
 }

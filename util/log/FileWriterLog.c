@@ -12,14 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Pipe_H
-#define Pipe_H
+#include "util/log/FileWriterLog.h"
+#include "util/log/WriterLog.h"
+#include "util/log/Log_impl.h"
+#include "io/Writer.h"
+#include "io/FileWriter.h"
 
-/**
- * Creates a unidirectional pipe.
- * @param fds Array of file descriptors. fds[0] is the read end, fds[1] is the write end.
- * @returns 0 on success, nonzero on failure
- */
-int Pipe_createUniPipe(int fds[2]);
-
-#endif
+struct Log* FileWriterLog_new(FILE* writeTo, struct Allocator* alloc)
+{
+    struct Writer* w = FileWriter_new(writeTo, alloc);
+    return WriterLog_new(w, alloc);
+}

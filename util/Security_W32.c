@@ -26,6 +26,6 @@ void Security_noFiles(struct Except* eh)
 {
 }
 
-void Security_maxMemory(uint32_t max, struct Except* eh)
+void Security_maxMemory(unsigned long max, struct Except* eh)
 {
 }

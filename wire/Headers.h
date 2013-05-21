@@ -124,13 +124,13 @@ Assert_compileTime(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define Headers_AuthChallenge_KEYSIZE 8
 
-static inline bool Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
+static inline int Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
 {
     return ac->challenge.requirePacketAuthAndDerivationCount & Endian_hostToBigEndian16(1<<15);
 }
 
 static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac,
-                                                 bool require)
+                                                 int require)
 {
     if (require) {
         ac->challenge.requirePacketAuthAndDerivationCount |=
@@ -325,12 +325,12 @@ static inline void Headers_IP6Fragment_setOffset(struct Headers_IP6Fragment* fra
     frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(offset << 3);
 }
 
-static inline bool Headers_IP6Fragment_hasMoreFragments(struct Headers_IP6Fragment* frag)
+static inline int Headers_IP6Fragment_hasMoreFragments(struct Headers_IP6Fragment* frag)
 {
     return frag->fragmentOffsetAndMoreFragments_be & Endian_hostToBigEndian16(1);
 }
 
-static inline void Headers_IP6Fragment_setMoreFragments(struct Headers_IP6Fragment* frag, bool more)
+static inline void Headers_IP6Fragment_setMoreFragments(struct Headers_IP6Fragment* frag, int more)
 {
     if (more) {
         frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(1);

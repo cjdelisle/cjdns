@@ -81,8 +81,8 @@ int Sockaddr_setPort(struct Sockaddr* sa, uint16_t port);
  * @param a sockaddr.
  * @return the AF number for this sockaddr.
  */
-const int Sockaddr_AF_INET;
-const int Sockaddr_AF_INET6;
+extern const int Sockaddr_AF_INET;
+extern const int Sockaddr_AF_INET6;
 int Sockaddr_getFamily(struct Sockaddr* sa);
 
 /**

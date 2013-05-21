@@ -35,7 +35,7 @@ struct Context
 static void timeout(void* vcontext)
 {
     struct Context* ctx = vcontext;
-    ctx->timedOut = true;
+    ctx->timedOut = 1;
     EventBase_endLoop(ctx->eventBase);
 }
 

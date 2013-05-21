@@ -26,6 +26,7 @@
 #include "wire/Message.h"
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 struct SwitchInterface
 {

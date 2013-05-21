@@ -160,12 +160,14 @@ int main()
 
     ////////////////////////
 
-    return reconnectionNewEndpointTest(tf->ifController,
-                                       tf->publicKey,
-                                       &message,
-                                       alloc,
-                                       tf->eventBase,
-                                       tf->logger,
-                                       &iface,
-                                       tf->rand);
+    int ret = reconnectionNewEndpointTest(tf->ifController,
+                                          tf->publicKey,
+                                          &message,
+                                          alloc,
+                                          tf->eventBase,
+                                          tf->logger,
+                                          &iface,
+                                          tf->rand);
+    Allocator_free(alloc);
+    return ret;
 }

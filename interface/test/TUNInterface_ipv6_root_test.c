@@ -86,7 +86,8 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
         return 0;
     }
     // Got the message, test successful.
-    exit(0);
+    struct Allocator* alloc = iface->receiverContext;
+    Allocator_free(alloc);
     return 0;
 }
 
@@ -151,6 +152,7 @@ int main(int argc, char** argv)
     Message_push(msg, dest, dest->addrLen);
 
     udp->generic.receiveMessage = receiveMessageUDP;
+    udp->generic.receiverContext = alloc;
     tun->iface.receiveMessage = receiveMessageTUN;
 
     udp->generic.sendMessage(msg, &udp->generic);

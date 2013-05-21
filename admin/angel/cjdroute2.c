@@ -16,7 +16,7 @@
 #define string_strrchr
 #define string_strlen
 #include "admin/Admin.h"
-#include "admin/angel/Waiter.h"
+#include "admin/angel/InterfaceWaiter.h"
 #include "admin/AuthorizedPasswords.h"
 #include "admin/Configurator.h"
 #include "benc/Int.h"
@@ -50,12 +50,12 @@
 #include "switch/SwitchCore.h"
 #include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
+#include "util/events/Pipe.h"
+#include "util/events/Process.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
 #include "util/Errno.h"
 #include "util/Hex.h"
-#include "util/Pipe.h"
-#include "util/Process.h"
 #include "util/Security.h"
 #include "util/log/WriterLog.h"
 #include "util/version/Version.h"
@@ -443,17 +443,11 @@ int main(int argc, char** argv)
     struct Log* logger = WriterLog_new(logWriter, allocator);
 
     // --------------------- Setup Pipes to Angel --------------------- //
-    int pipeToAngel[2];
-    int pipeFromAngel[2];
-    if (Pipe_createUniPipe(pipeToAngel) || Pipe_createUniPipe(pipeFromAngel)) {
-        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", Errno_getString());
-    }
+    char angelPipeName[32] = {0};
+    Random_base32(rand, (uint8_t*)angelPipeName, 31);
+    struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
 
-    char pipeToAngelStr[8];
-    snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
-    char pipeFromAngelStr[8];
-    snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
-    char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
+    char* args[] = { "angel", angelPipeName, NULL };
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
@@ -468,7 +462,7 @@ int main(int argc, char** argv)
         Except_raise(eh, -1, "Need to specify privateKey.");
     }
     Log_info(logger, "Forking angel to background.");
-    Process_spawn(corePath->bytes, args);
+    Process_spawn(corePath->bytes, args, eventBase, allocator);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
@@ -519,14 +513,22 @@ int main(int argc, char** argv)
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
         Except_raise(eh, -1, "Failed to serialize pre-configuration");
     }
-    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten);
+    struct Message* toAngelMsg = &(struct Message) {
+        .bytes = buff,
+        .length = toAngelWriter->bytesWritten
+    };
+    toAngelMsg = Message_clone(toAngelMsg, allocator);
+    Interface_sendMessage(&angelPipe->iface, toAngelMsg);
+
     Log_keys(logger, "Sent [%s] to angel process.", buff);
 
     // --------------------- Get Response from Angel --------------------- //
 
-    uint32_t amount = Waiter_getData(buff, CONFIG_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
+    struct Message* fromAngelMsg =
+        InterfaceWaiter_waitForData(&angelPipe->iface, eventBase, allocator, eh);
     Dict responseFromAngel;
-    struct Reader* responseFromAngelReader = ArrayReader_new(buff, amount, allocator);
+    struct Reader* responseFromAngelReader =
+        ArrayReader_new(fromAngelMsg->bytes, fromAngelMsg->length, allocator);
     if (StandardBencSerializer_get()->parseDictionary(responseFromAngelReader,
                                                       allocator,
                                                       &responseFromAngel))
@@ -558,5 +560,6 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
+    Allocator_free(allocator);
     return 0;
 }

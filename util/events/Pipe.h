@@ -17,32 +17,41 @@
 
 #include "memory/Allocator.h"
 #include "exception/Except.h"
+#include "interface/Interface.h"
 #include "util/events/EventBase.h"
 
-typedef void (Pipe_callback)(struct Pipe* p, int status);
+struct Pipe;
+typedef void (* Pipe_callback)(struct Pipe* p, int status);
 
 struct Pipe
 {
     struct Interface iface;
 
+    /** the name as provided by the user eg: "foo" */
     const char* const name;
+
+    /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
+    const char* const fullName;
 
     struct EventBase* const base;
 
-    Pipe_callback* onConnection;
-    void* onConnectionContext;
+    Pipe_callback onConnection;
 
     struct Log* logger;
 };
 
-struct Pipe* Pipe_new(struct EventBase* eb,
-                      const char* name,
-                      struct Except* eh,
-                      struct Allocator* alloc);
+#define Pipe_PADDING_AMOUNT 512
+#define Pipe_BUFFER_CAP (2000-512)
 
-struct Pipe* Pipe_connect(struct EventBase* eb,
-                          const char* name,
-                          struct Except* eh,
-                          struct Allocator* alloc);
+struct Pipe* Pipe_named(const char* name,
+                        struct EventBase* eb,
+                        struct Except* eh,
+                        struct Allocator* userAlloc);
+
+struct Pipe* Pipe_forFiles(int inFd,
+                           int outFd,
+                           struct EventBase* eb,
+                           struct Except* eh,
+                           struct Allocator* userAlloc);
 
 #endif

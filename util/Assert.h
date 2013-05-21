@@ -15,7 +15,6 @@
 #ifndef Assert_H
 #define Assert_H
 
-#include "util/UniqueName.h"
 #include "util/Gcc.h"
 
 #define Assert_STRING(x) #x
@@ -27,7 +26,7 @@
  * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
  */
 #define Assert_compileTime(isTrue) \
-    struct UniqueName_get() { unsigned int assertFailed : (isTrue); }
+    void Assert_compileTime(char x[1 - (!(isTrue))])
 
 Gcc_PRINTF(1, 2)
 Gcc_NORETURN
@@ -36,15 +35,14 @@ void Assert_failure(const char* format, ...);
 /** Runtime assertion which is always applied. */
 #define Assert_always(expr) do { \
         if (!(expr)) {                                                                \
-            Assert_failure("Assertion failure [%s:%d] [%s]", __FILE__, __LINE__,      \
-                           Assert_STRING(expr));                                      \
+            Assert_failure("Assertion failure [%s:%d] [%s]\n", __FILE__, __LINE__,    \
+                           #expr);                                                    \
         }                                                                             \
     } while (0)
 /* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 
-// Turn off assertions when the code is more stable.
-#define Assert_true(expr) Assert_always(expr)
+#ifdef PARANOIA
+    #define Assert_true(expr) Assert_always(expr)
+#endif
 
-#else
-#include "util/UniqueName.h"
 #endif

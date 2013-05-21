@@ -215,13 +215,9 @@ static struct Allocator* childAllocator(struct Allocator* alloc,
     return &child->generic;
 }
 
-static struct Allocator* adopt(struct Allocator* alloc,
-                               struct Allocator* allocB,
-                               const char* file,
-                               int line)
+static void adopt(struct Allocator* alloc, struct Allocator* allocB, const char* file, int line)
 {
     Assert_always(!"Unimplemented");
-    return alloc;
 }
 
 /** @see BufferAllocator.h */

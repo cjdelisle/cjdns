@@ -29,7 +29,6 @@ target_link_libraries(cjdns-angel
     cjdmemory
     cjdns-util-events-libuv
     cjdns-security
-    cjdns-process
     cjdns-interface-waiter
     cjdns-waiter
     util # Hex_decode(), Pipe_createUniPipe()
@@ -91,11 +90,11 @@ target_link_libraries(cjdroute2
     cjdns-util-events-libuv
     cjdbenc_StandardBencSerializer
     cjdbenc_JsonBencSerializer
-    cjdns-process
     cjdns-waiter
     cjdns-util-log-writer
     cjdns-crypto-random
     cjdns-util-version-version
+    cjdns-interface-waiter
 )
 
 

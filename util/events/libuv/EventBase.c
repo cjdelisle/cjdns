@@ -14,6 +14,7 @@
  */
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
@@ -63,12 +64,13 @@ static void calibrateTime(struct EventBase_pvt* base)
 struct EventBase* EventBase_new(struct Allocator* alloc)
 {
     // 1MB allowed to be allocated among all events.
-    struct Allocator* asyncAllocator = MallocAllocator_new(1<<20);
+    struct Allocator* asyncAllocator = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
 
     struct EventBase_pvt* base = Allocator_calloc(asyncAllocator, sizeof(struct EventBase_pvt), 1);
     base->loop = uv_loop_new();
     base->asyncAllocator = asyncAllocator;
     base->alloc = alloc;
+    base->pub.bufferAlloc = Allocator_child(asyncAllocator);
     Identity_set(base);
 
     Allocator_onFree(alloc, onFree, base);

@@ -120,4 +120,6 @@ int main()
             ifaces[rnd] = ctx.receivedOn;
         }
     }
+
+    Allocator_free(alloc);
 }
