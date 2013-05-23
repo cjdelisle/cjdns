@@ -123,6 +123,11 @@ static struct Pipe* getClientPipe(int argc,
     return Pipe_forFiles(inFromClientNo, outToClientNo, base, eh, alloc);
 }
 
+static void coreDied(struct Pipe* p, int status)
+{
+    exit(1);
+}
+
 /**
  * Input:
  * {
@@ -201,6 +206,7 @@ int AngelInit_main(int argc, char** argv)
 
     struct Pipe* corePipe = Pipe_named(corePipeName->bytes, eventBase, eh, alloc);
     corePipe->logger = logger;
+    corePipe->onClose = coreDied;
 
     if (core) {
         Log_info(logger, "Initializing core [%s]", core->bytes);

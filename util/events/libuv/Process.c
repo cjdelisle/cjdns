@@ -60,10 +60,17 @@ int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct 
     Identity_set(p);
     Allocator_onFree(alloc, onFree, p);
 
+    uv_stdio_container_t files[] = {
+        { .flags = UV_IGNORE },
+        { .flags = UV_INHERIT_FD, .data.fd = 1 },
+        { .flags = UV_INHERIT_FD, .data.fd = 2 },
+    };
     uv_process_options_t options = {
         .file = binaryPath,
         .args = binAndArgs,
         .flags = UV_PROCESS_WINDOWS_HIDE,
+        .stdio = files,
+        .stdio_count = 3
     };
 
     return uv_spawn(ctx->loop, &p->proc, options);

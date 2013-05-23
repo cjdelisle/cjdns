@@ -154,6 +154,11 @@ static void adminExit(Dict* input, void* vcontext, String* txid)
                      context->hermes);
 }
 
+static void angelDied(struct Pipe* p, int status)
+{
+    exit(1);
+}
+
 static Dict* getInitialConfig(struct Interface* iface,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
@@ -242,6 +247,7 @@ int Core_main(int argc, char** argv)
     // The first read inside of getInitialConfig() will begin it waiting.
     struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
     angelPipe->logger = logger;
+    angelPipe->onClose = angelDied;
 
     Dict* config = getInitialConfig(&angelPipe->iface, eventBase, tempAlloc, eh);
 

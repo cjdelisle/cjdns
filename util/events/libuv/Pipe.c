@@ -66,9 +66,8 @@ static void sendMessageCallback(uv_write_t* uvReq, int error)
 {
     struct Pipe_WriteRequest_pvt* req = Identity_cast((struct Pipe_WriteRequest_pvt*) uvReq);
     if (error) {
-        Log_info(req->pipe->pub.logger, "Failed to write to pipe [%lx] [%s]",
-                 (unsigned long)req->pipe,
-                 uv_err_name(uv_last_error(req->pipe->out->loop)) );
+        Log_info(req->pipe->pub.logger, "Failed to write to pipe [%s] [%s]",
+                 req->pipe->pub.fullName, uv_err_name(uv_last_error(req->pipe->out->loop)) );
     }
     req->pipe->queueLen -= req->msg->length;
     Assert_true(req->pipe->queueLen >= 0);
@@ -85,8 +84,8 @@ static uint8_t sendMessage2(struct Pipe_WriteRequest_pvt* req)
     };
 
     if (uv_write(&req->uvReq, (uv_stream_t*) pipe->out, buffers, 1, sendMessageCallback)) {
-        Log_info(pipe->pub.logger, "Failed writing to pipe [%lx] [%s]", (unsigned long)pipe,
-                 uv_err_name(uv_last_error(pipe->out->loop)) );
+        Log_info(pipe->pub.logger, "Failed writing to pipe [%s] [%s]",
+                 pipe->pub.fullName, uv_err_name(uv_last_error(pipe->out->loop)) );
         Allocator_free(req->alloc);
         return Error_UNDELIVERABLE;
     }
@@ -152,15 +151,18 @@ printf("%d incoming message %d\n", getpid(), (int)nread);
 
     if (nread < 0) {
         if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
-            Log_info(pipe->pub.logger, "Pipe closed with EOF [%lx]", (unsigned long)pipe);
+            Log_info(pipe->pub.logger, "Pipe closed with EOF [%s]", pipe->pub.fullName);
         } else {
-            Log_warn(pipe->pub.logger, "Pipe encountered error [%lx] [%s]", (unsigned long)pipe,
-                     uv_err_name(uv_last_error(pipe->peer.loop)) );
+            Log_warn(pipe->pub.logger, "Pipe encountered error [%s] [%s]",
+                     pipe->pub.fullName, uv_err_name(uv_last_error(pipe->peer.loop)) );
+        }
+        if (pipe->pub.onClose) {
+            pipe->pub.onClose(&pipe->pub, uv_last_error(pipe->peer.loop).code);
         }
         uv_close((uv_handle_t*) stream, NULL);
 
     } else if (nread == 0) {
-        Log_debug(pipe->pub.logger, "Pipe 0 length read [%lx]", (unsigned long)pipe);
+        Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else if (pipe->pub.iface.receiveMessage) {
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));

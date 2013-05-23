@@ -444,8 +444,8 @@ int main(int argc, char** argv)
     struct Log* logger = WriterLog_new(logWriter, allocator);
 
     // --------------------- Setup Pipes to Angel --------------------- //
-    char angelPipeName[32] = {0};
-    Random_base32(rand, (uint8_t*)angelPipeName, 31);
+    char angelPipeName[64] = "client-angel-";
+    Random_base32(rand, (uint8_t*)angelPipeName+13, 31);
     Assert_true(EventBase_eventCount(eventBase) == 0);
     struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
     Assert_true(EventBase_eventCount(eventBase) == 2);

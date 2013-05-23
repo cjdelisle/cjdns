@@ -36,6 +36,7 @@ struct Pipe
     struct EventBase* const base;
 
     Pipe_callback onConnection;
+    Pipe_callback onClose;
 
     struct Log* logger;
 };

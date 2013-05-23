@@ -342,7 +342,7 @@ static void pingNode(Dict* args, void* vrouter, String* txid)
 static inline uint64_t tryNextNodeAfter(struct RouterModule* module)
 {
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
-    x = x + (Random_int32(module->rand) % (x | 1)) / 2;
+    x = x + (Random_uint32(module->rand) % (x | 1)) / 2;
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 

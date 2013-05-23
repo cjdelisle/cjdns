@@ -137,7 +137,7 @@ void Hermes_callAngel(Dict* message,
     struct {
         uint8_t padding[PADDING];
         uint8_t message[BUFF_SIZE];
-    } buff = { .padding = {0} };
+    } buff = { .padding = {0}, .message = {0} };
 
     struct Allocator* reqAlloc = Allocator_child(alloc);
     struct Request* req = Allocator_clone(reqAlloc, (&(struct Request) {
@@ -171,9 +171,10 @@ void Hermes_callAngel(Dict* message,
         .length = writer->bytesWritten,
         .padding = PADDING
     };
-    m = Message_clone(m, reqAlloc);
 
     Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
+
+    m = Message_clone(m, reqAlloc);
 
     int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {

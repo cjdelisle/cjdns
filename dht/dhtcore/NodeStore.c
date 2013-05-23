@@ -439,7 +439,7 @@ uint32_t NodeStore_size(const struct NodeStore* const store)
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store)
 {
     if (path == 0) {
-        return (store->size > 0) ? &store->nodes[Random_int32(store->rand) % store->size] : NULL;
+        return (store->size > 0) ? &store->nodes[Random_uint32(store->rand) % store->size] : NULL;
     }
 
     for (int i = 0; i < store->size; i++) {

@@ -150,7 +150,11 @@ static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
         .length = w->bytesWritten,
         .padding = SEND_MESSAGE_PADDING
     };
-    return sendMessage(&m, dest, admin);
+    struct Allocator* alloc = Allocator_child(admin->allocator);
+    struct Message* msg = Message_clone(&m, alloc);
+    int out = sendMessage(msg, dest, admin);
+    Allocator_free(alloc);
+    return out;
 }
 
 /**

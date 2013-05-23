@@ -90,6 +90,8 @@ static void adminAddIp(Dict* args, void* vcontext, String* txid)
     int64_t* prefixLenP = Dict_getInt(args, String_CONST("prefixLen"));
     int prefixLen = *prefixLenP;
 
+    Log_info(ctx->logger, "Got request to set IP");
+
     struct Sockaddr_storage ss;
     if (Sockaddr_parse(address->bytes, &ss)) {
         Dict d = Dict_CONST(
