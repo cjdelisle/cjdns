@@ -14,6 +14,7 @@ set(Test_FILES
     UDPInterface_communication_test.c
     ICMP6Generator_test.c
     MultiInterface_test.c
+    FramingInterface_test.c
 )
 set(Test_ROOT_FILES
     TUNInterface_ipv4_root_test.c

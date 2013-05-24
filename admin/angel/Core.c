@@ -38,6 +38,7 @@
 #include "interface/TUNConfigurator.h"
 #include "interface/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
+#include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
@@ -249,9 +250,11 @@ int Core_main(int argc, char** argv)
     angelPipe->logger = logger;
     angelPipe->onClose = angelDied;
 
-    Dict* config = getInitialConfig(&angelPipe->iface, eventBase, tempAlloc, eh);
+    struct Interface* angelIface = FramingInterface_new(65535, &angelPipe->iface, alloc);
 
-    struct Hermes* hermes = Hermes_new(&angelPipe->iface, eventBase, logger, alloc);
+    Dict* config = getInitialConfig(angelIface, eventBase, tempAlloc, eh);
+
+    struct Hermes* hermes = Hermes_new(angelIface, eventBase, logger, alloc);
 
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));

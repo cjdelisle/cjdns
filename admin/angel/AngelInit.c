@@ -19,6 +19,7 @@
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
 #include "interface/Interface.h"
+#include "interface/FramingInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileReader.h"
@@ -207,6 +208,7 @@ int AngelInit_main(int argc, char** argv)
     struct Pipe* corePipe = Pipe_named(corePipeName->bytes, eventBase, eh, alloc);
     corePipe->logger = logger;
     corePipe->onClose = coreDied;
+    struct Interface* coreIface = FramingInterface_new(65535, &corePipe->iface, alloc);
 
     if (core) {
         Log_info(logger, "Initializing core [%s]", core->bytes);
@@ -214,11 +216,6 @@ int AngelInit_main(int argc, char** argv)
     }
 
     Log_debug(logger, "Sending pre-configuration to core.");
-    /*struct PipeInterface* pif =
-        PipeInterface_new(fromCore, toCore, eventBase, logger, alloc, rand);
-    struct Interface* coreIface = &pif->generic;
-    PipeInterface_waitUntilReady(pif);*/
-    struct Interface* coreIface = &corePipe->iface;
 
 
     sendConfToCore(coreIface, tempAlloc, &config, eh, logger);

@@ -96,6 +96,7 @@ static inline int Message_shift(struct Message* toShift, int32_t amount)
     }
 
     toShift->length += amount;
+    toShift->capacity += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
 

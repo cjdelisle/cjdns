@@ -36,6 +36,7 @@ add_library(interface
     SessionManager.c
     ICMP6Generator.c
     MultiInterface.c
+    FramingInterface.c
 )
 
 target_link_libraries(interface

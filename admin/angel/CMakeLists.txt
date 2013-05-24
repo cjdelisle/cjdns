@@ -33,6 +33,7 @@ target_link_libraries(cjdns-angel
     cjdns-util-platform-socket
     cjdns-interface-addressable-adapter
     cjdns-interface-tuntap
+    interface
 )
 
 add_library(cjdns-admin-hermes

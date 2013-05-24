@@ -25,6 +25,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/CanaryAllocator.h"
+#include "interface/FramingInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
@@ -58,7 +59,8 @@ static void spawnAngel(char* asClientPipeName, struct EventBase* base, struct Al
 
 /** @return a string representing the address and port to connect to. */
 static void initAngel(struct Pipe* asClientPipe,
-                      struct Pipe* asCorePipe,
+                      struct Interface* asCoreIface,
+                      char* asCorePipeName,
                       struct EventBase* eventBase,
                       struct Log* logger,
                       struct Allocator* alloc,
@@ -66,7 +68,7 @@ static void initAngel(struct Pipe* asClientPipe,
 {
     Dict admin = Dict_CONST(
         String_CONST("bind"), String_OBJ(String_CONST("127.0.0.1")), Dict_CONST(
-        String_CONST("corePipeName"), String_OBJ(String_CONST((char*)asCorePipe->name)), Dict_CONST(
+        String_CONST("corePipeName"), String_OBJ(String_CONST(asCorePipeName)), Dict_CONST(
         String_CONST("pass"), String_OBJ(String_CONST("abcd")), NULL
     )));
     Dict message = Dict_CONST(
@@ -93,26 +95,27 @@ static void initAngel(struct Pipe* asClientPipe,
 
     // This is client->angel->core data, we can throw this away.
     struct Message* angelToCore =
-        InterfaceWaiter_waitForData(&asCorePipe->iface, eventBase, tempAlloc, NULL);
+        InterfaceWaiter_waitForData(asCoreIface, eventBase, tempAlloc, NULL);
 
     // unterminated string
     Log_info(logger, "Init message from angel to core: [%s]", angelToCore->bytes);
 
     // Send response on behalf of core.
-    char* coreToAngelResponse =
+    char* coreToAngelResponse = "        PADDING         "
         "d"
           "5:error" "4:none"
         "e";
+    coreToAngelResponse = coreToAngelResponse+24;
 
     struct Message* m = &(struct Message) {
         .bytes = (uint8_t*) coreToAngelResponse,
         .length = strlen(coreToAngelResponse),
-        .padding = 0,
+        .padding = 24,
         .capacity = strlen(coreToAngelResponse)
     };
     m = Message_clone(m, tempAlloc);
 
-    Interface_sendMessage(&asCorePipe->iface, m);
+    Interface_sendMessage(asCoreIface, m);
 
     // This is angel->client data, it will tell us which port was bound.
     struct Message* angelToClient =
@@ -155,11 +158,12 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     Random_base32(rand, (uint8_t*)asCorePipeName, 31);
     struct Pipe* asCorePipe = Pipe_named(asCorePipeName, eventBase, NULL, alloc);
     asCorePipe->logger = logger;
+    struct Interface* asCoreIface = FramingInterface_new(65535, &asCorePipe->iface, alloc);
 
     spawnAngel(asClientPipeName, eventBase, alloc);
 
     Log_info(logger, "Initializing Angel");
-    initAngel(asClientPipe, asCorePipe, eventBase, logger, alloc, rand);
+    initAngel(asClientPipe, asCoreIface, (char*)asCorePipe->name, eventBase, logger, alloc, rand);
 
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("0.0.0.0", &addr));
@@ -185,7 +189,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .eventBase = eventBase,
         .logger = logger,
         .addr = Sockaddr_clone(udpAdmin->addr, alloc),
-        .angelInterface = &asCorePipe->iface
+        .angelInterface = asCoreIface
     }));
 }
 

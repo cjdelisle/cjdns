@@ -138,13 +138,9 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 #define PADDING (Pipe_PADDING_AMOUNT + sizeof(uintptr_t))
 #define ALLOC(buff) (((struct Allocator**) &(buff[-PADDING]))[0])
 
-#include <stdio.h>
-#include <unistd.h>
-
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) stream->data);
-printf("%d incoming message %d\n", getpid(), (int)nread);
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = ALLOC(buf.base);
     Assert_true(alloc->free == pipe->pub.base->bufferAlloc->free);
@@ -196,7 +192,6 @@ static void connected(uv_connect_t* req, int status)
     uv_stream_t* link = req->handle;
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) link->data);
     Log_debug(pipe->pub.logger, "Pipe [%s] established connection", pipe->pub.fullName);
-printf("%d established connection %s\n", getpid(), uv_err_name(uv_last_error(link->loop)));
 
     if (status) {
         Log_info(pipe->pub.logger, "uv_pipe_connect() failed for pipe [%s] [%s]",
@@ -347,7 +342,6 @@ struct Pipe* Pipe_named(const char* name,
 
     // Attempt to create pipe.
     if (!uv_pipe_bind(&out->server, out->pub.fullName)) {
-printf("%d creating pipe\n", getpid());
         if (uv_listen((uv_stream_t*) &out->server, 1, listenCallback)) {
             Except_raise(eh, -1, "uv_listen() failed [%s] for pipe [%s]",
                          uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
@@ -357,7 +351,6 @@ printf("%d creating pipe\n", getpid());
 
     if (uv_last_error(ctx->loop).code == UV_EADDRINUSE) {
         // Pipe exists, connect to it.
-printf("%d connecting to pipe\n", getpid());
         uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
         req->data = out;
         uv_pipe_connect(req, &out->peer, out->pub.fullName, connected);
