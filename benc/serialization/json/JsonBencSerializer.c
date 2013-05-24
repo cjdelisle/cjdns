@@ -19,13 +19,13 @@
 #include "benc/serialization/BencSerializer.h"
 #include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static int32_t parseGeneric(struct Reader* reader,
                             struct Allocator* allocator,
@@ -193,7 +193,7 @@ static int32_t parseint64_t(struct Reader* reader,
                 printf("Failed to parse \"%s\": not a number\n",buffer);
                 return UNPARSABLE;
             }
-            if ((out == INT64_MAX || out == INT64_MIN) && Errno_get() == Errno_ERANGE) {
+            if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
                 printf("Failed to parse \"%s\": number too large/small\n",buffer);
                 return UNPARSABLE;
             }
