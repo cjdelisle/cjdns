@@ -23,7 +23,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 /** This provides the padding for each line based on the depth in the stack. */
