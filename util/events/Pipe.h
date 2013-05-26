@@ -42,7 +42,7 @@ struct Pipe
 };
 
 #define Pipe_PADDING_AMOUNT 512
-#define Pipe_BUFFER_CAP (2000-512)
+#define Pipe_BUFFER_CAP 4000
 
 struct Pipe* Pipe_named(const char* name,
                         struct EventBase* eb,

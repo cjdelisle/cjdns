@@ -175,7 +175,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) handle->data);
-    size = (size > Pipe_BUFFER_CAP) ? Pipe_PADDING_AMOUNT : size;
+    size = Pipe_BUFFER_CAP;
     size_t fullSize = size + PADDING;
 
     struct Allocator* child = Allocator_child(pipe->pub.base->bufferAlloc);
