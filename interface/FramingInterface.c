@@ -153,7 +153,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 {
     struct FramingInterface_pvt* fi = Identity_cast((struct FramingInterface_pvt*)iface);
 
-    int32_t length_be = Endian_hostToBigEndian32(msg->length);
+    int32_t length_be = Endian_hostToBigEndian32((uint32_t)msg->length);
     Message_push(msg, &length_be, 4);
 
     return Interface_sendMessage(fi->wrapped, msg);
