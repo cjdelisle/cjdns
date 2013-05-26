@@ -75,8 +75,9 @@ static void failure(struct MallocAllocator_pvt* context,
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    Assert_failure("%s:%d Fatal error: [%s] spaceAvailable [%" PRIu64 "]",
-                   identFile, identLine, message, context->rootAlloc->spaceAvailable);
+    Assert_failure("%s:%d Fatal error: [%s] spaceAvailable [%lu]",
+                   identFile, identLine, message,
+                   (unsigned long)context->rootAlloc->spaceAvailable);
 }
 
 static inline void* newAllocation(struct MallocAllocator_pvt* context,

@@ -26,23 +26,6 @@ if ("$ENV{NO_WERROR}" STREQUAL "")
     add_definitions(-Werror)
 endif()
 
-if(Windows)
-    # ISO C does not support the ‘I64’ ms_printf length modifier
-    # but PRId64 is #defined as "I64d"
-    remove_definitions(-Werror)
-
-    # SRWLOCK is vista or newer and needed by libuv
-    add_definitions(-D_WIN32_WINNT=0x0600)
-
-    # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
-    set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
-endif()
-if(CMAKE_CROSSCOMPILING)
-    if (NOT "$ENV{REMOTE_TEST_IP_PORT}" STREQUAL "")
-        set(REMOTE_TEST_IP_PORT "$ENV{REMOTE_TEST_IP_PORT}")
-    endif()
-endif()
-
 if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
     set(ILLUMOS TRUE)
     set(SYSTEM Illumos)
@@ -63,10 +46,27 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
     add_definitions(-D BSD=1)
     set(SYSTEM OpenBSD)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
-    set(WINDOWS TRUE)
+    set(Windows TRUE)
     set(SYSTEM Windows)
 endif()
 add_definitions(-D ${SYSTEM}=1)
+
+if(Windows)
+    # ISO C does not support the ‘I64’ ms_printf length modifier
+    # but PRId64 is #defined as "I64d"
+    remove_definitions(-Werror)
+
+    # SRWLOCK is vista or newer and needed by libuv
+    add_definitions(-D_WIN32_WINNT=0x0600)
+
+    # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
+    set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
+endif()
+if(CMAKE_CROSSCOMPILING)
+    if (NOT "$ENV{REMOTE_TEST_IP_PORT}" STREQUAL "")
+        set(REMOTE_TEST_IP_PORT "$ENV{REMOTE_TEST_IP_PORT}")
+    endif()
+endif()
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/interface/ETHInterface_${SYSTEM}.c)
   add_definitions(-D HAS_ETH_INTERFACE=1)
@@ -163,7 +163,7 @@ if ("$ENV{NO_DEBUG}" STREQUAL "")
 endif()
 
 if(Windows)
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
+    set(CMAKE_EXE_LINKER_FLAGS "")
 elseif(ILLUMOS)
     # TODO make this less ugly
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -lsocket")

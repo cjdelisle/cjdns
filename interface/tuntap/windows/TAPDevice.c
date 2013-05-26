@@ -15,8 +15,9 @@
 
 #include "util/Bits.h"
 #include "exception/Except.h"
+#include "exception/WinFail.h"
 #include "memory/Allocator.h"
-#include "interface/tuntap/win32/TAPDevice.h"
+#include "interface/tuntap/windows/TAPDevice.h"
 
 /*
  * Portions of this code are copied from QEMU project which is licensed
@@ -163,22 +164,6 @@ static int is_tap_win32_dev(const char *guid)
     return FALSE;
 }
 
-static int except(struct Except* eh, const char* msg, LONG status)
-{
-    #define BUFF_SZ 1024
-    char buff[BUFF_SZ] = {0};
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
-                   NULL,
-                   status,
-                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                   buff,
-                   BUFF_SZ,
-                   NULL);
-    Except_raise(eh, -1, "%s [%s]", msg, buff);
-    return -1;
-    #undef BUFF_SZ
-}
-
 static int get_device_guid(
     char *name,
     int name_size,
@@ -190,41 +175,26 @@ static int get_device_guid(
     HKEY control_net_key;
     DWORD len;
 
-    status = RegOpenKeyEx(
-        HKEY_LOCAL_MACHINE,
-        NETWORK_CONNECTIONS_KEY,
-        0,
-        KEY_READ,
-        &control_net_key);
-
-    if (status != ERROR_SUCCESS) {
-        return except(eh, "RegOpenKeyEx(NETWORK_CONNECTIONS_KEY) failed", status);
-    }
+    WinFail_check(eh, (
+        RegOpenKeyEx(HKEY_LOCAL_MACHINE, NETWORK_CONNECTIONS_KEY, 0, KEY_READ, &control_net_key)
+    ));
 
     int stop = 0;
     for (int i = 0; !stop; i++) {
         char enum_name[256];
         char connection_string[256];
-        HKEY connection_key;
+        HKEY connKey;
         char name_data[256];
         DWORD name_type;
         const char name_string[] = "Name";
 
         len = sizeof (enum_name);
-        status = RegEnumKeyEx(
-            control_net_key,
-            i,
-            enum_name,
-            &len,
-            NULL,
-            NULL,
-            NULL,
-            NULL);
+        status = RegEnumKeyEx(control_net_key, i, enum_name, &len, NULL, NULL, NULL, NULL);
 
         if (status == ERROR_NO_MORE_ITEMS) {
             break;
         } else if (status != ERROR_SUCCESS) {
-            return except(eh, "RegEnumKeyEx() failed", status);
+            WinFail_fail(eh, "RegEnumKeyEx() failed", status);
         }
 
         if (len != strlen(NETWORK_ADAPTER_GUID)) {
@@ -237,30 +207,18 @@ static int get_device_guid(
              "%s\\%s\\Connection",
              NETWORK_CONNECTIONS_KEY, enum_name);
 
-        status = RegOpenKeyEx(
-            HKEY_LOCAL_MACHINE,
-            connection_string,
-            0,
-            KEY_READ,
-            &connection_key);
+        WinFail_check(eh, (
+            RegOpenKeyEx(HKEY_LOCAL_MACHINE, connection_string, 0, KEY_READ, &connKey)
+        ));
 
-        if (status != ERROR_SUCCESS) {
-            return except(eh, connection_string, status);
-        }
         len = sizeof (name_data);
-        status = RegQueryValueEx(
-            connection_key,
-            name_string,
-            NULL,
-            &name_type,
-            (uint8_t*)name_data,
-            &len);
 
-        if (status != ERROR_SUCCESS) {
-            return except(eh, "RegQueryValueEx() failed", status);
-        }
+        WinFail_check(eh, (
+            RegQueryValueEx(connKey, name_string, NULL, &name_type, (uint8_t*)name_data, &len)
+        ));
+
         if (name_type != REG_SZ) {
-            return except(eh, "RegQueryValueEx() name_type != REG_SZ", status);
+            WinFail_fail(eh, "RegQueryValueEx() name_type != REG_SZ", status);
         }
 
         if (is_tap_win32_dev(enum_name)) {
@@ -268,7 +226,7 @@ static int get_device_guid(
             if (actual_name) {
                 if (strcmp(actual_name, "") != 0) {
                     if (strcmp(name_data, actual_name) != 0) {
-                        RegCloseKey (connection_key);
+                        RegCloseKey (connKey);
                         ++i;
                         continue;
                     }
@@ -280,7 +238,7 @@ static int get_device_guid(
             stop = 1;
         }
 
-        RegCloseKey(connection_key);
+        RegCloseKey(connKey);
     }
 
     RegCloseKey (control_net_key);

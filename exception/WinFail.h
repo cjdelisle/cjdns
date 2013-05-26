@@ -12,23 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef WinFail_H
+#define WinFail_H
 
-#include "interface/tuntap/windows/TAPInterface.h"
 #include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "memory/CanaryAllocator.h"
-#include "memory/MallocAllocator.h"
-#include "util/events/EventBase.h"
-#include "interface/Interface.h"
-#include "util/log/Log.h"
-#include "util/log/FileWriterLog.h"
+#include "util/Gcc.h"
 
-int main()
-{
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
-    struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct EventBase* base = EventBase_new(alloc);
+Gcc_NORETURN
+void WinFail_fail(struct Except* eh, const char* msg, long status);
 
-    /*struct Interface* iface = */TAPInterface_new(NULL, NULL, logger, base, alloc);
-    Allocator_free(alloc);
-}
+#define WinFail_check(eh, expr) \
+    do {                                              \
+        long status = (expr);                         \
+        if (status != ERROR_SUCCESS) {                \
+            WinFail_fail(eh, #expr, status);          \
+        }                                             \
+    } while (0)
+// CHECKFILES_IGNORE expected ;
+
+#endif

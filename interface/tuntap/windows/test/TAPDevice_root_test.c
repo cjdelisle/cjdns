@@ -15,7 +15,7 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "interface/tuntap/win32/TAPDevice.h"
+#include "interface/tuntap/windows/TAPDevice.h"
 #include "util/Assert.h"
 
 #include <stdio.h>

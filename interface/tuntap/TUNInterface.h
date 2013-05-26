@@ -15,6 +15,12 @@
 #ifndef TUNInterface_H
 #define TUNInterface_H
 
+#include "util/events/EventBase.h"
+#include "util/log/Log.h"
+#include "exception/Except.h"
+#include "memory/Allocator.h"
+#include "interface/Interface.h"
+
 /**
  * This is the maximum size that will be accepted as an interface name.
  * If this runs on a system where IFNAMSIZ is less then this, names larger
@@ -25,7 +31,6 @@
 #else
     #define TUNInterface_IFNAMSIZ 16
 #endif
-
 
 /**
  * Create a new TUNInterface.

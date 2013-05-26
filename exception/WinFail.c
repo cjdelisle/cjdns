@@ -13,22 +13,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "interface/tuntap/windows/TAPInterface.h"
-#include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "memory/CanaryAllocator.h"
-#include "memory/MallocAllocator.h"
-#include "util/events/EventBase.h"
-#include "interface/Interface.h"
-#include "util/log/Log.h"
-#include "util/log/FileWriterLog.h"
+#include "exception/WinFail.h"
 
-int main()
+#include <windows.h>
+
+void WinFail_fail(struct Except* eh, const char* msg, LONG status)
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
-    struct Log* logger = FileWriterLog_new(stdout, alloc);
-    struct EventBase* base = EventBase_new(alloc);
-
-    /*struct Interface* iface = */TAPInterface_new(NULL, NULL, logger, base, alloc);
-    Allocator_free(alloc);
+    #define BUFF_SZ 1024
+    char buff[BUFF_SZ] = {0};
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
+                   NULL,
+                   status,
+                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                   buff,
+                   BUFF_SZ,
+                   NULL);
+    Except_raise(eh, -1, "%s [%s]", msg, buff);
+    #undef BUFF_SZ
 }

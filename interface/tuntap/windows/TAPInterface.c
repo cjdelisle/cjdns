@@ -13,10 +13,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//#include "util/Bits.h"
 #include "exception/Except.h"
+#include "exception/WinFail.h"
 #include "memory/Allocator.h"
-#include "interface/tuntap/win32/TAPDevice.h"
+#include "interface/tuntap/windows/TAPDevice.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 
@@ -54,7 +54,7 @@
  *  distribution); if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-//#include "vl.h"
+
 #include <stdio.h>
 #include <windows.h>
 #include <io.h>
@@ -83,20 +83,6 @@ struct TAPInterface_Version_pvt {
     unsigned long debug;
 };
 
-static int except(struct Except* eh, const char* msg, DWORD status)
-{
-    #define BUFF_SZ 1024
-    char buff[BUFF_SZ] = {0};
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
-                   NULL,
-                   status,
-                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                   buff,
-                   BUFF_SZ,
-                   NULL);
-    Except_raise(eh, -1, "%s [%s]", msg, buff);
-}
-
 static void getVersion(HANDLE tap, struct TAPInterface_Version_pvt* version, struct Except* eh)
 {
     ULONG version_len;
@@ -111,7 +97,7 @@ static void getVersion(HANDLE tap, struct TAPInterface_Version_pvt* version, str
     if (!bret) {
         DWORD err = GetLastError();
         CloseHandle(tap);
-        except(eh, "DeviceIoControl(TAP_IOCTL_GET_VERSION)", err);
+        WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_GET_VERSION)", err);
     }
     if (version_len != sizeof(struct TAPInterface_Version_pvt)) {
         CloseHandle(tap);
@@ -130,7 +116,7 @@ static void setEnabled(HANDLE tap, int status, struct Except* eh)
     if (!bret) {
         DWORD err = GetLastError();
         CloseHandle(tap);
-        except(eh, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
+        WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
     }
 }
 
@@ -155,7 +141,7 @@ struct Interface* TAPInterface_new(const char* preferredName,
                             0);
 
     if (tap == INVALID_HANDLE_VALUE) {
-        except(eh, "CreateFile(tapDevice)", GetLastError());
+        WinFail_fail(eh, "CreateFile(tapDevice)", GetLastError());
     }
 
     struct TAPInterface_Version_pvt ver = { .major = 0 };

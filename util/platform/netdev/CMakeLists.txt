@@ -18,5 +18,11 @@ target_link_libraries(cjdns-util-platform-netdev
     cjdmemory
 )
 
+if (Windows)
+    target_link_libraries(cjdns-util-platform-netdev
+        iphlpapi
+    )
+endif ()
+
 enable_testing()
 #add_subdirectory(test)

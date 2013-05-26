@@ -19,7 +19,7 @@ find_package(Socket REQUIRED)
 add_library(cjdns-errno Errno.c)
 
 if(Windows)
-    set(sec Security_W32.c)
+    set(sec Security_Windows.c)
     target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
 else()
     set(sec Security.c)
