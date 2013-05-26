@@ -18,7 +18,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
 #include "io/FileWriter.h"
-#include "interface/TUNMessageType.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"

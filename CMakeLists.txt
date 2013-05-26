@@ -26,16 +26,13 @@ if ("$ENV{NO_WERROR}" STREQUAL "")
     add_definitions(-Werror)
 endif()
 
-if(WIN32)
+if(Windows)
     # ISO C does not support the ‘I64’ ms_printf length modifier
     # but PRId64 is #defined as "I64d"
     remove_definitions(-Werror)
 
     # SRWLOCK is vista or newer and needed by libuv
     add_definitions(-D_WIN32_WINNT=0x0600)
-
-    # proceed with ifdef hell :(
-    add_definitions(-DWIN32)
 
     # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
     set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
@@ -54,7 +51,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(SYSTEM Linux)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(APPLE TRUE)
-    set(SYSTEM OSX)
+    set(SYSTEM Darwin)
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
     set(FREEBSD TRUE)
     set(BSD TRUE)
@@ -67,7 +64,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
     set(SYSTEM OpenBSD)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
     set(WINDOWS TRUE)
-    set(SYSTEM W32)
+    set(SYSTEM Windows)
 endif()
 add_definitions(-D ${SYSTEM}=1)
 
@@ -93,13 +90,13 @@ if(TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
     set(CMAKE_C_COMPILER ${TOOLCHAIN}-g++)
 endif()
 
-if(WIN32 AND TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
+if(Windows AND TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
     set(CMAKE_C_COMPILER ${TOOLCHAIN}-windres)
 endif()
 
 message("c compiler: ${CMAKE_C_COMPILER}")
 message("c++ compiler: ${CMAKE_CXX_COMPILER}")
-if(WIN32)
+if(Windows)
     message("rc compiler: ${CMAKE_RC_COMPILER}")
 endif()
 
@@ -165,7 +162,7 @@ if ("$ENV{NO_DEBUG}" STREQUAL "")
     add_definitions(-g)
 endif()
 
-if(WIN32)
+if(Windows)
     set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
 elseif(ILLUMOS)
     # TODO make this less ugly

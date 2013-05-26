@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef WIN32
+#ifdef Windows
     // todo fix
     int main() { return 1; }
 #else
@@ -25,9 +25,8 @@
 #include "benc/Int.h"
 #include "exception/Jmp.h"
 #include "interface/addressable/UDPAddrInterface.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNMessageType.h"
-#include "interface/TUNConfigurator.h"
+#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
@@ -40,6 +39,7 @@
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
+#include "util/platform/netdev/NetDev.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -117,10 +117,11 @@ int main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
-    char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
-    void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
-    TUNConfigurator_addIp6Address(assignedInterfaceName, testAddrA, 126, logger, NULL);
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
+    struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET6, alloc);
+
+    char assignedIfName[TUNInterface_IFNAMSIZ];
+    struct Interface* tun = TUNInterface_new(NULL, assignedIfName, base, logger, NULL, alloc);
+    NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
 
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;
-    tun->iface.receiveMessage = receiveMessageTUN;
+    tun->receiveMessage = receiveMessageTUN;
 
     udp->generic.sendMessage(msg, &udp->generic);
 

@@ -12,7 +12,7 @@
 
 include_directories(${LIBUV_INCLUDE_DIRS})
 
-if (WIN32)
+if (Windows)
     # uv.h
     remove_definitions(-pedantic)
 endif ()

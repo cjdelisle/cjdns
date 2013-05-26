@@ -18,7 +18,7 @@ find_package(Socket REQUIRED)
 
 add_library(cjdns-errno Errno.c)
 
-if(WIN32)
+if(Windows)
     set(sec Security_W32.c)
     target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
 else()

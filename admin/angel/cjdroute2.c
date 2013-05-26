@@ -28,8 +28,6 @@
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/Except.h"
 #include "interface/Interface.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"

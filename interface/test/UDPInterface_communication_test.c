@@ -103,7 +103,10 @@ int main(int argc, char** argv)
     ifB->receiveMessage = receiveMessageB;
     ifB->receiverContext = alloc;
 
+    struct Allocator* child = Allocator_child(alloc);
+    msg = Message_clone(msg, child);
     ifB->sendMessage(msg, ifB);
+    Allocator_free(child);
 
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 

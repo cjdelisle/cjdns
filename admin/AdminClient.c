@@ -153,7 +153,11 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
         .length = writer->bytesWritten
     };
     Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen);
-    res->ctx->addrIface->generic.sendMessage(&m, &res->ctx->addrIface->generic);
+
+    struct Allocator* child = Allocator_child(res->alloc);
+    struct Message* msg = Message_clone(&m, child);
+    Interface_sendMessage(&res->ctx->addrIface->generic, msg);
+    Allocator_free(child);
 
     EventBase_beginLoop(res->ctx->eventBase);
 

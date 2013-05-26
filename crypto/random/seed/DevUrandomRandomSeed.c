@@ -16,7 +16,7 @@
 #include "util/Identity.h"
 #include "util/Bits.h"
 
-#ifndef WIN32
+#ifndef Windows
 
 #include <sys/types.h>
 #include <sys/stat.h>

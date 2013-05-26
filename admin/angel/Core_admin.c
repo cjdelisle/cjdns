@@ -13,15 +13,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "admin/angel/Core_admin.h"
 #include "admin/angel/Core.h"
 #include "memory/BufferAllocator.h"
 #include "exception/Jmp.h"
-
+#include "util/platform/Sockaddr.h"
+#include "admin/angel/Core_admin.h"
 
 struct Context
 {
-    uint8_t ipAddr[16];
+    struct Sockaddr* ipAddr;
     struct Ducttape* ducttape;
     struct Log* logger;
     struct Allocator* alloc;
@@ -67,7 +67,7 @@ static void initTunnel(Dict* args, void* vcontext, String* txid)
     sendResponse(String_CONST("none"), ctx->admin, txid, alloc);
 }
 
-void Core_admin_register(uint8_t ipAddr[16],
+void Core_admin_register(struct Sockaddr* ipAddr,
                          struct Ducttape* dt,
                          struct Log* logger,
                          struct IpTunnel* ipTunnel,
@@ -76,7 +76,7 @@ void Core_admin_register(uint8_t ipAddr[16],
                          struct EventBase* eventBase)
 {
     struct Context* ctx = Allocator_malloc(alloc, sizeof(struct Context));
-    Bits_memcpyConst(ctx->ipAddr, ipAddr, 16);
+    ctx->ipAddr = ipAddr;
     ctx->ducttape = dt;
     ctx->logger = logger;
     ctx->alloc = alloc;

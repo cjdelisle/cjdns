@@ -23,10 +23,6 @@
 #endif
 #include <strings.h>
 
-#ifdef WIN32
-    #define strcasecmp strcmp
-#endif
-
 void Log_print(struct Log* log,
                enum Log_Level logLevel,
                const char* file,

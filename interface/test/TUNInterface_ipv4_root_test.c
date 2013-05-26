@@ -21,9 +21,8 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "interface/addressable/UDPAddrInterface.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNMessageType.h"
-#include "interface/TUNConfigurator.h"
+#include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/CanaryAllocator.h"
@@ -37,6 +36,7 @@
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
+#include "util/platform/netdev/NetDev.h"
 
 #include <stdlib.h>
 
@@ -94,8 +94,8 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
-    // TODO: fix TUNConfigurator_addIp4Address() for illumos, OSX, BSD.
-    #if defined(Illumos) || defined(OSX) || defined(BSD)
+    // TODO: fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
+    #if defined(Illumos) || defined(Darwin) || defined(FreeBSD) || defined(OpenBSD)
         return 0;
     #endif
 
@@ -104,10 +104,11 @@ int main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
-    char assignedInterfaceName[TUNConfigurator_IFNAMSIZ];
-    void* tunPtr = TUNConfigurator_initTun(NULL, assignedInterfaceName, logger, NULL);
-    TUNConfigurator_addIp4Address(assignedInterfaceName, testAddrA, 30, logger, NULL);
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, base, alloc, logger);
+    struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET, alloc);
+
+    char assignedIfName[TUNInterface_IFNAMSIZ];
+    struct Interface* tun = TUNInterface_new(NULL, assignedIfName, base, logger, NULL, alloc);
+    NetDev_addAddress(assignedIfName, addrA, 30, logger, NULL);
 
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse("0.0.0.0", &ss));
@@ -125,7 +126,7 @@ int main(int argc, char** argv)
 
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;
-    tun->iface.receiveMessage = receiveMessageTUN;
+    tun->receiveMessage = receiveMessageTUN;
 
     udp->generic.sendMessage(msg, &udp->generic);
 

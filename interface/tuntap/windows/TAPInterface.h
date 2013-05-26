@@ -12,18 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef TAPInterface_H
+#define TAPInterface_H
+
+#include "exception/Except.h"
+#include "memory/Allocator.h"
+#include "util/events/EventBase.h"
 #include "interface/Interface.h"
-#include "interface/TUNInterface.h"
 
-struct TUNInterface* TUNInterface_new(void* handle,
-                                      struct EventBase* base,
-                                      struct Allocator* allocator,
-                                      struct Log* logger)
-{
-    return NULL;
-}
+struct Interface* TAPInterface_new(const char* preferredName,
+                                   struct Except* eh,
+                                   struct Log* logger,
+                                   struct EventBase* base,
+                                   struct Allocator* alloc);
 
-struct Interface* TUNInterface_asGeneric(struct TUNInterface* tunIf)
-{
-    return (tunIf) ? &tunIf->iface : NULL;
-}
+#endif

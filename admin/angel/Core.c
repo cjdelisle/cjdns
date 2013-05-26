@@ -35,8 +35,7 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
-#include "interface/TUNConfigurator.h"
-#include "interface/TUNInterface.h"
+#include "interface/tuntap/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
 #include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
@@ -60,6 +59,7 @@
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
+#include "util/platform/netdev/NetDev.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -176,7 +176,7 @@ static Dict* getInitialConfig(struct Interface* iface,
 }
 
 void Core_initTunnel(String* desiredDeviceName,
-                     uint8_t ipAddr[16],
+                     struct Sockaddr* addr,
                      uint8_t addressPrefix,
                      struct Ducttape* dt,
                      struct Log* logger,
@@ -187,23 +187,18 @@ void Core_initTunnel(String* desiredDeviceName,
 {
     Log_debug(logger, "Initializing TUN device [%s]",
               (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
-    char assignedTunName[TUNConfigurator_IFNAMSIZ];
-    void* tunPtr = TUNConfigurator_initTun(((desiredDeviceName) ? desiredDeviceName->bytes : NULL),
-                                           assignedTunName,
-                                           logger,
-                                           eh);
 
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc, logger);
+    char assignedTunName[TUNInterface_IFNAMSIZ];
+    char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
+    struct Interface* tun =
+        TUNInterface_new(desiredName, assignedTunName, eventBase, logger, eh, alloc);
 
-    // broken
-    //struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);
-    //InterfaceConnector_connect(&icmp->external, &tun->iface);
-    //Ducttape_setUserInterface(dt, &icmp->internal);
-    Ducttape_setUserInterface(dt, &tun->iface);
-
-    TUNConfigurator_addIp6Address(assignedTunName, ipAddr, addressPrefix, logger, eh);
-    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
     IpTunnel_setTunName(assignedTunName, ipTunnel);
+
+    Ducttape_setUserInterface(dt, tun);
+
+    NetDev_addAddress(assignedTunName, addr, addressPrefix, logger, eh);
+    NetDev_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 
 /** This is a response from a call which is intended only to send information to the angel. */
@@ -317,6 +312,8 @@ int Core_main(int argc, char** argv)
     parsePrivateKey(privateKey, &addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
+    struct Sockaddr* myAddr = Sockaddr_fromBytes(addr.ip6.bytes, Sockaddr_AF_INET6, alloc);
+
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
@@ -368,7 +365,7 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Core_admin_register(addr.ip6.bytes, dt, logger, ipTun, alloc, admin, eventBase);
+    Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
 

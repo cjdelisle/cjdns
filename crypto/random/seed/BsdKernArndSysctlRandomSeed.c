@@ -16,7 +16,7 @@
 #include "util/Identity.h"
 #include "util/Bits.h"
 
-#ifndef WIN32
+#ifndef Windows
     #include <unistd.h>
     #include <errno.h>
     #include <sys/types.h>

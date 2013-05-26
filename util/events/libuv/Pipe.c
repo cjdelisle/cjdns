@@ -250,7 +250,7 @@ static void listenCallback(uv_stream_t* server, int status)
 
     uv_close((uv_handle_t*) &pipe->server, NULL);
 
-    #ifndef WIN32
+    #ifndef Windows
         // get rid of the pipe after it has been connected.
         uv_fs_t req;
         uv_fs_unlink(pipe->peer.loop, &req, pipe->pub.fullName, NULL);
@@ -260,8 +260,9 @@ static void listenCallback(uv_stream_t* server, int status)
 /** Asynchronous allocator freeing. */
 static void onClosed(uv_handle_t* wasClosed)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) wasClosed->data);
-    Allocator_free(pipe->alloc);
+    // TODO: this should be freed but libuv still tries to access the handle after free!
+    //struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) wasClosed->data);
+    //Allocator_free(pipe->alloc);
 }
 static void onFree(void* vHandle)
 {
@@ -276,7 +277,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
     struct Allocator* alloc = Allocator_child(ctx->asyncAllocator);
 
-    #ifdef WIN32
+    #ifdef Windows
         #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
     #else
         #define PREFIX "/tmp/cjdns_pipe_"
@@ -324,10 +325,21 @@ struct Pipe* Pipe_forFiles(int inFd,
     struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
 
-    out->out = &out->server;
-    if (uv_pipe_open(&out->peer, inFd) || uv_pipe_open(out->out, outFd)) {
-        Except_raise(eh, -1, "uv_pipe_open() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
+    if (uv_pipe_open(&out->peer, inFd)) {
+        Except_raise(eh, -1, "uv_pipe_open(inFd) failed [%s]",
+                     uv_err_name(uv_last_error(ctx->loop)));
     }
+
+    if (inFd != outFd) {
+        out->out = &out->server;
+        if (uv_pipe_open(out->out, outFd)) {
+            Except_raise(eh, -1, "uv_pipe_open(outFd) failed [%s]",
+                         uv_err_name(uv_last_error(ctx->loop)));
+        }
+    }
+
+    uv_connect_t req = { .handle = (uv_stream_t*) &out->peer };
+    connected(&req, 0);
 
     return &out->pub;
 }

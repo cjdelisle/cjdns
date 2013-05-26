@@ -14,6 +14,7 @@
  */
 #include "interface/Interface.h"
 #include "interface/FramingInterface.h"
+#include "interface/InterfaceWrapper.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "wire/Error.h"
@@ -159,22 +160,18 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 }
 
 struct Interface* FramingInterface_new(uint32_t maxMessageSize,
-                                       struct Interface* wrappedIface,
+                                       struct Interface* toWrap,
                                        struct Allocator* alloc)
 {
     struct FramingInterface_pvt* context =
         Allocator_clone(alloc, (&(struct FramingInterface_pvt) {
-            .generic = {
-                .sendMessage = sendMessage
-            },
-            .wrapped = wrappedIface,
             .maxMessageSize = maxMessageSize,
-            .alloc = alloc
+            .alloc = alloc,
+            .wrapped = toWrap
         }));
     Identity_set(context);
 
-    wrappedIface->receiveMessage = receiveMessage;
-    wrappedIface->receiverContext = context;
+    InterfaceWrapper_wrap(toWrap, sendMessage, receiveMessage, &context->generic);
 
     return &context->generic;
 }

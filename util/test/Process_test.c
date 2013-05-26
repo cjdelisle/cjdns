@@ -138,7 +138,7 @@ printf("Hello world!\n");
     char* path = Process_getPath(alloc);
 printf("%s>>\n", path);
     Assert_true(path != NULL);
-    #ifdef WIN32
+    #ifdef Windows
         Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */
         Assert_true(strstr(path, ".exe"));
     #else

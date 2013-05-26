@@ -38,7 +38,7 @@ target_link_libraries(cjdns-crypto-random-seed
     ${SEED_LIBRARIES}
 )
 
-if (WIN32)
+if (Windows)
     # RtlGenRandom()
     if (NOT FOUND_ADVAPI)
         find_library(ADVAPI_LIBRARIES

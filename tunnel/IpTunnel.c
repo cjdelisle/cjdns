@@ -23,7 +23,7 @@
 #include "exception/Jmp.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
-#include "interface/TUNMessageType.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -364,7 +364,7 @@ static void addAddressCallback(Dict* responseMessage, void* vcontext)
 
 static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
 {
-#ifdef OSX
+#ifdef Darwin
     int prefixLen = 3;
 #else
     int prefixLen = 0;

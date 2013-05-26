@@ -13,6 +13,9 @@
 add_library(cjdns-interface-waiter
     InterfaceWaiter.c
 )
+target_link_libraries(cjdns-interface-waiter
+    cjdns-util-events-libuv-time
+)
 
 add_library(cjdns-angel
     Angel.c
@@ -33,6 +36,7 @@ target_link_libraries(cjdns-angel
     cjdns-util-platform-socket
     cjdns-interface-addressable-adapter
     cjdns-interface-tuntap
+    cjdns-util-platform-netdev
     interface
 )
 
@@ -66,7 +70,6 @@ target_link_libraries(cjdns-core
     cjdns-crypto-random
     cjdns-crypto-random-libuv
     cjdns-memory-canary
-    cjdns-interface-addressable
 )
 
 add_executable(cjdns

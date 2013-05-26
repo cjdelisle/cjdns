@@ -26,7 +26,7 @@
 /** Number of times to try each operation. */
 #define MAX_TRIES 10
 
-#ifndef WIN32
+#ifndef Windows
 
 static int getUUID(uint64_t output[2])
 {
@@ -91,7 +91,7 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return 0;
 }
-#else // WIN32
+#else // Windows
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
     return -1;

@@ -12,21 +12,28 @@
 
 include_directories(${LIBUV_INCLUDE_DIRS})
 
-if (WIN32)
+if (Windows)
     # uv.h
     remove_definitions(-pedantic)
 endif ()
 
+add_library(cjdns-util-events-libuv-time
+    Time.c
+    Timeout.c
+)
+set_target_properties(cjdns-util-events-libuv-time
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
+
 add_library(cjdns-util-events-libuv
     EventBase.c
     Event.c
-    Time.c
-    Timeout.c
     Pipe.c
     Process.c
+    UDPAddrInterface.c
 )
 
 target_link_libraries(cjdns-util-events-libuv
+    cjdns-util-events-libuv-time
     cjdmemory
     cjdns-memory-canary
     ${LIBUV_LIBRARIES}

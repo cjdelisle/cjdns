@@ -14,7 +14,7 @@
  */
 #include "util/platform/Socket.h"
 
-#ifdef WIN32
+#ifdef Windows
     #include <winsock2.h>
 #else
     #include <sys/socket.h>
@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef WIN32
+#ifdef Windows
     #define SIGNED_IF_WIN32_uint32_t int32_t
 #else
     #define SIGNED_IF_WIN32_uint32_t uint32_t
@@ -35,7 +35,7 @@ const int Socket_SOCK_STREAM = SOCK_STREAM;
 
 int Socket_makeNonBlocking(int sock)
 {
-    #ifdef WIN32
+    #ifdef Windows
         u_long one = 1;
         return ioctlsocket(sock, FIONBIO, &one);
     #else
@@ -49,7 +49,7 @@ int Socket_makeNonBlocking(int sock)
 
 int Socket_makeReusable(int sock)
 {
-    #ifndef WIN32
+    #ifndef Windows
         int one = 1;
         return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
     #else
@@ -59,7 +59,7 @@ int Socket_makeReusable(int sock)
 
 int Socket_close(int sock)
 {
-    #ifdef WIN32
+    #ifdef Windows
         return closesocket(sock);
     #else
         return close(sock);
@@ -80,7 +80,7 @@ int Socket_recvfrom(int fd,
     SIGNED_IF_WIN32_uint32_t size = Sockaddr_MAXSIZE;
     int ret = recvfrom(fd, buff, bufferSize, flags, (struct sockaddr*)ss->nativeAddr, &size);
     if (ret > -1) {
-        #ifdef OSX
+        #ifdef Darwin
             ((struct sockaddr*)ss->nativeAddr)->sa_len = 0;
         #endif
         ss->addr.addrLen = size + Sockaddr_OVERHEAD;
@@ -142,7 +142,7 @@ int Socket_accept(int sock, struct Sockaddr_storage* addrOut, struct Allocator* 
     if (fd > -1) {
         addrOut->addr.addrLen = len + Sockaddr_OVERHEAD;
         Allocator_onFree(alloc, closeSock, (void*)(intptr_t)fd);
-        #ifdef OSX
+        #ifdef Darwin
             ((struct sockaddr*)addrOut->nativeAddr)->sa_len = 0;
         #endif
     }
@@ -155,7 +155,7 @@ int Socket_getsockname(int sockfd, struct Sockaddr_storage* addr)
     int ret = getsockname(sockfd, (struct sockaddr*) addr->nativeAddr, &len);
     if (!ret) {
         addr->addr.addrLen = len + Sockaddr_OVERHEAD;
-        #ifdef OSX
+        #ifdef Darwin
             ((struct sockaddr*)addr->nativeAddr)->sa_len = 0;
         #endif
     }

@@ -99,7 +99,7 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
 
     set(url "${CMAKE_SOURCE_DIR}/cmake/externals/libuv-v0.10.7.tar.gz")
 
-    set(PATCH_LIBUV patch -p1 < ${CMAKE_SOURCE_DIR}/cmake/patches/uv_mingw32.patch)
+    set(PATCH_LIBUV ${CMAKE_SOURCE_DIR}/cmake/patches/patch.sh ${CMAKE_SOURCE_DIR}/cmake/patches/)
     if (APPLE)
         set(MAKE_COMMAND "make")
     elseif (WIN32)

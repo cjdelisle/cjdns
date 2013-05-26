@@ -10,28 +10,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-if(WIN32)
-  set(tunif TUNInterface_W32.c)
-  set(tunconf TUNConfigurator_W32.c)
-else()
-  set(tunif TUNInterface.c)
-endif()
-
 set(ethif "")
 if(HAS_ETH_INTERFACE)
-    set(ethif ETHInterface_${SYSTEM}.c ETHInterface_admin.c)
+    add_library(cjdns-interface-eth
+        ETHInterface_${SYSTEM}.c
+        ETHInterface_admin.c
+    )
+    target_link_libraries(cjdns-interface-eth
+        cjdns-util-events-libuv
+    )
+    set(ethif cjdns-interface-eth)
 endif()
-
-add_library(cjdns-interface-tuntap
-    TUNConfigurator_${SYSTEM}.c
-    TUNMessageType.c
-    ${tunif}
-)
 
 add_library(interface
     UDPInterface.c
     UDPInterface_admin.c
-    ${ethif}
     InterfaceConnector.c
     SessionManager.c
     ICMP6Generator.c
@@ -40,6 +33,7 @@ add_library(interface
 )
 
 target_link_libraries(interface
+    ${ethif}
     cjdns-interface-tuntap
     util
     cjdns-crypto-key
@@ -47,6 +41,7 @@ target_link_libraries(interface
 )
 
 add_subdirectory(addressable)
+add_subdirectory(tuntap)
 
 enable_testing()
 add_subdirectory(test)

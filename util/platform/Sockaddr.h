@@ -95,17 +95,28 @@ int Sockaddr_getFamily(struct Sockaddr* sa);
  */
 int Sockaddr_getAddress(struct Sockaddr* sa, void* addrPtr);
 
+/**
+ * Get a new sockaddr from the native form, IE: sockaddr_in or sockaddr_in6.
+ */
 struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc);
 
+/**
+ * Output the native form of a sockaddr.
+ */
 static inline void* Sockaddr_asNative(struct Sockaddr* sa)
 {
     return (void*)(&sa[1]);
 }
-
 static inline const void* Sockaddr_asNativeConst(const struct Sockaddr* sa)
 {
     return (const void*)(&sa[1]);
 }
+
+/**
+ * Contrast with Sockaddr_fromNative(), Sockaddr_fromBytes() takes
+ * input as the bytes of the address eg: Sockaddr_fromBytes({127,0,0,1}, Sockaddr_AF_INET, alloc)
+ */
+struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc);
 
 /**
  * Clone the sockaddr, the clone will use only as much memory as the type of sockaddr requires.

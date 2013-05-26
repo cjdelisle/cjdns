@@ -18,7 +18,7 @@
 #include "benc/String.h"
 #include "exception/Jmp.h"
 #include "memory/Allocator.h"
-#include "interface/TUNConfigurator.h"
+#include "util/platform/netdev/NetDev.h"
 #include "interface/Interface.h"
 #include "interface/addressable/AddrInterfaceAdapter.h"
 #include "util/events/EventBase.h"
@@ -55,19 +55,7 @@ static void adminAddIp2(char* interfaceName,
 {
     struct Jmp j;
     Jmp_try(j) {
-        uint8_t* addrBytes = NULL;
-        Sockaddr_getAddress(addr, &addrBytes);
-        if (Sockaddr_getFamily(addr) == Sockaddr_AF_INET6) {
-            TUNConfigurator_addIp6Address(interfaceName, addrBytes, prefixLen, NULL, &j.handler);
-        } else if (Sockaddr_getFamily(addr) == Sockaddr_AF_INET) {
-            TUNConfigurator_addIp4Address(interfaceName, addrBytes, prefixLen, NULL, &j.handler);
-        } else {
-            Dict d = Dict_CONST(
-                String_CONST("error"), String_OBJ(String_CONST("Address not IPv4 or IPv6")), NULL
-            );
-            Admin_sendMessage(&d, txid, ctx->admin);
-            return;
-        }
+        NetDev_addAddress(interfaceName, addr, prefixLen, NULL, &j.handler);
     } Jmp_catch {
         Dict d = Dict_CONST(
             String_CONST("error"), String_OBJ(String_CONST(j.message)), NULL

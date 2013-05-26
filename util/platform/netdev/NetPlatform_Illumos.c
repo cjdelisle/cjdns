@@ -12,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "interface/Interface.h"
-#include "interface/TUNConfigurator.h"
-#include "util/AddrTools.h"
-#include "util/Errno.h"
+#include "util/platform/netdev/NetPlatform.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -85,35 +83,33 @@ static void setupRoute(const uint8_t address[16],
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
-        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
-                     "open route socket [%s]", Errno_getString());
+        Except_raise(eh, -1, "open route socket [%s]", strerror(errno));
     }
 
     ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
-        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
-                     "insert route [%s]", Errno_getString());
+        Except_raise(eh, -1, "insert route [%s]", strerror(errno));
     } else if (returnLen < rm.header.rtm_msglen) {
-        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL,
+        Except_raise(eh, -1,
                      "insert route returned only [%d] of [%d]", returnLen, rm.header.rtm_msglen);
     }
 }
 
-void TUNConfigurator_addIp4Address(const char* interfaceName,
-                                   const uint8_t address[4],
-                                   int prefixLen,
-                                   struct Log* logger,
-                                   struct Except* eh)
+static void addIp4Address(const char* interfaceName,
+                          const uint8_t address[4],
+                          int prefixLen,
+                          struct Log* logger,
+                          struct Except* eh)
 {
     // TODO: implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Except_raise(eh, TUNConfigurator_addIp4Address_INTERNAL, "unimplemented");
+    Except_raise(eh, -1, "unimplemented");
 }
 
-void TUNConfigurator_addIp6Address(const char* interfaceName,
-                                   const uint8_t address[16],
-                                   int prefixLen,
-                                   struct Log* logger,
-                                   struct Except* eh)
+static void addIp6Address(const char* interfaceName,
+                          const uint8_t address[16],
+                          int prefixLen,
+                          struct Log* logger,
+                          struct Except* eh)
 {
     struct lifreq ifr = {
         .lifr_ppa = 0,
@@ -155,112 +151,36 @@ void TUNConfigurator_addIp6Address(const char* interfaceName,
     }
 
     if (error) {
-        enum Errno err = Errno_get();
+        int err = errno;
         close(udpSock);
-        Except_raise(eh, TUNConfigurator_addIp6Address_INTERNAL, "%s [%s]",
-                     error, Errno_strerror(err));
+        Except_raise(eh, -1, "%s [%s]",
+                     error, strerror(err));
     }
     close(udpSock);
 
     setupRoute(address, prefixLen, logger, eh);
 }
 
-void* TUNConfigurator_initTun(const char* interfaceName,
-                              char assignedInterfaceName[TUNConfigurator_IFNAMSIZ],
-                              struct Log* logger,
-                              struct Except* eh)
-{
-    // Extract the number eg: 0 from tun0
-    int ppa = 0;
-    if (interfaceName) {
-        for (uint32_t i = 0; i < strlen(interfaceName); i++) {
-            if (isdigit(interfaceName[i])) {
-                ppa = atoi(interfaceName);
-            }
-        }
-    }
-
-    // Open the descriptor
-    int tunFd = open("/dev/tun", O_RDWR);
-
-    // Either the name is specified and we use TUNSETPPA,
-    // or it's not specified and we just want a TUNNEWPPA
-    if (ppa) {
-        ppa = ioctl(tunFd, TUNSETPPA, ppa);
-    } else {
-        ppa = ioctl(tunFd, TUNNEWPPA, -1);
-    }
-
-    int ipFd = open("/dev/ip6", O_RDWR, 0);
-    int tunFd2 = open("/dev/tun", O_RDWR, 0);
-
-    if (tunFd < 0 || ipFd < 0 || ppa < 0 || tunFd2 < 0) {
-        enum Errno err = Errno_get();
-        close(tunFd);
-        close(ipFd);
-        close(tunFd2);
-
-        char* error = NULL;
-        if (tunFd < 0) {
-            error = "open(\"/dev/tun\")";
-        } else if (ipFd < 0) {
-            error = "open(\"/dev/ip6\")";
-        } else if (ppa < 0) {
-            error = "ioctl(TUNNEWPPA)";
-        } else if (tunFd2 < 0) {
-            error = "open(\"/dev/tun\") (opening for plumbing interface)";
-        }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, Errno_strerror(err));
-    }
-
-    struct lifreq ifr = {
-        .lifr_ppa = ppa,
-        .lifr_flags = IFF_IPV6
-    };
-
-    // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
-    // so we'll skip the pretty names and call everything tunX
-    int maxNameSize =
-        (LIFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? LIFNAMSIZ : TUNConfigurator_IFNAMSIZ;
-    snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
-    snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
-
-    char* error = NULL;
-
-    if (ioctl(tunFd, I_SRDOPT, RMSGD) < 0) {
-        error = "putting tun into message-discard mode";
-
-    } else if (ioctl(tunFd2, I_PUSH, "ip") < 0) {
-        // add the ip module
-        error = "ioctl(I_PUSH)";
-
-    } else if (ioctl(tunFd2, SIOCSLIFNAME, &ifr) < 0) {
-        // set the name of the interface and specify it as ipv6
-        error = "ioctl(SIOCSLIFNAME)";
-
-    } else if (ioctl(ipFd, I_LINK, tunFd2) < 0) {
-        // link the device to the ipv6 router
-        error = "ioctl(I_LINK)";
-    }
-
-    if (error) {
-        enum Errno err = Errno_get();
-        close(ipFd);
-        close(tunFd2);
-        close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, Errno_strerror(err));
-    }
-
-    close(ipFd);
-
-    intptr_t ret = (intptr_t) tunFd;
-    return (void*) ret;
-}
-
-void TUNConfigurator_setMTU(const char* interfaceName,
-                            uint32_t mtu,
+void NetPlatform_addAddress(const char* interfaceName,
+                            const uint8_t* address,
+                            int prefixLen,
+                            int addrFam,
                             struct Log* logger,
                             struct Except* eh)
 {
-    Except_raise(eh, TUNConfigurator_setMTU_INTERNAL, "Not implemented in IlLumos");
+    if (addrFam == Sockaddr_AF_INET6) {
+        addIp6Address(interfaceName, address, prefixLen, logger, eh);
+    } else if (addrFam == Sockaddr_AF_INET) {
+        addIp4Address(interfaceName, address, prefixLen, logger, eh);
+    } else {
+        Assert_always(0);
+    }
+}
+
+void NetPlatform_setMTU(const char* interfaceName,
+                        uint32_t mtu,
+                        struct Log* logger,
+                        struct Except* eh)
+{
+    Except_raise(eh, -1, "Not implemented in Illumos");
 }

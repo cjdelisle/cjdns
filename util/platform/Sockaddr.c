@@ -261,3 +261,30 @@ int Sockaddr_getFamily(struct Sockaddr* sockaddr)
     struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
     return sa->ss.ss_family;
 }
+
+struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc)
+{
+    struct sockaddr_storage ss;
+    Bits_memset(&ss, 0, sizeof(struct sockaddr_storage));
+    int addrLen;
+    switch (addrFamily) {
+        case AF_INET: {
+            ss.ss_family = AF_INET;
+            Bits_memcpyConst(&((struct sockaddr_in*)&ss)->sin_addr, bytes, 4);
+            addrLen = sizeof(struct sockaddr_in);
+            break;
+        }
+        case AF_INET6: {
+            ss.ss_family = AF_INET6;
+            Bits_memcpyConst(&((struct sockaddr_in6*)&ss)->sin6_addr, bytes, 16);
+            addrLen = sizeof(struct sockaddr_in6);
+            break;
+        }
+        default: return NULL;
+    }
+
+    struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
+    Bits_memcpy(&out->ss, &ss, addrLen);
+    out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
+    return &out->pub;
+}

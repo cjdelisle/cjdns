@@ -27,7 +27,7 @@
 #include "io/FileWriter.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
-#include "interface/TUNMessageType.h"
+#include "interface/tuntap/TUNMessageType.h"
 
 #include <stdio.h>
 

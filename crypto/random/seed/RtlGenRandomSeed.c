@@ -15,7 +15,7 @@
 #include "crypto/random/seed/RtlGenRandomSeed.h"
 #include "util/Bits.h"
 
-#ifdef WIN32
+#ifdef Windows
 #include <stdint.h>
 #include <windows.h>
 

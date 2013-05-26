@@ -19,7 +19,7 @@
 #include "util/Assert.h"
 #include "util/Identity.h"
 
-#ifdef WIN32
+#ifdef Windows
     #include <sys/timeb.h>
     #include <time.h>
 #else
@@ -46,7 +46,7 @@ static void calibrateTime(struct EventBase_pvt* base)
     uint64_t seconds;
     uint64_t milliseconds;
 
-    #ifdef WIN32
+    #ifdef Windows
         struct _timeb tb;
         _ftime(&tb);
         seconds = tb.time;
