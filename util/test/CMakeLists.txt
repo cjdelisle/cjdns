@@ -24,7 +24,6 @@ set(Test_FILES
 set(Test_LIBRARIES
     cjdns-util-events-libuv
     cjdmemory
-    cjdns-memory-canary
     util
     cjdns-crypto-random
     cjdns-util-log-filewriter

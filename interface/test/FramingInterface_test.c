@@ -15,7 +15,6 @@
 #include "interface/Interface.h"
 #include "interface/FramingInterface.h"
 #include "memory/Allocator.h"
-#include "memory/CanaryAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
@@ -46,7 +45,7 @@ void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cl
 
 int main()
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Interface dummy = { .sendMessage = NULL };
     struct Interface* fi = FramingInterface_new(1024, &dummy, alloc);
     fi->receiveMessage = messageOut;

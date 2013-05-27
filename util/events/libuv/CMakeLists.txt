@@ -35,7 +35,6 @@ add_library(cjdns-util-events-libuv
 target_link_libraries(cjdns-util-events-libuv
     cjdns-util-events-libuv-time
     cjdmemory
-    cjdns-memory-canary
     ${LIBUV_LIBRARIES}
 )
 

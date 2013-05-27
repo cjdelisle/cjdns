@@ -18,7 +18,6 @@
 #include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "wire/Message.h"
 #include "benc/String.h"
 
@@ -70,7 +69,7 @@ static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
 
 int main()
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     // mock interface controller.

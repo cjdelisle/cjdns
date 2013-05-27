@@ -12,11 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef Windows
-    // todo fix
-    int main() { return 1; }
-#else
-
 #include "admin/testframework/AdminTestFramework.h"
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
@@ -29,7 +24,6 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
@@ -112,7 +106,7 @@ static struct AddrInterface* setupUDP(struct EventBase* base,
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
@@ -162,5 +156,3 @@ int main(int argc, char** argv)
 
     EventBase_beginLoop(base);
 }
-
-#endif

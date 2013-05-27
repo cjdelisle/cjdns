@@ -23,7 +23,6 @@ set(Test_ROOT_FILES
 set(Test_LIBRARIES
     cjdns-admin
     cjdns-admin-client
-    cjdns-memory-canary
     cjdadmintest
     interface
 )

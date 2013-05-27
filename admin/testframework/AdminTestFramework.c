@@ -21,10 +21,10 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "interface/FramingInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
@@ -139,7 +139,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         exit(AngelInit_main(argc, argv));
     }
 
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     Assert_always(logwriter);

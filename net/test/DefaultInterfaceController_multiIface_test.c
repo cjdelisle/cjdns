@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "interface/MultiInterface.h"
-#include "memory/CanaryAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "test/TestFramework.h"
@@ -28,7 +27,7 @@ void allocatorFreed(void* null)
 // make sure unauthenticated interfaces are cleared out if they don't send valid packets.
 int main()
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct TestFramework* tf = TestFramework_setUp(NULL, alloc, NULL);
 
     struct Interface iface = {

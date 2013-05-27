@@ -15,7 +15,6 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "crypto/random/Random.h"
 #include "interface/ICMP6Generator_pvt.h"
 #include "wire/Headers.h"
@@ -38,7 +37,7 @@ static struct Message* newMessage(struct Allocator* alloc, int messageSize)
 
 static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messageSize, uint32_t mtu)
 {
-    struct Allocator* alloc = CanaryAllocator_new(Allocator_child(mainAlloc), rand);
+    struct Allocator* alloc = Allocator_child(mainAlloc);
     struct Message* msg = newMessage(alloc, messageSize);
 
     uint8_t* sourceAddr = (uint8_t*) "sourceAddress123";
@@ -48,9 +47,9 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     for (int i = 0; i < messageSize; i++) {
         msg->bytes[i] = i & 0xff;
     }
-    CanaryAllocator_check(alloc);
+
     ICMP6Generator_generate(msg, sourceAddr, destAddr, ICMP6Generator_Type_PACKET_TOO_BIG, mtu);
-    CanaryAllocator_check(alloc);
+
 
     Assert_always(msg->length <= 1280);
 
@@ -113,7 +112,7 @@ static void fragTest(struct Allocator* mainAlloc,
                      int messageSize,
                      uint32_t mtu)
 {
-    struct Allocator* alloc = CanaryAllocator_new(Allocator_child(mainAlloc), rand);
+    struct Allocator* alloc = Allocator_child(mainAlloc);
     struct Message* msg = newMessage(alloc, messageSize);
     for (int i = 0; i < msg->length; i++) {
         msg->bytes[i] = i & 0xff;
@@ -134,9 +133,7 @@ static void fragTest(struct Allocator* mainAlloc,
     ig->internal.receiveMessage = messageFromGenerator;
     ig->internal.receiverContext = reassemblyBuff;
 
-    CanaryAllocator_check(alloc);
     ig->external.sendMessage(msg, &ig->external);
-    CanaryAllocator_check(alloc);
 
     for (int i = 0; i < (int)(messageSize - headersSize); i++) {
         Assert_always(reassemblyBuff[i] == ((i + headersSize) & 0xff));

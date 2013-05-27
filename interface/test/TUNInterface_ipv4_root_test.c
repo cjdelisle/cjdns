@@ -25,7 +25,6 @@
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "interface/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
@@ -99,7 +98,7 @@ int main(int argc, char** argv)
         return 0;
     #endif
 
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);

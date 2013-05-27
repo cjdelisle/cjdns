@@ -10,13 +10,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set(Test_FILES
-    CanaryAllocator_test.c
     MallocAllocator_test.c
     MallocAllocator_oom_test.c
 )
 set(Test_LIBRARIES
     cjdmemory
-    cjdns-memory-canary
     cjdns-crypto-random
     util # security
 )

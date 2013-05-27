@@ -18,7 +18,6 @@
 #include "util/events/Timeout.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "util/events/Process.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
@@ -111,14 +110,14 @@ static void child(char* name, struct Context* ctx)
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* eb = EventBase_new(alloc);
     struct Log* log = FileWriterLog_new(stdout, alloc);
     struct Context* ctx = Allocator_calloc(alloc, sizeof(struct Context), 1);
     ctx->alloc = alloc;
     ctx->base = eb;
     ctx->log = log;
-printf("Hello world!\n");
+
     if (argc > 1) {
         child(argv[1], ctx);
         return 0;
@@ -136,7 +135,7 @@ printf("Hello world!\n");
 
 
     char* path = Process_getPath(alloc);
-printf("%s>>\n", path);
+
     Assert_true(path != NULL);
     #ifdef Windows
         Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */

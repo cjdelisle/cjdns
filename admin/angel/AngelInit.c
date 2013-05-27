@@ -18,6 +18,7 @@
 #include "benc/String.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "interface/FramingInterface.h"
 #include "io/ArrayReader.h"
@@ -26,7 +27,6 @@
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "exception/Jmp.h"
 #include "exception/Except.h"
 #include "util/events/EventBase.h"
@@ -169,7 +169,7 @@ int AngelInit_main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     struct Random* rand = Random_new(alloc, logger, eh);
-    alloc = CanaryAllocator_new(alloc, rand);
+    MallocAllocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct EventBase* eventBase = EventBase_new(alloc);
 

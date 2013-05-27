@@ -32,7 +32,6 @@ target_link_libraries(cjdns-angel
     util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
     cjdns-crypto-random
-    cjdns-memory-canary
     cjdns-util-platform-socket
     cjdns-interface-addressable-adapter
     cjdns-interface-tuntap
@@ -69,7 +68,6 @@ target_link_libraries(cjdns-core
     cjdns-tunnel-iptunnel
     cjdns-crypto-random
     cjdns-crypto-random-libuv
-    cjdns-memory-canary
 )
 
 add_executable(cjdns
@@ -93,7 +91,6 @@ target_link_libraries(cjdroute2
     cjdns-crypto-random
     cjdns-util-version-version
     cjdns-interface-waiter
-    cjdns-memory-canary
 )
 
 

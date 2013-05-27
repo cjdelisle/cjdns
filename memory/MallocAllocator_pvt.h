@@ -35,6 +35,9 @@ struct MallocAllocator_Allocation;
 struct MallocAllocator_Allocation {
     struct MallocAllocator_Allocation* next;
     size_t size;
+#ifdef MallocAllocator_USE_CANARIES
+    long beginCanary;
+#endif
 };
 
 /** Singly linked list of allocators. */
@@ -94,6 +97,14 @@ struct MallocAllocator_pvt
     /** This is the location where the allocator was created. */
     const char* identFile;
     int identLine;
+
+    #ifdef MallocAllocator_USE_CANARIES
+        /** The canary for allocations made with this allocator constant to allow varification. */
+        long canary;
+
+        /** The canary which will be used for the next allocator, mutable. */
+        long nextCanary;
+    #endif
 
     /** For checking structure integrity. */
     Identity

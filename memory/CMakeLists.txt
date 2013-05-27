@@ -17,13 +17,6 @@ target_link_libraries(cjdmemory
     cjdns-except
 )
 
-add_library(cjdns-memory-canary
-    CanaryAllocator.c
-)
-target_link_libraries(cjdns-memory-canary
-    cjdns-crypto-random
-)
-
 # Everything must be tested.
 enable_testing()
 add_subdirectory(test)

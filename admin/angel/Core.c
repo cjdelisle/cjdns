@@ -46,7 +46,6 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
@@ -223,20 +222,19 @@ int Core_main(int argc, char** argv)
         Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
     }
 
-    struct Allocator* unsafeAlloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct Log* preLogger = FileWriterLog_new(stderr, unsafeAlloc);
-    struct EventBase* eventBase = EventBase_new(unsafeAlloc);
+    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+    struct Log* preLogger = FileWriterLog_new(stderr, alloc);
+    struct EventBase* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
-    struct Log* logger = IndirectLog_new(unsafeAlloc);
+    struct Log* logger = IndirectLog_new(alloc);
     IndirectLog_set(logger, preLogger);
 
     // -------------------- Setup the PRNG ---------------------- //
-    struct Random* rand =
-        LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, unsafeAlloc);
+    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
 
-    // -------------------- Setup Protected Allocator ---------------------- //
-    struct Allocator* alloc = CanaryAllocator_new(unsafeAlloc, rand);
+    // -------------------- Change Canary Value ---------------------- //
+    MallocAllocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
 
 
@@ -370,7 +368,7 @@ int Core_main(int argc, char** argv)
     IpTunnel_admin_register(ipTun, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
-        .allocator = unsafeAlloc,
+        .allocator = alloc,
         .admin = admin,
         .logger = logger,
         .hermes = hermes
