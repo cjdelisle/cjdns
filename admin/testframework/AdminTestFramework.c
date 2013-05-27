@@ -57,8 +57,8 @@ static void spawnAngel(int* fromAngelOut, int* toAngelOut)
     snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
     char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
 
-    uint8_t allocBuff[256];
-    struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 256);
+    uint8_t allocBuff[1024];
+    struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 1024);
     char* path = Process_getPath(tempAlloc);
     Assert_true(path);
     Process_spawn(path, args);
