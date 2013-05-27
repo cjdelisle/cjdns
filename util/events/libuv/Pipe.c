@@ -290,7 +290,8 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {
             .iface = {
-                .sendMessage = sendMessage
+                .sendMessage = sendMessage,
+                .allocator = userAlloc
             },
             .fullName = cname,
             .name = &cname[sizeof(PREFIX) - 1],
