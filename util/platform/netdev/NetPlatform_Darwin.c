@@ -68,7 +68,7 @@ static void addIp6Address(const char* interfaceName,
     int err = getaddrinfo((const char *)myIp, NULL, &hints, &result);
     if (err) {
         // Should never happen since the address is specified as binary.
-        Except_raise(eh, "bad IPv6 address [%s]", gai_strerror(err));
+        Except_raise(eh, -1, "bad IPv6 address [%s]", gai_strerror(err));
     }
 
     bcopy(result->ai_addr, &in6_addreq.ifra_addr, result->ai_addrlen);
