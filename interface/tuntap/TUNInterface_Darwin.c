@@ -122,5 +122,5 @@ struct Interface* TUNInterface_new(const char* interfaceName,
 
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
 
-    return BSDMessageTypeWrapper_new(&p->iface, logger, alloc);
+    return BSDMessageTypeWrapper_new(&p->iface, logger);
 }
