@@ -16,6 +16,7 @@ endif ()
 
 add_library(cjdns-interface-tuntap
     TUNInterface_${SYSTEM}.c
+    BSDMessageTypeWrapper.c
 )
 target_link_libraries(cjdns-interface-tuntap
     cjdns-util-events-libuv
