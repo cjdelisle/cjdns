@@ -60,7 +60,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return Error_NONE;
     }
     ((uint16_t*) msg->bytes)[0] = 0;
-    ((uint16_t*) msg->bytes)[0] = ethertype;
+    ((uint16_t*) msg->bytes)[1] = ethertype;
 
     return Interface_receiveMessage(&ctx->generic, msg);
 }

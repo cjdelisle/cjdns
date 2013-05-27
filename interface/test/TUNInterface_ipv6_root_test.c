@@ -51,7 +51,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     receivedMessageTUNCount++;
     uint16_t ethertype = TUNMessageType_pop(msg);
     if (ethertype != Ethernet_TYPE_IP6) {
-        printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
+        printf("Spurious packet with ethertype [%04x]\n", Endian_bigEndianToHost16(ethertype));
         return 0;
     }
 
