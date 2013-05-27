@@ -14,7 +14,7 @@
  */
 #include "exception/Except.h"
 #include "interface/Interface.h"
-#include "interface/TUNInterface.h"
+#include "interface/tunatp/TUNInterface.h"
 #include "util/AddrTools.h"
 
 #include <errno.h>
