@@ -76,25 +76,33 @@ static inline int Bits_isZero(void* buffer, size_t length)
 
 static inline void* Bits_memmove(void* dest, const void* src, size_t length)
 {
-    void* memmove(void* dest, const void* src, size_t length);
+    #ifndef memmove
+        void* memmove(void* dest, const void* src, size_t length);
+    #endif
     return memmove(dest, src, length);
 }
 
 static inline void* Bits_memset(void* location, int byte, size_t count)
 {
-    void* memset(void* location, int byte, size_t count);
+    #ifndef memset
+        void* memset(void* location, int byte, size_t count);
+    #endif
     return memset(location, byte, count);
 }
 
 static inline int Bits_memcmp(const void* loc1, const void* loc2, size_t length)
 {
-    int memcmp(const void* loc1, const void* loc2, size_t length);
+    #ifndef memcmp
+        int memcmp(const void* loc1, const void* loc2, size_t length);
+    #endif
     return memcmp(loc1, loc2, length);
 }
 
 static inline void* Bits_memcpyNoDebug(void* restrict out, const void* restrict in, size_t length)
 {
-    void* memcpy(void* restrict out, const void* restrict in, size_t length);
+    #ifndef memcpy
+        void* memcpy(void* restrict out, const void* restrict in, size_t length);
+    #endif
     return memcpy(out, in, length);
 }
 
