@@ -55,7 +55,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     } else if (afType_be == ctx->afInet6_be) {
         ethertype = Ethernet_TYPE_IP6;
     } else {
-        Log_debug(ctx->logger, "Message of unhandled aftype [%d]",
+        Log_debug(ctx->logger, "Message of unhandled aftype [0x%04x]",
                   Endian_bigEndianToHost16(afType_be));
         return Error_NONE;
     }
