@@ -98,7 +98,9 @@ target_link_libraries(cjdroute2
     cjdns-util-version-version
 )
 
-
+install(TARGETS cjdroute2 cjdns
+    RUNTIME DESTINATION bin
+)
 
 enable_testing()
 #add_subdirectory(test)
