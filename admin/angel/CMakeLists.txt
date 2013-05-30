@@ -85,6 +85,9 @@ add_executable(cjdroute2
 )
 
 target_link_libraries(cjdroute2
+    cjdns-angel
+    cjdns-core
+
     cjdns-admin-client
     crypto
     cjdns-crypto-bench
@@ -100,9 +103,6 @@ target_link_libraries(cjdroute2
 
 install(TARGETS cjdroute2
     RENAME cjdroute
-    RUNTIME DESTINATION bin
-)
-install(TARGETS cjdns
     RUNTIME DESTINATION bin
 )
 
