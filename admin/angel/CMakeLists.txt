@@ -98,7 +98,11 @@ target_link_libraries(cjdroute2
     cjdns-util-version-version
 )
 
-install(TARGETS cjdroute2 cjdns
+install(TARGETS cjdroute2
+    RENAME cjdroute
+    RUNTIME DESTINATION bin
+)
+install(TARGETS cjdns
     RUNTIME DESTINATION bin
 )
 
