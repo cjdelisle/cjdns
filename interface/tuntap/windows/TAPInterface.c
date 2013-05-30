@@ -17,6 +17,8 @@
 #include "exception/WinFail.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
+#include "interface/tuntap/windows/TAPInterface.h"
+#include "interface/FramingInterface.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 
@@ -119,8 +121,45 @@ static void setEnabled(HANDLE tap, int status, struct Except* eh)
         WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
     }
 }
+#include "util/Hex.h"
+static DWORD WINAPI piper(LPVOID param)
+{
+    HANDLE* pipes = param;
+    union {
+        struct {
+            uint32_t length_be;
+            uint8_t data[2044];
+        } components;
+        uint8_t bytes[2048];
+    } buff;
+    for (;;) {
+        DWORD bytes;
+        if (ReadFile(pipes[1], buff.components.data, 2044, &bytes, NULL)) {
+            buff.components.length_be = Endian_hostToBigEndian32(((uint32_t)bytes));
+            bytes += 4;
+            DWORD total = 0;
+            DWORD written;
+            do {
+                WriteFile(pipes[0], &buff.bytes[total], bytes - total, &written, NULL);
+                total += written;
+            } while (total < bytes);
+        } else {
+
+FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
+               NULL,
+               GetLastError(),
+               MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+               (char*)buff.bytes,
+               2048,
+               NULL);
+printf("Error [%s] [%lu]\n", buff.bytes, (unsigned long) pipes[0]);
+}
+    }
+    return 0;
+}
 
 struct Interface* TAPInterface_new(const char* preferredName,
+                                   char** assignedName,
                                    struct Except* eh,
                                    struct Log* logger,
                                    struct EventBase* base,
@@ -129,6 +168,9 @@ struct Interface* TAPInterface_new(const char* preferredName,
     Log_debug(logger, "Getting TAP-Windows device name");
 
     struct TAPDevice* dev = TAPDevice_find(preferredName, eh, alloc);
+    *assignedName = dev->name;
+
+    flushAddresses(dev->name, eh);
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
 
@@ -137,7 +179,7 @@ struct Interface* TAPInterface_new(const char* preferredName,
                             0,
                             0,
                             OPEN_EXISTING,
-                            FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
+                            FILE_ATTRIBUTE_SYSTEM,
                             0);
 
     if (tap == INVALID_HANDLE_VALUE) {
@@ -149,11 +191,24 @@ struct Interface* TAPInterface_new(const char* preferredName,
 
     setEnabled(tap, 1, eh);
 
-    int fileno = (int)tap;
-    struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
+    HANDLE pipe = CreateNamedPipeA("\\\\.\\pipe\\cjdns_pipe_abcdefg",
+                                   PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
+                                   PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                                   PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
+
+    struct Pipe* p = Pipe_named("abcdefg", base, eh, alloc);
+    p->logger = logger;
+
+    HANDLE* fh = Allocator_malloc(alloc, sizeof(HANDLE) * 3);
+    fh[0] = tap;
+    fh[1] = pipe;
+    fh[2] = tap;
+
+    CreateThread(NULL, 0, piper, (LPVOID)&fh[1], 0, NULL);
+    //CreateThread(NULL, 0, piper, (LPVOID)&fh, 0, NULL);
 
     Log_info(logger, "Opened TAP-Windows device [%s] version [%lu.%lu.%lu] at location [%s]",
              dev->name, ver.major, ver.minor, ver.debug, dev->path);
 
-    return &p->iface;
+    return FramingInterface_new(2048, &p->iface, alloc);
 }

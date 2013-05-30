@@ -21,6 +21,7 @@
 #include "interface/Interface.h"
 
 struct Interface* TAPInterface_new(const char* preferredName,
+                                   char** assignedName,
                                    struct Except* eh,
                                    struct Log* logger,
                                    struct EventBase* base,

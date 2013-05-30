@@ -98,6 +98,10 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) iface);
 
+    if (pipe->queueLen > 100000) {
+        return Error_LINK_LIMIT_EXCEEDED;
+    }
+
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(pipe->alloc);
     Allocator_adopt(reqAlloc, m->alloc);
@@ -141,9 +145,9 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) stream->data);
+
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = ALLOC(buf.base);
-    Assert_true(alloc->free == pipe->pub.base->bufferAlloc->free);
+    struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
 
     if (nread < 0) {
         if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
@@ -161,6 +165,8 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else if (pipe->pub.iface.receiveMessage) {
+        Assert_true(alloc && alloc->free == pipe->pub.base->bufferAlloc->free);
+
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
         m->length = nread;
         m->padding = Pipe_PADDING_AMOUNT;
@@ -169,7 +175,9 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         m->alloc = alloc;
         Interface_receiveMessage(&pipe->pub.iface, m);
     }
-    Allocator_free(alloc);
+    if (alloc) {
+        Allocator_free(alloc);
+    }
 }
 
 static uv_buf_t allocate(uv_handle_t* handle, size_t size)
@@ -303,6 +311,12 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     if (uv_pipe_init(ctx->loop, &out->peer, 0) || uv_pipe_init(ctx->loop, &out->server, 0)) {
         Except_raise(eh, -1, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
     }
+
+    #ifdef Windows
+        out->pub.fd = &out->peer.handle;
+    #else
+        out->pub.fd = &out->peer.io_watcher.fd;
+    #endif
 
     Allocator_onFree(userAlloc, onFree, &out->peer);
 

@@ -36,7 +36,7 @@ static int get(struct RandomSeed* rand, uint64_t buff[8])
 
 static void init()
 {
-    HMODULE hLib = LoadLibrary("ADVAPI32.DLL");
+    HMODULE hLib = LoadLibrary("advapi32.dll");
     RtlGenRandom = (BOOLEAN (APIENTRY *)(void*,ULONG))GetProcAddress(hLib,"SystemFunction036");
 }
 

@@ -45,10 +45,19 @@ static void unroll(struct MallocAllocator_pvt* context, struct Unroller* unrolle
     writeUnroller(unroller);
     const char* ident = (context->identFile) ? strrchr(context->identFile, '/') : " UNKNOWN";
     ident = ident ? ident + 1 : context->identFile;
-    fprintf(stderr, "%s:%d  [%lu] bytes\n",
+
+    unsigned long realBytes = 0;
+    struct MallocAllocator_Allocation* alloc = context->allocations;
+    while (alloc) {
+        realBytes += alloc->size;
+        alloc = alloc->next;
+    }
+
+    fprintf(stderr, "%s:%d  [%lu] = [%lu] bytes\n",
             ident,
             context->identLine,
-            context->allocatedHere);
+            context->allocatedHere,
+            realBytes);
 
     if (context->firstChild) {
         unroll(context->firstChild, &(struct Unroller) {
@@ -339,6 +348,8 @@ static struct Allocator* childAllocator(struct Allocator* allocator, const char*
 
     // Remove the child from the parent's allocation list.
     parent->allocations = parent->allocations->next;
+
+    parent->allocatedHere -= sizeof(struct MallocAllocator_pvt);
 
     // Drop the rest of the linked list from the child's allocation
     child->allocations->next = NULL;

@@ -17,6 +17,7 @@ add_library(cjdns-interface-tuntap-win32
 )
 target_link_libraries(cjdns-interface-tuntap-win32
     cjdns-util-events-libuv
+    interface
 )
 
 enable_testing()

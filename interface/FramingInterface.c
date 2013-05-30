@@ -122,7 +122,12 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
             return Error_OVERSIZE_MESSAGE;
         }
 
-        if (fi->bytesRemaining <= (uint32_t)msg->length) {
+        if (fi->bytesRemaining == (uint32_t)msg->length) {
+            Interface_receiveMessage(&fi->generic, msg);
+            fi->bytesRemaining = 0;
+            return Error_NONE;
+
+        } else if (fi->bytesRemaining <= (uint32_t)msg->length) {
             struct Message* m = Allocator_clone(msg->alloc, msg);
             m->length = fi->bytesRemaining;
             Interface_receiveMessage(&fi->generic, m);

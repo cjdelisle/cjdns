@@ -54,7 +54,7 @@ add_definitions(-D ${SYSTEM}=1)
 if(Windows)
     # ISO C does not support the ‘I64’ ms_printf length modifier
     # but PRId64 is #defined as "I64d"
-    remove_definitions(-Werror)
+    add_definitions(-Wno-format)
 
     # SRWLOCK is vista or newer and needed by libuv
     add_definitions(-D_WIN32_WINNT=0x0600)

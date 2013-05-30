@@ -18,40 +18,99 @@
 #include "util/platform/Sockaddr.h"
 
 #include <winsock2.h>
+#include <windows.h>
+
+#define NET_LUID misalligned_NET_LUID
+#define PNET_LUID misalligned_PNET_LUID
+#define IF_LUID misalligned_IF_LUID
+#define PIF_LUID misalligned_PIF_LUID
+#include <ifdef.h>
+#undef NET_LUID
+#undef PNET_LUID
+#undef IF_LUID
+#undef PIF_LUID
+
+// mingw-w64 incorrectly pragma pack's this to 1 byte.
+typedef union NET_LUID {
+  ULONG64 Value;
+  __C89_NAMELESS struct { /* bitfield with 64 bit types. */
+    ULONG64 Reserved  :24;
+    ULONG64 NetLuidIndex  :24;
+    ULONG64 IfType  :16;
+  } Info;
+} NET_LUID, *PNET_LUID;
+Assert_compileTime(sizeof(NET_LUID) == 8);
+
+typedef NET_LUID IF_LUID, *PIF_LUID;
+
 #include <ws2ipdef.h>
 #include <naptypes.h>
 #include <ntddndis.h>
-#include <iphlpapi.h>
-#include <windows.h>
 
-void NetPlatform_addAddress(const char* interfaceName,
+#include <ws2def.h>
+#include <iprtrmib.h>
+#include <ifdef.h>
+#include <iphlpapi.h>
+
+static NET_LUID getLuid(const char* name, struct Except* eh)
+{
+    uint16_t ifName[IF_MAX_STRING_SIZE + 1] = {0};
+    WinFail_check(eh,
+        (!MultiByteToWideChar(CP_UTF8, 0, name, strlen(name), ifName, IF_MAX_STRING_SIZE + 1))
+    );
+    NET_LUID out;
+    WinFail_check(eh, ConvertInterfaceAliasToLuid(ifName, &out));
+    return out;
+}
+
+static LONG flushAddresses(NET_LUID luid, PMIB_UNICASTIPADDRESS_TABLE* table)
+{
+    LONG out = NO_ERROR;
+    for (int i = 0; i < table->NumEntries; i++) {
+        if (table->Table[i].InterfaceLuid.Value == luid.Value) {
+            if ((out = DeleteUnicastIpAddressEntry(&table->Table[i]))) {
+                return out;
+            }
+        }
+    }
+    return out;
+}
+
+void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh)
+{
+    NET_LUID luid = getLuid(deviceName, eh);
+    PMIB_UNICASTIPADDRESS_TABLE* table;
+
+    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET, fourTable));
+    LONG ret = flushAddresses(luid, table);
+    FreeMibTable(table);
+    WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+
+    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET6, table);
+    ret = flushAddresses(luid, table);
+    FreeMibTable(table);
+    WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+}
+
+void NetPlatform_addAddress(const char* name,
                             const uint8_t* addrBytes,
                             int prefixLen,
                             int addrFam,
                             struct Log* logger,
                             struct Except* eh)
 {
-    uint16_t ifName[512] = {0};
-    if (!MultiByteToWideChar(CP_UTF8, 0, interfaceName, strlen(interfaceName), ifName, 512)) {
-        WinFail_fail(eh, "MultiByteToWideChar()", GetLastError());
-    }
-
-    unsigned long ifIndex;
-    WinFail_check(eh, (GetAdapterIndex(ifName, &ifIndex)));
-
-    // do what InitializeUnicastIpAddressEntry() does.
     MIB_UNICASTIPADDRESS_ROW ipRow = {
         .PrefixOrigin = IpPrefixOriginUnchanged,
         .SuffixOrigin = IpSuffixOriginUnchanged,
-        .ValidLifetime = 0xffffffff,
-        .PreferredLifetime = 0xffffffff,
-        .SkipAsSource = FALSE,
-        .OnLinkPrefixLength = 0xff
+        .ValidLifetime = 0xFFFFFFFF,
+        .PreferredLifetime = 0xFFFFFFFF,
+        .OnLinkPrefixLength = 0xFF
     };
 
-    ipRow.InterfaceIndex = ifIndex;
+    ipRow.InterfaceLuid = getLuid(name, eh);
 
     ipRow.Address.si_family = addrFam;
+    ipRow.Address.Ipv6.sin6_family = addrFam;
     if (addrFam == Sockaddr_AF_INET6) {
         Bits_memcpyConst(&ipRow.Address.Ipv6.sin6_addr, addrBytes, 16);
     } else if (addrFam == Sockaddr_AF_INET) {

@@ -16,6 +16,7 @@ add_library(cjdns-util-platform-netdev
 )
 target_link_libraries(cjdns-util-platform-netdev
     cjdmemory
+    cjdns-crypto-random
 )
 
 if (Windows)

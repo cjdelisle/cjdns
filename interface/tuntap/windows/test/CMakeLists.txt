@@ -18,5 +18,7 @@ set(Test_ROOT_FILES
 set(Test_LIBRARIES
     cjdns-interface-tuntap-win32
     cjdns-util-log-filewriter
+    util
+    cjdns-util-platform-netdev
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

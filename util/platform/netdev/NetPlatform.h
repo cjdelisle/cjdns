@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh);
+
 void NetPlatform_addAddress(const char* interfaceName,
                             const uint8_t* address,
                             int prefixLen,

@@ -33,6 +33,9 @@ struct Pipe
     /** The name of the file eg: "/tmp/cjdns_pipe_foo" */
     const char* const fullName;
 
+    /** A pointer to the platform dependent file descriptor or handle. */
+    void* fd;
+
     struct EventBase* const base;
 
     Pipe_callback onConnection;
