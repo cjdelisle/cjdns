@@ -32,7 +32,8 @@ int main()
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
 
-    Assert_always((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
+    bytesUsed = MallocAllocator_bytesAllocated(alloc);
+    Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct MallocAllocator_FirstCtx));
     Allocator_malloc(alloc, 25);
     bytesUsed += 32 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);

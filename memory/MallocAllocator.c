@@ -348,8 +348,7 @@ static struct Allocator* childAllocator(struct Allocator* allocator, const char*
 
     // Remove the child from the parent's allocation list.
     parent->allocations = parent->allocations->next;
-
-    parent->allocatedHere -= sizeof(struct MallocAllocator_pvt);
+    parent->allocatedHere -= getRealSize(sizeof(struct MallocAllocator_pvt));
 
     // Drop the rest of the linked list from the child's allocation
     child->allocations->next = NULL;
@@ -532,9 +531,6 @@ struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
         .onFree = addOnFreeJob,
         .adopt = adopt
     };
-
-    // Remove the size of the allocator so it doesn't appear to be wrong.
-    firstContext->maxSpace -= getRealSize(sizeof(struct MallocAllocator_FirstCtx));
 
     Bits_memcpyConst(&context->pub, &allocator, sizeof(struct Allocator));
 
