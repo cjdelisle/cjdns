@@ -264,7 +264,9 @@ target_link_libraries(publictoip6
 )
 
 
-#INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
+install(TARGETS cjdroute cjdns
+    RUNTIME DESTINATION bin
+)
 
 OPTION(NO_CODESYTLE "No codestyle checks")
 
