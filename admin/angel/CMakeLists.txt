@@ -93,7 +93,13 @@ target_link_libraries(cjdroute2
     cjdns-interface-waiter
 )
 
-
+install(TARGETS cjdroute2
+    RENAME cjdroute
+    RUNTIME DESTINATION bin
+)
+install(TARGETS cjdns
+    RUNTIME DESTINATION bin
+)
 
 enable_testing()
 #add_subdirectory(test)

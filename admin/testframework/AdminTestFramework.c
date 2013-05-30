@@ -50,8 +50,8 @@ static void spawnAngel(char* asClientPipeName, struct EventBase* base, struct Al
 {
     char* args[] = { "angel", asClientPipeName, NULL };
 
-    uint8_t allocBuff[256];
-    struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 256);
+    uint8_t allocBuff[1024];
+    struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 1024);
     char* path = Process_getPath(tempAlloc);
     Assert_true(path);
     Process_spawn(path, args, base, alloc);

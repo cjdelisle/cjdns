@@ -10,7 +10,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 include(${CMAKE_SOURCE_DIR}/cmake/modules/RemoteTest.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/modules/HasRoot.cmake)
+
 if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
@@ -25,8 +25,10 @@ function(Test_process test_source isRootTest)
     message("     " ${test_source})
     add_executable(${test_bin} ${test_source})
     target_link_libraries(${test_bin} ${Test_LIBRARIES})
-    if (NOT isRootTest OR HasRoot)
+    if (NOT isRootTest OR NOT "$ENV{RUN_ROOT_TESTS}" STREQUAL "")
         RemoteTest_addTest(${test_bin})
+    else()
+        message("Skipping ${test_bin} because RUN_ROOT_TESTS is unset.")
     endif()
 endfunction()
 

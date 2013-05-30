@@ -265,9 +265,6 @@ target_link_libraries(publictoip6
     cjdns-crypto-key
 )
 
-
-#INSTALL(TARGETS cjdroute RUNTIME DESTINATION bin)
-
 OPTION(NO_CODESYTLE "No codestyle checks")
 
 # check codestyle
