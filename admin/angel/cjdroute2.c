@@ -17,6 +17,8 @@
 #define string_strlen
 #include "admin/Admin.h"
 #include "admin/angel/InterfaceWaiter.h"
+#include "admin/angel/AngelInit.h"
+#include "admin/angel/Core.h"
 #include "admin/AuthorizedPasswords.h"
 #include "admin/Configurator.h"
 #include "benc/Int.h"
@@ -85,32 +87,6 @@ static int genAddress(uint8_t addressOut[40],
             return 0;
         }
     }
-}
-
-static bool fileExists(const char* filename)
-{
-    FILE* file;
-    if ((file = fopen(filename, "r")) != NULL) {
-        fclose(file);
-        return true;
-    }
-    return false;
-}
-
-static String* getCorePath(struct Allocator* alloc)
-{
-    struct Allocator* alloc2 = Allocator_child(alloc);
-    char* cjdroute2Path = Process_getPath(alloc2);
-    char* lastSlash = strrchr(cjdroute2Path, '/');
-    Assert_always(lastSlash != NULL);
-    *lastSlash = '\0';
-    String* tempOutput = String_printf(alloc2, "%s/cjdns", cjdroute2Path);
-    String* output = NULL;
-    if (fileExists(tempOutput->bytes)) {
-        output = String_clone(tempOutput, alloc);
-    }
-    Allocator_free(alloc2);
-    return output;
 }
 
 static int genconf(struct Random* rand)
@@ -385,6 +361,14 @@ int main(int argc, char** argv)
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
 
+    if (isatty(STDIN_FILENO) || argc < 2) {
+        // Fall through.
+    } else if (!strcmp("angel", argv[1])) {
+        return AngelInit_main(argc, argv);
+    } else if (!strcmp("core", argv[1])) {
+        return Core_main(argc, argv);
+    }
+
     Assert_true(argc > 0);
     struct Except* eh = NULL;
 
@@ -452,7 +436,9 @@ int main(int argc, char** argv)
 
     // --------------------- Spawn Angel --------------------- //
     String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
-    String* corePath = getCorePath(allocator);
+
+    char* corePath = Process_getPath(allocator);
+
     if (!corePath) {
         Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
                              "make sure it is in the same directory as cjdroute");
@@ -462,7 +448,7 @@ int main(int argc, char** argv)
         Except_raise(eh, -1, "Need to specify privateKey.");
     }
     Log_info(logger, "Forking angel to background.");
-    Process_spawn(corePath->bytes, args, eventBase, allocator);
+    Process_spawn(corePath, args, eventBase, allocator);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
@@ -495,7 +481,7 @@ int main(int argc, char** argv)
     Dict* preConf = Dict_new(allocator);
     Dict* adminPreConf = Dict_new(allocator);
     Dict_putDict(preConf, String_CONST("admin"), adminPreConf, allocator);
-    Dict_putString(adminPreConf, String_CONST("core"), corePath, allocator);
+    Dict_putString(adminPreConf, String_CONST("core"), String_new(corePath, allocator), allocator);
     Dict_putString(preConf, String_CONST("privateKey"), privateKey, allocator);
     Dict_putString(adminPreConf, String_CONST("bind"), adminBind, allocator);
     Dict_putString(adminPreConf, String_CONST("pass"), adminPass, allocator);
