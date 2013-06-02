@@ -57,9 +57,9 @@ struct Hermes
 };
 
 /** Called when the request allocator is freed. */
-static void removeReqFromSet(void* vrequest)
+static int removeReqFromSet(struct Allocator_OnFreeJob* job)
 {
-    struct Request* req = Identity_cast((struct Request*) vrequest);
+    struct Request* req = Identity_cast((struct Request*) job->userData);
     struct Hermes* h = Identity_cast(req->hermes);
     int index = Map_RequestSet_indexForHandle(req->handle, &h->requestSet);
     if (index > -1) {
@@ -67,6 +67,7 @@ static void removeReqFromSet(void* vrequest)
     } else {
         Log_error(h->logger, "request with handle [%u] missing from set", req->handle);
     }
+    return 0;
 }
 
 static void timeout(void* vrequest)

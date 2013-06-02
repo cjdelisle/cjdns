@@ -66,10 +66,11 @@ struct SearchStore* SearchStore_new(struct Allocator* allocator,
     }));
 }
 
-static void freeSearch(void* vsearch)
+static int freeSearch(struct Allocator_OnFreeJob* job)
 {
-    struct SearchStore_Search_pvt* search = vsearch;
+    struct SearchStore_Search_pvt* search = job->userData;
     search->pub.store->searches[search->searchIndex] = NULL;
+    return 0;
 }
 
 /** See: SearchStore.h */

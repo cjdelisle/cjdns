@@ -88,9 +88,10 @@ int Socket_recvfrom(int fd,
     return ret;
 }
 
-static void closeSock(void* sock)
+static int closeSock(struct Allocator_OnFreeJob* j)
 {
-    Socket_close((int)(uintptr_t)sock);
+    Socket_close((int)(uintptr_t)j->userData);
+    return 0;
 }
 
 int Socket_connect(int fd, const struct Sockaddr* sa, struct Allocator* alloc)

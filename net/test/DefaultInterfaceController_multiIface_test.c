@@ -19,9 +19,10 @@
 #include "test/TestFramework.h"
 
 static int allocatorsFreed;
-void allocatorFreed(void* null)
+int allocatorFreed(struct Allocator_OnFreeJob* job)
 {
     allocatorsFreed++;
+    return 0;
 }
 
 // make sure unauthenticated interfaces are cleared out if they don't send valid packets.

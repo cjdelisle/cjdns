@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
@@ -27,17 +26,18 @@
 
 #include <uv.h>
 
-static void onFree2(void* vEventBase)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) vEventBase);
-    uv_loop_delete(ctx->loop);
-}
-
-static void onFree(void* vEventBase)
-{
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) vEventBase);
-    ctx->freeBase = 1;
-    EventBase_endLoop((struct EventBase*) ctx);
+    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) job->userData);
+    if (ctx->running) {
+        // The job will be completed in EventLoop_beginLoop()
+        ctx->onFree = job;
+        EventBase_endLoop((struct EventBase*) ctx);
+        return Allocator_ONFREE_ASYNC;
+    } else {
+        uv_loop_delete(ctx->loop);
+        return 0;
+    }
 }
 
 static void calibrateTime(struct EventBase_pvt* base)
@@ -60,54 +60,42 @@ static void calibrateTime(struct EventBase_pvt* base)
     base->baseTime = (seconds * 1000) + milliseconds - uv_now(base->loop);
 }
 
-struct EventBase* EventBase_new(struct Allocator* alloc)
+struct EventBase* EventBase_new(struct Allocator* allocator)
 {
-    // 1MB allowed to be allocated among all events.
-    struct Allocator* asyncAllocator = MallocAllocator_new(1<<20);
-
-    struct EventBase_pvt* base = Allocator_calloc(asyncAllocator, sizeof(struct EventBase_pvt), 1);
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct EventBase_pvt* base = Allocator_calloc(alloc, sizeof(struct EventBase_pvt), 1);
     base->loop = uv_loop_new();
-    base->asyncAllocator = asyncAllocator;
     base->alloc = alloc;
-    base->pub.bufferAlloc = Allocator_child(asyncAllocator);
     Identity_set(base);
 
     Allocator_onFree(alloc, onFree, base);
-    Allocator_onFree(asyncAllocator, onFree2, base);
     calibrateTime(base);
     return &base->pub;
-}
-
-static void refEvent(uv_handle_t* event, void* vNULL)
-{
-    uv_ref(event);
 }
 
 void EventBase_beginLoop(struct EventBase* eventBase)
 {
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
 
+    Assert_always(!ctx->running); // double begin
+    ctx->running = 1;
+
     // start the loop.
     uv_run(ctx->loop, UV_RUN_DEFAULT);
 
-    if (ctx->freeBase) {
-        Allocator_free(ctx->asyncAllocator);
+    ctx->running = 0;
+
+    if (ctx->onFree) {
+        uv_loop_delete(ctx->loop);
+        ctx->onFree->complete(ctx->onFree);
         return;
     }
-
-    // if the loop was stopped using endLoop() then lets re-arm all events again.
-    uv_walk(ctx->loop, refEvent, NULL);
-}
-
-static void unrefEvent(uv_handle_t* event, void* vNULL)
-{
-    uv_unref(event);
 }
 
 void EventBase_endLoop(struct EventBase* eventBase)
 {
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
-    uv_walk(ctx->loop, unrefEvent, NULL);
+    uv_stop(ctx->loop);
 }
 
 static void countCallback(uv_handle_t* event, void* vEventCount)

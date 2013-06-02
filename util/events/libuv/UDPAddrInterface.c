@@ -30,9 +30,8 @@ struct UDPAddrInterface_pvt
     struct AddrInterface pub;
     struct Log* logger;
     uv_udp_t uvHandle;
-    struct Allocator* alloc;
-    struct Allocator* asyncAlloc;
     int queueLen;
+    int* freeing;
     Identity
 };
 
@@ -43,6 +42,12 @@ struct UDPAddrInterface_WriteRequest_pvt {
     struct Allocator* alloc;
     Identity
 };
+
+struct UDPAddrInterface_pvt* ifaceForHandle(uv_udp_t* handle)
+{
+    char* hp = ((char*)handle) - offsetof(struct UDPAddrInterface_pvt, uvHandle);
+    return Identity_cast((struct UDPAddrInterface_pvt*) hp);
+}
 
 static void sendComplete(uv_udp_send_t* uvReq, int error)
 {
@@ -63,7 +68,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) iface);
 
     // This allocator will hold the message allocator in existance after it is freed.
-    struct Allocator* reqAlloc = Allocator_child(context->alloc);
+    struct Allocator* reqAlloc = Allocator_child(context->pub.generic.allocator);
     if (m->alloc) {
         Allocator_adopt(reqAlloc, m->alloc);
     } else {
@@ -115,12 +120,13 @@ static void incoming(uv_udp_t* handle,
                      struct sockaddr* addr,
                      unsigned flags)
 {
-    struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) handle->data);
+    struct UDPAddrInterface_pvt* context = ifaceForHandle(handle);
+
+    int freeing = 0;
+    context->freeing = &freeing;
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = ALLOC(buf.base);
-    Assert_true(alloc->free == context->alloc->free);
+    struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
 
     if (nread < 0) {
         Log_warn(context->logger, "encountered error [%s]",
@@ -140,18 +146,20 @@ static void incoming(uv_udp_t* handle,
         Message_push(m, &context->pub.addr->addrLen, 8);
         Interface_receiveMessage(&context->pub.generic, m);
     }
-    Allocator_free(alloc);
+
+    if (alloc && !freeing) {
+        Allocator_free(alloc);
+    }
 }
 
 static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 {
-    struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) handle->data);
+    struct UDPAddrInterface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrInterface_BUFFER_CAP;
     size_t fullSize = size + PADDING + context->pub.addr->addrLen;
 
-    struct Allocator* child = Allocator_child(context->asyncAlloc);
+    struct Allocator* child = Allocator_child(context->pub.generic.allocator);
     char* buff = Allocator_malloc(child, fullSize);
     buff += PADDING;
 
@@ -162,42 +170,43 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 
 static void onClosed(uv_handle_t* wasClosed)
 {
-    struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) wasClosed->data);
-
-    Allocator_free(context->asyncAlloc);
+    struct Allocator_OnFreeJob* job = Identity_cast((struct Allocator_OnFreeJob*) wasClosed->data);
+    job->complete(job);
 }
-static void onFree(void* vcontext)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) vcontext);
+    struct UDPAddrInterface_pvt* context =
+        Identity_cast((struct UDPAddrInterface_pvt*) job->userData);
+    if (context->freeing) {
+        *context->freeing = 1;
+    }
+    context->uvHandle.data = job;
     uv_close((uv_handle_t*)&context->uvHandle, onClosed);
+    return Allocator_ONFREE_ASYNC;
 }
 
 struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
                                            struct Sockaddr* addr,
-                                           struct Allocator* allocator,
+                                           struct Allocator* alloc,
                                            struct Except* exHandler,
                                            struct Log* logger)
 {
     struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*)eventBase);
 
-    struct Allocator* asyncAlloc = Allocator_child(base->asyncAllocator);
     struct UDPAddrInterface_pvt* context =
-        Allocator_clone(asyncAlloc, (&(struct UDPAddrInterface_pvt) {
+        Allocator_clone(alloc, (&(struct UDPAddrInterface_pvt) {
             .pub = {
                 .generic = {
                     .sendMessage = sendMessage,
-                    .allocator = allocator
+                    .allocator = alloc
                 },
             },
-            .alloc = allocator,
-            .asyncAlloc = asyncAlloc,
             .logger = logger
         }));
     Identity_set(context);
 
     if (addr) {
-        Log_debug(logger, "Binding to address [%s]", Sockaddr_print(addr, allocator));
+        Log_debug(logger, "Binding to address [%s]", Sockaddr_print(addr, alloc));
     }
 
     struct Sockaddr_storage ss;
@@ -239,10 +248,10 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     }
     ss.addr.addrLen = nameLen+8;
 
-    context->pub.addr = Sockaddr_clone(&ss.addr, allocator);
-    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(&ss.addr, allocator));
+    context->pub.addr = Sockaddr_clone(&ss.addr, alloc);
+    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(&ss.addr, alloc));
 
-    Allocator_onFree(allocator, onFree, context);
+    Allocator_onFree(alloc, onFree, context);
 
     return &context->pub;
 }

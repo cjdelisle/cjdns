@@ -260,10 +260,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     return Error_NONE;
 }
 
-static void removeInterface(void* vcontext)
+static int removeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct SwitchInterface* si = (struct SwitchInterface*) vcontext;
+    struct SwitchInterface* si = (struct SwitchInterface*) job->userData;
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
+    return 0;
 }
 
 void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
@@ -280,8 +281,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
 
     // Now the if#'s are in reverse order :)
-    si1->onFree = if2->allocator->onFree(removeInterface, si1, if2->allocator);
-    si2->onFree = if1->allocator->onFree(removeInterface, si2, if1->allocator);
+    si1->onFree = Allocator_onFree(if2->allocator, removeInterface, si1);
+    si2->onFree = Allocator_onFree(if1->allocator, removeInterface, si2);
 
     if1->receiverContext = si2;
     if2->receiverContext = si1;
@@ -329,7 +330,7 @@ int SwitchCore_addInterface(struct Interface* iface,
         .congestion = 0
     }), sizeof(struct SwitchInterface));
 
-    newIf->onFree = iface->allocator->onFree(removeInterface, newIf, iface->allocator);
+    newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
 
     iface->receiverContext = &core->interfaces[ifIndex];
     iface->receiveMessage = receiveMessage;

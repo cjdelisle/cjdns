@@ -84,8 +84,9 @@ static void failure(struct MallocAllocator_pvt* context,
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    Assert_failure("%s:%d Fatal error: [%s] spaceAvailable [%lu]",
+    Assert_failure("%s:%d Fatal error: [%s] totalBytes [%lu] remaining [%lu]",
                    identFile, identLine, message,
+                   (unsigned long)context->rootAlloc->maxSpace,
                    (unsigned long)context->rootAlloc->spaceAvailable);
 }
 
@@ -126,7 +127,7 @@ static inline void* newAllocation(struct MallocAllocator_pvt* context,
 {
     int64_t realSize = getRealSize(size);
     if (context->rootAlloc->spaceAvailable <= realSize) {
-        failure(context, "Out of memory, limit exceeded.", identFile, identLine);
+        failure(context, "Out of memory, limit exceeded", identFile, identLine);
     }
 
     context->rootAlloc->spaceAvailable -= realSize;
@@ -134,7 +135,7 @@ static inline void* newAllocation(struct MallocAllocator_pvt* context,
 
     struct MallocAllocator_Allocation* alloc = malloc(realSize);
     if (alloc == NULL) {
-        failure(context, "Out of memory, malloc() returned NULL.", identFile, identLine);
+        failure(context, "Out of memory, malloc() returned NULL", identFile, identLine);
     }
     alloc->next = context->allocations;
     alloc->size = realSize;
@@ -144,23 +145,76 @@ static inline void* newAllocation(struct MallocAllocator_pvt* context,
     return (void*) (alloc + 1);
 }
 
+static int removeJob(struct MallocAllocator_OnFreeJob* job)
+{
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+    struct MallocAllocator_OnFreeJob* j = context->onFree;
+    struct MallocAllocator_OnFreeJob** jP = &context->onFree;
+    while (j && j != job) {
+        jP = &j->next;
+        j = j->next;
+    }
+    if (j == job) {
+        *jP = j->next;
+        return 0;
+    } else {
+        return -1;
+        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
+    }
+}
+
+static void releaseMemory(struct MallocAllocator_pvt* context)
+{
+    // Free all of the allocations including the one which holds the allocator.
+    #ifdef PARANOIA
+        unsigned long allocatedHere = context->allocatedHere;
+    #endif
+    struct MallocAllocator_Allocation* loc = context->allocations;
+    while (loc != NULL) {
+        #ifdef PARANOIA
+            allocatedHere -= loc->size;
+        #endif
+        context->rootAlloc->spaceAvailable += loc->size;
+        struct MallocAllocator_Allocation* nextLoc = loc->next;
+
+        checkCanaries(loc, context);
+
+        // TODO: make this optional.
+        Bits_memset(loc, 0xee, loc->size);
+        free(loc);
+        loc = nextLoc;
+    }
+    #ifdef PARANOIA
+        Assert_always(allocatedHere == 0);
+    #endif
+}
+
+static int onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
+{
+    struct MallocAllocator_OnFreeJob* job = (struct MallocAllocator_OnFreeJob*) onFreeJob;
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+
+    if (removeJob(job)) {
+        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
+    }
+
+    if (!context->onFree) {
+        // There are no more jobs, release the memory.
+        releaseMemory(context);
+    }
+    return 0;
+}
+
 static void disconnectAllocator(struct Allocator* allocator, const char* file, int line);
 
 /**
  * Triggered when freeAllocator() is called and the allocator nolonger
  * has any remaining links to the allocator tree.
  */
-static void realFreeAllocator(struct MallocAllocator_pvt* context, const char* file, int line)
+static void freeAllocator(struct MallocAllocator_pvt* context, const char* file, int line)
 {
     Assert_true(!context->lastSibling);
     Assert_true(!context->adoptions || !context->adoptions->parents);
-
-    // Do the onFree jobs.
-    struct MallocAllocator_OnFreeJob* job = context->onFree;
-    while (job != NULL) {
-        job->callback(job->callbackContext);
-        job = job->next;
-    }
 
     // Disconnect all of the child allocators.
     struct MallocAllocator_pvt* child = context->firstChild;
@@ -189,23 +243,28 @@ static void realFreeAllocator(struct MallocAllocator_pvt* context, const char* f
 
         if (!childL->alloc->adoptions->parents && !childL->alloc->lastSibling) {
             // This child now has no remaining links to the tree.
-            realFreeAllocator(childL->alloc, file, line);
+            freeAllocator(childL->alloc, file, line);
         }
         childL = childL->next;
     }
 
-    // Free all of the allocations including the one which holds the allocator.
-    struct MallocAllocator_Allocation* loc = context->allocations;
-    while (loc != NULL) {
-        context->rootAlloc->spaceAvailable += loc->size;
-        struct MallocAllocator_Allocation* nextLoc = loc->next;
+    // Do the onFree jobs.
+    struct MallocAllocator_OnFreeJob** jobP = &context->onFree;
+    while (*jobP != NULL) {
+        struct MallocAllocator_OnFreeJob* job = *jobP;
+        if (!job->generic.callback
+            || job->generic.callback(&job->generic) != Allocator_ONFREE_ASYNC)
+        {
+            // Either the job has no callback or it has a callback and doesn't need async.
+            // remove it from the list.
+            Assert_true(!removeJob(job));
+            continue;
+        }
+        jobP = &job->next;
+    }
 
-        checkCanaries(loc, context);
-
-        // TODO: make this optional.
-        Bits_memset(loc, 0xee, loc->size);
-        free(loc);
-        loc = nextLoc;
+    if (!context->onFree) {
+        releaseMemory(context);
     }
 }
 
@@ -239,7 +298,7 @@ static void disconnectAllocator(struct Allocator* allocator, const char* file, i
         return;
     }
 
-    realFreeAllocator(context, file, line);
+    freeAllocator(context, file, line);
 }
 
 /** @see Allocator->malloc() */
@@ -349,6 +408,7 @@ static struct Allocator* childAllocator(struct Allocator* allocator, const char*
     // Remove the child from the parent's allocation list.
     parent->allocations = parent->allocations->next;
     parent->allocatedHere -= getRealSize(sizeof(struct MallocAllocator_pvt));
+    child->allocatedHere += getRealSize(sizeof(struct MallocAllocator_pvt));
 
     // Drop the rest of the linked list from the child's allocation
     child->allocations->next = NULL;
@@ -436,7 +496,9 @@ static void adopt(struct Allocator* adoptedParent,
     struct MallocAllocator_pvt* child = Identity_cast((struct MallocAllocator_pvt*) childToAdopt);
 
     if (isAncestorOf(child, parent)) {
-        failure(parent, "Adoption would create cyclical reference.", file, line);
+        // The child is a parent of the parent, this means an adoption would be meaningless
+        // because if the child is otherwise freed, it will take the parent along with it.
+        return;
     }
 
     if (!parent->adoptions) {
@@ -461,22 +523,24 @@ static void adopt(struct Allocator* adoptedParent,
     child->adoptions->parents = cl;
 }
 
-/** @see Allocator->onFree() */
-static struct Allocator_OnFreeJob* addOnFreeJob(void (* callback)(void* callbackContext),
-                                                void* callbackContext,
-                                                struct Allocator* allocator)
+/** @see Allocator_onFree() */
+static struct Allocator_OnFreeJob* addOnFreeJob(struct Allocator* allocator,
+                                                const char* file,
+                                                int line)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
 
     struct MallocAllocator_OnFreeJob* newJob =
         Allocator_clone(allocator, (&(struct MallocAllocator_OnFreeJob) {
             .generic = {
-                .cancel = removeOnFreeJob
+                .cancel = removeOnFreeJob,
+                .complete = onFreeComplete
             },
-            .callback = callback,
-            .callbackContext = callbackContext,
-            .alloc = context
+            .alloc = context,
+            .file = file,
+            .line = line
         }));
+    Identity_set(&newJob->generic);
 
     struct MallocAllocator_OnFreeJob* job = context->onFree;
     if (job == NULL) {

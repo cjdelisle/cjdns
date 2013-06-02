@@ -19,8 +19,7 @@
 
 struct EventBase
 {
-    /** Allocator used for allocating buffers for storing incoming data. */
-    struct Allocator* bufferAlloc;
+    int unused;
 };
 
 struct EventBase* EventBase_new(struct Allocator* alloc);

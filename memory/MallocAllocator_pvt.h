@@ -25,10 +25,10 @@ struct MallocAllocator_pvt;
 struct MallocAllocator_OnFreeJob;
 struct MallocAllocator_OnFreeJob {
     struct Allocator_OnFreeJob generic;
-    void (* callback)(void* callbackContext);
-    void* callbackContext;
     struct MallocAllocator_pvt* alloc;
     struct MallocAllocator_OnFreeJob* next;
+    const char* file;
+    int line;
 };
 
 struct MallocAllocator_Allocation;

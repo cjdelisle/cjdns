@@ -218,8 +218,7 @@ void receiveHelloWithNoAuth()
 
 void repeatHello()
 {
-    uint8_t buff[BUFFER_SIZE];
-    struct Allocator* allocator = BufferAllocator_new(buff, BUFFER_SIZE);
+    struct Allocator* allocator = MallocAllocator_new(1<<20);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
     struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, logger, NULL);
@@ -273,12 +272,14 @@ void repeatHello()
     Assert_always(finalOut->length == 12);
     Assert_always(Bits_memcmp(hello, finalOut->bytes, 12) == 0);
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
+
+    Allocator_free(allocator);
 }
 
 int main()
 {
     struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 256);
+    BufferAllocator_STACK(allocator, 512);
     eventBase = EventBase_new(allocator);
     helloNoAuth();
     helloWithAuth();

@@ -27,10 +27,6 @@ struct Timeout
 
     void* callbackContext;
 
-    struct Allocator* asyncAllocator;
-
-    int freeing;
-
     Identity
 };
 
@@ -39,24 +35,22 @@ struct Timeout
  */
 static void handleEvent(uv_timer_t* handle, int status)
 {
-    struct Timeout* timeout = Identity_cast((struct Timeout*) handle->data);
+    struct Timeout* timeout = Identity_cast((struct Timeout*) handle);
     timeout->callback(timeout->callbackContext);
 }
 
 static void onFree2(uv_handle_t* timer)
 {
-    struct Timeout* timeout = Identity_cast((struct Timeout*) timer->data);
-    Allocator_free(timeout->asyncAllocator);
+    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*)timer->data);
+    j->complete(j);
 }
 
-static void onFree(void* vtimeout)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct Timeout* t = Identity_cast((struct Timeout*) vtimeout);
-    if (t->freeing) {
-        return;
-    }
-    t->freeing = 1;
+    struct Timeout* t = Identity_cast((struct Timeout*) job->userData);
+    t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
+    return Allocator_ONFREE_ASYNC;
 }
 
 /**
@@ -80,10 +74,8 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   struct Allocator* allocator)
 {
     struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
-    struct Allocator* asyncAllocator = Allocator_child(base->asyncAllocator);
-    struct Timeout* timeout = Allocator_calloc(asyncAllocator, sizeof(struct Timeout), 1);
+    struct Timeout* timeout = Allocator_calloc(allocator, sizeof(struct Timeout), 1);
 
-    timeout->asyncAllocator = asyncAllocator;
     timeout->callback = callback;
     timeout->callbackContext = callbackContext;
     Identity_set(timeout);
@@ -129,7 +121,7 @@ void Timeout_resetTimeout(struct Timeout* timeout,
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    if (!timeout->freeing && !uv_is_closing((uv_handle_t*) &timeout->timer)) {
+    if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }
 }

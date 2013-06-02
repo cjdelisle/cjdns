@@ -30,15 +30,17 @@ struct Process_pvt
 
 static void onFree2(uv_handle_t* process)
 {
-    struct Process_pvt* p = Identity_cast((struct Process_pvt*) process);
-    Allocator_free(p->alloc);
+    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*) process->data);
+    j->complete(j);
 }
 
-static void onFree(void* vProcess)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct Process_pvt* p = Identity_cast((struct Process_pvt*) vProcess);
+    struct Process_pvt* p = Identity_cast((struct Process_pvt*) job->userData);
     uv_process_kill(&p->proc, SIGTERM);
+    p->proc.data = job;
     uv_close((uv_handle_t*)&p->proc, onFree2);
+    return Allocator_ONFREE_ASYNC;
 }
 
 int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc)
@@ -54,9 +56,8 @@ int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct 
     binAndArgs[0] = binaryPath;
     binAndArgs[i+1] = NULL;
 
-    struct Allocator* procAlloc = Allocator_child(ctx->asyncAllocator);
-    struct Process_pvt* p = Allocator_calloc(procAlloc, sizeof(struct Process_pvt), 1);
-    p->alloc = procAlloc;
+    struct Process_pvt* p = Allocator_calloc(alloc, sizeof(struct Process_pvt), 1);
+    p->alloc = alloc;
     Identity_set(p);
     Allocator_onFree(alloc, onFree, p);
 

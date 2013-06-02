@@ -15,14 +15,35 @@
 #ifndef Allocator_H
 #define Allocator_H
 
+#include "util/Identity.h"
+
 /**
  * A handle which is provided in response to calls to Allocator_onFree().
  * This handle is sutable for use with Allocator_notOnFree() to cancel a job.
  */
-//typedef int Allocator_OnFreeJob;
+struct Allocator_OnFreeJob;
+typedef int (* Allocator_OnFreeCallback)(struct Allocator_OnFreeJob* job);
 struct Allocator_OnFreeJob {
-    int (* cancel)(struct Allocator_OnFreeJob* job);
+    /** Set by allocator. */
+    const Allocator_OnFreeCallback cancel;
+
+    /** Complete the job, used only if the callback returns Allocator_ONFREE_ASYNC. */
+    const Allocator_OnFreeCallback complete;
+
+    /** Set by caller. */
+    Allocator_OnFreeCallback callback;
+    void* userData;
+
+    /** Set by allocator. */
+    Identity
 };
+
+/**
+ * If an onFree job needs to complete asynchronously, it should return this,
+ * then when it is complete it must call job->complete(job) on the OnFreeJob
+ * which was passed to it.
+ */
+#define Allocator_ONFREE_ASYNC 10000
 
 /**
  * Allocator for structured memory management.
@@ -108,9 +129,9 @@ struct Allocator
 
     void (*  free)(struct Allocator* alloc, const char* identFile, int identLine);
 
-    struct Allocator_OnFreeJob* (* const onFree)(void (*callback)(void* callbackContext),
-                                                 void* callbackContext,
-                                                 struct Allocator* alloc);
+    struct Allocator_OnFreeJob* (* const onFree)(struct Allocator* alloc,
+                                                 const char* file,
+                                                 int line);
 
 
     struct Allocator* (* const child)(struct Allocator* thisAlloc,
@@ -200,11 +221,22 @@ struct Allocator
  *
  * @param alloc the memory allocator.
  * @param callback the function to call.
- * @param callbackContext the data to pass the function when calling it.
  * @return an Allocator_OnFreeJob which can be cancelled with Allocator_cancelOnFree().
  */
 #define Allocator_onFree(alloc, callback, context) \
-    (alloc)->onFree((callback), (context), (alloc))
+    Allocator__onFree((alloc), (callback), (context), __FILE__, __LINE__)
+
+static inline struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
+                                                            Allocator_OnFreeCallback callback,
+                                                            void* context,
+                                                            const char* file,
+                                                            int line)
+{
+    struct Allocator_OnFreeJob* j = alloc->onFree(alloc, file, line);
+    j->callback = callback;
+    j->userData = context;
+    return j;
+}
 
 /**
  * Remove a function which was registered with Allocator_onFree().

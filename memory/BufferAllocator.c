@@ -30,8 +30,6 @@
 
 struct Job {
     struct Allocator_OnFreeJob generic;
-    void (* callback)(void* callbackContext);
-    void* callbackContext;
     struct Allocator* alloc;
     struct Job* next;
     Identity
@@ -51,6 +49,8 @@ struct BufferAllocator {
     char* const endPointer;
 
     struct Job* onFree;
+    /** Number of onfree jobs which are not yet complete. */
+    int outstandingJobs;
     struct Except* onOOM;
     const char* file;
     int line;
@@ -145,17 +145,14 @@ static void* allocatorRealloc(const void* original,
 static void freeAllocator(struct Allocator* allocator, const char* identFile, int identLine)
 {
     struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) allocator);
-    if ((uintptr_t) context > (uintptr_t) context->pPointer) {
-        // pPointer points to a destination which is > context unless this is a child alloc.
-        return;
-    }
     struct Job* job = context->onFree;
     while (job != NULL) {
-        job->callback(job->callbackContext);
+        if (job->generic.callback) {
+            job->generic.callback(&job->generic);
+            context->outstandingJobs++;
+        }
         job = job->next;
     }
-
-    (*context->pPointer) = context->basePointer;
 }
 
 static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
@@ -173,21 +170,37 @@ static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
     return -1;
 }
 
+static int onFreeComplete(struct Allocator_OnFreeJob* job)
+{
+    struct BufferAllocator* context =
+        Identity_cast((struct BufferAllocator*) ((struct Job*)job)->alloc);
+
+    if (!--context->outstandingJobs) {
+        if ((uintptr_t) context > (uintptr_t) context->pPointer) {
+            // pPointer points to a destination which is > context unless this is a child alloc.
+            return 0;
+        }
+        // complete
+        (*context->pPointer) = context->basePointer;
+    }
+    return 0;
+}
+
 /** @see Allocator->onFree() */
-static struct Allocator_OnFreeJob* onFree(void (* callback)(void* callbackContext),
-                                          void* callbackContext,
-                                          struct Allocator* alloc)
+static struct Allocator_OnFreeJob* onFree(struct Allocator* alloc,
+                                          const char* file,
+                                          int line)
 {
     struct BufferAllocator* context = Identity_cast((struct BufferAllocator*) alloc);
 
     struct Job* newJob = Allocator_clone(alloc, (&(struct Job) {
         .generic = {
-            .cancel = removeOnFreeJob
+            .cancel = removeOnFreeJob,
+            .complete = onFreeComplete
         },
-        .callback = callback,
-        .callbackContext = callbackContext,
-        .alloc = (struct Allocator*) alloc,
+        .alloc = alloc,
     }));
+    Identity_set(&newJob->generic);
 
     struct Job* job = context->onFree;
     if (job == NULL) {

@@ -35,6 +35,10 @@ struct Pipe_pvt
     uv_pipe_t server;
     uv_pipe_t peer;
 
+    /** The memory for the shutdown needs to be preallocated so onFree does not allocate memory. */
+    uv_shutdown_t serverShutdownReq;
+    uv_shutdown_t peerShutdownReq;
+
     /**
      * If the output pipe is same as the input, this points to peer.
      * Otherwise it points to server which is reused.
@@ -45,6 +49,12 @@ struct Pipe_pvt
     int isActive;
 
     int queueLen;
+
+    /**
+     * If the pipe's allocator is freed while this pointer is set,
+     * the pointed to int is set to 1.
+     */
+    int* freeing;
 
     /** only non-null before the connection is setup. */
     struct Pipe_WriteRequest_pvt* bufferedRequest;
@@ -98,7 +108,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) iface);
 
-    if (pipe->queueLen > 100000) {
+    if (pipe->queueLen > 50000) {
         return Error_LINK_LIMIT_EXCEEDED;
     }
 
@@ -148,6 +158,10 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
+    int freeing = 0;
+    pipe->freeing = &freeing;
+
+    Assert_true(!alloc || alloc->free == pipe->alloc->free);
 
     if (nread < 0) {
         if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
@@ -165,8 +179,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else if (pipe->pub.iface.receiveMessage) {
-        Assert_true(alloc && alloc->free == pipe->pub.base->bufferAlloc->free);
-
+        Assert_true(alloc);
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
         m->length = nread;
         m->padding = Pipe_PADDING_AMOUNT;
@@ -175,7 +188,9 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         m->alloc = alloc;
         Interface_receiveMessage(&pipe->pub.iface, m);
     }
-    if (alloc) {
+
+    if (alloc && !freeing) {
+        pipe->freeing = NULL;
         Allocator_free(alloc);
     }
 }
@@ -186,7 +201,7 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
     size = Pipe_BUFFER_CAP;
     size_t fullSize = size + PADDING;
 
-    struct Allocator* child = Allocator_child(pipe->pub.base->bufferAlloc);
+    struct Allocator* child = Allocator_child(pipe->alloc);
     char* buff = Allocator_malloc(child, fullSize);
     buff += PADDING;
 
@@ -266,15 +281,40 @@ static void listenCallback(uv_stream_t* server, int status)
 }
 
 /** Asynchronous allocator freeing. */
-static void onClosed(uv_handle_t* wasClosed)
+static void onClosed(uv_shutdown_t* shutdown, int status)
 {
-    // TODO: this should be freed but libuv still tries to access the handle after free!
-    //struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) wasClosed->data);
-    //Allocator_free(pipe->alloc);
+    struct Allocator_OnFreeJob* job = Identity_cast((struct Allocator_OnFreeJob*) shutdown->data);
+    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
+    if (Bits_isZero(&pipe->server, sizeof(uv_pipe_t))
+        && Bits_isZero(&pipe->peer, sizeof(uv_pipe_t)))
+    {
+        job->complete(job);
+    }
 }
-static void onFree(void* vHandle)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    uv_close((uv_handle_t*) vHandle, onClosed);
+    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
+    if (pipe->freeing) {
+        *pipe->freeing = 1;
+    }
+    int skip = 0;
+    pipe->serverShutdownReq.data = pipe->peerShutdownReq.data = job;
+    if (uv_is_closing((uv_handle_t*) &pipe->server)
+        || uv_shutdown(&pipe->serverShutdownReq, (uv_stream_t*) &pipe->server, onClosed))
+    {
+        Bits_memset(&pipe->serverShutdownReq, 0, sizeof(uv_shutdown_t));
+        skip++;
+    }
+    if (uv_is_closing((uv_handle_t*) &pipe->peer)
+        || uv_shutdown(&pipe->peerShutdownReq, (uv_stream_t*) &pipe->peer, onClosed))
+    {
+        Bits_memset(&pipe->peerShutdownReq, 0, sizeof(uv_shutdown_t));
+        skip++;
+    }
+    if (skip == 2) {
+        return 0;
+    }
+    return Allocator_ONFREE_ASYNC;
 }
 
 static struct Pipe_pvt* newPipe(struct EventBase* eb,
@@ -283,7 +323,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                                 struct Allocator* userAlloc)
 {
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
-    struct Allocator* alloc = Allocator_child(ctx->asyncAllocator);
+    struct Allocator* alloc = Allocator_child(userAlloc);
 
     #ifdef Windows
         #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
@@ -318,7 +358,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
         out->pub.fd = &out->peer.io_watcher.fd;
     #endif
 
-    Allocator_onFree(userAlloc, onFree, &out->peer);
+    Allocator_onFree(alloc, onFree, out);
 
     out->peer.data = out;
     out->server.data = out;
