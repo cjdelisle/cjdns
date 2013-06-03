@@ -19,6 +19,11 @@
 
 #include <uv.h>
 
+uint64_t Time_hrtime()
+{
+    return uv_hrtime();
+}
+
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
 {
     struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
