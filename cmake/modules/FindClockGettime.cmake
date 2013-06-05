@@ -34,6 +34,7 @@ if(NOT CLOCK_GETTIME_FOUND AND NOT NO_CLOCK_GETTIME)
                 /usr/local/lib/
                 /usr/lib/i386-linux-gnu/
                 /usr/lib/x86_64-linux-gnu/
+                /usr/lib/powerpc-linux-gnu/
                 /usr/lib64/
                 /usr/lib/
         )
