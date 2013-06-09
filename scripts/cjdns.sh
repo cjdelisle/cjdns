@@ -81,7 +81,7 @@ update()
 {
 cd $CJDPATH/cjdns
 git pull
-./do
+./do || echo "Failed to update!" && exit 1
 echo "* Update complete, restarting cjdns"
 stop
 start
