@@ -31,14 +31,16 @@
 #  ./cjdns.sh restart
 ##
 
+if test -x /etc/default/cjdns ; then
+  . /etc/default/cjdns
+fi
+
+
 # path of cjdns
 if [ -z "$CJDPATH" ]; then CJDPATH="`dirname $0`/"; fi
 
 # path to the cjdroute process
 if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}cjdns/cjdroute"; fi
-
-# path of the cjdns process
-if [ -z "$CJDNS" ]; then CJDNS="${CJDPATH}cjdns/cjdns"; fi
 
 # path to the configuration
 if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
@@ -46,7 +48,7 @@ if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 # path ot the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
 
-PID=$(pgrep -d " " -f "$CJDNS")
+PID=$(pgrep -d " " -f "$CJDROUTE")
 
 stop()
 {
@@ -75,6 +77,16 @@ status()
     fi
 }
 
+update()
+{
+cd $CJDPATH/cjdns
+git pull
+./do || echo "Failed to update!" && exit 1
+echo "* Update complete, restarting cjdns"
+stop
+start
+}
+
 case "$1" in
     "start" )
         start
@@ -92,6 +104,9 @@ case "$1" in
     "check" )
         ps aux | grep -v 'grep' | grep 'cjdns core' > /dev/null 2>/dev/null || start
         ;;
+    "update" )
+        update
+        ;;
     *)
-        echo "usage: /etc/rc.d/cjdns {start|stop|restart|check}"
+        echo "usage: /etc/rc.d/cjdns {start|stop|restart|check|update}"
 esac
