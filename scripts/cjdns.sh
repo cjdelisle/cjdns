@@ -45,9 +45,6 @@ if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}cjdns/cjdroute"; fi
 # path to the configuration
 if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 
-# path ot the log file.
-if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
-
 PID=$(pgrep -d " " -f "$CJDROUTE")
 
 stop()
