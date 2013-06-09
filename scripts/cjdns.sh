@@ -31,7 +31,7 @@
 #  ./cjdns.sh restart
 ##
 
-if test -e /etc/default/cjdns ; then
+if test -x /etc/default/cjdns ; then
   . /etc/default/cjdns
 fi
 
