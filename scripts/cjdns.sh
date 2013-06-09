@@ -42,9 +42,6 @@ if [ -z "$CJDPATH" ]; then CJDPATH="`dirname $0`/"; fi
 # path to the cjdroute process
 if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}cjdns/cjdroute"; fi
 
-# path of the cjdns process
-if [ -z "$CJDNS" ]; then CJDNS="${CJDPATH}cjdns/cjdns"; fi
-
 # path to the configuration
 if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 
@@ -61,7 +58,7 @@ stop()
 
 start()
 {
-    $CJDROUTE < $CONF &>> $LOGTO
+    $CJDROUTE < $CONF
     if [ $? -gt 0 ]; then
         echo "Failed to start. (CJDNS already running?)"
         return 1
@@ -78,6 +75,16 @@ status()
         echo "running"
         exit 0
     fi
+}
+
+update()
+{
+cd $CJDPATH/cjdns
+git pull
+./do
+echo "* Update complete, restarting cjdns"
+stop
+start
 }
 
 case "$1" in
@@ -97,6 +104,9 @@ case "$1" in
     "check" )
         ps aux | grep -v 'grep' | grep 'cjdns core' > /dev/null 2>/dev/null || start
         ;;
+    "update" )
+        update
+        ;;
     *)
-        echo "usage: /etc/rc.d/cjdns {start|stop|restart|check}"
+        echo "usage: /etc/rc.d/cjdns {start|stop|restart|check|update}"
 esac
