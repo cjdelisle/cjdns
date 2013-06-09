@@ -31,6 +31,11 @@
 #  ./cjdns.sh restart
 ##
 
+if test -e /etc/default/cjdns ; then
+  . /etc/default/cjdns
+fi
+
+
 # path of cjdns
 if [ -z "$CJDPATH" ]; then CJDPATH="`dirname $0`/"; fi
 
