@@ -75,6 +75,7 @@ struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocat
     struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
     Bits_memcpy(&out->ss, ss, addrLen);
     out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
+    Sockaddr_normalizeNative(&out->ss);
     return &out->pub;
 }
 
@@ -287,4 +288,11 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
     Bits_memcpy(&out->ss, &ss, addrLen);
     out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
     return &out->pub;
+}
+
+void Sockaddr_normalizeNative(void* nativeSockaddr)
+{
+#if defined(BSD) || defined(Darwin)
+    ((struct sockaddr*)nativeSockaddr)->sa_len = 0;
+#endif
 }
