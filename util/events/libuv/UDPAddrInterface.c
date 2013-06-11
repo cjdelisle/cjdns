@@ -142,6 +142,7 @@ static void incoming(uv_udp_t* handle,
         m->capacity = buf.len;
         m->bytes = (uint8_t*)buf.base;
         m->alloc = alloc;
+        Sockaddr_normalizeNative(addr);
         Message_push(m, addr, context->pub.addr->addrLen - 8);
         Message_push(m, &context->pub.addr->addrLen, 8);
         Interface_receiveMessage(&context->pub.generic, m);
