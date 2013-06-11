@@ -123,4 +123,9 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
  */
 struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* alloc);
 
+/**
+ * Normalize inconsistent native sockaddr implementations
+ */
+void Sockaddr_normalizeNative(void* nativeSockaddr);
+
 #endif
