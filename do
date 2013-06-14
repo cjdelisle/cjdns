@@ -52,7 +52,7 @@ while true; do
     [ "$APP" = `which curl` ] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
 
     ${SHA256SUM} ./*.tar.gz | grep ${CMAKE_SHA256} || exit 1
-    tar -xf *.tar.gz
+    tar -xzf *.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} build \;
     ./build/configure && make || exit 1
     CMAKE=`pwd`/bin/cmake
