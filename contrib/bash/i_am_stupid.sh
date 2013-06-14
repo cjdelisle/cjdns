@@ -36,7 +36,7 @@ then
   exit 1
 fi
 
-PIDS="`pidof cjdns`"
+PIDS="`pidof cjdroute`"
 if [ "$PIDS" == "" ]
 then
   echo "no cjdns procs running. Dispair! All hope is lost. Unable to help. RIP cjdroute.conf"
