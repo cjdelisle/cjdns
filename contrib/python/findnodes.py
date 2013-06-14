@@ -13,25 +13,27 @@
 
 import sys;
 import os;
-from cjdns import cjdns_connect;
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
 import json;
 from pprint import pprint;
+from time import sleep;
 
-try:
-    adminInfo = open(os.getenv("HOME") + '/.cjdnsadmin', 'r');
-except IOError:
-    print('Please create a file named .cjdnsadmin in your home directory with');
-    print('ip, port, and password of your cjdns engine in json.');
-    print('for example:');
-    print('{');
-    print('    "addr": "127.0.0.1",');
-    print('    "port": 11234,');
-    print('    "password": "You tell me! (you\'ll find it in your cjdroute.conf)"');
-    print('}');
-    raise;
+cjdns = connectWithAdminInfo();
 
-data = json.load(adminInfo);
-adminInfo.close();
-
-cjdns = cjdns_connect(data['addr'], data['port'], data['password']);
-exec 'print(cjdns.' + sys.argv[1] + ')';
+nodes = {};
+while (1):
+    i = 0;
+    newNodes = [];
+    while True:
+        table = cjdns.NodeStore_dumpTable(i);
+        routes = table['routingTable'];
+        for entry in routes:
+            if (not entry['ip'] in nodes):
+                nodes[entry['ip']] = 1;
+                newNodes.append(entry);
+        if (not 'more' in table):
+            break;
+        i += 1;
+    for entry in newNodes:
+        print json.dumps(entry);
+    sleep(30);

@@ -1,0 +1,29 @@
+#!/usr/bin/python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+
+cjdns = connectWithAdminInfo();
+
+routes = [];
+names = {};
+i = 0;
+while True:
+    table = cjdns.NodeStore_dumpTable(i)
+    for r in table['routingTable']:
+        print(r['ip'] + ' ' + r['path'] + ' ' + str(r['link']) + ' ' + str(r['version']));
+    if not 'more' in table:
+        print("count " + str(table['count']));
+        break
+    i += 1
+

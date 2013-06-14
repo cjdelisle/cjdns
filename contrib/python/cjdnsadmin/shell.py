@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -11,19 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cjdns import cjdns_connectWithAdminInfo;
+import sys
+import os
+import cjdnsadmin
 
-cjdns = cjdns_connectWithAdminInfo();
+s = cjdnsadmin.connectWithAdminInfo()
 
-routes = [];
-names = {};
-i = 0;
-while True:
-    table = cjdns.NodeStore_dumpTable(i)
-    for r in table['routingTable']:
-        print(r['ip'] + ' ' + r['path'] + ' ' + str(r['link']) + ' ' + str(r['version']));
-    if not 'more' in table:
-        print("count " + str(table['count']));
-        break
-    i += 1
-
+print("Interactive cjdns admin shell.")
+print("Usage: `s.command()`. 's' for Session.")
+print("Try s.ping() or s.functions() to start.")
+print("Ctrl-D to exit.")
