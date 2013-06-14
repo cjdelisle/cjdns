@@ -11,8 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cjdns import cjdns_connectWithAdminInfo;
-from bencode import *
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.bencode import *
 import sys;
 import socket,re
 import select
@@ -100,7 +100,7 @@ def recieve(sock):
             doLog(output['message']);
         allData = allData[index:];
 
-cjdns = cjdns_connectWithAdminInfo();
+cjdns = connectWithAdminInfo();
 
 sub = cjdns.AdminLog_subscribe('', 'DefaultInterfaceController.c', 'DEBUG');
 if (sub['error'] == 'none'):
