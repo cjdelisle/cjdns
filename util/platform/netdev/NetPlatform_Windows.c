@@ -63,10 +63,10 @@ static NET_LUID getLuid(const char* name, struct Except* eh)
     return out;
 }
 
-static LONG flushAddresses(NET_LUID luid, PMIB_UNICASTIPADDRESS_TABLE* table)
+static LONG flushAddresses(NET_LUID luid, MIB_UNICASTIPADDRESS_TABLE* table)
 {
     LONG out = NO_ERROR;
-    for (int i = 0; i < table->NumEntries; i++) {
+    for (int i = 0; i < (int)table->NumEntries; i++) {
         if (table->Table[i].InterfaceLuid.Value == luid.Value) {
             if ((out = DeleteUnicastIpAddressEntry(&table->Table[i]))) {
                 return out;
@@ -79,17 +79,21 @@ static LONG flushAddresses(NET_LUID luid, PMIB_UNICASTIPADDRESS_TABLE* table)
 void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh)
 {
     NET_LUID luid = getLuid(deviceName, eh);
-    PMIB_UNICASTIPADDRESS_TABLE* table;
+    MIB_UNICASTIPADDRESS_TABLE* table;
 
-    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET, fourTable));
+    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET, &table));
     LONG ret = flushAddresses(luid, table);
     FreeMibTable(table);
-    WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+    if (ret) {
+        WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+    }
 
-    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET6, table);
+    WinFail_check(eh, GetUnicastIpAddressTable(AF_INET6, &table));
     ret = flushAddresses(luid, table);
     FreeMibTable(table);
-    WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+    if (ret) {
+        WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
+    }
 }
 
 void NetPlatform_addAddress(const char* name,

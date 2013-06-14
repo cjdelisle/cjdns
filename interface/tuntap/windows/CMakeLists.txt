@@ -13,6 +13,7 @@
 add_library(cjdns-interface-tuntap-win32
     TAPDevice.c
     TAPInterface.c
+    NDPServer.c
 #    TUNInterface_WIN32.c
 )
 target_link_libraries(cjdns-interface-tuntap-win32

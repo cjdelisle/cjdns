@@ -21,6 +21,7 @@
 #include "interface/FramingInterface.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
+#include "util/platform/netdev/NetDev.h"
 
 /*
  * Portions of this code are copied from QEMU project which is licensed
@@ -170,7 +171,7 @@ struct Interface* TAPInterface_new(const char* preferredName,
     struct TAPDevice* dev = TAPDevice_find(preferredName, eh, alloc);
     *assignedName = dev->name;
 
-    flushAddresses(dev->name, eh);
+    NetDev_flushAddresses(dev->name, eh);
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
 

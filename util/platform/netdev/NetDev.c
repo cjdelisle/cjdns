@@ -60,3 +60,10 @@ void NetDev_setMTU(const char* interfaceName,
 {
      NetPlatform_setMTU(interfaceName, mtu, logger, eh);
 }
+
+void NetDev_flushAddresses(const char* deviceName, struct Except* eh)
+{
+    #ifdef Windows
+        NetPlatform_flushAddresses(deviceName, eh);
+    #endif
+}

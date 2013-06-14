@@ -12,23 +12,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Ethernet_H
-#define Ethernet_H
+#ifndef NDPHeader_H
+#define NDPHeader_H
 
+#include "util/Assert.h"
 #include "util/Endian.h"
 
-struct Ethernet
-{
-    uint16_t pad;
-    uint8_t destAddr[6];
-    uint8_t srcAddr[6];
-    uint16_t ethertype;
-};
-#define Ethernet_SIZE 16
-Assert_compileTime(sizeof(struct Ethernet) == Ethernet_SIZE);
+#include <stdint.h>
 
-#define Ethernet_TYPE_IP4   Endian_hostToBigEndian16( 0x0800 )
-#define Ethernet_TYPE_IP6   Endian_hostToBigEndian16( 0x86DD )
-#define Ethernet_TYPE_CJDNS Endian_hostToBigEndian16( 0xFC00 )
+struct NDPHeader_NeighborAdvert {
+    uint8_t oneThirtyFive;
+    uint8_t zero;
+    uint16_t checksum;
+    uint8_t bits;
+    uint8_t reserved[3];
+    uint8_t targetAddr[16];
+};
+
+#define NDPHeader_NeighborAdvert_bits_ROUTER    (1<<7)
+#define NDPHeader_NeighborAdvert_bits_SOLICITED (1<<6)
+#define NDPHeader_NeighborAdvert_bits_OVERRIDE  (1<<5)
+
+struct NDPHeader_NeighborAdvert_MacOpt {
+    uint8_t two; // type
+    uint8_t one; // length in 8 byte increments
+    uint8_t mac[6];
+};
 
 #endif

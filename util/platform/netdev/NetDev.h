@@ -15,6 +15,8 @@
 #ifndef NetDev_H
 #define NetDev_H
 
+#include "util/platform/Sockaddr.h"
+
 /**
  * Set an address on an interface, if the interface is down (linux) bring it up,
  * and if the interface requires an explicit route (Illumos), configure it.
@@ -43,5 +45,7 @@ void NetDev_setMTU(const char* interfaceName,
                    uint32_t mtu,
                    struct Log* logger,
                    struct Except* eh);
+
+void NetDev_flushAddresses(const char* deviceName, struct Except* eh);
 
 #endif
