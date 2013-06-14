@@ -31,10 +31,9 @@
 #  ./cjdns.sh restart
 ##
 
-if test -x /etc/default/cjdns ; then
+if [ -f /etc/default/cjdns ]; then
   . /etc/default/cjdns
 fi
-
 
 # path of cjdns
 if [ -z "$CJDPATH" ]; then CJDPATH="`dirname $0`/"; fi
@@ -58,9 +57,14 @@ stop()
 
 start()
 {
-    $CJDROUTE < $CONF &>> $LOGTO
-    if [ $? -gt 0 ]; then
-        echo "Failed to start. (CJDNS already running?)"
+    if [ -z "$PID" ]; then
+        $CJDROUTE < $CONF &>> $LOGTO
+        if [ $? -gt 0 ]; then
+            echo "Failed to start"
+            return 1
+        fi
+    else
+        echo "CJDNS is already running"
         return 1
     fi
 }
@@ -79,12 +83,17 @@ status()
 
 update()
 {
-cd $CJDPATH/cjdns
-git pull
-./do || echo "Failed to update!" && exit 1
-echo "* Update complete, restarting cjdns"
-stop
-start
+    if [ -d $CJDPATH/cjdns/.git ]; then
+        cd $CJDPATH/cjdns
+        git pull
+        ./do || echo "Failed to update!" && exit 1
+        echo "* Update complete, restarting cjdns"
+        stop
+        start
+    else
+        echo "The cjdns source directory does not exist"
+        return 1
+    fi
 }
 
 case "$1" in
