@@ -30,7 +30,7 @@ if (NOT LIBUV_FOUND)
                 ${CMAKE_THREAD_LIBS_INIT}
                 ${CORE_SERVICES_LIB}
             )
-        elseif (FREEBSD)
+        elseif (FREEBSD OR OPENBSD)
             set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
                 ${SOCKET_LIBRARIES}
                 ${CLOCK_GETTIME_LIBRARIES}
