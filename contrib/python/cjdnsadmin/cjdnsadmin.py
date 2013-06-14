@@ -38,7 +38,7 @@ class Session():
         self.socket.close()
 
     def getMessage(self, txid):
-        print self, txid
+        # print self, txid
         return _getMessage(self, txid)
 
     def functions(self):
