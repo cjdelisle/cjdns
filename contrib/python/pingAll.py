@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -11,13 +12,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys;
-from cjdns import cjdns_connect;
+from cjdnsadmin.cjdnsadmin import connect;
 
 if (len(sys.argv) < 4):
     print("Usage " + sys.argv[0] + " <ip addr> <port> <password>");
     exit(0);
 
-cjdns = cjdns_connect(sys.argv[1], int(sys.argv[2]), sys.argv[3]);
+cjdns = connect(sys.argv[1], int(sys.argv[2]), sys.argv[3]);
 addresses = {};
 allRoutes = [];
 
