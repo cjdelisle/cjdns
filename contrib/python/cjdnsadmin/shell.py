@@ -11,29 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys;
-import os;
-from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
-import json;
-from pprint import pprint;
-from time import sleep;
+import sys
+import os
+import cjdnsadmin
 
-cjdns = connectWithAdminInfo();
+s = cjdnsadmin.connectWithAdminInfo()
 
-nodes = {};
-while (1):
-    i = 0;
-    newNodes = [];
-    while True:
-        table = cjdns.NodeStore_dumpTable(i);
-        routes = table['routingTable'];
-        for entry in routes:
-            if (not entry['ip'] in nodes):
-                nodes[entry['ip']] = 1;
-                newNodes.append(entry);
-        if (not 'more' in table):
-            break;
-        i += 1;
-    for entry in newNodes:
-        print json.dumps(entry);
-    sleep(30);
+print("Interactive cjdns admin shell.")
+print("Usage: `s.command()`. 's' for Session.")
+print("Try s.ping() or s.functions() to start.")
+print("Ctrl-D to exit.")

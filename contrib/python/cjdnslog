@@ -11,8 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cjdns import cjdns_connectWithAdminInfo;
-from bencode import *;
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.bencode import *;
 import sys;
 
 def usage():
@@ -35,7 +35,7 @@ def recieve(cjdns, txid):
 
 
 
-cjdns = cjdns_connectWithAdminInfo();
+cjdns = connectWithAdminInfo();
 
 level = '';
 fileName = '';
@@ -50,6 +50,7 @@ if (args > 1): fileName = sys.argv[2];
 if (args > 2): line = int(sys.argv[3]);
 
 sub = cjdns.AdminLog_subscribe(line, fileName, level);
+
 if (sub['error'] == 'none'):
     recieve(cjdns, sub['txid']);
 else:
