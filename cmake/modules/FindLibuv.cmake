@@ -30,7 +30,7 @@ if (NOT LIBUV_FOUND)
                 ${CMAKE_THREAD_LIBS_INIT}
                 ${CORE_SERVICES_LIB}
             )
-        elseif (FREEBSD)
+        elseif (FREEBSD OR OPENBSD)
             set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
                 ${SOCKET_LIBRARIES}
                 ${CLOCK_GETTIME_LIBRARIES}
@@ -105,7 +105,7 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     elseif (WIN32)
         set(MAKE_COMMAND make -f Makefile PLATFORM=mingw PREFIX=${TOOLCHAIN_PREFIX}-)
     else ()
-        if (BSD)
+        if (FREEBSD OR OPENBSD)
             set(make gmake)
         else()
             set(make make)

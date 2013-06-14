@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -47,14 +47,14 @@ while true; do
     cd cmake-build
 
     APP=`which wget || which curl || echo 'none'`
-    [[ "$APP" == 'none' ]] && echo 'Need wget curl' && exit -1;
-    [[ "$APP" == `which wget` ]] && $APP ${CMAKE_DOWNLOAD}
-    [[ "$APP" == `which curl` ]] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
+    [ "$APP" = 'none' ] && echo 'Need wget curl' && exit 1;
+    [ "$APP" = `which wget` ] && $APP ${CMAKE_DOWNLOAD}
+    [ "$APP" = `which curl` ] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
 
-    ${SHA256SUM} ./*.tar.gz | grep ${CMAKE_SHA256} || exit -1
-    tar -xf *.tar.gz
+    ${SHA256SUM} ./*.tar.gz | grep ${CMAKE_SHA256} || exit 1
+    tar -xzf *.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} build \;
-    ./build/configure && make || exit -1
+    ./build/configure && make || exit 1
     CMAKE=`pwd`/bin/cmake
     cd ..
     break
@@ -62,7 +62,7 @@ done
 
 (
     ${CMAKE} .. && make || exit 1;
-    make test || [[ "${FORCE}" != "" ]] || exit 1;
+    make test || [ "${FORCE}" != "" ] || exit 1;
     [ -f admin/angel/cjdroute2 ] && [ -f admin/angel/cjdns ] || exit 1;
     [ ! -f ../cjdroute ] || rm ../cjdroute || exit 1;
     [ ! -f ../cjdns ] || rm ../cjdns || exit 1;
