@@ -50,7 +50,7 @@ document) and ask about this and other ways you can help. :)
 
 Unlike TOR, I2P and Freenet, cjdns was not designed to provide anonymity against
 a determined adversary, cjdns does not use sub-optimal routing to bolster
-anonymity the at cost of performance. Cjdns users do have a measure of anonymity
+anonymity at the cost of performance. Cjdns users do have a measure of anonymity
 based on the fact that information is only shared between nodes on a
 need-to-know basis and only those peers who you have manually connected to need
 to know your IPv4 address.
