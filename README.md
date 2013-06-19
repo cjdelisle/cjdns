@@ -281,9 +281,9 @@ If you want to have your logs written to a file:
 
 To stop cjdns:
 
-    sudo killall cjdns
+    sudo killall cjdroute
  
-If you are having problems use `killall cjdns` to return to sanity. Use `pgrep cjdns` or `top` to see if it running.
+If you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
 
 ## 5: Get in IRC
 
