@@ -12,13 +12,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys;
-from cjdnsadmin.cjdnsadmin import connect;
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
 
-if (len(sys.argv) < 4):
-    print("Usage " + sys.argv[0] + " <ip addr> <port> <password>");
-    exit(0);
-
-cjdns = connect(sys.argv[1], int(sys.argv[2]), sys.argv[3]);
+cjdns = connectWithAdminInfo();
 addresses = {};
 allRoutes = [];
 
