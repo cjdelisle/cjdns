@@ -1,5 +1,7 @@
 # cjdns
 
+[![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+
 Encrypted networking for regular people.
 
 Cjdns implements an encrypted IPv6 network using public key cryptography for
