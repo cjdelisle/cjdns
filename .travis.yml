@@ -1,11 +1,12 @@
 language: C
 
+# running as root enables a few extra tests
 before_script:
   - "sudo apt-get install cmake"
   - "mkdir build && cd build"
+  - "export RUN_ROOT_TESTS=1"
   - "sudo cmake .."
-  - "make"
+  - "sudo make"
 
-# running as root enables a few extra tests
 script:
   - "sudo make test"
