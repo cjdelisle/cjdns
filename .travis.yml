@@ -7,7 +7,4 @@ before_script:
   - "make"
 
 script:
-  - "[ ! -d /dev/net ] && echo 'creating /dev/net' && sudo mkdir /dev/net"
-  - "[ ! -c /dev/net/tun ] && echo 'creating /dev/net/tun' && sudo mknod /dev/net/tun c 10 200"
-  - "cat /dev/net/tun"
   - "sudo make test"
