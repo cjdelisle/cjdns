@@ -1,10 +1,13 @@
 language: C
 
 # running as root enables a few extra tests
+env: RUN_ROOT_TESTS=1
+
 before_script:
   - "sudo apt-get install cmake"
   - "mkdir build && cd build"
-  - "sudo bash -c 'RUN_ROOT_TESTS=1 cmake .. && make'"
+  - "sudo cmake .."
+  - "sudo make"
 
 script:
   - "sudo make test"
