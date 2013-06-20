@@ -1,16 +1,13 @@
 language: C
 
-# running as root enables a few extra tests
-
 before_script:
   - "sudo apt-get install cmake"
   - "mkdir build && cd build"
-  - "RUN_ROOT_TESTS=1 cmake .."
+  - "cmake .."
   - "make"
 
 script:
   - "[ ! -d /dev/net ] && echo 'creating /dev/net' && sudo mkdir /dev/net"
   - "[ ! -c /dev/net/tun ] && echo 'creating /dev/net/tun' && sudo mknod /dev/net/tun c 10 200"
-  - "sudo ./interface/test/TUNInterface_ipv6_root_test"
-  - "sudo ./interface/test/TUNInterface_ipv4_root_test"
+  - "cat /dev/net/tun"
   - "sudo make test"
