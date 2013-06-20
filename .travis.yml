@@ -11,6 +11,6 @@ before_script:
 script:
   - "[ ! -d /dev/net ] && echo 'creating /dev/net' && sudo mkdir /dev/net"
   - "[ ! -c /dev/net/tun ] && echo 'creating /dev/net/tun' && sudo mknod /dev/net/tun c 10 200"
-  - "./interface/test/TUNInterface_ipv6_root_test"
-  - "./interface/test/TUNInterface_ipv4_root_test"
+  - "sudo ./interface/test/TUNInterface_ipv6_root_test"
+  - "sudo ./interface/test/TUNInterface_ipv4_root_test"
   - "sudo make test"
