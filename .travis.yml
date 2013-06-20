@@ -1,0 +1,11 @@
+language: C
+
+before_script:
+  - "sudo apt-get install cmake"
+  - "mkdir build && cd build"
+  - "sudo cmake .."
+  - "make"
+
+# running as root enables a few extra tests
+script:
+  - "sudo make test"
