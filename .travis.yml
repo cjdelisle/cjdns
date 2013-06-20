@@ -5,8 +5,10 @@ language: C
 before_script:
   - "sudo apt-get install cmake"
   - "mkdir build && cd build"
-  - "sudo RUN_ROOT_TESTS=1 cmake .."
-  - "sudo make"
+  - "RUN_ROOT_TESTS=1 cmake .."
+  - "make"
 
 script:
+  - "./interface/test/TUNInterface_ipv6_root_test"
+  - "./interface/test/TUNInterface_ipv4_root_test"
   - "sudo make test"
