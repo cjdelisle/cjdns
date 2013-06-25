@@ -20,6 +20,7 @@
 #include "wire/Message.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
+#include "wire/NDPHeader.h"
 
 struct NDPServer_pvt
 {
@@ -28,7 +29,8 @@ struct NDPServer_pvt
     Identity
 };
 
-#define MULTICAST_ADDR "\xff\x02\0\0\0\0\0\0\0\0\0\1\xff\0\0\x08"
+#define MULTICAST_ADDR "\xff\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xff\x00\x00\x08"
+//                        ff  02  00  00  00  00  00  00  00  00  00  01  ff  00  00  02 870099
 #define UNICAST_ADDR   "\xfe\x80\0\0\0\0\0\0\0\0\0\0\0\0\0\x08"
 
 /**
@@ -36,31 +38,42 @@ struct NDPServer_pvt
  * 1 - multicast solicitation
  * 2 - unicast solicitation
  */
+#include <stdio.h>
+#include "util/Hex.h"
 static int getMessageType(struct Message* msg)
 {
-    if (msg->length < Ethernet_SIZE + Headers_IP6Header_SIZE + Headers_ICMP6Header_SIZE) {
+    if (msg->length < Ethernet_SIZE + Headers_IP6Header_SIZE + NDPHeader_NeighborAdvert_SIZE) {
         return 0;
     }
-    struct Ethernet* eth = msg->bytes;
-    struct Headers_IP6Header* ip6 = &eth[1];
-    struct Headers_ICMP6Header* icmp = &ip6[1];
+    struct Ethernet* eth = (struct Ethernet*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (&eth[1]);
+    struct NDPHeader_NeighborAdvert* adv = (struct NDPHeader_NeighborAdvert*) (&ip6[1]);
+
+    if (eth->ethertype != Ethernet_TYPE_IP6) {
+        return 0;
+    }
 
     int type;
     if (!Bits_memcmp(ip6->destinationAddr, UNICAST_ADDR, 16)) {
         type = 2;
-    } else if (!Bits_memcmp(ip6->destinationAddr, MULTICAST_ADDR, 16)) {
+    } else if (!Bits_memcmp(ip6->destinationAddr, MULTICAST_ADDR, 13)) {
         type = 1;
     } else {
         return 0;
     }
-
+printf("got multicast!\n");
     if (ip6->nextHeader != 58 /* IPPROTO_ICMPV6 */) {
+printf("wrong type\n");
         return 0;
 
-    } else if (Bits_memcmp(ip6->sourceAddr, UNICAST_ADDR, 16)) {
+    } else if (Bits_memcmp(adv->targetAddr, UNICAST_ADDR, 16)) {
+uint8_t buff[33] = "error";
+Hex_encode(buff, 33, adv->targetAddr, 16);
+printf("wrong target: [%s]\n", buff);
         return 0;
 
-    } else if (icmp->type != 135 /* ICMPV6_TYPE_NS */ || icmp->code != 0) {
+    } else if (adv->oneThirtyFive != 135 || adv->zero != 0) {
+printf("wrong type/code\n");
         return 0;
     }
     return type;
@@ -75,15 +88,18 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return Interface_receiveMessage(&ns->pub, msg);
     }
 
-    // store the eth header so it doesn't get clobbered
+    // store the eth and ip6 headers so they don't get clobbered
     struct Ethernet eth;
     Message_pop(msg, &eth, sizeof(eth));
+
+    struct Headers_IP6Header storedIp6;
+    Message_pop(msg, &storedIp6, sizeof(storedIp6));
 
     Message_shift(msg, -msg->length);
 
     // NDP mac address option
     struct NDPHeader_NeighborAdvert_MacOpt macOpt = { .two = 2, .one = 1 };
-    Bits_memcpyConst(&macOpt, eth->destAddr, 6);
+    Bits_memcpyConst(&macOpt, eth.destAddr, 6);
     Message_push(msg, &macOpt, sizeof(macOpt));
 
     // NDP message
@@ -91,26 +107,26 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         .oneThirtyFive = 135,
         .bits = NDPHeader_NeighborAdvert_bits_SOLICITED | NDPHeader_NeighborAdvert_bits_OVERRIDE
     };
-    Bits_memcpyConst(adv->targetAddr, UNICAST_ADDR, 16); // TODO: Why does this work?
+    Bits_memcpyConst(adv.targetAddr, storedIp6.destinationAddr, 16);
     Message_push(msg, &adv, sizeof(adv));
 
     // IPv6
-    struct Headers_IP6Header* ip6 = {
-        .payloadLength_be = Endian_hostToBigEndian16(contentLen),
+    struct Headers_IP6Header ip6 = {
+        .payloadLength_be = Endian_hostToBigEndian16(msg->length),
         .nextHeader = 58, /* IPPROTO_ICMPV6 */
         .hopLimit = 255
     };
-    Headers_setIpVersion(ip6);
-    Bits_memcpyConst(ip6->sourceAddr, UNICAST_ADDR, 16);
-    Bits_memcpyConst(ip6->destinationAddr, ((msgType == 2) ? MULTICAST_ADDR : UNICAST_ADDR), 16);
+    Headers_setIpVersion(&ip6);
+    Bits_memcpyConst(ip6.sourceAddr, UNICAST_ADDR, 16);
+    Bits_memcpyConst(ip6.destinationAddr, storedIp6.sourceAddr, 16);
     Message_push(msg, &ip6, sizeof(ip6));
 
     // Eth
     Message_push(msg, &eth, sizeof(eth));
-    struct Ethernet* ethP = (struct Ethernet*) message->bytes;
+    struct Ethernet* ethP = (struct Ethernet*) msg->bytes;
     Bits_memcpy(ethP->destAddr, eth.srcAddr, 6);
     Bits_memcpy(ethP->srcAddr, eth.destAddr, 6);
-
+printf("responding\n");
     return Interface_receiveMessage(ns->wrapped, msg);
 }
 
@@ -122,9 +138,9 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 
 struct Interface* NDPServer_new(struct Interface* external, struct Allocator* alloc)
 {
-    struct NDPServer_pvt* out = Allocator_clone(alloc, (&(struct NDPServer_pvt*) {
-        .wrapped = wrapped
-    }));
+    struct NDPServer_pvt* out = Allocator_calloc(alloc, sizeof(struct NDPServer_pvt), 1);
+    out->wrapped = external;
     Identity_set(out);
-    return InterfaceWrapper_wrap(external, sendMessage, receiveMessage, &out->pub);
+    InterfaceWrapper_wrap(external, sendMessage, receiveMessage, &out->pub);
+    return &out->pub;
 }

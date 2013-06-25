@@ -129,13 +129,16 @@ static DWORD WINAPI piper(LPVOID param)
     union {
         struct {
             uint32_t length_be;
-            uint8_t data[2044];
+            // account for ethernet misallignment
+            uint16_t pad;
+            uint8_t data[2042];
         } components;
         uint8_t bytes[2048];
     } buff;
     for (;;) {
         DWORD bytes;
-        if (ReadFile(pipes[1], buff.components.data, 2044, &bytes, NULL)) {
+        if (ReadFile(pipes[1], buff.components.data, 2042, &bytes, NULL)) {
+            bytes += 2;
             buff.components.length_be = Endian_hostToBigEndian32(((uint32_t)bytes));
             bytes += 4;
             DWORD total = 0;

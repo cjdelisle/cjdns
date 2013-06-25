@@ -14,6 +14,7 @@
  */
 
 #include "interface/tuntap/windows/TAPInterface.h"
+#include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -29,10 +30,12 @@
 uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
-    if (msg->length < 18) {
+    if (msg->length < 20) {
         printf("runt\n");
         return 0;
     }
+    // ethernet padding.
+    Message_shift(msg, -2);
 
     uint8_t from[13];
     uint8_t to[13];
@@ -45,23 +48,41 @@ uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     Hex_encode(type, 5, msg->bytes, 2);
     Message_shift(msg, -2);
 
+    int subsubtype = -1;
     int subtype = -1;
+//    int typeCode = -1;
     if (!Bits_memcmp(type, "86dd", 4)) {
         Bits_memcpyConst(type, "ipv6", 5);
         subtype = msg->bytes[6];
+//        typeCode = 6;
+        if (subtype == 58) {
+          subsubtype = msg->bytes[40];
+        }
     } else if (!Bits_memcmp(type, "0800", 4)) {
         Bits_memcpyConst(type, "ipv4", 5);
         subtype = msg->bytes[9];
+//        typeCode = 4;
     }
+//       6000000000183aff0000000000000000000000000000000fff0200000000000000000001ff000018 870
+//6000000000201101fd000000000000000000000000000001ff020000000000000000000000010003 eee914...
+//6000000000083aff00000000000000000000000000000000ff020000000000000000000000000002 85007b
+//6000000000203aff fd000000000000000000000000000001 ff0200000000000000000001ff000002 8700.
 
-    uint8_t* buff = Allocator_malloc(alloc, msg->length * 2 + 1);
-    Hex_encode(buff, msg->length * 2 + 1, msg->bytes, msg->length);
+    int len = msg->length * 2 + 1;
+    uint8_t* buff = Allocator_malloc(alloc, len + 2);
+    Hex_encode(buff, len, msg->bytes, msg->length);
+/*    if (typeCode == 6 && len > 86) {
+        Bits_memmove(&buff[82], &buff[81], len - 81);
+        Bits_memmove(&buff[49], &buff[48], len - 48);
+        Bits_memmove(&buff[17], &buff[16], len - 16);
+        buff[80] = buff[48] = buff[16] = ' ';
+    }*/
 
     if (msg->length > 45) {
         Bits_memcpy(buff+86, "...", 4);
     }
 
-    printf("message [%s] [%s] [%s] [%d] [%s]\n", to, from, type, subtype, buff);
+    printf("[%s] [%s] [%s] [%02d] [%03d] [%s]\n", to, from, type, subtype, subsubtype, buff);
     return 0;
 }
 
@@ -81,6 +102,7 @@ printf("init test");
 
     char* ifName;
     struct Interface* iface = TAPInterface_new(NULL, &ifName, NULL, logger, base, alloc);
+    iface = NDPServer_new(iface, alloc);
     iface->receiveMessage = receiveMessage;
     iface->receiverContext = alloc;
 

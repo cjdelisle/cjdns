@@ -28,6 +28,8 @@ struct NDPHeader_NeighborAdvert {
     uint8_t reserved[3];
     uint8_t targetAddr[16];
 };
+#define NDPHeader_NeighborAdvert_SIZE 24
+Assert_compileTime(sizeof(struct NDPHeader_NeighborAdvert) == NDPHeader_NeighborAdvert_SIZE);
 
 #define NDPHeader_NeighborAdvert_bits_ROUTER    (1<<7)
 #define NDPHeader_NeighborAdvert_bits_SOLICITED (1<<6)

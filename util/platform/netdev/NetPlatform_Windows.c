@@ -95,6 +95,61 @@ void NetPlatform_flushAddresses(const char* deviceName, struct Except* eh)
         WinFail_fail(eh, "DeleteUnicastIpAddressEntry(&table->Table[i])", ret);
     }
 }
+#include "util/Hex.h"
+#include <stdio.h>
+
+static void setupRoute(const char* deviceName,
+                       const uint8_t* addrBytes,
+                       int prefixLen,
+                       int addrFam,
+                       struct Except* eh)
+{
+    void WINAPI InitializeIpForwardEntry(PMIB_IPFORWARD_ROW2 Row);
+
+    MIB_IPFORWARD_ROW2 row = {
+        .InterfaceLuid = getLuid(deviceName, eh),
+        .ValidLifetime = 0xffffffff,
+        .PreferredLifetime = 0xffffffff,
+        .Metric = 0xffffffff,
+        .Protocol = MIB_IPPROTO_NT_STATIC,
+        .SitePrefixLength = 255,
+
+        .DestinationPrefix = {
+            .PrefixLength = prefixLen,
+            .Prefix = { .si_family = addrFam }
+        },
+
+        .NextHop = { .si_family = addrFam }
+    };
+
+    if (addrFam == AF_INET6) {
+        Bits_memcpyConst(&row.DestinationPrefix.Prefix.Ipv6.sin6_addr, addrBytes, 16);
+        Bits_memcpyConst(&row.NextHop.Ipv6.sin6_addr, addrBytes, 16);
+        // set the gateway addr to the client's addr +1
+        uint64_t addr[2];
+        Bits_memcpyConst(addr, addrBytes, 16);
+        addr[1] = Endian_hostToBigEndian64(Endian_bigEndianToHost64(addr[1]) + 1);
+        if (!addr[1]) {
+            addr[0] = Endian_hostToBigEndian64(Endian_bigEndianToHost64(addr[0]) + 1);
+        }
+        Bits_memcpyConst(&row.NextHop.Ipv6.sin6_addr, addr, 16);
+    } else {
+        Bits_memcpyConst(&row.DestinationPrefix.Prefix.Ipv4.sin_addr, addrBytes, 4);
+        uint32_t addr;
+        Bits_memcpyConst(&addr, addrBytes, 4);
+        addr = Endian_hostToBigEndian32(Endian_bigEndianToHost32(addr) + 1);
+        Bits_memcpyConst(&row.NextHop.Ipv4.sin_addr, &addr, 4);
+    }
+
+    uint8_t buff[sizeof(row) * 2 + 1];
+    Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
+    printf("%s\n", buff);
+    InitializeIpForwardEntry(&row);
+    Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
+    printf("%s<\n", buff);
+
+    WinFail_check(eh, CreateIpForwardEntry2(&row));
+}
 
 void NetPlatform_addAddress(const char* name,
                             const uint8_t* addrBytes,
@@ -114,7 +169,6 @@ void NetPlatform_addAddress(const char* name,
     ipRow.InterfaceLuid = getLuid(name, eh);
 
     ipRow.Address.si_family = addrFam;
-    ipRow.Address.Ipv6.sin6_family = addrFam;
     if (addrFam == Sockaddr_AF_INET6) {
         Bits_memcpyConst(&ipRow.Address.Ipv6.sin6_addr, addrBytes, 16);
     } else if (addrFam == Sockaddr_AF_INET) {
@@ -126,6 +180,8 @@ void NetPlatform_addAddress(const char* name,
     ipRow.OnLinkPrefixLength = prefixLen;
 
     WinFail_check(eh, CreateUnicastIpAddressEntry(&ipRow));
+
+    setupRoute(name, addrBytes, prefixLen, addrFam, eh);
 }
 
 void NetPlatform_setMTU(const char* interfaceName,
