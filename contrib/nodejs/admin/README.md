@@ -3,14 +3,17 @@
 
 ### Usage
 ##### Node.js
+
 You should install [Node.js](nodejs.org) first.
 
 ##### Install dependencies
-`cd {cjdns-path}/contrib/nodejs/admin`
-`nmp install`
+
+    cd {cjdns-path}/contrib/nodejs/admin
+    nmp install
 
 ##### Start service
-`node admin.js`
+
+    node admin.js
 
 ##### Whoa!
 Open `http://localhost:8084` in your favorite browser. Hope, it's not IE < 9.
