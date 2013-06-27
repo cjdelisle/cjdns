@@ -4,7 +4,7 @@
 ### Usage
 ##### Node.js
 
-You should install [Node.js](nodejs.org) first.
+You should install [Node.js](http://nodejs.org) first.
 
 ##### Install dependencies
 
