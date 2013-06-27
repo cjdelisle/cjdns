@@ -26,5 +26,23 @@ var sys = require('util'),
 var PATH = path.dirname(process.argv[1]);
 
 app.use(express.static(PATH + '/www'));
+app.use(express.bodyParser());
+
+app.post('/api', function (req, res, next) {
+    //Kinda handshake
+    if (req.body.lorem === 'ipsum') {
+        res.send({hello: 'world!'});
+    } else {
+        next();
+    }
+});
+
+app.get('*', function (req, res) {
+    res.send(404, 'Not found!');
+});
+
+app.post('*', function (req, res) {
+    res.send(404, {error: 'Not found!'});
+});
 
 app.listen(8084);
