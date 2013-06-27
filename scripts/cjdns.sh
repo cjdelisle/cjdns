@@ -117,5 +117,5 @@ case "$1" in
         update
         ;;
     *)
-        echo "usage: /etc/rc.d/cjdns {start|stop|restart|check|update}"
+        echo "usage: $0 {start|stop|restart|check|update}"
 esac
