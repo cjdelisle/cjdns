@@ -1,5 +1,6 @@
 (function (window, $) {
-    var output;
+    var output,
+        gLogs = [];
 
     function init () {
         var $command = $('#command'),
@@ -52,7 +53,7 @@
     }
 
     function updateOutput (msg) {
-        var time = new Date(),
+        var time = msg && msg.time ? new Date(msg.time * 1000) : new Date(),
             text = [];
 
         function fillZero (num) {
@@ -99,25 +100,67 @@
                     return txt;
                 });
 
-                map.html('<table>' + nodes.join('') + '</table>');
+                map.html(nodes.join(''));
             }
         });
     }
 
     function connectToLogs () {
         var $logs = $('#logs'),
-            ts = (new Date()).getTime() - 3600000;
+            logTabs = {
+                'ALL': $('#all'),
+                'KEYS': $('#keys'),
+                'DEBUG': $('#debug'),
+                'INFO': $('#info'),
+                'WARN': $('#warn'),
+                'ERROR': $('#error'),
+                'CRITICAL': $('#critical')
+            },
+            pause = $('#pause'),
+            ts = (new Date()).getTime() - 60000;
+
+        function makeHtml (msg) {
+            var time = msg && msg.time ? new Date(msg.time * 1000) : new Date(),
+            text = [];
+
+            function fillZero (num) {
+                if (num < 10) {
+                    return '0' + num;
+                }
+
+                return num;
+            }
+
+            text.push(fillZero(time.getHours()));
+            text.push(fillZero(time.getMinutes()));
+            text.push(fillZero(time.getSeconds()));
+
+            text = '<strong>[' + text.join(':') + ']</strong> ';
+            text += msg.level;
+            text += ' <i>' + msg.file + (msg.line ? ':' + msg.line : '') + '</i> ';
+            text += msg.message;
+
+            return '<div class="new-message">' + text + '</div>';
+        }
 
         function getNewLogs() {
+            if (pause.is('.active')) {
+                window.setTimeout(getNewLogs, 1000);
+                return;
+            }
+
             send('/logs', {ts:ts}, function (resp) {
                 var logs;
 
                 if (resp.logs && resp.logs.length > 0) {
-                    logs = resp.logs.map(function (log) {
-                        return updateOutput(log, true);
-                    });
+                    gLogs = gLogs.concat(resp.logs);
 
-                    $logs.append(logs.join(''));
+                    resp.logs.forEach(function (log) {
+                        var logHtml = makeHtml(log);
+
+                        logTabs[log.level].prepend(logHtml);
+                        logTabs.ALL.prepend(logHtml);
+                    });
                 }
 
                 if (resp.ts) {
