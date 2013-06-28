@@ -1,0 +1,39 @@
+body {
+	padding-top: 60px;
+}
+
+.hero-unit {
+	padding: 30px;
+	padding-bottom: 10px;
+}
+
+.output-pane {}
+
+	.new-message {
+		background: #efefef;
+	}
+
+	@keyframes fadeIn {
+		0% {opacity: 0;}
+		100% {opacity: 1;}
+	}
+
+	@-webkit-keyframes fadeIn {
+		0% {opacity: 0;}
+		100% {opacity: 1;}
+	}
+
+	.new-message {
+		animation: fadeIn 1s;
+		-webkit-animation: fadeIn 1s;
+	}
+
+.float-left {
+	float: left;
+
+	margin-right: 10px;
+}
+
+.nav-tabs a:focus {
+	outline: none !important;
+}
