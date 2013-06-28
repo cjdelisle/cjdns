@@ -29,7 +29,7 @@
                 }
             }
 
-            send(data, function (res) {
+            send('/cjdns', data, function (res) {
                 //$command.val('');
                 //$param.val('');
             });
@@ -41,6 +41,10 @@
                 alert('Check your node.js backend!');
             }
         });
+
+        if (window.isMap) {
+            createMap();
+        }
     }
 
     function updateOutput (msg) {
@@ -65,9 +69,39 @@
         output.prepend('<div class="new-message">' + text + '</div>');
     }
 
-    function send (msg, callback) {
+    function createMap () {
+        var map = $('#map');
+
+        send('/map', {}, function (resp) {
+            var nodes = resp.nodes;
+
+            if (nodes) {
+                nodes = nodes.map(function (node) {
+                    var txt = '<tr>';
+
+                    txt += '<td>' + node.ip + '</td>';
+                    txt += '<td>' + node.link + '</td>';
+                    txt += '<td>' + node.path + '</td>';
+                    txt += '<td>' + node.version + '</td>';
+                    txt += '</tr>';
+
+                    return txt;
+                });
+
+                map.html('<table>' + nodes.join('') + '</table>');
+            }
+        });
+    }
+
+    function send (url, msg, callback) {
+        if (typeof(url) === 'object') {
+            callback = msg;
+            msg = url;
+            url = '';
+        }
+
         $.ajax({
-            url: '/api',
+            url: '/api' + url,
             type: 'POST',
             contentType: 'application/json',
             dataType: 'json',

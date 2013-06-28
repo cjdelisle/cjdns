@@ -36,11 +36,55 @@ app.post('/api', function (req, res, next) {
     if (req.body.lorem === 'ipsum') {
         //Kinda handshake
         res.send({hello: 'world!'});
-    } else if (req.body.q) {
+    } else {
+        next();
+    }
+});
+
+app.post('/api/map', function (req, res, next) {
+    var nodes = [];
+
+    function getNodes (page) {
+        cjdns.sendAuth({
+            q: 'NodeStore_dumpTable',
+            args: {
+                page: page
+            }
+        }, function (err, data) {
+            if (err) {
+                res.send('502', 'Something happened!');
+                return;
+            }
+
+            if (data.routingTable) {
+                nodes = nodes.concat(data.routingTable);
+            }
+
+            if (data.more) {
+                getNodes(page + 1);
+            } else {
+                checkNodes();
+            }
+        });
+    }
+
+    function checkNodes () {
+        res.send({
+            nodes: nodes,
+            count: nodes.length
+        });
+    }
+
+    getNodes(0);
+});
+
+app.post('/api/cjdns', function (req, res, next) {
+    if (req.body.q) {
         sys.log('Sending ' + sys.inspect(req.body));
         cjdns.sendAuth(req.body, function (err, msg) {
             if (err) {
                 res.send('502', 'Something happened!');
+                return;
             }
 
             res.send(msg);
@@ -52,6 +96,10 @@ app.post('/api', function (req, res, next) {
 
 app.get('/map', function (req, res) {
     res.redirect('/map.html');
+});
+
+app.get('/logs', function (req, res) {
+    res.redirect('/logs.html');
 });
 
 app.get('*', function (req, res) {
