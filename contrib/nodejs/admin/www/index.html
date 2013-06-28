@@ -25,15 +25,18 @@
         </div>
     </div>
     <div class="container">
-        <div class="hero-unit">
-            <div id="output" class="output-pane"></div>
+        <div class="hero-unit form-block">
+            <form id="sendForm" class="form-inline">
+                <div class="control-group">
+                    <input id="command" type="text" class="input-large" placeholder="command" />
+                    <input id="param" type="text" class="input-medium" placeholder="page=1" />
+                </div>
+
+                <button id="send" type="submit" class="btn">Send</button>
+            </form>
         </div>
 
-        <form id="sendForm" class="form-inline">
-            <input id="command" type="text" class="input-small" placeholder="commandName" />
-            <input id="param" type="text" class="input-small" placeholder="param" />
-            <button id="send" type="submit" class="btn">Send</button>
-        </form>
+        <div id="output" class="output-pane"></div>
     </div>
 </body>
 </html>

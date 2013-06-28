@@ -26,8 +26,8 @@
             }
 
             send(data, function (res) {
-                $command.val('');
-                $param.val('');
+                //$command.val('');
+                //$param.val('');
             });
         });
 
@@ -49,7 +49,8 @@
 
         text = '<strong>[' + text.join(':') + ']</strong> ';
         text += JSON.stringify(msg);
-        output.append('<div>' + text + '</div>');
+        output.find('.new-message').removeClass('new-message');
+        output.prepend('<div class="new-message">' + text + '</div>');
     }
 
     function send (msg, callback) {

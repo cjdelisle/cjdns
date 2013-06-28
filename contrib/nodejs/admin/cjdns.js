@@ -1,6 +1,7 @@
 var dgram = require('dgram'),
     bencode = require('bencode'),
-    sys = require('util');
+    sys = require('util'),
+    crypto = require('crypto');
 
 var CJDNS = function (port, host, password) {
     this.port = port;
@@ -31,6 +32,48 @@ CJDNS.prototype.send = function(data, callback) {
         if (err) {
             callback(err);
         }
+    });
+};
+
+CJDNS.prototype.sendAuth = function(data, callback) {
+    var cjdns = this,
+        request = {
+            q: 'auth',
+            aq: data.q
+        };
+
+    if (data.args) {
+        request.args = data.args;
+    }
+
+    function makeHash (password, cookie, request) {
+        var hash = password + '' + cookie,
+            sha256 = crypto.createHash('sha256');
+
+        sha256.update(hash);
+        hash = sha256.digest('hex');
+
+        request.hash = hash;
+
+        hash = bencode.encode(request);
+        sha256 = crypto.createHash('sha256');
+        sha256.update(hash);
+
+        hash = sha256.digest('hex');
+
+        return hash;
+    }
+
+    this.send({q:'cookie'}, function (err, data) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        request.cookie = data.cookie;
+        request.hash = makeHash(cjdns.password, request.cookie, request);
+
+        cjdns.send(request, callback);
     });
 };
 

@@ -2,8 +2,14 @@ body {
 	padding-top: 60px;
 }
 
-.output-pane {
-	height: 300px;
-
-	overflow-y: scroll;
+.hero-unit {
+	padding: 30px;
+	padding-bottom: 10px;
 }
+
+.output-pane {
+}
+
+	.new-message {
+		background: #efefef;
+	}

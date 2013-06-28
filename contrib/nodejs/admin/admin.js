@@ -38,7 +38,7 @@ app.post('/api', function (req, res, next) {
         res.send({hello: 'world!'});
     } else if (req.body.q) {
         sys.log('Sending ' + sys.inspect(req.body));
-        cjdns.send(req.body, function (err, msg) {
+        cjdns.sendAuth(req.body, function (err, msg) {
             if (err) {
                 res.send('502', 'Something happened!');
             }
