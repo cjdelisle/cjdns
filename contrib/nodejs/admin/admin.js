@@ -19,19 +19,32 @@
 
 var sys = require('util'),
     http = require('http'),
+    fs = require('fs'),
     express = require('express'),
     path = require('path'),
-    app = express();
+    app = express(),
+    CJDNS = require('./cjdns.js');
 
-var PATH = path.dirname(process.argv[1]);
+var PATH = path.dirname(process.argv[1]),
+    config = JSON.parse(fs.readFileSync(process.env['HOME'] + '/.cjdnsadmin')),
+    cjdns = new CJDNS(config.port, config.addr, config.password);
 
 app.use(express.static(PATH + '/www'));
 app.use(express.bodyParser());
 
 app.post('/api', function (req, res, next) {
-    //Kinda handshake
     if (req.body.lorem === 'ipsum') {
+        //Kinda handshake
         res.send({hello: 'world!'});
+    } else if (req.body.q) {
+        sys.log('Sending ' + sys.inspect(req.body));
+        cjdns.send(req.body, function (err, msg) {
+            if (err) {
+                res.send('502', 'Something happened!');
+            }
+
+            res.send(msg);
+        });
     } else {
         next();
     }
