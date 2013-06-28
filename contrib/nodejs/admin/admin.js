@@ -27,7 +27,8 @@ var sys = require('util'),
 
 var PATH = path.dirname(process.argv[1]),
     config = JSON.parse(fs.readFileSync(process.env['HOME'] + '/.cjdnsadmin')),
-    cjdns = new CJDNS(config.port, config.addr, config.password);
+    cjdns = new CJDNS(config.port, config.addr, config.password),
+    gLogs = [];
 
 app.use(express.static(PATH + '/www'));
 app.use(express.bodyParser());
@@ -78,6 +79,30 @@ app.post('/api/map', function (req, res, next) {
     getNodes(0);
 });
 
+app.post('/api/logs', function (req, res, next) {
+    var ts = req.body.ts / 1000 || 0,
+        logs = gLogs.filter(function (log) {
+            if (log.time > ts) {
+                return log;
+            }
+        }),
+        response;
+
+    logs.sort(function (a, b) {
+        return a.time - b.time;
+    });
+
+    response = {
+        logs: logs
+    };
+
+    if (logs.length > 0) {
+        response.ts = logs[logs.length - 1].time * 1000;
+    }
+
+    res.send(response);
+});
+
 app.post('/api/cjdns', function (req, res, next) {
     if (req.body.q) {
         sys.log('Sending ' + sys.inspect(req.body));
@@ -108,6 +133,12 @@ app.get('*', function (req, res) {
 
 app.post('*', function (req, res) {
     res.send(404, {error: 'Not found!'});
+});
+
+cjdns.subscribe(function (err, resp) {
+    if (resp.message) {
+        gLogs.push(resp);
+    }
 });
 
 app.listen(8084);
