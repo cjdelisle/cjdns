@@ -50,6 +50,10 @@ app.post('/api', function (req, res, next) {
     }
 });
 
+app.get('/map', function (req, res) {
+    res.redirect('/map.html');
+});
+
 app.get('*', function (req, res) {
     res.send(404, 'Not found!');
 });
