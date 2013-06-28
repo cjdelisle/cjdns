@@ -116,6 +116,15 @@
                 'ERROR': $('#error'),
                 'CRITICAL': $('#critical')
             },
+            logCount = {
+                'ALL': 0,
+                'KEYS': 0,
+                'DEBUG': 0,
+                'INFO': 0,
+                'WARN': 0,
+                'ERROR': 0,
+                'CRITICAL': 0
+            },
             pause = $('#pause'),
             ts = (new Date()).getTime() - 60000;
 
@@ -160,7 +169,18 @@
 
                         logTabs[log.level].prepend(logHtml);
                         logTabs.ALL.prepend(logHtml);
+
+                        logCount[log.level] += 1;
+                        logCount.ALL += 1;
                     });
+
+                    $('#countALL').html('(' + logCount.ALL + ')');
+                    $('#countKEYS').html('(' + logCount.KEYS + ')');
+                    $('#countDEBUG').html('(' + logCount.DEBUG + ')');
+                    $('#countINFO').html('(' + logCount.INFO + ')');
+                    $('#countWARN').html('(' + logCount.WARN + ')');
+                    $('#countERROR').html('(' + logCount.ERROR + ')');
+                    $('#countCRITICAL').html('(' + logCount.CRITICAL + ')');
                 }
 
                 if (resp.ts) {
