@@ -7,6 +7,10 @@
 
         output = $('#output');
 
+        $('#clear').click(function () {
+            output.empty();
+        });
+
         $('#sendForm').submit(function (e) {
             var data = {},
                 param = $param.val();
@@ -20,7 +24,7 @@
                 data.args = {};
                 data.args[param[0]] = parseInt(param[1], 10);
 
-                if (isNaN(data.args[param[0]])) {
+                if (isNaN(data.args[param[0]]) || data.args[param[0]] != param[1]) {
                     data.args[param[0]] = param[1];
                 }
             }
@@ -43,9 +47,17 @@
         var time = new Date(),
             text = [];
 
-        text.push(time.getHours());
-        text.push(time.getMinutes());
-        text.push(time.getSeconds());
+        function fillZero (num) {
+            if (num < 10) {
+                return '0' + num;
+            }
+
+            return num;
+        }
+
+        text.push(fillZero(time.getHours()));
+        text.push(fillZero(time.getMinutes()));
+        text.push(fillZero(time.getSeconds()));
 
         text = '<strong>[' + text.join(':') + ']</strong> ';
         text += JSON.stringify(msg);
