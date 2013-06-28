@@ -22,7 +22,7 @@
                 <div class="nav-collapse">
                     <ul class="nav">
                         <li><a href="/">Admin</a></li>
-                        <li class="active"><a>Map</a></li>
+                        <li class="active"><a>Nodes</a></li>
                         <li><a href="/logs">Logs</a></li>
                     </ul>
                 </div>
@@ -30,8 +30,20 @@
         </div>
     </div>
     <div class="container">
-        <div id="map" class="hero-unit form-block">
-
+        <div class="hero-unit form-block">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ip</th>
+                        <th>link</th>
+                        <th>path</th>
+                        <th>version</th>
+                    </tr>
+                </thead>
+                <tbody id="map">
+                    <tr><td>loading...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </body>

@@ -95,7 +95,7 @@ CJDNS.prototype.subscribe = function (callback) {
     this.sendAuth({
         q: 'AdminLog_subscribe',
         args: {
-            level: 'INFO'
+            level: 'KEYS'
         }
     }, callback, logsSocket);
 
