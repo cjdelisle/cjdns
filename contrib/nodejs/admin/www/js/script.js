@@ -45,6 +45,10 @@
         if (window.isMap) {
             createMap();
         }
+
+        if (window.isLogs) {
+            connectToLogs();
+        }
     }
 
     function updateOutput (msg) {
@@ -65,8 +69,15 @@
 
         text = '<strong>[' + text.join(':') + ']</strong> ';
         text += JSON.stringify(msg);
-        output.find('.new-message').removeClass('new-message');
-        output.prepend('<div class="new-message">' + text + '</div>');
+
+        text = '<div class="new-message">' + text + '</div>';
+
+        if (output) {
+            output.find('.new-message').removeClass('new-message');
+            output.prepend(text);
+        }
+
+        return text;
     }
 
     function createMap () {
@@ -91,6 +102,33 @@
                 map.html('<table>' + nodes.join('') + '</table>');
             }
         });
+    }
+
+    function connectToLogs () {
+        var $logs = $('#logs'),
+            ts = (new Date()).getTime() - 3600000;
+
+        function getNewLogs() {
+            send('/logs', {ts:ts}, function (resp) {
+                var logs;
+
+                if (resp.logs && resp.logs.length > 0) {
+                    logs = resp.logs.map(function (log) {
+                        return updateOutput(log, true);
+                    });
+
+                    $logs.append(logs.join(''));
+                }
+
+                if (resp.ts) {
+                    ts = resp.ts;
+                }
+
+                window.setTimeout(getNewLogs, 1000);
+            });
+        }
+
+        getNewLogs();
     }
 
     function send (url, msg, callback) {

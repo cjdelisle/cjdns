@@ -17,15 +17,17 @@ var CJDNS = function (port, host, password) {
     });
 };
 
-CJDNS.prototype.send = function(data, callback) {
+CJDNS.prototype.send = function(data, callback, otherSocket) {
     var msg = new Buffer(bencode.encode(data)),
-        socket = dgram.createSocket('udp4');
+        socket = otherSocket || dgram.createSocket('udp4');
 
     socket.on('message', function (msg) {
         var response = bencode.decode(msg, 'utf8');
         callback(null, response);
 
-        socket.close();
+        if (!otherSocket) {
+            socket.close();
+        }
     });
 
     socket.send(msg, 0, msg.length, this.port, this.host, function(err, bytes) {
@@ -35,7 +37,7 @@ CJDNS.prototype.send = function(data, callback) {
     });
 };
 
-CJDNS.prototype.sendAuth = function(data, callback) {
+CJDNS.prototype.sendAuth = function(data, callback, otherSocket) {
     var cjdns = this,
         request = {
             q: 'auth',
@@ -73,8 +75,46 @@ CJDNS.prototype.sendAuth = function(data, callback) {
         request.cookie = data.cookie;
         request.hash = makeHash(cjdns.password, request.cookie, request);
 
-        cjdns.send(request, callback);
+        cjdns.send(request, callback, otherSocket);
     });
+};
+
+CJDNS.prototype.subscribe = function (callback) {
+    var logsSocket = dgram.createSocket('udp4'),
+        cjdns = this;
+
+    if (this.logsId) {
+        this.unsubscribe();
+    }
+
+    if (this.logsPing) {
+        clearInterval(this.logsPing);
+        this.logsPing = undefined;
+    }
+
+    this.sendAuth({
+        q: 'AdminLog_subscribe',
+        args: {
+            level: 'INFO'
+        }
+    }, callback, logsSocket);
+
+    this.logsPing = setInterval(function () {
+        cjdns.sendAuth({
+            q: 'ping'
+        }, function () {}, logsSocket);
+    }, 9000);
+};
+
+CJDNS.prototype.unsubscribe = function (callback) {
+    if (this.logsId) {
+        this.sendAuth({
+            q: 'AdminLog_unsubscribe',
+            args: {
+                streamId: this.logsId
+            }
+        });
+    }
 };
 
 module.exports = CJDNS;
