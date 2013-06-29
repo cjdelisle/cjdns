@@ -1,12 +1,29 @@
 var dgram = require('dgram'),
     bencode = require('bencode'),
     sys = require('util'),
-    crypto = require('crypto');
+    crypto = require('crypto'),
+    path = require('path'),
+    fs = require('fs');
 
-var CJDNS = function (port, host, password) {
-    this.port = port;
-    this.host = host || 'localhost';
-    this.password = password;
+var CJDNS = function (config) {
+    this.port = config.port;
+    this.host = config.host || 'localhost';
+    this.password = config.password;
+
+    this.configFile = path.resolve(config.config.replace(/^~\//, process.env.HOME + '/'));
+    this.config = fs.readFileSync(this.configFile);
+
+    if (!this.config) {
+        throw 'Can\'t read config file! path: ' + this.configFile;
+    }
+
+    //save current version to yourConfDir/<confName>.timestamp.conf
+    fs.writeFile(
+        path.dirname(this.configFile) + '/' + path.basename(this.configFile) + '.' + (new Date()).getTime() + path.extname(this.configFile),
+        this.config
+    );
+
+    this.parseConfig();
 
     this.send({q: 'ping'}, function (err, msg) {
         if (msg && msg.q === 'pong') {
@@ -15,6 +32,104 @@ var CJDNS = function (port, host, password) {
             sys.log(msg);
         }
     });
+};
+
+CJDNS.prototype.parseConfig = function() {
+    function removeComments(str) {
+        /*
+        http://james.padolsey.com/javascript/removing-comments-in-javascript/
+         */
+        str = ('__' + str + '__').split('');
+        var mode = {
+            singleQuote: false,
+            doubleQuote: false,
+            regex: false,
+            blockComment: false,
+            lineComment: false,
+            condComp: false
+        };
+        for (var i = 0, l = str.length; i < l; i++) {
+
+            if (mode.regex) {
+                if (str[i] === '/' && str[i-1] !== '\\') {
+                    mode.regex = false;
+                }
+                continue;
+            }
+
+            if (mode.singleQuote) {
+                if (str[i] === "'" && str[i-1] !== '\\') {
+                    mode.singleQuote = false;
+                }
+                continue;
+            }
+
+            if (mode.doubleQuote) {
+                if (str[i] === '"' && str[i-1] !== '\\') {
+                    mode.doubleQuote = false;
+                }
+                continue;
+            }
+
+            if (mode.blockComment) {
+                if (str[i] === '*' && str[i+1] === '/') {
+                    str[i+1] = '';
+                    mode.blockComment = false;
+                }
+                str[i] = '';
+                continue;
+            }
+
+            if (mode.lineComment) {
+                if (str[i+1] === '\n' || str[i+1] === '\r') {
+                    mode.lineComment = false;
+                }
+                str[i] = '';
+                continue;
+            }
+
+            if (mode.condComp) {
+                if (str[i-2] === '@' && str[i-1] === '*' && str[i] === '/') {
+                    mode.condComp = false;
+                }
+                continue;
+            }
+
+            mode.doubleQuote = str[i] === '"';
+            mode.singleQuote = str[i] === "'";
+
+            if (str[i] === '/') {
+
+                if (str[i+1] === '*' && str[i+2] === '@') {
+                    mode.condComp = true;
+                    continue;
+                }
+                if (str[i+1] === '*') {
+                    str[i] = '';
+                    mode.blockComment = true;
+                    continue;
+                }
+                if (str[i+1] === '/') {
+                    str[i] = '';
+                    mode.lineComment = true;
+                    continue;
+                }
+                mode.regex = true;
+
+            }
+
+        }
+        return str.join('').slice(2, -2);
+    }
+
+    this.config = JSON.parse(removeComments(this.config));
+};
+
+CJDNS.prototype.saveConfig = function(callback) {
+    var conf = JSON.stringify(this.config, null, 4);
+
+    //save new config
+    fs.writeFile(this.configFile, conf, callback);
 };
 
 CJDNS.prototype.send = function(data, callback, otherSocket) {

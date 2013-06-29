@@ -21,5 +21,3 @@ You should install [Node.js](http://nodejs.org) first.
 
 ##### Whoa!
 Open `http://localhost:8084` in your favorite browser. Hope, it's not IE < 9.
-
-{"addr": "127.0.0.1","port": 11234,"password": "40q0xsq1mu0ym5ubmg9h1vknq5hnvfc"}
