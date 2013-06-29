@@ -27,7 +27,7 @@ var sys = require('util'),
 
 var PATH = path.dirname(process.argv[1]),
     config = JSON.parse(fs.readFileSync(process.env['HOME'] + '/.cjdnsadmin')),
-    cjdns = new CJDNS(config.port, config.addr, config.password),
+    cjdns = new CJDNS(config),
     gLogs = [];
 
 app.use(express.static(PATH + '/www'));
