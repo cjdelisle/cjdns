@@ -50,6 +50,11 @@
         if (window.isLogs) {
             connectToLogs();
         }
+
+        if (window.isConfig) {
+            showConfig();
+        }
+
     }
 
     function updateOutput (msg) {
@@ -192,6 +197,31 @@
         }
 
         getNewLogs();
+    }
+
+    function showConfig () {
+        function drawNode (data) {
+            return ['<div class="peerNode">',
+                        '<div><strong>' + data.host + '</strong> password = ' + (data.password || '<empty password>') + '</div>',
+                        '<div>public key = ' + data.publicKey + '</div>',
+                    '</div>'].join('');
+        }
+
+        send('/config', {}, function (config) {
+            var host,
+                peers = config.interfaces.UDPInterface[0].connectTo,
+                html = '';
+
+            for (host in peers) {
+                if (peers.hasOwnProperty(host)) {
+                    peers[host].host = host;
+
+                    html += drawNode(peers[host]);
+                }
+            }
+
+            $('#peers').html(html);
+        });
     }
 
     function send (url, msg, callback) {

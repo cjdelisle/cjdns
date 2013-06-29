@@ -119,12 +119,21 @@ app.post('/api/cjdns', function (req, res, next) {
     }
 });
 
+app.post('/api/config', function (req, res, next) {
+    sys.log(sys.inspect(req.body));
+    res.send(cjdns.config);
+});
+
 app.get('/map', function (req, res) {
     res.redirect('/map.html');
 });
 
 app.get('/logs', function (req, res) {
     res.redirect('/logs.html');
+});
+
+app.get('/config', function (req, res) {
+    res.redirect('/config.html');
 });
 
 app.get('*', function (req, res) {

@@ -37,3 +37,7 @@ body {
 .nav-tabs a:focus {
 	outline: none !important;
 }
+
+.peerNode {
+	padding: 5px 0;
+}
