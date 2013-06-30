@@ -187,6 +187,11 @@ add_definitions("-D Log_${Log_LEVEL}")
 # vrooooooom
 #add_definitions(-O2)
 
+if (NOT $ENV{GCOV} STREQUAL "")
+    add_definitions(-fprofile-arcs -ftest-coverage)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
+endif()
+
 #IF(NOT CMAKE_BUILD_TYPE)
 # default to RelWithDebInfo (-g -O2)
 #    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
