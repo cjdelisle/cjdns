@@ -79,6 +79,52 @@ app.post('/api/map', function (req, res, next) {
     getNodes(0);
 });
 
+app.post('/api/methods', function (req, res, next) {
+    var methods = [];
+
+    function getMethods (page) {
+        cjdns.sendAuth({
+            q: 'Admin_availableFunctions',
+            args: {
+                page: page
+            }
+        }, function (err, data) {
+            var name;
+
+            if (err) {
+                res.send('502', 'Something happened!');
+                return;
+            }
+
+            if (data.availableFunctions) {
+                for (name in data.availableFunctions) {
+                    if (data.availableFunctions.hasOwnProperty(name)) {
+                        methods.push({
+                            name: name,
+                            params: data.availableFunctions[name]
+                        });
+                    }
+                }
+            }
+
+            if (data.more) {
+                getMethods(page + 1);
+            } else {
+                checkMethods();
+            }
+        });
+    }
+
+    function checkMethods () {
+        res.send({
+            methods: methods,
+            count: methods.length
+        });
+    }
+
+    getMethods(0);
+});
+
 app.post('/api/logs', function (req, res, next) {
     var ts = req.body.ts / 1000 || 0,
         logs = gLogs.filter(function (log) {

@@ -10,6 +10,9 @@
 
     <link rel="stylesheet" href="/css/styles.css" />
     <script src="/js/script.js"></script>
+    <script type="text/javascript">
+        var isIndex = true;
+    </script>
 </head>
 <body>
     <div class="navbar navbar-fixed-top">
@@ -28,6 +31,18 @@
         </div>
     </div>
     <div class="container">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>method</th>
+                    <th>params</th>
+                </tr>
+            </thead>
+            <tbody id="methods">
+                <tr><td>loading...</td></tr>
+            </tbody>
+        </table>
+        <a name="fillForm"></a>
         <div class="hero-unit form-block">
             <form id="sendForm" class="form-inline">
                 <div class="control-group">
