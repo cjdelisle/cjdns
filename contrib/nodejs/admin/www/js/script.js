@@ -1,10 +1,12 @@
 (function (window, $) {
     var output,
-        gLogs = [];
+        gLogs = [],
+        $command,
+        $param;
 
     function init () {
-        var $command = $('#command'),
-            $param = $('#param');
+        $command = $('#command');
+        $param = $('#param');
 
         output = $('#output');
 
@@ -43,6 +45,10 @@
             }
         });
 
+        if (window.isIndex) {
+            getMethods();
+        }
+
         if (window.isMap) {
             createMap();
         }
@@ -54,7 +60,6 @@
         if (window.isConfig) {
             showConfig();
         }
-
     }
 
     function updateOutput (msg) {
@@ -86,10 +91,45 @@
         return text;
     }
 
+    function getMethods () {
+        var $methods = $('#methods');
+
+        send('/methods', function (resp) {
+            var methods = resp.methods;
+
+            if (methods) {
+                methods = methods.map(function (method) {
+                    var txt = '<tr>',
+                        param,
+                        params = [];
+
+                    txt += '<td><a href="#fillForm" data-method="' + method.name + '" class="method">' + method.name + '</a></td>';
+
+                    for (param in method.params) {
+                        if (method.params.hasOwnProperty(param)) {
+                            params.push('<em>' + method.params[param].type + '</em> ' + param + (method.params[param].required == 1 ? ', <strong>required</strong>' : ''));
+                        }
+                    }
+
+                    txt += '<td>' + (params.join('<br />') || '<em>none</em>') + '</td>';
+                    txt += '</tr>';
+
+                    return txt;
+                });
+
+                $methods.html(methods.join(''));
+
+                $methods.find('.method').click(function (e) {
+                    $command.val($(this).data('method'));
+                });
+            }
+        });
+    }
+
     function createMap () {
         var map = $('#map');
 
-        send('/map', {}, function (resp) {
+        send('/map', function (resp) {
             var nodes = resp.nodes;
 
             if (nodes) {
@@ -207,7 +247,7 @@
                     '</div>'].join('');
         }
 
-        send('/config', {}, function (config) {
+        send('/config', function (config) {
             var host,
                 peers = config.interfaces.UDPInterface[0].connectTo,
                 html = '';
@@ -231,12 +271,17 @@
             url = '';
         }
 
+        if (typeof(msg) === 'function') {
+            callback = msg;
+            msg = undefined;
+        }
+
         $.ajax({
             url: '/api' + url,
             type: 'POST',
             contentType: 'application/json',
             dataType: 'json',
-            data: JSON.stringify(msg),
+            data: msg ? JSON.stringify(msg) : '',
             success: function (res) {
                 updateOutput(res);
 
