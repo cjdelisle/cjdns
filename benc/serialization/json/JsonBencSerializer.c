@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -16,12 +17,13 @@
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
+#include "util/platform/libc/strlen.h"
+#include "util/Bits.h"
+#include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 
 static int32_t parseGeneric(const struct Reader* reader,
@@ -73,10 +75,10 @@ static int32_t serializeString(const struct Writer* writer,
         chr = (uint8_t) string->bytes[i] & 0xFF;
         /* Nonprinting chars, \ and " are hex'd */
         if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
-            sprintf(buffer, "%c", chr);
+            snprintf(buffer, 4, "%c", chr);
             writer->write(buffer, 1, writer);
         } else {
-            sprintf(buffer, "\\x%.2X", chr);
+            snprintf(buffer, 4, "\\x%.2X", chr);
             writer->write(buffer, 4, writer);
         }
     }
@@ -102,45 +104,60 @@ static inline int parseString(const struct Reader* reader,
                               const struct Allocator* allocator,
                               String** output)
 {
-    #define BUFF_SZ (1<<20)
+    #define BUFF_SZ (1<<8)
+    #define BUFF_MAX (1<<20)
 
-    uint8_t buffer[BUFF_SZ];
+    int curSize = BUFF_SZ;
+    struct Allocator* localAllocator = Allocator_child(allocator);
+    uint8_t* buffer = Allocator_malloc(localAllocator, curSize);
     if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
         printf("Unterminated string\n");
+        Allocator_free(localAllocator);
         return OUT_OF_CONTENT_TO_READ;
     }
-    for (int i = 0; i < BUFF_SZ; i++) {
+    for (int i = 0; i < BUFF_MAX - 1; i++) {
         if (buffer[i] == '\\') {
             // \x01 (skip the x)
             reader->skip(1, reader);
             uint8_t hex[2];
             if (reader->read((char*)hex, 2, reader)) {
                 printf("Unexpected end of input parsing escape sequence\n");
+                Allocator_free(localAllocator);
                 return OUT_OF_CONTENT_TO_READ;
             }
             int byte = Hex_decodeByte(hex[0], hex[1]);
             if (byte == -1) {
                 printf("Invalid escape \"%c%c\" after \"%.*s\"\n",hex[0],hex[1],i+1,buffer);
+                Allocator_free(localAllocator);
                 return UNPARSABLE;
             }
             buffer[i] = (uint8_t) byte;
         } else if (buffer[i] == '"') {
             *output = String_newBinary((char*)buffer, i, allocator);
+            Allocator_free(localAllocator);
             return 0;
         }
+        if (i == curSize - 1) {
+            curSize <<= 1;
+            buffer = Allocator_realloc(localAllocator, buffer, curSize);
+        }
         if (reader->read(buffer + i + 1, 1, reader)) {
-            if (i+1 <= 20)
+            if (i+1 <= 20) {
                 printf("Unterminated string \"%.*s\"\n", i+1, buffer);
-            else
+            } else {
                 printf("Unterminated string starting with \"%.*s...\"\n", 20, buffer);
+            }
+            Allocator_free(localAllocator);
             return OUT_OF_CONTENT_TO_READ;
         }
     }
 
     printf("Maximum string length of %d bytes exceeded.\n",BUFF_SZ);
+    Allocator_free(localAllocator);
     return UNPARSABLE;
 
     #undef BUFF_SZ
+    #undef BUFF_MAX
 }
 
 /** @see BencSerializer.h */
@@ -148,10 +165,9 @@ static int32_t serializeint64_t(const struct Writer* writer,
                                 int64_t integer)
 {
     char buffer[32];
-    memset(buffer, 0, 32);
+    Bits_memset(buffer, 0, 32);
 
-    /* Need to handle 32 bit or 64 bit boxen. */
-    sprintf(buffer, (sizeof(long int) == 8) ? "%ld" : "%lld", integer);
+    snprintf(buffer, 32, "%" PRId64, integer);
 
     return writer->write(buffer, strlen(buffer), writer);
 }
@@ -170,14 +186,13 @@ static int32_t parseint64_t(const struct Reader* reader,
         }
         if (buffer[i] < '0' || buffer[i] > '9' || status != 0 /* end of input */) {
             buffer[i] = '\0';
-            errno = 0;
             int64_t out = strtol((char*)buffer, NULL, 10);
             // Failed parse causes 0 to be set.
             if (out == 0 && buffer[0] != '0' && (buffer[0] != '-' || buffer[1] != '0')) {
                 printf("Failed to parse \"%s\": not a number\n",buffer);
                 return UNPARSABLE;
             }
-            if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
+            if ((out == INT64_MAX || out == INT64_MIN) && Errno_get() == Errno_ERANGE) {
                 printf("Failed to parse \"%s\": number too large/small\n",buffer);
                 return UNPARSABLE;
             }
@@ -259,9 +274,9 @@ static inline int parseComment(const struct Reader* reader)
         case '/':;
             return readUntil('\n', reader);
         default:
-            printf("Warning: expected a comment starting with \"//\" or \"/*\", instead found \"/%c\"\n",chars[1]);
+            printf("Warning: expected a comment starting with \"//\" or \"/*\", "
+                   "instead found \"/%c\"\n",chars[1]);
             return UNPARSABLE;
-            
     }
 }
 
@@ -318,11 +333,11 @@ static int32_t parseList(const struct Reader* reader,
             }
             break;
         }
-        
+
         if ((ret = parseGeneric(reader, allocator, &element)) != 0) {
             return ret;
         }
-        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
+        thisEntry = Allocator_malloc(allocator, sizeof(struct List_Item));
         thisEntry->elem = element;
         thisEntry->next = NULL;
 
@@ -349,7 +364,7 @@ static int32_t serializeDictionaryWithPadding(const struct Writer* writer,
     while (entry != NULL) {
         PAD(padSpaceCount + 2, padCounter, writer);
         serializeString(writer, entry->key);
-        writer->write(" : ", 3, writer);        
+        writer->write(" : ", 3, writer);
         serializeGenericWithPadding(writer, padSpaceCount + 2, entry->val);
         entry = entry->next;
         if (entry != NULL) {
@@ -422,7 +437,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
 
         entryPointer->next = lastEntryPointer;
         entryPointer->key = key;
@@ -464,7 +479,7 @@ static int32_t parseGeneric(const struct Reader* reader,
         break;
     }
 
-    Object* out = allocator->malloc(sizeof(Object), allocator);
+    Object* out = Allocator_malloc(allocator, sizeof(Object));
 
     switch (firstChar) {
         case '0':
@@ -479,14 +494,16 @@ static int32_t parseGeneric(const struct Reader* reader,
         case '9':;
             // int64_t. Int is special because it is not a pointer but a int64_t.
             int64_t bint;
-            ret = parseint64_t(reader, &bint);
+            if ((ret = parseint64_t(reader, &bint)) == UNPARSABLE) {
+                break;
+            }
             out->type = Object_INTEGER;
             out->as.number = bint;
             break;
 
         case '[':;
             // List.
-            List* list = allocator->calloc(sizeof(List), 1, allocator);
+            List* list = Allocator_calloc(allocator, sizeof(List), 1);
             ret = parseList(reader, allocator, list);
             out->type = Object_LIST;
             out->as.list = list;
@@ -494,7 +511,7 @@ static int32_t parseGeneric(const struct Reader* reader,
 
         case '{':;
             // Dictionary
-            Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+            Dict* dict = Allocator_calloc(allocator, sizeof(Dict), 1);
             ret = parseDictionary(reader, allocator, dict);
             out->type = Object_DICT;
             out->as.dictionary = dict;
@@ -509,7 +526,8 @@ static int32_t parseGeneric(const struct Reader* reader,
             break;
 
         default:
-            printf("While looking for something to parse: expected one of 0 1 2 3 4 5 6 7 8 9 [ { \", found '%c'\n", firstChar);
+            printf("While looking for something to parse: "
+                   "expected one of 0 1 2 3 4 5 6 7 8 9 [ { \", found '%c'\n", firstChar);
             return UNPARSABLE;
     }
 
@@ -562,7 +580,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* List_getJsonBencSerializer()
+const struct BencSerializer* JsonBencSerializer_get()
 {
     return &SERIALIZER;
 }

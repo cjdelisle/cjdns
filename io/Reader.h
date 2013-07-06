@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,11 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef READER_H
-#define READER_H
+#ifndef Reader_H
+#define Reader_H
 
 /* size_t */
 #include <stdlib.h>
+#include <stdint.h>
 
 /**
  * Reader interface which reads data from a source and fails safe rather than overreading.
@@ -50,5 +52,23 @@ struct Reader {
      */
     size_t (* const bytesRead)(const struct Reader* thisReader);
 };
+
+
+#define Reader_readGeneric(bytes) \
+    static inline uint##bytes##_t Reader_read##bytes (struct Reader* reader) \
+    {                                                                        \
+        uint##bytes##_t num;                                                 \
+        reader->read(&num, bytes/8, reader);                                 \
+        return num;                                                          \
+    }
+
+Reader_readGeneric(8)
+Reader_readGeneric(16)
+Reader_readGeneric(32)
+Reader_readGeneric(64)
+
+
+#define Reader_read(reader, readInto, bytes) \
+    reader->read(readInto, bytes, reader)
 
 #endif

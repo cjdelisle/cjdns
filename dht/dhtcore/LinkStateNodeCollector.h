@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,23 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LINK_STATE_NODE_COLLECTOR_H
-#define LINK_STATE_NODE_COLLECTOR_H
+#ifndef LinkStateNodeCollector_H
+#define LinkStateNodeCollector_H
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 
-#include <string.h>
 #include <stdbool.h>
 
 /**
  * NOTE: It's critical that LinkStateNodeCollector is ALWAYS used with allowNodesFartherThanUs true.
  * Filter a node through the collector.
- * If this node is better than all of the ones known to the collector, it will be collected.
+ * If this node is better than any one of the ones known to the collector, it will be collected.
  *
  * @param header the header of the node to add.
  * @param body the node which is used in case the prefix is an exact match and it needs to
@@ -43,9 +43,9 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && memcmp(body->address.ip6.bytes,
-                  collector->targetAddress,
-                  Address_SEARCH_TARGET_SIZE) != 0)
+        && Bits_memcmp(body->address.ip6.bytes,
+                       collector->targetAddress,
+                       Address_SEARCH_TARGET_SIZE) != 0)
     {
         Log_debug(collector->logger, "Increasing distance because addr is not exact match.\n");
         nodeDistance++;
@@ -57,9 +57,11 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
     if (nodeDistance < collector->thisNodeDistance) {
 
         uint64_t value = 0;
-        #define NodeCollector_getValue(value, header, body, nodeDistance) \
+        #define LinkStateNodeCollector_getValue(value, header, body, nodeDistance) \
             if (value == 0) {                                                                    \
-                value = header->reach * (64 - Bits_log2x64_be(body->address.networkAddress_be)); \
+                value = (header->reach != 0)                                                     \
+                    ? (64 - Bits_log2x64(body->address.path))                                    \
+                    : 0;                                                                         \
             }
 
         // 0 distance (match) always wins,
@@ -69,13 +71,15 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                NodeCollector_getValue(value, header, body, nodeDistance);
+                LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
                 if (value < nodes[i].value) {
                     break;
                 }
                 if (i > 0
                     && nodes[i].body
-                    && memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0)
+                    && Bits_memcmp(body->address.ip6.bytes,
+                                   nodes[i].body->address.ip6.bytes,
+                                   16) == 0)
                 {
                     match = i + 1;
                 }
@@ -88,16 +92,16 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
             if (match > 0) {
                 i = match;
             } else if (i > 1) {
-                memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
+                Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;
-            NodeCollector_getValue(value, header, body, nodeDistance);
+            LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
             nodes[i - 1].value = value;
             nodes[i - 1].distance = nodeDistance;
         }
 
-        #undef NodeCollector_getValue
+        #undef LinkStateNodeCollector_getValue
     }
 }
 

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -14,37 +15,53 @@
 #include "switch/LabelSplicer.h"
 #include "util/Endian.h"
 
+#include "util/Assert.h"
 #include <stdio.h>
+#include <inttypes.h>
 
-static int splice()
+static void splice()
 {
     // 000000100
     uint64_t goHere = 1<<2;
-    uint64_t goHere_be = Endian_bigEndianToHost64(goHere);
 
     // 000000100
     uint64_t viaHere = 1<<2;
-    uint64_t viaHere_be = Endian_bigEndianToHost64(viaHere);
 
     // 000010000
     uint64_t expected = 1<<4;
-    uint64_t expected_be = Endian_bigEndianToHost64(expected);
 
-    uint64_t out_be = LabelSplicer_splice(goHere_be, viaHere_be);
+    uint64_t out = LabelSplicer_splice(goHere, viaHere);
 
-    //uint64_t out = Endian_bigEndianToHost64(out_be);
-    //printf("Splicing %lu with %lu yields %lu, expecting %lu\n", goHere, viaHere, out, expected);
+    printf("Splicing %" PRIu64 " with %" PRIu64 " yields %" PRIu64 ", expecting %" PRIu64 "\n",
+           goHere, viaHere, out, expected);
 
-    return expected_be != out_be;
+    Assert_always(expected == out);
 }
 
-static int isOneHop()
+static uint64_t routeToInterface(uint32_t number)
 {
-    uint64_t label_be = Endian_bigEndianToHost64(4);
-    return LabelSplicer_isOneHop(label_be) != true;
+    uint32_t bits = NumberCompress_bitsUsedForNumber(number);
+    return (1 << bits) | NumberCompress_getCompressed(number, bits);
+}
+
+static void isOneHop()
+{
+    Assert_always(LabelSplicer_isOneHop(routeToInterface(0)));
+}
+
+static void routesThrough()
+{
+    // 0000000000000000100100000000101011101010100101011100101001010101
+    uint64_t dest = 0x0000900aea95ca55llu;
+    // 0000000000000000000000010110010100100110001110011100011001010101
+    uint64_t mid =  0x000001652639c655llu;
+    Assert_always(!LabelSplicer_routesThrough(dest, mid));
 }
 
 int main()
 {
-    return splice() | isOneHop();
+    splice();
+    isOneHop();
+    routesThrough();
+    return 0;
 }

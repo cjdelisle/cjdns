@@ -9,7 +9,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-add_library(switch SwitchCore.c LabelSplicer.c)
+add_library(switch SwitchCore.c)
 
 # Everything must be tested.
 enable_testing()

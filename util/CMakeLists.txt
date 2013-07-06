@@ -9,18 +9,50 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-project(util C)
-cmake_minimum_required(VERSION 2.4)
+add_subdirectory(log)
+add_subdirectory(version)
+add_subdirectory(events)
+add_subdirectory(platform)
 
-find_package(Libevent2 REQUIRED)
-include_directories(${LIBEVENT2_INCLUDE_DIRS})
+find_package(Socket REQUIRED)
+
+add_library(cjdns-errno Errno.c)
+
+if(WIN32)
+    set(sec Security_W32.c)
+    target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
+else()
+    set(sec Security.c)
+endif()
+
+
+add_library(cjdns-security
+    ${sec}
+)
+
+target_link_libraries(cjdns-security
+    cjdns-except
+    cjdns-errno
+)
+
+add_library(cjdns-process
+    Process_${SYSTEM}.c
+)
 
 add_library(util
     AverageRoller.c
-    Timeout.c
     Hex.c
+    Pinger.c
+    Pipe.c
+    Security_admin.c
 )
-target_link_libraries(util cjdmemory ${LIBEVENT2_LIBRARIES})
+target_link_libraries(util
+    cjdmemory
+    cjdns-security
+    cjdns-util-log-writer
+    cjdns-errno
+    cjdns-util-platform-socket
+)
 
 # Everything must be tested.
 enable_testing()

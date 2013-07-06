@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,10 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
+#include "util/platform/libc/string.h"
 
 #include "dht/CJDHTConstants.h"
-#include "dht/DHTModules.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
 #include "benc/Object.h"
 
 /**
@@ -39,13 +42,14 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  */
 void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
 {
-    DHTModules_register(allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
+    struct DHTModule* dm = Allocator_clone(allocator, (&(struct DHTModule) {
         .name = "ReplyModule",
         // We use the registry itself as the context
         .context = registry,
         .handleIncoming = handleIncoming,
         .handleOutgoing = handleOutgoing
-    }), registry);
+    }));
+    DHTModuleRegistry_register(dm, registry);
 }
 
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
@@ -56,23 +60,19 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
 
-    struct DHTMessage* reply =
-        message->allocator->clone(sizeof(struct DHTMessage), message->allocator, &(struct DHTMessage) {
-            .replyTo = message,
-            .address = message->address,
-            .allocator = message->allocator
-        });
+    struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
+        .replyTo = message,
+        .address = message->address,
+        .allocator = message->allocator
+    }));
 
-    DHTModules_handleOutgoing(reply, registry);
+    DHTModuleRegistry_handleOutgoing(reply, registry);
 
     return 0;
 }
 
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {
-    // unused
-    vcontext = vcontext;
-
     if (message->replyTo != NULL) {
         if (message->asDict == NULL) {
             message->asDict = Dict_new(message->allocator);

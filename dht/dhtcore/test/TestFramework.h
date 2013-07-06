@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef TestFramework_H
+#define TestFramework_H
+
 #include "memory/Allocator.h"
 #include "dht/DHTModules.h"
 #include "dht/CJDHTConstants.h"
@@ -25,10 +29,11 @@ __attribute__((unused));
 static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
                                                 const struct Allocator* allocator)
 {
-    struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
-        .context = registry,
-        .handleIncoming = bounceMessage
-    });
+    struct DHTModule* module =
+        Allocator_clone(allocator, (&(struct DHTModule) {
+            .context = registry,
+            .handleIncoming = bounceMessage
+        });
     DHTModules_register(module, registry);
 }
 
@@ -36,10 +41,11 @@ static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePoint
                                                 struct DHTModuleRegistry* registry,
                                                 const struct Allocator* allocator)
 {
-    struct DHTModule* module = allocator->clone(sizeof(struct DHTModule), allocator, &(struct DHTModule) {
-        .context = messagePointer,
-        .handleOutgoing = catchOutgoing
-    });
+    struct DHTModule* module =
+        Allocator_clone(allocator, (&(struct DHTModule) {
+            .context = messagePointer,
+            .handleOutgoing = catchOutgoing
+        });
     DHTModules_register(module, registry);
 }
 
@@ -48,7 +54,8 @@ static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePoint
 static int bounceMessage(struct DHTMessage* message, void* vcontext)
 {
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
-    struct DHTMessage* reply = message->allocator->malloc(sizeof(struct DHTMessage), message->allocator);
+    struct DHTMessage* reply =
+        message->allocator->malloc(sizeof(struct DHTMessage), message->allocator);
     reply->replyTo = message;
     reply->allocator = message->allocator;
     reply->asDict = Dict_new(reply->allocator);

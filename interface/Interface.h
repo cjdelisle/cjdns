@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef INTERFACE_H
-#define INTERFACE_H
+#ifndef Interface_H
+#define Interface_H
 
 #include <stdint.h>
 
@@ -74,6 +75,19 @@ struct Interface
      */
     Interface_CALLBACK(receiveMessage);
 };
+
+static inline uint8_t Interface_receiveMessage(struct Interface* iface, struct Message* msg)
+{
+    if (iface->receiveMessage) {
+        return iface->receiveMessage(msg, iface);
+    }
+    return 0;
+}
+
+static inline uint8_t Interface_sendMessage(struct Interface* iface, struct Message* msg)
+{
+    return iface->sendMessage(msg, iface);
+}
 
 
 #endif

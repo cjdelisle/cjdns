@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,39 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "exception/ExceptionHandler.h"
-#include "util/Log.h"
+#ifndef Security_H
+#define Security_H
 
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <pwd.h>
-#include <errno.h>
-#include <unistd.h>
+#include "exception/Except.h"
+#include "util/log/Log.h"
 
-static inline void Security_setUser(char* userName, struct Log* logger, struct ExceptionHandler* eh)
-{
-    errno = 0;
-    struct passwd* pw = getpwnam(userName);
-    if (!pw) {
-        eh->exception(__FILE__ " couldn't find user to set username to.", errno, eh);
-        return;
-    }
-    if (setuid(pw->pw_uid)) {
-        if (errno == EPERM) {
-            Log_warn(logger, "You do not have permission to set UID, skipping.\n");
-            return;
-        }
-        eh->exception(__FILE__ " couldn't set UID.", errno, eh);
-    }
-}
+#define Security_setUser_NO_SUCH_USER -1
+#define Security_setUser_PERMISSION -2
+#define Security_setUser_INTERNAL -3
 
-static inline void Security_noFiles(struct ExceptionHandler* eh)
-{
-    #ifdef BSD
-        #define RLIMIT_NOFILE RLIMIT_OFILE
-    #endif
-    errno = 0;
-    if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
-        eh->exception(__FILE__ " failed to set open file limit to zero.", errno, eh);
-    }
-}
+void Security_setUser(char* userName, struct Log* logger, struct Except* eh);
+
+void Security_noFiles(struct Except* eh);
+
+void Security_maxMemory(uint32_t maxMemory, struct Except* eh);
+
+#endif

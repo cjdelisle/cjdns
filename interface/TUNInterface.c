@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,146 +12,86 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
-#include <event2/event.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <errno.h>
-
 #include "interface/Interface.h"
 #include "interface/TUNInterface.h"
-#include "benc/Object.h"
+#include "util/Errno.h"
+#include "util/events/Event.h"
+#include "util/Identity.h"
+#include "util/platform/Socket.h"
+#include "util/log/Log.h"
+#include "wire/Ethernet.h"
+
+#include <unistd.h>
 
 // Defined extra large so large MTU can be taken advantage of later.
 #define MAX_PACKET_SIZE 8192
 #define PADDING_SPACE (10240 - MAX_PACKET_SIZE)
 
-struct Tunnel
+struct TUNInterface_pvt
 {
-    struct event* incomingEvent;
-    int fileDescriptor;
-    struct Interface interface;
+    struct TUNInterface pub;
+    Socket tunSocket;
+    struct Log* logger;
+    Identity
 };
 
-static int openTunnel(const char* interfaceName)
+static void handleEvent(void* vcontext)
 {
-    fprintf(stderr, "Initializing tun device: ");
-    if (interfaceName) {
-        fprintf(stderr, "%s", interfaceName);
-    }
-    fprintf(stderr, "\n");
+    struct TUNInterface_pvt* tun = Identity_cast((struct TUNInterface_pvt*) vcontext);
 
-    int tunFileDescriptor;
+    struct Message* msg;
+    Message_STACK(msg, MAX_PACKET_SIZE, PADDING_SPACE);
 
-    struct ifreq ifRequest;
-    memset(&ifRequest, 0, sizeof(struct ifreq));
-    ifRequest.ifr_flags = IFF_TUN | IFF_NO_PI;
-    if (interfaceName) {
-        strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
-    }
-    tunFileDescriptor = open("/dev/net/tun", O_RDWR);
+    ssize_t length = read(tun->tunSocket, msg->bytes, msg->length);
 
-    if (tunFileDescriptor < 0) {
-        return tunFileDescriptor;
-    }
-
-    int out = ioctl(tunFileDescriptor, TUNSETIFF, &ifRequest);
-    if (out < 0) {
-        close(tunFileDescriptor);
-        return -1;
-    }
-
-    return tunFileDescriptor;
-}
-
-static void closeInterface(void* vcontext)
-{
-    struct Tunnel* tun = (struct Tunnel*) vcontext;
-    close(tun->fileDescriptor);
-    event_del(tun->incomingEvent);
-    event_free(tun->incomingEvent);
-}
-
-static void handleEvent(evutil_socket_t socket, short eventType, void* vcontext)
-{
-    eventType = eventType;
-
-    // 292 bytes of extra padding to build headers back from for better efficiency.
-    uint8_t messageBuffer[MAX_PACKET_SIZE + PADDING_SPACE];
-
-    struct Message message = {
-        .bytes = messageBuffer + PADDING_SPACE,
-        .padding = PADDING_SPACE,
-        .length = MAX_PACKET_SIZE
-    };
-
-    ssize_t length = read(socket, messageBuffer + PADDING_SPACE, MAX_PACKET_SIZE);
-
-    if (length < 0) {
-        printf("Error reading from TUN device %d\n", (int) length);
+    if (length < 4) {
+        Log_warn(tun->logger, "Error reading from TUN device [%s]", Errno_getString());
         return;
     }
-    message.length = length;
+    msg->length = length;
 
-    struct Interface* iface = &((struct Tunnel*) vcontext)->interface;
+    struct Interface* iface = &tun->pub.iface;
     if (iface->receiveMessage) {
-        iface->receiveMessage(&message, iface);
+        iface->receiveMessage(msg, iface);
     }
 }
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
-    struct Tunnel* tun = (struct Tunnel*) iface->senderContext;
-    ssize_t ret = write(tun->fileDescriptor, message->bytes, message->length);
+    struct TUNInterface_pvt* tun = Identity_cast((struct TUNInterface_pvt*) iface);
+
+    ssize_t ret = write(tun->tunSocket, message->bytes, message->length);
     if (ret < 0) {
-        printf("Error writing to TUN device %d\n", errno);
+        Log_warn(tun->logger, "Error writing to TUN device [%s]", Errno_getString());
     }
     // TODO: report errors
     return 0;
 }
 
-struct Interface* TunInterface_new(String* interfaceName,
-                                   struct event_base* base,
-                                   struct Allocator* allocator)
+struct TUNInterface* TUNInterface_new(void* tunSocket,
+                                      struct EventBase* base,
+                                      struct Allocator* allocator,
+                                      struct Log* logger)
 {
-    errno = 0;
-    int tunFileDesc = openTunnel(interfaceName ? interfaceName->bytes : NULL);
-    if (tunFileDesc < 0) {
-        if (errno == EPERM) {
-            fprintf(stderr, "You don't have permission to open tunnel. "
-                            "This probably needs to be run as root.\n");
-        } else {
-            fprintf(stderr, "Failed to open tunnel, error: %d\n", errno);
-        }
-        return NULL;
-    }
+    Socket tunSock = (Socket) ((intptr_t) tunSocket);
 
-    evutil_make_socket_nonblocking(tunFileDesc);
+    Socket_makeNonBlocking(tunSock);
 
-    struct Tunnel* tun = allocator->malloc(sizeof(struct Tunnel), allocator);
-    tun->incomingEvent = event_new(base, tunFileDesc, EV_READ | EV_PERSIST, handleEvent, tun);
-    tun->fileDescriptor = tunFileDesc;
+    struct TUNInterface_pvt* tun = Allocator_clone(allocator, (&(struct TUNInterface_pvt) {
+        .pub = {
+            .iface = {
+                .sendMessage = sendMessage,
+                .allocator = allocator,
+                .requiredPadding = 0,
+                .maxMessageLength = MAX_PACKET_SIZE
+            }
+        },
+        .tunSocket = tunSock,
+        .logger = logger
+    }));
+    Identity_set(tun);
 
-    if (tun->incomingEvent == NULL) {
-        abort();
-    }
+    Event_socketRead(handleEvent, tun, tunSock, base, allocator, NULL);
 
-    struct Interface iface = {
-        .senderContext = tun,
-        .sendMessage = sendMessage,
-        .allocator = allocator,
-        .requiredPadding = 0,
-        .maxMessageLength = MAX_PACKET_SIZE
-    };
-
-    memcpy(&tun->interface, &iface, sizeof(struct Interface));
-
-    event_add(tun->incomingEvent, NULL);
-
-    allocator->onFree(closeInterface, tun, allocator);
-
-    return &tun->interface;
+    return &tun->pub;
 }

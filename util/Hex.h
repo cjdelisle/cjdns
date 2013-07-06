@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef HEX_H
-#define HEX_H
+#ifndef Hex_H
+#define Hex_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -23,7 +24,7 @@
 /** Returned by Hex_decode() or Hex_encode() if the output buffer is too small. */
 #define Hex_TOO_BIG -2
 
-int Hex_encode(uint8_t *output,
+int Hex_encode(uint8_t* output,
                const uint32_t outputLength,
                const uint8_t* in,
                const uint32_t inputLength);

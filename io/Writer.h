@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef WRITER_H
-#define WRITER_H
+#ifndef Writer_H
+#define Writer_H
 
 /* size_t */
 #include <stdlib.h>
@@ -41,5 +42,20 @@ struct Writer {
 
     uint64_t (* const bytesWritten)(const struct Writer* writer);
 };
+
+#define Writer_writeGeneric(bytes) \
+    static inline int Writer_write##bytes (struct Writer* writer, uint##bytes##_t number) \
+    {                                                                                     \
+        uint##bytes##_t num = number;                                                     \
+        return writer->write(&num, bytes/8, writer);                                      \
+    }
+
+Writer_writeGeneric(8)
+Writer_writeGeneric(16)
+Writer_writeGeneric(32)
+Writer_writeGeneric(64)
+
+#define Writer_write(writer, bytes, amount) \
+    writer->write(bytes, amount, writer);
 
 #endif

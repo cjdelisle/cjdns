@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,11 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARRAYREADER_H
-#define ARRAYREADER_H
+#ifndef ArrayReader_H
+#define ArrayReader_H
 
 #include "Reader.h"
-#include <memory/Allocator.h>
+#include "memory/Allocator.h"
 
 /**
  * Create a new Reader which reads a user supplied buffer.

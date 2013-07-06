@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -12,16 +13,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdio.h>
-#include <string.h>
 /* for parseint64_t */
-#include <errno.h>
 #include <limits.h>
 
+#include "util/Bits.h"
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
+#include "util/Errno.h"
+#define string_strlen
+#include "util/platform/libc/string.h"
 
 static int32_t parseGeneric(const struct Reader* reader,
                             const struct Allocator* allocator,
@@ -38,12 +41,8 @@ static int32_t serializeGeneric(const struct Writer* writer,
 static int32_t writeint64_t(const struct Writer* writer,
                             int64_t integer)
 {
-    char buffer[32];
-    memset(buffer, 0, 32);
-
-    /* Need to handle 32 bit or 64 bit boxen. */
-    sprintf(buffer, (sizeof(long int) == 8) ? "%ld" : "%lld", integer);
-
+    char buffer[32] = {0};
+    snprintf(buffer, 32, "%" PRId64, integer);
     return writer->write(buffer, strlen(buffer), writer);
 }
 
@@ -94,8 +93,8 @@ static int32_t parseString(const struct Reader* reader,
     number[i] = '\0';
     size_t length = strtoul(number, NULL, 10);
 
-    char* bytes = allocator->malloc(length + 1, allocator);
-    String* string = allocator->malloc(sizeof(String), allocator);
+    char* bytes = Allocator_malloc(allocator, length + 1);
+    String* string = Allocator_malloc(allocator, sizeof(String));
 
     /* Put a null terminator after the end so it can be treated as a normal string. */
     bytes[length] = '\0';
@@ -159,7 +158,6 @@ static int32_t parseint64_t(const struct Reader* reader,
             return UNPARSABLE;
         }
     }
-    errno = 0;
 
     /* buffer + 1, skip the 'i' */
     int64_t out = strtol(buffer + 1, NULL, 10);
@@ -168,7 +166,7 @@ static int32_t parseint64_t(const struct Reader* reader,
     if (out == 0 && buffer[1] != '0' && (buffer[1] != '-' || buffer[2] != '0')) {
         return UNPARSABLE;
     }
-    if ((out == LONG_MAX || out == LONG_MIN) && errno == ERANGE) {
+    if ((out == LONG_MAX || out == LONG_MIN) && Errno_get() == Errno_ERANGE) {
         /* errno (holds nose) */
         return UNPARSABLE;
     }
@@ -185,10 +183,12 @@ static int32_t serializeList(const struct Writer* writer,
                              const List* list)
 {
     int ret = writer->write("l", 1, writer);
-    const struct List_Item* entry = *list;
-    while (ret == 0 && entry != NULL) {
-        ret = serializeGeneric(writer, entry->elem);
-        entry = entry->next;
+    if (list) {
+        const struct List_Item* entry = *list;
+        while (ret == 0 && entry != NULL) {
+            ret = serializeGeneric(writer, entry->elem);
+            entry = entry->next;
+        }
     }
     if (ret == 0) {
         ret = writer->write("e", 1, writer);
@@ -227,7 +227,7 @@ static int32_t parseList(const struct Reader* reader,
         if (ret != 0) {
             return ret;
         }
-        thisEntry = allocator->malloc(sizeof(struct List_Item), allocator);
+        thisEntry = Allocator_malloc(allocator, sizeof(struct List_Item));
         thisEntry->elem = element;
 
         /* Read backwards so that the list reads out forward. */
@@ -311,7 +311,7 @@ static int32_t parseDictionary(const struct Reader* reader,
         }
 
         /* Allocate the entry. */
-        entryPointer = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+        entryPointer = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
 
         entryPointer->next = lastEntryPointer;
         entryPointer->key = key;
@@ -354,7 +354,7 @@ static int32_t parseGeneric(const struct Reader* reader,
         return OUT_OF_CONTENT_TO_READ;
     }
 
-    Object* out = allocator->malloc(sizeof(Object), allocator);
+    Object* out = Allocator_malloc(allocator, sizeof(Object));
 
     if (firstChar <= '9' && firstChar >= '0') {
         /* It's a string! */
@@ -366,21 +366,21 @@ static int32_t parseGeneric(const struct Reader* reader,
         switch (firstChar) {
             case 'i':;
                 /* int64_t. Int is special because it is not a pointer but a int64_t. */
-                int64_t bint;
+                int64_t bint = 0;
                 ret = parseint64_t(reader, &bint);
                 out->type = Object_INTEGER;
                 out->as.number = bint;
                 break;
             case 'l':;
                 /* List. */
-                List* list = allocator->calloc(sizeof(List), 1, allocator);
+                List* list = Allocator_calloc(allocator, sizeof(List), 1);
                 ret = parseList(reader, allocator, list);
                 out->type = Object_LIST;
                 out->as.list = list;
                 break;
             case 'd':;
                 /* Dictionary. */
-                Dict* dict = allocator->calloc(sizeof(Dict), 1, allocator);
+                Dict* dict = Allocator_calloc(allocator, sizeof(Dict), 1);
                 ret = parseDictionary(reader, allocator, dict);
                 out->type = Object_DICT;
                 out->as.dictionary = dict;
@@ -446,7 +446,7 @@ static const struct BencSerializer SERIALIZER =
     .parseDictionary = parseDictionary
 };
 
-const struct BencSerializer* List_getStandardBencSerializer()
+const struct BencSerializer* StandardBencSerializer_get()
 {
     return &SERIALIZER;
 }

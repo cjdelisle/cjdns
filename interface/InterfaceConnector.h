@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef INTERFACE_CONNECTOR_H
-#define INTERFACE_CONNECTOR_H
+#ifndef InterfaceConnector_H
+#define InterfaceConnector_H
 
 /**
  * Connect two interfaces together like a double female adapter.

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REPLAY_PROTECTOR_H
-#define REPLAY_PROTECTOR_H
+#ifndef ReplayProtector_H
+#define ReplayProtector_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -43,7 +44,7 @@ static inline bool ReplayProtector_checkNonce(const uint32_t nonce, struct Repla
 
     if (offset > 20) {
         context->baseOffset += offset - 20;
-        context->bitfield = context->bitfield >> (offset - 20) | (1 << 20);
+        context->bitfield = ((offset > 51) ? 0 : context->bitfield >> (offset - 20)) | (1 << 20);
         return true;
     }
 

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,17 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SEARCH_STORE_H
-#define SEARCH_STORE_H
+#ifndef SearchStore_H
+#define SearchStore_H
 
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
 #include "benc/Object.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "util/AverageRoller.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 /*--------------------Constants--------------------*/
 
@@ -46,52 +48,52 @@
 
 /*--------------------Structures--------------------*/
 
-/** Represents a single search */
-struct SearchStore_Search;
-
 struct SearchStore
 {
     /** The means of getting memory to store each search. */
-    struct Allocator* allocator;
+    struct Allocator* const allocator;
 
     /**
      * An array of pointers to all search slots.
-     * When a search completes, it will be freed and it's pointer will be set to NULL.
+     * When a search completes, it will be freed and its pointer will be set to NULL.
      */
     struct SearchStore_Search* searches[SearchStore_MAX_SEARCHES];
 
     /** Averager for milliseconds wait for request turnaround. */
-    struct AverageRoller* gmrtRoller;
+    struct AverageRoller* const gmrtRoller;
 
     /** Libevent event base for getting current time. */
-    struct event_base* eventBase;
+    struct EventBase* const eventBase;
 
-    struct Log* logger;
+    struct Random* const rand;
+
+    struct Log* const logger;
+};
+
+/** Represents a single search */
+struct SearchStore_Search
+{
+    struct SearchStore* const store;
+    struct Allocator* const alloc;
+    void* callbackContext;
 };
 
 struct SearchStore_Node;
 struct SearchStore_Node
 {
-    /** The index of the search which this node belongs to. */
-    uint16_t searchIndex;
+    /** Number of milliseconds since the epoch when the search request was sent to this node. */
+    uint64_t timeOfRequest;
 
-    /** This node's location in the search buffer for the search. */
-    uint16_t nodeIndex;
+    /** The txid for communicating with this node. */
+    String* txid;
 
-    struct Address* address;
+    /** The search. */
+    struct SearchStore_Search* search;
+
+    /** The address of this node. */
+    struct Address address;
 };
 
-struct SearchStore_TraceElement;
-struct SearchStore_TraceElement
-{
-    /** The number of milliseconds between the original request and the reply to it. */
-    uint32_t delayUntilReply;
-
-    /** The next TraceElement or NULL if this is the end of the trace. */
-    struct SearchStore_TraceElement* next;
-
-    struct Address* address;
-};
 
 /*--------------------Prototypes--------------------*/
 
@@ -105,7 +107,8 @@ struct SearchStore_TraceElement
  */
 struct SearchStore* SearchStore_new(struct Allocator* allocator,
                                     struct AverageRoller* gmrtRoller,
-                                    struct event_base* eventBase,
+                                    struct EventBase* eventBase,
+                                    struct Random* rand,
                                     struct Log* logger);
 
 /**
@@ -113,111 +116,38 @@ struct SearchStore* SearchStore_new(struct Allocator* allocator,
  *
  * @param searchTarget the ID of the thing which we are searching for.
  * @param store the SearchStore to allocate the search in.
+ * @param alloc the allocator to use for allocating this search.
  * @return the new search or NULL if MAX_SEARCHES are already running.
  */
-struct SearchStore_Search* SearchStore_newSearch(
-    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-    struct SearchStore* store);
-
-/**
- * Get the memory allocator for this search.
- * Allows other data to be stores with the search which will be freed when the search is freed.
- *
- * @param search the search.
- * @return the allocator for the search.
- */
-struct Allocator* SearchStore_getAllocator(const struct SearchStore_Search* search);
-
-/**
- * Set some additional data to go along with the search.
- *
- * @param vcontext the data to associate with the search.
- * @param search the search to associate the context with.
- */
-void SearchStore_setContext(void* vcontext, struct SearchStore_Search* search);
-
-/**
- * Get data which is associated with the search.
- *
- * @param search the search which has data associated with it.
- * @return the context which is associated with this search.
- */
-void* SearchStore_getContext(struct SearchStore_Search* search);
-
-/**
- * Free a search.
- *
- * @param search the search which we are done with.
- */
-void SearchStore_freeSearch(struct SearchStore_Search* search);
-
-/**
- * Get the search which a perticular node belongs to.
- *
- * @param node the search node.
- * @param store the search store where the search is being carried out.
- * @return the search.
- */
-struct SearchStore_Search* SearchStore_getSearchForNode(const struct SearchStore_Node* node,
-                                                        const struct SearchStore* store);
-
-/**
- * Get a transaction ID which will work to get the same node again later.
- *
- * @param node the search node to get a TID for.
- * @param allocator the means of getting memory to store the output.
- * @return a string representing the TID to get the same node.
- */
-String* SearchStore_tidForNode(const struct SearchStore_Node* node,
-                               const struct Allocator* allocator);
+struct SearchStore_Search* SearchStore_newSearch(uint8_t searchTarget[16],
+                                                 struct SearchStore* store,
+                                                 struct Allocator* alloc);
 
 /**
  * Get a node from the search store.
  *
- * @param tid the transaction ID which was generated by SearchStore_tidForNode().
+ * @param txid the transaction ID which was generated by SearchStore_tidForNode().
  * @param store the search store where the node is.
- * @param allocator the memory allocator to use for getting the memory for the output.
  * @return a pointer to the node.
  */
-struct SearchStore_Node* SearchStore_getNode(const String* tid,
-                                             const struct SearchStore* store,
-                                             const struct Allocator* allocator);
+struct SearchStore_Node* SearchStore_getNode(String* txid, struct SearchStore* store);
 
 /**
  * Add a node to a search.
  *
- * @param the node which told us about this node or NULL if this is the beginning of the search.
  * @param address the address of the node to add.
- * @param evictUnrepliedIfOlderThan Any node which has not responded to the request and was sent
- *                                  a request before this time (number of milliseconds) is
- *                                  can be replaced.
  * @param search the search to add the node to.
- * @return 0 if the node was added successfully or -1 if there is no more space to add a node.
+ * @return -1 if this node has already been asked as part of this search, 0 otherwise.
  */
-int32_t SearchStore_addNodeToSearch(const struct SearchStore_Node* parent,
-                                    struct Address* address,
-                                    const uint64_t evictUnrepliedIfOlderThan,
-                                    struct SearchStore_Search* search);
-
-/**
- * Log that a node has been sent a request.
- * The amount of time it takes for that node to reply will be include in the backtrace.
- *
- * @param node the node which sent the reply.
- * @param store the search store which holds the search.
- */
-void SearchStore_requestSent(const struct SearchStore_Node* node,
-                             const struct SearchStore* store);
+int SearchStore_addNodeToSearch(struct Address* addr, struct SearchStore_Search* search);
 
 /**
  * Log that a node has sent us a valid reply.
  *
  * @param node the node which sent the reply.
- * @param store the search store which holds the search.
  * @return number of milliseconds between when the request was sent and when the reply was received.
  */
-uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
-                                   const struct SearchStore* store);
+uint32_t SearchStore_replyReceived(struct SearchStore_Node* node);
 
 /**
  * Get the next node to ask in this search.
@@ -227,17 +157,6 @@ uint32_t SearchStore_replyReceived(const struct SearchStore_Node* node,
  * @param allocator the allocator to use for allocating the memory to store the output.
  * @return the node which is copied from the storage to the allocated space.
  */
-struct SearchStore_Node* SearchStore_getNextNode(const struct SearchStore_Search* search,
-                                                 const struct Allocator* allocator);
+struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* search);
 
-/**
- * Get a linked list of trace elements showing the speed of each reply.
- * This is used to tell how fast each node performed to get us the result of the search.
- *
- * @param end the node which found the result.
- * @param store the SearchStore where the search took place.
- * @return a trace back from the end node to the original node which was first requested.
- */
-struct SearchStore_TraceElement* SearchStore_backTrace(const struct SearchStore_Node* end,
-                                                       const struct SearchStore* store);
 #endif

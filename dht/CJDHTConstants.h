@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,27 +12,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CJDHT_CONSTANTS_H
-#define CJDHT_CONSTANTS_H
+#ifndef CJDHTConstants_H
+#define CJDHTConstants_H
 
 #include "benc/Object.h"
 
 // Signifying that this message is a query and defining the query type.
-String* const CJDHTConstants_QUERY;
+static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
 
 // Find nodes query. "fn"
-String* const CJDHTConstants_QUERY_FN;
+static String* const CJDHTConstants_QUERY_FN = String_CONST_SO("fn");
 
 // Ping query
-String* const CJDHTConstants_QUERY_PING;
+static String* const CJDHTConstants_QUERY_PING = String_CONST_SO("pn");
 
 // A search target (address)
-String* const CJDHTConstants_TARGET;
+static String* const CJDHTConstants_TARGET = String_CONST_SO("tar");
 
 // Response with nodes. "n"
-String* const CJDHTConstants_NODES;
+static String* const CJDHTConstants_NODES = String_CONST_SO("n");
 
 // Transaction id
-String* const CJDHTConstants_TXID;
+static String* const CJDHTConstants_TXID = String_CONST_SO("txid");
+
+// Version which is in ping responses.
+static String* const CJDHTConstants_VERSION = String_CONST_SO("v");
+
+// Node protocols, the protocol versions of the nodes in a node list.
+static String* const CJDHTConstants_NODE_PROTOCOLS = String_CONST_SO("np");
+
+// The protocol version of the sending node.
+static String* const CJDHTConstants_PROTOCOL = String_CONST_SO("p");
 
 #endif

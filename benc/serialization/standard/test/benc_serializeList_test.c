@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
-#include <stdio.h>
-
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -23,25 +22,27 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "util/Bits.h"
+
+#include <stdio.h>
 
 int parseEmptyList()
 {
     char* test = "d" "2:hi" "le" "e";
-    char buffer[512];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 512);
+    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
     struct Reader* reader = ArrayReader_new(test, strlen(test), alloc);
     Dict d;
-    int ret = List_getStandardBencSerializer()->parseDictionary(reader, alloc, &d);
+    int ret = StandardBencSerializer_get()->parseDictionary(reader, alloc, &d);
     if (ret) {
         return ret;
     }
     char out[256];
     struct Writer* w = ArrayWriter_new(out, 256, alloc);
-    ret = List_getStandardBencSerializer()->serializeDictionary(w, &d);
+    ret = StandardBencSerializer_get()->serializeDictionary(w, &d);
     if (ret) {
         return ret;
     }
-    return memcmp(test, out, strlen(test));
+    return Bits_memcmp(test, out, strlen(test));
 }
 
 int main()

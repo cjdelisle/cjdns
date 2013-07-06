@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,11 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ARRAYWRITER_H
-#define ARRAYWRITER_H
+#ifndef ArrayWriter_H
+#define ArrayWriter_H
 
 #include "Writer.h"
-#include <memory/Allocator.h>
+#include "memory/Allocator.h"
 
 /**
  * Create a new Writer which writes to a user supplied buffer.

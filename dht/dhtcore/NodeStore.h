@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,12 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_STORE_H
-#define NODE_STORE_H
+#ifndef NodeStore_H
+#define NodeStore_H
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 
 #include <stdint.h>
@@ -48,12 +49,14 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  *                  amount causes the reach to become negative or nolonger fit in a uint32
  *                  type, it will be set to 0 or UINT32_MAX, respectively.
  *                  Undefined behavior will result if this input exceeds UINT32_MAX.
+ * @param version the protocol version of the node to add.
  * @return the node in the node store which was added or NULL if the node is "us".
  *         NOTE: The reach in this node will be *wrong* because it is not synced with the header.
  */
 struct Node* NodeStore_addNode(struct NodeStore* store,
                                struct Address* addr,
-                               const int64_t reachDiff);
+                               int64_t reachDiff,
+                               uint32_t version);
 
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
@@ -71,15 +74,19 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
  * @param requestorsAddress if not NULL no responses will be returned which are
  *                          closer to this node in physical space.
  * @param count the number of nodes to return.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
- *                                this is required for searches but unallowable for answering queries.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
+ *                                then we are. this is required for searches but unallowable
+ *                                for answering queries.
+ * @param versionOfRequestingNode the version of the node who asked for the list, no nodes will
+ *                                be returned which are known to be incompatible with this version.
  * @param allocator the memory allocator to use for getting the memory to store the output.
  */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           const bool allowNodesFartherThanUs,
+                                           bool allowNodesFartherThanUs,
+                                           uint32_t versionOfRequestingNode,
                                            const struct Allocator* allocator);
 
 /**
@@ -95,11 +102,26 @@ void NodeStore_updateReach(const struct Node* const node,
 
 uint32_t NodeStore_size(const struct NodeStore* const store);
 
-struct Node* NodeStore_getNodeByNetworkAddr(uint64_t networkAddress_be, struct NodeStore* store);
-
-void NodeStore_dumpTables(struct Writer* writeTo, struct NodeStore* store);
+/**
+ * Get a node by its path.
+ *
+ * @param path the path to the node to get in host order. If zero, a random node will be returned.
+ * @param store the node store.
+ * @return NULL if the store is empty, a randomly chosen node if path is 0, otherwise a node with
+ *         that path or NULL if no such node exists.
+ */
+struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
 
 void NodeStore_remove(struct Node* node, struct NodeStore* store);
+
+/**
+ * Remove all nodes who are reachable by this path.
+ *
+ * @param path the label part in host order.
+ * @param store the node store.
+ * @return the number of nodes which were removed.
+ */
+int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
 
 /**
  * Return a node from the routing table which is likely to yield a good route but is not favored.

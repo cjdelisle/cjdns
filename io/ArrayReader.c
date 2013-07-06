@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ArrayReader.h"
-#include <string.h>
+#include "io/ArrayReader.h"
+#include "util/Bits.h"
 
 struct ArrayReader_context {
     char* pointer;
@@ -30,13 +31,9 @@ struct Reader* ArrayReader_new(const void* bufferToRead,
                                const struct Allocator* allocator)
 {
     struct Reader* reader =
-        allocator->calloc(sizeof(struct Reader), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct Reader), 1);
     struct ArrayReader_context* context =
-        allocator->calloc(sizeof(struct ArrayReader_context), 1, allocator);
-
-    if (context == NULL || reader == NULL) {
-        return NULL;
-    }
+        Allocator_calloc(allocator, sizeof(struct ArrayReader_context), 1);
 
     context->pointer = (char*) bufferToRead;
     context->endPointer = (char*) bufferToRead + length;
@@ -47,7 +44,7 @@ struct Reader* ArrayReader_new(const void* bufferToRead,
         .skip = skip,
         .bytesRead = bytesRead
     };
-    memcpy(reader, &localReader, sizeof(struct Reader));
+    Bits_memcpyConst(reader, &localReader, sizeof(struct Reader));
 
     return reader;
 }
@@ -59,7 +56,7 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
         (struct ArrayReader_context*) reader->context;
 
     /* Prove that it doesn't run off the end of the buffer or roll over. */
-    if (context->pointer + length >= context->endPointer
+    if (context->pointer + length > context->endPointer
         || context->pointer + length < context->pointer)
     {
         return -1;
@@ -71,7 +68,7 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
         return 0;
     }
 
-    memcpy(readInto, context->pointer, length);
+    Bits_memcpy(readInto, context->pointer, length);
     context->pointer += length;
     context->bytesRead += length;
 

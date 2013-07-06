@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,12 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef STRING_H
-#define STRING_H
+#ifndef String_H
+#define String_H
 
 #include "memory/Allocator.h"
+#include "util/platform/libc/strlen.h"
 
 #include <stdbool.h>
+#include <stdarg.h>
 
 typedef struct {
     size_t len;
@@ -34,6 +37,16 @@ typedef struct {
 String* String_new(const char* bytes, const struct Allocator* allocator);
 
 /**
+ * Create a new bencoded constant string on the stack.
+ */
+#define String_CONST(x) (&(String) { .bytes = x, .len = strlen(x) })
+
+/** For use outside of functions with compile time constant strings. */
+#define String_CONST_SO(x) (&(String) { .bytes = x, .len = sizeof(x) - 1 })
+
+#define String_OBJ(x) (&(Object) { .type = Object_STRING, .as.string = x })
+
+/**
  * Create a new bencoded string from a set of bytes.
  * This implementation will make a copy of the string into the memory provided by the allocator.
  *
@@ -44,6 +57,25 @@ String* String_new(const char* bytes, const struct Allocator* allocator);
  * @return a bencoded string.
  */
 String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator);
+
+#define String_clone(string, alloc) \
+    ((string) ? String_newBinary(string->bytes, string->len, alloc) : NULL)
+
+/**
+ * Create a new bencoded string from a format and arguments.
+ * EG: String_printf("this is on line number %d!", allocator, __LINE__);
+ *
+ * @param allocator a means of getting the memory to store the string object.
+ * @param format standard printf formatting.
+ * @params arguments to the printf() function.
+ * @return a bencoded string.
+ */
+String* String_printf(const struct Allocator* allocator, const char* format, ...);
+
+/**
+ * Same as String_printf() except the arguments are passed as a va_list.
+ */
+String* String_vprintf(const struct Allocator* allocator, const char* format, va_list args);
 
 /**
  * Compare 2 bencoded strings.

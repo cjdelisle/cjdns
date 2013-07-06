@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef BENC_SERIALIZER_H
-#define BENC_SERIALIZER_H
+#ifndef BencSerializer_H
+#define BencSerializer_H
 
 #include "benc/Object.h"
 #include "io/Writer.h"
@@ -116,7 +117,8 @@ struct BencSerializer
      *               dictionary and will leave the read pointer on the first character AFTER
      *               the 'e' which ends the dictionary.
      * @param allocator a Allocator which will be used to store data.
-     * @param output a dictionary pointer which will be set to the output. Dict* out = NULL; is enough.
+     * @param output a dictionary pointer which will be set to the output. Dict* out = NULL;
+                     is enough.
      * @return 0 if everything goes well -2 if -1 returned by read indicating an array underflow,
      *           -3 if content unparsable.
      */

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,29 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
-#include "dht/DHTModules.h"
 #include "dht/dhtcore/Janitor.h"
+#include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/NodeStore_struct.h"
-#include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModule_struct.h"
+#include "dht/dhtcore/NodeStore_pvt.h"
+#include "dht/dhtcore/RouterModule_pvt.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
+#include "util/Bits.h"
+#include "util/events/EventBase.h"
 #include "util/Hex.h"
-#include "util/Timeout.h"
-#include "util/Time.h"
+#include "util/events/Timeout.h"
+#include "util/events/Time.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include <event2/event.h>
 
 /**
  * The goal of this is to run searches in the local area of this node.
@@ -58,16 +58,12 @@ struct Janitor
     uint64_t timeOfNextSearchRepeat;
     uint64_t searchRepeatMilliseconds;
 
-    uint8_t recentLocalSearchTarget[Address_SEARCH_TARGET_SIZE];
-    bool hasRecentLocalSearchTarget;
-
-    struct event_base* eventBase;
+    struct EventBase* eventBase;
+    struct Random* rand;
 };
 
 static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
 {
-    callbackContext = callbackContext;
-    result = result;
     return false;
 }
 
@@ -75,23 +71,40 @@ static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
 
-    struct Address targetAddr;
+    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
 
-    if (janitor->hasRecentLocalSearchTarget) {
-        memcpy(&targetAddr.ip6.bytes, janitor->recentLocalSearchTarget, Address_SEARCH_TARGET_SIZE);
-        janitor->hasRecentLocalSearchTarget = false;
-    } else {
-        randombytes(targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
+    if (NodeStore_size(janitor->nodeStore) == 0) {
+        if (now > janitor->timeOfNextGlobalMaintainence) {
+            Log_warn(janitor->routerModule->logger,
+                     "No nodes in routing table, check network connection and configuration.");
+            janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
+        }
+        return;
     }
 
-    struct Node* n = RouterModule_getBest(targetAddr.ip6.bytes, janitor->routerModule);
+    struct Address targetAddr;
+
+    // Ping a random node.
+    struct Node* randomNode = RouterModule_getNode(0, janitor->routerModule);
+    if (randomNode) {
+        RouterModule_pingNode(randomNode, janitor->routerModule, 0, NULL);
+    }
+
+    // If the node's reach is zero, run a search for it, otherwise run a random search.
+    if (randomNode && randomNode->reach == 0) {
+        Bits_memcpyConst(&targetAddr, &randomNode->address, Address_SIZE);
+    } else {
+        Random_bytes(janitor->rand, targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
+    }
+
+    struct Node* n = RouterModule_lookup(targetAddr.ip6.bytes, janitor->routerModule);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || n->reach == 0) {
         #ifdef Log_DEBUG
             uint8_t printable[40];
             Address_printIp(printable, &targetAddr);
-            Log_debug3(janitor->routerModule->logger,
+            Log_debug(janitor->routerModule->logger,
                        "Running search for %s, node count: %u total reach: %lu\n",
                        printable,
                        (unsigned int) NodeStore_size(janitor->nodeStore),
@@ -101,37 +114,37 @@ static void maintanenceCycle(void* vcontext)
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
-                                 janitor->routerModule);
+                                 janitor->routerModule,
+                                 janitor->allocator);
         return;
     }
 
-    uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
-
     #ifdef Log_DEBUG
-        uint32_t nonZeroNodes = 0;
-        for (uint32_t i = 0; i < janitor->routerModule->nodeStore->size; i++) {
+        int nonZeroNodes = 0;
+        for (int i = 0; i < janitor->routerModule->nodeStore->size; i++) {
             nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
         }
-        Log_debug2(janitor->routerModule->logger,
-                   "Global Mean Response Time: %u non-zero nodes: %u\n",
-                   (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
-                   (unsigned int) nonZeroNodes);
+        Log_debug(janitor->routerModule->logger,
+                  "Global Mean Response Time: %u non-zero nodes: [%d] zero nodes [%d] total [%d]",
+                  (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
+                  nonZeroNodes,
+                  janitor->routerModule->nodeStore->size - nonZeroNodes,
+                  janitor->routerModule->nodeStore->size);
 
+        /* Accessible via admin interface.
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
-        Log_debug1(janitor->routerModule->logger,
+        Log_debug(janitor->routerModule->logger,
                    "Using %u bytes of memory.\n",
                    (unsigned int) bytes);
+        */
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-
-        // Ping a random node shorter half of route distance and lower half of link state.
-        RouterModule_pingGoodCandidate(janitor->routerModule);
-
         RouterModule_beginSearch(targetAddr.ip6.bytes,
                                  searchStepCallback,
                                  janitor,
-                                 janitor->routerModule);
+                                 janitor->routerModule,
+                                 janitor->allocator);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }
@@ -140,30 +153,25 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
-                            struct Allocator* allocator,
-                            struct event_base* eventBase)
+                            struct Allocator* alloc,
+                            struct EventBase* eventBase,
+                            struct Random* rand)
 {
-    struct Janitor* janitor = allocator->malloc(sizeof(struct Janitor), allocator);
-    uint64_t now = Time_currentTimeMilliseconds(eventBase);
+    struct Janitor* janitor = Allocator_clone(alloc, (&(struct Janitor) {
+        .eventBase = eventBase,
+        .routerModule = routerModule,
+        .nodeStore = nodeStore,
+        .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
+        .timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase),
+        .allocator = alloc,
+        .rand = rand
+    }));
 
-    janitor->eventBase = eventBase;
-    janitor->routerModule = routerModule;
-    janitor->nodeStore = nodeStore;
     janitor->timeout = Timeout_setInterval(maintanenceCycle,
                                            janitor,
                                            localMaintainenceMilliseconds,
                                            eventBase,
-                                           allocator);
+                                           alloc);
 
-    janitor->globalMaintainenceMilliseconds = globalMaintainenceMilliseconds;
-    janitor->timeOfNextGlobalMaintainence = now + globalMaintainenceMilliseconds;
-    janitor->allocator = allocator;
     return janitor;
-}
-
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                       struct Janitor* janitor)
-{
-    memcpy(janitor->recentLocalSearchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
-    janitor->hasRecentLocalSearchTarget = true;
 }

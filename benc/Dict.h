@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DICT_H
-#define DICT_H
+#ifndef Dict_H
+#define Dict_H
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
@@ -159,5 +160,22 @@ Object* Dict_putList(Dict* putIntoThis,
  * @param allocator the place to allocate the memory for storing the dictionary.
  */
 Dict* Dict_new(const struct Allocator* allocator);
+
+/**
+ * Create a dictionary on the stack.
+ *
+ * @param entryKey the key which must be a string.
+ * @param value the value which must be an object.
+ * @param next another Dict, can be used to chain Dict_CONST() calls.
+ * @return a Dict. NOTE: This does *NOT* return a Dict*, just a Dict.
+ */
+#define Dict_CONST(entryKey, value, nextDict) \
+    (&(struct Dict_Entry) {                   \
+        .key = entryKey,                      \
+        .val = value,                         \
+        .next = nextDict                      \
+    })
+
+#define Dict_OBJ(x) (&(Object) { .type = Object_DICT, .as.dictionary = x })
 
 #endif

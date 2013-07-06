@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -12,7 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ArrayWriter.h"
-#include <string.h>
+#include "util/Bits.h"
 
 struct ArrayWriter_context {
     char* beginPointer;
@@ -30,9 +31,9 @@ struct Writer* ArrayWriter_new(void* writeToBuffer,
                                const struct Allocator* allocator)
 {
     struct Writer* writer =
-        allocator->calloc(sizeof(struct Writer), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct Writer), 1);
     struct ArrayWriter_context* context =
-        allocator->calloc(sizeof(struct ArrayWriter_context), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct ArrayWriter_context), 1);
 
     if (context == NULL || writer == NULL) {
         return NULL;
@@ -47,7 +48,7 @@ struct Writer* ArrayWriter_new(void* writeToBuffer,
         .write = write,
         .bytesWritten = bytesWritten
     };
-    memcpy(writer, &localWriter, sizeof(struct Writer));
+    Bits_memcpyConst(writer, &localWriter, sizeof(struct Writer));
 
     return writer;
 }
@@ -64,14 +65,14 @@ static int write(const void* toWrite, size_t length, const struct Writer* writer
     }
 
     /* Prove that it doesn't run off the end of the buffer or roll over. */
-    if (context->pointer + length >= context->endPointer
+    if (context->pointer + length > context->endPointer
         || context->pointer + length < context->pointer)
     {
         context->returnCode = -1;
         return -1;
     }
 
-    memcpy(context->pointer, toWrite, length);
+    Bits_memcpy(context->pointer, toWrite, length);
     context->pointer += length;
 
     return 0;

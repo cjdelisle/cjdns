@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -37,10 +38,10 @@ static Object* lookupObject(const Dict* dictionary, const String* key)
         if (String_equals(key, curr->key)) {
             return curr->val;
         }
-        
+
         curr = curr->next;
     }
-    
+
     /* key not found */
     return NULL;
 }
@@ -88,7 +89,7 @@ List* Dict_getList(const Dict* dictionary, const String* key)
 /** @see Object.h */
 Dict* Dict_new(const struct Allocator* allocator)
 {
-    return allocator->calloc(sizeof(Dict), 1, allocator);
+    return Allocator_calloc(allocator, sizeof(Dict), 1);
 }
 
 /**
@@ -97,7 +98,8 @@ Dict* Dict_new(const struct Allocator* allocator)
  *       only add a pointer to it in the dictionary.
  * If dictionary is NULL then a new dictionary will be created and returned.
  *
- * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary is made.
+ * @param dictionary this must be a bencoded dictionary or NULL, if NULL then a new dictionary
+                     is made.
  * @param key the reference key to use for putting the entry in the dictionary.
  * @param value the value to insert with the key.
  * @param allocator the means to get memory for storing the dictionary entry wrapper.
@@ -124,7 +126,7 @@ static Object* putObject(Dict* dictionary,
         prev_p = &(current->next);
         current = current->next;
     }
-    struct Dict_Entry* entry = allocator->malloc(sizeof(struct Dict_Entry), allocator);
+    struct Dict_Entry* entry = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
     entry->key = key;
     entry->val = value;
     entry->next = current;
@@ -139,10 +141,10 @@ Object* Dict_putInt(Dict* dictionary,
                         int64_t value,
                         const struct Allocator* allocator)
 {
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_INTEGER,
         .as.number = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -155,10 +157,10 @@ Object* Dict_putString(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_STRING,
         .as.string = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -171,11 +173,11 @@ Object* Dict_putList(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_LIST,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.list = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -187,11 +189,11 @@ Object* Dict_putDict(Dict* dictionary,
     if (key == NULL || value == NULL) {
         return NULL;
     }
-    Object* v = allocator->clone(sizeof(Object), allocator, &(Object) {
+    Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_DICT,
         /* Lists and dictionaries are double pointers so they have to be loaded. */
         .as.dictionary = value
-    });
+    }));
     return putObject(dictionary, key, v, allocator);
 }
 
@@ -205,7 +207,7 @@ int32_t Dict_remove(Dict* dictionary, const String* key)
             *prev_p = current->next;
             return 1;
         }
-        
+
         prev_p = &(current->next);
         current = current->next;
     }

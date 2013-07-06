@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,65 +12,73 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUNNEL_OVER_IP_H
-#define TUNNEL_OVER_IP_H
-
-#include <event2/event.h>
+#ifndef UDPInterface_H
+#define UDPInterface_H
 
 #include "interface/Interface.h"
-#include "util/Log.h"
+#include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
+#include "util/platform/Sockaddr.h"
+#include "util/log/Log.h"
 
-struct UDPInterface;
+struct UDPInterface
+{
+    struct Sockaddr* addr;
+};
 
 /**
  * @param base the LibEvent context.
  * @param bindAddr a string representation of the address to bind to such as "0.0.0.0:12345".
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
+ *    Exceptions:
+ *        UDPInterface_new_PARSE_ADDRESS_FAILED Couldn't parse bindAddr as an ip address and port
+ *        UDPInterface_new_FAILED_CREATING_EVENT Failed creating the event or registering it with
+ *                                               the libevent event base (shouldn't happen)
+ *        UDPInterface_new_SOCKET_FAILED Failed calling socket(), check EVUTIL_SOCKET_ERROR()
+ *        UDPInterface_new_PROTOCOL_NOT_SUPPORTED Only IPv4 is supported as an underlying protocol
+ *        UDPInterface_new_BIND_FAILED Failed calling bind(), check EVUTIL_SOCKET_ERROR()
+ *
  * @param logger
+ * @param ic the controller which this interface should register with
+ *           and use when starting connections.
  * @return a new UDPInterface.
  */
-struct UDPInterface* UDPInterface_new(struct event_base* base,
-                                      const char* bindAddr,
+#define UDPInterface_new_PARSE_ADDRESS_FAILED -1
+#define UDPInterface_new_FAILED_CREATING_EVENT -2
+#define UDPInterface_new_SOCKET_FAILED -3
+#define UDPInterface_new_PROTOCOL_NOT_SUPPORTED -4
+#define UDPInterface_new_BIND_FAILED -5
+struct UDPInterface* UDPInterface_new(struct EventBase* base,
+                                      struct Sockaddr* bindAddr,
                                       struct Allocator* allocator,
-                                      struct ExceptionHandler* exHandler,
-                                      struct Log* logger);
+                                      struct Except* exHandler,
+                                      struct Log* logger,
+                                      struct InterfaceController* ic);
 
 /**
- * Add an endpoint.
+ * Begin an outgoing connection.
  *
- * @param context the tunnel context.
- * @param endpointSockAddr a string representation of the endpoint address EG: 1.2.3.4:56789
- * @param exHandler the handler to handle whatever exception may arise.
- * @return the interface object or null if error.
+ * @param address the ipv4 address and udp port to connect to, expressed as address:port.
+ * @param cryptoKey the node's public key, this is required to send it traffic.
+ * @param password if specified, the password for authenticating with the other node.
+ * @param udpif the UDP interface.
+ * @return 0 on success
+ *     UDPInterface_beginConnection_OUT_OF_SPACE if there is no space to store the entry.
+ *     UDPInterface_beginConnection_BAD_KEY invalid (non-cjdns) cryptoKey
+ *     UDPInterface_beginConnection_BAD_ADDRESS failed to parse ip address and port.
+ *     UDPInterface_beginConnection_ADDRESS_MISMATCH address not same protocol as UDP socket.
+ *     UDPInterface_beginConnection_UNKNOWN_ERROR something failed in InterfaceController.
  */
-struct Interface* UDPInterface_addEndpoint(struct UDPInterface* context,
-                                           const char* endpointSockAddr,
-                                           struct ExceptionHandler* exHandler);
-
-/**
- * Get an interface which will return all packets for which there is no interface.
- * This interface has no send functions and there is only one default interface per tunnel
- * so calling this function multiple times will yield the same object.
- * If a successful call is made to UDPInterface_bindToCurrentEndpoint(), this will no longer be
- * the default interface and you will need to call getDefaultInterface again.
- *
- * @param context the tunnel context.
- * @return the default interface.
- */
-struct Interface* UDPInterface_getDefaultInterface(struct UDPInterface* context);
-
-/**
- * Bind the default endpoint to whatever node just sent us data.
- * If called from inside of recieveMessage() which is handling incoming data from the
- * default endpoint, this will make the default endpoint nolonger default and bind it to the
- * ip address which last sent data and return 0, if called at any other time or with any
- * other interface, it will return -1.
- *
- * @param defaultInterface the interface returned by UDPInterface_getDefaultEndpoint()
- * @return 0 if all goes well, -1 if improperly used.
- */
-int UDPInterface_bindToCurrentEndpoint(struct Interface* defaultInterface);
+#define UDPInterface_beginConnection_OUT_OF_SPACE -1
+#define UDPInterface_beginConnection_BAD_KEY -2
+#define UDPInterface_beginConnection_BAD_ADDRESS -3
+#define UDPInterface_beginConnection_ADDRESS_MISMATCH -4
+#define UDPInterface_beginConnection_UNKNOWN_ERROR -5
+int UDPInterface_beginConnection(const char* address,
+                                 uint8_t cryptoKey[32],
+                                 String* password,
+                                 struct UDPInterface* udpif);
 
 #endif

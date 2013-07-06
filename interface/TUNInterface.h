@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,17 +12,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TUN_INTERFACE_H
-#define TUN_INTERFACE_H
-
-#include <event2/event.h>
+#ifndef TUNInterface_H
+#define TUNInterface_H
 
 #include "interface/Interface.h"
-#include "benc/Object.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
 
-struct Interface* TunInterface_new(String* interfaceName,
-                                   struct event_base* base,
-                                   struct Allocator* allocator);
+/**
+ * An interface which connects to the TUN/TAP device for
+ * sending IPv6 traffic to the kernel network stack.
+ */
+struct TUNInterface
+{
+    struct Interface iface;
+};
 
+/**
+ * Create a new TUNInterface.
+ *
+ * @param tunSocket an pointer to a file descriptor provided by TUNConfigurator_configure().
+ * @param base the libevent event base to use for listening for incoming packet events.
+ * @param allocator a means of getting memory.
+ * @param logger for logging messages about the tun device.
+ * @return a TUNInterface structure.
+ */
+struct TUNInterface* TUNInterface_new(void* tunSocket,
+                                      struct EventBase* base,
+                                      struct Allocator* allocator,
+                                      struct Log* logger);
 #endif

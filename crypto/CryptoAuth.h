@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,20 +12,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CRYPTO_AUTH_H
-#define CRYPTO_AUTH_H
+#ifndef CryptoAuth_H
+#define CryptoAuth_H
 
 #include "benc/Object.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Endian.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
+#include "util/events/EventBase.h"
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <event2/event.h>
 
-struct CryptoAuth;
+#define CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS 60
+
+struct CryptoAuth
+{
+    uint8_t publicKey[32];
+
+    /**
+     * After this number of seconds of inactivity,
+     * a connection will be reset to prevent them hanging in a bad state.
+     */
+    uint32_t resetAfterInactivitySeconds;
+};
+
+/** The internal interface wrapper struct. */
+struct CryptoAuth_Wrapper;
 
 /**
  * Associate a password:authtype pair with a user object.
@@ -37,14 +53,29 @@ struct CryptoAuth;
  *                 based authentication.
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
  *             If this is NULL and requireAuthentication is enabled, authentication will fail.
+ *             Duplicate user entires are OK.
  * @param context The CryptoAuth context.
- * @return 0 if all goes well, -1 if the authentication method is not supported and -2 if there is
- *         not enough space to store the user.
+ * @return 0 if all goes well,
+ *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
+ *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
+ *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
  */
+#define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
+#define CryptoAuth_addUser_OUT_OF_SPACE      -2
+#define CryptoAuth_addUser_DUPLICATE         -3
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
                            void* user,
                            struct CryptoAuth* context);
+
+/**
+ * Remove all users registered with this CryptoAuth.
+ *
+ * @param context the context to remove users for.
+ * @param user the identifier which was passed to addUser(), all users with this id will be removed.
+ * @return the number of users removed.
+ */
+int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.
@@ -55,26 +86,24 @@ int32_t CryptoAuth_addUser(String* password,
  * @return the user object added by calling CryptoAuth_addUser() or NULL if this session is not
  *         authenticated.
  */
-void* CryptoAuth_getUser(struct Interface* interface);
+void* CryptoAuth_getUser(struct Interface* iface);
 
 /**
  * Create a new crypto authenticator.
  *
- * @param config the configuration for this CryptoAuth, configuration options include:
- *            resetAfterInactivitySeconds -- the number of seconds of inactivity after which to
- *                                           reset the connection.
  * @param allocator the means of aquiring memory.
  * @param privateKey the private key to use for this CryptoAuth or null if one should be generated.
  * @param eventBase the libevent context for handling timeouts.
  * @param logger the mechanism for logging output from the CryptoAuth.
  *               if NULL then no logging will be done.
+ * @param rand random number generator.
  * @return a new CryptoAuth context.
  */
-struct CryptoAuth* CryptoAuth_new(Dict* config,
-                                  struct Allocator* allocator,
+struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
                                   const uint8_t* privateKey,
-                                  struct event_base* eventBase,
-                                  struct Log* logger);
+                                  struct EventBase* eventBase,
+                                  struct Log* logger,
+                                  struct Random* rand);
 
 /**
  * Wrap an interface with crypto authentication.
@@ -89,7 +118,7 @@ struct CryptoAuth* CryptoAuth_new(Dict* config,
  * @param context the CryptoAuth context.
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
-                                           uint8_t herPublicKey[32],
+                                           const uint8_t herPublicKey[32],
                                            const bool requireAuth,
                                            bool authenticatePackets,
                                            struct CryptoAuth* context);
@@ -108,10 +137,48 @@ void CryptoAuth_setAuth(const String* password,
                         const uint8_t authType,
                         struct Interface* wrappedInterface);
 
-void CryptoAuth_getPublicKey(uint8_t output[32], struct CryptoAuth* context);
+/** @return a pointer to the other party's public key. */
+uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 
-uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface);
+/** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
+void CryptoAuth_reset(struct Interface* iface);
 
-void CryptoAuth_reset(struct Interface* interface);
+
+/** New CryptoAuth session, has not sent or received anything. */
+#define CryptoAuth_NEW         0
+
+/** Sent a hello message, waiting for reply. */
+#define CryptoAuth_HANDSHAKE1  1
+
+/** Received a hello message, sent a key message, waiting for the session to complete. */
+#define CryptoAuth_HANDSHAKE2  2
+
+/** Sent a hello message and received a key message but have not gotten a data message yet. */
+#define CryptoAuth_HANDSHAKE3  3
+
+/** The CryptoAuth session has successfully done a handshake and received at least one message. */
+#define CryptoAuth_ESTABLISHED 4
+
+/**
+ * Get the state of the CryptoAuth session.
+ *
+ * @param interface a CryptoAuth wrapper.
+ * @return one of CryptoAuth_NEW,
+ *                CryptoAuth_HANDSHAKE1,
+ *                CryptoAuth_HANDSHAKE2 or
+ *                CryptoAuth_ESTABLISHED
+ */
+int CryptoAuth_getState(struct Interface* iface);
+
+/**
+ * Get the interface on the other side of this CryptoAuth session.
+ *
+ * Given a wrapped interface, get the wrapping interface.
+ * given a wrapping interface, get the one which is wrapped.
+ *
+ * @param iface the wrapped or wrapper iface.
+ * @return the opposite.
+ */
+struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface);
 
 #endif

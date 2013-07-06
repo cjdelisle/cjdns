@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MALLOC_ALLOCATOR_H
-#define MALLOC_ALLOCATOR_H
+#ifndef MallocAllocator_H
+#define MallocAllocator_H
 
 #include "memory/Allocator.h"
 
@@ -20,14 +21,20 @@
  * Create a new Allocator which is a wrapper around malloc().
  *
  * @param sizeLimit the number of bytes which are allowed to be allocated by
- *                  this allocator or any of it's children before the program
+ *                  this allocator or any of its children before the program
  *                  will be halted with an error.
+ * @param identFile the file where this allocator was created.
+ * @param identLine the line where this was called from.
  */
-struct Allocator* MallocAllocator_new(size_t sizeLimit);
+struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
+                                                  const char* identFile,
+                                                  int identLine);
+#define MallocAllocator_new(sl) \
+    MallocAllocator_newWithIdentity((sl), __FILE__, __LINE__)
 
 /**
  * Get the number of bytes allocated so far by this allocator,
- * all of it's parents, and all of it's children.
+ * all of its parents, and all of its children.
  *
  * @param allocator this *must* be a MallocAllocator, no checking is done!
  * @return the number of bytes which have been allocated so far.

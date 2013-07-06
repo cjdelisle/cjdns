@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -14,47 +15,60 @@
 #include "util/Endian.h"
 
 #include <stdio.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 void printInfo()
 {
-    #if defined(__BYTE_ORDER) && defined(__BIG_ENDIAN)
-        printf("This machine is defined as %s\n",
-               Endian_isBigEndian() ? "big endian" : "little endian");
-    #endif
-
     printf("According to testing this machine is %s\n",
-           Endian_checkIsBigEndian() ? "big endian" : "little endian");
-
-    printf("Endian_byteSwap64() uses " Endian_byteSwap64_uses "\n");
-
-    printf("Endian_hostToBigEndian64() uses " Endian_hostToBigEndian64_uses "\n");
+           Endian_isBigEndian() ? "big endian" : "little endian");
 }
 
 int main()
 {
     printInfo();
 
-    volatile uint64_t b =    0x0123456789abcdef;
-    volatile uint64_t b_be = 0xefcdab8967452301;
+    volatile uint64_t b =  0x0123456789abcdef;
+    volatile uint64_t sb = 0xefcdab8967452301;
+
+    volatile uint32_t a =  0x01234567;
+    volatile uint32_t sa = 0x67452301;
+
+    volatile uint16_t c =  0xcabe;
+    volatile uint16_t sc = 0xbeca;
 
     if (!Endian_isBigEndian()) {
-        volatile uint32_t a =    0x01234567;
-        volatile uint32_t a_be = 0x67452301;
+        Assert_always(c == Endian_bigEndianToHost16(sc));
+        Assert_always(c == Endian_hostToBigEndian16(sc));
+        Assert_always(c == Endian_hostToLittleEndian16(c));
+        Assert_always(c == Endian_hostToLittleEndian16(c));
 
-        volatile uint16_t c =    0xcabe;
-        volatile uint16_t c_be = 0xbeca;
+        Assert_always(a == Endian_bigEndianToHost32(sa));
+        Assert_always(a == Endian_hostToBigEndian32(sa));
+        Assert_always(a == Endian_hostToLittleEndian32(a));
+        Assert_always(a == Endian_hostToLittleEndian32(a));
 
-        assert(c == Endian_bigEndianToHost16(c_be));
-        assert(a == Endian_bigEndianToHost32(a_be));
-        assert(b == Endian_bigEndianToHost64(b_be));
+        Assert_always(b == Endian_bigEndianToHost64(sb));
+        Assert_always(b == Endian_hostToBigEndian64(sb));
+        Assert_always(b == Endian_hostToLittleEndian64(b));
+        Assert_always(b == Endian_hostToLittleEndian64(b));
+    } else {
+        Assert_always(c == Endian_bigEndianToHost16(c));
+        Assert_always(c == Endian_hostToBigEndian16(c));
+        Assert_always(c == Endian_hostToLittleEndian16(sc));
+        Assert_always(c == Endian_hostToLittleEndian16(sc));
+
+        Assert_always(a == Endian_bigEndianToHost32(a));
+        Assert_always(a == Endian_hostToBigEndian32(a));
+        Assert_always(a == Endian_hostToLittleEndian32(sa));
+        Assert_always(a == Endian_hostToLittleEndian32(sa));
+
+        Assert_always(b == Endian_bigEndianToHost64(b));
+        Assert_always(b == Endian_hostToBigEndian64(b));
+        Assert_always(b == Endian_hostToLittleEndian64(sb));
+        Assert_always(b == Endian_hostToLittleEndian64(sb));
     }
 
-    assert(b == Endian_byteSwap64_manual(b_be));
-    #ifdef Endian_byteSwap64_bswap_64
-        assert(b == Endian_byteSwap64_bswap_64(b_be));
-    #endif
-    #ifdef Endian_byteSwap64_OSSwapInt64
-        assert(b == Endian_byteSwap64_OSSwapInt64(b_be));
-    #endif
+    Assert_always(b == Endian_byteSwap64(sb));
+    Assert_always(a == Endian_byteSwap32(sa));
+    Assert_always(c == Endian_byteSwap16(sc));
 }

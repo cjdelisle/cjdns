@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef STANDARD_BENC_SERIALIZER_H
-#define STANDARD_BENC_SERIALIZER_H
-const struct BencSerializer* List_getStandardBencSerializer();
+#ifndef StandardBencSerializer_H
+#define StandardBencSerializer_H
+const struct BencSerializer* StandardBencSerializer_get();
 #endif

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,18 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/Crypto.h"
+#include "crypto/random/Random.h"
+#include "memory/BufferAllocator.h"
 #include "util/Bits.h"
+#include "util/Endian.h"
 
+#include <inttypes.h>
 #include <stdio.h>
-#include <assert.h>
+#include "util/Assert.h"
 
 int main()
 {
-    uint64_t x;
-    randombytes((uint8_t*) &x, 8);
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 2048);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    assert(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
-    assert(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
-    assert(Bits_bitReverse64(0) == 0);
+    uint64_t x;
+    Random_bytes(rand, (uint8_t*) &x, 8);
+    printf("x = 0x%016" PRIx64 "\n", x);
+
+    Assert_always(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
+    Assert_always(
+        Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
+    Assert_always(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
+    Assert_always(Bits_bitReverse64(0) == 0);
 }

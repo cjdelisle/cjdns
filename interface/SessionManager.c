@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,24 +12,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/SessionManager.h"
 #include "crypto/CryptoAuth.h"
 #include "interface/Interface.h"
-#include "interface/InterfaceMap.h"
 #include "memory/Allocator.h"
-#include "util/Time.h"
-#include "util/Timeout.h"
+#include "util/Bits.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
 
 #include <stdint.h>
-#include <event2/event.h>
 
 /** The number of seconds of inactivity before a session should expire. */
 #define SESSION_TIMEOUT_SECONDS 600
 
 /** The number of seconds between cleanup cycles. */
 #define CLEANUP_CYCLE_SECONDS 20
+
+
+struct Ip6
+{
+    uint8_t bytes[16];
+};
+#define Map_NAME OfSessionsByIp6
+#define Map_KEY_TYPE struct Ip6
+#define Map_VALUE_TYPE struct SessionManager_Session
+#define Map_ENABLE_HANDLES
+#include "util/Map.h"
+
 
 /**
  * A SessionManager is a mechanism for getting a crypto session based on a given key.
@@ -41,11 +54,9 @@ struct SessionManager
 
     void* const interfaceContext;
 
-    uint16_t keySize;
+    struct EventBase* const eventBase;
 
-    struct event_base* const eventBase;
-
-    struct InterfaceMap ifaceMap;
+    struct Map_OfSessionsByIp6 ifaceMap;
 
     struct Allocator* const allocator;
 
@@ -59,76 +70,87 @@ static void cleanup(void* vsm)
     struct SessionManager* sm = (struct SessionManager*) vsm;
     uint64_t nowSecs = Time_currentTimeSeconds(sm->eventBase);
     for (uint32_t i = 0; i < sm->ifaceMap.count; i++) {
-        if (sm->ifaceMap.lastMessageTimes[i] < (nowSecs - SESSION_TIMEOUT_SECONDS)) {
-            struct Allocator* ifAllocator = sm->ifaceMap.interfaces[i]->allocator;
-            ifAllocator->free(ifAllocator);
-            InterfaceMap_remove(i, &sm->ifaceMap);
+        if (sm->ifaceMap.values[i].lastMessageTime < (nowSecs - SESSION_TIMEOUT_SECONDS)) {
+            struct Allocator* ifAllocator = sm->ifaceMap.values[i].iface.allocator;
+            Allocator_free(ifAllocator);
+            Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             i--;
         }
     }
 }
 
-struct Interface* SessionManager_getSession(uint8_t* lookupKey,
-                                            uint8_t cryptoKey[32],
-                                            struct SessionManager* sm)
+struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
+                                                         uint8_t cryptoKey[32],
+                                                         struct SessionManager* sm)
 {
-    uint64_t nowSecs = Time_currentTimeSeconds(sm->eventBase);
-
-    int ifaceIndex = InterfaceMap_indexOf(lookupKey, &sm->ifaceMap);
+    int ifaceIndex = Map_OfSessionsByIp6_indexForKey((struct Ip6*)lookupKey, &sm->ifaceMap);
     if (ifaceIndex == -1) {
         // Make sure cleanup() doesn't get behind.
         cleanup(sm);
 
-        struct Allocator* ifAllocator = sm->allocator->child(sm->allocator);
-        struct Interface* outsideIf =
-            ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
-                .sendMessage = sm->encryptedOutgoing,
-                .senderContext = sm->interfaceContext,
-                .allocator = ifAllocator
-            });
+        struct Allocator* ifAllocator = Allocator_child(sm->allocator);
+        struct Interface* outsideIf = Allocator_clone(ifAllocator, (&(struct Interface) {
+            .sendMessage = sm->encryptedOutgoing,
+            .senderContext = sm->interfaceContext,
+            .allocator = ifAllocator
+        }));
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, false, sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, true, sm->cryptoAuth);
         insideIf->receiveMessage = sm->decryptedIncoming;
         insideIf->receiverContext = sm->interfaceContext;
 
-        // Create a trick interface which pretends to be on both sides of the crypto.
-        struct Interface* combinedIf =
-            ifAllocator->clone(sizeof(struct Interface), ifAllocator, &(struct Interface) {
+        struct SessionManager_Session s = {
+            .lastMessageTime = Time_currentTimeSeconds(sm->eventBase),
+
+            // Create a trick interface which pretends to be on both sides of the crypto.
+            .iface = {
                 .sendMessage = insideIf->sendMessage,
                 .senderContext = insideIf->senderContext,
                 .receiveMessage = outsideIf->receiveMessage,
                 .receiverContext = outsideIf->receiverContext,
                 .allocator = ifAllocator
-            });
+            }
+        };
 
-        InterfaceMap_put(lookupKey, combinedIf, nowSecs, &sm->ifaceMap);
-        return combinedIf;
+        int index = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &s, &sm->ifaceMap);
+        struct SessionManager_Session* sp = &sm->ifaceMap.values[index];
+        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index]);
+        Bits_memcpyConst(sp->ip6, lookupKey, 16);
+        return sp;
     } else {
         // Interface already exists, set the time of last message to "now".
-        sm->ifaceMap.lastMessageTimes[ifaceIndex] = nowSecs;
+        sm->ifaceMap.values[ifaceIndex].lastMessageTime = Time_currentTimeSeconds(sm->eventBase);
+        uint8_t* herPubKey = CryptoAuth_getHerPublicKey(&sm->ifaceMap.values[ifaceIndex].iface);
+        if (Bits_isZero(herPubKey, 32) && cryptoKey) {
+            Bits_memcpyConst(herPubKey, cryptoKey, 32);
+        }
     }
 
-    return sm->ifaceMap.interfaces[ifaceIndex];
+    return &sm->ifaceMap.values[ifaceIndex];
 }
 
-struct SessionManager* SessionManager_new(uint16_t keySize,
-                                          Interface_CALLBACK(decryptedIncoming),
+struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
+                                                               struct SessionManager* sm)
+{
+    int index = Map_OfSessionsByIp6_indexForHandle(handle, &sm->ifaceMap);
+    return (index == -1) ? NULL : &sm->ifaceMap.values[index];
+}
+
+struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           Interface_CALLBACK(encryptedOutgoing),
                                           void* interfaceContext,
-                                          struct event_base* eventBase,
+                                          struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,
                                           struct Allocator* allocator)
 {
-    struct SessionManager* sm = allocator->malloc(sizeof(struct SessionManager), allocator);
-    memcpy(sm, (&(struct SessionManager) {
+    struct SessionManager* sm = Allocator_malloc(allocator, sizeof(struct SessionManager));
+    Bits_memcpyConst(sm, (&(struct SessionManager) {
         .decryptedIncoming = decryptedIncoming,
         .encryptedOutgoing = encryptedOutgoing,
         .interfaceContext = interfaceContext,
-        .keySize = keySize,
         .eventBase = eventBase,
         .ifaceMap = {
-            .keySize = keySize,
-            .allocator = allocator,
+            .allocator = allocator
         },
         .cryptoAuth = cryptoAuth,
         .allocator = allocator,

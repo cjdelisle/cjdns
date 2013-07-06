@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_H
-#define NODE_H
+#ifndef Node_H
+#define Node_H
 
 #include "dht/Address.h"
 
@@ -27,6 +28,9 @@ struct Node
      * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
      */
     uint32_t reach;
+
+    /** The version of the node, must be synchronized with NodeHeader */
+    uint32_t version;
 
     /** The address of the node. */
     struct Address address;

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,16 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_COLLECTOR_H
-#define NODE_COLLECTOR_H
+#ifndef NodeCollector_H
+#define NodeCollector_H
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "memory/Allocator.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdbool.h>
 
 struct NodeCollector_Element
@@ -56,15 +57,16 @@ struct NodeCollector
 
 /**
  * Create a new NodeCollector.
- * This will create a collector which sifts through nodes and finds the best nodes to serve a request.
- * Nodes which have the lowest distance:reach ratio will be collected.
+ * This will create a collector which sifts through nodes and finds the best nodes to serve a
+ * request. Nodes which have the lowest distance:reach ratio will be collected.
  *
  * @param targetAddress the address we are searching for.
- * @param capacity the number of nodes to collect, if less than this number are added, some of the nodes
- *                 will remain NULL pointers.
+ * @param capacity the number of nodes to collect, if less than this number are added, some of
+ *                 the nodes will remain NULL pointers.
  * @param thisNodeAddress this node's address.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target then we are.
- *                                this is required for searches but unallowable for answering queries.
+ * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
+ *                                then we are. this is required for searches but unallowable
+ *                                for answering queries.
  * @param logger
  * @param allocator the means of getting memory to store the collector.
  * @return a new collector.
@@ -76,8 +78,8 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
                                                struct Log* logger,
                                                const struct Allocator* allocator)
 {
-    struct NodeCollector* out = allocator->malloc(sizeof(struct NodeCollector), allocator);
-    out->nodes = allocator->malloc(capacity * sizeof(struct NodeCollector_Element), allocator);
+    struct NodeCollector* out = Allocator_malloc(allocator, sizeof(struct NodeCollector));
+    out->nodes = Allocator_malloc(allocator, capacity * sizeof(struct NodeCollector_Element));
 
     for (uint32_t i = 0; i < capacity; i++) {
         out->nodes[i].value = 0;
@@ -116,9 +118,9 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && memcmp(body->address.ip6.bytes,
-                  collector->targetAddress,
-                  Address_SEARCH_TARGET_SIZE) != 0)
+        && Bits_memcmp(body->address.ip6.bytes,
+                       collector->targetAddress,
+                       Address_SEARCH_TARGET_SIZE) != 0)
     {
         Log_debug(collector->logger, "Increasing distance because addr is not exact match.\n");
         nodeDistance++;
@@ -132,7 +134,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
         uint64_t value = 0;
         #define NodeCollector_getValue(value, header, body, nodeDistance) \
             if (value == 0) {                                                            \
-                value = 64 - Bits_log2x64_be(body->address.networkAddress_be);           \
+                value = 64 - Bits_log2x64(body->address.path);                           \
                 value |= (uint64_t) (UINT32_MAX - nodeDistance) * header->reach * value; \
             }
 
@@ -151,7 +153,9 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
                 }
                 if (i > 0
                     && nodes[i].body
-                    && memcmp(body->address.ip6.bytes, nodes[i].body->address.ip6.bytes, 16) == 0)
+                    && Bits_memcmp(body->address.ip6.bytes,
+                                   nodes[i].body->address.ip6.bytes,
+                                   16) == 0)
                 {
                     match = i + 1;
                 }
@@ -164,7 +168,7 @@ static inline void NodeCollector_addNode(struct NodeHeader* header,
             if (match > 0) {
                 i = match;
             } else if (i > 1) {
-                memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
+                Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;

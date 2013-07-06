@@ -1,0 +1,10 @@
+language: C
+
+before_script:
+  - "sudo apt-get install cmake"
+  - "mkdir build && cd build"
+  - "cmake .."
+  - "make"
+
+script:
+  - "sudo make test"

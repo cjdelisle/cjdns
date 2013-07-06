@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LIST_H
-#define LIST_H
+#ifndef List_H
+#define List_H
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
@@ -61,7 +62,7 @@ List* List_addString(List* list, String* toAdd, const struct Allocator* allocato
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the dictionary.
  */
-List* List_addDictionary(List* list, Dict* toAdd, const struct Allocator* allocator);
+List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator);
 
 /**
  * Add a list as an item to another list, if the list does not exist then it is allocated.
@@ -113,5 +114,7 @@ Dict* List_getDict(const List* list, uint32_t index);
  *         is out of range or the item at that index is not a list.
  */
 List* List_getList(const List* list, uint32_t index);
+
+#define List_OBJ(x) (&(Object) { .type = Object_LIST, .as.list = x })
 
 #endif

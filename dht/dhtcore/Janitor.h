@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,13 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdint.h>
-#include <event2/event.h>
+#ifndef Janitor_H
+#define Janitor_H
 
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
+
+#include <stdint.h>
 
 struct Janitor;
 
@@ -25,8 +30,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
-                            struct Allocator* allocator,
-                            struct event_base* eventBase);
+                            struct Allocator* alloc,
+                            struct EventBase* eventBase,
+                            struct Random* rand);
 
-void Janitor_informOfRecentLocalSearch(const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE],
-                                       struct Janitor* janitor);
+#endif

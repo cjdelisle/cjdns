@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,20 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SERIALIZATIONMODULE_H
-#define SERIALIZATIONMODULE_H
+#ifndef SerializationModule_H
+#define SerializationModule_H
 
-#include "DHTModules.h"
+#include "DHTModuleRegistry.h"
 
 /**
  * Register a new SerializationModule.
  *
  * @param registry the module registry to register with.
+ * @param logger
  * @param allocator the means of aquiring memory for the serialization module.
  */
-#ifdef __GNUC__
-__attribute__((nonnull))
-#endif
-void SerializationModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator);
+void SerializationModule_register(struct DHTModuleRegistry* registry,
+                                  struct Log* logger,
+                                  struct Allocator* allocator);
 
 #endif

@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,19 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADDRESS_H
-#define ADDRESS_H
+#ifndef Address_H
+#define Address_H
 
 #include "crypto/AddressCalc.h"
+#include "util/AddrTools.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
 
-#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 #define Address_KEY_SIZE 32
 #define Address_NETWORK_ADDR_SIZE 8
@@ -45,8 +45,10 @@ struct Address
 
     uint8_t key[Address_KEY_SIZE];
 
-    uint64_t networkAddress_be;
+    uint64_t path;
 };
+#define Address_SIZE (Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
+Assert_compileTime(sizeof(struct Address) == Address_SIZE);
 
 static inline uint32_t Address_getPrefix(struct Address* addr)
 {
@@ -63,134 +65,65 @@ static inline uint32_t Address_getPrefix(struct Address* addr)
 static inline uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16])
 {
     uint32_t prefix_be;
-    memcpy(&prefix_be, &searchTarget[8], 4);
+    Bits_memcpyConst(&prefix_be, &searchTarget[8], 4);
     return Endian_bigEndianToHost32(prefix_be);
 }
 
 static inline void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE],
                                      const struct Address* addr)
 {
-    memcpy(output, addr->key, Address_SERIALIZED_SIZE);
+    Bits_memcpyConst(output, addr->key, Address_SERIALIZED_SIZE);
+    if (!Endian_isBigEndian()) {
+        uint64_t path_be = Endian_hostToBigEndian64(addr->path);
+        Bits_memcpyConst(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
+    }
 }
 
 static inline void Address_parse(struct Address* addr,
                                  const uint8_t input[Address_SERIALIZED_SIZE])
 {
-    memset(addr->ip6.bytes, 0, 16);
-    memcpy(addr->key, input, Address_SERIALIZED_SIZE);
+    Bits_memset(addr->ip6.bytes, 0, 16);
+    Bits_memcpyConst(addr->key, input, Address_SERIALIZED_SIZE);
+    addr->path = Endian_bigEndianToHost64(addr->path);
 }
 
 static inline bool Address_isSame(const struct Address* addr,
                                   const struct Address* addr2)
 {
-    return memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
+    return Bits_memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
 }
 
 static inline bool Address_isSameIp(const struct Address* addr,
                                     const struct Address* addr2)
 {
-    return memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
+    return Bits_memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
 }
 
-static inline bool Address_equalsSearchTarget(struct Address* addr,
-                                              const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
+static inline bool Address_equalsSearchTarget(
+    struct Address* addr,
+    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
 {
     Address_getPrefix(addr);
-    return memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
+    return Bits_memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
 }
 
 static inline void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE])
 {
-    memcpy(out->key, key, Address_KEY_SIZE);
+    Bits_memcpyConst(out->key, key, Address_KEY_SIZE);
     AddressCalc_addressForPublicKey(out->ip6.bytes, key);
-}
-
-static inline void Address_printNetworkAddress(uint8_t output[20], struct Address* input)
-{
-    uint8_t addr[8];
-    memcpy(addr, &input->networkAddress_be, 8);
-    sprintf((char*)output, "%.2x%.2x.%.2x%.2x.%.2x%.2x.%.2x%.2x",
-            addr[0],
-            addr[1],
-            addr[2],
-            addr[3],
-            addr[4],
-            addr[5],
-            addr[6],
-            addr[7]);
 }
 
 static inline void Address_printIp(uint8_t output[40], struct Address* addr)
 {
     Address_getPrefix(addr);
-    sprintf((char*)output, "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x",
-            addr->ip6.bytes[ 0],
-            addr->ip6.bytes[ 1],
-            addr->ip6.bytes[ 2],
-            addr->ip6.bytes[ 3],
-            addr->ip6.bytes[ 4],
-            addr->ip6.bytes[ 5],
-            addr->ip6.bytes[ 6],
-            addr->ip6.bytes[ 7],
-            addr->ip6.bytes[ 8],
-            addr->ip6.bytes[ 9],
-            addr->ip6.bytes[10],
-            addr->ip6.bytes[11],
-            addr->ip6.bytes[12],
-            addr->ip6.bytes[13],
-            addr->ip6.bytes[14],
-            addr->ip6.bytes[15]);
+    AddrTools_printIp(output, addr->ip6.bytes);
 }
 
 static inline void Address_print(uint8_t output[60], struct Address* addr)
 {
     Address_printIp(output, addr);
     output[39] = '@';
-    Address_printNetworkAddress(output + 40, addr);
-}
-
-static inline int Address_parseNetworkAddress(uint64_t* out_be, uint8_t netAddr[20])
-{
-    if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
-        return -1;
-    }
-    uint8_t hex[16];
-    memcpy(hex, netAddr, 4);
-    memcpy(hex + 4, netAddr + 5, 4);
-    memcpy(hex + 8, netAddr + 10, 4);
-    memcpy(hex + 12, netAddr + 15, 4);
-
-    uint8_t numberBytes_be[8];
-    if (Hex_decode(numberBytes_be, 8, hex, 16) != 8) {
-        return -1;
-    }
-    memcpy(out_be, numberBytes_be, 8);
-    return 0;
-}
-
-/**
- * Detect a redundant (looping) route.
- *
- * @param addrA
- * @param addrB
- * @return 1 if addrA is a redundant version of addrB, -1 if addrB is a redundant version of
- *         addrA, 0 if neither is a redundant version of the other.
- */
-static inline int Address_checkRedundantRoute(struct Address* addrA, struct Address* addrB)
-{
-    if (addrA->networkAddress_be == addrB->networkAddress_be) {
-        return 0;
-    }
-    uint64_t addrANet = Endian_bigEndianToHost64(addrA->networkAddress_be);
-    uint64_t addrBNet = Endian_bigEndianToHost64(addrB->networkAddress_be);
-
-    if (addrANet > addrBNet) {
-        uint64_t mask = (1 << Bits_log2x64(addrBNet)) - 1;
-        return (addrANet & mask) == (addrBNet & mask);
-    } else {
-        uint64_t mask = (1 << Bits_log2x64(addrANet)) - 1;
-        return -((addrANet & mask) == (addrBNet & mask));
-    }
+    AddrTools_printPath(output + 40, addr->path);
 }
 
 #endif

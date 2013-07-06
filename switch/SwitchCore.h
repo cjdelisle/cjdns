@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,20 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SWITCH_CORE_H
-#define SWITCH_CORE_H
+#ifndef SwitchCore_H
+#define SwitchCore_H
 
 #include "interface/Interface.h"
-#include "util/Log.h"
+#include "util/log/Log.h"
 #include "wire/Message.h"
 
 #include <stdint.h>
-
-/**
- * The maximum number of interfaces this switch implementation is capable of handling.
- * This is limited to <= 256 by the number encoding scheme.
- */
-#define SwitchCore_MAX_INTERFACES 256
 
 /** The switch core which is opaque to users. */
 struct SwitchCore;
@@ -46,8 +41,9 @@ struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocato
  * @param labelOut_be a buffer which will be filled with the label part for getting
  *                    to the newly added node. It will be set to the big endian value.
  * @param core the switchcore.
- * @return 0 on success, -1 if there are no more interface slots.
+ * @return 0 on success, SwitchCore_addInterface_OUT_OF_SPACE if there are no more interface slots.
  */
+#define SwitchCore_addInterface_OUT_OF_SPACE -1
 int SwitchCore_addInterface(struct Interface* iface,
                             const uint64_t trust,
                             uint64_t* labelOut_be,
@@ -63,5 +59,7 @@ int SwitchCore_addInterface(struct Interface* iface,
  * @return 0
  */
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core);
+
+void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2);
 
 #endif

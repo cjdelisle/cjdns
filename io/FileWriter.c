@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -12,9 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "FileWriter.h"
-
-/* For memcpy. */
-#include <string.h>
+#include "util/Bits.h"
 
 struct FileWriter_context {
     FILE* writeTo;
@@ -29,7 +28,7 @@ static uint64_t bytesWritten(const struct Writer* writer);
 struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator)
 {
     struct FileWriter_context* context =
-        allocator->calloc(sizeof(struct FileWriter_context), 1, allocator);
+        Allocator_calloc(allocator, sizeof(struct FileWriter_context), 1);
 
     if (context == NULL) {
         return NULL;
@@ -43,7 +42,7 @@ struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator)
         .write = write,
         .bytesWritten = bytesWritten
     };
-    memcpy(&context->writer, &localWriter, sizeof(struct Writer));
+    Bits_memcpyConst(&context->writer, &localWriter, sizeof(struct Writer));
 
     return &context->writer;
 }

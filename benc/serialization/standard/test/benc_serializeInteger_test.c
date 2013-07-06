@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,11 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
-#include <stdio.h>
-
+#define string_strcmp
+#include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
+#include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -23,6 +24,8 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+
+#include <stdio.h>
 
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {
@@ -40,13 +43,13 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1);
     ret |= expect("i1e", writer, reader, ret);
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, 1000);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, 1000);
     ret |= expect("i1000e", writer, reader, ret);
 
-    ret |= List_getStandardBencSerializer()->serializeint64_t(writer, -100);
+    ret |= StandardBencSerializer_get()->serializeint64_t(writer, -100);
     ret |= expect("i-100e", writer, reader, ret);
 
     return ret;
@@ -55,9 +58,9 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 
 int main()
 {
-    char buffer[512];
+    char buffer[2048];
     char out[512];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 512);
+    struct Allocator* alloc = CanaryAllocator_new(BufferAllocator_new(buffer, 2048), NULL);
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 

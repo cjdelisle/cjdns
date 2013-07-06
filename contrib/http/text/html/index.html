@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>CJDNS Web Admin</title>
+		<script type="text/javascript" src="text/javascript/d3/d3.js"></script>
+		<script type="text/javascript" src="text/javascript/jssha256.js"></script>
+		<script type="text/javascript" src="text/javascript/bencode.js"></script>
+		<script type="text/javascript" src="text/javascript/map.js"></script>
+
+		<style>
+			body { font: 14px Helvetica Neue; }
+
+			a {
+				color: #4682b4;
+				text-decoration: none;
+			}
+			a:hover { text-decoration: underline; }
+
+			svg { background-color:#F8F8FF; }
+
+			circle.node {
+				stroke: #fff;
+				stroke-width: 1.5px;
+			}
+			circle.thisnode {
+				background-color: #600;
+			}
+
+			line.link {
+				stroke: #000;
+				stroke-opacity: .6;
+			}
+
+			h1 {
+				background-color: #1B436B;
+				color: #FFFFFF;
+				margin: 0 5px 0 5px;
+				padding-bottom: 5px;
+			}
+
+			#content {
+				width:1366px;
+				padding: 5px 5px 3px 5px;
+				background-color: #1B436B;
+				color: #FFFFFF;
+				border-top-left-radius: 15px;
+				border-top-right-radius: 20px;
+			}
+
+			#memory {
+				font-weight: bold;
+				margin-bottom: 5px;
+				padding: 6px 0 5px 1px;
+				background-color: #527CA4;
+			}
+
+			#viz {float: left}
+
+			#nodes {
+				float: right;
+				font-family: monospace;
+				margin-left: 5px;
+			}
+
+			#nodes-list {
+				overflow-y: scroll;
+				height: 799px;
+				border-left: 1px solid #FFFFFF;
+				border-bottom: 1px solid #FFFFFF;
+			}
+
+			#nodes-list table, #nodes-list table tr th, #nodes-list table tr td {
+				border-collapse: collapse;
+				border-top-color: #FFFFFF;
+				border-right-color: #FFFFFF;
+				border-bottom-color: #FFFFFF;
+				border-left-color: #194774;
+			}
+			#nodes-list table tr {
+				font-size: 9pt;
+				font-family: monospace;
+			}
+			#nodes-list table tr.theader{
+				background-color: #194774;
+				font-size: 10pt;
+				padding: 2px 0 2px 0;
+			}
+			#nodes-list table tr th {color: #FFFFFF;}
+			#nodes-list table tr td {color: #000000; font-weight: bold;}
+			#nodes-list table tr.trow1{background-color: #95B8D9;}
+			#nodes-list table tr.trow2{background-color: #7DABD9;}
+			#nodes-list table tr a {
+				color: #194774;
+				font-weight: bold;
+			}
+
+			#runcmd {
+				margin-top: 5px;
+			}
+			#runcmd #runcmd-input-container {
+				margin-top: 31px;
+				float: right;
+				width: 561px;
+				font-weight: bold;
+			}
+			#runcmd #runcmd-input-container div.input {
+				clear: both;
+				margin-bottom: 5px;
+				padding: 0 2px 0 2px;
+				background-color: #527CA4;
+			}
+			#runcmd #runcmd-input-container div label {
+				margin-top:5px;
+				float: left;
+			}
+			#runcmd #runcmd-output-container { float: left; }
+			#runcmd #runcmd-output-container label {
+				width: 100%;
+				display: block;
+				font-weight: bold;
+				padding: 5px 0 5px 0;
+				margin-bottom: 2px;
+			}
+			#runcmd #runcmd-output-container #runcmd-output {
+				overflow-y: scroll;
+				resize: none;
+				width: 794px;
+				margin-left: 0;
+			}
+
+			.float-right { float: right; }
+			.clear { clear: both; }
+		</style>
+	</head>
+
+	<body onLoad="doLayout();">
+		<div id="content">
+			<h1>CJDNS Web Admin</h1>
+			<div id="memory">&nbsp;Currently using <span id="memory-bytes"><strong>[filled in by javascript]</strong></span> bytes of memory.</div>
+			<div id="viz"></div>
+			<div id="nodes"><div id="nodes-list"></div></div>
+			<div class="clear"></div>
+			<div id="runcmd">
+				<div id="runcmd-input-container">
+					<div class="input">
+						<label for="runcmd-cmd">&nbsp;Run Command</label>
+						<input class="float-right" name="command" id="runcmd-cmd" type="text" value='{"q":"ping"}' size="44" />
+						<div class="clear"></div>
+					</div>
+					<div class="input">
+						<label for="runcmd-passwd">&nbsp;Password</label>
+						<input class="float-right" name="password" id="runcmd-passwd" type="password" size="44" />
+						<div class="clear"></div>
+					</div>
+					<input class="float-right" name="go" id="runcmd-submit" type="submit" />
+				</div>
+				<div id="runcmd-output-container">
+					<label for="runcmd-output">&nbsp;Command Output:</label>
+					<textarea name="output" id="runcmd-output" cols="97" rows="20"></textarea>
+				</div>
+			</div>
+			<div class="clear"></div>
+		</div>
+
+		<script type="text/javascript" src="text/javascript/d3/d3.layout.js"></script>
+		<script type="text/javascript" src="text/javascript/d3/d3.geom.js"></script>
+		<script type="text/javascript" src="text/javascript/map.js"></script>
+	</body>
+</html>

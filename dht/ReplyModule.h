@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,10 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef REPLY_MODULE_H
-#define REPLY_MODULE_H
+#ifndef ReplyModule_H
+#define ReplyModule_H
 
-#include "dht/DHTModules.h"
+#include "dht/DHTModuleRegistry.h"
 
 /**
  * The reply module replies to all incoming queries.

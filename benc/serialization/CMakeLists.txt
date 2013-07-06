@@ -11,3 +11,5 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_subdirectory(standard)
 add_subdirectory(json)
+
+enable_testing()

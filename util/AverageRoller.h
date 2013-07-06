@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,13 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AVERAGEROLLER_H
-#define AVERAGEROLLER_H
+#ifndef AverageRoller_H
+#define AverageRoller_H
 
 #include "memory/Allocator.h"
 
 #include <stdint.h>
-#include <event2/event.h>
+#include "util/events/EventBase.h"
 
 struct AverageRoller;
 
@@ -28,7 +29,7 @@ struct AverageRoller;
  * @return a new roller.
  */
 struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
-                                        struct event_base* eventBase,
+                                        struct EventBase* eventBase,
                                         const struct Allocator* allocator);
 
 /**
@@ -42,7 +43,7 @@ uint32_t AverageRoller_getAverage(struct AverageRoller* roller);
 /**
  * Update the roller with a new entry and get the average.
  * If there are no new updates then past seconds do not get trimmed off and
- * the average stays the same. This, though destroying it's mathmatical correctness,
+ * the average stays the same. This, though destroying its mathmatical correctness,
  * provides some forgiveness to the average since it will not drop to 0 if windowSeconds
  * seconds elapse with no update.
  *

@@ -1,0 +1,9 @@
+{
+  "name": "cjdns-admin",
+  "description": "Admin panel for CJDNS",
+  "version": "0.0.1",
+  "dependencies": {
+    "express": "3.x",
+    "bencode": "x"
+  }
+}

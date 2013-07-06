@@ -1,0 +1,57 @@
+#!/usr/bin/python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.bencode import *;
+import sys;
+
+def usage():
+    app = sys.argv[0];
+    print("Usage: " + app + " <level> <fileName> <lineNum>");
+    print(app + " 'INFO'                <-- log all INFO and higher (WARN, ERROR, or CRITICAL) messages.");
+    print(app + " ''                    <-- log everything");
+    print(app + " '' 'CryptoAuth.c'     <-- log everything in CryptoAuth.c");
+    print(app + " 'INFO' 'CryptoAuth.c' <-- log INFO and higher in CryptoAuth.c");
+    print(app + " '' 'CryptoAuth.c' 747 <-- print messages from log statement on line 747 of CryptoAuth.c");
+    print(app + " '' '' 747             <-- print messages from log statements on line 747 of any file at all.");
+
+
+def doLog(data):
+    print str(data['time']) + ' ' + data['level'] + ' ' + data['file'] + ':' + str(data['line']) + ' ' + data['message'];
+
+def recieve(cjdns, txid):
+    while True:
+        doLog(cjdns.getMessage(txid));
+
+
+
+cjdns = connectWithAdminInfo();
+
+level = '';
+fileName = '';
+line = 0;
+args = len(sys.argv) - 1;
+if (args == 0):
+    usage();
+    exit(0);
+
+if (args > 0): level = sys.argv[1];
+if (args > 1): fileName = sys.argv[2];
+if (args > 2): line = int(sys.argv[3]);
+
+sub = cjdns.AdminLog_subscribe(line, fileName, level);
+
+if (sub['error'] == 'none'):
+    recieve(cjdns, sub['txid']);
+else:
+    print(sub);

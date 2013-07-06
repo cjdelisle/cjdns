@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,30 +12,64 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ADMIN_H
-#define ADMIN_H
-
-#include <event2/event.h>
+#ifndef Admin_H
+#define Admin_H
 
 #include "benc/Dict.h"
-#include "exception/ExceptionHandler.h"
+#include "exception/Except.h"
+#include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/UniqueName.h"
+#include "util/events/EventBase.h"
+
+#include <stdbool.h>
 
 #define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)
 
 struct Admin;
 
-void Admin_registerFunction(char* name,
-                            Admin_FUNCTION(callback),
-                            void* callbackContext,
-                            bool needsAuth,
-                            struct Admin* admin);
+struct Admin_FunctionArg
+{
+    char* name;
+    char* type;
+    bool required;
+};
 
-void Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
+#define Admin_MAX_REQUEST_SIZE 512
 
-struct Admin* Admin_new(Dict* config,
-                        char* user,
-                        struct event_base* eventBase,
-                        struct ExceptionHandler* eh,
-                        struct Allocator* allocator);
+// This must not exceed PipeInterface_MAX_MESSAGE_SIZE
+#define Admin_MAX_RESPONSE_SIZE 65536
+
+/**
+ * @param arguments an array of struct Admin_FunctionArg specifying what functions are available
+ *                  and of those, which are required.
+ *        Example C code:
+ *            Admin_registerFunction("AuthorizedPasswords_add", addPass, ctx, true,
+ *                ((struct Admin_FunctionArg[]) {
+ *                    { .name = "password", .required = 1, .type = "String" },
+ *                    { .name = "authType", .required = 0, .type = "Int" }
+ *                }), admin);
+ */
+void Admin_registerFunctionWithArgCount(char* name,
+                                        Admin_FUNCTION(callback),
+                                        void* callbackContext,
+                                        bool needsAuth,
+                                        struct Admin_FunctionArg* arguments,
+                                        int argCount,
+                                        struct Admin* admin);
+#define Admin_registerFunction(name, cb, ctx, needsAuth, args, admin) \
+    Admin_registerFunctionWithArgCount(                                                           \
+        name, cb, ctx, needsAuth, args, (sizeof(args) / sizeof(struct Admin_FunctionArg)), admin)
+
+#define Admin_sendMessage_CHANNEL_CLOSED -1
+int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin);
+
+struct Admin* Admin_new(struct AddrInterface* iface,
+                        struct Allocator* alloc,
+                        struct Log* logger,
+                        struct EventBase* eventBase,
+                        String* password);
+#else
+#include "util/UniqueName.h"
 #endif

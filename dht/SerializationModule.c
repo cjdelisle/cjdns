@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,41 +12,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- * 02111-1307 USA
- */
-
-#include "DHTModules.h"
-
-#include <benc/Object.h>
-#include <memory/Allocator.h>
-#include <memory/BufferAllocator.h>
-#include <io/Reader.h>
-#include <io/ArrayReader.h>
-#include <io/Writer.h>
-#include <io/ArrayWriter.h>
+#include "benc/Object.h"
+#include "dht/DHTMessage.h"
+#include "dht/DHTModule.h"
+#include "dht/DHTModuleRegistry.h"
+#include "memory/Allocator.h"
+#include "memory/BufferAllocator.h"
+#include "io/Reader.h"
+#include "io/ArrayReader.h"
+#include "io/Writer.h"
+#include "io/ArrayWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "util/Bits.h"
+#include "util/log/Log.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 
-#define SERIALIZER List_getStandardBencSerializer()
+#define SERIALIZER StandardBencSerializer_get()
 
 struct SerializationModule_context {
     struct DHTModule module;
+    struct Log* logger;
 };
 
 /*--------------------Prototypes--------------------*/
@@ -56,20 +44,23 @@ static int handleIncoming(struct DHTMessage* message,
 
 /*--------------------Interface--------------------*/
 
-void SerializationModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
+void SerializationModule_register(struct DHTModuleRegistry* registry,
+                                  struct Log* logger,
+                                  struct Allocator* allocator)
 {
     struct SerializationModule_context* context =
-        allocator->malloc(sizeof(struct SerializationModule_context), allocator);
-    memcpy(context, (&(struct SerializationModule_context) {
+        Allocator_malloc(allocator, sizeof(struct SerializationModule_context));
+    Bits_memcpyConst(context, (&(struct SerializationModule_context) {
         .module = {
             .name = "SerializationModule",
             .context = context,
             .handleIncoming = handleIncoming,
             .handleOutgoing = handleOutgoing
-        }
+        },
+        .logger = logger
     }), sizeof(struct SerializationModule_context));
 
-    DHTModules_register(&(context->module), registry);
+    DHTModuleRegistry_register(&(context->module), registry);
 }
 
 /*--------------------Internals--------------------*/
@@ -82,8 +73,8 @@ void SerializationModule_register(struct DHTModuleRegistry* registry, const stru
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    vcontext = vcontext;
-    struct Writer* writer = ArrayWriter_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
+    struct Writer* writer =
+        ArrayWriter_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
     SERIALIZER->serializeDictionary(writer, message->asDict);
     message->length = writer->bytesWritten(writer);
@@ -99,12 +90,17 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    message->asDict = message->allocator->malloc(sizeof(Dict), message->allocator);
+    message->asDict = Allocator_malloc(message->allocator, sizeof(Dict));
 
-    vcontext = vcontext;
-    struct Reader* reader = ArrayReader_new(message->bytes, MAX_MESSAGE_SIZE, message->allocator);
+    struct Reader* reader =
+        ArrayReader_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
-    if (SERIALIZER->parseDictionary(reader, message->allocator, message->asDict) != 0) {
+    int ret = SERIALIZER->parseDictionary(reader, message->allocator, message->asDict);
+    if (ret != 0) {
+        #ifdef Log_INFO
+            struct SerializationModule_context* context = vcontext;
+            Log_info(context->logger, "Failed to parse message [%d]", ret);
+        #endif
         return -2;
     }
 

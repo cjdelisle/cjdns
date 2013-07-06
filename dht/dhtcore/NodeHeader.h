@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,8 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NODE_HEADER_H
-#define NODE_HEADER_H
+#ifndef NodeHeader_H
+#define NodeHeader_H
 
 #include "util/Assert.h"
 
@@ -20,7 +21,6 @@
 
 /**
  * Information about a given node.
- * Takes 8 bytes, 512 headers per 4096 byte page of memory.
  */
 struct NodeHeader
 {
@@ -35,7 +35,9 @@ struct NodeHeader
 
     /** The number interface of the next hop to get to this node. */
     uint32_t switchIndex;
+
+    /** The protocol version of the node. */
+    uint32_t version;
 };
-Assert_assertTrue(sizeof(struct NodeHeader) == 12);
 
 #endif

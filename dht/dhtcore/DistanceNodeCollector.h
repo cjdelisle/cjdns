@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,14 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef DISTANCE_NODE_COLLECTOR_H
-#define DISTANCE_NODE_COLLECTOR_H
+#ifndef DistanceNodeCollector_H
+#define DistanceNodeCollector_H
 
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "util/Bits.h"
 
-#include <string.h>
+#include "util/platform/libc/string.h"
 #include <stdbool.h>
 
 /**
@@ -39,9 +40,9 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && memcmp(body->address.ip6.bytes,
-                  collector->targetAddress,
-                  Address_SEARCH_TARGET_SIZE) != 0)
+        && Bits_memcmp(body->address.ip6.bytes,
+                       collector->targetAddress,
+                       Address_SEARCH_TARGET_SIZE) != 0)
     {
         nodeDistance++;
     }
@@ -66,7 +67,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             }
             if (i == 0) {
                 reachAndPath =
-                    (header->reach << 7) | (64 - Bits_log2x64_be(body->address.networkAddress_be));
+                    (header->reach << 7) | (64 - Bits_log2x64(body->address.path));
             }
             if (nodeDistance < nodes[i].distance) {
                 // smaller distance.
@@ -79,7 +80,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
 
         if (i > 0) {
             if (i > 1) {
-                memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
+                Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
             nodes[i - 1].node = header;
             nodes[i - 1].body = body;

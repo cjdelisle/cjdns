@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation,
@@ -11,18 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
+#define string_strncmp
+#define string_strlen
+#include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
+#include "memory/CanaryAllocator.h"
+#include "util/platform/libc/string.h"
+#include "util/events/EventBase.h"
+#include "util/Assert.h"
+#include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Endian.h"
+#include "util/log/WriterLog.h"
 #include "wire/Error.h"
 
-#include <assert.h>
 #include <stdio.h>
-#include <event2/event.h>
 
 static uint8_t* privateKey = (uint8_t*)
     "\x20\xca\x45\xd9\x5b\xbf\xca\xe7\x35\x3c\xd2\xdf\xfa\x12\x84\x4b"
@@ -46,10 +55,10 @@ static struct Message msg;
 static uint8_t* textBuff;
 #define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
 #define MK_MSG(x) \
-    memset(textBuff, 0, BUFFER_SIZE);                                 \
-    memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));    \
-    msg.length = strlen(x);                                           \
-    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);              \
+    Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
+    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
+    msg.length = strlen(x);                                                     \
+    msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
     msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 
 static uint8_t* if1Msg;
@@ -60,36 +69,36 @@ static char* userObj = "This represents a user";
 
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
 {
-    iface=iface;
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message -->  nonce=%d\n", nonce);
-    assert(message->length + message->padding <= BUFFER_SIZE);
+    Assert_always(message->length + message->padding <= BUFFER_SIZE);
     if2->receiveMessage(message, if2);
     return Error_NONE;
 }
 
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
 {
-    iface=iface;
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message <--  nonce=%d\n", nonce);
-    assert(message->length + message->padding <= BUFFER_SIZE);
+    Assert_always(message->length + message->padding <= BUFFER_SIZE);
     if1->receiveMessage(message, if1);
     return Error_NONE;
 }
 
 static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
-    printf("if1 got message! %s\n", message->bytes);
+    fputs("if1 got message! ", stdout);
+    fwrite(message->bytes, 1, message->length, stdout);
+    puts("");
     if1Msg = message->bytes;
     return Error_NONE;
 }
 
 static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
-    iface = iface;
-    printf("if2 got message! %s\n", message->bytes);
+    fputs("if2 got message! ", stdout);
+    fwrite(message->bytes, 1, message->length, stdout);
+    puts("");
     if2Msg = message->bytes;
     return Error_NONE;
 }
@@ -100,39 +109,34 @@ int init(const uint8_t* privateKey,
          bool authenticatePackets)
 {
     printf("\nSetting up:\n");
-    struct Allocator* allocator = MallocAllocator_new(1048576);
-    textBuff = allocator->malloc(BUFFER_SIZE, allocator);
+    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(1048576), NULL);
+    textBuff = Allocator_malloc(allocator, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
-    struct Log* logger = allocator->malloc(sizeof(struct Log), allocator);
-    logger->writer = logwriter;
+    struct Log* logger = WriterLog_new(logwriter, allocator);
+    struct Random* rand = Random_new(allocator, logger, NULL);
 
-    struct event_base* base = event_base_new();
+    struct EventBase* base = EventBase_new(allocator);
 
-    String* passStr = NULL;
-    if (password) {
-        String passStrStorage = {.bytes=(char*)password,.len=strlen((char*)password)};
-        passStr = &passStrStorage;
-    }
-
-    ca1 = CryptoAuth_new(NULL, allocator, NULL, base, logger);
-    if1 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+    ca1 = CryptoAuth_new(allocator, NULL, base, logger, rand);
+    if1 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf2,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
-    });
+    }));
     cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
-    ca2 = CryptoAuth_new(NULL, allocator, privateKey, base, logger);
+    ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
     if (password) {
-        CryptoAuth_setAuth(passStr, 1, cif1);
-        CryptoAuth_addUser(passStr, 1, userObj, ca2);
+        String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
+        CryptoAuth_setAuth(&passStr, 1, cif1);
+        CryptoAuth_addUser(&passStr, 1, userObj, ca2);
     }
-    if2 = allocator->clone(sizeof(struct Interface), allocator, &(struct Interface) {
+    if2 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
-    });
+    }));
     cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
@@ -149,7 +153,7 @@ static int sendToIf1(const char* x)
     if1Msg = NULL;
     MK_MSG(x);
     cif2->sendMessage(&msg, cif2);
-    assert(if1Msg);
+    Assert_always(if1Msg);
     if (strcmp((char*)if1Msg, x) != 0) {
         printf("expected %s, got %s\n", x, (char*)if1Msg);
         return -1;
@@ -162,8 +166,8 @@ static int sendToIf2(const char* x)
     if2Msg = NULL;
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
-    assert(if2Msg);
-    if (strcmp((char*)if2Msg, x) != 0) {
+    Assert_always(if2Msg);
+    if (strncmp((char*)if2Msg, x, strlen(x)) != 0) {
         printf("expected %s, got %s\n", x, (char*)if2Msg);
         return -1;
     }

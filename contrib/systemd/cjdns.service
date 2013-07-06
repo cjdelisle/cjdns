@@ -1,0 +1,11 @@
+[Unit]
+Description=A routing engine designed for security, scalability, speed and ease of use
+
+[Service]
+Type=forking
+ExecStart=/bin/sh -c "cjdroute < /etc/cjdroute.conf"
+GuessMainPID=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
