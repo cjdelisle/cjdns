@@ -161,7 +161,11 @@ to work verbatim.
 
 ## 0. Install the build tools you will need.
 
-    sudo apt-get install git build-essential
+    sudo apt-get install cmake git build-essential
+
+Installing cmake, although preferable, is not strictly necessary.  If cmake is
+unavailable or an unacceptable version, it will be downloaded and built in the
+source tree.
 
 ## 1. Retrieve cjdns from GitHub.
 
