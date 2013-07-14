@@ -52,6 +52,10 @@ PID=$(pgrep -d " " -f "$CJDROUTE")
 stop()
 {
     [ ! -z "$PID" ] && kill $PID &> /dev/null
+    while [ -n "$(pgrep -d " " -f "$CJDROUTE")" ]; do
+        echo "* Waiting for CJDNS to shut down..."
+        sleep 1;
+    done
     if [ $? -gt 0 ]; then return 1; fi
 }
 
