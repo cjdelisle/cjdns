@@ -1,0 +1,21 @@
+# Last Modified: Sun Jul 14 18:33:23 2013
+#include <tunables/global>
+
+# If this profile doesn't work for you, e.g. if it's outdated 
+# or if you have a non-standard setup, running aa-logprof should fix it.
+
+/usr/bin/cjdroute {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+
+  capability net_admin,
+  capability setuid,
+
+
+  /dev/net/tun rw,
+  /etc/passwd mr,
+  /proc/sys/kernel/random/uuid r,
+  /usr/bin/cjdroute mrix,
+
+}
