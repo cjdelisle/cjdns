@@ -6,10 +6,6 @@ var dgram = require('dgram'),
     fs = require('fs');
 
 var CJDNS = function (config) {
-    this.port = config.port;
-    this.host = config.host || 'localhost';
-    this.password = config.password;
-
     this.configFile = path.resolve(config.config.replace(/^~\//, process.env.HOME + '/'));
     this.config = fs.readFileSync(this.configFile);
 
@@ -20,6 +16,12 @@ var CJDNS = function (config) {
     this.oldConfig = this.config;
 
     this.parseConfig();
+
+    this.host = (this.config.admin.bind || 'localhost:11234').split(':');
+    this.port = this.host[1] || '80';
+    this.host = this.host[0];
+
+    this.password = this.config.admin.password;
 
     this.send({q: 'ping'}, function (err, msg) {
         if (msg && msg.q === 'pong') {

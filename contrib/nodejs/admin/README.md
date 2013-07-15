@@ -13,7 +13,8 @@ You should install [Node.js](http://nodejs.org) first.
 
 ##### Create ~/.cjdnsadmin
 
-    echo '{"addr":"127.0.0.1","port":11234,"password":"your admin password from cjdroute.conf","config":"path to your config file"}' > ~/.cjdnsadmin
+You should create ~/.cjdnsadmin file with path to your CJDNS config:
+    echo '{"config":"path to your config file"}' > ~/.cjdnsadmin
 
 ##### Start service
 
