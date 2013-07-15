@@ -166,8 +166,23 @@ app.post('/api/cjdns', function (req, res, next) {
 });
 
 app.post('/api/config', function (req, res, next) {
-    sys.log(sys.inspect(req.body));
-    res.send(cjdns.config);
+    if (req.body.config) {
+        cjdns.saveConfig(req.body.config, function (err, data) {
+            if (err) {
+                res.send('502', 'Something happened!');
+                return;
+            }
+
+            res.send(data);
+        });
+    } else {
+        next();
+    }
+});
+
+app.post('/api/config', function (req, res, next) {
+    //sys.log(sys.inspect(req.body));
+    res.send(cjdns.config.interfaces);
 });
 
 app.get('/map', function (req, res) {

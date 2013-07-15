@@ -17,11 +17,7 @@ var CJDNS = function (config) {
         throw 'Can\'t read config file! path: ' + this.configFile;
     }
 
-    //save current version to yourConfDir/<confName>.timestamp.conf
-    fs.writeFile(
-        path.dirname(this.configFile) + '/' + path.basename(this.configFile) + '.' + (new Date()).getTime() + path.extname(this.configFile),
-        this.config
-    );
+    this.oldConfig = this.config;
 
     this.parseConfig();
 
@@ -125,11 +121,40 @@ CJDNS.prototype.parseConfig = function() {
     this.config = JSON.parse(removeComments(this.config));
 };
 
-CJDNS.prototype.saveConfig = function(callback) {
-    var conf = JSON.stringify(this.config, null, 4);
+CJDNS.prototype.checkConfig = function (config) {
+    return config && config.UDPInterface && config.UDPInterface[0] && config.UDPInterface[0].connectTo;
+};
 
-    //save new config
-    fs.writeFile(this.configFile, conf, callback);
+CJDNS.prototype.saveConfig = function(newConfig, callback) {
+    var conf,
+        reserveConf;
+
+    if (this.checkConfig(newConfig)) {
+        conf = JSON.parse(JSON.stringify(this.config));
+        conf.interfaces = newConfig;
+        this.config = JSON.parse(JSON.stringify(conf));
+        conf = JSON.stringify(conf, null, 4);
+
+        reserveConf = path.dirname(this.configFile) + '/' + path.basename(this.configFile) + '.' + (new Date()).getTime() + path.extname(this.configFile);
+
+        //save current version to yourConfDir/<confName>.<timestamp>.conf
+        fs.writeFile(
+            reserveConf,
+            this.oldConfig
+        );
+
+        //save new config
+        fs.writeFile(this.configFile, conf, function (err, data) {
+            callback(err, {
+                msg: 'Old config saved to "' + reserveConf + '"'
+            });
+        });
+        this.oldConfig = conf;
+    } else {
+        callback({
+            error: 'Config is not valid!'
+        });
+    }
 };
 
 CJDNS.prototype.send = function(data, callback, otherSocket) {
