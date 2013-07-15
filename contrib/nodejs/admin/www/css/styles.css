@@ -43,6 +43,10 @@ body {
 	padding: 5px 0;
 }
 
+	.peer:hover {
+		background: #f6f6f6;
+	}
+
 	.peer-host-block {
 		padding: 0 10px;
 	}
