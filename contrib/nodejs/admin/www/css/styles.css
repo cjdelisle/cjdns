@@ -38,6 +38,19 @@ body {
 	outline: none !important;
 }
 
-.peerNode {
+.peer {
+	margin: 0 0 10px;
 	padding: 5px 0;
 }
+
+	.peer-info {
+		padding-left: 40px;
+	}
+
+.message {
+	color: #898989;
+}
+
+	.message-text {
+		color: #000;
+	}
