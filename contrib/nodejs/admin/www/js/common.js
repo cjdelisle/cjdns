@@ -59,7 +59,7 @@ App.prototype.send = function send (url, msg, callback) {
     });
 };
 
-App.prototype.updateOutput = function updateOutput (msg) {
+App.prototype.updateOutput = function updateOutput (msg, container) {
     var time = msg && msg.time ? new Date(msg.time * 1000) : new Date(),
         text = [];
 
@@ -80,9 +80,11 @@ App.prototype.updateOutput = function updateOutput (msg) {
         msg: JSON.stringify(msg)
     });
 
-    if (this.output) {
-        this.output.find('.new-message').removeClass('new-message');
-        this.output.prepend(text);
+    container = container || this.output;
+
+    if (container) {
+        container.find('.new-message').removeClass('new-message');
+        container.prepend(text);
     }
 
     return text;
