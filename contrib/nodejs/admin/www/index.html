@@ -9,7 +9,8 @@
     <script src="/js/bootstrap.min.js"></script>
 
     <link rel="stylesheet" href="/css/styles.css" />
-    <script src="/js/script.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/index.js"></script>
 </head>
 <body>
     <div class="navbar navbar-fixed-top">
@@ -21,12 +22,25 @@
                         <li class="active"><a>Admin</a></li>
                         <li><a href="/map">Map</a></li>
                         <li><a href="/logs">Logs</a></li>
+                        <li><a href="/config">Config</a></li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
     <div class="container">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>method</th>
+                    <th>params</th>
+                </tr>
+            </thead>
+            <tbody id="methods">
+                <tr><td>loading...</td></tr>
+            </tbody>
+        </table>
+        <a name="fillForm"></a>
         <div class="hero-unit form-block">
             <form id="sendForm" class="form-inline">
                 <div class="control-group">
