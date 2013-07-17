@@ -10,7 +10,7 @@
 
     <link rel="stylesheet" href="/css/styles.css" />
     <script src="/js/common.js"></script>
-    <script src="/js/map.js"></script>
+    <script src="/js/config.js"></script>
 </head>
 <body>
     <div class="navbar navbar-fixed-top">
@@ -20,29 +20,22 @@
                 <div class="nav-collapse">
                     <ul class="nav">
                         <li><a href="/">Admin</a></li>
-                        <li class="active"><a>Map</a></li>
+                        <li><a href="/map">Map</a></li>
                         <li><a href="/logs">Logs</a></li>
-                        <li><a href="/config">Config</a></li>
+                        <li class="active"><a>Config</a></li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
     <div class="container">
-        <div class="hero-unit form-block">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ip</th>
-                        <th>link</th>
-                        <th>path</th>
-                        <th>version</th>
-                    </tr>
-                </thead>
-                <tbody id="map">
-                    <tr><td>loading...</td></tr>
-                </tbody>
-            </table>
+        <div class="hero-unit">
+            <h3>Peers</h3>
+            <div id="peers" class="form-block"></div>
+            <span id="add" class="btn btn-success">Add peer</span>
+            <span id="save" class="btn btn-success pull-right">Save config</span>
+
+            <div id="configOutput"></div>
         </div>
     </div>
 </body>
