@@ -47,7 +47,12 @@ if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
 # path ot the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
 
-PID=$(pgrep -d " " -f "$CJDROUTE")
+load_pid()
+{
+    PID=$(pgrep -d " " -f "$CJDROUTE")
+}
+
+load_pid
 
 stop()
 {
@@ -106,6 +111,7 @@ case "$1" in
         ;;
     "restart" )
         stop
+        load_pid
         start
         ;;
     "stop" )
