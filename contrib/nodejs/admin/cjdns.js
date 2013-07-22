@@ -6,6 +6,9 @@ var dgram = require('dgram'),
     fs = require('fs');
 
 var CJDNS = function (config) {
+    if (!config.config) {
+        throw 'Please, add "config":"path/to/your/cjdroute.conf" to ~/.cjdnsadmin file!';
+    }
     this.configFile = path.resolve(config.config.replace(/^~\//, process.env.HOME + '/'));
     this.config = fs.readFileSync(this.configFile);
 
@@ -128,7 +131,8 @@ CJDNS.prototype.checkConfig = function (config) {
 };
 
 CJDNS.prototype.saveConfig = function(newConfig, callback) {
-    var conf,
+    var cjdns = this,
+        conf,
         reserveConf;
 
     if (this.checkConfig(newConfig)) {
@@ -142,16 +146,26 @@ CJDNS.prototype.saveConfig = function(newConfig, callback) {
         //save current version to yourConfDir/<confName>.<timestamp>.conf
         fs.writeFile(
             reserveConf,
-            this.oldConfig
-        );
+            this.oldConfig,
+            function (err, data) {
+                if (!err) {
+                    //save new config only if old conf saved!
+                    fs.writeFile(cjdns.configFile, conf, function (err, data) {
+                        callback(err, {
+                            msg: 'Old config saved to "' + reserveConf + '"'
+                        });
+                    });
 
-        //save new config
-        fs.writeFile(this.configFile, conf, function (err, data) {
-            callback(err, {
-                msg: 'Old config saved to "' + reserveConf + '"'
-            });
-        });
-        this.oldConfig = conf;
+                    cjdns.oldConfig = conf;
+                } else {
+                    callback({
+                        error: 'Can\'t save old config!'
+                    },{
+                        msg: 'Can\'t save old config!'
+                    });
+                }
+            }
+        );
     } else {
         callback({
             error: 'Config is not valid!'
