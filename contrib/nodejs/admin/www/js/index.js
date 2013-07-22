@@ -38,7 +38,10 @@
     App.prototype.getMethods = function getMethods () {
         var app = this,
             $methods = $('#methods'),
-            methodTmpl = app.render('<td><a href="#fillForm" data-method="%name%" class="method">%name%</a></td>');
+            methodTmpl = app.render([
+                '<td>',
+                    '<a href="#fillForm" data-method="%name%" class="method">%name%</a>',
+                '</td>'].join(''));
 
         app.send('/methods', function (resp) {
             var methods = resp.methods;
