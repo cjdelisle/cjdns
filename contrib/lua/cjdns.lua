@@ -8,72 +8,122 @@ local socket  = require "socket"  -- http://w3.impa.br/~diego/software/luasocket
 AdminInterface = {}
 AdminInterface.__index = AdminInterface
 
-function AdminInterface.new(host, port, password, configpath)
+ConfigFile = {}
+ConfigFile.__index = ConfigFile
+
+function ConfigFile.new(path, no_init)
     local values = {
-        host       = host,
-        port       = port,
-        password   = password,
-        configpath = configpath,
+        path     = path,
+        text     = "",
+        contents = {},
     }
-    return setmetatable(values, AdminInterface)
+    setmetatable(values, ConfigFile)
+
+    if (not no_init) then
+        values:reload()
+    end
+
+    return values
 end
 
-function getConfigJSON(path)
-    local f = assert(io.open(path, 'r'))
-    local config = assert(f:read("*all"))
+function ConfigFile:reload()
+    self:read()
+    self:parse()
+end
+
+function ConfigFile:read()
+    local f = assert(io.open(self.path, 'r'))
+    self.text = assert(f:read("*all"))
     f:close()
-
-    config, _ = config:gsub("//[^\n]*\n", "")
-    return config
+    
+    self.text, _ = self.text:gsub("//[^\n]*\n", "")
 end
 
-function AdminInterface.fromConfig(path)
-    config = getConfigJSON(path)
-
-    local obj, pos, err = djkson.decode(config)
+function ConfigFile:parse()
+    local obj, pos, err = djkson.decode(self.text)
     assert(err == nil, err) -- If there is an error, die and print it
 
-    local ai_table   = {}
-    local adminstuff = assert(obj.admin)
+    self.contents = obj
+end
+
+function ConfigFile:makeInterface()
+    local ai = AdminInterface.new({ config = self })
+    self:applyToInterface(ai)
+    return ai
+end
+
+function ConfigFile:applyToInterface(ai)
+    local adminstuff = assert(self.contents.admin)
     local bind       = assert(adminstuff.bind)
     local bindsplit  = assert(bind:find(":"))
 
-    ai_table.password   = assert(adminstuff.password)
-    ai_table.host       = bind:sub(0, bindsplit - 1)
-    ai_table.port       = bind:sub(bindsplit + 1)
-    ai_table.configpath = path
-
-    return setmetatable(ai_table, AdminInterface)
+    ai.password = assert(adminstuff.password)
+    ai.host     = bind:sub(0, bindsplit - 1)
+    ai.port     = bind:sub(bindsplit + 1)
+    ai.config   = self
 end
 
+function AdminInterface.new(properties)
+    properties = properties or {}
+
+    properties.host     = properties.host or "127.0.0.1"
+    properties.port     = properties.port or 11234
+    properties.password = properties.password or nil
+    properties.config   = properties.config   or ConfigFile.new("/etc/cjdroute.conf", false)
+    properties.timeout  = properties.timeout  or 2
+
+    return setmetatable(properties, AdminInterface)
+end
+
+
 function AdminInterface:getIP()
-    local ip = socket.dns.toip(self.host)
-    assert(ip)
-    return ip
+    return socket.dns.toip(self.host)
 end
 
 function AdminInterface:send(object)
-    local bencoded = assert(bencode.encode(object))
+    local bencoded, err = bencode.encode(object)
+    if err then
+        return nil, err
+    end
+
     local sock_obj = assert(socket.udp())
-    assert(sock_obj:sendto(bencoded, self:getIP(), self.port))
+    sock_obj:settimeout(self.timeout)
+
+    local _, err = sock_obj:sendto(bencoded, assert(self:getIP()), self.port)
+    if err then
+        return nil, err
+    end
+
     return sock_obj
 end
 
 function AdminInterface:recv(sock_obj)
-    return assert(bencode.decode(sock_obj:receive()))
+    local retrieved, err = sock_obj:receive()
+    if not retrieved then
+        return nil, err
+    end
+    return bencode.decode(retrieved)
 end
 
 function AdminInterface:call(object)
-    local sock_obj = self:send(object)
+    local sock_obj, err = self:send(object)
+    if err then
+        return nil, err
+    end
+
     return self:recv(sock_obj)
 end
 
 function AdminInterface:ping()
-    local response = self:call({q = "ping"})
-    return (response["q"] == "pong")
+    local response, err = self:call({q = "ping"})
+    if response and response["q"] == "pong" then
+        return true
+    else
+        return false, err
+    end
 end
 
 return {
     AdminInterface = AdminInterface,
-    getConfigJSON  = getConfigJSON,
+    ConfigFile     = ConfigFile,
 }
