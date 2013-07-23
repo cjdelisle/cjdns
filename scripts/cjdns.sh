@@ -35,16 +35,16 @@ if [ -f /etc/default/cjdns ]; then
   . /etc/default/cjdns
 fi
 
-# path of cjdns
-if [ -z "$CJDPATH" ]; then CJDPATH="`dirname $0`/"; fi
+# path to the cjdns source tree, no trailing slash
+if [ -z "$CJDPATH" ]; then CJDPATH=`dirname $0`; fi
 
-# path to the cjdroute process
-if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}cjdns/cjdroute"; fi
+# full path to the cjdroute binary
+if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}/cjdns/cjdroute"; fi
 
-# path to the configuration
-if [ -z "$CONF" ]; then CONF="${CJDPATH}cjdroute.conf"; fi
+# full path to the configuration file
+if [ -z "$CONF" ]; then CONF="${CJDPATH}/cjdroute.conf"; fi
 
-# path ot the log file.
+# path to the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
 
 load_pid()
@@ -69,7 +69,7 @@ start()
     if [ -z "$PID" ]; then
         $CJDROUTE < $CONF &>> $LOGTO
         if [ $? -gt 0 ]; then
-            echo "Failed to start"
+            echo "Failed to start CJDNS"
             return 1
         fi
     else
@@ -80,7 +80,7 @@ start()
 
 status()
 {
-    echo -n "* cjdns is "
+    echo -n "* CJDNS is "
     if [ -z "$PID" ]; then
         echo "not running"
         exit 1
@@ -92,15 +92,15 @@ status()
 
 update()
 {
-    if [ -d $CJDPATH/cjdns/.git ]; then
-        cd $CJDPATH/cjdns
+    if [ -d ${CJDPATH}/cjdns/.git ]; then
+        cd ${CJDPATH}/cjdns
         git pull
         ./do || echo "Failed to update!" && exit 1
-        echo "* Update complete, restarting cjdns"
+        echo "* Update complete, restarting CJDNS"
         stop
         start
     else
-        echo "The cjdns source directory does not exist"
+        echo "The CJDNS source directory does not exist"
         return 1
     fi
 }
