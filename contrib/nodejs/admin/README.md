@@ -9,7 +9,7 @@ You should install [Node.js](http://nodejs.org) first.
 ##### Install dependencies
 
     cd {cjdns-path}/contrib/nodejs/admin
-    nmp install
+    npm install
 
 ##### Create ~/.cjdnsadmin
 
