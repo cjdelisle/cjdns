@@ -56,12 +56,17 @@ load_pid
 
 stop()
 {
-    [ ! -z "$PID" ] && kill $PID &> /dev/null
-    while [ -n "$(pgrep -d " " -f "$CJDROUTE")" ]; do
-        echo "* Waiting for CJDNS to shut down..."
-        sleep 1;
-    done
-    if [ $? -gt 0 ]; then return 1; fi
+    if [ -z "$PID" ]; then
+        echo "CJDNS is not running"
+        return 1
+    else
+        kill $PID &> /dev/null
+        while [ -n "$(pgrep -d " " -f "$CJDROUTE")" ]; do
+            echo "* Waiting for CJDNS to shut down..."
+            sleep 1;
+        done
+        if [ $? -gt 0 ]; then return 1; fi
+    fi
 }
 
 start()
@@ -98,6 +103,7 @@ update()
         ./do || echo "Failed to update!" && exit 1
         echo "* Update complete, restarting cjdns"
         stop
+        load_pid
         start
     else
         echo "The cjdns source directory does not exist"
