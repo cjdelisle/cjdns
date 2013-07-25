@@ -1,4 +1,4 @@
--- CJDNS admin module for Lua
+-- Cjdns admin module for Lua
 -- Written by Philip Horger
 
 local bencode = require "bencode" -- https://bitbucket.org/wilhelmy/lua-bencode/

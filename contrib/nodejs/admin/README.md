@@ -1,4 +1,4 @@
-# Admin panel for CJDNS
+# Admin panel for cjdns
 #### Does not support Internet Explorer 6, 7, or 8
 
 ### Usage
@@ -13,7 +13,7 @@ You should install [Node.js](http://nodejs.org) first.
 
 ##### Create ~/.cjdnsadmin
 
-You should create ~/.cjdnsadmin file with path to your CJDNS config:
+You should create ~/.cjdnsadmin file with path to your cjdns config:
 
     echo '{"config":"path to your config file"}' > ~/.cjdnsadmin
 
