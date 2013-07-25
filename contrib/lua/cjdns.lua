@@ -31,12 +31,15 @@ function ConfigFile:reload()
     self:parse()
 end
 
-function ConfigFile:read()
+function ConfigFile:read(path)
+    path = path or self.path
+
     local f = assert(io.open(self.path, 'r'))
     self.text = assert(f:read("*all"))
     f:close()
     
-    self.text, _ = self.text:gsub("//[^\n]*\n", "")
+    self.text, _ = self.text:gsub("//[^\n]*\n", "") -- Single line comments
+    self.text, _ = self.text:gsub("/%*.-%*/", "") -- Multi-line comments
 end
 
 function ConfigFile:parse()
@@ -44,6 +47,18 @@ function ConfigFile:parse()
     assert(err == nil, err) -- If there is an error, die and print it
 
     self.contents = obj
+end
+
+function ConfigFile:save(path)
+    -- Saving will obliterate comments, and table output type is inferred by
+    -- table contents, since Lua does not distinguish between [] and {}
+
+    path = path or self.path
+    local savetext = assert(djkson.encode(self.contents, { indent = true }))
+
+    local f = assert(io.open(path, 'w'))
+    f:write(savetext)
+    f:close()
 end
 
 function ConfigFile:makeInterface()
