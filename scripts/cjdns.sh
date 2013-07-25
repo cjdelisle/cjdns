@@ -57,12 +57,12 @@ load_pid
 stop()
 {
     if [ -z "$PID" ]; then
-        echo "CJDNS is not running"
+        echo "cjdns is not running"
         return 1
     else
         kill $PID &> /dev/null
         while [ -n "$(pgrep -d " " -f "$CJDROUTE")" ]; do
-            echo "* Waiting for CJDNS to shut down..."
+            echo "* Waiting for cjdns to shut down..."
             sleep 1;
         done
         if [ $? -gt 0 ]; then return 1; fi
@@ -74,18 +74,18 @@ start()
     if [ -z "$PID" ]; then
         $CJDROUTE < $CONF &>> $LOGTO
         if [ $? -gt 0 ]; then
-            echo "Failed to start CJDNS"
+            echo "Failed to start cjdns"
             return 1
         fi
     else
-        echo "CJDNS is already running"
+        echo "cjdns is already running"
         return 1
     fi
 }
 
 status()
 {
-    echo -n "* CJDNS is "
+    echo -n "* cjdns is "
     if [ -z "$PID" ]; then
         echo "not running"
         exit 1
@@ -101,12 +101,12 @@ update()
         cd ${CJDPATH}/cjdns
         git pull
         ./do || echo "Failed to update!" && exit 1
-        echo "* Update complete, restarting CJDNS"
+        echo "* Update complete, restarting cjdns"
         stop
         load_pid
         start
     else
-        echo "The CJDNS source directory does not exist"
+        echo "The cjdns source directory does not exist"
         return 1
     fi
 }

@@ -31,7 +31,7 @@ sub new {
     );
 
     unless ($self->_ping) {
-        die "Can't ping CJDNS admin interface at udp://$addr:$port\n";
+        die "Can't ping cjdns admin interface at udp://$addr:$port\n";
     }
 
     $self->_make_methods;
@@ -64,7 +64,7 @@ sub _make_methods {
         $page++;
     }
 
-    # first let's start by loading them as named into the CJDNS namespace.
+    # first let's start by loading them as named into the cjdns namespace.
 
     foreach my $method_name (keys %$availableFunctions) {
         my $prototype = $availableFunctions->{$method_name};
@@ -119,7 +119,7 @@ sub _make_methods {
 
 sub capabilities {
     my ($self) = @_;
-    my $return = "CJDNS Administration Protocol Capabilities\n";
+    my $return = "Cjdns Administration Protocol Capabilities\n";
     $return .= "------------------------------------------\n";
     foreach my $func (keys %{$self->{capabilities}}) {
         $return .= " $func\n";
@@ -169,17 +169,17 @@ __END__
 
 =head1 NAME
 
-CJDNS - Perl interface to the CJDNS Administration Interface
+Cjdns - Perl interface to the Cjdns Administration Interface
 
 =head1 SYNOPSIS
 
   use CJDNS;
   my $cjdns = CJDNS->new('localhost', '12345', 'abc123');
-  printf("CJDNS' routing table is using %d bytes of memory!\n", $cjdns->memory->{bytes});
+  printf("Cjdns' routing table is using %d bytes of memory!\n", $cjdns->memory->{bytes});
 
 =head1 DESCRIPTION
 
-Perl interface to the CJDNS Administration system
+Perl interface to the cjdns Administration system
 
 =head1 SEE ALSO
 

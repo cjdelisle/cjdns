@@ -28,7 +28,7 @@ var CJDNS = function (config) {
 
     this.send({q: 'ping'}, function (err, msg) {
         if (msg && msg.q === 'pong') {
-            sys.log('CJDNS Admin backend found and ready to work!');
+            sys.log('Cjdns Admin backend found and ready to work!');
         } else {
             sys.log(msg);
         }
