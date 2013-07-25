@@ -42,7 +42,7 @@ if [ -z "$CJDPATH" ]; then CJDPATH=`dirname $0`; fi
 if [ -z "$CJDROUTE" ]; then CJDROUTE="${CJDPATH}/cjdns/cjdroute"; fi
 
 # full path to the configuration file
-if [ -z "$CONF" ]; then CONF="${CJDPATH}/cjdroute.conf"; fi
+if [ -z "$CONF" ]; then CONF="${CJDPATH}/cjdns/cjdroute.conf"; fi
 
 # path to the log file.
 if [ -z "$LOGTO" ]; then LOGTO="/dev/null"; fi
