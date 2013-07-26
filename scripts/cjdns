@@ -7,7 +7,7 @@
 # Full path to the cjdroute binary. Defaults to CJDPATH/cjdns/cjdroute.
 #CJDROUTE=/opt/cjdns/cjdroute
 
-# Full path to the configuration file. Defaults to CJDPATH/cjdroute.conf.
+# Full path to the configuration file. Defaults to CJDPATH/cjdns/cjdroute.conf.
 #CONF=/etc/cjdroute.conf
 
 # Path ot the log file. Defaults to /dev/null.
