@@ -1,5 +1,5 @@
 body {
-	padding-top: 60px;
+	padding-top: 70px;
 }
 
 .hype-logo {
@@ -54,6 +54,8 @@ body {
 	}
 
 	.new-message {
+		border-bottom: 3px solid #666;
+
 		animation: fadeIn 1s;
 		-webkit-animation: fadeIn 1s;
 	}
@@ -129,3 +131,7 @@ body {
 	.message-text {
 		color: #000;
 	}
+
+.select-offset {
+	padding-left: 30px;
+}
