@@ -32,6 +32,10 @@ body {
 		border-bottom: 3px solid #DD0000;
 	}
 
+	.nav a:hover {
+		border-bottom: 3px solid #990000;
+	}
+
 .hero-unit {
 	padding: 30px;
 	padding-bottom: 10px;
