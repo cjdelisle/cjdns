@@ -24,7 +24,12 @@
             },
             pause = $('#pause'),
             ts = (new Date()).getTime() - 60000,
-            tmpl = this.render('<div class="new-message message"><strong>[%time%]</strong> %level% <i>%file%%line%</i> <span class="message-text">%msg%</span></div>');
+            tmpl = this.render([
+                '<div class="new-message message">',
+                    '<strong>[%time%]</strong> %level% ',
+                    '<i>%file%%line%</i> ',
+                    '<span class="message-text">%msg%</span>',
+                '</div>'].join(''));
 
         function makeHtml (msg) {
             var time = msg && msg.time ? new Date(msg.time * 1000) : new Date(),
