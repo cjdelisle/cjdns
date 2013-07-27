@@ -1,0 +1,18 @@
+Source: cjdns
+Section: comm
+Priority: extra
+Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
+Build-Depends: debhelper (>= 8.0.0), cmake (>= 2.8)
+Standards-Version: 3.9.2
+Homepage: https://github.com/cjdelisle/cjdns/
+Vcs-Git: git://github.com/cjdelisle/cjdns.git
+Vcs-Browser: https://github.com/cjdelisle/cjdns/
+
+Package: cjdns
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Encrypted networking for regular people
+ Cjdns implements an encrypted IPv6 network using public key cryptography
+ for address allocation and a distributed hash table for routing.
+ This provides near zero-configuration networking without many of the security
+ and robustness issues that regular IPv4 and IPv6 networks have.
