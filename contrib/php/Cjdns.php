@@ -52,9 +52,6 @@ class Cjdns {
     }
 
     public function call($function, $args) {
-        echo "$function(";
-        print_r($args);
-        echo ")\n\n<hr />";
         $cookie = $this->getCookie();
         $txid = $this->randStr();
         $request = array("q" => "auth",
