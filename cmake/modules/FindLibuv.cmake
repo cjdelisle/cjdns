@@ -67,7 +67,7 @@ if (NOT LIBUV_FOUND)
 
     find_library(LIBUV_LIBRARIES
         NAMES
-	    uv
+	    libuv
 	PATHS
 	    ${LIBUV_INCLUDE_DIRS}/../.libs
 	    ${LIBUV_PREFIX}/lib
