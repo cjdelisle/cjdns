@@ -28,11 +28,13 @@ if (NOT NACL_FOUND)
 
     find_library(NACL_LIBRARIES
         NAMES
-            nacl
+            libnacl.a
         PATHS
             ${NACL_INCLUDE_DIRS}/../
             ${NACL_INCLUDE_DIRS}/../lib
+            ${NACL_INCLUDE_DIRS}/../lib/nacl/
             ${NACL_INCLUDE_DIRS}/../../lib/
+            ${NACL_INCLUDE_DIRS}/../../lib/nacl/
         NO_DEFAULT_PATH
     )
 
