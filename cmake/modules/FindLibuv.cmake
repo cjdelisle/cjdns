@@ -107,10 +107,11 @@ if (NOT LIBUV_FOUND AND "$ENV{NO_STATIC}" STREQUAL "")
     else ()
         if (BSD)
             set(make gmake)
+						separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC ${make} HAVE_DTRACE=0")
         else()
             set(make make)
+						separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC ${make}")
         endif ()
-        separate_arguments(MAKE_COMMAND UNIX_COMMAND "CFLAGS=-fPIC ${make}")
     endif ()
 
     ExternalProject_Add(libuv_ep

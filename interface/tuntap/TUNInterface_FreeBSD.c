@@ -17,6 +17,7 @@
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
 #include "util/Bits.h"
+#include "util/events/Pipe.h"
 
 #include <errno.h>
 #include <ctype.h>
@@ -91,7 +92,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         Except_raise(eh, TUNInterface_new_INTERNAL, "%s [%s]", error, strerror(err));
     }
 
-    struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
+    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
 
     return BSDMessageTypeWrapper_new(&p->iface, logger);
 }

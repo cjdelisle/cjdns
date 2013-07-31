@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/usr/bin/env sh -e
 #
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
