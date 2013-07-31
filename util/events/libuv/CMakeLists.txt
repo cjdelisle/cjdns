@@ -39,4 +39,4 @@ target_link_libraries(cjdns-util-events-libuv
 )
 
 set_target_properties(cjdns-util-events-libuv
-        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE -fno-strict-aliasing")
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE -fno-strict-aliasing -Wno-error")
