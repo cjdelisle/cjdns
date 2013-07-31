@@ -3,7 +3,7 @@ language: C
 branches:
   only:
     - master
-    - named-pipes
+    - stable-0.4
 
 before_script:
   - "sudo apt-get install cmake"
