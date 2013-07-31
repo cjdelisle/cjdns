@@ -14,7 +14,6 @@
  */
 #include "exception/Except.h"
 #include "interface/Interface.h"
-#include "interface/TUNConfigurator.h"
 #include "util/AddrTools.h"
 #include "util/Bits.h"
 
