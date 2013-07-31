@@ -16,7 +16,6 @@
 #include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -32,8 +31,8 @@ int expect(char* str, struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
     char buffer[32];
-    writer->write("\0", 1, writer);
-    reader->read(buffer, strlen(str) + 1, reader);
+    Writer_write(writer, "\0", 1);
+    Reader_read(reader, buffer, strlen(str) + 1);
     if (strcmp(str, buffer) != 0) {
         printf("Expected %s\n Got %s\n", str, buffer);
         return -1;
@@ -64,7 +63,7 @@ void testParse(struct Writer* w, struct Reader* r, struct Allocator* alloc)
 int main()
 {
     char out[512];
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
 
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);

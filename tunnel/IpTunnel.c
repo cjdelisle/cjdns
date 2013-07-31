@@ -23,7 +23,7 @@
 #include "exception/Jmp.h"
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
-#include "interface/TUNMessageType.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -178,7 +178,7 @@ static uint8_t sendControlMessage(Dict* dict,
 
     struct Writer* w = ArrayWriter_new(message->bytes, message->length, alloc);
     StandardBencSerializer_get()->serializeDictionary(w, dict);
-    message->length = w->bytesWritten(w);
+    message->length = w->bytesWritten;
 
     #ifdef Log_DEBUG
         message->bytes[message->length] = '\0';
@@ -191,7 +191,7 @@ static uint8_t sendControlMessage(Dict* dict,
     Message_shift(message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     uh->sourceAndDestPorts = 0;
-    uh->length_be = Endian_hostToBigEndian16(w->bytesWritten(w));
+    uh->length_be = Endian_hostToBigEndian16(w->bytesWritten);
     uh->checksum_be = 0;
 
     uint16_t payloadLength = message->length;
@@ -364,7 +364,7 @@ static void addAddressCallback(Dict* responseMessage, void* vcontext)
 
 static void addAddress(char* printedAddr, struct IpTunnel_pvt* ctx)
 {
-#ifdef OSX
+#ifdef Darwin
     int prefixLen = 3;
 #else
     int prefixLen = 0;

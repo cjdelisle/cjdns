@@ -17,6 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "util/UniqueName.h"
+#include "exception/Except.h"
 
 /**
  * Create a new Allocator which allocates from to a user supplied buffer.
@@ -29,7 +30,7 @@
  *               further allocations will fail and return NULL.
  */
 struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
-                                                  size_t length,
+                                                  unsigned long length,
                                                   char* file,
                                                   int line);
 
@@ -43,12 +44,9 @@ struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
 
 /**
  * @param bufferAllocator the buffer allocator to set this on.
- * @param electronicThumb in an out-of-memory event, this function will be called just
- *                        before the process is aborted.
- * @param towel a context which electronicThumb will be called with.
+ * @param eh an exception handler.
  */
-void BufferAllocator_onOOM(const struct Allocator* bufferAllocator,
-                           void (* electronicThumb)(void* towel),
-                           void* towel);
+void BufferAllocator_onOOM(struct Allocator* bufferAllocator,
+                           struct Except* eh);
 
 #endif

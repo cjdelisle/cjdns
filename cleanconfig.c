@@ -31,7 +31,7 @@ int main(int argc, char** argv)
                "which is valid. This tool deserialies and reserialized a conf file or other "
                "json file.\n");
         printf("In honor of thefinn93, thanks for all of your hard work helping people.\n");
-        exit(0);
+        return 0;
     }
 
     struct Allocator* allocator = MallocAllocator_new(1<<20);

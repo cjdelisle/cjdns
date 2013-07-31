@@ -57,9 +57,9 @@ struct Hermes
 };
 
 /** Called when the request allocator is freed. */
-static void removeReqFromSet(void* vrequest)
+static int removeReqFromSet(struct Allocator_OnFreeJob* job)
 {
-    struct Request* req = Identity_cast((struct Request*) vrequest);
+    struct Request* req = Identity_cast((struct Request*) job->userData);
     struct Hermes* h = Identity_cast(req->hermes);
     int index = Map_RequestSet_indexForHandle(req->handle, &h->requestSet);
     if (index > -1) {
@@ -67,6 +67,7 @@ static void removeReqFromSet(void* vrequest)
     } else {
         Log_error(h->logger, "request with handle [%u] missing from set", req->handle);
     }
+    return 0;
 }
 
 static void timeout(void* vrequest)
@@ -137,7 +138,7 @@ void Hermes_callAngel(Dict* message,
     struct {
         uint8_t padding[PADDING];
         uint8_t message[BUFF_SIZE];
-    } buff = { .padding = {0} };
+    } buff = { .padding = {0}, .message = {0} };
 
     struct Allocator* reqAlloc = Allocator_child(alloc);
     struct Request* req = Allocator_clone(reqAlloc, (&(struct Request) {
@@ -166,15 +167,17 @@ void Hermes_callAngel(Dict* message,
     // Remove the txid string so there is not a dangling pointer in the message.
     Dict_remove(message, String_CONST("txid"));
 
-    struct Message m = {
+    struct Message* m = &(struct Message) {
         .bytes = buff.message,
-        .length = writer->bytesWritten(writer),
+        .length = writer->bytesWritten,
         .padding = PADDING
     };
 
-    Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m.length, m.bytes);
+    Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
 
-    int ret = hermes->iface->sendMessage(&m, hermes->iface);
+    m = Message_clone(m, reqAlloc);
+
+    int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {
         Except_raise(eh, Hermes_callAngel_ESEND, "Failed to send message to angel [%d]", ret);
     }

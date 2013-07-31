@@ -15,6 +15,7 @@
 #ifndef NodeStore_pvt_H
 #define NodeStore_pvt_H
 
+#include "crypto/random/Random.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "util/log/Log.h"
 
@@ -26,6 +27,9 @@ struct NodeStore
 
     /** A pointer to the first of an array of node headers. */
     struct NodeHeader* headers;
+
+    /** Source of random numbers. */
+    struct Random* rand;
 
     /**
      * A pointer to the first of the array of nodes

@@ -14,48 +14,21 @@
  */
 #include "io/ArrayReader.h"
 #include "util/Bits.h"
+#include "util/Identity.h"
 
 struct ArrayReader_context {
-    char* pointer;
-    char* endPointer;
-    size_t bytesRead;
+    struct Reader generic;
+    const char* pointer;
+    const char* endPointer;
+    Identity
 };
 
-static int read(void* readInto, size_t length, const struct Reader* reader);
-static void skip(size_t byteCount, const struct Reader* reader);
-static size_t bytesRead(const struct Reader* reader);
-
-/** @see ArrayReader.h */
-struct Reader* ArrayReader_new(const void* bufferToRead,
-                               size_t length,
-                               const struct Allocator* allocator)
-{
-    struct Reader* reader =
-        Allocator_calloc(allocator, sizeof(struct Reader), 1);
-    struct ArrayReader_context* context =
-        Allocator_calloc(allocator, sizeof(struct ArrayReader_context), 1);
-
-    context->pointer = (char*) bufferToRead;
-    context->endPointer = (char*) bufferToRead + length;
-
-    struct Reader localReader = {
-        .context = context,
-        .read = read,
-        .skip = skip,
-        .bytesRead = bytesRead
-    };
-    Bits_memcpyConst(reader, &localReader, sizeof(struct Reader));
-
-    return reader;
-}
-
 /** @see Reader->read() */
-static int read(void* readInto, size_t length, const struct Reader* reader)
+static int read(struct Reader* reader, void* readInto, unsigned long length)
 {
-    struct ArrayReader_context* context =
-        (struct ArrayReader_context*) reader->context;
+    struct ArrayReader_context* context = Identity_cast((struct ArrayReader_context*) reader);
 
-    /* Prove that it doesn't run off the end of the buffer or roll over. */
+    // Prove that it doesn't run off the end of the buffer or roll over.
     if (context->pointer + length > context->endPointer
         || context->pointer + length < context->pointer)
     {
@@ -63,27 +36,39 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
     }
 
     if (length == 0) {
-        /* Allow peaking. */
+        // Allow peaking.
         *((char*)readInto) = *context->pointer;
         return 0;
     }
 
     Bits_memcpy(readInto, context->pointer, length);
     context->pointer += length;
-    context->bytesRead += length;
+    reader->bytesRead += length;
 
     return 0;
 }
 
-static size_t bytesRead(const struct Reader* reader)
+/** @see Reader->skip() */
+static void skip(struct Reader* reader, unsigned long byteCount)
 {
-    return ((struct ArrayReader_context*) reader->context)->bytesRead;
+    struct ArrayReader_context* context = Identity_cast((struct ArrayReader_context*) reader);
+    context->pointer += byteCount;
+    reader->bytesRead += byteCount;
 }
 
-/** @see Reader->skip() */
-static void skip(size_t byteCount, const struct Reader* reader)
+/** @see ArrayReader.h */
+struct Reader* ArrayReader_new(const void* bufferToRead,
+                               unsigned long length,
+                               struct Allocator* alloc)
 {
-    struct ArrayReader_context* context = (struct ArrayReader_context*) reader->context;
-    context->pointer += byteCount;
-    context->bytesRead += byteCount;
+    struct ArrayReader_context* context = Allocator_clone(alloc, (&(struct ArrayReader_context) {
+        .generic = {
+            .read = read,
+            .skip = skip
+        },
+        .pointer = bufferToRead,
+        .endPointer = (char*) bufferToRead + length
+    }));
+    Identity_set(context);
+    return &context->generic;
 }

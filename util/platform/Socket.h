@@ -27,11 +27,11 @@ int Socket_makeReusable(int sock);
 
 int Socket_close(int sock);
 
-int Socket_recv(int sockfd, void* buff, size_t bufferSize, int flags);
+int Socket_recv(int sockfd, void* buff, unsigned long bufferSize, int flags);
 
 int Socket_recvfrom(int fd,
                     void* buff,
-                    size_t bufferSize,
+                    unsigned long bufferSize,
                     int flags,
                     struct Sockaddr_storage* ss);
 
@@ -43,11 +43,11 @@ int Socket_socket(int af, int type, int protocol, struct Allocator* alloc);
 
 int Socket_bind(int fd, const struct Sockaddr* sa);
 
-int Socket_send(int socket, const void *buffer, size_t length, int flags);
+int Socket_send(int socket, const void *buffer, unsigned long length, int flags);
 
 int Socket_sendto(int fd,
                   const void* buffer,
-                  size_t len,
+                  unsigned long len,
                   int flags,
                   const struct Sockaddr* destination);
 

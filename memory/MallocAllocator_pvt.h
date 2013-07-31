@@ -18,21 +18,41 @@
 #include "memory/MallocAllocator.h"
 #include "util/Identity.h"
 
+#include <stdint.h>
+
+struct MallocAllocator_pvt;
+
 struct MallocAllocator_OnFreeJob;
 struct MallocAllocator_OnFreeJob {
-    void (* callback)(void* callbackContext);
-    void* callbackContext;
+    struct Allocator_OnFreeJob generic;
+    struct MallocAllocator_pvt* alloc;
     struct MallocAllocator_OnFreeJob* next;
+    const char* file;
+    int line;
 };
 
 struct MallocAllocator_Allocation;
 struct MallocAllocator_Allocation {
     struct MallocAllocator_Allocation* next;
     size_t size;
+#ifdef MallocAllocator_USE_CANARIES
+    long beginCanary;
+#endif
+};
+
+/** Singly linked list of allocators. */
+struct MallocAllocator_List;
+struct MallocAllocator_List {
+    struct MallocAllocator_pvt* alloc;
+    struct MallocAllocator_List* next;
+};
+
+struct MallocAllocator_Adoptions {
+    struct MallocAllocator_List* parents;
+    struct MallocAllocator_List* children;
 };
 
 /** Internal state for Allocator. */
-struct MallocAllocator_pvt;
 struct MallocAllocator_pvt
 {
     /** This allocator. */
@@ -61,18 +81,30 @@ struct MallocAllocator_pvt
     /** The first child allocator, this will be freed when this allocator is freed. */
     struct MallocAllocator_pvt* firstChild;
 
-    /** The number of bytes which can be allocated by this allocator and all of its family. */
-    int64_t* spaceAvailable;
-
-    /** The number of bytes which can be allocated total. */
-    size_t maxSpace;
+    /** The root allocator with additional tree-global data. */
+    struct MallocAllocator_FirstCtx* rootAlloc;
 
     /** The number of bytes allocated by *this* allocator (but not it's children). */
-    size_t allocatedHere;
+    unsigned long allocatedHere;
+
+    /**
+     * If this allocator is neither an adopted parent nor an adopted child, this field is NULL,
+     * Otherwise it is a linked list of adopted parents and children of this allocator.
+     * The structure here is allocated by THIS ALLOCATOR, not by it's parent or child.
+     */
+    struct MallocAllocator_Adoptions* adoptions;
 
     /** This is the location where the allocator was created. */
     const char* identFile;
     int identLine;
+
+    #ifdef MallocAllocator_USE_CANARIES
+        /** The canary for allocations made with this allocator constant to allow varification. */
+        long canary;
+
+        /** The canary which will be used for the next allocator, mutable. */
+        long nextCanary;
+    #endif
 
     /** For checking structure integrity. */
     Identity
@@ -84,8 +116,11 @@ struct MallocAllocator_FirstCtx
     /** The context for the first allocator. */
     struct MallocAllocator_pvt context;
 
-    /** The actual storage location for the size limit. */
+    /** The number of bytes which can be allocated by this allocator and all of its family. */
     int64_t spaceAvailable;
+
+    /** The number of bytes which can be allocated total. */
+    size_t maxSpace;
 };
 
 #endif

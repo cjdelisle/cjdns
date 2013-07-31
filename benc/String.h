@@ -19,10 +19,9 @@
 #include "util/platform/libc/strlen.h"
 
 #include <stdbool.h>
-#include <stdarg.h>
 
 typedef struct {
-    size_t len;
+    unsigned long len;
     char* bytes;
 } String;
 
@@ -34,7 +33,7 @@ typedef struct {
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.
  */
-String* String_new(const char* bytes, const struct Allocator* allocator);
+String* String_new(const char* bytes, struct Allocator* allocator);
 
 /**
  * Create a new bencoded constant string on the stack.
@@ -56,7 +55,7 @@ String* String_new(const char* bytes, const struct Allocator* allocator);
  * @param allocator a means of getting the memory to store the string object.
  * @return a bencoded string.
  */
-String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator);
+String* String_newBinary(const char* bytes, unsigned long length, struct Allocator* allocator);
 
 #define String_clone(string, alloc) \
     ((string) ? String_newBinary(string->bytes, string->len, alloc) : NULL)
@@ -70,12 +69,15 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
  * @params arguments to the printf() function.
  * @return a bencoded string.
  */
-String* String_printf(const struct Allocator* allocator, const char* format, ...);
+String* String_printf(struct Allocator* allocator, const char* format, ...);
 
+#ifdef va_start
 /**
  * Same as String_printf() except the arguments are passed as a va_list.
+ * Only enabled if stdarg.h is included before String.h.
  */
-String* String_vprintf(const struct Allocator* allocator, const char* format, va_list args);
+String* String_vprintf(struct Allocator* allocator, const char* format, va_list args);
+#endif
 
 /**
  * Compare 2 bencoded strings.
@@ -99,6 +101,6 @@ int String_compare(const String* a, const String* b);
  * @param b the second string to compare.
  * @return !(String_compare(a, b))
  */
-bool String_equals(const String* a, const String* b);
+int String_equals(const String* a, const String* b);
 
 #endif

@@ -15,6 +15,8 @@
 #include "memory/Allocator.h"
 #include "benc/Dict.h"
 
+#include <stddef.h>
+
 int32_t Dict_size(const Dict* dictionary)
 {
     if (dictionary != NULL) {
@@ -87,7 +89,7 @@ List* Dict_getList(const Dict* dictionary, const String* key)
 }
 
 /** @see Object.h */
-Dict* Dict_new(const struct Allocator* allocator)
+Dict* Dict_new(struct Allocator* allocator)
 {
     return Allocator_calloc(allocator, sizeof(Dict), 1);
 }
@@ -110,7 +112,7 @@ Dict* Dict_new(const struct Allocator* allocator)
 static Object* putObject(Dict* dictionary,
                          const String* key,
                          Object* value,
-                         const struct Allocator* allocator)
+                         struct Allocator* allocator)
 {
     struct Dict_Entry** prev_p = dictionary;
     struct Dict_Entry* current = *dictionary;
@@ -139,7 +141,7 @@ static Object* putObject(Dict* dictionary,
 Object* Dict_putInt(Dict* dictionary,
                         const String* key,
                         int64_t value,
-                        const struct Allocator* allocator)
+                        struct Allocator* allocator)
 {
     Object* v = Allocator_clone(allocator, (&(Object) {
         .type = Object_INTEGER,
@@ -152,7 +154,7 @@ Object* Dict_putInt(Dict* dictionary,
 Object* Dict_putString(Dict* dictionary,
                        const String* key,
                        String* value,
-                       const struct Allocator* allocator)
+                       struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;
@@ -168,7 +170,7 @@ Object* Dict_putString(Dict* dictionary,
 Object* Dict_putList(Dict* dictionary,
                      const String* key,
                      List* value,
-                     const struct Allocator* allocator)
+                     struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;
@@ -184,7 +186,7 @@ Object* Dict_putList(Dict* dictionary,
 Object* Dict_putDict(Dict* dictionary,
                            const String* key,
                            Dict* value,
-                           const struct Allocator* allocator)
+                           struct Allocator* allocator)
 {
     if (key == NULL || value == NULL) {
         return NULL;

@@ -37,3 +37,25 @@ add_dependencies(cjdns-crypto-random-seed NACL)
 target_link_libraries(cjdns-crypto-random-seed
     ${SEED_LIBRARIES}
 )
+
+if (Windows)
+    # RtlGenRandom()
+    if (NOT FOUND_ADVAPI)
+        find_library(ADVAPI_LIBRARIES
+            NAMES
+                advapi32
+            PATHS
+                ${ADVAPI_PREFIX}/
+                /lib/
+        )
+
+        if(ADVAPI_LIBRARIES)
+            message("Yay advapi32 was found at [${ADVAPI_LIBRARIES}]")
+            set(ADVAPI_FOUND TRUE)
+        else()
+            message(FATAL_ERROR "Could not find advapi32, try to setup ADVAPI_PREFIX accordingly")
+        endif()
+    endif()
+
+    add_dependencies(cjdns-crypto-random-seed ${ADVAPI_LIBRARIES})
+endif()

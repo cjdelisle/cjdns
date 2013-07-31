@@ -18,6 +18,8 @@
 #include "util/Assert.h"
 #include "util/Security.h"
 
+#include <stdlib.h>
+
 void overflow(struct Allocator* alloc, struct Random* rand)
 {
     uint32_t x = Random_uint32(rand);
@@ -33,12 +35,17 @@ void overflow(struct Allocator* alloc, struct Random* rand)
     }
 }
 
+void abort()
+{
+    exit(0);
+}
+
 int main()
 {
-    Security_maxMemory(1<<20, NULL);
+    Security_maxMemory(1<<21, NULL);
     struct Allocator* alloc = MallocAllocator_new(1<<19);
     struct Random* rand = Random_new(alloc, NULL, NULL);
     overflow(alloc, rand);
     // sometimes it doesn't use up all of it's space.
-    //Assert_always(0);
+    exit(1);
 }

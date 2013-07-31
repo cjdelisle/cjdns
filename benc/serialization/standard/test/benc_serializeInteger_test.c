@@ -15,8 +15,7 @@
 #define string_strcmp
 #include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
-#include "memory/CanaryAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
@@ -30,8 +29,8 @@
 int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {
     char buffer[32];
-    writer->write("\0", 1, writer);
-    reader->read(buffer, strlen(str) + 1, reader);
+    Writer_write(writer, "\0", 1);
+    Reader_read(reader, buffer, strlen(str) + 1);
     if (strcmp(str, buffer) != 0) {
         printf("Expected %s\n Got %s\n", str, buffer);
         return -1;
@@ -58,11 +57,12 @@ int testSerialize(struct Writer* writer, struct Reader* reader)
 
 int main()
 {
-    char buffer[2048];
     char out[512];
-    struct Allocator* alloc = CanaryAllocator_new(BufferAllocator_new(buffer, 2048), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Writer* writer = ArrayWriter_new(out, 512, alloc);
     struct Reader* reader = ArrayReader_new(out, 512, alloc);
 
-    return testSerialize(writer, reader);
+    int ret = testSerialize(writer, reader);
+    Allocator_free(alloc);
+    return ret;
 }

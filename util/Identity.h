@@ -18,14 +18,14 @@
 #include "util/Assert.h"
 
 #ifndef Identity_MAGIC
-    #define Identity_MAGIC ((uint32_t) 0x01234567)
+    #define Identity_MAGIC ((unsigned int) 0x01234567)
 #endif
 
-#ifdef Identity_CHECK
+#if defined(Identity_CHECK) || defined(PARANOIA)
 
     /** This goes in each structure which will be checked. */
     #define Identity \
-        uint32_t Identity_verifier;
+        unsigned int Identity_verifier;
 
     #define Identity_set(pointer) \
         (pointer)->Identity_verifier = Identity_MAGIC

@@ -95,9 +95,9 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* peerIface)
     return p->multiIface->iface->sendMessage(msg, p->multiIface->iface);
 }
 
-static void removePeer(void* vpeer)
+static int removePeer(struct Allocator_OnFreeJob* job)
 {
-    struct Peer* p = Identity_cast((struct Peer*) vpeer);
+    struct Peer* p = Identity_cast((struct Peer*) job->userData);
     struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) p->multiIface);
     struct Map_OfPeersByKey* peerMap = &mif->peerMap;
     for (int i = 0; i < (int)peerMap->count; i++) {
@@ -105,6 +105,7 @@ static void removePeer(void* vpeer)
             Map_OfPeersByKey_remove(i, peerMap);
         }
     }
+    return 0;
 }
 
 static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,

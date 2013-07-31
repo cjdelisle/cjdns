@@ -318,15 +318,16 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     return Error_NONE;
 }
 
-static void closeInterface(void* vendpoint)
+static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) vendpoint);
+    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) job->userData);
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
     Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
+    return 0;
 }
 
 static int registerPeer(struct InterfaceController* ifController,

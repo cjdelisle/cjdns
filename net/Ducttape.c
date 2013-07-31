@@ -21,7 +21,8 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "interface/TUNMessageType.h"
+#include "exception/Jmp.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
@@ -42,7 +43,6 @@
 #include "wire/Ethernet.h"
 
 #include <stdint.h>
-#include <setjmp.h>
 
 /** Size of the per-message workspace. */
 #define PER_MESSAGE_BUF_SZ 8192
@@ -58,11 +58,6 @@
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
-
-static void outOfMemory(void* towel)
-{
-    longjmp(*((jmp_buf*) towel), 0);
-}
 
 static inline uint8_t incomingDHT(struct Message* message,
                                   struct Address* addr,
@@ -82,12 +77,16 @@ static inline uint8_t incomingDHT(struct Message* message,
     uint8_t buffer[PER_MESSAGE_BUF_SZ];
     dht.allocator = BufferAllocator_new(buffer, PER_MESSAGE_BUF_SZ);
 
-    jmp_buf towel;
-    if (!setjmp(towel)) {
-        BufferAllocator_onOOM(dht.allocator, outOfMemory, &towel);
-
+    struct Jmp j;
+    Jmp_try(j) {
+        BufferAllocator_onOOM(dht.allocator, &j.handler);
         DHTModuleRegistry_handleIncoming(&dht, context->registry);
+    } Jmp_catch {
+        uint8_t printed[60];
+        Address_print(printed, addr);
+        Log_warn(context->logger, "Parsing message from [%s] failed; out of memory.", printed);
     }
+
     // TODO: return something meaningful.
     return Error_NONE;
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -48,8 +48,13 @@ while true; do
 
     APP=`which wget || which curl || echo 'none'`
     [ "$APP" = 'none' ] && echo 'Need wget curl' && exit 1;
+<<<<<<< HEAD
     [ "x$APP" = x`which wget` ] && $APP ${CMAKE_DOWNLOAD}
     [ "x$APP" = x`which curl` ] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
+=======
+    [ "$APP" = `which wget` ] && $APP ${CMAKE_DOWNLOAD}
+    [ "$APP" = `which curl` ] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
+>>>>>>> named-pipes
 
     ${SHA256SUM} ./*.tar.gz | grep ${CMAKE_SHA256} || exit 1
     tar -xzf *.tar.gz

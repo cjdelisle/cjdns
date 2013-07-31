@@ -26,6 +26,7 @@
 #include "wire/Message.h"
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 struct SwitchInterface
 {
@@ -33,7 +34,7 @@ struct SwitchInterface
 
     struct SwitchCore* core;
 
-    void* onFree;
+    struct Allocator_OnFreeJob* onFree;
 
     /**
      * How much traffic has flowed down an interface as the sum of all packet priority.
@@ -259,10 +260,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     return Error_NONE;
 }
 
-static void removeInterface(void* vcontext)
+static int removeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct SwitchInterface* si = (struct SwitchInterface*) vcontext;
+    struct SwitchInterface* si = (struct SwitchInterface*) job->userData;
     Bits_memset(si, 0, sizeof(struct SwitchInterface));
+    return 0;
 }
 
 void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
@@ -270,8 +272,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     struct SwitchInterface* si1 = (struct SwitchInterface*) if1->receiverContext;
     struct SwitchInterface* si2 = (struct SwitchInterface*) if2->receiverContext;
 
-    Assert_true(if1->allocator->notOnFree(si1->onFree, if1->allocator));
-    Assert_true(if2->allocator->notOnFree(si2->onFree, if2->allocator));
+    Assert_true(Allocator_cancelOnFree(si1->onFree));
+    Assert_true(Allocator_cancelOnFree(si2->onFree));
 
     struct SwitchInterface si3;
     Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));
@@ -279,8 +281,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     Bits_memcpyConst(si2, &si3, sizeof(struct SwitchInterface));
 
     // Now the if#'s are in reverse order :)
-    si1->onFree = if2->allocator->onFree(removeInterface, si1, if2->allocator);
-    si2->onFree = if1->allocator->onFree(removeInterface, si2, if1->allocator);
+    si1->onFree = Allocator_onFree(if2->allocator, removeInterface, si1);
+    si2->onFree = Allocator_onFree(if1->allocator, removeInterface, si2);
 
     if1->receiverContext = si2;
     if2->receiverContext = si1;
@@ -328,7 +330,7 @@ int SwitchCore_addInterface(struct Interface* iface,
         .congestion = 0
     }), sizeof(struct SwitchInterface));
 
-    newIf->onFree = iface->allocator->onFree(removeInterface, newIf, iface->allocator);
+    newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
 
     iface->receiverContext = &core->interfaces[ifIndex];
     iface->receiveMessage = receiveMessage;

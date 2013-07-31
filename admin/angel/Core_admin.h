@@ -15,15 +15,7 @@
 #ifndef Core_admin_H
 #define Core_admin_H
 
-#include "net/Ducttape.h"
-#include "util/log/Log.h"
-#include "memory/Allocator.h"
-#include "admin/Admin.h"
-
-#include "util/events/EventBase.h"
-#include <stdint.h>
-
-void Core_admin_register(uint8_t ipAddr[16],
+void Core_admin_register(struct Sockaddr* ipAddr,
                          struct Ducttape* dt,
                          struct Log* logger,
                          struct IpTunnel* ipTunnel,

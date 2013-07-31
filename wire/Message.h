@@ -16,11 +16,11 @@
 #define Message_H
 
 #include "util/Assert.h"
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "memory/Allocator.h"
 #include "util/Bits.h"
+#include "util/UniqueName.h"
 
 struct Message
 {
@@ -32,6 +32,12 @@ struct Message
 
     /** The content. */
     uint8_t* bytes;
+
+    /** Amount of bytes of storage space available in the message. */
+    uint32_t capacity;
+
+    /** The allocator which allocated space for this message. */
+    struct Allocator* alloc;
 };
 
 #define Message_STACK(name, messageLength, amountOfPadding) \
@@ -39,18 +45,25 @@ struct Message
     name = &(struct Message){                                  \
         .length = messageLength,                               \
         .bytes = UniqueName_get() + amountOfPadding,           \
-        .padding = amountOfPadding                             \
+        .padding = amountOfPadding,                            \
+        .capacity = messageLength                              \
     }
 
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
-    uint8_t* allocation = Allocator_malloc(allocator, toClone->length + toClone->padding);
-    Bits_memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
+    uint32_t len = toClone->length + toClone->padding;
+    if (len < toClone->capacity) {
+        len = toClone->capacity;
+    }
+    uint8_t* allocation = Allocator_malloc(allocator, len);
+    Bits_memcpy(allocation, toClone->bytes - toClone->padding, len);
     return Allocator_clone(allocator, (&(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
-        .bytes = allocation + toClone->padding
+        .bytes = allocation + toClone->padding,
+        .capacity = len,
+        .alloc = allocator
     }));
 }
 
@@ -74,7 +87,7 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline bool Message_shift(struct Message* toShift, int32_t amount)
+static inline int Message_shift(struct Message* toShift, int32_t amount)
 {
     if (amount > 0) {
         Assert_true(toShift->padding >= amount);
@@ -83,10 +96,11 @@ static inline bool Message_shift(struct Message* toShift, int32_t amount)
     }
 
     toShift->length += amount;
+    toShift->capacity += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
 
-    return true;
+    return 1;
 }
 
 static inline void Message_push(struct Message* restrict msg,

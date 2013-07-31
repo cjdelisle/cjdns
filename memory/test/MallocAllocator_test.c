@@ -20,17 +20,22 @@
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator_pvt.h"
 
-#define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation)
-#define ALLOCATOR_SIZE sizeof(struct MallocAllocator_FirstCtx)
+#ifdef MallocAllocator_USE_CANARIES
+    #define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation) + sizeof(long)
+#else
+    #define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation)
+#endif
+#define ALLOCATOR_SIZE sizeof(struct MallocAllocator_pvt)
 
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
 
-    Assert_always((bytesUsed = MallocAllocator_bytesAllocated(alloc)) == 0);
+    bytesUsed = MallocAllocator_bytesAllocated(alloc);
+    Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct MallocAllocator_FirstCtx));
     Allocator_malloc(alloc, 25);
-    bytesUsed += 25 + ALLOCATION_SIZE;
+    bytesUsed += 32 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     struct Allocator* child = Allocator_child(alloc);
@@ -38,11 +43,13 @@ int main()
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_malloc(child, 30);
-    bytesUsed += 30 + ALLOCATION_SIZE;
+    bytesUsed += 32 + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(child);
-    bytesUsed -= 30 + ALLOCATION_SIZE;
+    bytesUsed -= 32 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+
+    Allocator_free(alloc);
 }

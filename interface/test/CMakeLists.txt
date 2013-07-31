@@ -14,6 +14,7 @@ set(Test_FILES
     UDPInterface_communication_test.c
     ICMP6Generator_test.c
     MultiInterface_test.c
+    FramingInterface_test.c
 )
 set(Test_ROOT_FILES
     TUNInterface_ipv4_root_test.c
@@ -22,8 +23,6 @@ set(Test_ROOT_FILES
 set(Test_LIBRARIES
     cjdns-admin
     cjdns-admin-client
-    cjdns-memory-canary
-    cjdns-interface-pipeinterface
     cjdadmintest
     interface
 )

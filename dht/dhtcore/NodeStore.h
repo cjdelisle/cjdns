@@ -15,6 +15,7 @@
 #ifndef NodeStore_H
 #define NodeStore_H
 
+#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "util/log/Log.h"
@@ -35,8 +36,9 @@ struct NodeStore;
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
-                                const struct Allocator* allocator,
+                                struct Allocator* allocator,
                                 struct Log* logger,
+                                struct Random* rand,
                                 struct Admin* admin);
 
 /**
@@ -62,7 +64,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
-                                          const struct Allocator* allocator,
+                                          struct Allocator* allocator,
                                           struct NodeStore* store);
 
 /**
@@ -87,7 +89,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            const uint32_t count,
                                            bool allowNodesFartherThanUs,
                                            uint32_t versionOfRequestingNode,
-                                           const struct Allocator* allocator);
+                                           struct Allocator* allocator);
 
 /**
  * Change the reach of a node in the NodeStore.

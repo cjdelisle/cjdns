@@ -12,9 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "crypto/Key.h"
 #include "util/AddrTools.h"
+
+#include <stdio.h>
 
 static int usage(char* appName)
 {
