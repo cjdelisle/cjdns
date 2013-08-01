@@ -218,9 +218,19 @@ add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-find_package(Libuv REQUIRED)
+if(HAVE_LIBUV)
+    find_package(Libuv REQUIRED)
+else()
+    find_package(LibuvBundled REQUIRED)
+endif()
 
-find_package(NACL REQUIRED)
+if(HAVE_NACL)
+    find_package(NACL REQUIRED)
+elseif(HAVE_SODIUM)
+    find_package(Sodium REQUIRED)
+else()
+    find_package(NACLBundled REQUIRED)
+endif()
 include_directories(${NACL_INCLUDE_DIRS})
 
 add_subdirectory(admin)
