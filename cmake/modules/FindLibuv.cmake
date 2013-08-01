@@ -67,7 +67,7 @@ if (NOT LIBUV_FOUND)
 
     find_library(LIBUV_LIBRARIES
         NAMES
-	    libuv
+	    libuv.a
 	PATHS
 	    ${LIBUV_INCLUDE_DIRS}/../.libs
 	    ${LIBUV_PREFIX}/lib
@@ -81,15 +81,15 @@ if (NOT LIBUV_FOUND)
 
     if (LIBUV_INCLUDE_DIRS AND LIBUV_LIBRARIES)
         set(LIBUV_FOUND TRUE)
-    endif()
 
-    if (LIBUV_FOUND)
-	    if ("${LIBUV_INCLUDE_DIRS}" STREQUAL "${CMAKE_BINARY_DIR}/libuv/include")
-	        add_library(uv STATIC IMPORTED)
-	        set_property(TARGET uv PROPERTY IMPORTED_LOCATION ${LIBUV_LIBRARIES})
-	        addDependencies()
-	        set(LIBUV_LIBRARIES uv)
-	    endif()
+        if("$ENV{NO_STATIC}" STREQUAL "")
+            add_library(uv STATIC IMPORTED)
+        else()
+            add_library(uv SHARED IMPORTED)
+        endif()
+	set_property(TARGET uv PROPERTY IMPORTED_LOCATION ${LIBUV_LIBRARIES})
+	addDependencies()
+	set(LIBUV_LIBRARIES uv)
     endif()
 
 endif()
