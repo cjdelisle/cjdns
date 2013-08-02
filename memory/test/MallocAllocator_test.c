@@ -35,7 +35,7 @@ int main()
     bytesUsed = MallocAllocator_bytesAllocated(alloc);
     Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct MallocAllocator_FirstCtx));
     Allocator_malloc(alloc, 25);
-    bytesUsed += 32 + ALLOCATION_SIZE;
+    bytesUsed += (((25 / sizeof(char*)) + 1) * sizeof(char*)) + ALLOCATION_SIZE;
     Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
 
     struct Allocator* child = Allocator_child(alloc);
