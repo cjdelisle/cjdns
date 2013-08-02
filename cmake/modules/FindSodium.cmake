@@ -17,29 +17,26 @@ if (NOT NACL_FOUND)
         NAMES
             crypto_box_curve25519xsalsa20poly1305.h
         PATHS
-            ${NACL_PREFIX}/include
-            /usr/include
-            /usr/include/nacl
-            /usr/local/include
-            /opt/local/include
-            ${CMAKE_BINARY_DIR}/nacl_build/include/
+            ${SODIUM_PREFIX}/include
+            /usr/include/sodium
+            /usr/local/include/sodium
+            /opt/local/include/sodium
+            ${CMAKE_BINARY_DIR}/sodium_build/include/
         NO_DEFAULT_PATH
     )
 
     find_library(NACL_LIBRARIES
         NAMES
-            libnacl.a
+            libsodium.a
         PATHS
             ${NACL_INCLUDE_DIRS}/../
-            ${NACL_INCLUDE_DIRS}/../lib
-            ${NACL_INCLUDE_DIRS}/../lib/nacl/
+            ${NACL_INCLUDE_DIRS}/../lib/
             ${NACL_INCLUDE_DIRS}/../../lib/
-            ${NACL_INCLUDE_DIRS}/../../lib/nacl/
         NO_DEFAULT_PATH
     )
 
     if(NACL_INCLUDE_DIRS AND NACL_LIBRARIES)
-        message("libnacl found: ${NACL_INCLUDE_DIRS}")
+        message("libsodium found: ${NACL_INCLUDE_DIRS}")
         set(NACL_FOUND TRUE)
     endif()
 
