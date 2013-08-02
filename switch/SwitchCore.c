@@ -272,8 +272,8 @@ void SwitchCore_swapInterfaces(struct Interface* if1, struct Interface* if2)
     struct SwitchInterface* si1 = (struct SwitchInterface*) if1->receiverContext;
     struct SwitchInterface* si2 = (struct SwitchInterface*) if2->receiverContext;
 
-    Assert_true(Allocator_cancelOnFree(si1->onFree));
-    Assert_true(Allocator_cancelOnFree(si2->onFree));
+    Assert_true(Allocator_cancelOnFree(si1->onFree) > -1);
+    Assert_true(Allocator_cancelOnFree(si2->onFree) > -1);
 
     struct SwitchInterface si3;
     Bits_memcpyConst(&si3, si1, sizeof(struct SwitchInterface));
