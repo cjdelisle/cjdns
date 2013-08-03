@@ -4,6 +4,7 @@
 local bencode = require "bencode" -- https://bitbucket.org/wilhelmy/lua-bencode/
 local djkson  = require "djkson"  -- http://dkolf.de/src/dkjson-lua.fsl/home
 local socket  = require "socket"  -- http://w3.impa.br/~diego/software/luasocket/
+local sha2    = require "sha2"    -- https://code.google.com/p/sha2/
 
 AdminInterface = {}
 AdminInterface.__index = AdminInterface
@@ -115,19 +116,70 @@ end
 function AdminInterface:recv(sock_obj)
     local retrieved, err = sock_obj:receive()
     if not retrieved then
-        return nil, err
+        return nil, "ai:recv > " .. err
     end
-    return bencode.decode(retrieved)
+    local bencoded, err = bencode.decode(retrieved)
+    if bencoded then
+        return bencoded
+    else
+        return nil, "ai:recv > " .. err
+    end
 end
 
-function AdminInterface:call(object)
-    local sock_obj, err = self:send(object)
+function AdminInterface:call(request)
+    local sock_obj, err = self:send(request)
     if err then
-        return nil, err
+        return nil, "ai:call > " .. err
     end
 
     return self:recv(sock_obj)
 end
+
+function AdminInterface:getCookie()
+    local cookie_response, err = self:call({ q = "cookie" })
+    if not cookie_response then
+        return nil, "ai:getCookie > " .. err
+    end
+    return cookie_response.cookie
+end
+
+function AdminInterface:auth(request)
+    local funcname = request.q
+    local args = {}
+    for k, v in pairs(request) do
+        args[k] = v
+    end
+
+    -- Step 1: Get cookie
+    local cookie, err = self:getCookie()
+    if err then
+        return nil, err
+    end
+
+    -- Step 2: Calculate hash1 (password + cookie)
+    local plaintext1 = self.password .. cookie
+    local hash1 = sha2.sha256hex(plaintext1)
+
+    -- Step 3: Calculate hash2 (intermediate stage request)
+    local request = {
+        q      = "auth",
+        aq     = funcname,
+        args   = args,
+        hash   = hash1,
+        cookie = cookie
+    }
+    local plaintext2, err = bencode.encode(request)
+    if err then
+        return nil, err
+    end
+    local hash2 = sha2.sha256hex(plaintext2)
+
+    -- Step 4: Update hash in request, then ship it out
+    request.hash = hash2
+    return self:call(request)
+end
+
+-- Utils --------------------------------------------------
 
 function AdminInterface:ping()
     local response, err = self:call({q = "ping"})
@@ -135,6 +187,31 @@ function AdminInterface:ping()
         return true
     else
         return false, err
+    end
+end
+
+function AdminInterface:memory()
+    local response, err = self:call({q = "memory"})
+    if response and response.bytes then
+        return response.bytes
+    else
+        return false, err
+    end
+end
+
+function AdminInterface:RouterModule_lookup(address)
+    local response, err = self:auth({
+        q = "RouterModule_lookup",
+        address = address
+    })
+    if not response then
+        return nil, err
+    elseif response.error ~= "none" then
+        return nil, response.error
+    elseif response.result then
+        return response.result
+    else
+        return nil, "bad response format"
     end
 end
 
