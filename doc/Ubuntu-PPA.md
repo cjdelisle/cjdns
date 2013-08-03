@@ -13,6 +13,9 @@ change it later.
 In general you'd have to request an import of git code to Launchpad to create
 daily builds of it, but cjdns code is already imported to lp:cjdns-apt
 See https://help.launchpad.net/Code/Imports for information on code imports.
+Launchpad only allows a project to be imported once, cjdns is already imported
+by s1w so it cannot be imported by anyone else, the only way to import into
+launchpad is by asking s1w to transfer ownership of his repository.
  
 Finally, create a daily build recipe for the code at:
 https://code.launchpad.net/+branch/cjdns-apt/+new-recipe
