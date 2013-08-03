@@ -1,4 +1,4 @@
-cjdns = require "cjdns"
+cjdns = require "cjdns/init"
 
 -- CONFIG
 
@@ -29,4 +29,4 @@ print("Route lookup?")
 print("lookup", ai:RouterModule_lookup("fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535"))
 
 print("Exporting compressed conf to test.conf...")
-print(conf:save("test.conf"), "done")
+print("save", conf:save("test.conf"))
