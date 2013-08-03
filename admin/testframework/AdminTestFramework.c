@@ -105,14 +105,14 @@ static void initAngel(struct Pipe* asClientPipe,
         "d"
           "5:error" "4:none"
         "e";
-    coreToAngelResponse = coreToAngelResponse+24;
 
     struct Message* m = &(struct Message) {
         .bytes = (uint8_t*) coreToAngelResponse,
         .length = strlen(coreToAngelResponse),
-        .padding = 24,
+        .padding = 0,
         .capacity = strlen(coreToAngelResponse)
     };
+    Message_shift(m, -24);
     m = Message_clone(m, tempAlloc);
 
     Interface_sendMessage(asCoreIface, m);

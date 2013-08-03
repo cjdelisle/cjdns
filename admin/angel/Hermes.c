@@ -167,13 +167,16 @@ void Hermes_callAngel(Dict* message,
     // Remove the txid string so there is not a dangling pointer in the message.
     Dict_remove(message, String_CONST("txid"));
 
+    // This is done in a strange way but it is to prevent "possible buffer overflow" errors
     struct Message* m = &(struct Message) {
-        .bytes = buff.message,
-        .length = writer->bytesWritten,
-        .padding = PADDING
+        .bytes = (uint8_t*) &buff,
+        .length = writer->bytesWritten + PADDING,
+        .padding = 0
     };
+    m->capacity = m->length;
+    Message_shift(m, -PADDING);
 
-    Log_keys(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
+    Log_debug(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
 
     m = Message_clone(m, reqAlloc);
 
