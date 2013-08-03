@@ -199,6 +199,22 @@ function AdminInterface:memory()
     end
 end
 
+function AdminInterface:RouterModule_lookup(address)
+    local response, err = self:auth({
+        q = "RouterModule_lookup",
+        address = address
+    })
+    if not response then
+        return nil, err
+    elseif response.error ~= "none" then
+        return nil, response.error
+    elseif response.result then
+        return response.result
+    else
+        return nil, "bad response format"
+    end
+end
+
 return {
     AdminInterface = AdminInterface,
     ConfigFile     = ConfigFile,
