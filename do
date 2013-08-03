@@ -11,8 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.8.tar.gz
-CMAKE_SHA256=2b59897864d6220ff20aa8eac64cac8994e004898a1c0f899c8cb4d7b7570b46
+CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.11.2.tar.gz
+CMAKE_SHA256=b32acb483afdd14339941c6e4ec25f633d916a7a472653a0b00838771a6c0562
 
 [ `dirname $0` ] && cd `dirname $0`
 
@@ -40,7 +40,7 @@ if [ -f cmake-build/bin/cmake ]; then
     CMAKE=`pwd`/cmake-build/bin/cmake
 fi
 
-[ ${CMAKE} ] && ${CMAKE} --version | grep '2.8.\([2-9]\|10\)' ||
+[ ${CMAKE} ] && ${CMAKE} --version | grep '2.8.\([2-9]\|1[0-9]\)' ||
 while true; do
     [ -d cmake-build ] && rm -r cmake-build
     mkdir cmake-build
