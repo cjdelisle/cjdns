@@ -15,6 +15,9 @@ ai   = conf:makeInterface()
 print("Can I ping the admin server?")
 print("ping", ai:ping())
 
+print("Memory usage in bytes.")
+print("bytes", ai:memory())
+
 print("Can I get a cookie?")
 print("cookie", ai:getCookie())
 

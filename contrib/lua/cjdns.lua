@@ -179,10 +179,21 @@ function AdminInterface:auth(request)
     return self:call(request)
 end
 
+-- Utils --------------------------------------------------
+
 function AdminInterface:ping()
     local response, err = self:call({q = "ping"})
     if response and response["q"] == "pong" then
         return true
+    else
+        return false, err
+    end
+end
+
+function AdminInterface:memory()
+    local response, err = self:call({q = "memory"})
+    if response and response.bytes then
+        return response.bytes
     else
         return false, err
     end
