@@ -16,6 +16,8 @@ function AdminInterface.new(properties)
     properties.config   = properties.config   or common.ConfigFile.new("/etc/cjdroute.conf", false)
     properties.timeout  = properties.timeout  or 2
 
+    properties.perm     = common.Permanence.new(properties)
+
     return setmetatable(properties, AdminInterface)
 end
 
