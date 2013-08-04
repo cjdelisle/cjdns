@@ -49,7 +49,7 @@ int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct 
 
     int i;
     for (i = 0; args[i]; i++) ;
-    char* binAndArgs[i+2];
+    char** binAndArgs = Allocator_calloc(alloc, sizeof(char*), i+2);
     for (i = 0; args[i]; i++) {
         binAndArgs[i+1] = args[i];
     }
