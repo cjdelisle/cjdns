@@ -37,6 +37,7 @@ struct UDPAddrInterface_pvt
 
 struct UDPAddrInterface_WriteRequest_pvt {
     uv_udp_send_t uvReq;
+    int32_t length;
     struct UDPAddrInterface_pvt* udp;
     struct Message* msg;
     struct Allocator* alloc;
@@ -57,6 +58,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
         Log_info(req->udp->logger, "Failed to write to UDPAddrInterface [%s]",
                  uv_err_name(uv_last_error(req->udp->uvHandle.loop)) );
     }
+    Assert_true(req->msg->length == req->length);
     req->udp->queueLen -= req->msg->length;
     Assert_true(req->udp->queueLen >= 0);
     Allocator_free(req->alloc);
@@ -86,6 +88,8 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     struct Sockaddr_storage ss;
     Message_pop(m, &ss, context->pub.addr->addrLen);
     Assert_true(ss.addr.addrLen == context->pub.addr->addrLen);
+
+    req->length = m->length;
 
     uv_buf_t buffers[] = {
         { .base = (char*)m->bytes, .len = m->length }
