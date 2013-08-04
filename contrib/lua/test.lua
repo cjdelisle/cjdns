@@ -14,13 +14,13 @@ ai   = conf:makeInterface()
 
 function testInterface(iface)
     print("Can I ping the admin server?")
-    print("ping", iface:ping())
+    print("ping", iface.util:ping())
 
     print("Memory usage in bytes.")
-    print("bytes", iface:memory())
+    print("bytes", iface.util:memory())
 
     print("Route lookup?")
-    print("lookup", iface:RouterModule_lookup("fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535"))
+    print("lookup", iface.router:lookup("fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535"))
 end
 
 print("\nAdminInterface ==============================================")

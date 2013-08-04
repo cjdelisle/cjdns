@@ -7,6 +7,9 @@ socket  = require "socket"  -- http://w3.impa.br/~diego/software/luasocket/
 sha2    = require "sha2"    -- https://code.google.com/p/sha2/
 
 submodules = {
+    'util',
+    'router',
+
     'perm',
     'config',
     'admin'

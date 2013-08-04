@@ -16,6 +16,8 @@ function AdminInterface.new(properties)
     properties.config   = properties.config   or common.ConfigFile.new("/etc/cjdroute.conf", false)
     properties.timeout  = properties.timeout  or 2
 
+    properties.util     = common.UtilFunctions.new(properties)
+    properties.router   = common.RouterFunctions.new(properties)
     properties.perm     = common.Permanence.new(properties)
 
     return setmetatable(properties, AdminInterface)
@@ -107,40 +109,4 @@ function AdminInterface:auth(request)
     -- Step 4: Update hash in request, then ship it out
     request.hash = hash2
     return self:call(request)
-end
-
--- Utils --------------------------------------------------
-
-function AdminInterface:ping()
-    local response, err = self:call({q = "ping"})
-    if response and response["q"] == "pong" then
-        return true
-    else
-        return false, err
-    end
-end
-
-function AdminInterface:memory()
-    local response, err = self:call({q = "memory"})
-    if response and response.bytes then
-        return response.bytes
-    else
-        return false, err
-    end
-end
-
-function AdminInterface:RouterModule_lookup(address)
-    local response, err = self:auth({
-        q = "RouterModule_lookup",
-        address = address
-    })
-    if not response then
-        return nil, err
-    elseif response.error ~= "none" then
-        return nil, response.error
-    elseif response.result then
-        return response.result
-    else
-        return nil, "bad response format"
-    end
 end
