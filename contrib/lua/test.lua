@@ -13,6 +13,8 @@ ai   = conf:makeInterface()
 -- TESTS
 
 function testInterface(iface)
+    local testip = "fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535"
+
     print("Can I ping the admin server?")
     print("ping", iface.util:ping())
 
@@ -20,7 +22,17 @@ function testInterface(iface)
     print("bytes", iface.util:memory())
 
     print("Route lookup?")
-    print("lookup", iface.router:lookup("fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535"))
+    print("lookup", iface.router:lookup(testip))
+    print("Router ping?")
+    print("ping", iface.router:pingNode(testip) .. "ms")
+    print("Router ping by lookup address...")
+    local testpath, err = iface.router:lookup(testip)
+    if testpath then
+        print("Path: " .. testpath)
+        print("ping", iface.router:pingNode(testpath) .. "ms")
+    else
+        print("testpath failed: " .. err)
+    end
 end
 
 print("\nAdminInterface ==============================================")
