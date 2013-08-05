@@ -295,11 +295,22 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     uint16_t len = (msg->length < 255) ? msg->length : 255;
     Bits_memcpy(top, msg->bytes, len);
 
-    uint8_t ret = ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
+    struct Context* ic = ifcontrollerForPeer(ep);
+    uint8_t ret;
+    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
+        // XXX: This is a hack because if the time of last message exceeds the
+        //      unresponsive time, we need to send back an error and that means
+        //      mangling the message which would otherwise be in the queue.
+        struct Allocator* tempAlloc = Allocator_child(ic->allocator);
+        struct Message* toSend = Message_clone(msg, tempAlloc);
+        ret = Interface_sendMessage(ep->cryptoAuthIf, toSend);
+        Allocator_free(tempAlloc);
+    } else {
+        ret = Interface_sendMessage(ep->cryptoAuthIf, msg);
+    }
 
     // If this node is unresponsive then return an error.
-    struct Context* ic = ifcontrollerForPeer(ep);
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
     {
         msg->bytes = messageBytes;

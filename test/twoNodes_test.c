@@ -112,6 +112,8 @@ void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
     Bits_memcpy(msg->bytes, message, strlen(message) + 1);
     msg->length = strlen(message) + 1;
 
+    msg = Message_clone(msg, tn->nodeA->alloc);
+
     if (bToA) {
         TestFramework_craftIPHeader(msg, tn->nodeB->ip, tn->nodeA->ip);
         TUNMessageType_push(msg, Ethernet_TYPE_IP6);
@@ -121,6 +123,9 @@ void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
         TUNMessageType_push(msg, Ethernet_TYPE_IP6);
         tn->tunIfA.receiveMessage(msg, &tn->tunIfA);
     }
+
+    TestFramework_assertLastMessageUnaltered(tn->nodeA);
+    TestFramework_assertLastMessageUnaltered(tn->nodeB);
 
     Assert_always(tn->messageFrom == ((bToA) ? TUNA : TUNB));
     tn->messageFrom = 0;

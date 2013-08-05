@@ -151,6 +151,9 @@ void sendMessage(struct ThreeNodes* tn,
     msg->length = strlen(message) + 1;
 
     TestFramework_craftIPHeader(msg, from->ip, to->ip);
+
+    msg = Message_clone(msg, from->alloc);
+
     struct Interface* fromIf;
 
     if (from == tn->nodeA) {
@@ -175,6 +178,10 @@ void sendMessage(struct ThreeNodes* tn,
     } else {
         Assert_always(false);
     }
+
+    TestFramework_assertLastMessageUnaltered(tn->nodeA);
+    TestFramework_assertLastMessageUnaltered(tn->nodeB);
+    TestFramework_assertLastMessageUnaltered(tn->nodeC);
 
     tn->messageFrom = 0;
 }

@@ -53,8 +53,8 @@ static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
     uint32_t len = toClone->length + toClone->padding;
-    if (len < toClone->capacity) {
-        len = toClone->capacity;
+    if (len < (toClone->capacity + toClone->padding)) {
+        len = (toClone->capacity + toClone->padding);
     }
     uint8_t* allocation = Allocator_malloc(allocator, len);
     Bits_memcpy(allocation, toClone->bytes - toClone->padding, len);
@@ -62,7 +62,7 @@ static inline struct Message* Message_clone(struct Message* toClone,
         .length = toClone->length,
         .padding = toClone->padding,
         .bytes = allocation + toClone->padding,
-        .capacity = len,
+        .capacity = toClone->length,
         .alloc = allocator
     }));
 }
