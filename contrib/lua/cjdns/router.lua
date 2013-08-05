@@ -31,3 +31,28 @@ function RouterFunctions:lookup(address)
         return nil, "bad response format"
     end
 end
+
+function RouterFunctions:pingNode(path, timeout)
+    local request = {
+        q = "RouterModule_pingNode",
+        path = path
+    }
+    if timeout then
+        request.timeout = timeout
+    end
+
+    local response, err = self.ai:auth(request)
+    if not response then
+        return nil, err
+    elseif response.error then
+        return nil, response.error
+    elseif response.result then
+        if response.result == "timeout" then
+            return nil, "timeout"
+        else
+            return response.ms
+        end
+    else
+        return nil, "bad response format"
+    end
+end
