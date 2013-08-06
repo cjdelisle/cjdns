@@ -7,16 +7,30 @@ UDPInterface = {}
 UDPInterface.__index = UDPInterface
 common.UDPInterface = UDPInterface
 
-function UDPInterface.new(ai, config)
+function UDPInterface.new(ai, config, ptype)
     properties = {
         ai     = ai,
-        config = config or ai.config
+        config = config or ai.config,
+        ptype  = ptype or "ai"
     }
 
     return setmetatable(properties, UDPInterface)
 end
 
-function UDPInterface:newBind(address)
+function UDPInterface:call(name, args)
+    local func = self[name .. "_" .. self.ptype]
+    return func(self, unpack(args))
+end
+
+function UDPInterface:newBind(...)
+    return self:call("newBind", arg)
+end
+
+function UDPInterface:beginConnection(...)
+    return self:call("beginConnection", arg)
+end
+
+function UDPInterface:newBind_ai(address)
     local response, err = self.ai:auth({
         q = "UDPInterface_new",
         bindAddress = address
@@ -32,7 +46,7 @@ function UDPInterface:newBind(address)
     end
 end
 
-function UDPInterface:beginConnection(pubkey, addr, password, interface)
+function UDPInterface:beginConnection_ai(pubkey, addr, password, interface)
     local request = {
         q = "UDPInterface_beginConnection",
         publicKey = pubkey,
