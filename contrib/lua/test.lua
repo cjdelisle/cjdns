@@ -35,19 +35,36 @@ function testInterface(iface)
     end
 end
 
+function testAdmin(ai)
+    testInterface(ai)
+
+    print("Can I get a cookie?")
+    print("cookie", ai:getCookie())
+
+    print("Can I ping via auth?")
+    auth_ping = ai:auth({q = "ping"})
+    print("ping", (auth_ping and auth_ping.q == "pong"))
+end
+
+function testPerm(perm)
+    testInterface(perm)
+
+    print("Attempting to open new UDP interface")
+    print("serve", perm.udp:newBind("127.0.0.1:20"))
+
+    print("Adding remote connection to UDP interface")
+    print("connect", perm.udp:beginConnection(
+        "v0zyvrjuc4xbzh4n9c4k3qpx7kg8xgndv2k45j9nfgb373m8sss0.k",
+        "192.168.0.2:10000",
+        "null"
+    ))
+end
+
 print("\nAdminInterface ==============================================")
-testInterface(ai)
-
-print("Can I get a cookie?")
-print("cookie", ai:getCookie())
-
-print("Can I ping via auth?")
-auth_ping = ai:auth({q = "ping"})
-print("ping", (auth_ping and auth_ping.q == "pong"))
-
+testAdmin(ai)
 
 print("\nPermanence ==================================================")
-testInterface(ai.perm)
+testPerm(ai.perm)
 
 print("\nConfigFile ==================================================")
 print("Exporting compressed conf to test.conf...")
