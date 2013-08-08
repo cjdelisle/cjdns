@@ -46,6 +46,22 @@ function UDPInterface:newBind_ai(address)
     end
 end
 
+function UDPInterface:newBind_config(address)
+    local udpif       = self.config.contents.interfaces.UDPInterface
+    local new_interface = {
+        bind = address,
+        connectTo = {}
+    }
+    table.insert(udpif, new_interface)
+    return (#udpif - 1), new_interface
+end
+
+function UDPInterface:newBind_perm(...)
+    return
+        self:newBind_config(unpack(arg)),
+        self:newBind_ai(unpack(arg))
+end
+
 function UDPInterface:beginConnection_ai(pubkey, addr, password, interface)
     local request = {
         q = "UDPInterface_beginConnection",
@@ -66,4 +82,21 @@ function UDPInterface:beginConnection_ai(pubkey, addr, password, interface)
     else
         return nil, response.error
     end
+end
+
+function UDPInterface:beginConnection_config(pubkey, addr, password, interface)
+    local udpif       = self.config.contents.interfaces.UDPInterface
+    local connections = udpif[(interface or 0) + 1].connectTo
+    local this_conn   = {
+        password  = password,
+        publicKey = pubkey
+    }
+    connections[addr] = this_conn
+    return this_conn -- allows adding metadata fields afterwards
+end
+
+function UDPInterface:beginConnection_perm(...)
+    return
+        self:beginConnection_config(unpack(arg)),
+        self:beginConnection_ai(unpack(arg))
 end
