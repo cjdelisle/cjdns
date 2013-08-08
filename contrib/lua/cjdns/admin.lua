@@ -18,6 +18,7 @@ function AdminInterface.new(properties)
 
     properties.util     = common.UtilFunctions.new(properties)
     properties.router   = common.RouterFunctions.new(properties)
+    properties.udp      = common.UDPInterface.new(properties)
     properties.perm     = common.Permanence.new(properties)
 
     return setmetatable(properties, AdminInterface)

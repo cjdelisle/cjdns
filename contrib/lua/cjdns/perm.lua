@@ -15,12 +15,14 @@ common.Permanence = Permanence
 -- AdminInterface directly.
 
 function Permanence.new(ai, config)
-    properties = {
+    local properties = {
         ai     = ai,
-        config = config or ai.config,
-
-        util   = ai.util,
-        router = ai.router
+        config = config or ai.config
     }
+
+    properties.util   = ai.util
+    properties.router = ai.router
+    properties.udp    = common.UDPInterface.new(ai, config, 'perm')
+
     return setmetatable(properties, Permanence)
 end
