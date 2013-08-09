@@ -79,6 +79,10 @@ struct IFCPeer
      */
     int state : 31;
 
+    // traffic counters
+    uint64_t bytesOut;
+    uint64_t bytesIn;
+
     Identity
 };
 
@@ -249,6 +253,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     struct IFCPeer* ep = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
     struct Context* ic = ifcontrollerForPeer(ep);
 
+    ep->bytesIn += msg->length;
+
     if (ep->state < InterfaceController_PeerState_ESTABLISHED) {
         if (CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3) {
             moveEndpointIfNeeded(ep, ic);
@@ -286,6 +292,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct IFCPeer* ep = Identity_cast((struct IFCPeer*) switchIf);
+
+    ep->bytesOut += msg->length;
 
     // This sucks but cryptoauth trashes the content when it encrypts
     // and we need to be capable of sending back a coherent error message.
@@ -368,6 +376,8 @@ static int registerPeer(struct InterfaceController* ifController,
 
     struct Allocator* epAllocator = externalInterface->allocator;
     struct IFCPeer* ep = Allocator_calloc(epAllocator, sizeof(struct IFCPeer), 1);
+    ep->bytesOut = 0;
+    ep->bytesIn = 0;
     ep->external = externalInterface;
     int setIndex = Map_OfIFCPeerByExernalIf_put(&externalInterface, &ep, &ic->peerMap);
     ep->handle = ic->peerMap.handles[setIndex];
@@ -446,6 +456,29 @@ static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beaco
     Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
 }
 
+static int getPeerStats(struct InterfaceController* ifController,
+                 struct Allocator* alloc,
+                 struct InterfaceController_peerStats** statsOut)
+{
+    struct Context* ic = Identity_cast((struct Context*) ifController);
+    int count = ic->peerMap.count;
+    struct InterfaceController_peerStats* stats =
+        Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
+
+    for (int i = 0; i < count; i++) {
+        struct IFCPeer* peer = ic->peerMap.values[i];
+        struct InterfaceController_peerStats* s = &stats[i];
+        s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
+        s->bytesOut = peer->bytesOut;
+        s->bytesIn = peer->bytesIn;
+        s->timeOfLastMessage = peer->timeOfLastMessage;
+        s->state = peer->state;
+    }
+
+    *statsOut = stats;
+    return count;
+}
+
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
@@ -460,7 +493,8 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .pub = {
             .registerPeer = registerPeer,
             .getPeerState = getPeerState,
-            .populateBeacon = populateBeacon
+            .populateBeacon = populateBeacon,
+            .getPeerStats = getPeerStats,
         },
         .peerMap = {
             .allocator = allocator

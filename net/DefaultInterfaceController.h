@@ -33,4 +33,5 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                                            struct SwitchPinger* switchPinger,
                                                            struct Random* rand,
                                                            struct Allocator* allocator);
+
 #endif

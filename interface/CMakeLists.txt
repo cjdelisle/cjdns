@@ -30,6 +30,7 @@ add_library(interface
     ICMP6Generator.c
     MultiInterface.c
     FramingInterface.c
+    InterfaceController_admin.c
 )
 
 target_link_libraries(interface

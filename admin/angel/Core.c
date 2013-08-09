@@ -37,6 +37,7 @@
 #endif
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
+#include "interface/InterfaceController_admin.h"
 #include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
 #include "io/ArrayReader.h"
@@ -355,6 +356,7 @@ int Core_main(int argc, char** argv)
                                        alloc);
 
     // ------------------- Register RPC functions ----------------------- //
+    InterfaceController_admin_register(ifController, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #ifdef HAS_ETH_INTERFACE

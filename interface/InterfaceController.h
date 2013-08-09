@@ -37,6 +37,18 @@ enum InterfaceController_PeerState
     InterfaceController_PeerState_UNRESPONSIVE
 };
 
+/**
+ * Stats about a peer
+ */
+struct InterfaceController_peerStats
+{
+    uint8_t* pubKey;
+    int state;
+    uint64_t timeOfLastMessage;
+    uint64_t bytesOut;
+    uint64_t bytesIn;
+};
+
 struct InterfaceController
 {
     /**
@@ -95,6 +107,19 @@ struct InterfaceController
 
     /** Get the current state of a registered interface. */
     enum InterfaceController_PeerState (* const getPeerState)(struct Interface* iface);
+
+    /**
+     * Get stats for the connected peers.
+     *
+     * @params ic the if controller
+     * @params alloc the Allocator to use for the peerStats array in statsOut
+     * @params statsOut pointer to the InterfaceController_peerStats array
+     * @return the number of InterfaceController_peerStats in statsOut
+     */
+    int (* const getPeerStats)(struct InterfaceController* ic,
+                               struct Allocator* alloc,
+                               struct InterfaceController_peerStats** statsOut);
+
 };
 
 #define InterfaceController_getPeerState(ic, iface) \
