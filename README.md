@@ -137,7 +137,7 @@ still lacking DNS resolution but the name stuck. Make up your own acronym for it
 
 Please read the Whitepaper, or at least skim it:
 
-  * https://github.com/cjdelisle/cjdns/blob/master/rfcs/Whitepaper.md
+  * https://github.com/cjdelisle/cjdns/blob/master/doc/Whitepaper.md
 
 If you are still interested in this project and want to follow it,
 get in the channel on IRC:
@@ -273,7 +273,7 @@ It looks like this:
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
-https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md contains more
+https://github.com/cjdelisle/cjdns/blob/master/doc/configure.md contains more
 details on configuration, including how to peer with other cjdns nodes over
 ethernet (including wifi).
 
