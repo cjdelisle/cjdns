@@ -191,22 +191,26 @@ static void pingCallback(void* vic)
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
+
             if (ep->transient && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
                 Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                       "seconds, dropping connection",
                                       key, ic->forgetAfterMilliseconds / 1024);
                 Allocator_free(ep->external->allocator);
-            } else if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
+                return;
+            }
+
+            bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
+            uint32_t lag = ~0u;
+            if (unresponsive) {
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
-                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
-                Log_debug(ic->logger, "Pinging unresponsive peer [%s.k] lag [%u]", key, lag);
+                lag = ((now - ep->timeOfLastMessage) / 1024);
             } else {
-                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
-                Log_debug(ic->logger, "Pinging lazy peer [%s] lag [%u]", key, lag);
+                lag = ((now - ep->timeOfLastMessage) / 1024);
             }
 
             struct SwitchPinger_Ping* ping =
@@ -216,9 +220,20 @@ static void pingCallback(void* vic)
                                      onPingResponse,
                                      ic->switchPinger);
 
+            if (!ping) {
+                Log_debug(ic->logger,
+                          "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
+                          (unresponsive ? "unresponsive" : "lazy"), key, lag);
+                return;
+            }
+
             ping->onResponseContext = ep;
 
             SwitchPinger_sendPing(ping);
+
+            Log_debug(ic->logger,
+                      "Pinging %s peer [%s.k] lag [%u]",
+                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
         }
     }
 }
