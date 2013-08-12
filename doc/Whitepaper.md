@@ -745,7 +745,7 @@ based on the source IPv6 address. The IPv6 header is then moved up to meet the
 content (into the place where the CryptoAuth header had been) and the final
 packet is written out to the TUN device.
 
-![illustration](https://github.com/cjdelisle/cjdns/raw/master/rfcs/flowchart.png)
+![illustration](https://github.com/cjdelisle/cjdns/raw/master/doc/flowchart.png)
 
 
 [OSLR]: http://tools.ietf.org/html/rfc3626
