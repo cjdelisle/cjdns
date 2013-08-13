@@ -458,6 +458,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
     if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
+        TUNMessageType_push(message, ethertype);
         iface->sendMessage(message, iface);
         return Error_NONE;
     }
