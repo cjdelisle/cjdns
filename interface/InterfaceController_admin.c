@@ -87,6 +87,40 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     Allocator_free(alloc);
 }
 
+static void adminDisconnectPeer(Dict* args, void* vcontext, String* txid)
+{
+    struct Context* context = vcontext;
+    struct Allocator* alloc = Allocator_child(context->alloc);
+    String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
+
+    // parse the key
+    uint8_t pubkey[32];
+    uint8_t addr[16];
+    int error = Key_parse(pubkeyString, pubkey, addr);
+
+    char* errorMsg = NULL;
+    if (error) {
+        errorMsg = "bad key";
+    }
+    else {
+      //  try to remove the peer if the key is valid
+      error = context->ic->disconnectPeer(context->ic,pubkey);
+      if (error) {
+          errorMsg = "no peer found for that key";
+      }
+    }
+
+    Dict* response = Dict_new(alloc);
+    Dict_putInt(response, String_CONST("sucess"), error ? 0 : 1, alloc);
+    if (error) {
+        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), alloc);
+    }
+
+    Admin_sendMessage(response, txid, context->admin);
+
+    Allocator_free(alloc);
+}
+
 void InterfaceController_admin_register(struct InterfaceController* ic,
                                         struct Admin* admin,
                                         struct Allocator* alloc)
@@ -100,5 +134,10 @@ void InterfaceController_admin_register(struct InterfaceController* ic,
     Admin_registerFunction("InterfaceController_peerStats", adminPeerStats, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 0, .type = "Int" }
+        }), admin);
+
+    Admin_registerFunction("InterfaceController_disconnectPeer", adminDisconnectPeer, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "pubkey", .required = 1, .type = "String" }
         }), admin);
 }
