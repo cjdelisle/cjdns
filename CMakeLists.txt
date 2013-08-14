@@ -17,6 +17,17 @@ if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR} AND NOT OPENWRT)
     message( FATAL_ERROR "type: git clean -df && mkdir build && cd build && cmake .. && make" )
 endif()
 
+if (OPENWRT)
+    # OpenWRT messes around with the code quite a bit and makes the codestyle validator angry.
+    set(NO_CODESTYLE TRUE)
+
+    # OpenWRT's NACL is not built position independent.
+    set(WITH_PIE FALSE)
+
+    # Need to tell cjdns build process that there exists an nacl on the system.
+    set(HAVE_NACL TRUE)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
