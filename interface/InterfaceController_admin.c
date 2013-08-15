@@ -42,14 +42,20 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
 
     int count = context->ic->getPeerStats(context->ic, alloc, &stats);
 
+    String* bytesIn = String_CONST("bytesIn");
+    String* bytesOut = String_CONST("bytesOut");
+    String* pubKey = String_CONST("pubkey");
+    String* state = String_CONST("state");
+    String* last = String_CONST("last");
+
     List* list = NULL;
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
         Dict* d = Dict_new(alloc);
-        Dict_putInt(d, String_CONST("bytesIn"), stats[i].bytesIn, alloc);
-        Dict_putInt(d, String_CONST("bytesOut"), stats[i].bytesOut, alloc);
-        Dict_putString(d, String_CONST("pubkey"), Key_stringify(stats[i].pubKey, alloc), alloc);
-        Dict_putInt(d, String_CONST("state"), stats[i].state, alloc);
-        Dict_putInt(d, String_CONST("last"), stats[i].timeOfLastMessage, alloc);
+        Dict_putInt(d, bytesIn, stats[i].bytesIn, alloc);
+        Dict_putInt(d, bytesOut, stats[i].bytesOut, alloc);
+        Dict_putString(d, pubKey, Key_stringify(stats[i].pubKey, alloc), alloc);
+        Dict_putInt(d, state, stats[i].state, alloc);
+        Dict_putInt(d, last, stats[i].timeOfLastMessage, alloc);
         list = List_addDict(list, d, alloc);
     }
 
