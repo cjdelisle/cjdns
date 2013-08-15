@@ -37,6 +37,17 @@ enum InterfaceController_PeerState
     InterfaceController_PeerState_UNRESPONSIVE
 };
 
+static inline char* InterfaceController_stateString(enum InterfaceController_PeerState ps)
+{
+    switch (ps) {
+        case InterfaceController_PeerState_UNAUTHENTICATED: return "UNAUTHENTICATED";
+        case InterfaceController_PeerState_HANDSHAKE: return "HANDSHAKE";
+        case InterfaceController_PeerState_ESTABLISHED: return "ESTABLISHED";
+        case InterfaceController_PeerState_UNRESPONSIVE: return "UNRESPONSIVE";
+        default: return "INVALID";
+    }
+}
+
 /**
  * Stats about a peer
  */
@@ -47,6 +58,8 @@ struct InterfaceController_peerStats
     uint64_t timeOfLastMessage;
     uint64_t bytesOut;
     uint64_t bytesIn;
+    uint64_t switchLabel;
+    bool isIncomingConnection;
 };
 
 struct InterfaceController

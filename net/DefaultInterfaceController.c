@@ -43,7 +43,10 @@
 /** The number of milliseconds to wait for a ping response. */
 #define TIMEOUT_MILLISECONDS (2*1024)
 
-/** The number of seconds to wait before a transient unresponsive peer is forgotten. */
+/**
+ * The number of seconds to wait before an unresponsive peer
+ * making an incoming connection is forgotten.
+ */
 #define FORGET_AFTER_MILLISECONDS (256*1024)
 
 /*--------------------Structs--------------------*/
@@ -69,7 +72,7 @@ struct IFCPeer
     uint32_t handle;
 
     /** True if we should forget about the peer if they do not respond. */
-    bool transient : 1;
+    bool isIncomingConnection : 1;
 
     /**
      * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
@@ -123,7 +126,7 @@ struct Context
     /** The number of milliseconds to let a ping go before timing it out. */
     uint32_t timeoutMilliseconds;
 
-    /** After this number of milliseconds, an transient connection is forgotten entirely. */
+    /** After this number of milliseconds, an incoming connection is forgotten entirely. */
     uint32_t forgetAfterMilliseconds;
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
@@ -196,7 +199,9 @@ static void pingCallback(void* vic)
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
 
-            if (ep->transient && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
+            if (ep->isIncomingConnection
+                && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
+            {
                 Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                       "seconds, dropping connection",
                                       key, ic->forgetAfterMilliseconds / 1024);
@@ -368,7 +373,7 @@ static int registerPeer(struct InterfaceController* ifController,
                         uint8_t herPublicKey[32],
                         String* password,
                         bool requireAuth,
-                        bool transient,
+                        bool isIncomingConnection,
                         struct Interface* externalInterface)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
@@ -417,7 +422,7 @@ static int registerPeer(struct InterfaceController* ifController,
         CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
     }
 
-    ep->transient = transient;
+    ep->isIncomingConnection = isIncomingConnection;
 
     Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
         .sendMessage = sendFromSwitch,
@@ -488,6 +493,8 @@ static int getPeerStats(struct InterfaceController* ifController,
         s->bytesIn = peer->bytesIn;
         s->timeOfLastMessage = peer->timeOfLastMessage;
         s->state = peer->state;
+        s->switchLabel = peer->switchLabel;
+        s->isIncomingConnection = peer->isIncomingConnection;
     }
 
     *statsOut = stats;

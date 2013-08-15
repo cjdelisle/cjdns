@@ -20,7 +20,7 @@
 #include "crypto/Key.h"
 #include "interface/InterfaceController.h"
 #include "interface/InterfaceController_admin.h"
-#include "util/Endian.h"
+#include "util/AddrTools.h"
 
 struct Context
 {
@@ -47,6 +47,8 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     String* pubKey = String_CONST("pubkey");
     String* state = String_CONST("state");
     String* last = String_CONST("last");
+    String* switchLabel = String_CONST("switchLabel");
+    String* isIncoming = String_CONST("isIncoming");
 
     List* list = NULL;
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
@@ -54,8 +56,18 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
         Dict_putInt(d, bytesIn, stats[i].bytesIn, alloc);
         Dict_putInt(d, bytesOut, stats[i].bytesOut, alloc);
         Dict_putString(d, pubKey, Key_stringify(stats[i].pubKey, alloc), alloc);
-        Dict_putInt(d, state, stats[i].state, alloc);
+
+        String* stateString = String_new(InterfaceController_stateString(stats[i].state), alloc);
+        Dict_putString(d, state, stateString, alloc);
+
         Dict_putInt(d, last, stats[i].timeOfLastMessage, alloc);
+
+        uint8_t labelStack[20];
+        AddrTools_printPath(labelStack, stats[i].switchLabel);
+        Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
+
+        Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
+
         list = List_addDict(list, d, alloc);
     }
 
