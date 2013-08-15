@@ -44,7 +44,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
 
     String* bytesIn = String_CONST("bytesIn");
     String* bytesOut = String_CONST("bytesOut");
-    String* pubKey = String_CONST("pubkey");
+    String* pubKey = String_CONST("publicKey");
     String* state = String_CONST("state");
     String* last = String_CONST("last");
     String* switchLabel = String_CONST("switchLabel");
