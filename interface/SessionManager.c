@@ -31,6 +31,9 @@
 /** The number of seconds between cleanup cycles. */
 #define CLEANUP_CYCLE_SECONDS 20
 
+/** Handle numbers 0-3 are reserved for CryptoAuth nonces. */
+#define FIRST_HANDLE 4
+
 
 struct Ip6
 {
@@ -114,7 +117,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 
         int index = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &s, &sm->ifaceMap);
         struct SessionManager_Session* sp = &sm->ifaceMap.values[index];
-        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index]);
+        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index] + FIRST_HANDLE);
         Bits_memcpyConst(sp->ip6, lookupKey, 16);
         return sp;
     } else {
@@ -132,7 +135,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm)
 {
-    int index = Map_OfSessionsByIp6_indexForHandle(handle, &sm->ifaceMap);
+    int index = Map_OfSessionsByIp6_indexForHandle(handle - FIRST_HANDLE, &sm->ifaceMap);
     return (index == -1) ? NULL : &sm->ifaceMap.values[index];
 }
 

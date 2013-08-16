@@ -1083,8 +1083,12 @@ int CryptoAuth_getState(struct Interface* interface)
             // state 4 = waiting for first data packet to prove the handshake succeeded.
             // At this point you have sent a challenge and received a response so it is safe
             // to assume you are not being hit with replay packets.
+            //
+            // Sent a hello, received one or more keys, waiting for data.
+            // In this state data packets will be sent but no data packets have yet been received.
             return CryptoAuth_HANDSHAKE3;
         default:
+            // Received data.
             return CryptoAuth_ESTABLISHED;
     }
 }

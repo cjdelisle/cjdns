@@ -176,7 +176,8 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         uv_close((uv_handle_t*) stream, NULL);
 
     } else if (nread == 0) {
-        Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
+        // This is common.
+        //Log_debug(pipe->pub.logger, "Pipe 0 length read [%s]", pipe->pub.fullName);
 
     } else if (pipe->pub.iface.receiveMessage) {
         Assert_true(alloc);
