@@ -367,7 +367,6 @@ static void getIp6(struct CryptoAuth_Wrapper* wrapper, uint8_t* addr)
 #define cryptoAuthDebug0(wrapper, format) \
     cryptoAuthDebug(wrapper, format "%s", "")
 
-
 /**
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
@@ -380,19 +379,15 @@ static uint8_t genReverseHandshake(struct Message* message,
     Message_shift(message, -Headers_CryptoAuth_SIZE);
 
     // Buffer the packet so it can be sent ASAP
-    if (wrapper->bufferedMessage == NULL) {
-        cryptoAuthDebug0(wrapper, "Buffered a message");
-        wrapper->bufferedMessage =
-            Message_clone(message, wrapper->externalInterface.allocator);
-        Assert_true(wrapper->nextNonce == 0);
-    } else {
+    if (wrapper->bufferedMessage != NULL) {
         cryptoAuthDebug0(wrapper, "Expelled a message because a session has not yet been setup");
-        Message_copyOver(wrapper->bufferedMessage,
-                         message,
-                         wrapper->externalInterface.allocator);
-        Assert_true(wrapper->nextNonce == 0);
+        Allocator_free(wrapper->bufferedMessage->alloc);
     }
-    wrapper->hasBufferedMessage = true;
+
+    cryptoAuthDebug0(wrapper, "Buffered a message");
+    struct Allocator* bmalloc = Allocator_child(wrapper->externalInterface.allocator);
+    wrapper->bufferedMessage = Message_clone(message, bmalloc);
+    Assert_true(wrapper->nextNonce == 0);
 
     Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
@@ -809,12 +804,13 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->hasBufferedMessage && message->length == 0) {
+    if (wrapper->bufferedMessage && message->length == 0) {
         cryptoAuthDebug0(wrapper, "Sending buffered message");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
-        wrapper->hasBufferedMessage = false;
+        Allocator_free(wrapper->bufferedMessage->alloc);
+        wrapper->bufferedMessage = NULL;
         return Error_NONE;
-    } else if (wrapper->hasBufferedMessage) {
+    } else if (wrapper->bufferedMessage) {
         cryptoAuthDebug0(wrapper, "There is a buffered message");
     }
 

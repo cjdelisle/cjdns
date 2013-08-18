@@ -61,6 +61,11 @@ static uint8_t sendTo(struct Message* msg, struct Interface* iface)
     // Store the original message and a copy of the original so they can be compared later.
     srcTf->lastMsgBackup = Message_clone(msg, srcTf->alloc);
     srcTf->lastMsg = msg;
+    if (msg->alloc) {
+        // If it's a message which was buffered inside of CryptoAuth then it will be freed
+        // so by adopting the allocator we can hold it in memory.
+        Allocator_adopt(srcTf->alloc, msg->alloc);
+    }
 
     // Copy the original and send that to the other end.
     struct Message* sendMsg = Message_clone(msg, dest->allocator);
