@@ -12,58 +12,39 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "FileWriter.h"
-#include "util/Bits.h"
+#include "io/Writer.h"
+#include "io/FileWriter.h"
+#include "util/Identity.h"
 
 struct FileWriter_context {
+    struct Writer generic;
     FILE* writeTo;
-    uint64_t bytesWritten;
-    struct Writer writer;
+    Identity
 };
 
-static int write(const void* toWrite, size_t length, const struct Writer* writer);
-static uint64_t bytesWritten(const struct Writer* writer);
-
-/** @see ArrayWriter.h */
-struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator)
-{
-    struct FileWriter_context* context =
-        Allocator_calloc(allocator, sizeof(struct FileWriter_context), 1);
-
-    if (context == NULL) {
-        return NULL;
-    }
-
-    context->writeTo = writeTo;
-    context->bytesWritten = 0;
-
-    struct Writer localWriter = {
-        .context = context,
-        .write = write,
-        .bytesWritten = bytesWritten
-    };
-    Bits_memcpyConst(&context->writer, &localWriter, sizeof(struct Writer));
-
-    return &context->writer;
-}
-
 /** @see Writer->write() */
-static int write(const void* toWrite, size_t length, const struct Writer* writer)
+static int write(struct Writer* writer, const void* toWrite, unsigned long length)
 {
-    struct FileWriter_context* context =
-        (struct FileWriter_context*) writer->context;
+    struct FileWriter_context* context = Identity_cast((struct FileWriter_context*) writer);
 
     size_t written = fwrite(toWrite, 1, length, context->writeTo);
 
-    context->bytesWritten += written;
+    writer->bytesWritten += written;
 
     return written - length;
 }
 
-static uint64_t bytesWritten(const struct Writer* writer)
-{
-    struct FileWriter_context* context =
-        (struct FileWriter_context*) writer->context;
 
-    return context->bytesWritten;
+/** @see ArrayWriter.h */
+struct Writer* FileWriter_new(FILE* writeTo, struct Allocator* allocator)
+{
+    struct FileWriter_context* context = Allocator_clone(allocator, (&(struct FileWriter_context) {
+        .generic = {
+            .write = write
+        },
+        .writeTo = writeTo
+    }));
+    Identity_set(context);
+
+    return &context->generic;
 }

@@ -23,6 +23,8 @@
 #define Map_ENABLE_HANDLES
 #include "util/Map.h"
 
+#include <stdio.h>
+#include <stdbool.h>
 
 #define CYCLES 1
 

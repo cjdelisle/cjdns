@@ -21,7 +21,7 @@
     #include <byteswap.h>
 #endif
 
-#ifdef OSX
+#ifdef Darwin
     #include <libkern/OSByteOrder.h>
 #endif
 

@@ -14,21 +14,21 @@
  */
 #include "crypto/random/Random.h"
 #include "interface/MultiInterface.h"
-#include "memory/CanaryAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "test/TestFramework.h"
 
 static int allocatorsFreed;
-void allocatorFreed(void* null)
+int allocatorFreed(struct Allocator_OnFreeJob* job)
 {
     allocatorsFreed++;
+    return 0;
 }
 
 // make sure unauthenticated interfaces are cleared out if they don't send valid packets.
 int main()
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct TestFramework* tf = TestFramework_setUp(NULL, alloc, NULL);
 
     struct Interface iface = {
@@ -48,4 +48,6 @@ int main()
     iface.receiveMessage(msg, &iface);
 
     Assert_true(allocatorsFreed == 1);
+
+    Allocator_free(alloc);
 }

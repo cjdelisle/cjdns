@@ -38,7 +38,7 @@ struct VersionList* VersionList_parse(String* str, struct Allocator* alloc)
     struct Reader* r = ArrayReader_new(str->bytes + 1, str->len - 1, alloc);
     for (int i = 0; i < (int)list->length; i++) {
         uint32_t ver = 0;
-        r->read((uint8_t*) &ver, numberSize, r);
+        Reader_read(r, (uint8_t*) &ver, numberSize);
         ver = Endian_bigEndianToHost32(ver);
         list->versions[i] = ver >> ((4-numberSize) * 8);
     }

@@ -28,7 +28,7 @@ struct BencSerializer
      * @param string the string to write.
      * @return whatever the Writer returns when writing.
      */
-    int32_t (* const serializeString)(const struct Writer* writer,
+    int32_t (* const serializeString)(struct Writer* writer,
                                       const String* string);
 
     /**
@@ -44,8 +44,8 @@ struct BencSerializer
      *           overflow, -2 if -1 returned by the reader indicating an array underflow,
      *           -3 if content unparsable.
      */
-    int32_t (* const parseString)(const struct Reader* reader,
-                                  const struct Allocator* allocator,
+    int32_t (* const parseString)(struct Reader* reader,
+                                  struct Allocator* allocator,
                                   String** stringPointer);
 
     /**
@@ -56,7 +56,7 @@ struct BencSerializer
      * @param integer the number to write.
      * @return whatever the Writer returns when writing.
      */
-    int32_t (* const serializeint64_t)(const struct Writer* writer,
+    int32_t (* const serializeint64_t)(struct Writer* writer,
                                        int64_t integer);
 
     /**
@@ -70,7 +70,7 @@ struct BencSerializer
      * @return 0 if everything goes well, -2 if -1 returned by the reader indicating an
      *           array underflow, -3 if content unparsable.
      */
-    int32_t (* const parseint64_t)(const struct Reader* reader,
+    int32_t (* const parseint64_t)(struct Reader* reader,
                                    int64_t* output);
 
     /**
@@ -80,7 +80,7 @@ struct BencSerializer
      * @param List the list to serialize.
      * @return whatever the Writer returns when writing.
      */
-    int32_t (* const serializeList)(const struct Writer* writer,
+    int32_t (* const serializeList)(struct Writer* writer,
                                     const List* list);
 
     /**
@@ -95,8 +95,8 @@ struct BencSerializer
      * @return 0 if everything goes well, -2 if -1 returned by the reader indicating an array
      *           underflow, -3 if content unparsable.
      */
-    int32_t (* const parseList)(const struct Reader* reader,
-                                const struct Allocator* allocator,
+    int32_t (* const parseList)(struct Reader* reader,
+                                struct Allocator* allocator,
                                 List* output);
 
     /**
@@ -106,7 +106,7 @@ struct BencSerializer
      * @param dictionary the dictionary to serialize.
      * @return whatever the Writer returns when writing.
      */
-    int32_t (* const serializeDictionary)(const struct Writer* writer,
+    int32_t (* const serializeDictionary)(struct Writer* writer,
                                           const Dict* dictionary);
 
     /**
@@ -122,8 +122,8 @@ struct BencSerializer
      * @return 0 if everything goes well -2 if -1 returned by read indicating an array underflow,
      *           -3 if content unparsable.
      */
-    int32_t (* const parseDictionary)(const struct Reader* reader,
-                                      const struct Allocator* allocator,
+    int32_t (* const parseDictionary)(struct Reader* reader,
+                                      struct Allocator* allocator,
                                       Dict* output);
 };
 

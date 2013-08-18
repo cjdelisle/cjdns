@@ -68,6 +68,7 @@ int testOutputHandler()
     } else if (context.ret == -2) {
         printf("wrong message received");
     } else {
+        Allocator_free(allocator);
         return 0;
     }
     return -1;

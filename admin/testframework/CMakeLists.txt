@@ -18,7 +18,4 @@ target_link_libraries(cjdadmintest
     cjdns-angel
     cjdns-admin
     cjdns-admin-client
-    cjdns-waiter
-    cjdns-process
-    cjdns-memory-canary
 )

@@ -130,4 +130,6 @@ int main()
         Random_bytes(rand, selections, 2);
         checkBytes(rand, selections[0] % 8, selections[1] % 128);
     }*/
+
+    Allocator_free(alloc);
 }

@@ -10,12 +10,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_library(cjdns-waiter
-    Waiter.c
-)
-
 add_library(cjdns-interface-waiter
     InterfaceWaiter.c
+)
+target_link_libraries(cjdns-interface-waiter
+    cjdns-util-events-libuv-time
 )
 
 add_library(cjdns-angel
@@ -29,16 +28,15 @@ target_link_libraries(cjdns-angel
     cjdmemory
     cjdns-util-events-libuv
     cjdns-security
-    cjdns-process
     cjdns-interface-waiter
-    cjdns-waiter
     util # Hex_decode(), Pipe_createUniPipe()
     cjdns-util-log-writer
     cjdns-crypto-random
-    cjdns-memory-canary
     cjdns-util-platform-socket
     cjdns-interface-addressable-adapter
     cjdns-interface-tuntap
+    cjdns-util-platform-netdev
+    interface
 )
 
 add_library(cjdns-admin-hermes
@@ -64,14 +62,12 @@ target_link_libraries(cjdns-core
     cjdnet
     cjdns-util-events-libuv
     cjdns-interface-waiter
-    cjdns-util-log-writer
+    cjdns-util-log-filewriter
     cjdns-admin-logger
     cjdns-util-log-indirect
     cjdns-tunnel-iptunnel
     cjdns-crypto-random
     cjdns-crypto-random-libuv
-    cjdns-memory-canary
-    cjdns-interface-addressable
 )
 
 add_executable(cjdns
@@ -94,11 +90,10 @@ target_link_libraries(cjdroute2
     cjdns-util-events-libuv
     cjdbenc_StandardBencSerializer
     cjdbenc_JsonBencSerializer
-    cjdns-process
-    cjdns-waiter
     cjdns-util-log-writer
     cjdns-crypto-random
     cjdns-util-version-version
+    cjdns-interface-waiter
 )
 
 install(TARGETS cjdroute2

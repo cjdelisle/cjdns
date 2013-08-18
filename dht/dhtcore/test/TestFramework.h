@@ -23,11 +23,11 @@ static int catchOutgoing(struct DHTMessage* message, void* vcontext);
 static int bounceMessage(struct DHTMessage* message, void* vcontext);
 
 static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                const struct Allocator* allocator)
+                                                struct Allocator* allocator)
 __attribute__((unused));
 
 static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* registry,
-                                                const struct Allocator* allocator)
+                                                struct Allocator* allocator)
 {
     struct DHTModule* module =
         Allocator_clone(allocator, (&(struct DHTModule) {
@@ -39,7 +39,7 @@ static void TestFramework_registerBouncerModule(struct DHTModuleRegistry* regist
 
 static void TestFramework_registerOutputCatcher(struct DHTMessage** messagePointer,
                                                 struct DHTModuleRegistry* registry,
-                                                const struct Allocator* allocator)
+                                                struct Allocator* allocator)
 {
     struct DHTModule* module =
         Allocator_clone(allocator, (&(struct DHTModule) {

@@ -126,10 +126,9 @@ sub parse_file {
         if ($fileName =~ /\.h$/ && !($fileName =~ /util\/platform\/libc\//)) {
 
             my $n = $name;
-            # If the name is CryptoAuth_struct.h, it's ok to make a structure called CryptoAuth
-            if ($name =~ /^(.*)_pvt$/) {
-                $n = $1;
-            }
+            # If the name is CryptoAuth_pvt.h, it's ok to make a structure called CryptoAuth
+            if ($name =~ /^(.*)_pvt$/) { $n = $1; }
+            if ($name =~ /^(.*)_impl$/) { $n = $1; }
 
             if ($line =~ /^struct / && !($line =~ /^struct ${n}/) && !($line =~ /\(/)) {
                 error("all structures must begin with the name of the file.");

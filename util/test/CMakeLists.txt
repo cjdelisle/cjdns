@@ -25,7 +25,7 @@ set(Test_LIBRARIES
     cjdns-util-events-libuv
     cjdmemory
     util
-    cjdns-process
     cjdns-crypto-random
+    cjdns-util-log-filewriter
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

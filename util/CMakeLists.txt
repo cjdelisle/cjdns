@@ -18,8 +18,8 @@ find_package(Socket REQUIRED)
 
 add_library(cjdns-errno Errno.c)
 
-if(WIN32)
-    set(sec Security_W32.c)
+if(Windows)
+    set(sec Security_Windows.c)
     target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
 else()
     set(sec Security.c)
@@ -35,16 +35,12 @@ target_link_libraries(cjdns-security
     cjdns-errno
 )
 
-add_library(cjdns-process
-    Process_${SYSTEM}.c
-)
-
 add_library(util
     AverageRoller.c
     Hex.c
     Pinger.c
-    Pipe.c
     Security_admin.c
+    Assert.c
 )
 target_link_libraries(util
     cjdmemory

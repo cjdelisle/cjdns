@@ -15,7 +15,6 @@
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "admin/angel/Angel.h"
-#include "admin/angel/Waiter.h"
 #include "admin/angel/Core.h"
 #include "admin/angel/Core_admin.h"
 #include "admin/angel/InterfaceWaiter.h"
@@ -36,10 +35,10 @@
 #ifdef HAS_ETH_INTERFACE
 #include "interface/ETHInterface_admin.h"
 #endif
-#include "interface/TUNConfigurator.h"
-#include "interface/TUNInterface.h"
-#include "interface/PipeInterface.h"
+#include "interface/tuntap/TUNInterface.h"
 #include "interface/InterfaceConnector.h"
+#include "interface/InterfaceController_admin.h"
+#include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
@@ -48,7 +47,6 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
@@ -57,9 +55,11 @@
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
 #include "util/events/EventBase.h"
-#include "util/log/WriterLog.h"
+#include "util/events/Pipe.h"
+#include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
+#include "util/platform/netdev/NetDev.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -155,6 +155,11 @@ static void adminExit(Dict* input, void* vcontext, String* txid)
                      context->hermes);
 }
 
+static void angelDied(struct Pipe* p, int status)
+{
+    exit(1);
+}
+
 static Dict* getInitialConfig(struct Interface* iface,
                               struct EventBase* eventBase,
                               struct Allocator* alloc,
@@ -171,7 +176,7 @@ static Dict* getInitialConfig(struct Interface* iface,
 }
 
 void Core_initTunnel(String* desiredDeviceName,
-                     uint8_t ipAddr[16],
+                     struct Sockaddr* addr,
                      uint8_t addressPrefix,
                      struct Ducttape* dt,
                      struct Log* logger,
@@ -182,23 +187,18 @@ void Core_initTunnel(String* desiredDeviceName,
 {
     Log_debug(logger, "Initializing TUN device [%s]",
               (desiredDeviceName) ? desiredDeviceName->bytes : "<auto>");
-    char assignedTunName[TUNConfigurator_IFNAMSIZ];
-    void* tunPtr = TUNConfigurator_initTun(((desiredDeviceName) ? desiredDeviceName->bytes : NULL),
-                                           assignedTunName,
-                                           logger,
-                                           eh);
 
-    struct TUNInterface* tun = TUNInterface_new(tunPtr, eventBase, alloc, logger);
+    char assignedTunName[TUNInterface_IFNAMSIZ];
+    char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
+    struct Interface* tun =
+        TUNInterface_new(desiredName, assignedTunName, eventBase, logger, eh, alloc);
 
-    // broken
-    //struct ICMP6Generator* icmp = ICMP6Generator_new(alloc);
-    //InterfaceConnector_connect(&icmp->external, &tun->iface);
-    //Ducttape_setUserInterface(dt, &icmp->internal);
-    Ducttape_setUserInterface(dt, &tun->iface);
-
-    TUNConfigurator_addIp6Address(assignedTunName, ipAddr, addressPrefix, logger, eh);
-    TUNConfigurator_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
     IpTunnel_setTunName(assignedTunName, ipTunnel);
+
+    Ducttape_setUserInterface(dt, tun);
+
+    NetDev_addAddress(assignedTunName, addr, addressPrefix, logger, eh);
+    NetDev_setMTU(assignedTunName, DEFAULT_MTU, logger, eh);
 }
 
 /** This is a response from a call which is intended only to send information to the angel. */
@@ -218,41 +218,37 @@ static void angelResponse(Dict* resp, void* vNULL)
 int Core_main(int argc, char** argv)
 {
     struct Except* eh = NULL;
-    int toAngel;
-    int fromAngel;
-    if (argc != 4
-        || !(toAngel = atoi(argv[2]))
-        || !(fromAngel = atoi(argv[3])))
-    {
+
+    if (argc != 3) {
         Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
     }
 
-    struct Allocator* unsafeAlloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct Writer* logWriter = FileWriter_new(stderr, unsafeAlloc);
-    struct Log* preLogger = WriterLog_new(logWriter, unsafeAlloc);
-    struct EventBase* eventBase = EventBase_new(unsafeAlloc);
+    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+    struct Log* preLogger = FileWriterLog_new(stderr, alloc);
+    struct EventBase* eventBase = EventBase_new(alloc);
 
     // -------------------- Setup the Pre-Logger ---------------------- //
-    struct IndirectLog* indirectLogger = IndirectLog_new(unsafeAlloc);
-    indirectLogger->wrappedLog = preLogger;
-    struct Log* logger = &indirectLogger->pub;
+    struct Log* logger = IndirectLog_new(alloc);
+    IndirectLog_set(logger, preLogger);
 
     // -------------------- Setup the PRNG ---------------------- //
-    struct Random* rand =
-        LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, unsafeAlloc);
+    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
 
-    // -------------------- Setup Protected Allocator ---------------------- //
-    struct Allocator* alloc = CanaryAllocator_new(unsafeAlloc, rand);
+    // -------------------- Change Canary Value ---------------------- //
+    MallocAllocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
 
 
     // The first read inside of getInitialConfig() will begin it waiting.
-    struct PipeInterface* pi =
-        PipeInterface_new(fromAngel, toAngel, eventBase, logger, alloc, rand);
+    struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
+    angelPipe->logger = logger;
+    angelPipe->onClose = angelDied;
 
-    Dict* config = getInitialConfig(&pi->generic, eventBase, tempAlloc, eh);
+    struct Interface* angelIface = FramingInterface_new(65535, &angelPipe->iface, alloc);
 
-    struct Hermes* hermes = Hermes_new(&pi->generic, eventBase, logger, alloc);
+    Dict* config = getInitialConfig(angelIface, eventBase, tempAlloc, eh);
+
+    struct Hermes* hermes = Hermes_new(angelIface, eventBase, logger, alloc);
 
     String* privateKeyHex = Dict_getString(config, String_CONST("privateKey"));
     Dict* adminConf = Dict_getDict(config, String_CONST("admin"));
@@ -306,7 +302,7 @@ int Core_main(int argc, char** argv)
         // do nothing, continue logging to stdout.
     } else {
         struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
-        indirectLogger->wrappedLog = adminLogger;
+        IndirectLog_set(logger, adminLogger);
         logger = adminLogger;
     }
 
@@ -314,6 +310,8 @@ int Core_main(int argc, char** argv)
     struct Address addr;
     parsePrivateKey(privateKey, &addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
+
+    struct Sockaddr* myAddr = Sockaddr_fromBytes(addr.ip6.bytes, Sockaddr_AF_INET6, alloc);
 
     struct SwitchCore* switchCore = SwitchCore_new(logger, alloc);
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
@@ -358,6 +356,7 @@ int Core_main(int argc, char** argv)
                                        alloc);
 
     // ------------------- Register RPC functions ----------------------- //
+    InterfaceController_admin_register(ifController, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
     UDPInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #ifdef HAS_ETH_INTERFACE
@@ -366,12 +365,12 @@ int Core_main(int argc, char** argv)
     RouterModule_admin_register(router, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
-    Core_admin_register(addr.ip6.bytes, dt, logger, ipTun, alloc, admin, eventBase);
+    Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
-        .allocator = unsafeAlloc,
+        .allocator = alloc,
         .admin = admin,
         .logger = logger,
         .hermes = hermes

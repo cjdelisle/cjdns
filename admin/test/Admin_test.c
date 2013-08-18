@@ -21,6 +21,8 @@
 #include "util/Errno.h"
 #include "util/platform/libc/strlen.h"
 
+#include <stdio.h>
+
 struct Context {
     struct AdminTestFramework* framework;
 

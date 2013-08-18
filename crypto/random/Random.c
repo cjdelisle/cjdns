@@ -149,7 +149,7 @@ struct Random
 void Random_addRandom(struct Random* rand, uint32_t randomNumber)
 {
     Identity_check(rand);
-    #define rotl(a,b) (((a) << (b)) | ((a) >> (32 - (b))))
+    #define rotl(a,b) (((a) << (b)) | ((a) >> (31 - (b))))
     rand->seedGen->elements.collectedEntropy[rand->addRandomCounter % 8] ^=
         rotl(randomNumber, rand->addRandomCounter / 8);
     if (++rand->addRandomCounter >= 256) {

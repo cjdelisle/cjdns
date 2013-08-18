@@ -14,14 +14,17 @@
  */
 #define string_strrchr
 #include "util/platform/libc/string.h"
-#include <inttypes.h>
-#include <stdio.h>
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/MallocAllocator_pvt.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
+
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 /** This provides the padding for each line based on the depth in the stack. */
 struct Unroller;
@@ -42,10 +45,19 @@ static void unroll(struct MallocAllocator_pvt* context, struct Unroller* unrolle
     writeUnroller(unroller);
     const char* ident = (context->identFile) ? strrchr(context->identFile, '/') : " UNKNOWN";
     ident = ident ? ident + 1 : context->identFile;
-    fprintf(stderr, "%s:%d  [%" PRIu64 "] bytes\n",
+
+    unsigned long realBytes = 0;
+    struct MallocAllocator_Allocation* alloc = context->allocations;
+    while (alloc) {
+        realBytes += alloc->size;
+        alloc = alloc->next;
+    }
+
+    fprintf(stderr, "%s:%d  [%lu] = [%lu] bytes\n",
             ident,
             context->identLine,
-            (uint64_t)context->allocatedHere);
+            context->allocatedHere,
+            realBytes);
 
     if (context->firstChild) {
         unroll(context->firstChild, &(struct Unroller) {
@@ -66,95 +78,232 @@ static void failure(struct MallocAllocator_pvt* context,
 {
     // get the root allocator.
     struct MallocAllocator_pvt* rootAlloc = context;
-    while (rootAlloc->lastSibling) {
+    while (rootAlloc->lastSibling && rootAlloc->lastSibling != rootAlloc) {
         rootAlloc = rootAlloc->lastSibling;
     }
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    fprintf(stderr, "%s:%d Fatal error: [%s] spaceAvailable [%" PRIu64 "]\n",
-            identFile,
-            identLine,
-            message,
-            *context->spaceAvailable);
-    exit(0);
+    Assert_failure("%s:%d Fatal error: [%s] totalBytes [%lu] remaining [%lu]",
+                   identFile, identLine, message,
+                   (unsigned long)context->rootAlloc->maxSpace,
+                   (unsigned long)context->rootAlloc->spaceAvailable);
+}
+
+static inline unsigned long getRealSize(unsigned long requestedSize)
+{
+    return ((requestedSize + (sizeof(char*) - 1)) & ~(sizeof(char*) - 1)) // align
+        + sizeof(struct MallocAllocator_Allocation)
+    #ifdef MallocAllocator_USE_CANARIES
+        + sizeof(long)
+    #endif
+    ;
+}
+
+#define END_CANARY(alloc) ((long*) alloc)[ (alloc->size / sizeof(long)) - 1 ]
+
+static inline void setCanaries(struct MallocAllocator_Allocation* alloc,
+                               struct MallocAllocator_pvt* context)
+{
+    #ifdef MallocAllocator_USE_CANARIES
+        alloc->beginCanary = context->canary;
+        END_CANARY(alloc) = alloc->beginCanary;
+    #endif
+}
+
+static inline void checkCanaries(struct MallocAllocator_Allocation* alloc,
+                                 struct MallocAllocator_pvt* context)
+{
+    #ifdef MallocAllocator_USE_CANARIES
+        Assert_always(alloc->beginCanary == context->canary
+            && END_CANARY(alloc) == alloc->beginCanary);
+    #endif
 }
 
 static inline void* newAllocation(struct MallocAllocator_pvt* context,
-                                  size_t size,
+                                  unsigned long size,
                                   const char* identFile,
                                   int identLine)
 {
-    int64_t realSize = sizeof(struct MallocAllocator_Allocation) + size;
-    if (*(context->spaceAvailable) <= realSize) {
-        failure(context, "Out of memory, limit exceeded.", identFile, identLine);
+    int64_t realSize = getRealSize(size);
+    if (context->rootAlloc->spaceAvailable <= realSize) {
+        failure(context, "Out of memory, limit exceeded", identFile, identLine);
     }
 
-    *(context->spaceAvailable) -= realSize;
+    context->rootAlloc->spaceAvailable -= realSize;
     context->allocatedHere += realSize;
 
     struct MallocAllocator_Allocation* alloc = malloc(realSize);
     if (alloc == NULL) {
-        failure(context, "Out of memory, malloc() returned NULL.", identFile, identLine);
+        failure(context, "Out of memory, malloc() returned NULL", identFile, identLine);
     }
     alloc->next = context->allocations;
     alloc->size = realSize;
     context->allocations = alloc;
+    setCanaries(alloc, context);
+
     return (void*) (alloc + 1);
 }
 
-/** @see Allocator->free() */
-static void freeAllocator(const struct Allocator* allocator, const char* identFile, int identLine)
+static int removeJob(struct MallocAllocator_OnFreeJob* job)
 {
-    struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+    struct MallocAllocator_OnFreeJob* j = context->onFree;
+    struct MallocAllocator_OnFreeJob** jP = &context->onFree;
+    while (j && j != job) {
+        jP = &j->next;
+        j = j->next;
+    }
+    if (j == job) {
+        *jP = j->next;
+        return 0;
+    } else {
+        return -1;
+        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
+    }
+}
 
-    // Do the onFree jobs.
-    struct MallocAllocator_OnFreeJob* job = context->onFree;
-    while (job != NULL) {
-        job->callback(job->callbackContext);
-        job = job->next;
+static void releaseMemory(struct MallocAllocator_pvt* context)
+{
+    // Free all of the allocations including the one which holds the allocator.
+    #ifdef PARANOIA
+        unsigned long allocatedHere = context->allocatedHere;
+    #endif
+    struct MallocAllocator_Allocation* loc = context->allocations;
+    while (loc != NULL) {
+        #ifdef PARANOIA
+            allocatedHere -= loc->size;
+        #endif
+        context->rootAlloc->spaceAvailable += loc->size;
+        struct MallocAllocator_Allocation* nextLoc = loc->next;
+
+        checkCanaries(loc, context);
+
+        // TODO: make this optional.
+        Bits_memset(loc, 0xee, loc->size);
+        free(loc);
+        loc = nextLoc;
+    }
+    #ifdef PARANOIA
+        Assert_always(allocatedHere == 0);
+    #endif
+}
+
+static int onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
+{
+    struct MallocAllocator_OnFreeJob* job = (struct MallocAllocator_OnFreeJob*) onFreeJob;
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+
+    if (removeJob(job)) {
+        failure(context, "OnFreeJob->complete() called multiple times", job->file, job->line);
     }
 
-    // Free all of the child allocators.
+    if (!context->onFree) {
+        // There are no more jobs, release the memory.
+        releaseMemory(context);
+    }
+    return 0;
+}
+
+static void disconnectAllocator(struct Allocator* allocator, const char* file, int line);
+
+/**
+ * Triggered when freeAllocator() is called and the allocator nolonger
+ * has any remaining links to the allocator tree.
+ */
+static void freeAllocator(struct MallocAllocator_pvt* context, const char* file, int line)
+{
+    Assert_true(!context->lastSibling);
+    Assert_true(!context->adoptions || !context->adoptions->parents);
+
+    // Disconnect all of the child allocators.
     struct MallocAllocator_pvt* child = context->firstChild;
-    while (child != NULL) {
+    while (child) {
         struct MallocAllocator_pvt* nextChild = child->nextSibling;
-        freeAllocator(&child->pub, identFile, identLine);
+        disconnectAllocator(&child->pub, file, line);
         child = nextChild;
     }
 
+    // Disconnect (and free if necessary) the adopted children.
+
+    struct MallocAllocator_List* childL = context->adoptions ? context->adoptions->children : NULL;
+    while (childL) {
+        struct MallocAllocator_List** cpp = &childL->alloc->adoptions->parents;
+        struct MallocAllocator_List* cp = *cpp;
+        int found = 0;
+        while ((cp = *cpp)) {
+            if (cp->alloc == context) {
+                *cpp = cp->next;
+                found = 1;
+                break;
+            }
+            cpp = &cp->next;
+        }
+        Assert_true(found);
+
+        if (!childL->alloc->adoptions->parents && !childL->alloc->lastSibling) {
+            // This child now has no remaining links to the tree.
+            freeAllocator(childL->alloc, file, line);
+        }
+        childL = childL->next;
+    }
+
+    // Do the onFree jobs.
+    struct MallocAllocator_OnFreeJob** jobP = &context->onFree;
+    while (*jobP != NULL) {
+        struct MallocAllocator_OnFreeJob* job = *jobP;
+        if (!job->generic.callback
+            || job->generic.callback(&job->generic) != Allocator_ONFREE_ASYNC)
+        {
+            // Either the job has no callback or it has a callback and doesn't need async.
+            // remove it from the list.
+            Assert_true(!removeJob(job));
+            continue;
+        }
+        jobP = &job->next;
+    }
+
+    if (!context->onFree) {
+        releaseMemory(context);
+    }
+}
+
+/**
+ * Disconnect an allocator from it's parent and free it if there are no more links to the tree.
+ */
+static void disconnectAllocator(struct Allocator* allocator, const char* file, int line)
+{
+    struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
+
     // Remove this allocator from the sibling list.
-    if (context->lastSibling != NULL &&
-        context->lastSibling->nextSibling == context) {
+    if (context->lastSibling != NULL && context->lastSibling->nextSibling == context) {
         context->lastSibling->nextSibling = context->nextSibling;
-    } else if (context->lastSibling != NULL &&
-               context->lastSibling->firstChild == context) {
+
+    } else if (context->lastSibling != NULL && context->lastSibling->firstChild == context) {
         context->lastSibling->firstChild = context->nextSibling;
+
+    } else if (context->lastSibling == context) {
+        // root alloc
+        Assert_always(!context->nextSibling);
+
     } else if (context->lastSibling != NULL) {
-        failure(context, "The last sibling of this allocator has no reference to it.",
-                identFile, identLine);
+        failure(context, "The last sibling of this allocator has no reference to it.", file, line);
     }
     if (context->nextSibling != NULL) {
         context->nextSibling->lastSibling = context->lastSibling;
     }
+    context->lastSibling = NULL;
 
-    // Free all of the allocations including the one which holds the allocator.
-    struct MallocAllocator_Allocation* loc = context->allocations;
-    while (loc != NULL) {
-        *(context->spaceAvailable) += loc->size;
-        struct MallocAllocator_Allocation* nextLoc = loc->next;
-
-        // TODO: make this optional.
-        Bits_memset(loc, 0xff, loc->size);
-
-        free(loc);
-        loc = nextLoc;
+    if (context->adoptions && context->adoptions->parents) {
+        return;
     }
+
+    freeAllocator(context, file, line);
 }
 
 /** @see Allocator->malloc() */
-static void* allocatorMalloc(size_t length,
-                             const struct Allocator* allocator,
+static void* allocatorMalloc(unsigned long length,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -163,9 +312,9 @@ static void* allocatorMalloc(size_t length,
 }
 
 /** @see Allocator->calloc() */
-static void* allocatorCalloc(size_t length,
-                             size_t count,
-                             const struct Allocator* allocator,
+static void* allocatorCalloc(unsigned long length,
+                             unsigned long count,
+                             struct Allocator* allocator,
                              const char* identFile,
                              int identLine)
 {
@@ -175,8 +324,8 @@ static void* allocatorCalloc(size_t length,
 }
 
 /** @see Allocator->clone() */
-static void* allocatorClone(size_t length,
-                            const struct Allocator* allocator,
+static void* allocatorClone(unsigned long length,
+                            struct Allocator* allocator,
                             const void* toClone,
                             const char* identFile,
                             int identLine)
@@ -188,8 +337,8 @@ static void* allocatorClone(size_t length,
 
 /** @see Allocator->realloc() */
 static void* allocatorRealloc(const void* original,
-                              size_t size,
-                              const struct Allocator* allocator,
+                              unsigned long size,
+                              struct Allocator* allocator,
                               const char* identFile,
                               int identLine)
 {
@@ -209,6 +358,7 @@ static void* allocatorRealloc(const void* original,
                     identFile,
                     identLine);
         }
+        checkCanaries(loc, context);
         if (loc == origLoc) {
             break;
         }
@@ -217,12 +367,12 @@ static void* allocatorRealloc(const void* original,
 
     struct MallocAllocator_Allocation* nextLoc = origLoc->next;
 
-    size_t realSize = sizeof(struct MallocAllocator_Allocation) + size;
-    if (*(context->spaceAvailable) + origLoc->size < realSize) {
+    size_t realSize = getRealSize(size);
+    if (context->rootAlloc->spaceAvailable + origLoc->size < realSize) {
         failure(context, "Out of memory, limit exceeded.", identFile, identLine);
     }
-    *(context->spaceAvailable) += origLoc->size;
-    *(context->spaceAvailable) -= realSize;
+    context->rootAlloc->spaceAvailable += origLoc->size;
+    context->rootAlloc->spaceAvailable -= realSize;
     context->allocatedHere -= origLoc->size;
     context->allocatedHere += realSize;
 
@@ -234,52 +384,163 @@ static void* allocatorRealloc(const void* original,
     alloc->next = nextLoc;
     alloc->size = realSize;
     *locPtr = alloc;
+
+    setCanaries(alloc, context);
+
     return (void*) (alloc + 1);
 }
 
 /** @see Allocator_child() */
-static struct Allocator* childAllocator(const struct Allocator* allocator,
-                                        const char* identFile,
-                                        int identLine)
+static struct Allocator* childAllocator(struct Allocator* allocator, const char* file, int line)
 {
-    struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
+    struct MallocAllocator_pvt* parent = Identity_cast((struct MallocAllocator_pvt*) allocator);
 
-    uint32_t allocSize =
-        sizeof(struct MallocAllocator_FirstCtx) + sizeof(struct MallocAllocator_Allocation);
-    if (*(context->spaceAvailable) <= allocSize) {
-        failure(context, "Out of memory, limit exceeded.", identFile, identLine);
+    struct MallocAllocator_pvt* child =
+        newAllocation(parent, sizeof(struct MallocAllocator_pvt), file, line);
+
+    Bits_memset(child, 0, sizeof(struct MallocAllocator_pvt));
+    Bits_memcpyConst(&child->pub, &parent->pub, sizeof(struct Allocator));
+    Identity_set(child);
+
+    // Add the child to it's own allocation list.
+    child->allocations = parent->allocations;
+
+    // Remove the child from the parent's allocation list.
+    parent->allocations = parent->allocations->next;
+    parent->allocatedHere -= getRealSize(sizeof(struct MallocAllocator_pvt));
+    child->allocatedHere += getRealSize(sizeof(struct MallocAllocator_pvt));
+
+    // Drop the rest of the linked list from the child's allocation
+    child->allocations->next = NULL;
+
+    // Link the child into the parent's allocator list
+    child->lastSibling = parent;
+    child->nextSibling = parent->firstChild;
+    if (parent->firstChild != NULL) {
+        parent->firstChild->lastSibling = child;
     }
+    child->rootAlloc = parent->rootAlloc;
+    child->identFile = file;
+    child->identLine = line;
+    child->nextCanary = child->canary = parent->nextCanary;
+    parent->firstChild = child;
 
-    struct Allocator* childAlloc = MallocAllocator_new(allocSize);
+    child->rootAlloc = parent->rootAlloc;
 
-    *(context->spaceAvailable) -= allocSize;
+    // Now set the child to use it's own canaries so it will free properly.
+    setCanaries(child->allocations, child);
 
-    struct MallocAllocator_pvt* child = (struct MallocAllocator_pvt*) childAlloc;
-    child->maxSpace = context->maxSpace;
-    child->lastSibling = context;
-    child->nextSibling = context->firstChild;
-    if (context->firstChild != NULL) {
-        context->firstChild->lastSibling = child;
-    }
-    child->spaceAvailable = context->spaceAvailable;
-    child->identFile = identFile;
-    child->identLine = identLine;
-    context->firstChild = child;
-
-    return childAlloc;
+    return &child->pub;
 }
 
-/** @see Allocator->onFree() */
-static void* addOnFreeJob(void (* callback)(void* callbackContext),
-                          void* callbackContext,
-                          const struct Allocator* allocator)
+static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
+{
+    struct MallocAllocator_OnFreeJob* job = (struct MallocAllocator_OnFreeJob*) toRemove;
+    struct MallocAllocator_pvt* context = Identity_cast(job->alloc);
+    struct MallocAllocator_OnFreeJob** jobPtr = &(context->onFree);
+    while (*jobPtr != NULL) {
+        if (*jobPtr == job) {
+            *jobPtr = (*jobPtr)->next;
+            return 0;
+        }
+        jobPtr = &(*jobPtr)->next;
+    }
+    return -1;
+}
+
+static struct MallocAllocator_pvt* getParent(struct MallocAllocator_pvt* child)
+{
+    struct MallocAllocator_pvt* ls = child->lastSibling;
+    while (ls) {
+        if (ls->firstChild == child) {
+           return ls;
+        }
+        if (ls == ls->lastSibling) {
+            // root alloc
+            return NULL;
+        }
+        ls = ls->lastSibling;
+    }
+    Assert_true(0);
+}
+
+static bool isAncestorOf(struct MallocAllocator_pvt* maybeParent,
+                         struct MallocAllocator_pvt* maybeChild)
+{
+    if (maybeParent == maybeChild) {
+        return true;
+    }
+    if (maybeParent == NULL || maybeChild == NULL) {
+        return false;
+    }
+    if (isAncestorOf(maybeParent, getParent(maybeChild))) {
+        return true;
+    }
+    if (maybeChild->adoptions) {
+        struct MallocAllocator_List* al = maybeChild->adoptions->parents;
+        while (al) {
+            if (isAncestorOf(maybeParent, al->alloc)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void adopt(struct Allocator* adoptedParent,
+                  struct Allocator* childToAdopt,
+                  const char* file,
+                  int line)
+{
+    struct MallocAllocator_pvt* parent = Identity_cast((struct MallocAllocator_pvt*) adoptedParent);
+    struct MallocAllocator_pvt* child = Identity_cast((struct MallocAllocator_pvt*) childToAdopt);
+
+    if (isAncestorOf(child, parent)) {
+        // The child is a parent of the parent, this means an adoption would be meaningless
+        // because if the child is otherwise freed, it will take the parent along with it.
+        return;
+    }
+
+    if (!parent->adoptions) {
+        parent->adoptions =
+            allocatorCalloc(sizeof(struct MallocAllocator_Adoptions), 1, adoptedParent, file, line);
+    }
+    if (!child->adoptions) {
+        child->adoptions =
+            allocatorCalloc(sizeof(struct MallocAllocator_Adoptions), 1, childToAdopt, file, line);
+    }
+
+    struct MallocAllocator_List* pl =
+        allocatorCalloc(sizeof(struct MallocAllocator_List), 1, adoptedParent, file, line);
+    pl->alloc = child;
+    pl->next = parent->adoptions->children;
+    parent->adoptions->children = pl;
+
+    struct MallocAllocator_List* cl =
+        allocatorCalloc(sizeof(struct MallocAllocator_List), 1, childToAdopt, file, line);
+    cl->alloc = parent;
+    cl->next = child->adoptions->parents;
+    child->adoptions->parents = cl;
+}
+
+/** @see Allocator_onFree() */
+static struct Allocator_OnFreeJob* addOnFreeJob(struct Allocator* allocator,
+                                                const char* file,
+                                                int line)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
 
     struct MallocAllocator_OnFreeJob* newJob =
-        Allocator_calloc(allocator, sizeof(struct MallocAllocator_OnFreeJob), 1);
-    newJob->callback = callback;
-    newJob->callbackContext = callbackContext;
+        Allocator_clone(allocator, (&(struct MallocAllocator_OnFreeJob) {
+            .generic = {
+                .cancel = removeOnFreeJob,
+                .complete = onFreeComplete
+            },
+            .alloc = context,
+            .file = file,
+            .line = line
+        }));
+    Identity_set(&newJob->generic);
 
     struct MallocAllocator_OnFreeJob* job = context->onFree;
     if (job == NULL) {
@@ -290,67 +551,69 @@ static void* addOnFreeJob(void (* callback)(void* callbackContext),
         }
         job->next = newJob;
     }
-    return newJob;
-}
-
-static bool removeOnFreeJob(void* toRemove, struct Allocator* alloc)
-{
-    struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) alloc);
-    struct MallocAllocator_OnFreeJob** jobPtr = &(context->onFree);
-    while (*jobPtr != NULL) {
-        if (*jobPtr == toRemove) {
-            *jobPtr = (*jobPtr)->next;
-            return true;
-        }
-        jobPtr = &(*jobPtr)->next;
-    }
-    return false;
+    return &newJob->generic;
 }
 
 /** @see MallocAllocator.h */
-struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
+struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
                                                   const char* identFile,
                                                   int identLine)
 {
+    // Add in the size of the allocator so that a very small sizeLimit is sane.
+    sizeLimit += getRealSize(sizeof(struct MallocAllocator_FirstCtx));
+
     struct MallocAllocator_FirstCtx stackContext = {
-        .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit +
-            sizeof(struct MallocAllocator_FirstCtx) + sizeof(struct Allocator),
+        .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit,
         .context = {
             .identFile = identFile,
-            .identLine = identLine
+            .identLine = identLine,
+            .canary = (long) 0x09F911029D74E35Bll,
+            .nextCanary = (long) 0xD84156C5635688C0ll,
         }
     };
-    stackContext.context.spaceAvailable = &stackContext.spaceAvailable;
+    stackContext.maxSpace = stackContext.spaceAvailable;
+    stackContext.context.rootAlloc = &stackContext;
+    Identity_set(&stackContext.context);
 
     struct MallocAllocator_FirstCtx* firstContext =
-        newAllocation(&stackContext.context,
-                      sizeof(struct MallocAllocator_FirstCtx),
-                      identFile,
-                      identLine);
-    Bits_memcpyConst(firstContext, &stackContext, sizeof(struct MallocAllocator_FirstCtx));
+        allocatorClone(sizeof(struct MallocAllocator_FirstCtx),
+                       &stackContext.context.pub,
+                       &stackContext,
+                       identFile,
+                       identLine);
+
     struct MallocAllocator_pvt* context = &firstContext->context;
-    context->spaceAvailable = &firstContext->spaceAvailable;
-    context->maxSpace = firstContext->spaceAvailable;
+    context->rootAlloc = firstContext;
 
     struct Allocator allocator = {
-        .context = context,
-        .free = freeAllocator,
+        .free = disconnectAllocator,
         .malloc = allocatorMalloc,
         .calloc = allocatorCalloc,
         .clone = allocatorClone,
         .realloc = allocatorRealloc,
         .child = childAllocator,
         .onFree = addOnFreeJob,
-        .notOnFree = removeOnFreeJob
+        .adopt = adopt
     };
 
     Bits_memcpyConst(&context->pub, &allocator, sizeof(struct Allocator));
+
+    context->lastSibling = context;
+
     Identity_set(context);
     return &context->pub;
 }
 
-size_t MallocAllocator_bytesAllocated(struct Allocator* allocator)
+unsigned long MallocAllocator_bytesAllocated(struct Allocator* allocator)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
-    return context->maxSpace - *context->spaceAvailable;
+    return context->rootAlloc->maxSpace - context->rootAlloc->spaceAvailable;
+}
+
+void MallocAllocator_setCanary(struct Allocator* alloc, long value)
+{
+    #ifdef MallocAllocator_USE_CANARIES
+        struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) alloc);
+        context->nextCanary ^= value;
+    #endif
 }

@@ -13,12 +13,8 @@ add_library(cjdmemory
     BufferAllocator.c
     MallocAllocator.c
 )
-
-add_library(cjdns-memory-canary
-    CanaryAllocator.c
-)
-target_link_libraries(cjdns-memory-canary
-    cjdns-crypto-random
+target_link_libraries(cjdmemory
+    cjdns-except
 )
 
 # Everything must be tested.

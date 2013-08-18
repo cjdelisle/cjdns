@@ -18,6 +18,5 @@ set(Test_LIBRARIES
     cjdmemory
     cjdns-util-events-libuv
     cjdns-crypto-random
-    cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

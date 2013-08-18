@@ -14,7 +14,6 @@
  */
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
-#include "admin/angel/Waiter.h"
 #include "admin/angel/AngelInit.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "admin/testframework/AdminTestFramework.h"
@@ -22,122 +21,109 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/BufferAllocator.h"
-#include "memory/CanaryAllocator.h"
-#include "interface/PipeInterface.h"
+#include "interface/FramingInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/events/EventBase.h"
+#include "util/events/Pipe.h"
+#include "util/events/Process.h"
 #include "util/Assert.h"
 #include "util/Errno.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
-#include "util/Pipe.h"
-#include "util/Process.h"
 #define string_strlen
 #define string_strchr
 #define string_strcmp
 #include "util/platform/libc/string.h"
+
 #include <unistd.h>
+#include <stdlib.h>
 
-static void spawnAngel(int* fromAngelOut, int* toAngelOut)
+static void spawnAngel(char* asClientPipeName, struct EventBase* base, struct Allocator* alloc)
 {
-    int pipeToAngel[2];
-    int pipeFromAngel[2];
-    Assert_true(!Pipe_createUniPipe(pipeToAngel) && !Pipe_createUniPipe(pipeFromAngel));
-
-    char pipeToAngelStr[8];
-    snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
-    char pipeFromAngelStr[8];
-    snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
-    char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
+    char* args[] = { "angel", asClientPipeName, NULL };
 
     uint8_t allocBuff[1024];
     struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 1024);
     char* path = Process_getPath(tempAlloc);
     Assert_true(path);
-    Process_spawn(path, args);
-
-    *fromAngelOut = pipeFromAngel[0];
-    *toAngelOut = pipeToAngel[1];
+    Process_spawn(path, args, base, alloc);
 }
 
 /** @return a string representing the address and port to connect to. */
-static void initAngel(int fromAngel,
-                      int toAngel,
-                      int corePipes[2][2],
-                      struct PipeInterface** piOut,
+static void initAngel(struct Pipe* asClientPipe,
+                      struct Interface* asCoreIface,
+                      char* asCorePipeName,
                       struct EventBase* eventBase,
                       struct Log* logger,
                       struct Allocator* alloc,
                       struct Random* rand)
 {
-    #define TO_CORE (corePipes[0][1])
-    #define FROM_CORE (corePipes[1][0])
-    #define TO_ANGEL_AS_CORE (corePipes[1][1])
-    #define FROM_ANGEL_AS_CORE (corePipes[0][0])
-
-    Dict core = Dict_CONST(
-        String_CONST("fromCore"), Int_OBJ(FROM_CORE), Dict_CONST(
-        String_CONST("toCore"), Int_OBJ(TO_CORE), NULL
-    ));
     Dict admin = Dict_CONST(
         String_CONST("bind"), String_OBJ(String_CONST("127.0.0.1")), Dict_CONST(
-        String_CONST("core"), Dict_OBJ(&core), Dict_CONST(
+        String_CONST("corePipeName"), String_OBJ(String_CONST(asCorePipeName)), Dict_CONST(
         String_CONST("pass"), String_OBJ(String_CONST("abcd")), NULL
     )));
     Dict message = Dict_CONST(
         String_CONST("admin"), Dict_OBJ(&admin), NULL
     );
 
-    struct Allocator* tempAlloc;
-    BufferAllocator_STACK(tempAlloc, 1024);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
 
     #define BUFFER_SZ 1023
     uint8_t buff[BUFFER_SZ + 1] = {0};
     struct Writer* w = ArrayWriter_new(buff, BUFFER_SZ, tempAlloc);
     StandardBencSerializer_get()->serializeDictionary(w, &message);
 
-    Log_info(logger, "Writing intial configuration to angel on [%d] config: [%s]", toAngel, buff);
-    write(toAngel, buff, w->bytesWritten(w));
+    struct Message* toAngel = Allocator_malloc(tempAlloc, sizeof(struct Message) + w->bytesWritten);
+    toAngel->bytes = (uint8_t*) (&toAngel[1]);
+    toAngel->length = toAngel->capacity = w->bytesWritten;
+    toAngel->padding = 0;
+    toAngel->alloc = tempAlloc;
+    Bits_memcpy(toAngel->bytes, buff, toAngel->length);
 
-    // This is angel->core data, we can throw this away.
-    //Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);
-    //Log_info(logger, "Init message from angel to core: [%s]", buff);
-    Bits_memset(buff, 0, BUFFER_SZ);
+    Log_info(logger, "Writing intial configuration to angel on [%s] config: [%s]",
+             asClientPipe->name, buff);
+    Interface_sendMessage(&asClientPipe->iface, toAngel);
 
-    struct PipeInterface* pi =
-        PipeInterface_new(FROM_ANGEL_AS_CORE, TO_ANGEL_AS_CORE, eventBase, logger, alloc, rand);
-    *piOut = pi;
+    // This is client->angel->core data, we can throw this away.
+    struct Message* angelToCore =
+        InterfaceWaiter_waitForData(asCoreIface, eventBase, tempAlloc, NULL);
 
-    Log_info(logger, "PipeInterface [%p] is now ready.", (void*)pi);
-
-    // Make sure the angel sends data to the core.
-    InterfaceWaiter_waitForData(&pi->generic, eventBase, alloc, NULL);
+    // unterminated string
+    Log_info(logger, "Init message from angel to core: [%s]", angelToCore->bytes);
 
     // Send response on behalf of core.
-    char coreToAngelResponse[128] = "           PADDING              "
+    char* coreToAngelResponse = "        PADDING         "
         "d"
           "5:error" "4:none"
         "e";
 
-    char* start = strchr(coreToAngelResponse, 'd');
-    struct Message m = {
-        .bytes = (uint8_t*) start,
-        .length = strlen(start),
-        .padding = start - coreToAngelResponse
+    struct Message* m = &(struct Message) {
+        .bytes = (uint8_t*) coreToAngelResponse,
+        .length = strlen(coreToAngelResponse),
+        .padding = 0,
+        .capacity = strlen(coreToAngelResponse)
     };
-    pi->generic.sendMessage(&m, &pi->generic);
+    Message_shift(m, -24);
+    m = Message_clone(m, tempAlloc);
+
+    Interface_sendMessage(asCoreIface, m);
 
     // This is angel->client data, it will tell us which port was bound.
-    Waiter_getData(buff, BUFFER_SZ, fromAngel, eventBase, NULL);
+    struct Message* angelToClient =
+        InterfaceWaiter_waitForData(&asClientPipe->iface, eventBase, tempAlloc, NULL);
 
-    printf("Response from angel to client: [%s]\n", buff);
+    printf("Response from angel to client: [%s]\n", angelToClient->bytes);
+
+    Allocator_free(tempAlloc);
 
     return;
 }
@@ -153,7 +139,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         exit(AngelInit_main(argc, argv));
     }
 
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
 
     struct Writer* logwriter = FileWriter_new(stdout, alloc);
     Assert_always(logwriter);
@@ -162,17 +148,22 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     struct EventBase* eventBase = EventBase_new(alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
 
-    int fromAngel;
-    int toAngel;
-    int corePipes[2][2];
-    if (Pipe_createUniPipe(corePipes[0]) || Pipe_createUniPipe(corePipes[1])) {
-        Except_raise(NULL, -1, "Failed to create pipes [%s]", Errno_getString());
-    }
-    spawnAngel(&fromAngel, &toAngel);
+
+    char asClientPipeName[32] = {0};
+    Random_base32(rand, (uint8_t*)asClientPipeName, 31);
+    struct Pipe* asClientPipe = Pipe_named(asClientPipeName, eventBase, NULL, alloc);
+    asClientPipe->logger = logger;
+
+    char asCorePipeName[32] = {0};
+    Random_base32(rand, (uint8_t*)asCorePipeName, 31);
+    struct Pipe* asCorePipe = Pipe_named(asCorePipeName, eventBase, NULL, alloc);
+    asCorePipe->logger = logger;
+    struct Interface* asCoreIface = FramingInterface_new(65535, &asCorePipe->iface, alloc);
+
+    spawnAngel(asClientPipeName, eventBase, alloc);
 
     Log_info(logger, "Initializing Angel");
-    struct PipeInterface* pi;
-    initAngel(fromAngel, toAngel, corePipes, &pi, eventBase, logger, alloc, rand);
+    initAngel(asClientPipe, asCoreIface, (char*)asCorePipe->name, eventBase, logger, alloc, rand);
 
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("0.0.0.0", &addr));
@@ -198,7 +189,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
         .eventBase = eventBase,
         .logger = logger,
         .addr = Sockaddr_clone(udpAdmin->addr, alloc),
-        .angelInterface = &pi->generic
+        .angelInterface = asCoreIface
     }));
 }
 
@@ -215,5 +206,8 @@ void AdminTestFramework_tearDown(struct AdminTestFramework* framework)
         .length = strlen(start),
         .padding = start - buff
     };
-    framework->angelInterface->sendMessage(&m, framework->angelInterface);
+    struct Message* mp = Message_clone(&m, framework->alloc);
+    Interface_sendMessage(framework->angelInterface, mp);
+
+    Allocator_free(framework->alloc);
 }

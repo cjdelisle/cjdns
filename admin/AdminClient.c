@@ -31,8 +31,10 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 
-#include <stdio.h>
 #include <crypto_hash_sha256.h>
+
+#include <stdio.h>
+#include <stdlib.h>
 
 struct AdminClient
 {
@@ -86,7 +88,7 @@ static int calculateAuth(Dict* message,
     if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
         return -1;
     }
-    int length = writer->bytesWritten(writer);
+    int length = writer->bytesWritten;
 
     // calculate the hash of the message with the password hash
     crypto_hash_sha256(hash, buffer, length);
@@ -148,10 +150,14 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
     struct Message m = {
         .bytes = res->public.messageBytes,
         .padding = AdminClient_Result_PADDING_SIZE,
-        .length = writer->bytesWritten(writer)
+        .length = writer->bytesWritten
     };
     Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen);
-    res->ctx->addrIface->generic.sendMessage(&m, &res->ctx->addrIface->generic);
+
+    struct Allocator* child = Allocator_child(res->alloc);
+    struct Message* msg = Message_clone(&m, child);
+    Interface_sendMessage(&res->ctx->addrIface->generic, msg);
+    Allocator_free(child);
 
     EventBase_beginLoop(res->ctx->eventBase);
 

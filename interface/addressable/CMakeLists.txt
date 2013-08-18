@@ -10,17 +10,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-add_library(cjdns-interface-addressable
-    UDPAddrInterface.c
-)
-
-target_link_libraries(cjdns-interface-addressable
-#    util
-#    cjdns-crypto-key
-    cjdns-util-events-libuv
-    cjdns-util-platform-socket
-)
-
 add_library(cjdns-interface-addressable-adapter
     AddrInterfaceAdapter.c
 )

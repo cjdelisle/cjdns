@@ -18,6 +18,7 @@
 
 #include "util/Assert.h"
 #include <stdint.h>
+#include <stddef.h>
 
 int main()
 {

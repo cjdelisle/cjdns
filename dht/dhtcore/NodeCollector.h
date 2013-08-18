@@ -76,7 +76,7 @@ static struct NodeCollector* NodeCollector_new(struct Address* targetAddress,
                                                struct Address* thisNodeAddress,
                                                const bool allowNodesFartherThanUs,
                                                struct Log* logger,
-                                               const struct Allocator* allocator)
+                                               struct Allocator* allocator)
 {
     struct NodeCollector* out = Allocator_malloc(allocator, sizeof(struct NodeCollector));
     out->nodes = Allocator_malloc(allocator, capacity * sizeof(struct NodeCollector_Element));

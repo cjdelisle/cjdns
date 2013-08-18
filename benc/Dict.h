@@ -102,7 +102,7 @@ List* Dict_getList(const Dict* dictionary, const String* key);
 Object* Dict_putInt(Dict* putIntoThis,
                     const String* key,
                     int64_t value,
-                    const struct Allocator* allocator);
+                    struct Allocator* allocator);
 
 /**
  * Insert a String object into another dictionary.
@@ -118,7 +118,7 @@ Object* Dict_putInt(Dict* putIntoThis,
 Object* Dict_putString(Dict* putIntoThis,
                        const String* key,
                        String* value,
-                       const struct Allocator* allocator);
+                       struct Allocator* allocator);
 
 /**
  * Insert a Dictionary object into another dictionary.
@@ -134,7 +134,7 @@ Object* Dict_putString(Dict* putIntoThis,
 Object* Dict_putDict(Dict* putIntoThis,
                      const String* key,
                      Dict* value,
-                     const struct Allocator* allocator);
+                     struct Allocator* allocator);
 
 /**
  * Insert a List object into a dictionary.
@@ -150,7 +150,7 @@ Object* Dict_putDict(Dict* putIntoThis,
 Object* Dict_putList(Dict* putIntoThis,
                      const String* key,
                      List* value,
-                     const struct Allocator* allocator);
+                     struct Allocator* allocator);
 
 /*----------------------- Constructors -----------------------*/
 
@@ -159,7 +159,7 @@ Object* Dict_putList(Dict* putIntoThis,
  *
  * @param allocator the place to allocate the memory for storing the dictionary.
  */
-Dict* Dict_new(const struct Allocator* allocator);
+Dict* Dict_new(struct Allocator* allocator);
 
 /**
  * Create a dictionary on the stack.

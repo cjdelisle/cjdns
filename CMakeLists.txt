@@ -17,6 +17,17 @@ if(CMAKE_BINARY_DIR STREQUAL ${CMAKE_SOURCE_DIR} AND NOT OPENWRT)
     message( FATAL_ERROR "type: git clean -df && mkdir build && cd build && cmake .. && make" )
 endif()
 
+if (OPENWRT)
+    # OpenWRT messes around with the code quite a bit and makes the codestyle validator angry.
+    set(NO_CODESTYLE TRUE)
+
+    # OpenWRT's NACL is not built position independent.
+    set(WITH_PIE FALSE)
+
+    # Need to tell cjdns build process that there exists an nacl on the system.
+    set(HAVE_NACL TRUE)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
@@ -24,23 +35,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 add_definitions(-Wall -Wextra -std=c99 -pedantic)
 if ("$ENV{NO_WERROR}" STREQUAL "")
     add_definitions(-Werror)
-endif()
-
-if(WIN32)
-    # ISO C does not support the ‘I64’ ms_printf length modifier
-    # but PRId64 is #defined as "I64d"
-    add_definitions(-Wno-error)
-
-    # proceed with ifdef hell :(
-    add_definitions(-DWIN32)
-
-    # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
-    set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
-endif()
-if(CMAKE_CROSSCOMPILING)
-    if (NOT "$ENV{REMOTE_TEST_IP_PORT}" STREQUAL "")
-        set(REMOTE_TEST_IP_PORT "$ENV{REMOTE_TEST_IP_PORT}")
-    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL SunOS)
@@ -51,20 +45,39 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(SYSTEM Linux)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(APPLE TRUE)
-    set(SYSTEM OSX)
+    set(SYSTEM Darwin)
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
     set(FREEBSD TRUE)
+    set(BSD TRUE)
     add_definitions(-D BSD=1)
     set(SYSTEM FreeBSD)
 elseif(CMAKE_SYSTEM_NAME STREQUAL OpenBSD)
     set(OPENBSD TRUE)
+    set(BSD TRUE)
     add_definitions(-D BSD=1)
     set(SYSTEM OpenBSD)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
-    set(WINDOWS TRUE)
-    set(SYSTEM W32)
+    set(Windows TRUE)
+    set(SYSTEM Windows)
 endif()
 add_definitions(-D ${SYSTEM}=1)
+
+if(Windows)
+    # ISO C does not support the ‘I64’ ms_printf length modifier
+    # but PRId64 is #defined as "I64d"
+    add_definitions(-Wno-format)
+
+    # SRWLOCK is vista or newer and needed by libuv
+    add_definitions(-D_WIN32_WINNT=0x0600)
+
+    # BufferAllocator.c:1:0: error: -fPIC ignored for target (all code is position independent)
+    set(WITH_PIE OFF CACHE INTERNAL "" FORCE)
+endif()
+if(CMAKE_CROSSCOMPILING)
+    if (NOT "$ENV{REMOTE_TEST_IP_PORT}" STREQUAL "")
+        set(REMOTE_TEST_IP_PORT "$ENV{REMOTE_TEST_IP_PORT}")
+    endif()
+endif()
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/interface/ETHInterface_${SYSTEM}.c)
   add_definitions(-D HAS_ETH_INTERFACE=1)
@@ -88,13 +101,13 @@ if(TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
     set(CMAKE_C_COMPILER ${TOOLCHAIN}-g++)
 endif()
 
-if(WIN32 AND TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
+if(Windows AND TOOLCHAIN AND NOT CMAKE_CXX_COMPILER)
     set(CMAKE_C_COMPILER ${TOOLCHAIN}-windres)
 endif()
 
 message("c compiler: ${CMAKE_C_COMPILER}")
 message("c++ compiler: ${CMAKE_CXX_COMPILER}")
-if(WIN32)
+if(Windows)
     message("rc compiler: ${CMAKE_RC_COMPILER}")
 endif()
 
@@ -160,8 +173,8 @@ if ("$ENV{NO_DEBUG}" STREQUAL "")
     add_definitions(-g)
 endif()
 
-if(WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
+if(Windows)
+    set(CMAKE_EXE_LINKER_FLAGS "")
 elseif(ILLUMOS)
     # TODO make this less ugly
     set(CMAKE_EXE_LINKER_FLAGS "${PIE} -lsocket")
@@ -183,7 +196,12 @@ endif (${Log_LEVEL} STREQUAL "KEYS")
 add_definitions("-D Log_${Log_LEVEL}")
 
 # vrooooooom
-add_definitions(-O2)
+#add_definitions(-O2)
+
+if (NOT $ENV{GCOV} STREQUAL "")
+    add_definitions(-fprofile-arcs -ftest-coverage)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
+endif()
 
 #IF(NOT CMAKE_BUILD_TYPE)
 # default to RelWithDebInfo (-g -O2)
@@ -211,9 +229,19 @@ add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-find_package(Libuv REQUIRED)
+if(HAVE_LIBUV)
+    find_package(Libuv REQUIRED)
+else()
+    find_package(LibuvBundled REQUIRED)
+endif()
 
-find_package(NACL REQUIRED)
+if(HAVE_NACL)
+    find_package(NACL REQUIRED)
+elseif(HAVE_SODIUM)
+    find_package(Sodium REQUIRED)
+else()
+    find_package(NACLBundled REQUIRED)
+endif()
 include_directories(${NACL_INCLUDE_DIRS})
 
 add_subdirectory(admin)

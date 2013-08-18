@@ -17,10 +17,6 @@
 
 #include "memory/Allocator.h"
 
-// slow process of removing the libevent headers from places where they are not needed.
-//struct EventBase; // CHECKFILES_IGNORE
-
-//#define EventBase event_base
 struct EventBase
 {
     int unused;

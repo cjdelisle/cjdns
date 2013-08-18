@@ -1,6 +1,6 @@
 cjdns.inc.php
 =============
-A simple PHP API for the CJDNS admin interface.
+A simple PHP API for the cjdns admin interface.
 
 Usage
 -------------

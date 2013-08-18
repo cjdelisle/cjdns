@@ -77,7 +77,7 @@ static int handleOutgoing(struct DHTMessage* message,
         ArrayWriter_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
 
     SERIALIZER->serializeDictionary(writer, message->asDict);
-    message->length = writer->bytesWritten(writer);
+    message->length = writer->bytesWritten;
 
     return 0;
 }

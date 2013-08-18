@@ -13,15 +13,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "crypto/random/Random.h"
 #include "dht/dhtcore/VersionList.h"
 #include "util/Assert.h"
 #include "util/Hex.h"
 
+#include <stddef.h>
+#include <stdio.h>
+
 int main()
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     for (int cycles = 0; cycles < 1; cycles++) {
@@ -51,4 +53,6 @@ int main()
             }
         }
     }
+
+    Allocator_free(alloc);
 }

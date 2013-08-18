@@ -16,9 +16,8 @@
 #define string_strlen
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "io/FileWriter.h"
-#include "interface/TUNMessageType.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
@@ -88,7 +87,7 @@ uint8_t messageToTun(struct Message* message, struct Interface* iface)
 int main()
 {
     AddressCalc_addressForPublicKey(nodeCjdnsIp6, fakePubKey);
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct Writer* w = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(w, alloc);
     struct Random* rand = Random_new(alloc, logger, NULL);
@@ -155,4 +154,6 @@ int main()
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
     Assert_true(called);
+
+    Allocator_free(alloc);
 }
