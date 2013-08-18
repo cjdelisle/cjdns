@@ -439,6 +439,9 @@ In order to install cjdns on an OpenIndiana system, do the following:
 
 Once it has completed successfully, simply type ./cjdroute and follow the normal instructions
 
+# NAT gateway into Hyperboria for your LAN
+
+See the guide in `doc/nat-gateway.md`.
 
 # Accessing the cjdns admin interface
 
