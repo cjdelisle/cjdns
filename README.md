@@ -441,7 +441,7 @@ Once it has completed successfully, simply type ./cjdroute and follow the normal
 
 # NAT gateway into Hyperboria for your LAN
 
-See the guide in `doc/nat-gateway.md`.
+See the guide in [doc/nat-gateway.md](doc/nat-gateway.md).
 
 # Accessing the cjdns admin interface
 
