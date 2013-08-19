@@ -313,14 +313,6 @@ offering more services then you intended to.  ;)
 
 See [doc/network-services.md](doc/network-services.md) for instructions.
 
---------------------------------------------------------------------------------
-
-# Advanced configuration
-
-* [Run cjdns as a non-root user](doc/non-root-user.md)
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
-
 # Accessing the cjdns admin interface
 
 When cjdnroute is up and running, an administrative interface will listen on localhost:11234
@@ -346,6 +338,11 @@ The perl port of the python api library is maintained by Mikey. For usage
 instructions, head over to the [readme](contrib/perl/CJDNS/README).
 
 
+# Advanced configuration
+
+* [Run cjdns as a non-root user](doc/non-root-user.md)
+* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
 
 [beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
