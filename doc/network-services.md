@@ -54,4 +54,10 @@ Edit `/etc/samba/smb.conf`:
 ^ This will cause Samba to not bind to `tun0`
   (or whichever TUN device you are using).
 
+### Lighttpd
+
+Comment out the following line in `/etc/lighttpd/lighttpd.conf`:
+
+    include_shell "/usr/share/lighttpd/use-ipv6.pl"
+
 Thats it for now! Got More? Tell us on IRC.
