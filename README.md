@@ -135,17 +135,13 @@ still lacking DNS resolution but the name stuck. Make up your own acronym for it
 
 ## Further Reading & Discussion
 
-Please read the Whitepaper, or at least skim it:
-
-  * https://github.com/cjdelisle/cjdns/blob/master/rfcs/Whitepaper.md
+Please read [the Whitepaper](rfcs/Whitepaper.md), or at least skim it.
 
 If you are still interested in this project and want to follow it,
 get in the channel on IRC:
 
   * irc://irc.EFNet.org/#cjdns
   * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
-
-
 
 Thank you for your time and interest,
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
@@ -273,9 +269,9 @@ It looks like this:
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
-https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md contains more
-details on configuration, including how to peer with other cjdns nodes over
-ethernet (including wifi).
+The [rfcs/configure.md](rfcs/configure.md) page contains more details on
+configuration, including how to peer with other cjdns nodes over ethernet
+(including wifi).
 
 ## 4: Start it up!
 
@@ -450,19 +446,22 @@ When cjdnroute is up and running, an administrative interface will listen on loc
 
 You can access this api using the following tools, to get interesting information.
 
-More information about the Admin interface: https://github.com/cjdelisle/cjdns/blob/master/admin/README.md
+See [admin/README.md](admin/README.md) for more information about the Admin
+interface.
 
 
 python library
 --------------
 
-cjdns comes with a python library to access the api. For more information, read the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/python/README.md).
+cjdns comes with a python library to access the api. For more information, read
+the [readme](contrib/python/README.md).
 
 
 perl library
 ------------
 
-The perl port of the python api library is maintained by Mikey. For usage instructions, head over to the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/perl/CJDNS/README).
+The perl port of the python api library is maintained by Mikey. For usage
+instructions, head over to the [readme](contrib/perl/CJDNS/README).
 
 
 
