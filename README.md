@@ -367,55 +367,10 @@ Thats it for now! Got More? Tell us on IRC.
 
 --------------------------------------------------------------------------------
 
-# Non-Standard Setups
+# Advanced configuration
 
-**Most Users Don't Need This**
-
-Instructions for building or installing in non-default ways.
-
-## Start cjdroute as non-root user.
-
-If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
-persistent tunnels.
-
-Create a cjdns user:
-
-    sudo useradd cjdns
-
-Create a new TUN device and give the cjdns user authority to access it:
-
-    sudo /sbin/ip tuntap add mode tun user cjdns dev cjdroute0
-
-
-### 4b-1: Setup the interface manually
-
-Run those commands to prepare your TUN device:
-
-    sudo /sbin/ip addr add <your ipv6 address>/8 dev cjdroute0
-    sudo /sbin/ip link set cjdroute0 up
-
-These commands should be executed as root now every time the system restarts.
-
-#### Old versions of iproute2
-
-If you see an error when running /sbin/ip, your version of iproute2 might be old.
-
-    sudo /sbin/ip tuntap add mode tun user cjdns
-    Object "tuntap" is unknown, try "ip help".
-
-The fix: for now grab a copy of a newer `ip` binary and copy it to your home
-directory. Replacing the system binaries is not likely a good idea.
-
-## 4b-2: Fire it up!
-
-    sudo -u cjdns ./cjdroute < cjdroute.conf
-
-
-To delete a tunnel, use this command:
-
-    sudo /sbin/ip tuntap del mode tun <name of tunnel>
-
-
+* [Run cjdns as a non-root user](doc/non-root-user.md)
+* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
 
 ## Installing cjdns on OpenIndiana
 
@@ -434,10 +389,6 @@ In order to install cjdns on an OpenIndiana system, do the following:
     ./do
 
 Once it has completed successfully, simply type ./cjdroute and follow the normal instructions
-
-# NAT gateway into Hyperboria for your LAN
-
-See the guide in [doc/nat-gateway.md](doc/nat-gateway.md).
 
 # Accessing the cjdns admin interface
 
