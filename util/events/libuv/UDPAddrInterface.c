@@ -137,7 +137,8 @@ static void incoming(uv_udp_t* handle,
                  uv_err_name(uv_last_error(handle->loop)) );
 
     } else if (nread == 0) {
-        Log_debug(context->logger, "0 length read");
+        // Happens constantly
+        //Log_debug(context->logger, "0 length read");
 
     } else if (context->pub.generic.receiveMessage) {
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
