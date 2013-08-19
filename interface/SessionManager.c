@@ -19,6 +19,7 @@
 #include "util/Bits.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
+#include "util/version/Version.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
@@ -104,6 +105,8 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 
         struct SessionManager_Session s = {
             .lastMessageTime = Time_currentTimeSeconds(sm->eventBase),
+
+            .version = Version_DEFAULT_ASSUMPTION,
 
             // Create a trick interface which pretends to be on both sides of the crypto.
             .iface = {

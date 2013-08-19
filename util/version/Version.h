@@ -190,6 +190,7 @@
 #define Version_3_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 1
+#define Version_DEFAULT_ASSUMPTION 1
 
 
 /**

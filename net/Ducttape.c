@@ -383,7 +383,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
     // otherwise we send ours.
 
     if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
-        debugHandles(context->logger, session, "Sending run message");
+        debugHandles(context->logger, session, "layer2 sending run message");
         uint32_t sendHandle_be = session->sendHandle_be;
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
@@ -392,7 +392,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         #endif
         Message_push(message, &sendHandle_be, 4);
     } else {
-        debugHandles(context->logger, session, "Sending start message");
+        debugHandles(context->logger, session, "layer2 sending start message");
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
             Message_push(message, &session->receiveHandle_be, 4);
@@ -499,6 +499,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
+    #ifdef Log_DEBUG
+        uint8_t destAddr[40];
+        AddrTools_printIp(destAddr, header->destinationAddr);
+        uint8_t nhAddr[60];
+        Address_print(nhAddr, &bestNext->address);
+        Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
+    #endif
+
     struct SessionManager_Session* session =
         SessionManager_getSession(header->destinationAddr, NULL, context->sm);
 
@@ -519,22 +527,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE + 4));
         // now push the receive handle *under* the CA header.
         Message_push(message, &session->receiveHandle_be, 4);
-        Log_debug(context->logger, "Sending layer3 start message");
+        debugHandles(context->logger, session, "layer3 sending start message");
     } else {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
         Message_shift(message, 20);
         Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
         Message_shift(message, -(20 + Headers_IP6Header_SIZE));
-        Log_debug(context->logger, "Sending layer3 run message");
+        debugHandles(context->logger, session, "layer3 sending run message");
     }
-
-    #ifdef Log_DEBUG
-        uint8_t destAddr[40];
-        AddrTools_printIp(destAddr, header->destinationAddr);
-        uint8_t nhAddr[60];
-        Address_print(nhAddr, &bestNext->address);
-        Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
-    #endif
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
     context->session = session;
@@ -982,12 +982,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         AddressCalc_addressForPublicKey(ip6, herKey);
         if (AddressCalc_validAddress(ip6)) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
-            if (!session->version) {
-                session->version = Version_MINIMUM_COMPATIBLE;
-            }
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
-                                 (session->version) ? "Initializing session" : "New session");
+                                 "New session");
         } else {
             Log_debug(context->logger, "Got message with invalid ip addr");
         }

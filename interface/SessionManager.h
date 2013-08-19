@@ -37,7 +37,7 @@ struct SessionManager_Session
     /** The handle which we are expected to send to identify ourselves, big endian. */
     uint32_t sendHandle_be;
 
-    /** The version of the other node, if 0 then the session is new. */
+    /** The version of the other node. */
     uint32_t version;
 
     /** The IPv6 address of the other node. */
