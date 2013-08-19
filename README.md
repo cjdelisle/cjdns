@@ -273,7 +273,17 @@ The [rfcs/configure.md](rfcs/configure.md) page contains more details on
 configuration, including how to peer with other cjdns nodes over ethernet
 (including wifi).
 
-## 4: Start it up!
+## 4: Self-check your network services
+
+Once your node is running, you're now a newly minted IPv6 host. Your operating
+system may automatically reconfigure network services to use this new address.
+If this is not what you intend, you should check to see that you are not
+offering more services then you intended to.  ;)
+
+See [doc/network-services.md](doc/network-services.md) for instructions.
+
+
+## 5: Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -287,7 +297,7 @@ To stop cjdns:
  
 If you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
 
-## 5: Get in IRC
+## 6: Get in IRC
 
 Welcome to the network, you are now a real network administrator.
 There are responsibilities which come with being a network administrator which include
@@ -303,15 +313,6 @@ Protect your conf file! A lost conf file means you lost your password and connec
 
     chmod 400 cjdroute.conf
     mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
-
-# Self-check your network services
-
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to.  ;)
-
-See [doc/network-services.md](doc/network-services.md) for instructions.
 
 # Accessing the cjdns admin interface
 
