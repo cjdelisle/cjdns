@@ -323,7 +323,7 @@ static int genconf(struct Random* rand)
 
 static int usage(char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--version]\n"
+    printf("Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -392,6 +392,8 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--version") == 0) {
             printf("Cjdns Git Version ID: %s\n", Version_gitVersion());
             return 0;
+        } else if (strcmp(argv[1], "--cleanconf") == 0) {
+            // Performed after reading configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -419,6 +421,13 @@ int main(int argc, char** argv)
     if (JsonBencSerializer_get()->parseDictionary(stdinReader, allocator, &config)) {
         fprintf(stderr, "Failed to parse configuration.\n");
         return -1;
+    }
+
+    if (argc == 2 && strcmp(argv[1], "--cleanconf") == 0) {
+        struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
+        JsonBencSerializer_get()->serializeDictionary(stdoutWriter, &config);
+        printf("\n");
+        return 0;
     }
 
     struct Writer* logWriter = FileWriter_new(stdout, allocator);
