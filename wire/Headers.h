@@ -254,31 +254,24 @@ union Headers_CryptoAuth
 
     struct {
         /**
-         * This will be zero for the first handshake and one for the second.
-         * any higher number is interpreted to mean that this is not a handshake.
-         * obfuscated when on the wire.
+         * Numbers one through three are interpreted as handshake packets, UINT32_MAX is
+         * a connectToMe packet and anything else is a nonce in a traff packet.
          */
         uint32_t handshakeStage;
 
-        /** Used for authenticating routers to one another, obfuscated when on the wire. */
+        /** Used for authenticating routers to one another. */
         union Headers_AuthChallenge auth;
 
         /** Random nonce for the handshake. */
         uint8_t nonce[24];
 
-        /**
-         * The permanent public key.
-         * In the second cycle, this is zeros encrypted with the final shared secret,
-         * used as a sanity check.
-         */
+        /** This node's permanent public key. */
         uint8_t publicKey[32];
 
         /** This is filled in when the tempKey is encrypted. */
         uint8_t authenticator[16];
 
-        /**
-         * The public key to use for this session, encrypted with the private key.
-         */
+        /** The public key to use for this session, encrypted with the private key. */
         uint8_t encryptedTempKey[32];
     } handshake;
 };

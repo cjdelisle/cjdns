@@ -411,6 +411,8 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     Random_bytes(wrapper->context->rand,
                  (uint8_t*) &header->handshake.auth,
                  sizeof(union Headers_AuthChallenge) + 24);
+
+    // set the permanent key
     Bits_memcpyConst(&header->handshake.publicKey, wrapper->context->pub.publicKey, 32);
 
     if (!knowHerKey(wrapper)) {
@@ -430,7 +432,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
 
-    // set the session state
+    // Set the session state
     uint32_t sessionState_be = Endian_hostToBigEndian32(wrapper->nextNonce);
     header->nonce = sessionState_be;
 
@@ -478,13 +480,12 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
                   tempKeyHex);
     #endif
 
+    cryptoAuthDebug(wrapper, "Sending %s%s packet",
+                    ((wrapper->nextNonce & 1) ? "repeat " : ""),
+                    ((wrapper->nextNonce == 1) ? "hello" : "key"));
+
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
-        if (wrapper->nextNonce == 0) {
-            cryptoAuthDebug0(wrapper, "Sending hello packet");
-        } else {
-            cryptoAuthDebug0(wrapper, "Sending repeat hello packet");
-        }
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->herPerminentPubKey,
@@ -494,11 +495,6 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
     } else {
-        if (wrapper->nextNonce == 2) {
-            cryptoAuthDebug0(wrapper, "Sending key packet");
-        } else {
-            cryptoAuthDebug0(wrapper, "Sending repeat key packet");
-        }
         // Handshake2 wrapper->tempKey holds her public temp key.
         // it was put there by receiveMessage()
         getSharedSecret(sharedSecret,
@@ -774,7 +770,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
         Bits_memset(header, 0, Headers_CryptoAuth_SIZE);
-        cryptoAuthDebug0(wrapper, "Dropped message because authenticated decryption failed");
+        cryptoAuthDebug(wrapper, "Dropped message with nonce [%d], decryption failed", nonce);
         return Error_AUTHENTICATION;
     }
 

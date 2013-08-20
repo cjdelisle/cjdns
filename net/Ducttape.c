@@ -213,35 +213,33 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
             (message->length - Headers_UDPHeader_SIZE);
 }
 
-static void debugHandles(struct Log* logger, struct SessionManager_Session* session, char* message)
-{
-    uint8_t ip[40];
-    AddrTools_printIp(ip, session->ip6);
-    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s]",
-              message,
-              session->version,
-              Endian_hostToBigEndian32(session->sendHandle_be),
-              Endian_hostToBigEndian32(session->receiveHandle_be),
-              ip);
-}
+#define debugHandles(logger, session, message, ...) \
+    do {                                                                               \
+        uint8_t ip[40];                                                                \
+        AddrTools_printIp(ip, session->ip6);                                           \
+        Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] " message,                 \
+                  session->version,                                                    \
+                  Endian_hostToBigEndian32(session->sendHandle_be),                    \
+                  Endian_hostToBigEndian32(session->receiveHandle_be),                 \
+                  ip,                                                                  \
+                  __VA_ARGS__);                                                        \
+    } while (0)
+//CHECKFILES_IGNORE expecting a ;
 
-static void debugHandlesAndLabel(struct Log* logger,
-                                 struct SessionManager_Session* session,
-                                 uint64_t label,
-                                 char* message)
-{
-    uint8_t ip[40];
-    uint8_t path[20];
-    AddrTools_printIp(ip, session->ip6);
-    AddrTools_printPath(path, label);
-    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s@%s]",
-              message,
-              session->version,
-              Endian_hostToBigEndian32(session->sendHandle_be),
-              Endian_hostToBigEndian32(session->receiveHandle_be),
-              ip,
-              path);
-}
+#define debugHandles0(logger, session, message) \
+    debugHandles(logger, session, message "%s", "")
+
+#define debugHandlesAndLabel(logger, session, label, message, ...) \
+    do {                                                                               \
+        uint8_t path[20];                                                              \
+        AddrTools_printPath(path, label);                                              \
+        debugHandles(logger, session, "path[%s] " message, path, __VA_ARGS__);         \
+    } while (0)
+//CHECKFILES_IGNORE expecting a ;
+
+#define debugHandlesAndLabel0(logger, session, label, message) \
+    debugHandlesAndLabel(logger, session, label, "%s", message)
+
 
 /**
  * Message which is for us, message is aligned on the beginning of the content.
@@ -255,7 +253,7 @@ static inline uint8_t incomingForMe(struct Message* message,
     struct SessionManager_Session* session = context->session;
     if (getHandle && CryptoAuth_getState(&session->iface) < CryptoAuth_ESTABLISHED) {
         Message_pop(message, &session->sendHandle_be, 4);
-        debugHandles(context->logger, session, "New session, incoming layer3");
+        debugHandles0(context->logger, session, "New session, incoming layer3");
     }
 
     struct Address addr;
@@ -382,8 +380,10 @@ static inline uint8_t sendToSwitch(struct Message* message,
     // If the session is established, we send their handle for the session,
     // otherwise we send ours.
 
+    uint64_t label = Endian_bigEndianToHost64(destinationSwitchHeader->label_be);
+
     if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
-        debugHandles(context->logger, session, "layer2 sending run message");
+        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
         uint32_t sendHandle_be = session->sendHandle_be;
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
@@ -392,7 +392,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         #endif
         Message_push(message, &sendHandle_be, 4);
     } else {
-        debugHandles(context->logger, session, "layer2 sending start message");
+        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
             Message_push(message, &session->receiveHandle_be, 4);
@@ -527,13 +527,13 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE + 4));
         // now push the receive handle *under* the CA header.
         Message_push(message, &session->receiveHandle_be, 4);
-        debugHandles(context->logger, session, "layer3 sending start message");
+        debugHandles0(context->logger, session, "layer3 sending start message");
     } else {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
         Message_shift(message, 20);
         Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
         Message_shift(message, -(20 + Headers_IP6Header_SIZE));
-        debugHandles(context->logger, session, "layer3 sending run message");
+        debugHandles0(context->logger, session, "layer3 sending run message");
     }
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
@@ -971,7 +971,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         if (session) {
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
-                                 "Got running session");
+                                 "running session nonce[%u]",
+                                 Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]));
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");
         }
@@ -984,7 +985,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             session = SessionManager_getSession(ip6, herKey, context->sm);
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
-                                 "New session");
+                                 "new session nonce[%d]", nonceOrHandle);
         } else {
             Log_debug(context->logger, "Got message with invalid ip addr");
         }
@@ -1007,7 +1008,13 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // then incomingFromRouter() then core()
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
-    session->iface.receiveMessage(message, &session->iface);
+
+    if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
+        debugHandlesAndLabel(context->logger, session,
+                             Endian_bigEndianToHost64(switchHeader->label_be),
+                             "Failed decrypting message NoH[%d] state[%d]",
+                             nonceOrHandle, CryptoAuth_getState(&session->iface));
+    }
 
     #ifdef Version_2_COMPAT
     context->currentSessionVersion = 0;
