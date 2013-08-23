@@ -49,6 +49,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     String* last = String_CONST("last");
     String* switchLabel = String_CONST("switchLabel");
     String* isIncoming = String_CONST("isIncoming");
+    String* user = String_CONST("user");
 
     List* list = NULL;
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
@@ -67,6 +68,10 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
         Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
 
         Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
+
+        if (stats[i].isIncomingConnection) {
+            Dict_putString(d, user, stats[i].user, alloc);
+        }
 
         list = List_addDict(list, d, alloc);
     }

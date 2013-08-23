@@ -60,6 +60,7 @@ struct InterfaceController_peerStats
     uint64_t bytesIn;
     uint64_t switchLabel;
     bool isIncomingConnection;
+    String* user;
 };
 
 struct InterfaceController

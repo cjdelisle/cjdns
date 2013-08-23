@@ -130,7 +130,7 @@ int init(const uint8_t* privateKey,
     if (password) {
         String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
         CryptoAuth_setAuth(&passStr, 1, cif1);
-        CryptoAuth_addUser(&passStr, 1, userObj, ca2);
+        CryptoAuth_addUser(&passStr, 1, String_new(userObj, allocator), ca2);
     }
     if2 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf1,

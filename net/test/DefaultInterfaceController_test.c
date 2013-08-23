@@ -146,7 +146,7 @@ int main()
                             "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
                             alloc, NULL);
 
-    CryptoAuth_addUser(String_CONST("passwd"), 1, (void*)0x01, tf->cryptoAuth);
+    CryptoAuth_addUser(String_CONST("passwd"), 1, String_CONST("TEST"), tf->cryptoAuth);
 
     struct Message* message;
     struct Interface iface = {

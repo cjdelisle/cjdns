@@ -495,6 +495,10 @@ static int getPeerStats(struct InterfaceController* ifController,
         s->state = peer->state;
         s->switchLabel = peer->switchLabel;
         s->isIncomingConnection = peer->isIncomingConnection;
+        s->user = NULL;
+        if (s->isIncomingConnection) {
+            s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
+        }
     }
 
     *statsOut = stats;
@@ -562,7 +566,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
     // Add the beaconing password.
     Random_bytes(rand, out->beaconPassword, Headers_Beacon_PASSWORD_LEN);
     String strPass = { .bytes=(char*)out->beaconPassword, .len=Headers_Beacon_PASSWORD_LEN };
-    int ret = CryptoAuth_addUser(&strPass, 1, (void*)0x1, ca);
+    int ret = CryptoAuth_addUser(&strPass, 1, String_CONST("Local Peers"), ca);
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }
