@@ -12,17 +12,31 @@
 
 include_directories(${LIBUV_INCLUDE_DIRS})
 
-add_library(cjdns-util-events-libuv
-    EventBase.c
-    Event.c
+if (Windows)
+    # uv.h
+    remove_definitions(-pedantic)
+endif ()
+
+add_library(cjdns-util-events-libuv-time
     Time.c
     Timeout.c
 )
+set_target_properties(cjdns-util-events-libuv-time
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
+
+add_library(cjdns-util-events-libuv
+    EventBase.c
+    Event.c
+    Pipe.c
+    Process.c
+    UDPAddrInterface.c
+)
 
 target_link_libraries(cjdns-util-events-libuv
+    cjdns-util-events-libuv-time
     cjdmemory
     ${LIBUV_LIBRARIES}
 )
 
 set_target_properties(cjdns-util-events-libuv
-        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
+        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE -fno-strict-aliasing -Wno-error")

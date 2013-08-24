@@ -21,6 +21,5 @@ set(Test_LIBRARIES
     cjdbenc_StandardBencSerializer
     cjdns-crypto-random
     cjdns-util-events-libuv
-    cjdns-memory-canary
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

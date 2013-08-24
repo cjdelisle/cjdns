@@ -48,8 +48,8 @@ static void adminPingOnResponse(enum SwitchPinger_Result result,
     String* pathStr = &(String) { .bytes = (char*) path, .len = 19 };
 
     Dict response = Dict_CONST(
-        String_CONST("version"), Int_OBJ(version), Dict_CONST(
-        String_CONST("result"), String_OBJ(resultStr), NULL
+        String_CONST("result"), String_OBJ(resultStr), Dict_CONST(
+        String_CONST("version"), Int_OBJ(version), NULL
     ));
 
     Dict d = Dict_CONST(String_CONST("path"), String_OBJ(pathStr), response);

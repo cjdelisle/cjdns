@@ -17,9 +17,9 @@
 
 
 #include <errno.h>
-#ifdef W32
+#ifdef Windows
     #include <winsock.h>
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(FreeBSD) || defined(Darwin)
     #include <sys/errno.h>
 #endif
 
@@ -232,7 +232,7 @@ static inline enum Errno checkMask(enum Errno err, uint64_t mappingMask)
 
 enum Errno Errno_getInternal(uint64_t mappingMask)
 {
-    #ifdef WIN32
+    #ifdef Windows
         int err = WSAGetLastError();
     #else
         int err = errno;
@@ -1352,7 +1352,7 @@ char* Errno_strerror(enum Errno err)
         case Errno_EUNATCH: return "Errno_EUNATCH";
         case Errno_EXFULL: return "Errno_EXFULL";
 
-        #ifdef W32
+        #ifdef Windows
             case Errno_WSA_INVALID_HANDLE: return "Errno_WSA_INVALID_HANDLE";
             case Errno_WSA_NOT_ENOUGH_MEMORY: return "Errno_WSA_NOT_ENOUGH_MEMORY";
             case Errno_WSA_INVALID_PARAMETER: return "Errno_WSA_INVALID_PARAMETER";

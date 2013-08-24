@@ -22,7 +22,7 @@
 
 
 void Core_initTunnel(String* desiredDeviceName,
-                     uint8_t ipAddr[16],
+                     struct Sockaddr* addr,
                      uint8_t addressPrefix,
                      struct Ducttape* dt,
                      struct Log* logger,

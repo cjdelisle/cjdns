@@ -40,7 +40,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef WIN32
+#ifdef Windows
     #undef interface
 #endif
 
@@ -139,8 +139,7 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
             hashPassword_sha256(auth, password);
             break;
         default:
-            // Unsupported auth type.
-            abort();
+            Assert_always(!"Unsupported auth type.");
     };
     return auth->secret;
 }
@@ -368,7 +367,6 @@ static void getIp6(struct CryptoAuth_Wrapper* wrapper, uint8_t* addr)
 #define cryptoAuthDebug0(wrapper, format) \
     cryptoAuthDebug(wrapper, format "%s", "")
 
-
 /**
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
@@ -381,19 +379,15 @@ static uint8_t genReverseHandshake(struct Message* message,
     Message_shift(message, -Headers_CryptoAuth_SIZE);
 
     // Buffer the packet so it can be sent ASAP
-    if (wrapper->bufferedMessage == NULL) {
-        cryptoAuthDebug0(wrapper, "Buffered a message");
-        wrapper->bufferedMessage =
-            Message_clone(message, wrapper->externalInterface.allocator);
-        Assert_true(wrapper->nextNonce == 0);
-    } else {
+    if (wrapper->bufferedMessage != NULL) {
         cryptoAuthDebug0(wrapper, "Expelled a message because a session has not yet been setup");
-        Message_copyOver(wrapper->bufferedMessage,
-                         message,
-                         wrapper->externalInterface.allocator);
-        Assert_true(wrapper->nextNonce == 0);
+        Allocator_free(wrapper->bufferedMessage->alloc);
     }
-    wrapper->hasBufferedMessage = true;
+
+    cryptoAuthDebug0(wrapper, "Buffered a message");
+    struct Allocator* bmalloc = Allocator_child(wrapper->externalInterface.allocator);
+    wrapper->bufferedMessage = Message_clone(message, bmalloc);
+    Assert_true(wrapper->nextNonce == 0);
 
     Message_shift(message, Headers_CryptoAuth_SIZE);
     header = (union Headers_CryptoAuth*) message->bytes;
@@ -417,6 +411,8 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     Random_bytes(wrapper->context->rand,
                  (uint8_t*) &header->handshake.auth,
                  sizeof(union Headers_AuthChallenge) + 24);
+
+    // set the permanent key
     Bits_memcpyConst(&header->handshake.publicKey, wrapper->context->pub.publicKey, 32);
 
     if (!knowHerKey(wrapper)) {
@@ -436,7 +432,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
 
-    // set the session state
+    // Set the session state
     uint32_t sessionState_be = Endian_hostToBigEndian32(wrapper->nextNonce);
     header->nonce = sessionState_be;
 
@@ -484,13 +480,12 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
                   tempKeyHex);
     #endif
 
+    cryptoAuthDebug(wrapper, "Sending %s%s packet",
+                    ((wrapper->nextNonce & 1) ? "repeat " : ""),
+                    ((wrapper->nextNonce == 1) ? "hello" : "key"));
+
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
-        if (wrapper->nextNonce == 0) {
-            cryptoAuthDebug0(wrapper, "Sending hello packet");
-        } else {
-            cryptoAuthDebug0(wrapper, "Sending repeat hello packet");
-        }
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->herPerminentPubKey,
@@ -500,11 +495,6 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
     } else {
-        if (wrapper->nextNonce == 2) {
-            cryptoAuthDebug0(wrapper, "Sending key packet");
-        } else {
-            cryptoAuthDebug0(wrapper, "Sending repeat key packet");
-        }
         // Handshake2 wrapper->tempKey holds her public temp key.
         // it was put there by receiveMessage()
         getSharedSecret(sharedSecret,
@@ -780,7 +770,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
         Bits_memset(header, 0, Headers_CryptoAuth_SIZE);
-        cryptoAuthDebug0(wrapper, "Dropped message because authenticated decryption failed");
+        cryptoAuthDebug(wrapper, "Dropped message with nonce [%d], decryption failed", nonce);
         return Error_AUTHENTICATION;
     }
 
@@ -810,12 +800,13 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->hasBufferedMessage && message->length == 0) {
+    if (wrapper->bufferedMessage && message->length == 0) {
         cryptoAuthDebug0(wrapper, "Sending buffered message");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
-        wrapper->hasBufferedMessage = false;
+        Allocator_free(wrapper->bufferedMessage->alloc);
+        wrapper->bufferedMessage = NULL;
         return Error_NONE;
-    } else if (wrapper->hasBufferedMessage) {
+    } else if (wrapper->bufferedMessage) {
         cryptoAuthDebug0(wrapper, "There is a buffered message");
     }
 
@@ -1084,8 +1075,12 @@ int CryptoAuth_getState(struct Interface* interface)
             // state 4 = waiting for first data packet to prove the handshake succeeded.
             // At this point you have sent a challenge and received a response so it is safe
             // to assume you are not being hit with replay packets.
+            //
+            // Sent a hello, received one or more keys, waiting for data.
+            // In this state data packets will be sent but no data packets have yet been received.
             return CryptoAuth_HANDSHAKE3;
         default:
+            // Received data.
             return CryptoAuth_ESTABLISHED;
     }
 }

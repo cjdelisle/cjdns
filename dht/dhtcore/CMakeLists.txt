@@ -24,6 +24,7 @@ target_link_libraries(dhtcore
     crypto
     switch
     cjdns-util-version-version
+    cjdns-util-events-libuv-time
 )
 
 # Everything must be tested.

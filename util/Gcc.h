@@ -29,4 +29,10 @@
 
 #endif
 
+Gcc_PRINTF(1,2)
+static inline void Gcc_checkPrintf(const char* format, ...)
+{
+    // This does nothing except to trigger warnings if the format is wrong.
+}
+
 #endif

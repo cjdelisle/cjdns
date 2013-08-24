@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+// needed for String_vprintf()
+#include <stdarg.h>
+
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "benc/Dict.h"
@@ -20,6 +23,7 @@
 #include "io/Writer.h"
 #include "memory/BufferAllocator.h"
 #include "util/log/Log.h"
+#include "util/log/Log_impl.h"
 #include "util/Hex.h"
 
 #define string_strcmp
@@ -27,7 +31,6 @@
 #define string_strlen
 #include "util/platform/libc/string.h"
 
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -165,7 +168,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 {
     Allocator_free(sub->alloc);
     log->subscriptionCount--;
-    if (log->subscriptionCount == 0) {
+    if (log->subscriptionCount == 0 || sub == &log->subscriptions[log->subscriptionCount]) {
         return;
     }
     Bits_memcpyConst(sub,
@@ -176,7 +179,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 static void doLog(struct Log* genericLog,
                   enum Log_Level logLevel,
                   const char* fullFilePath,
-                  uint32_t line,
+                  int line,
                   const char* format,
                   va_list args)
 {
@@ -184,6 +187,7 @@ static void doLog(struct Log* genericLog,
     Dict* message = NULL;
     #define ALLOC_BUFFER_SZ 4096
     uint8_t allocBuffer[ALLOC_BUFFER_SZ];
+
     for (int i = 0; i < (int)log->subscriptionCount; i++) {
         if (isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) {
             if (!message) {
@@ -289,7 +293,7 @@ struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, s
 {
     struct AdminLog* log = Allocator_clone(alloc, (&(struct AdminLog) {
         .pub = {
-            .callback = doLog
+            .print = doLog
         },
         .admin = admin,
         .alloc = alloc,

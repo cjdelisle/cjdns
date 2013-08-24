@@ -43,7 +43,10 @@
 /** The number of milliseconds to wait for a ping response. */
 #define TIMEOUT_MILLISECONDS (2*1024)
 
-/** The number of seconds to wait before a transient unresponsive peer is forgotten. */
+/**
+ * The number of seconds to wait before an unresponsive peer
+ * making an incoming connection is forgotten.
+ */
 #define FORGET_AFTER_MILLISECONDS (256*1024)
 
 /*--------------------Structs--------------------*/
@@ -69,7 +72,7 @@ struct IFCPeer
     uint32_t handle;
 
     /** True if we should forget about the peer if they do not respond. */
-    bool transient : 1;
+    bool isIncomingConnection : 1;
 
     /**
      * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
@@ -78,6 +81,10 @@ struct IFCPeer
      * handshake completes, it will be moved.
      */
     int state : 31;
+
+    // traffic counters
+    uint64_t bytesOut;
+    uint64_t bytesIn;
 
     Identity
 };
@@ -119,7 +126,7 @@ struct Context
     /** The number of milliseconds to let a ping go before timing it out. */
     uint32_t timeoutMilliseconds;
 
-    /** After this number of milliseconds, an transient connection is forgotten entirely. */
+    /** After this number of milliseconds, an incoming connection is forgotten entirely. */
     uint32_t forgetAfterMilliseconds;
 
     /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
@@ -191,22 +198,28 @@ static void pingCallback(void* vic)
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
             #endif
-            if (ep->transient && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds) {
+
+            if (ep->isIncomingConnection
+                && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
+            {
                 Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
                                       "seconds, dropping connection",
                                       key, ic->forgetAfterMilliseconds / 1024);
                 Allocator_free(ep->external->allocator);
-            } else if (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds) {
+                return;
+            }
+
+            bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
+            uint32_t lag = ~0u;
+            if (unresponsive) {
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
-                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
-                Log_debug(ic->logger, "Pinging unresponsive peer [%s.k] lag [%u]", key, lag);
+                lag = ((now - ep->timeOfLastMessage) / 1024);
             } else {
-                uint32_t lag = ((now - ep->timeOfLastMessage) / 1024);
-                Log_debug(ic->logger, "Pinging lazy peer [%s] lag [%u]", key, lag);
+                lag = ((now - ep->timeOfLastMessage) / 1024);
             }
 
             struct SwitchPinger_Ping* ping =
@@ -216,9 +229,20 @@ static void pingCallback(void* vic)
                                      onPingResponse,
                                      ic->switchPinger);
 
+            if (!ping) {
+                Log_debug(ic->logger,
+                          "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
+                          (unresponsive ? "unresponsive" : "lazy"), key, lag);
+                return;
+            }
+
             ping->onResponseContext = ep;
 
             SwitchPinger_sendPing(ping);
+
+            Log_debug(ic->logger,
+                      "Pinging %s peer [%s.k] lag [%u]",
+                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
         }
     }
 }
@@ -248,6 +272,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 {
     struct IFCPeer* ep = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
     struct Context* ic = ifcontrollerForPeer(ep);
+
+    ep->bytesIn += msg->length;
 
     if (ep->state < InterfaceController_PeerState_ESTABLISHED) {
         if (CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3) {
@@ -287,6 +313,8 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
     struct IFCPeer* ep = Identity_cast((struct IFCPeer*) switchIf);
 
+    ep->bytesOut += msg->length;
+
     // This sucks but cryptoauth trashes the content when it encrypts
     // and we need to be capable of sending back a coherent error message.
     uint8_t top[255];
@@ -295,11 +323,22 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     uint16_t len = (msg->length < 255) ? msg->length : 255;
     Bits_memcpy(top, msg->bytes, len);
 
-    uint8_t ret = ep->cryptoAuthIf->sendMessage(msg, ep->cryptoAuthIf);
+    struct Context* ic = ifcontrollerForPeer(ep);
+    uint8_t ret;
+    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
+        // XXX: This is a hack because if the time of last message exceeds the
+        //      unresponsive time, we need to send back an error and that means
+        //      mangling the message which would otherwise be in the queue.
+        struct Allocator* tempAlloc = Allocator_child(ic->allocator);
+        struct Message* toSend = Message_clone(msg, tempAlloc);
+        ret = Interface_sendMessage(ep->cryptoAuthIf, toSend);
+        Allocator_free(tempAlloc);
+    } else {
+        ret = Interface_sendMessage(ep->cryptoAuthIf, msg);
+    }
 
     // If this node is unresponsive then return an error.
-    struct Context* ic = ifcontrollerForPeer(ep);
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
     {
         msg->bytes = messageBytes;
@@ -318,22 +357,23 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     return Error_NONE;
 }
 
-static void closeInterface(void* vendpoint)
+static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) vendpoint);
+    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) job->userData);
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
     Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
+    return 0;
 }
 
 static int registerPeer(struct InterfaceController* ifController,
                         uint8_t herPublicKey[32],
                         String* password,
                         bool requireAuth,
-                        bool transient,
+                        bool isIncomingConnection,
                         struct Interface* externalInterface)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
@@ -356,6 +396,8 @@ static int registerPeer(struct InterfaceController* ifController,
 
     struct Allocator* epAllocator = externalInterface->allocator;
     struct IFCPeer* ep = Allocator_calloc(epAllocator, sizeof(struct IFCPeer), 1);
+    ep->bytesOut = 0;
+    ep->bytesIn = 0;
     ep->external = externalInterface;
     int setIndex = Map_OfIFCPeerByExernalIf_put(&externalInterface, &ep, &ic->peerMap);
     ep->handle = ic->peerMap.handles[setIndex];
@@ -380,7 +422,7 @@ static int registerPeer(struct InterfaceController* ifController,
         CryptoAuth_setAuth(password, 1, ep->cryptoAuthIf);
     }
 
-    ep->transient = transient;
+    ep->isIncomingConnection = isIncomingConnection;
 
     Bits_memcpyConst(&ep->switchIf, (&(struct Interface) {
         .sendMessage = sendFromSwitch,
@@ -434,6 +476,31 @@ static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beaco
     Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
 }
 
+static int getPeerStats(struct InterfaceController* ifController,
+                 struct Allocator* alloc,
+                 struct InterfaceController_peerStats** statsOut)
+{
+    struct Context* ic = Identity_cast((struct Context*) ifController);
+    int count = ic->peerMap.count;
+    struct InterfaceController_peerStats* stats =
+        Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
+
+    for (int i = 0; i < count; i++) {
+        struct IFCPeer* peer = ic->peerMap.values[i];
+        struct InterfaceController_peerStats* s = &stats[i];
+        s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
+        s->bytesOut = peer->bytesOut;
+        s->bytesIn = peer->bytesIn;
+        s->timeOfLastMessage = peer->timeOfLastMessage;
+        s->state = peer->state;
+        s->switchLabel = peer->switchLabel;
+        s->isIncomingConnection = peer->isIncomingConnection;
+    }
+
+    *statsOut = stats;
+    return count;
+}
+
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
@@ -448,7 +515,8 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .pub = {
             .registerPeer = registerPeer,
             .getPeerState = getPeerState,
-            .populateBeacon = populateBeacon
+            .populateBeacon = populateBeacon,
+            .getPeerStats = getPeerStats,
         },
         .peerMap = {
             .allocator = allocator

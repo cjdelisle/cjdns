@@ -83,7 +83,7 @@ static inline void sendMessages(struct Context* ctx,
 
     ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, false, authPackets, ctx->ca2);
     ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, false, authPackets, ctx->ca1);
-    uint64_t startTime = Time_currentTimeMilliseconds(ctx->base);
+    uint64_t startTime = Time_hrtime();
     if (type != HELLO) {
         setupMessage(ctx, size);
         ctx->cif1->sendMessage(&ctx->message, ctx->cif1);
@@ -100,8 +100,8 @@ static inline void sendMessages(struct Context* ctx,
             ctx->cif1->sendMessage(&ctx->message, ctx->cif1);
         }
     }
-    uint64_t endTimes = Time_currentTimeMilliseconds(ctx->base);
-    uint64_t time = endTimes - startTime;
+    uint64_t endTimes = Time_hrtime();
+    uint64_t time = (endTimes - startTime) / 1000000;
     uint64_t kbSent = (size * count * 8) / 1024;
 
     // same as kbSent / (time / 1024) (converting time to seconds)

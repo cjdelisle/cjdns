@@ -30,11 +30,46 @@
 
 #include "crypto_scalarmult_curve25519.h"
 
+struct TestFramework_Link
+{
+    struct Interface srcIf;
+    struct Interface destIf;
+    struct TestFramework* src;
+    struct TestFramework* dest;
+    Identity
+};
+
 static uint8_t sendTo(struct Message* msg, struct Interface* iface)
 {
-    struct Interface* destIf = (struct Interface*) iface->senderContext;
-    printf("Transferring message to [%p]\n", (void*)destIf);
-    return destIf->receiveMessage(msg, destIf);
+    struct TestFramework_Link* link =
+        Identity_cast((struct TestFramework_Link*)iface->senderContext);
+
+    struct Interface* dest;
+    struct TestFramework* srcTf;
+    if (&link->destIf == iface) {
+        dest = &link->srcIf;
+        srcTf = link->dest;
+    } else if (&link->srcIf == iface) {
+        dest = &link->destIf;
+        srcTf = link->src;
+    } else {
+        Assert_always(false);
+    }
+
+    printf("Transferring message to [%p] - message length [%d]\n", (void*)dest, msg->length);
+
+    // Store the original message and a copy of the original so they can be compared later.
+    srcTf->lastMsgBackup = Message_clone(msg, srcTf->alloc);
+    srcTf->lastMsg = msg;
+    if (msg->alloc) {
+        // If it's a message which was buffered inside of CryptoAuth then it will be freed
+        // so by adopting the allocator we can hold it in memory.
+        Allocator_adopt(srcTf->alloc, msg->alloc);
+    }
+
+    // Copy the original and send that to the other end.
+    struct Message* sendMsg = Message_clone(msg, dest->allocator);
+    return dest->receiveMessage(sendMsg, dest);
 }
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
@@ -106,26 +141,47 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         .ip = ip
     }));
 
+    Identity_set(tf);
+
     return tf;
 }
 
+void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
+{
+    if (!tf->lastMsg) {
+        return;
+    }
+    struct Message* a = tf->lastMsg;
+    struct Message* b = tf->lastMsgBackup;
+    Assert_always(a->length == b->length);
+    Assert_always(a->padding == b->padding);
+    Assert_always(!Bits_memcmp(a->bytes, b->bytes, a->length));
+}
 
 void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server)
 {
-    struct Interface* ifaceB = Allocator_malloc(client->alloc, sizeof(struct Interface));
-    struct Interface* ifaceA = Allocator_clone(client->alloc, (&(struct Interface) {
-        .sendMessage = sendTo,
-        .senderContext = ifaceB,
-        .allocator = client->alloc
-    }));
-    Bits_memcpyConst(ifaceB, (&(struct Interface){
-        .sendMessage = sendTo,
-        .senderContext = ifaceA,
-        .allocator = client->alloc
-    }), sizeof(struct Interface));
+    // ifaceA is the client, ifaceB is the server
+    struct TestFramework_Link* link =
+        Allocator_calloc(client->alloc, sizeof(struct TestFramework_Link), 1);
+
+    Bits_memcpyConst(link, (&(struct TestFramework_Link) {
+        .srcIf = {
+            .sendMessage = sendTo,
+            .senderContext = link,
+            .allocator = client->alloc
+        },
+        .destIf = {
+            .sendMessage = sendTo,
+            .senderContext = link,
+            .allocator = client->alloc
+        },
+        .src = client,
+        .dest = server
+    }), sizeof(struct TestFramework_Link));
+    Identity_set(link);
 
     // server knows nothing about the client.
-    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, false, ifaceB);
+    InterfaceController_registerPeer(server->ifController, NULL, NULL, true, false, &link->destIf);
 
     // Except that it has an authorizedPassword added.
     CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, (void*)0x1, server->cryptoAuth);
@@ -136,7 +192,7 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
                                      String_CONST("abcdefg1234"),
                                      false,
                                      false,
-                                     ifaceA);
+                                     &link->srcIf);
 }
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])

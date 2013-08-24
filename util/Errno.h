@@ -328,7 +328,7 @@ enum Errno_Mappings
 
 
     // Winsock
-    #ifdef W32
+    #ifdef Windows
         #ifndef Errno_DISTINCT_WSAEWOULDBLOCK
             #define Errno_WSAEWOULDBLOCK Errno_EWOULDBLOCK
         #endif
@@ -440,7 +440,7 @@ enum Errno_Mappings
         #ifndef Errno_DISTINCT_WSAEREMOTE
             #define Errno_WSAEREMOTE Errno_EREMOTE
         #endif
-    #endif // W32
+    #endif // Windows
 #endif // Errno_NO_MAPPINGS
 
 enum Errno Errno_getInternal(uint64_t mappingMask);
@@ -457,7 +457,7 @@ static inline enum Errno Errno_get()
     #ifndef Errno_DISTINCT_EDEADLK
         | (((uint64_t)1) <<Errno_Mappings_EDEADLK)
     #endif
-    #ifdef W32
+    #ifdef Windows
         #ifndef Errno_DISTINCT_WSAEWOULDBLOCK
             | (((uint64_t)1) <<Errno_Mappings_WSAEWOULDBLOCK)
         #endif

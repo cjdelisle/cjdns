@@ -135,17 +135,13 @@ still lacking DNS resolution but the name stuck. Make up your own acronym for it
 
 ## Further Reading & Discussion
 
-Please read the Whitepaper, or at least skim it:
-
-  * https://github.com/cjdelisle/cjdns/blob/master/rfcs/Whitepaper.md
+Please read [the Whitepaper](rfcs/Whitepaper.md), or at least skim it.
 
 If you are still interested in this project and want to follow it,
 get in the channel on IRC:
 
   * irc://irc.EFNet.org/#cjdns
   * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
-
-
 
 Thank you for your time and interest,
 Caleb James DeLisle  ==  cjdelisle  ==  cjd
@@ -273,11 +269,21 @@ It looks like this:
 `your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
 connect to you from over The Old Internet.
 
-https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md contains more
-details on configuration, including how to peer with other cjdns nodes over
-ethernet (including wifi).
+The [rfcs/configure.md](rfcs/configure.md) page contains more details on
+configuration, including how to peer with other cjdns nodes over ethernet
+(including wifi).
 
-## 4: Start it up!
+## 4: SECURITY RISK - Check for listening services.
+
+Once your node is running, you're now a newly minted IPv6 host. Your operating
+system may automatically reconfigure network services to use this new address.
+If this is not what you intend, you should check to see that you are not
+offering more services then you intended to.  ;)
+
+See [doc/network-services.md](doc/network-services.md) for instructions.
+
+
+## 5: Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -291,7 +297,7 @@ To stop cjdns:
  
 If you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
 
-## 5: Get in IRC
+## 6: Get in IRC
 
 Welcome to the network, you are now a real network administrator.
 There are responsibilities which come with being a network administrator which include
@@ -308,138 +314,6 @@ Protect your conf file! A lost conf file means you lost your password and connec
     chmod 400 cjdroute.conf
     mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
 
-
-
-
-# Self-Check Your Network
-
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to.  ;)
-
-## 1: Obtain IP address.
-
-Use `ifconfig -a` to find your TUN device's IPv6 address. (Same as above.)
-
-## 2: Scan for open services.
-
-Run `nmap` to discover which services are accessible from this address.
-For example, to scan the address fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe:
-
-    nmap -6 -n -r -v -p1-65535 -sT fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
-
-This should result in an output like the following.
-
-    Starting Nmap 5.61TEST2 ( http://nmap.org ) at 2011-12-29 20:40 EST
-    Initiating Connect Scan at 20:40
-    Scanning fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe [65535 ports]
-    Completed Connect Scan at 20:40, 4.38s elapsed (65535 total ports)
-    Nmap scan report for fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe
-    Host is up (0.00073s latency).
-    All 65535 scanned ports on fcf7:75f0:82e3:327c:7112:b9ab:d1f9:bbbe are closed
-
-    Read data files from: /usr/local/bin/../share/nmap
-    Nmap done: 1 IP address (1 host up) scanned in 4.60 seconds
-        Raw packets sent: 0 (0B) | Rcvd: 0 (0B)
-
-## 3: If you see anything open, fix it.
-
-Examples for SSH and Samba are below.
-
-### SSH
-
-Edit `/etc/ssh/sshd_config`:
-
-    ListenAddress 192.168.1.1
-
-^ Replace `192.168.1.1` in the example above
-  with your STATIC IP (or map DHCP via MAC).
-
-### Samba
-
-Edit `/etc/samba/smb.conf`:
-
-    [global]
-    interfaces = eth0
-    bind interfaces only = Yes
-
-^ This will cause Samba to not bind to `tun0`
-  (or whichever TUN device you are using).
-
-Thats it for now! Got More? Tell us on IRC.
-
---------------------------------------------------------------------------------
-
-# Non-Standard Setups
-
-**Most Users Don't Need This**
-
-Instructions for building or installing in non-default ways.
-
-## Start cjdroute as non-root user.
-
-If you're using an OpenVZ based VPS then you will need to use this as OpenVZ does not permit
-persistent tunnels.
-
-Create a cjdns user:
-
-    sudo useradd cjdns
-
-Create a new TUN device and give the cjdns user authority to access it:
-
-    sudo /sbin/ip tuntap add mode tun user cjdns dev cjdroute0
-
-
-### 4b-1: Setup the interface manually
-
-Run those commands to prepare your TUN device:
-
-    sudo /sbin/ip addr add <your ipv6 address>/8 dev cjdroute0
-    sudo /sbin/ip link set cjdroute0 up
-
-These commands should be executed as root now every time the system restarts.
-
-#### Old versions of iproute2
-
-If you see an error when running /sbin/ip, your version of iproute2 might be old.
-
-    sudo /sbin/ip tuntap add mode tun user cjdns
-    Object "tuntap" is unknown, try "ip help".
-
-The fix: for now grab a copy of a newer `ip` binary and copy it to your home
-directory. Replacing the system binaries is not likely a good idea.
-
-## 4b-2: Fire it up!
-
-    sudo -u cjdns ./cjdroute < cjdroute.conf
-
-
-To delete a tunnel, use this command:
-
-    sudo /sbin/ip tuntap del mode tun <name of tunnel>
-
-
-
-## Installing cjdns on OpenIndiana
-
-**currently broken by recent changes**
-
-In order to install cjdns on an OpenIndiana system, do the following:
-
-    sudo pkg set-publisher -p http://pkg.openindiana.org/sfe
-    sudo pkg install runtime/gcc@4.6.2,5.11-0.151.1:20111222T011404Z
-    sudo pkg install gnu-make
-    sudo pkg install header-math
-    sudo pkg install git
-    sudo pkg install tuntap
-    git clone git://github.com/cjdelisle/cjdns.git
-    cd cjdns
-    ./do
-
-Once it has completed successfully, simply type ./cjdroute and follow the normal instructions
-
-
 # Accessing the cjdns admin interface
 
 When cjdnroute is up and running, an administrative interface will listen on localhost:11234
@@ -447,21 +321,29 @@ When cjdnroute is up and running, an administrative interface will listen on loc
 
 You can access this api using the following tools, to get interesting information.
 
-More information about the Admin interface: https://github.com/cjdelisle/cjdns/blob/master/admin/README.md
+See [admin/README.md](admin/README.md) for more information about the Admin
+interface.
 
 
 python library
 --------------
 
-cjdns comes with a python library to access the api. For more information, read the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/python/README.md).
+cjdns comes with a python library to access the api. For more information, read
+the [readme](contrib/python/README.md).
 
 
 perl library
 ------------
 
-The perl port of the python api library is maintained by Mikey. For usage instructions, head over to the [readme](https://github.com/cjdelisle/cjdns/blob/master/contrib/perl/CJDNS/README).
+The perl port of the python api library is maintained by Mikey. For usage
+instructions, head over to the [readme](contrib/perl/CJDNS/README).
 
 
+# Advanced configuration
+
+* [Run cjdns as a non-root user](doc/non-root-user.md)
+* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
 
 [beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html

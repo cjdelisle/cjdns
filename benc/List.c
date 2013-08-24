@@ -15,6 +15,8 @@
 #include "memory/Allocator.h"
 #include "benc/List.h"
 
+#include <stddef.h>
+
 int32_t List_size(const List* list)
 {
     if (list != NULL) {
@@ -28,7 +30,7 @@ int32_t List_size(const List* list)
     return -1;
 }
 
-static List* addObject(List* list, Object* item, const struct Allocator* allocator)
+static List* addObject(List* list, Object* item, struct Allocator* allocator)
 {
     if (list == NULL) {
         List* newList = Allocator_calloc(allocator, sizeof(List), 1);
@@ -44,7 +46,7 @@ static List* addObject(List* list, Object* item, const struct Allocator* allocat
 }
 
 /** @see Object.h */
-List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator)
+List* List_addInt(List* list, int64_t toAdd, struct Allocator* allocator)
 {
     Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_INTEGER,
@@ -54,7 +56,7 @@ List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator)
 }
 
 /** @see Object.h */
-List* List_addString(List* list, String* toAdd, const struct Allocator* allocator)
+List* List_addString(List* list, String* toAdd, struct Allocator* allocator)
 {
     Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_STRING,
@@ -64,7 +66,7 @@ List* List_addString(List* list, String* toAdd, const struct Allocator* allocato
 }
 
 /** @see Object.h */
-List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator)
+List* List_addDict(List* list, Dict* toAdd, struct Allocator* allocator)
 {
     Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_DICT,
@@ -74,7 +76,7 @@ List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator)
 }
 
 /** @see Object.h */
-List* List_addList(List* list, List* toAdd, const struct Allocator* allocator)
+List* List_addList(List* list, List* toAdd, struct Allocator* allocator)
 {
     Object* obj = Allocator_clone(allocator, (&(Object) {
         .type = Object_LIST,

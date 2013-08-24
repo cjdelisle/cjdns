@@ -21,6 +21,7 @@
 #include "wire/Error.h"
 
 #include <stddef.h>
+#include <stdbool.h>
 
 /** MTU at switch layer, not including switch header overhead. */
 #define EXPECTED_MTU \

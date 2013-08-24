@@ -26,7 +26,7 @@
  * First version.
  */
 #define Version_isCompat0(x, y) \
-    (x == y)
+    (1)
 /*
  * ----------------------------------
  *
@@ -34,7 +34,7 @@
  * October 2012
  */
 #define Version_isCompat1(x, y) \
-    (Version_isCompat0(x, y) || (x == 1))
+    (1)
 /*
  * When you send someone a message through cjdns, it's encrypted.
  * When you send the first message to a router, it has a nice header on it which tells them your key
@@ -133,9 +133,39 @@
  * February 21, 2013
  */
 #define Version_isCompat2(x, y) \
-    (Version_isCompat1(x, y) || (x == 2 && y > 0))
+    ((x == 2) ? (y > 0) : Version_isCompat1(x, y))
 /*
  * Remove compatibility layer for communicating with version 0 nodes.
+ *
+ * ----------------------------------
+ *
+ * Version 3:
+ * August 16, 2013
+ */
+#define Version_isCompat3(x, y) \
+    ((x == 3) ? (y > 0) : Version_isCompat2(x, y))
+/*
+ * In version 1, handles were introduced so that a session could be looked when a packet came in.
+ * During the initiation of a session, the node's handle was placed before the CryptoAuth block
+ * unless the message was a layer-3 (forwarded) message in which case it was at the beginning
+ * inside of the innermost CryptoAuth block. This handle was transferred to the peer so they could
+ * tell how *this* node identifies the session.
+ *
+ * When a layer-2 (non-forwarded) message was received which was *not* a session initiation packet,
+ * the peer's handle was placed before the CryptoAuth block in order for the peer to be able to
+ * lookup the session in their table.
+ *
+ * Unfortunately the handle outside of the CryptoAuth initiation block was not authenticated in any
+ * way and a switch could alter it accidently or maliciously causing the wrong session identifier
+ * to be stored leading to the session failing until it eventually times out.
+ *
+ * To fix this bug the handle attached to the initiation message has been moved into the CryptoAuth
+ * block where it should have been in the first place. Obviously the peer's handle is still placed
+ * outside of the CryptoAuth block so it can serve it's function.
+ *
+ * As of version 3, implementations must not send handles which are less than 4 so that when they
+ * receive them back, they will not be confused with the initial 4 bytes of a CryptoAuth setup
+ * packet which is not preceeded by a handle.
  */
 
 
@@ -148,14 +178,19 @@
  * numbered isCompat macro.
  */
 #define Version_isCompatConst(x, y) \
-    (x > y ? Version_isCompat2(x, y) : Version_isCompat2(y, x))
+    ((x > y) ? Version_isCompat3(x, y) : Version_isCompat3(y, x))
 
 
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 2
+#define Version_CURRENT_PROTOCOL 3
 #define Version_1_COMPAT
+#define Version_2_COMPAT
+#define Version_3_COMPAT
+
+#define Version_MINIMUM_COMPATIBLE 1
+#define Version_DEFAULT_ASSUMPTION 1
 
 
 /**
@@ -179,12 +214,14 @@ static inline int Version_isCompatible(uint32_t version1, uint32_t version2)
     #define Version_TABLE_ROW(col) { \
         Version_isCompatConst(col,0), \
         Version_isCompatConst(col,1), \
-        Version_isCompatConst(col,2)  \
+        Version_isCompatConst(col,2), \
+        Version_isCompatConst(col,3)  \
     }
-    static const uint8_t table[3][3] = {
+    static const uint8_t table[4][4] = {
         Version_TABLE_ROW(0),
         Version_TABLE_ROW(1),
-        Version_TABLE_ROW(2)
+        Version_TABLE_ROW(2),
+        Version_TABLE_ROW(3)
     };
 
     #define Version_TABLE_HEIGHT (sizeof(table) / sizeof(table[0]))

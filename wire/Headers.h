@@ -124,13 +124,13 @@ Assert_compileTime(sizeof(union Headers_AuthChallenge) == Headers_AuthChallenge_
 /** The number of bytes from the beginning which identify the auth for looking up the secret. */
 #define Headers_AuthChallenge_KEYSIZE 8
 
-static inline bool Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
+static inline int Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
 {
     return ac->challenge.requirePacketAuthAndDerivationCount & Endian_hostToBigEndian16(1<<15);
 }
 
 static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac,
-                                                 bool require)
+                                                 int require)
 {
     if (require) {
         ac->challenge.requirePacketAuthAndDerivationCount |=
@@ -254,31 +254,24 @@ union Headers_CryptoAuth
 
     struct {
         /**
-         * This will be zero for the first handshake and one for the second.
-         * any higher number is interpreted to mean that this is not a handshake.
-         * obfuscated when on the wire.
+         * Numbers one through three are interpreted as handshake packets, UINT32_MAX is
+         * a connectToMe packet and anything else is a nonce in a traff packet.
          */
         uint32_t handshakeStage;
 
-        /** Used for authenticating routers to one another, obfuscated when on the wire. */
+        /** Used for authenticating routers to one another. */
         union Headers_AuthChallenge auth;
 
         /** Random nonce for the handshake. */
         uint8_t nonce[24];
 
-        /**
-         * The permanent public key.
-         * In the second cycle, this is zeros encrypted with the final shared secret,
-         * used as a sanity check.
-         */
+        /** This node's permanent public key. */
         uint8_t publicKey[32];
 
         /** This is filled in when the tempKey is encrypted. */
         uint8_t authenticator[16];
 
-        /**
-         * The public key to use for this session, encrypted with the private key.
-         */
+        /** The public key to use for this session, encrypted with the private key. */
         uint8_t encryptedTempKey[32];
     } handshake;
 };
@@ -325,12 +318,12 @@ static inline void Headers_IP6Fragment_setOffset(struct Headers_IP6Fragment* fra
     frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(offset << 3);
 }
 
-static inline bool Headers_IP6Fragment_hasMoreFragments(struct Headers_IP6Fragment* frag)
+static inline int Headers_IP6Fragment_hasMoreFragments(struct Headers_IP6Fragment* frag)
 {
     return frag->fragmentOffsetAndMoreFragments_be & Endian_hostToBigEndian16(1);
 }
 
-static inline void Headers_IP6Fragment_setMoreFragments(struct Headers_IP6Fragment* frag, bool more)
+static inline void Headers_IP6Fragment_setMoreFragments(struct Headers_IP6Fragment* frag, int more)
 {
     if (more) {
         frag->fragmentOffsetAndMoreFragments_be |= Endian_hostToBigEndian16(1);

@@ -17,6 +17,10 @@
 
 #include "memory/Allocator.h"
 
+#if !defined(MallocAllocator_USE_CANARIES) && defined(PARANOIA)
+    #define MallocAllocator_USE_CANARIES
+#endif
+
 /**
  * Create a new Allocator which is a wrapper around malloc().
  *
@@ -26,7 +30,7 @@
  * @param identFile the file where this allocator was created.
  * @param identLine the line where this was called from.
  */
-struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
+struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
                                                   const char* identFile,
                                                   int identLine);
 #define MallocAllocator_new(sl) \
@@ -36,9 +40,17 @@ struct Allocator* MallocAllocator_newWithIdentity(size_t sizeLimit,
  * Get the number of bytes allocated so far by this allocator,
  * all of its parents, and all of its children.
  *
- * @param allocator this *must* be a MallocAllocator, no checking is done!
+ * @param allocator this *must* be a MallocAllocator.
  * @return the number of bytes which have been allocated so far.
  */
-size_t MallocAllocator_bytesAllocated(struct Allocator* allocator);
+unsigned long MallocAllocator_bytesAllocated(struct Allocator* allocator);
+
+/**
+ * Mix randomness into the canary value.
+ *
+ * @param allocator this *must* be a MallocAllocator.
+ * @param value a random machine size word.
+ */
+void MallocAllocator_setCanary(struct Allocator* alloc, long value);
 
 #endif

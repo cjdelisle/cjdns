@@ -61,7 +61,7 @@ void Security_noFiles(struct Except* eh)
     }
 }
 
-void Security_maxMemory(uint32_t max, struct Except* eh)
+void Security_maxMemory(unsigned long max, struct Except* eh)
 {
     // RLIMIT_DATA doesn't prevent malloc() on linux.
     // see: http://lkml.indiana.edu/hypermail/linux/kernel/0707.1/0675.html

@@ -21,7 +21,8 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "interface/TUNMessageType.h"
+#include "exception/Jmp.h"
+#include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
@@ -42,7 +43,6 @@
 #include "wire/Ethernet.h"
 
 #include <stdint.h>
-#include <setjmp.h>
 
 /** Size of the per-message workspace. */
 #define PER_MESSAGE_BUF_SZ 8192
@@ -53,16 +53,12 @@
  * in the big endian representation of the handle shall be cleared to indicate
  * that a session is new and set otherwise.
  */
-#define HANDLE_FLAG_BIT_be Endian_hostToBigEndian32(0x80000000)
+#define HANDLE_FLAG_BIT (0x80000000)
+#define HANDLE_FLAG_BIT_be Endian_hostToBigEndian32(HANDLE_FLAG_BIT)
 
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext);
-
-static void outOfMemory(void* towel)
-{
-    longjmp(*((jmp_buf*) towel), 0);
-}
 
 static inline uint8_t incomingDHT(struct Message* message,
                                   struct Address* addr,
@@ -82,12 +78,16 @@ static inline uint8_t incomingDHT(struct Message* message,
     uint8_t buffer[PER_MESSAGE_BUF_SZ];
     dht.allocator = BufferAllocator_new(buffer, PER_MESSAGE_BUF_SZ);
 
-    jmp_buf towel;
-    if (!setjmp(towel)) {
-        BufferAllocator_onOOM(dht.allocator, outOfMemory, &towel);
-
+    struct Jmp j;
+    Jmp_try(j) {
+        BufferAllocator_onOOM(dht.allocator, &j.handler);
         DHTModuleRegistry_handleIncoming(&dht, context->registry);
+    } Jmp_catch {
+        uint8_t printed[60];
+        Address_print(printed, addr);
+        Log_warn(context->logger, "Parsing message from [%s] failed; out of memory.", printed);
     }
+
     // TODO: return something meaningful.
     return Error_NONE;
 }
@@ -117,6 +117,20 @@ static inline uint8_t sendToRouter(struct Node* node,
     node->version = session->version =
         (node->version > session->version) ? node->version : session->version;
 
+    // Bug 104, see Version.h
+    #ifdef Version_2_COMPAT
+    if (session->version >= 3) {
+    #endif
+        if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+            // Put the handle into the message so that it's authenticated.
+            // see: sendToSwitch()
+            Log_debug(context->logger, "Sending receive handle under CryptoAuth");
+            Message_push(message, &session->receiveHandle_be, 4);
+        }
+    #ifdef Version_2_COMPAT
+    }
+    #endif
+
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
     return session->iface.sendMessage(message, &session->iface);
@@ -127,8 +141,12 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) vcontext);
 
-    struct Message message =
-        { .length = dmessage->length, .bytes = (uint8_t*) dmessage->bytes, .padding = 512 };
+    struct Message message = {
+        .length = dmessage->length,
+        .bytes = (uint8_t*) dmessage->bytes,
+        .padding = 512,
+        .capacity = DHTMessage_MAX_SIZE
+    };
 
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
@@ -195,47 +213,33 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
             (message->length - Headers_UDPHeader_SIZE);
 }
 
-static void debugHandles(struct Log* logger, struct SessionManager_Session* session, char* message)
-{
-    uint8_t ip[40];
-    AddrTools_printIp(ip, session->ip6);
-    int sendHandle;
-    if (!session->sendHandle_be) {
-        sendHandle = -1;
-    } else {
-        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
-    }
-    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s]",
-              message,
-              session->version,
-              sendHandle,
-              Endian_hostToBigEndian32(session->receiveHandle_be),
-              ip);
-}
+#define debugHandles(logger, session, message, ...) \
+    do {                                                                               \
+        uint8_t ip[40];                                                                \
+        AddrTools_printIp(ip, session->ip6);                                           \
+        Log_debug(logger, "ver[%u] send[%d] recv[%u] ip[%s] " message,                 \
+                  session->version,                                                    \
+                  Endian_hostToBigEndian32(session->sendHandle_be),                    \
+                  Endian_hostToBigEndian32(session->receiveHandle_be),                 \
+                  ip,                                                                  \
+                  __VA_ARGS__);                                                        \
+    } while (0)
+//CHECKFILES_IGNORE expecting a ;
 
-static void debugHandlesAndLabel(struct Log* logger,
-                                 struct SessionManager_Session* session,
-                                 uint64_t label,
-                                 char* message)
-{
-    uint8_t ip[40];
-    uint8_t path[20];
-    AddrTools_printIp(ip, session->ip6);
-    AddrTools_printPath(path, label);
-    int sendHandle;
-    if (!session->sendHandle_be) {
-        sendHandle = -1;
-    } else {
-        sendHandle = Endian_hostToBigEndian32(session->sendHandle_be & ~HANDLE_FLAG_BIT_be);
-    }
-    Log_debug(logger, "%s ver[%u] send[%d] recv[%u] ip[%s@%s]",
-              message,
-              session->version,
-              sendHandle,
-              Endian_hostToBigEndian32(session->receiveHandle_be),
-              ip,
-              path);
-}
+#define debugHandles0(logger, session, message) \
+    debugHandles(logger, session, message "%s", "")
+
+#define debugHandlesAndLabel(logger, session, label, message, ...) \
+    do {                                                                               \
+        uint8_t path[20];                                                              \
+        AddrTools_printPath(path, label);                                              \
+        debugHandles(logger, session, "path[%s] " message, path, __VA_ARGS__);         \
+    } while (0)
+//CHECKFILES_IGNORE expecting a ;
+
+#define debugHandlesAndLabel0(logger, session, label, message) \
+    debugHandlesAndLabel(logger, session, label, "%s", message)
+
 
 /**
  * Message which is for us, message is aligned on the beginning of the content.
@@ -244,15 +248,12 @@ static void debugHandlesAndLabel(struct Log* logger,
 static inline uint8_t incomingForMe(struct Message* message,
                                     struct Ducttape_pvt* context,
                                     uint8_t herPubKey[32],
-                                    bool containsHandle)
+                                    bool getHandle)
 {
     struct SessionManager_Session* session = context->session;
-    if (containsHandle && message->length >= 4) {
-        uint32_t handle_be;
-        Message_pop(message, &handle_be, 4);
-        session->sendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-        session->version = (session->version) ? session->version : Version_CURRENT_PROTOCOL;
-        debugHandles(context->logger, session, "New session, incoming layer3");
+    if (getHandle && CryptoAuth_getState(&session->iface) < CryptoAuth_ESTABLISHED) {
+        Message_pop(message, &session->sendHandle_be, 4);
+        debugHandles0(context->logger, session, "New session, incoming layer3");
     }
 
     struct Address addr;
@@ -375,24 +376,28 @@ static inline uint8_t sendToSwitch(struct Message* message,
 {
     // Tag the message with the proper handle.
     struct SessionManager_Session* session = context->session;
-    if (session->version > 0) {
-        // If the session is established, we send their handle for the session,
-        // otherwise we send ours.
-        int state = CryptoAuth_getState(&session->iface);
-        if (state >= CryptoAuth_HANDSHAKE3) {
-            debugHandles(context->logger, session, "Sending run message");
 
-            Message_push(message, &session->sendHandle_be, 4);
-        } else if (state < CryptoAuth_HANDSHAKE3) {
-            debugHandles(context->logger, session, "Sending start message");
+    // If the session is established, we send their handle for the session,
+    // otherwise we send ours.
 
-            // the most significant bit in a handle is reserved to tell the recipient if it is
-            // an initiation handle or a running handle which they should look up in their map.
+    uint64_t label = Endian_bigEndianToHost64(destinationSwitchHeader->label_be);
+
+    if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
+        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
+        uint32_t sendHandle_be = session->sendHandle_be;
+        #ifdef Version_2_COMPAT
+        if (session->version < 3) {
+            sendHandle_be |= HANDLE_FLAG_BIT_be;
+        }
+        #endif
+        Message_push(message, &sendHandle_be, 4);
+    } else {
+        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
+        #ifdef Version_2_COMPAT
+        if (session->version < 3) {
             Message_push(message, &session->receiveHandle_be, 4);
         }
-    } else {
-        debugHandles(context->logger, session, "Sending protocol 0 message");
-        Assert_always(!"wtf why are we communicating with a v0 node?!");
+        #endif
     }
 
     Message_shift(message, Headers_SwitchHeader_SIZE);
@@ -459,6 +464,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
     if (!Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16)) {
         // I'm Gonna Sit Right Down and Write Myself a Letter
+        TUNMessageType_push(message, ethertype);
         iface->sendMessage(message, iface);
         return Error_NONE;
     }
@@ -493,6 +499,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
+    #ifdef Log_DEBUG
+        uint8_t destAddr[40];
+        AddrTools_printIp(destAddr, header->destinationAddr);
+        uint8_t nhAddr[60];
+        Address_print(nhAddr, &bestNext->address);
+        Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
+    #endif
+
     struct SessionManager_Session* session =
         SessionManager_getSession(header->destinationAddr, NULL, context->sm);
 
@@ -513,22 +527,14 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE + 4));
         // now push the receive handle *under* the CA header.
         Message_push(message, &session->receiveHandle_be, 4);
-        Log_debug(context->logger, "Sending layer3 start message");
+        debugHandles0(context->logger, session, "layer3 sending start message");
     } else {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
         Message_shift(message, 20);
         Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
         Message_shift(message, -(20 + Headers_IP6Header_SIZE));
-        Log_debug(context->logger, "Sending layer3 run message");
+        debugHandles0(context->logger, session, "layer3 sending run message");
     }
-
-    #ifdef Log_DEBUG
-        uint8_t destAddr[40];
-        AddrTools_printIp(destAddr, header->destinationAddr);
-        uint8_t nhAddr[60];
-        Address_print(nhAddr, &bestNext->address);
-        Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
-    #endif
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
     context->session = session;
@@ -609,11 +615,6 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
             // This call goes to incomingForMe()
             struct SessionManager_Session* session =
                 SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
-
-            // Used to determine whether there is a handle under the CA header,
-            // see incomingFromCryptoAuth()
-            uint32_t nonce_be = ((uint32_t*)message->bytes)[0];
-            context->initMessage = (Endian_bigEndianToHost32(nonce_be) <= 3);
 
             #ifdef Log_DEBUG
                 uint8_t addr[40];
@@ -719,10 +720,18 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pv
 static inline int incomingFromRouter(struct Message* message, struct Ducttape_pvt* context)
 {
     // If the packet came from a new session, put the send handle in the session.
-    if (context->currentSessionVersion > 0) {
-        context->session->sendHandle_be = context->currentSessionSendHandle_be;
-        context->session->version = context->currentSessionVersion;
-        context->currentSessionVersion = 0;
+    if (CryptoAuth_getState(&context->session->iface) < CryptoAuth_ESTABLISHED) {
+        // If this is true then the incoming message is definitely a handshake.
+        #ifdef Version_2_COMPAT
+        if (context->currentSessionVersion >= 3) {
+            context->session->version = context->currentSessionVersion;
+        #endif
+            Message_pop(message, &context->session->sendHandle_be, 4);
+        #ifdef Version_2_COMPAT
+        } else {
+            context->session->sendHandle_be = context->currentSessionSendHandle_be;
+        }
+        #endif
     }
 
     if (!validEncryptedIP6(message)) {
@@ -757,7 +766,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
             return incomingForMe(message,
                                  context,
                                  CryptoAuth_getHerPublicKey(&context->session->iface),
-                                 context->initMessage);
+                                 true);
         default:
             Assert_always(false);
     }
@@ -896,6 +905,31 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     return Error_NONE;
 }
 
+#ifdef Version_2_COMPAT
+static inline void translateVersion2(struct Message* message, struct Ducttape_pvt* context)
+{
+    uint32_t handle = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
+    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[1]);
+    context->currentSessionVersion = 2;
+    if (handle & HANDLE_FLAG_BIT) {
+        // We have to doctor their handles to make them conform to the new protocol.
+        // see sendToSwitch() where they are un-doctored when being sent back.
+        handle &= ~HANDLE_FLAG_BIT;
+        ((uint32_t*)message->bytes)[0] = Endian_bigEndianToHost32(handle);
+        return;
+    }
+    // This has a 4 / 4294967296 risk of a false positive, losing a traffic packet
+    // between 2 version2 nodes because the first 4 bytes of the content are mistaken
+    // for a nonce.
+    if (nonce <= 3) {
+        context->currentSessionSendHandle_be = Endian_bigEndianToHost32(handle);
+        Message_shift(message, -4);
+        return;
+    }
+    context->currentSessionVersion = 3;
+}
+#endif
+
 /**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
@@ -920,21 +954,27 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return Error_INVALID;
     }
 
+    #ifdef Version_2_COMPAT
+    translateVersion2(message, context);
+    #endif
+
     // #1 try to get the session using the handle.
-    uint32_t version = 1;
-    uint32_t handle_be;
-    Message_pop(message, &handle_be, 4);
-    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
+
+    uint32_t nonceOrHandle = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
 
     struct SessionManager_Session* session = NULL;
 
-    if (nonce > 3) {
-        uint32_t realHandle = Endian_bigEndianToHost32(handle_be & ~HANDLE_FLAG_BIT_be);
-        session = SessionManager_sessionForHandle(realHandle, context->sm);
+    if (nonceOrHandle > 3) {
+        // Run message, it's a handle.
+        session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
+        Message_shift(message, -4);
         if (session) {
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
-                                 "Got running session");
+                                 "running session nonce[%u]",
+                                 Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]));
+        } else {
+            Log_debug(context->logger, "Got message with unrecognized handle");
         }
     } else if (message->length >= Headers_CryptoAuth_SIZE) {
         union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
@@ -943,11 +983,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         AddressCalc_addressForPublicKey(ip6, herKey);
         if (AddressCalc_validAddress(ip6)) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
-            context->currentSessionSendHandle_be = handle_be | HANDLE_FLAG_BIT_be;
-            context->currentSessionVersion = version;
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
-                                 "New session");
+                                 "new session nonce[%d]", nonceOrHandle);
+        } else {
+            Log_debug(context->logger, "Got message with invalid ip addr");
         }
     }
 
@@ -960,17 +1000,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         return 0;
     }
 
-    if (nonce == 0xffffffff) {
-        // Got a message from a node that doesn't know our key, this should never happen.
-        #ifdef Log_INFO
-            uint8_t path[20];
-            AddrTools_printPath(path, Endian_bigEndianToHost64(switchHeader->label_be));
-            Log_info(context->logger, "Dropped packet from node [%s] which doesn't know our key",
-                     path);
-        #endif
-        return 0;
-    }
-
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
     context->switchHeader = switchHeader;
@@ -979,9 +1008,17 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // then incomingFromRouter() then core()
     context->session = session;
     context->layer = Ducttape_SessionLayer_OUTER;
-    session->iface.receiveMessage(message, &session->iface);
 
+    if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
+        debugHandlesAndLabel(context->logger, session,
+                             Endian_bigEndianToHost64(switchHeader->label_be),
+                             "Failed decrypting message NoH[%d] state[%d]",
+                             nonceOrHandle, CryptoAuth_getState(&session->iface));
+    }
+
+    #ifdef Version_2_COMPAT
     context->currentSessionVersion = 0;
+    #endif
 
     return 0;
 }

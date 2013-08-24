@@ -15,5 +15,6 @@ set(Test_FILES
 )
 set(Test_LIBRARIES
     switch
+    util
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)
