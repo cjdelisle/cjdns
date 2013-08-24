@@ -116,12 +116,30 @@ This specifies the settings for the connection interfaces to your node. Right no
         [
             {
                 // Bind to this device (interface name, not MAC etc.)
-                "bind": "eth0", 
-                // Node(s) to connect to.
+                "bind": "eth0",
+                
+                // Auto-connect to other cjdns nodes on the same network.
+                // Options:
+                //
+                // 0 -- Disabled.
+                //
+                // 1 -- Accept beacons, this will cause cjdns to accept incoming
+                //      beacon messages and try connecting to the sender.
+                //
+                // 2 -- Accept and send beacons, this will cause cjdns to broadcast
+                //      messages on the local network which contain a randomly
+                //      generated per-session password, other nodes which have this
+                //      set to 1 or 2 will hear the beacon messages and connect
+                //      automatically.
+                //
+                "beacon": 2,
+                
+                // Node(s) to connect to manually.
                 "connectTo":
                 {
-                    // Add connection credential here to join the network
-                    // Ask your peer on the other side of the link.
+                    // Credentials for connecting look similar to UDP credientials
+                    // except they begin with the mac address, for example:
+                    // "01:02:03:04:05:06":{"password":"a","publicKey":"b"}
                 }
             }
         ]
@@ -141,6 +159,7 @@ This specifies the settings for the connection interfaces to your node. Right no
 - `ETHInterface`:
     - `bind`: This tells cjdns which device the ETHInterface should bind to. This may be different depending on your setup.
     - `connectTo`: The connectTo for the ETHInterface functions almost exactly like it does for the the UDPInterface, except instead of an IP address and a port at the beginning, it is a MAC address.
+    - `beacon`: This controlls peer auto-discovery. Set to 0 to disable auto-peering, 1 to use broadcast auto-peering passwords contained in "beacon" messages from other nodes, and 2 to both broadcast and accept beacons.
     - It is important to note that you must uncomment the ETHInterface if you want to use it
 
 Router
