@@ -17,13 +17,12 @@ elseif(EXISTS ${CMAKE_SOURCE_DIR}.git_commit)
 else()
     find_package(Git)
     execute_process(
-        COMMAND ${GIT_EXECUTABLE} log -n 1
+        COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_LOG
+        OUTPUT_VARIABLE GIT_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    string(REGEX MATCH "[0-9a-f]*\n" GIT_VERSION "${GIT_LOG}")
-    string(REPLACE "\n" "" GIT_VERSION "${GIT_VERSION}")
+    message("The git version ID is ${GIT_VERSION}")
 endif()
 
 add_definitions("-D GIT_VERSION=\\\"${GIT_VERSION}\\\"")
