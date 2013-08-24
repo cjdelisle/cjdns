@@ -241,17 +241,21 @@ static void ethInterface(Dict* config, struct Context* ctx)
         }
         // Setup the interface.
         String* deviceStr = Dict_getString(eth, String_CONST("bind"));
+        Log_info(ctx->logger, "Setting up ETHInterface [%d].", i);
         Dict* d = Dict_new(ctx->alloc);
         if (deviceStr) {
+            Log_info(ctx->logger, "Binding to device [%s].", deviceStr->bytes);
             Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
         }
         if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, false)) {
+            Log_warn(ctx->logger, "Failed to create ETHInterface.");
             continue;
         }
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
         if (connectTo) {
+            Log_info(ctx->logger, "ETHInterface should connect to a specific node.");
             struct Dict_Entry* entry = *connectTo;
             while (entry != NULL) {
                 String* key = (String*) entry->key;
@@ -265,7 +269,10 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+                // Turn the dict from the config into our RPC args dict by filling in all
+                // the arguments,
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
+                Dict_putInt(value, String_CONST("interfaceNumber"), i, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
@@ -279,7 +286,10 @@ static void ethInterface(Dict* config, struct Context* ctx)
             if (beacon > 3 || beacon < 0) {
                 Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
             } else {
-                Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
+                // We can cast beacon to an int here because we know it's small enough
+                Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
+                Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(i),
+                         Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
                 rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
             }
         }
