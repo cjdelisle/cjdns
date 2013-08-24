@@ -283,10 +283,6 @@ static int genconf(struct Random* rand)
            "    // to make them more forgiving in the event that they become desynchronized.\n"
            "    \"resetAfterInactivitySeconds\": 100,\n"
            "\n"
-           "    // Save the pid of the running process to this file.\n"
-           "    // If this file cannot be opened for writing, the router will not start.\n"
-           "    //\"pidFile\": \"cjdroute.pid\",\n"
-           "\n"
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
@@ -315,7 +311,11 @@ static int genconf(struct Random* rand)
            "        // Uncomment to have cjdns log to stdout rather than making logs available\n"
            "        // via the admin socket.\n"
            "        // \"logTo\":\"stdout\"\n"
-           "    }\n"
+           "    },\n"
+           "\n"
+           "    // If set to non-zero, cjdns will not fork to the background.\n"
+           "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
+           "    \"noBackground\":0\n"
            "}\n");
 
     return 0;
@@ -384,7 +384,8 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
         } else if (strcmp(argv[1], "--pidfile") == 0) {
-            // Performed after reading the configuration
+            // deprecated
+            return 0;
         } else if (strcmp(argv[1], "--reconf") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--bench") == 0) {
@@ -554,6 +555,13 @@ int main(int argc, char** argv)
                         eventBase,
                         logger,
                         allocator);
+
+    // --------------------- noBackground ------------------------ //
+
+    int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
+    if (noBackground && *noBackground) {
+        EventBase_beginLoop(eventBase);
+    }
 
     //Allocator_free(allocator);
     return 0;
