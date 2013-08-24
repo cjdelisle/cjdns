@@ -18,6 +18,7 @@ else()
     find_package(Git)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} log -n 1
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_LOG
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
