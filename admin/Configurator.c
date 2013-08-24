@@ -266,7 +266,10 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+                // Turn the dict from the config into our RPC args dict by filling in all
+                // the arguments,
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
+                Dict_putInt(value, String_CONST("interfaceNumber"), i, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
@@ -282,7 +285,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
             } else {
                 // We can cast beacon to an int here because we know it's small enough
                 Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
-                Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
+                Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(i),
+                         Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
                 rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
             }
         }
