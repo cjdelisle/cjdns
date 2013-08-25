@@ -129,6 +129,11 @@ static void coreDied(struct Pipe* p, int status)
     exit(1);
 }
 
+static void clientDisconnected(struct Pipe* p, int status)
+{
+    fprintf(stdout, "Cjdns has started up in the background\n");
+}
+
 /**
  * Input:
  * {
@@ -175,6 +180,7 @@ int AngelInit_main(int argc, char** argv)
 
     struct Pipe* clientPipe = getClientPipe(argc, argv, eventBase, eh, alloc);
     clientPipe->logger = logger;
+    clientPipe->onClose = clientDisconnected;
 
     Log_debug(logger, "Getting pre-configuration from client");
 
