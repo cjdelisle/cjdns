@@ -600,6 +600,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         }
     }
 
+    Assert_true(message->length > 0 && "Empty packet during handshake");
+
     return encryptMessage(message, wrapper);
 }
 
@@ -808,6 +810,10 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         return Error_NONE;
     } else if (wrapper->bufferedMessage) {
         cryptoAuthDebug0(wrapper, "There is a buffered message");
+    } else if (message->length == 0) {
+        // Empty packets are banned during a handshake
+        cryptoAuthDebug0(wrapper, "Empty packet");
+        return Error_NONE;
     }
 
     Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));

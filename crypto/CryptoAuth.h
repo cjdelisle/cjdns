@@ -108,6 +108,10 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 /**
  * Wrap an interface with crypto authentication.
  *
+ * NOTE: Sending empty packets during the handshake is not allowed!
+ *       Empty packets are used for signaling during the handshake so they can
+ *       only be used while the session is in state ESTABLISHED.
+ *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
  * @param requireAuth if the remote end of this interface begins the connection, require

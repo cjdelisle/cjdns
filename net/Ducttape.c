@@ -252,6 +252,10 @@ static inline uint8_t incomingForMe(struct Message* message,
 {
     struct SessionManager_Session* session = context->session;
     if (getHandle && CryptoAuth_getState(&session->iface) < CryptoAuth_ESTABLISHED) {
+        if (message->length < 4) {
+            debugHandles0(context->logger, session, "Runt");
+            return Error_INVALID;
+        }
         Message_pop(message, &session->sendHandle_be, 4);
         debugHandles0(context->logger, session, "New session, incoming layer3");
     }
@@ -273,19 +277,6 @@ static inline uint8_t incomingForMe(struct Message* message,
                        "    %s hash of key\n",
                        srcAddr,
                        keyAddr);
-        #endif
-        return Error_INVALID;
-    }
-
-    if (message->length == 0) {
-        #ifdef Log_WARN
-            uint8_t keyAddr[40];
-            uint8_t ipv6Hex[80];
-            Address_printIp(keyAddr, &addr);
-            Hex_encode(ipv6Hex, 80, (uint8_t*) context->ip6Header, 40);
-            Log_warn(context->logger,
-                      "Got ipv6 packet from %s which has no content!\nIPv6 Header: [%s]",
-                      keyAddr, ipv6Hex);
         #endif
         return Error_INVALID;
     }
