@@ -30,10 +30,26 @@ void Log_print(struct Log* log,
                const char* format,
                ...)
 {
+    static int inLogger;
+    static int droppedMessages;
+    if (inLogger++) {
+        // return prevent stack overflow.
+        droppedMessages++;
+        return;
+    }
+
     va_list args;
     va_start(args, format);
     log->print(log, logLevel, file, line, format, args);
     va_end(args);
+
+    inLogger--;
+
+    if (droppedMessages && !inLogger) {
+        Log_print(log, Log_Level_INFO, __FILE__, __LINE__, "There were [%d] dropped log messages.",
+                  droppedMessages);
+        droppedMessages = 0;
+    }
 }
 
 char* Log_nameForLevel(enum Log_Level logLevel)

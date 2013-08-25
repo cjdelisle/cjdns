@@ -69,6 +69,11 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
     struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) iface);
 
+    if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
+        Log_warn(context->logger, "Maximum queue length reached, dropping packet");
+        return Error_UNDELIVERABLE;
+    }
+
     // This allocator will hold the message allocator in existance after it is freed.
     struct Allocator* reqAlloc = Allocator_child(context->pub.generic.allocator);
     if (m->alloc) {

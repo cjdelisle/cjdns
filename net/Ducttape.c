@@ -717,6 +717,10 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape_pv
         if (context->currentSessionVersion >= 3) {
             context->session->version = context->currentSessionVersion;
         #endif
+            if (message->length < 4) {
+                Log_debug(context->logger, "runt");
+                return Error_INVALID;
+            }
             Message_pop(message, &context->session->sendHandle_be, 4);
         #ifdef Version_2_COMPAT
         } else {
