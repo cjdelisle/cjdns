@@ -246,11 +246,11 @@ def connect(ipAddr, port, password):
     return session
 
 
-def connectWithAdminInfo():
+def connectWithAdminInfo(path=(os.getenv("HOME") + '/.cjdnsadmin')):
     """Connect to cjdns admin with data from user file"""
 
     try:
-        adminInfo = open(os.getenv("HOME") + '/.cjdnsadmin', 'r')
+        adminInfo = open(path, 'r')
     except IOError:
         print('Please create a file named .cjdnsadmin in your ')
         print('home directory with')
