@@ -87,7 +87,7 @@ static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader
  *      +-+-+-+-+-+-+-+-+           Hash Code                           +
  *    4 |                                                               |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *    8 |A|        Derivations          |           Additional          |
+ *    8 |A|        Derivations          |S|         Additional          |
  *      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * If the 'A' bit is set, the packets in the connection are to be authenticated with Poly1305.
@@ -99,6 +99,9 @@ static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader
  * shared secret, Bob can provide Charlie with a hash of his password with Alice which will allow
  * Charlie to then establish a secure connection with Alice, without relying exclusively on
  * asymmetrical cryptography.
+ *
+ * If the packet has 0 length and the 'S' bit is set then the packet is only intended for helping
+ * to setup the Cryptoauth session and should be dropped rather than being passed to the user.
  */
 union Headers_AuthChallenge
 {
@@ -129,6 +132,11 @@ static inline int Headers_isPacketAuthRequired(union Headers_AuthChallenge* ac)
     return ac->challenge.requirePacketAuthAndDerivationCount & Endian_hostToBigEndian16(1<<15);
 }
 
+static inline int Headers_isSetupPacket(union Headers_AuthChallenge* ac)
+{
+    return ac->challenge.additional & Endian_hostToBigEndian16(1<<15);
+}
+
 static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac,
                                                  int require)
 {
@@ -138,6 +146,15 @@ static inline void Headers_setPacketAuthRequired(union Headers_AuthChallenge* ac
     } else {
         ac->challenge.requirePacketAuthAndDerivationCount &=
             Endian_hostToBigEndian16(~(1<<15));
+    }
+}
+
+static inline void Headers_setSetupPacket(union Headers_AuthChallenge* ac, int empty)
+{
+    if (empty) {
+        ac->challenge.additional |= Endian_hostToBigEndian16(1<<15);
+    } else {
+        ac->challenge.additional &= Endian_hostToBigEndian16(~(1<<15));
     }
 }
 

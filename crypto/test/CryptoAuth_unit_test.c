@@ -164,7 +164,7 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
 void helloNoAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
+        "0000000000ffffffffffffff7fff7fffffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
         "6a4d8c53aeaa5a22e6f55c4f45d6906e90ef53d53593d71a4f1af6484ceec3d2"
         "691858481b2fe05d51aaba9a74925c4595fc57ab3287d1fb325a9d0aa238476b"
@@ -176,7 +176,7 @@ void helloNoAuth()
 void helloWithAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "0000000001641c99f7719f570000beb1ffffffffffffffffffffffffffffffff"
+        "0000000001641c99f7719f5700003eb1ffffffffffffffffffffffffffffffff"
         "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
         "6a4d8c53aeaa5a2289427cd94d2710830662b77ef3b00cd6aab129686fce50e9"
         "823d7db9ff0b37c46a7dcfbb40a43ba7b42fb09dfed7d06fed814ddf977e3d9a"

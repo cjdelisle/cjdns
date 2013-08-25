@@ -398,18 +398,22 @@ static uint8_t genReverseHandshake(struct Message* message,
     // now garbage the authenticator and the encrypted key which are not used.
     Random_bytes(wrapper->context->rand, (uint8_t*) &header->handshake.authenticator, 48);
 
+    // This is a special packet which the user should never see.
+    Headers_setSetupPacket(&header->handshake.auth, 1);
+
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
 
-static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
+static uint8_t encryptHandshake(struct Message* message,
+                                struct CryptoAuth_Wrapper* wrapper,
+                                int setupMessage)
 {
     Message_shift(message, sizeof(union Headers_CryptoAuth));
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
 
-    // garbage the auth field to frustrate DPI and set the nonce (next 24 bytes after the auth)
-    Random_bytes(wrapper->context->rand,
-                 (uint8_t*) &header->handshake.auth,
+    // garbage the auth challenge and set the nonce which follows it
+    Random_bytes(wrapper->context->rand, (uint8_t*) &header->handshake.auth,
                  sizeof(union Headers_AuthChallenge) + 24);
 
     // set the permanent key
@@ -431,6 +435,9 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
     header->handshake.auth.challenge.type = wrapper->authType;
 
     Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
+
+    // This is a special packet which the user should never see.
+    Headers_setSetupPacket(&header->handshake.auth, setupMessage);
 
     // Set the session state
     uint32_t sessionState_be = Endian_hostToBigEndian32(wrapper->nextNonce);
@@ -482,7 +489,7 @@ static uint8_t encryptHandshake(struct Message* message, struct CryptoAuth_Wrapp
 
     cryptoAuthDebug(wrapper, "Sending %s%s packet",
                     ((wrapper->nextNonce & 1) ? "repeat " : ""),
-                    ((wrapper->nextNonce == 1) ? "hello" : "key"));
+                    ((wrapper->nextNonce == 0) ? "hello" : "key"));
 
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
@@ -587,7 +594,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     // zero until the first message is received back.
     if (wrapper->nextNonce < 5) {
         if (wrapper->nextNonce < 4) {
-            return encryptHandshake(message, wrapper);
+            return encryptHandshake(message, wrapper, 0);
         } else {
             cryptoAuthDebug0(wrapper, "Doing final step to send message. nonce=4");
             uint8_t secret[32];
@@ -675,7 +682,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         wrapper->user = NULL;
         cryptoAuthDebug0(wrapper, "Got a connect-to-me message, sending a hello");
         // Send an empty response (to initiate the connection).
-        encryptHandshake(message, wrapper);
+        encryptHandshake(message, wrapper, 1);
         return Error_NONE;
     }
 
@@ -800,21 +807,32 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Bits_memcpyConst(wrapper->herPerminentPubKey, herPermKey, 32);
     }
 
-    // If this is a handshake which was initiated in reverse because we
-    // didn't know the other node's key, now send what we were going to send.
-    if (wrapper->bufferedMessage && message->length == 0) {
+/////// XXX This is wrong! but ducttape fails hard if you send 2 packets at the same time.
+    if (message->length == 0 && wrapper->bufferedMessage) {
         cryptoAuthDebug0(wrapper, "Sending buffered message");
         sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
         Allocator_free(wrapper->bufferedMessage->alloc);
         wrapper->bufferedMessage = NULL;
-        return Error_NONE;
-    } else if (wrapper->bufferedMessage) {
-        cryptoAuthDebug0(wrapper, "There is a buffered message");
-    } else if (message->length == 0) {
-        // Empty packets are banned during a handshake
-        cryptoAuthDebug0(wrapper, "Empty packet");
+    }
+
+    if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
         return Error_NONE;
     }
+/*
+    // If this is a handshake which was initiated in reverse because we
+    // didn't know the other node's key, now send what we were going to send.
+
+    if (wrapper->bufferedMessage) {
+        cryptoAuthDebug0(wrapper, "Sending buffered message");
+        sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
+        Allocator_free(wrapper->bufferedMessage->alloc);
+        wrapper->bufferedMessage = NULL;
+    }
+
+    if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
+        return Error_NONE;
+    }
+*/
 
     Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 

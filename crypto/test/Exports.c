@@ -45,7 +45,7 @@ int Exports_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secr
 
 uint8_t Exports_encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper)
 {
-    return encryptHandshake(message, wrapper);
+    return encryptHandshake(message, wrapper, 0);
 }
 
 void Exports_receiveMessage(struct Message* received, struct Interface* interface)
