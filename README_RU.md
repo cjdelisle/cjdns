@@ -53,19 +53,14 @@ Cjdns было протестировано на  x86, amd64, ARMv5, ARMv7, MIPS
 
 ## Безопастность
 
-When you receive a packet of information from the Internet, it seems logical to assume that it was
-meant for you, that it came from the computer which it says it came from and that nobody else has
-been reading or modifying it on the way. While many popular software applications are designed
-around these assumptions, the existing Internet does not guarantee any of them and a number of
-network security exploits come from the cases where these assumptions break down.
-Cjdns aims to guarantee these assumptions by using modern cryptography in a non-intrusive way.
+Когда вы получаете информационный пакет из интернета, это означает, что он предназначен для вас, но никто не знает, модифицировался ли пакет по пути или же нет. 
+Множество програм которые взаимодействуют с интернетом, не проверяют неизменность пакета, а такие програмно-аппаратные средства как DPI, могут вносить значительные изменения в пакеты.
+Cjdns гарантирует, что пакет по пути был не кем не модифицирован, что подтверждается криптографическими средствами, которые используются в этом протоколе.
 
-Cjdns protects your information from being altered en-route and while you can
-create arbitrary identities, you cannot impersonate another existing node on
-the network, making man-in-the-middle attacks unfeasible.
+Cjdns защищает информацию которая поступает к вам, от использования заведомо ложного маршрута, что позволяет полностью избежать атаки man-in-the-middle.
 
 
-## Simplicity
+## Простота
 
 Imagine a network where all the engineer has to do was plug in the wires, the computers
 instinctively know how to find each other. This is the ultimate goal of cjdns. It is understood
