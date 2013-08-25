@@ -472,6 +472,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
+            context->forwardTo = NULL;
             return sendToRouter(bestNext, message, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
@@ -530,7 +531,9 @@ static inline uint8_t incomingFromTun(struct Message* message,
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
     context->session = session;
     context->layer = Ducttape_SessionLayer_INNER;
-    return session->iface.sendMessage(message, &session->iface);
+    uint8_t ret = session->iface.sendMessage(message, &session->iface);
+    context->forwardTo = NULL;
+    return ret;
 }
 
 /**
