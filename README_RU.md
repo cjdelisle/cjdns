@@ -62,26 +62,20 @@ Cjdns защищает информацию которая поступает к
 
 ## Простота
 
-Imagine a network where all the engineer has to do was plug in the wires, the computers
-instinctively know how to find each other. This is the ultimate goal of cjdns. It is understood
-that some network engineering will always be necessary but reducing it and simplifying what remains
-are top priorities.
+Представьте себе такую компьютерную сеть, в которой все что нужно сделать инженеру - это подключить компьтер сетевым кабелем, компьютер сам узнает как найти других и сам сконфигурируется. 
+Это и есть основная цель cjdns. Конечо же, сетевые специалисты всё еще будут нужны, для решения сложных технических вопросов, но бОльшую часть решения проблем сможет взять на себя cjdns.
 
+## Масштабируемость
 
-## Scalability
-
-Cjdns is built around a bold and unproven assumption. It is assumed that a non-hierarchical network
-can scale. Cjdns uses a technique similar to Distributed Hash Tables in order to spread the load of
-routing among a number of nodes rather than requiring every node to know the full path to every
-other node.
-
+С основе Cjdns лежат принципы одноранговой сети, таким образом, cjdns может мастшабироватся бесконечно - нет большой нагрузки на какой-то определенный узел.
+Cjdns использует распределенную хэш таблицу (DHT) для обмена маршрутами, это позволяет не иметь карту всей сети каждому узлу (не раздувать таблицу маршрутов).
 
 ## Testimonials
 
     23:26 <@jercos> well, cjdns is now officially more reliable than the open internet for getting to my cheaper VPSes :|
 
 
-## How does routing work?
+## Как работает роутинг?
 
 In order to understand how cjdns routing works, it is important to understand
 how the existing Internet works when you send a packet. At each "intersection
