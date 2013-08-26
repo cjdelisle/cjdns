@@ -220,75 +220,64 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
 
 ## 4: Безопастность - Проверьте открытые порты.
 
-Once your node is running, you're now a newly minted IPv6 host. Your operating
-system may automatically reconfigure network services to use this new address.
-If this is not what you intend, you should check to see that you are not
-offering more services then you intended to.  ;)
+Как только вы подключились к глобальной сети cjdns - вы стали обладателем публичного IPv6 адреса, проверьте что ваши сервисы, не доступны из внешней сети.
 
-See [doc/network-services.md](doc/network-services.md) for instructions.
+Подробнее [doc/network-services.md](doc/network-services.md)
 
 
-## 5: Start it up!
+## 5: Запускаем!
 
     sudo ./cjdroute < cjdroute.conf
 
-If you want to have your logs written to a file:
+Если вы хотите записывать логи в файл, то:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+Остановка cjdns осуществляется следующим образом:
 
     sudo killall cjdroute
  
-If you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
+Если вы испытваете проблемы при использовании `killall cjdroute`. Используйте `pgrep cjdroute` или `top` для определения, запущен ли он.
 
-## 6: Get in IRC
+## 6: Войдите в IRC
 
-Welcome to the network, you are now a real network administrator.
-There are responsibilities which come with being a network administrator which include
-being available in case there is something wrong with your equipment. You can connect to irc via
-irc.efnet.org.
-The channel to join is #cjdns and you should stay there so that we are able to reach you.
+Добро пожаловать в сеть, в которой вы настоящий системный администратор.
+По любым вопросам вы можете проконсультироватся в IRC, на сервере irc.efnet.org канал - #cjdns
 
-## Notes
+## Заметки
 
-This starts cjdroute as the root user so cjdroute can configure your system and shed permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups below.
+Нормальная установка cjdns подразумивает запуск от имени администратора, если вы не считаете нужным давать такие привелегии cjdns, то вы можете воспользоватся инструкцией ниже, запустив его не от root.
 
-Protect your conf file! A lost conf file means you lost your password and connections and anyone who connected to you will nolonger be able to connect. A *compromised* conf file means that other people can impersonate you on the network.
+Защищайте файл настроек, именно он ваша безопасность в сети, ваш идентификатор. Если у вас его уркадут то ваша безопасность будет скомпроментирована, злоумышленник сможет представится вами в сети.
 
     chmod 400 cjdroute.conf
     mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
 
-# Accessing the cjdns admin interface
+# Получаем доступ к интерфейсу администратора в cjdns
 
-When cjdnroute is up and running, an administrative interface will listen on localhost:11234
-(this can be changed in the cjdroute.conf configuration file).
+Когда cjdroute запущен и работает, интерфейс администратора доступ по адресу localhost:11234 (Обратите внимание, что это не веб интерйес, веб интерфейс вы можете получить используя nodejs cjdns admin)
+(Настройки порта и пароля для доступа к интерфейсу администратора доступны в файле cjdroute.conf).
 
-You can access this api using the following tools, to get interesting information.
-
-See [admin/README.md](admin/README.md) for more information about the Admin
-interface.
+Каким образом получить доступ к данному интерйесу вы можете прочитать по этим ссылкам: [admin/README.md](admin/README.md).
 
 
-python library
+Библиотека для python 
 --------------
 
-cjdns comes with a python library to access the api. For more information, read
-the [readme](contrib/python/README.md).
+cjdns поставляется с библиотекой для python которая позволяет получить доступ к admin API. Больше информации вы можете получить здесь [readme](contrib/python/README.md).
 
 
-perl library
+Библиотека для perl
 ------------
 
-The perl port of the python api library is maintained by Mikey. For usage
-instructions, head over to the [readme](contrib/perl/CJDNS/README).
+Библиотека для perl подерживается разработчиком Mikey. Инструкции по использованию можно получить тут [readme](contrib/perl/CJDNS/README).
 
 
-# Advanced configuration
+# Продвинутая настройка
 
-* [Run cjdns as a non-root user](doc/non-root-user.md)
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Запуск cjdns не от root](doc/non-root-user.md)
+* [Настройка ПК как cjdns NAT gateway для вашей домашней сети](doc/nat-gateway.md)
+* [Установка cjdns на OpenIndiana](doc/open-indiana.md)
 
 
 [beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
