@@ -832,6 +832,12 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     enum Ducttape_SessionLayer layer = dtHeader->layer;
     dtHeader->layer = Ducttape_SessionLayer_INVALID;
 
+    if (!session) {
+        // This should never happen but there's no strong preventitive.
+        Log_info(context->logger, "SESSION DISAPPEARED!");
+        return 0;
+    }
+
     if (layer == Ducttape_SessionLayer_OUTER) {
         return sendToSwitch(message, dtHeader, session, context);
     } else {
