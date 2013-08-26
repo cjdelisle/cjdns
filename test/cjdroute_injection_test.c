@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#define PADDING 512
+
 int main()
 {
     // This is valid benc but it takes over 75k of memory (on an amd64)
@@ -77,7 +79,7 @@ int main()
     // This has to be limited because we are checking for an OOM issue.
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
-    uint8_t* buff = Allocator_calloc(allocator, buffLen, 1);
+    uint8_t* buff = Allocator_calloc(allocator, buffLen + PADDING, 1);
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
     uint8_t* herPublicKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
@@ -91,7 +93,7 @@ int main()
 
     strncpy((char*)(udp + 1), evilBenc, strlen(evilBenc));
 
-    struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
+    struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
 
     Ducttape_injectIncomingForMe(&m, dt, herPublicKey);
 

@@ -93,47 +93,70 @@ static inline uint8_t incomingDHT(struct Message* message,
 }
 
 /** Header must not be encrypted and must be aligned on the beginning of the ipv6 header. */
-static inline uint8_t sendToRouter(struct Node* node,
-                                   struct Message* message,
+static inline uint8_t sendToRouter(struct Message* message,
+                                   struct Ducttape_MessageHeader* dtHeader,
+                                   struct SessionManager_Session* session,
                                    struct Ducttape_pvt* context)
 {
-    struct Address* addr = &node->address;
+    int safeDistance = Headers_SwitchHeader_SIZE;
 
-    // We have to copy out the switch header because it
-    // will probably be clobbered by the crypto headers.
-    struct Headers_SwitchHeader header;
-    if (context->switchHeader) {
-        Bits_memcpyConst(&header, context->switchHeader, Headers_SwitchHeader_SIZE);
-    } else {
-        Bits_memset(&header, 0, Headers_SwitchHeader_SIZE);
-    }
-    header.label_be = Endian_hostToBigEndian64(addr->path);
-    context->switchHeader = &header;
-
-    // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
-    struct SessionManager_Session* session =
-        SessionManager_getSession(addr->ip6.bytes, addr->key, context->sm);
-
-    node->version = session->version =
-        (node->version > session->version) ? node->version : session->version;
-
-    // Bug 104, see Version.h
-    #ifdef Version_2_COMPAT
-    if (session->version >= 3) {
-    #endif
-        if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+    if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+        // Bug 104, see Version.h
+        #ifdef Version_2_COMPAT
+        if (session->version >= 3) {
+        #endif
             // Put the handle into the message so that it's authenticated.
             // see: sendToSwitch()
             Log_debug(context->logger, "Sending receive handle under CryptoAuth");
             Message_push(message, &session->receiveHandle_be, 4);
+        #ifdef Version_2_COMPAT
+        } else {
+            // Otherwise it will be added on the other side.
+            safeDistance += 4;
         }
-    #ifdef Version_2_COMPAT
-    }
-    #endif
+        #endif
 
-    context->session = session;
-    context->layer = Ducttape_SessionLayer_OUTER;
+        safeDistance += Headers_CryptoAuth_SIZE;
+    } else {
+        // 16 for the authenticator, 4 for the nonce and 4 for the handle
+        safeDistance += 24;
+    }
+
+    Message_shift(message, safeDistance);
+    if (dtHeader->switchHeader) {
+        if (message->bytes != (uint8_t*)dtHeader->switchHeader) {
+            Bits_memmoveConst(message->bytes, dtHeader->switchHeader, Headers_SwitchHeader_SIZE);
+            dtHeader->switchHeader = (struct Headers_SwitchHeader*) message->bytes;
+        }
+    } else {
+        dtHeader->switchHeader = (struct Headers_SwitchHeader*) message->bytes;
+        Bits_memset(dtHeader->switchHeader, 0, Headers_SwitchHeader_SIZE);
+    }
+    Message_shift(message, -safeDistance);
+
+    dtHeader->switchHeader->label_be = Endian_hostToBigEndian64(dtHeader->switchLabel);
+
+
+    // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
+    dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+    dtHeader->layer = Ducttape_SessionLayer_OUTER;
     return session->iface.sendMessage(message, &session->iface);
+}
+
+static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool init)
+{
+    int padding = message->padding - 80;
+    Assert_true(padding > Ducttape_MessageHeader_SIZE);
+    Message_shift(message, padding);
+    struct Ducttape_MessageHeader* dtHeader = (struct Ducttape_MessageHeader*) message->bytes;
+    Message_shift(message, -padding);
+    if (init) {
+        Bits_memset(dtHeader, 0, Ducttape_MessageHeader_SIZE);
+        Identity_set(dtHeader);
+    } else {
+        Identity_check(dtHeader);
+    }
+    return dtHeader;
 }
 
 static int handleOutgoing(struct DHTMessage* dmessage,
@@ -179,22 +202,25 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     uh->checksum_be =
         Checksum_udpIp6(header->sourceAddr, (uint8_t*) uh, message.length - Headers_IP6Header_SIZE);
 
-    context->ip6Header = header;
-    context->switchHeader = NULL;
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(&message, true);
+    dtHeader->ip6Header = header;
+    dtHeader->switchLabel = dmessage->address->path;
 
-    struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
-    struct Node ns;
-    if (!n) {
-        // TODO: this is a mess
-        Bits_memcpyConst(&ns.address, dmessage->address, sizeof(struct Address));
-        if (dmessage->replyTo) {
-            int64_t* verPtr = Dict_getInt(dmessage->replyTo->asDict, String_CONST("p"));
-            ns.version = (verPtr) ? *verPtr : 0;
-        }
-        n = &ns;
+    struct SessionManager_Session* session =
+        SessionManager_getSession(dmessage->address->ip6.bytes,
+                                  dmessage->address->key,
+                                  context->sm);
+    if (session->version == Version_DEFAULT_ASSUMPTION && dmessage->replyTo) {
+        int64_t* verPtr = Dict_getInt(dmessage->replyTo->asDict, String_CONST("p"));
+        session->version = (verPtr) ? *verPtr : Version_DEFAULT_ASSUMPTION;
+    }
+    if (session->version == Version_DEFAULT_ASSUMPTION) {
+        struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
+        n->version = session->version =
+            (n->version > session->version) ? n->version : session->version;
     }
 
-    sendToRouter(n, &message, context);
+    sendToRouter(&message, dtHeader, session, context);
 
     return 0;
 }
@@ -246,29 +272,20 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
  * this is called from core() which calls through an interfaceMap.
  */
 static inline uint8_t incomingForMe(struct Message* message,
+                                    struct Ducttape_MessageHeader* dtHeader,
+                                    struct SessionManager_Session* session,
                                     struct Ducttape_pvt* context,
-                                    uint8_t herPubKey[32],
-                                    bool getHandle)
+                                    uint8_t herPublicKey[32])
 {
-    struct SessionManager_Session* session = context->session;
-    if (getHandle && CryptoAuth_getState(&session->iface) < CryptoAuth_ESTABLISHED) {
-        if (message->length < 4) {
-            debugHandles0(context->logger, session, "Runt");
-            return Error_INVALID;
-        }
-        Message_pop(message, &session->sendHandle_be, 4);
-        debugHandles0(context->logger, session, "New session, incoming layer3");
-    }
-
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
     //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
 
-    if (Bits_memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
+    if (Bits_memcmp(addr.ip6.bytes, dtHeader->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
             uint8_t keyAddr[40];
             Address_printIp(keyAddr, &addr);
-            Bits_memcpyConst(addr.ip6.bytes, context->ip6Header->sourceAddr, 16);
+            Bits_memcpyConst(addr.ip6.bytes, dtHeader->ip6Header->sourceAddr, 16);
             uint8_t srcAddr[40];
             Address_printIp(srcAddr, &addr);
             Log_debug(context->logger,
@@ -281,11 +298,11 @@ static inline uint8_t incomingForMe(struct Message* message,
         return Error_INVALID;
     }
 
-    if (isRouterTraffic(message, context->ip6Header)) {
+    if (isRouterTraffic(message, dtHeader->ip6Header)) {
         // Check the checksum.
         struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
 
-        if (Checksum_udpIp6(context->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
+        if (Checksum_udpIp6(dtHeader->ip6Header->sourceAddr, (uint8_t*)uh, message->length)) {
             #ifdef Log_DEBUG
                 uint8_t keyAddr[40];
                 Address_printIp(keyAddr, &addr);
@@ -297,8 +314,8 @@ static inline uint8_t incomingForMe(struct Message* message,
 
         // Shift off the UDP header.
         Message_shift(message, -Headers_UDPHeader_SIZE);
-        addr.path = Endian_bigEndianToHost64(context->switchHeader->label_be);
-        Bits_memcpyConst(addr.key, herPubKey, 32);
+        addr.path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be);
+        Bits_memcpyConst(addr.key, herPublicKey, 32);
         return incomingDHT(message, &addr, context);
     }
 
@@ -309,20 +326,20 @@ static inline uint8_t incomingForMe(struct Message* message,
     }
 
     // prevent router advertizement schenanigans
-    if (context->ip6Header->hopLimit == 255) {
-        context->ip6Header->hopLimit--;
+    if (dtHeader->ip6Header->hopLimit == 255) {
+        dtHeader->ip6Header->hopLimit--;
     }
 
     // Now write a message to the TUN device.
     // Need to move the ipv6 header forward up to the content because there's a crypto header
     // between the ipv6 header and the content which just got eaten.
     Message_shift(message, Headers_IP6Header_SIZE);
-    uint16_t sizeDiff = message->bytes - (uint8_t*)context->ip6Header;
+    uint16_t sizeDiff = message->bytes - (uint8_t*)dtHeader->ip6Header;
     if (sizeDiff) {
-        context->ip6Header->payloadLength_be =
+        dtHeader->ip6Header->payloadLength_be =
             Endian_hostToBigEndian16(
-                Endian_bigEndianToHost16(context->ip6Header->payloadLength_be) - sizeDiff);
-        Bits_memmoveConst(message->bytes, context->ip6Header, Headers_IP6Header_SIZE);
+                Endian_bigEndianToHost16(dtHeader->ip6Header->payloadLength_be) - sizeDiff);
+        Bits_memmoveConst(message->bytes, dtHeader->ip6Header, Headers_IP6Header_SIZE);
     }
 
     TUNMessageType_push(message, Ethernet_TYPE_IP6);
@@ -336,25 +353,22 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
                                      uint8_t herPublicKey[32])
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)dt);
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct Headers_SwitchHeader sh;
     Bits_memcpyConst(&sh, message->bytes, Headers_SwitchHeader_SIZE);
-    context->switchHeader = &sh;
+    dtHeader->switchHeader = &sh;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
 
     struct Headers_IP6Header ip6;
     Bits_memcpyConst(&ip6, message->bytes, Headers_IP6Header_SIZE);
-    context->ip6Header = &ip6;
+    dtHeader->ip6Header = &ip6;
     Message_shift(message, -Headers_IP6Header_SIZE);
 
     struct SessionManager_Session s;
     AddressCalc_addressForPublicKey(s.ip6, herPublicKey);
     s.version = Version_CURRENT_PROTOCOL;
 
-    context->session = &s;
-    uint8_t ret = incomingForMe(message, context, herPublicKey, false);
-    context->session = NULL;
-
-    return ret;
+    return incomingForMe(message, dtHeader, &s, context, herPublicKey);
 }
 
 /**
@@ -362,16 +376,11 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
  * Switchheader will precede the message.
  */
 static inline uint8_t sendToSwitch(struct Message* message,
-                                   struct Headers_SwitchHeader* destinationSwitchHeader,
+                                   struct Ducttape_MessageHeader* dtHeader,
+                                   struct SessionManager_Session* session,
                                    struct Ducttape_pvt* context)
 {
-    // Tag the message with the proper handle.
-    struct SessionManager_Session* session = context->session;
-
-    // If the session is established, we send their handle for the session,
-    // otherwise we send ours.
-
-    uint64_t label = Endian_bigEndianToHost64(destinationSwitchHeader->label_be);
+    uint64_t label = dtHeader->switchLabel;
 
     if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
         debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
@@ -392,14 +401,8 @@ static inline uint8_t sendToSwitch(struct Message* message,
     }
 
     Message_shift(message, Headers_SwitchHeader_SIZE);
-    struct Headers_SwitchHeader* switchHeaderLocation =
-        (struct Headers_SwitchHeader*) message->bytes;
 
-    // This will be false if an incoming connect-to-me packet caused the cryptoAuth to send
-    // back a hello packet.
-    if (destinationSwitchHeader != switchHeaderLocation) {
-        Bits_memmoveConst(message->bytes, destinationSwitchHeader, Headers_SwitchHeader_SIZE);
-    }
+    Assert_true(message->bytes == (uint8_t*)dtHeader->switchHeader);
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
@@ -460,11 +463,21 @@ static inline uint8_t incomingFromTun(struct Message* message,
         return Error_NONE;
     }
 
-    context->switchHeader = NULL;
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
     struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
-    context->forwardTo = bestNext;
+    struct SessionManager_Session* nextHopSession;
     if (bestNext) {
+        nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
+                                                   bestNext->address.key,
+                                                   context->sm);
+
+        bestNext->version = nextHopSession->version = (bestNext->version > nextHopSession->version)
+            ? bestNext->version : nextHopSession->version;
+
+        dtHeader->switchLabel = bestNext->address.path;
+        dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(nextHopSession->receiveHandle_be);
+
         if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
             // Direct send, skip the innermost layer of encryption.
             #ifdef Log_DEBUG
@@ -472,12 +485,11 @@ static inline uint8_t incomingFromTun(struct Message* message,
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             #endif
-            context->forwardTo = NULL;
-            return sendToRouter(bestNext, message, context);
+            return sendToRouter(message, dtHeader, nextHopSession, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup
         // of the best node to forward to, we can skip doing another lookup by storing a pointer
-        // to that node in the context (forwardTo).
+        // to that node in the context (bestNext).
     } else {
         #ifdef Log_WARN
             uint8_t thisAddr[40];
@@ -529,11 +541,9 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
-    context->session = session;
-    context->layer = Ducttape_SessionLayer_INNER;
-    uint8_t ret = session->iface.sendMessage(message, &session->iface);
-    context->forwardTo = NULL;
-    return ret;
+    dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+    dtHeader->layer = Ducttape_SessionLayer_INNER;
+    return session->iface.sendMessage(message, &session->iface);
 }
 
 /**
@@ -545,7 +555,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
 static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
-    context->switchHeader = NULL;
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
     struct Node* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
@@ -557,7 +567,15 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
                 Address_print(nhAddr, &n->address);
                 Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
             #endif
-            return sendToRouter(n, message, context);
+
+            struct SessionManager_Session* session =
+                SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+
+            n->version = session->version = (n->version > session->version)
+                ? n->version : session->version;
+
+            dtHeader->switchLabel = n->address.path;
+            return sendToRouter(message, dtHeader, session, context);
         }
     }
 
@@ -597,61 +615,72 @@ static uint8_t sendToTun(struct Message* message, struct Interface* iface)
  * they may come from us, or from another node and may be to us or to any other node.
  * Message is aligned on the beginning of the ipv6 header.
  */
-static inline int core(struct Message* message, struct Ducttape_pvt* context)
+static inline int core(struct Message* message,
+                       struct Ducttape_MessageHeader* dtHeader,
+                       struct SessionManager_Session* session,
+                       struct Ducttape_pvt* context)
 {
-    context->ip6Header = (struct Headers_IP6Header*) message->bytes;
+    struct Headers_IP6Header* ip6Header = (struct Headers_IP6Header*) message->bytes;
+    dtHeader->ip6Header = ip6Header;
 
     if (isForMe(message, context)) {
         Message_shift(message, -Headers_IP6Header_SIZE);
 
-        if (Bits_memcmp(context->session->ip6, context->ip6Header->sourceAddr, 16)) {
+        if (Bits_memcmp(session->ip6, ip6Header->sourceAddr, 16)) {
             // triple encrypted
             // This call goes to incomingForMe()
             struct SessionManager_Session* session =
-                SessionManager_getSession(context->ip6Header->sourceAddr, NULL, context->sm);
+                SessionManager_getSession(ip6Header->sourceAddr, NULL, context->sm);
 
             #ifdef Log_DEBUG
                 uint8_t addr[40];
-                AddrTools_printIp(addr, context->ip6Header->sourceAddr);
+                AddrTools_printIp(addr, ip6Header->sourceAddr);
                 Log_debug(context->logger, "Incoming layer3 message, ostensibly from [%s]", addr);
             #endif
 
-            context->session = session;
-            context->layer = Ducttape_SessionLayer_INNER;
+            dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
+            dtHeader->layer = Ducttape_SessionLayer_INNER;
             return session->iface.receiveMessage(message, &session->iface);
         } else {
             // double encrypted, inner layer plaintext.
             // The session is still set from the router-to-router traffic and that is the one we use
             // to determine the node's id.
-            return incomingForMe(message,
-                                 context,
-                                 CryptoAuth_getHerPublicKey(&context->session->iface),
-                                 false);
+            return incomingForMe(message, dtHeader, session, context,
+                                 CryptoAuth_getHerPublicKey(&session->iface));
         }
     }
 
-    if (context->ip6Header->hopLimit == 0) {
+    if (ip6Header->hopLimit == 0) {
         Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
         // TODO: send back an error message in response.
         return Error_UNDELIVERABLE;
     }
-    context->ip6Header->hopLimit--;
+    ip6Header->hopLimit--;
 
-    struct Node* nextHop = context->forwardTo;
-    context->forwardTo = NULL;
-    if (!nextHop) {
-        nextHop = RouterModule_lookup(context->ip6Header->destinationAddr, context->routerModule);
+    struct SessionManager_Session* nextHopSession = NULL;
+    if (!dtHeader->nextHopReceiveHandle || !dtHeader->switchLabel) {
+        struct Node* n = RouterModule_lookup(ip6Header->destinationAddr, context->routerModule);
+        if (n) {
+            nextHopSession =
+                SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
+            dtHeader->switchLabel = n->address.path;
+        }
+    } else {
+        nextHopSession =
+            SessionManager_sessionForHandle(dtHeader->nextHopReceiveHandle, context->sm);
     }
 
-    if (nextHop) {
+    if (nextHopSession) {
         #ifdef Log_DEBUG
-            struct Address* addr = &nextHop->address;
+            struct Address addr;
+            Bits_memcpyConst(addr.ip6.bytes, nextHopSession->ip6, 16);
+            addr.path = dtHeader->switchLabel;
             uint8_t nhAddr[60];
-            Address_print(nhAddr, addr);
-            if (Bits_memcmp(context->ip6Header->destinationAddr, addr->ip6.bytes, 16)) {
+            Address_print(nhAddr, &addr);
+            if (Bits_memcmp(ip6Header->destinationAddr, addr.ip6.bytes, 16)) {
                 // Potentially forwarding for ourselves.
                 struct Address destination;
-                Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+                Bits_memcpyConst(destination.ip6.bytes, ip6Header->destinationAddr, 16);
                 uint8_t ipAddr[40];
                 Address_printIp(ipAddr, &destination);
                 Log_debug(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
@@ -660,12 +689,12 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
-        return sendToRouter(nextHop, message, context);
+        return sendToRouter(message, dtHeader, nextHopSession, context);
     }
 
     #ifdef Log_INFO
         struct Address destination;
-        Bits_memcpyConst(destination.ip6.bytes, context->ip6Header->destinationAddr, 16);
+        Bits_memcpyConst(destination.ip6.bytes, ip6Header->destinationAddr, 16);
         uint8_t ipAddr[40];
         Address_printIp(ipAddr, &destination);
         Log_info(context->logger, "Dropped message because this node is the closest known "
@@ -679,7 +708,10 @@ static inline int core(struct Message* message, struct Ducttape_pvt* context)
  * for the content level crypto then it goes to outgoingFromCryptoAuth then comes here.
  * Message is aligned on the beginning of the CryptoAuth header.
  */
-static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pvt* context)
+static inline uint8_t outgoingFromMe(struct Message* message,
+                                     struct Ducttape_MessageHeader* dtHeader,
+                                     struct SessionManager_Session* session,
+                                     struct Ducttape_pvt* context)
 {
     // Move back to the beginning of the ip6Header behind the crypto.
     Message_shift(message, Headers_IP6Header_SIZE);
@@ -708,30 +740,14 @@ static inline uint8_t outgoingFromMe(struct Message* message, struct Ducttape_pv
 
     // Forward this call to core() which will check its validity
     // and since it's not to us, forward it to the correct node.
-    return core(message, context);
+    return core(message, dtHeader, session, context);
 }
 
-static inline int incomingFromRouter(struct Message* message, struct Ducttape_pvt* context)
+static inline int incomingFromRouter(struct Message* message,
+                                     struct Ducttape_MessageHeader* dtHeader,
+                                     struct SessionManager_Session* session,
+                                     struct Ducttape_pvt* context)
 {
-    // If the packet came from a new session, put the send handle in the session.
-    if (CryptoAuth_getState(&context->session->iface) < CryptoAuth_ESTABLISHED) {
-        // If this is true then the incoming message is definitely a handshake.
-        #ifdef Version_2_COMPAT
-        if (context->currentSessionVersion >= 3) {
-            context->session->version = context->currentSessionVersion;
-        #endif
-            if (message->length < 4) {
-                Log_debug(context->logger, "runt");
-                return Error_INVALID;
-            }
-            Message_pop(message, &context->session->sendHandle_be, 4);
-        #ifdef Version_2_COMPAT
-        } else {
-            context->session->sendHandle_be = context->currentSessionSendHandle_be;
-        }
-        #endif
-    }
-
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
@@ -739,8 +755,8 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape_pv
         struct IpTunnel_PacketInfoHeader* header =
             (struct IpTunnel_PacketInfoHeader*) message->bytes;
 
-        uint8_t* pubKey = CryptoAuth_getHerPublicKey(&context->session->iface);
-        uint8_t* addr = context->session->ip6;
+        uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
+        uint8_t* addr = session->ip6;
         Bits_memcpyConst(header->nodeIp6Addr, addr, 16);
         Bits_memcpyConst(header->nodeKey, pubKey, 32);
 
@@ -749,22 +765,52 @@ static inline int incomingFromRouter(struct Message* message, struct Ducttape_pv
     }
 
     //Log_debug(context->logger, "Got message from router.\n");
-    return core(message, context);
+    return core(message, dtHeader, session, context);
 }
+
 
 static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
-    enum Ducttape_SessionLayer layer = context->layer;
-    context->layer = Ducttape_SessionLayer_INVALID;
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
+    enum Ducttape_SessionLayer layer = dtHeader->layer;
+    struct SessionManager_Session* session =
+        SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
+
+    // If the packet came from a new session, put the send handle in the session.
+    if (CryptoAuth_getState(iface) < CryptoAuth_ESTABLISHED) {
+        // If this is true then the incoming message is definitely a handshake.
+        if (message->length < 4) {
+            debugHandles0(context->logger, session, "runt");
+            return Error_INVALID;
+        }
+        if (layer == Ducttape_SessionLayer_OUTER) {
+            #ifdef Version_2_COMPAT
+            if (dtHeader->currentSessionVersion >= 3) {
+                session->version = dtHeader->currentSessionVersion;
+            #endif
+                Message_pop(message, &session->sendHandle_be, 4);
+            #ifdef Version_2_COMPAT
+            } else {
+                session->sendHandle_be = dtHeader->currentSessionSendHandle_be;
+            }
+            #endif
+        } else {
+            // inner layer, always grab the handle
+            Message_pop(message, &session->sendHandle_be, 4);
+            debugHandles0(context->logger, session, "New session, incoming layer3");
+        }
+    }
+
+
+
+    dtHeader->layer = Ducttape_SessionLayer_INVALID;
     switch (layer) {
         case Ducttape_SessionLayer_OUTER:
-            return incomingFromRouter(message, context);
+            return incomingFromRouter(message, dtHeader, session, context);
         case Ducttape_SessionLayer_INNER:
-            return incomingForMe(message,
-                                 context,
-                                 CryptoAuth_getHerPublicKey(&context->session->iface),
-                                 true);
+            return incomingForMe(message, dtHeader, session, context,
+                                 CryptoAuth_getHerPublicKey(iface));
         default:
             Assert_always(false);
     }
@@ -775,15 +821,18 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
 static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->senderContext);
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
+    struct SessionManager_Session* session =
+        SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
 
-    enum Ducttape_SessionLayer layer = context->layer;
-    context->layer = Ducttape_SessionLayer_INVALID;
+    enum Ducttape_SessionLayer layer = dtHeader->layer;
+    dtHeader->layer = Ducttape_SessionLayer_INVALID;
 
     if (layer == Ducttape_SessionLayer_OUTER) {
-        return sendToSwitch(message, context->switchHeader, context);
+        return sendToSwitch(message, dtHeader, session, context);
     } else {
         Log_debug(context->logger, "Sending layer3 message");
-        return outgoingFromMe(message, context);
+        return outgoingFromMe(message, dtHeader, session, context);
     }
 }
 
@@ -904,11 +953,12 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 }
 
 #ifdef Version_2_COMPAT
-static inline void translateVersion2(struct Message* message, struct Ducttape_pvt* context)
+static inline void translateVersion2(struct Message* message,
+                                     struct Ducttape_MessageHeader* dtHeader)
 {
     uint32_t handle = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[1]);
-    context->currentSessionVersion = 2;
+    dtHeader->currentSessionVersion = 2;
     if (handle & HANDLE_FLAG_BIT) {
         // We have to doctor their handles to make them conform to the new protocol.
         // see sendToSwitch() where they are un-doctored when being sent back.
@@ -920,11 +970,11 @@ static inline void translateVersion2(struct Message* message, struct Ducttape_pv
     // between 2 version2 nodes because the first 4 bytes of the content are mistaken
     // for a nonce.
     if (nonce <= 3) {
-        context->currentSessionSendHandle_be = Endian_bigEndianToHost32(handle);
+        dtHeader->currentSessionSendHandle_be = Endian_bigEndianToHost32(handle);
         Message_shift(message, -4);
         return;
     }
-    context->currentSessionVersion = 3;
+    dtHeader->currentSessionVersion = 3;
 }
 #endif
 
@@ -936,6 +986,9 @@ static inline void translateVersion2(struct Message* message, struct Ducttape_pv
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)switchIf->senderContext);
+
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
+
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
     Message_shift(message, -Headers_SwitchHeader_SIZE);
 
@@ -953,7 +1006,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     #ifdef Version_2_COMPAT
-    translateVersion2(message, context);
+    translateVersion2(message, dtHeader);
     #endif
 
     // #1 try to get the session using the handle.
@@ -971,6 +1024,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                                  Endian_bigEndianToHost64(switchHeader->label_be),
                                  "running session nonce[%u]",
                                  Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]));
+            dtHeader->receiveHandle = nonceOrHandle;
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");
         }
@@ -984,6 +1038,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
                                  "new session nonce[%d]", nonceOrHandle);
+            dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
         } else {
             Log_debug(context->logger, "Got message with invalid ip addr");
         }
@@ -1000,12 +1055,11 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     // This is needed so that the priority and other information
     // from the switch header can be passed on properly.
-    context->switchHeader = switchHeader;
+    dtHeader->switchHeader = switchHeader;
 
     // This goes to incomingFromCryptoAuth()
     // then incomingFromRouter() then core()
-    context->session = session;
-    context->layer = Ducttape_SessionLayer_OUTER;
+    dtHeader->layer = Ducttape_SessionLayer_OUTER;
 
     if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
         debugHandlesAndLabel(context->logger, session,
@@ -1013,10 +1067,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                              "Failed decrypting message NoH[%d] state[%d]",
                              nonceOrHandle, CryptoAuth_getState(&session->iface));
     }
-
-    #ifdef Version_2_COMPAT
-    context->currentSessionVersion = 0;
-    #endif
 
     return 0;
 }
@@ -1042,7 +1092,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->registry = registry;
     context->routerModule = routerModule;
     context->logger = logger;
-    context->forwardTo = NULL;
     context->eventBase = eventBase;
     context->alloc = allocator;
     Identity_set(context);

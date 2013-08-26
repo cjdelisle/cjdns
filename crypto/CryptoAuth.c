@@ -807,18 +807,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Bits_memcpyConst(wrapper->herPerminentPubKey, herPermKey, 32);
     }
 
-/////// XXX This is wrong! but ducttape fails hard if you send 2 packets at the same time.
-    if (message->length == 0 && wrapper->bufferedMessage) {
-        cryptoAuthDebug0(wrapper, "Sending buffered message");
-        sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
-        Allocator_free(wrapper->bufferedMessage->alloc);
-        wrapper->bufferedMessage = NULL;
-    }
-
-    if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
-        return Error_NONE;
-    }
-/*
     // If this is a handshake which was initiated in reverse because we
     // didn't know the other node's key, now send what we were going to send.
 
@@ -832,7 +820,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
         return Error_NONE;
     }
-*/
 
     Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 

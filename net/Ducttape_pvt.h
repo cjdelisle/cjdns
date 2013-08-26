@@ -71,22 +71,10 @@ struct Ducttape_pvt
 
     struct Log* logger;
 
-    // Changes on a message-by-message basis.
+    /** For tunneling IPv4 and ICANN IPv6 packets. */
+    struct IpTunnel* ipTunnel;
 
-    /** This is set by incomingFromSwitch. */
-    struct Headers_SwitchHeader* switchHeader;
-
-    /** This is set in core() and expected by incomingForMe(). */
-    struct Headers_IP6Header* ip6Header;
-
-    /**
-     * If not NULL, we know which node we want to forward the message to so an extra lookup
-     * can be avoided.
-     */
-    struct Node* forwardTo;
-
-    /** The current session, used for getting the key, ipv6, and version of the other party. */
-    struct SessionManager_Session* session;
+    struct Allocator* alloc;
 
     /** Number of milliseconds to wait between searches for a node to send arbitrary data to. */
     uint32_t timeBetweenSearches;
@@ -94,18 +82,25 @@ struct Ducttape_pvt
     /** Absolute time of last search for node to send arbitrary data to. */
     uint64_t timeOfLastSearch;
 
-    /** The interface for the SwitchPinger. */
-    struct Interface* switchPingerIf;
+    Identity
+};
 
+
+struct Ducttape_MessageHeader
+{
     /**
      * This is to tell the code whether it is in the outer later of encryption or the inner layer.
      */
     enum Ducttape_SessionLayer layer;
 
-    /** For tunneling IPv4 and ICANN IPv6 packets. */
-    struct IpTunnel* ipTunnel;
+    struct Headers_SwitchHeader* switchHeader;
+    struct Headers_IP6Header* ip6Header;
 
-    struct Allocator* alloc;
+    uint32_t nextHopReceiveHandle;
+
+    uint32_t receiveHandle;
+
+    uint64_t switchLabel;
 
 #ifdef Version_2_COMPAT
     /**
@@ -118,5 +113,7 @@ struct Ducttape_pvt
 
     Identity
 };
+
+#define Ducttape_MessageHeader_SIZE ((int)sizeof(struct Ducttape_MessageHeader))
 
 #endif

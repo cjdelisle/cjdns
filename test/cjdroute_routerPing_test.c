@@ -24,6 +24,8 @@
 
 #include <stdio.h>
 
+#define PADDING 512
+
 uint8_t catchResponse(struct Message* msg, struct Interface* iface)
 {
     iface->receiverContext = msg;
@@ -39,8 +41,8 @@ int main()
 
     struct Allocator* allocator = MallocAllocator_new(85000);
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(pingBenc);
-    uint8_t* buff = Allocator_calloc(allocator, buffLen, 1);
-    struct Headers_SwitchHeader* sh = (struct Headers_SwitchHeader*) buff;
+    uint8_t* buff = Allocator_calloc(allocator, buffLen+PADDING, 1);
+    struct Headers_SwitchHeader* sh = (struct Headers_SwitchHeader*) (buff + PADDING);
     sh->label_be = Endian_hostToBigEndian64(4);
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) &sh[1];
 
@@ -62,20 +64,20 @@ int main()
 
     // bad checksum
     udp->checksum_be = 1;
-    struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
+    struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
     Ducttape_injectIncomingForMe(&m, &dt->public, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
-    struct Message m2 = { .bytes = buff, .length = buffLen, .padding = 0 };
+    struct Message m2 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
     Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
         Checksum_udpIp6(ip6->sourceAddr, (uint8_t*) udp, strlen(pingBenc) + Headers_UDPHeader_SIZE);
-    struct Message m3 = { .bytes = buff, .length = buffLen, .padding = 0 };
+    struct Message m3 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
     Ducttape_injectIncomingForMe(&m3, &dt->public, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
 
