@@ -184,7 +184,7 @@ Caleb James DeLisle  ==  cjdelisle  ==  cjd
                 // Ask somebody who is already connected.
             }
 
-После добваления данных друга он будет выглядеть так:
+После добавления данных друга он будет выглядеть так:
 
             // Nodes to connect to.
             "connectTo":
