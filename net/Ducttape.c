@@ -145,7 +145,7 @@ static inline uint8_t sendToRouter(struct Message* message,
 
 static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool init)
 {
-    int padding = message->padding - 80;
+    int padding = message->padding;
     Assert_true(padding > Ducttape_MessageHeader_SIZE);
     Message_shift(message, padding);
     struct Ducttape_MessageHeader* dtHeader = (struct Ducttape_MessageHeader*) message->bytes;

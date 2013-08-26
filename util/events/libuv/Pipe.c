@@ -153,8 +153,10 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     return Error_NONE;
 }
 
-#define PADDING (Pipe_PADDING_AMOUNT + sizeof(uintptr_t))
-#define ALLOC(buff) (((struct Allocator**) &(buff[-PADDING]))[0])
+#if Pipe_PADDING_AMOUNT < 8
+    #error
+#endif
+#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
 
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
@@ -204,11 +206,11 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) handle->data);
     size = Pipe_BUFFER_CAP;
-    size_t fullSize = size + PADDING;
+    size_t fullSize = size + Pipe_PADDING_AMOUNT;
 
     struct Allocator* child = Allocator_child(pipe->alloc);
     char* buff = Allocator_malloc(child, fullSize);
-    buff += PADDING;
+    buff += Pipe_PADDING_AMOUNT;
 
     ALLOC(buff) = child;
 

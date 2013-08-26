@@ -120,8 +120,10 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     return Error_NONE;
 }
 
-#define PADDING (UDPAddrInterface_PADDING_AMOUNT + sizeof(uintptr_t))
-#define ALLOC(buff) (((struct Allocator**) &(buff[-PADDING]))[0])
+#if UDPAddrInterface_PADDING_AMOUNT < 8
+    #error
+#endif
+#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,
@@ -168,11 +170,11 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
     struct UDPAddrInterface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
     size = UDPAddrInterface_BUFFER_CAP;
-    size_t fullSize = size + PADDING + context->pub.addr->addrLen;
+    size_t fullSize = size + UDPAddrInterface_PADDING_AMOUNT + context->pub.addr->addrLen;
 
     struct Allocator* child = Allocator_child(context->pub.generic.allocator);
     char* buff = Allocator_malloc(child, fullSize);
-    buff += PADDING;
+    buff += UDPAddrInterface_PADDING_AMOUNT + context->pub.addr->addrLen;
 
     ALLOC(buff) = child;
 
