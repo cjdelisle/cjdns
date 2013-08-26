@@ -774,8 +774,15 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
     enum Ducttape_SessionLayer layer = dtHeader->layer;
+    dtHeader->layer = Ducttape_SessionLayer_INVALID;
     struct SessionManager_Session* session =
         SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
+
+    if (!session) {
+        // This should never happen but there's no strong preventitive.
+        Log_info(context->logger, "SESSION DISAPPEARED!");
+        return 0;
+    }
 
     // If the packet came from a new session, put the send handle in the session.
     if (CryptoAuth_getState(iface) < CryptoAuth_ESTABLISHED) {
@@ -802,9 +809,6 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
         }
     }
 
-
-
-    dtHeader->layer = Ducttape_SessionLayer_INVALID;
     switch (layer) {
         case Ducttape_SessionLayer_OUTER:
             return incomingFromRouter(message, dtHeader, session, context);
