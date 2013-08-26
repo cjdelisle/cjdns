@@ -1,6 +1,7 @@
 # cjdns
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
+Russian Readme Version, Русская версия Readme [README_RU.md]
 
 Encrypted networking for regular people.
 
