@@ -1,102 +1,108 @@
-# cjdns
+# Cjdns
+
+#### *Encrypted networking for regular people.*
+
+Cjdns implements an encrypted IPv6 network using public-key cryptography for
+address allocation and a distributed hash table for routing. This provides
+near-zero-configuration networking, and prevents many of the security and
+robustness issues that plague regular IPv4 and IPv6 networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
-
-Encrypted networking for regular people.
-
-Cjdns implements an encrypted IPv6 network using public key cryptography for
-address allocation and a distributed hash table for routing. This provides
-near zero-configuration networking without many of the security and robustness
-issues that regular IPv4 and IPv6 networks have.
 
 
 ## Why?
 
-To give regular people more power over their communications.
+Cjdns gives regular people more power over their communications.
 
-Why are we lacking power and what does that mean? The Internet is in many ways
-the great equalizer, bringing to everyone the powers once reserved to those
-wealthy enough to own a radio station or a newspaper. Still the ownership of
-the actual infrastructure of the net is exclusive for many reasons, mostly
-because the protocols involved are simply too complex for regular people to
-use. (For instance, how many isolated wifi networks are in your neighbourhood -
-why are they not meshed and providing backhaul transit amongst each other in
-a robust, secure fashion : complexity).
+The Internet is the great equalizer, giving everyone the communicative powers
+once reserved for those wealthy enough to own a radio station or a newspaper.
+Yet, the complexity of the Internet's protocols has excluded most people from
+owning their part of the infrastructure. For example, how many isolated wifi
+networks are in your neighbourhood? Why aren't they meshed and providing
+backhaul transit among each other in a robust, secure fashion? Complexity.
 
-The centralization of power is seen in closure of websites such as wikileaks
-amid public outcry.  Without speaking to the validity of one type of speech or
-another, it is fair to say that in a truly democratic world, only the most
-unpopular content such as child abuse, fraud and spam would be censored.
+There's now a centralization of power over the Internet. Governments are
+unashamedly storing and reading data in transit. Websites such as Wikileaks are
+censored amid public outcry. Internet filtering schemes are becoming
+commonplace.
+
+Cjdns provides a network where these abuses of power are impossible; where the
+fundamental principles of the Internet are cryptographically protected.
 
 
 ## How close is it to complete?
 
-A live testing network exists with roughly 300 active nodes. The software has
-been tested and is known to work on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32
-and PowerPC64. It is continually tested on Linux systems. While the software
-itself is stable, the protocols and algorithms are new inventions and we still
-don't understand how they work in the real world. Please update early and often
-to give developers the maximum latitude to make tweaks to the protocol and
-algorithms.
+[Hyperboria][] is the largest cjdns network, with hundreds of active nodes
+around the world.
+
+Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32, and
+PowerPC64. It is continually tested on Linux systems.
+
+While the software itself is stable, the protocols and algorithms are
+experimental and subject to change. To minimize the harm to the network, please
+update your cjdns nodes often.
 
 
-## You Can Help!
+### You can help!
 
-We are in desperate need for buildbots running on Apple OSX systems. If you would
-like to donate one, you could mail it or set it up to run all of the time and
-provide remote shell access. Please join the IRC channel (see the end of this
-document) and ask about this and other ways you can help. :)
+We are in desperate need for buildbots running on Apple OSX systems. If you
+would like to donate one, you could mail it or set it up to run all of the time
+and provide remote shell access. Please join the [IRC channel](#community) and
+ask how you can help.
 
 
 ## Anonymity
 
-Unlike TOR, I2P and Freenet, cjdns was not designed to provide anonymity against
-a determined adversary, cjdns does not use sub-optimal routing to bolster
-anonymity at the cost of performance. Cjdns users do have a measure of anonymity
-based on the fact that information is only shared between nodes on a
-need-to-know basis and only those peers who you have manually connected to need
-to know your IPv4 address.
+Unlike [Tor][], [I2P][] and [Freenet][], cjdns was not designed to provide
+anonymity against a determined adversary. Cjdns does not use sub-optimal routing
+to bolster anonymity at the cost of performance. Cjdns users do have a measure
+of anonymity based on the fact that information is only shared between nodes on
+a need-to-know basis and only those peers who you have manually connected to
+need to know your IPv4 address.
 
-The most obvious way to get someone's identifying information would be to trace
-the path through the network between you and them, then demand that each 
-operator along the path reveal the identity of the next. If your directly linked
-peers have secure computers and are [beyond pain] then you have very little to
-worry about.
+The most obvious way to identify a node's owner would would be to trace the path
+through the network between you and them, then demand that each operator along
+the path reveal the identity of the next. If their directly-linked peers have
+secure computers and are [beyond pain][], then they have very little to worry
+about.
 
 
 ## Security
 
-When you receive a packet of information from the Internet, it seems logical to assume that it was
-meant for you, that it came from the computer which it says it came from and that nobody else has
-been reading or modifying it on the way. While many popular software applications are designed
-around these assumptions, the existing Internet does not guarantee any of them and a number of
-network security exploits come from the cases where these assumptions break down.
-Cjdns aims to guarantee these assumptions by using modern cryptography in a non-intrusive way.
+When you receive a packet of information from the Internet, it seems logical to
+assume that it was meant for you, that it came from the computer which it says
+it came from and that nobody else has been reading or modifying it on the way.
+While many popular software applications are designed around these assumptions,
+the existing Internet does not guarantee any of them and a number of network
+security exploits come from the cases where these assumptions break down.
 
-Cjdns protects your information from being altered en-route and while you can
-create arbitrary identities, you cannot impersonate another existing node on
-the network, making man-in-the-middle attacks unfeasible.
+Cjdns guarantees confidentiality, authenticity and integrity of data by using
+modern cryptography in a non-intrusive way. Information transmitted over a cjdns
+network can't be altered or read en-route. While you can create multiple
+identities, it's practically impossible to impersonate other nodes on the
+network, eliminating man-in-the-middle attacks.
 
 
 ## Simplicity
 
-Imagine a network where all the engineer has to do was plug in the wires, the computers
-instinctively know how to find each other. This is the ultimate goal of cjdns. It is understood
-that some network engineering will always be necessary but reducing it and simplifying what remains
-are top priorities.
+Imagine a network where all the engineer has to do is plug in the wires, and the
+computers instinctively know how to find each other. This is the ultimate goal
+of cjdns. Of course, some network engineering will always be necessary, but
+reducing it and simplifying what remains are top priorities.
 
 
 ## Scalability
 
-Cjdns is built around a bold and unproven assumption. It is assumed that a non-hierarchical network
-can scale. Cjdns uses a technique similar to Distributed Hash Tables in order to spread the load of
-routing among a number of nodes rather than requiring every node to know the full path to every
-other node.
+Cjdns is built around the bold and unproven assumption that a non-hierarchical
+network can scale. Cjdns uses a [distributed hash table][] to spread the load
+of routing among a number of nodes, rather than requiring every node know the
+exact location of every other node.
 
 
 ## Testimonials
 
-    23:26 <@jercos> well, cjdns is now officially more reliable than the open internet for getting to my cheaper VPSes :|
+    23:26 <@jercos> well, cjdns is now officially more reliable than the open
+                    internet for getting to my cheaper VPSes :|
 
 
 ## How does routing work?
@@ -110,52 +116,63 @@ In the cjdns net, a packet goes to a router and the router labels the packet
 with directions to the router best able to handle it. That is, a router which
 is physically nearby and has an address numerically close to the destination
 address of the packet. The directions are added to the packet to allow it to go
-through a number of routers with minimal handling,
-*a verifiable form of source routing*. They just read the label and bounce the
-packet wherever the next bits in the label tell them to. Routers have a
-responsibility to "keep in touch" with other routers that are physically close
-by and numerically near to their address.
+through a number of routers with minimal handling, *a verifiable form of source
+routing*. They just read the label and bounce the packet wherever the next bits
+in the label tell them to. Routers have a responsibility to "keep in touch"
+with other routers that are physically close by and numerically near to their
+address.
 
-The router engine is a modified implementation of the Kademlia DHT design.
+The router engine is a modified implementation of the [Kademlia][] distributed
+hash table.
 
 
 ## What about DNS?
 
 DNS is a complex system to implement and highly complex to implement without
-central authority.  If you would like to offer help with this part, I invite
-you to come join.
+central authority. If you would like to offer help with this part, I invite you
+to come join.
 
 
-## Where did the name cjdns come from?
+## Where's the name from?
 
-Cjdns was based on a codebase which was originally intended to handle name resolution (DNS) and so
-it was a combination of 'cjd' and 'dns'. The project changed direction early on and currently is
-still lacking DNS resolution but the name stuck. Make up your own acronym for it if you like.
+Cjdns was based on a codebase which was originally intended to handle name
+resolution (DNS) and so it was a combination of 'cjd' and 'dns'. The project
+changed direction early on and currently is still lacking DNS resolution but
+the name stuck. Make up your own acronym for it if you like.
 
 
-## Further Reading & Discussion
+## Community
 
-Please read [the Whitepaper](rfcs/Whitepaper.md), or at least skim it.
+* irc://irc.efnet.org/#cjdns ([web client][IRC Web])
+* [Hyperboria][]
+* [Project Meshnet][]
+* [/r/darknetplan][]
+* [#cjdns on Twitter][]
 
-If you are still interested in this project and want to follow it,
-get in the channel on IRC:
 
-  * irc://irc.EFNet.org/#cjdns
-  * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
+## Documentation
+
+* [Cjdns Whitepaper](doc/Whitepaper.md)
+* [Cjdns on Wikipedia][]
+
+Advanced configuration:
+
+* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install cjdns on OpenIndiana](doc/open-indiana.md)
 
 Thank you for your time and interest,
-Caleb James DeLisle  ==  cjdelisle  ==  cjd
+
+Caleb James DeLisle == cjdelisle == cjd
 
 --------------------------------------------------------------------------------
 
+## How to install cjdns
 
-# How to install cjdns
+These instructions are for Debian-based Linux distributions. They should be
+informative enough for user on other distributions - just don't expect them to
+work verbatim.
 
-These instructions are for Debian / Debian derived distributions. They should
-be informative enough for user on other distributions - just don't expect them
-to work verbatim.
-
-## 0. Install the build tools you will need.
+### 0. Install dependencies
 
     sudo apt-get install cmake git build-essential
 
@@ -163,127 +180,150 @@ Installing cmake, although preferable, is not strictly necessary.  If cmake is
 unavailable or an unacceptable version, it will be downloaded and built in the
 source tree.
 
-## 1. Retrieve cjdns from GitHub.
+### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
     git clone https://github.com/cjdelisle/cjdns.git cjdns
     cd cjdns
 
-## 2. Build.
+### 2. Build
 
     ./do
 
-Look for `Build completed successfully, type ./cjdroute to begin setup.`, then proceed below:
+Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
+proceed below:
 
 --------------------------------------------------------------------------------
 
-
-# Setup
+## Setup
 
 Run cjdroute without options for HELP:
 
     ./cjdroute
 
-## 0: Make sure you've got the stuff.
+### 0. Make sure you've got the stuff.
 
     cat /dev/net/tun
 
 If it says: `cat: /dev/net/tun: File descriptor in bad state` Good!
 
-If it says: `cat: /dev/net/tun: No such file or directory`
+If it says: `cat: /dev/net/tun: No such file or directory`, create it using:
 
-Create it using:
-
-    sudo mkdir /dev/net ; sudo mknod /dev/net/tun c 10 200 && sudo chmod 0666 /dev/net/tun
+    sudo mkdir /dev/net &&
+    sudo mknod /dev/net/tun c 10 200 &&
+    sudo chmod 0666 /dev/net/tun
 
 Then `cat /dev/net/tun` again.
 
-If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS based on the OpenVZ virtualization platform. Ask your provider to enable the TUN/TAP device, this is standard protocol so they should know exactly what you need.
+If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
+based on the OpenVZ virtualization platform. Ask your provider to enable the
+TUN/TAP device - this is standard protocol so they should know exactly what you
+need.
 
 
-## 1: Generate a new configuration file.
+### 1. Generate a new configuration file
 
     ./cjdroute --genconf >> cjdroute.conf
 
-## 2: Find a friend.
+**Protect your conf file!** A lost conf file means you lost your password and
+connections and anyone who connected to you will no longer be able to connect.
+A compromised conf file means that other people can impersonate you on the
+network.
 
-In order to get into the network you need to meet someone who is also in the network and connect to them. This is required for a number of reasons:
+To set permissions on the conf file so that only your user can read it:
 
-1. It is a preventative measure against abuse because bad people will be less likely to abuse a system after they were, in an act of human kindness, given access to that system.
-2. This is not intended to overlay The Old Internet, it is intended to replace it. Each connection will in due time be replaced by a wire, a fiber optic cable, or a wireless network connection.
-3. In any case of a disagreement, there will be a "chain of friends" linking the people involved so there will already be a basis for coming to a resolution.
+    chmod 400 cjdroute.conf
 
-tl;dr Get out and make some human contact once in a while!
 
-You can meet people to peer with in the IRC channel:
+### 2. Find a friend
 
-  * irc://irc.EFNet.org/#cjdns
-  * http://chat.efnet.org:9090/?channels=%23cjdns&Login=Login
+To get into an existing network (e.g. Hyperboria), you need to connect to
+someone who is already in the network. This is required for a number of
+reasons:
 
-NOTE: If you're just interested in setting up a local network between your own computers, this step is not necessary.
+1. It helps prevent abuse because bad people will be less likely to abuse a
+   system after they were, in an act of human kindness, given access to that
+   system.
+2. This is not intended to overlay The Old Internet, it is intended to replace
+   it. Each connection will in due time be replaced by a wire, a fiber optic
+   cable, or a wireless network connection.
+3. In any case of a disagreement, there will be a "chain of friends" linking
+   the people involved so there will already be a basis for coming to a
+   resolution.
 
-## 3: Fill in your friend's info.
+To find a friend, get out there and join our [community](#community). Also, have
+a look at the [Project Meshnet Map][] to find peers near you (note: scroll the
+map right, not left; the markers don't repeat).
 
-In your cjdroute.conf file, you will see:
 
-            // Nodes to connect to.
-            "connectTo":
-            {
-                // Add connection credentials here to join the network
-                // Ask somebody who is already connected.
-            }
+### 3. Fill in your friend's info
 
-After adding their connection credentials, it will look like:
+In your conf file, you will see:
 
-            // Nodes to connect to.
-            "connectTo":
-            {
-                "0.1.2.3:45678":
-                {
-                    "password": "thisIsNotARealConnection",
-                    "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k"
-                }
-            }
+``` javascript
+// Nodes to connect to.
+"connectTo":
+{
+    // Add connection credentials here to join the network
+    // Ask somebody who is already connected.
+}
+```
 
-You can add as many connections as you want to your "connectTo" section.
+After adding their connection credentials, it should look like:
+
+``` javascript
+// Nodes to connect to.
+"connectTo":
+{
+    "0.1.2.3:45678":
+    {
+        "password": "thisIsNotARealConnection",
+        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k"
+    }
+}
+```
+
+You can add as many connections as you want to the `connectTo` attribute,
+following JSON syntax.
 
 Your own connection credentials will be shown in a JSON comment above in your
-"authorizedPasswords" section. Do not modify this but if you want to allow someone
-to connect to you, give it to them.
+"authorizedPasswords" section. Do not modify this but if you want to allow
+someone to connect to you, give it to them.
 
 It looks like this:
 
-        /* These are your connection credentials
-           for people connecting to you with your default password.
-           adding more passwords for different users is advisable
-           so that leaks can be isolated.
+``` javascript
+/* These are your connection credentials for people connecting to you with your
+default password. Adding more passwords for different users is advisable so
+that leaks can be isolated.
 
-            "your.external.ip.goes.here:12345":
-            {
-                "password": "thisIsNotARealConnectionEither",
-                "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k"
-            }
-        */
+"your.external.ip.goes.here:12345":
+{
+    "password": "thisIsNotARealConnectionEither",
+    "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k"
+}
+*/
+```
 
-`your.external.ip.goes.here` is to be replaced with the IPv4 address which people will use to
-connect to you from over The Old Internet.
+`your.external.ip.goes.here` is to be replaced with the IPv4 address which
+people will use to connect to you from over The Old Internet.
 
-The [rfcs/configure.md](rfcs/configure.md) page contains more details on
-configuration, including how to peer with other cjdns nodes over ethernet
-(including wifi).
+See [doc/configure.md](doc/configure.md) for more details on configuration,
+including how to peer with other cjdns nodes over ethernet and wifi.
 
-## 4: SECURITY RISK - Check for listening services.
+
+### 4. Secure your system - check for listening services
 
 Once your node is running, you're now a newly minted IPv6 host. Your operating
 system may automatically reconfigure network services to use this new address.
 If this is not what you intend, you should check to see that you are not
-offering more services then you intended to.  ;)
+offering more services then you intended to. ;)
 
 See [doc/network-services.md](doc/network-services.md) for instructions.
 
 
-## 5: Start it up!
+### 5. Start it up!
 
     sudo ./cjdroute < cjdroute.conf
 
@@ -294,56 +334,51 @@ If you want to have your logs written to a file:
 To stop cjdns:
 
     sudo killall cjdroute
- 
-If you are having problems use `killall cjdroute` to return to sanity. Use `pgrep cjdroute` or `top` to see if it running.
 
-## 6: Get in IRC
+If you are having problems use `killall cjdroute` to return to sanity. Use
+`pgrep cjdroute` or `top` to see if it running.
 
-Welcome to the network, you are now a real network administrator.
-There are responsibilities which come with being a network administrator which include
-being available in case there is something wrong with your equipment. You can connect to irc via
-irc.efnet.org.
-The channel to join is #cjdns and you should stay there so that we are able to reach you.
-
-## Notes
-
-This starts cjdroute as the root user so cjdroute can configure your system and shed permissions. If you really want to start cjdroute as a non-root user, see Non-Standard Setups below.
-
-Protect your conf file! A lost conf file means you lost your password and connections and anyone who connected to you will nolonger be able to connect. A *compromised* conf file means that other people can impersonate you on the network.
-
-    chmod 400 cjdroute.conf
-    mkdir /etc/cjdns && cp ./cjdroute.conf /etc/cjdns/
-
-# Accessing the cjdns admin interface
-
-When cjdnroute is up and running, an administrative interface will listen on localhost:11234
-(this can be changed in the cjdroute.conf configuration file).
-
-You can access this api using the following tools, to get interesting information.
-
-See [admin/README.md](admin/README.md) for more information about the Admin
-interface.
+**Note:** this starts cjdns as the root user so it can configure your system
+without concern for permissions. To start cjdns as a non-root user, see
+[doc/non-root-user.md](doc/non-root-user.md).
 
 
-python library
---------------
+### 6. Get in IRC
 
-cjdns comes with a python library to access the api. For more information, read
-the [readme](contrib/python/README.md).
-
-
-perl library
-------------
-
-The perl port of the python api library is maintained by Mikey. For usage
-instructions, head over to the [readme](contrib/perl/CJDNS/README).
+Welcome to the network! You're now a network administrator. There are
+responsibilities which come with being a network administrator which include
+being available in case there is something wrong with your equipment. You should
+stay on [IRC](#community) so that people can reach you.
 
 
-# Advanced configuration
+## Admin interface
 
-* [Run cjdns as a non-root user](doc/non-root-user.md)
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+When cjdnroute is up and running, the admin interface will be available at
+<http://localhost:11234> (this can be changed in the cjdroute.conf
+configuration file). See [admin/README.md](admin/README.md) for more
+information about the admin interface.
+
+You can access the admin API with:
+
+* the **Python library**; see
+  [contrib/python/README.md](contrib/python/README.md).
+* the **Perl library**, maintained by Mikey; see
+  [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
 
 
-[beyond pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
+[IRC Web]: http://chat.efnet.org:9090/?channels=#cjdns
+[Hyperboria]: http://hyperboria.net
+[Project Meshnet]: https://projectmeshnet.org
+[/r/darknetplan]: http://www.reddit.com/r/darknetplan
+[#cjdns on Twitter]: https://twitter.com/search?q=#hyperboria
+[Project Meshnet Map]: http://map.projectmeshnet.org
+
+[Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
+[Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
+[Beyond Pain]: https://lists.torproject.org/pipermail/tor-dev/2012-October/004063.html
+[Kademlia]: https://en.wikipedia.org/wiki/Kademlia
+
+[Tor]: https://www.torproject.org
+[I2P]: http://www.i2p2.de
+[Freenet]: https://freenetproject.org
+
