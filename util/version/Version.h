@@ -166,6 +166,18 @@
  * As of version 3, implementations must not send handles which are less than 4 so that when they
  * receive them back, they will not be confused with the initial 4 bytes of a CryptoAuth setup
  * packet which is not preceeded by a handle.
+ *
+ * ----------------------------------
+ *
+ * Version 4:
+ * August 27, 2013
+ */
+#define Version_isCompat4(x, y) \
+    ((x == 4) ? (y > 0) : Version_isCompat3(x, y))
+/*
+ * This version makes no protocol changes but fixes a nasty bug with forwarding which caused
+ * messages to be forwarded to random nodes, updated to encourage nodes to forward via others
+ * who do not have the bug.
  */
 
 
@@ -178,13 +190,13 @@
  * numbered isCompat macro.
  */
 #define Version_isCompatConst(x, y) \
-    ((x > y) ? Version_isCompat3(x, y) : Version_isCompat3(y, x))
+    ((x > y) ? Version_isCompat4(x, y) : Version_isCompat4(y, x))
 
 
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 3
+#define Version_CURRENT_PROTOCOL 4
 #define Version_1_COMPAT
 #define Version_2_COMPAT
 #define Version_3_COMPAT
@@ -215,13 +227,15 @@ static inline int Version_isCompatible(uint32_t version1, uint32_t version2)
         Version_isCompatConst(col,0), \
         Version_isCompatConst(col,1), \
         Version_isCompatConst(col,2), \
-        Version_isCompatConst(col,3)  \
+        Version_isCompatConst(col,3), \
+        Version_isCompatConst(col,4)  \
     }
-    static const uint8_t table[4][4] = {
+    static const uint8_t table[5][5] = {
         Version_TABLE_ROW(0),
         Version_TABLE_ROW(1),
         Version_TABLE_ROW(2),
-        Version_TABLE_ROW(3)
+        Version_TABLE_ROW(3),
+        Version_TABLE_ROW(4)
     };
 
     #define Version_TABLE_HEIGHT (sizeof(table) / sizeof(table[0]))

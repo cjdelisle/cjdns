@@ -65,23 +65,28 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
             }
 
         // 0 distance (match) always wins,
-        // If both have 0 distance or neither have 0 distance, highest reach wins.
+        // If both have 0 distance or neither have 0 distance, highest version wins.
+        // If both have same version, highest reach wins.
 
         uint32_t i;
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
             if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
-                if (value < nodes[i].value) {
+                if (nodes[i].body && nodes[i].body->version == body->version) {
+                    LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
+                    if (value < nodes[i].value) {
+                        break;
+                    }
+                    if (i > 0
+                        && nodes[i].body
+                        && Bits_memcmp(body->address.ip6.bytes,
+                                       nodes[i].body->address.ip6.bytes,
+                                       16) == 0)
+                    {
+                        match = i + 1;
+                    }
+                } else if (nodes[i].body && nodes[i].body->version > body->version) {
                     break;
-                }
-                if (i > 0
-                    && nodes[i].body
-                    && Bits_memcmp(body->address.ip6.bytes,
-                                   nodes[i].body->address.ip6.bytes,
-                                   16) == 0)
-                {
-                    match = i + 1;
                 }
             } else if (nodeDistance != 0) {
                 break;
