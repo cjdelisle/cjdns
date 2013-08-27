@@ -840,9 +840,11 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
 
     if (layer == Ducttape_SessionLayer_OUTER) {
         return sendToSwitch(message, dtHeader, session, context);
-    } else {
+    } else if (layer == Ducttape_SessionLayer_INNER) {
         Log_debug(context->logger, "Sending layer3 message");
         return outgoingFromMe(message, dtHeader, session, context);
+    } else {
+        Assert_true(0);
     }
 }
 

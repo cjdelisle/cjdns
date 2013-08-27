@@ -404,6 +404,8 @@ static uint8_t genReverseHandshake(struct Message* message,
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
 
+static uint8_t sendMessage(struct Message* message, struct Interface* interface);
+
 static uint8_t encryptHandshake(struct Message* message,
                                 struct CryptoAuth_Wrapper* wrapper,
                                 int setupMessage)
@@ -421,6 +423,24 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (!knowHerKey(wrapper)) {
         return genReverseHandshake(message, wrapper, header);
+    }
+
+    if (wrapper->bufferedMessage) {
+        // We wanted to send a message but we didn't know the peer's key so we buffered it
+        // and sent a connectToMe, this or it's reply was lost in the network.
+        // Now we just discovered their key and we're sending a hello packet.
+        // Lets send 2 hello packets instead and on one will attach our buffered message.
+
+        // This can never happen when the machine is beyond the first hello packet because
+        // it should have been sent either by this or in the recipet of a hello packet from
+        // the other node.
+        Assert_true(wrapper->nextNonce == 0);
+
+        struct Message* bm = wrapper->bufferedMessage;
+        wrapper->bufferedMessage = NULL;
+        cryptoAuthDebug0(wrapper, "Sending buffered message");
+        sendMessage(bm, &wrapper->externalInterface);
+        Allocator_free(bm->alloc);
     }
 
     // Password auth
@@ -489,7 +509,7 @@ static uint8_t encryptHandshake(struct Message* message,
 
     cryptoAuthDebug(wrapper, "Sending %s%s packet",
                     ((wrapper->nextNonce & 1) ? "repeat " : ""),
-                    ((wrapper->nextNonce == 0) ? "hello" : "key"));
+                    ((wrapper->nextNonce < 2) ? "hello" : "key"));
 
     uint8_t sharedSecret[32];
     if (wrapper->nextNonce < 2) {
@@ -811,10 +831,14 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // didn't know the other node's key, now send what we were going to send.
 
     if (wrapper->bufferedMessage) {
-        cryptoAuthDebug0(wrapper, "Sending buffered message");
-        sendMessage(wrapper->bufferedMessage, &wrapper->externalInterface);
-        Allocator_free(wrapper->bufferedMessage->alloc);
+        // This can only happen when we have received a (maybe repeat) hello packet.
+        Assert_true(wrapper->nextNonce == 2);
+
+        struct Message* bm = wrapper->bufferedMessage;
         wrapper->bufferedMessage = NULL;
+        cryptoAuthDebug0(wrapper, "Sending buffered message");
+        sendMessage(bm, &wrapper->externalInterface);
+        Allocator_free(bm->alloc);
     }
 
     if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
