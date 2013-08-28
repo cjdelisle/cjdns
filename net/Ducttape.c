@@ -216,8 +216,10 @@ static int handleOutgoing(struct DHTMessage* dmessage,
     }
     if (session->version == Version_DEFAULT_ASSUMPTION) {
         struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
-        n->version = session->version =
-            (n->version > session->version) ? n->version : session->version;
+        if (n) {
+            n->version = session->version =
+                (n->version > session->version) ? n->version : session->version;
+        }
     }
 
     sendToRouter(&message, dtHeader, session, context);
