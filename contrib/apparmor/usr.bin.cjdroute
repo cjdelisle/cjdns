@@ -23,4 +23,6 @@
   /tmp/cjdns_pipe_* w,
   /usr/bin/cjdroute mrix,
 
+# if you choose to use a pidfile, you'll have to speficy it here as well
+
 }
