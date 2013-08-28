@@ -60,6 +60,7 @@ struct InterfaceController_peerStats
     uint64_t bytesIn;
     uint64_t switchLabel;
     bool isIncomingConnection;
+    String* user;
 };
 
 struct InterfaceController
@@ -104,6 +105,18 @@ struct InterfaceController
                                bool requireAuth,
                                bool transient,
                                struct Interface* iface);
+
+    /**
+     * Disconnect a previously registered peer.
+     *
+     * @param ic the if controller
+     * @param herPublicKey the public key of the foreign node
+     * @retrun 0 if all goes well.
+     *         InterfaceController_disconnectPeer_NOTFOUND if no peer with herPublicKey is found.
+     */
+    #define InterfaceController_disconnectPeer_NOTFOUND -1
+    int (* const disconnectPeer)(struct InterfaceController* ic,
+                             uint8_t herPublicKey[32]);
 
     /**
      * Populate an empty beacon with password, public key, and version.

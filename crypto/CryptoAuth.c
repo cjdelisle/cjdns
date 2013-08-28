@@ -188,7 +188,7 @@ static inline void getPasswordHash_typeOne(uint8_t output[32],
 static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
                                uint8_t hashOutput[32],
                                struct CryptoAuth_Wrapper* wrapper,
-                               void** userPtr)
+                               String** userPtr)
 {
     struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
     if (auth != NULL) {
@@ -706,7 +706,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         return Error_NONE;
     }
 
-    void* user = NULL;
+    String* user = NULL;
     uint8_t passwordHashStore[32];
     uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
     if (wrapper->requireAuth && !user) {
@@ -952,7 +952,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
-                           void* user,
+                           String* user,
                            struct CryptoAuth* ca)
 {
     struct CryptoAuth_pvt* context = Identity_cast((struct CryptoAuth_pvt*) ca);
@@ -966,11 +966,12 @@ int32_t CryptoAuth_addUser(String* password,
     struct CryptoAuth_Auth a;
     hashPassword_sha256(&a, password);
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32)) {
+        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32) ||
+            String_equals(user, context->passwords[i].user)) {
             return CryptoAuth_addUser_DUPLICATE;
         }
     }
-    a.user = user;
+    a.user = String_new(user->bytes, context->allocator);
     Bits_memcpyConst(&context->passwords[context->passwordCount],
                      &a,
                      sizeof(struct CryptoAuth_Auth));
@@ -978,10 +979,10 @@ int32_t CryptoAuth_addUser(String* password,
     return 0;
 }
 
-int CryptoAuth_removeUsers(struct CryptoAuth* context, void* uid)
+int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
 {
     struct CryptoAuth_pvt* ctx = Identity_cast((struct CryptoAuth_pvt*) context);
-    if (!uid) {
+    if (!user) {
         int count = ctx->passwordCount;
         Log_debug(ctx->logger, "Flushing [%d] users", count);
         ctx->passwordCount = 0;
@@ -990,7 +991,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, void* uid)
     int count = 0;
     int i = 0;
     while (i < (int)ctx->passwordCount) {
-        if (ctx->passwords[i].user == uid) {
+        if (String_equals(ctx->passwords[i].user, user)) {
             Bits_memcpyConst(&ctx->passwords[i],
                              &ctx->passwords[ctx->passwordCount--],
                              sizeof(struct CryptoAuth_Auth));
@@ -999,16 +1000,16 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, void* uid)
             i++;
         }
     }
-    Log_debug(ctx->logger, "Removing [%d] user(s) identified by [%p]", count, uid);
+    Log_debug(ctx->logger, "Removing [%d] user(s) identified by [%s]", count, user->bytes);
     return count;
 }
 
-void* CryptoAuth_getUser(struct Interface* interface)
+String* CryptoAuth_getUser(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
 
-    void* user = wrapper->user;
+    String* user = wrapper->user;
     if (user) {
         // If the user was lost in flushusers, then we need to return null.
         for (uint32_t i = 0; i < wrapper->context->passwordCount; i++) {

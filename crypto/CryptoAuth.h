@@ -65,7 +65,7 @@ struct CryptoAuth_Wrapper;
 #define CryptoAuth_addUser_DUPLICATE         -3
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
-                           void* user,
+                           String* user,
                            struct CryptoAuth* context);
 
 /**
@@ -75,7 +75,7 @@ int32_t CryptoAuth_addUser(String* password,
  * @param user the identifier which was passed to addUser(), all users with this id will be removed.
  * @return the number of users removed.
  */
-int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
+int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.
@@ -86,7 +86,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
  * @return the user object added by calling CryptoAuth_addUser() or NULL if this session is not
  *         authenticated.
  */
-void* CryptoAuth_getUser(struct Interface* iface);
+String* CryptoAuth_getUser(struct Interface* iface);
 
 /**
  * Create a new crypto authenticator.
