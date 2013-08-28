@@ -20,6 +20,7 @@
 #include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "util/log/Log.h"
+#include "util/version/Version.h"
 #include "memory/Allocator.h"
 
 #include <stdbool.h>
@@ -71,25 +72,47 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
         uint32_t i;
         uint32_t match = 0;
         for (i = 0; i < collector->capacity; i++) {
-            if ((nodes[i].distance == 0) == (nodeDistance == 0)) {
-                if (nodes[i].body && nodes[i].body->version == body->version) {
-                    LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
-                    if (value < nodes[i].value) {
-                        break;
-                    }
-                    if (i > 0
-                        && nodes[i].body
-                        && Bits_memcmp(body->address.ip6.bytes,
-                                       nodes[i].body->address.ip6.bytes,
-                                       16) == 0)
-                    {
-                        match = i + 1;
-                    }
-                } else if (nodes[i].body && nodes[i].body->version > body->version) {
+            if (!nodes[i].body) {
+                // no node here so accept this one into this position.
+                continue;
+            }
+
+            if ((nodes[i].distance == 0) != (nodeDistance == 0)) {
+                if (nodeDistance != 0) {
+                    // This node is not a match and the one in the collector is so reject.
                     break;
+                } else {
+                    // This node is a match and the one in the collector isn't so replace.
+                    continue;
                 }
-            } else if (nodeDistance != 0) {
+            }
+
+            // Favor nodes which are of newer version but only if they are older than us.
+            // This is to improve connectivity by forwarding through good nodes while
+            // avoiding placing undue load on nodes which have updated to a brand new version.
+            if (nodes[i].body->version < Version_CURRENT_PROTOCOL) {
+                if (nodes[i].body->version > body->version) {
+                    // This node is older than the stored node so reject
+                    break;
+                } else if (nodes[i].body->version < body->version) {
+                    // This node is newer than the stored node so accept
+                    continue;
+                }
+                // Same version so fall through
+            }
+
+            // Get the "value" of the node.
+            LinkStateNodeCollector_getValue(value, header, body, nodeDistance);
+
+            // If it's less than the value of the stored node then reject
+            if (value < nodes[i].value) {
                 break;
+            }
+
+            // If this is another route to the same node, replace it rather than inserting
+            // separatey.
+            if (i > 0 && !Bits_memcmp(&body->address.ip6, &nodes[i].body->address.ip6, 16)) {
+                match = i + 1;
             }
         }
 
