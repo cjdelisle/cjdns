@@ -937,7 +937,8 @@ int32_t CryptoAuth_addUser(String* password,
     struct CryptoAuth_Auth a;
     hashPassword_sha256(&a, password);
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32)) {
+        if (!Bits_memcmp(a.secret, context->passwords[i].secret, 32) ||
+            String_equals(user, context->passwords[i].user)) {
             return CryptoAuth_addUser_DUPLICATE;
         }
     }
@@ -961,9 +962,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
     int count = 0;
     int i = 0;
     while (i < (int)ctx->passwordCount) {
-        // don't match subset
-        if (ctx->passwords[i].user->len == user->len &&
-              !Bits_memcmp(ctx->passwords[i].user->bytes, user->bytes, user->len)) {
+        if (String_equals(ctx->passwords[i].user, user)) {
             Bits_memcpyConst(&ctx->passwords[i],
                              &ctx->passwords[ctx->passwordCount--],
                              sizeof(struct CryptoAuth_Auth));
