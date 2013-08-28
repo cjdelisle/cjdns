@@ -495,10 +495,28 @@ static int getPeerStats(struct InterfaceController* ifController,
         s->state = peer->state;
         s->switchLabel = peer->switchLabel;
         s->isIncomingConnection = peer->isIncomingConnection;
+        s->user = NULL;
+        if (s->isIncomingConnection) {
+            s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
+        }
     }
 
     *statsOut = stats;
     return count;
+}
+
+static int disconnectPeer(struct InterfaceController* ifController, uint8_t herPublicKey[32])
+{
+    struct Context* ic = Identity_cast((struct Context*) ifController);
+
+    for (uint32_t i = 0; i < ic->peerMap.count; i++) {
+        struct IFCPeer* peer = ic->peerMap.values[i];
+        if (!Bits_memcmp(herPublicKey, CryptoAuth_getHerPublicKey(peer->cryptoAuthIf), 32)) {
+          Allocator_free(peer->external->allocator);
+          return 0;
+        }
+    }
+    return InterfaceController_disconnectPeer_NOTFOUND;
 }
 
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
@@ -514,6 +532,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
     Bits_memcpyConst(out, (&(struct Context) {
         .pub = {
             .registerPeer = registerPeer,
+            .disconnectPeer = disconnectPeer,
             .getPeerState = getPeerState,
             .populateBeacon = populateBeacon,
             .getPeerStats = getPeerStats,
@@ -547,7 +566,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
     // Add the beaconing password.
     Random_bytes(rand, out->beaconPassword, Headers_Beacon_PASSWORD_LEN);
     String strPass = { .bytes=(char*)out->beaconPassword, .len=Headers_Beacon_PASSWORD_LEN };
-    int ret = CryptoAuth_addUser(&strPass, 1, (void*)0x1, ca);
+    int ret = CryptoAuth_addUser(&strPass, 1, String_CONST("Local Peers"), ca);
     if (ret) {
         Log_warn(logger, "CryptoAuth_addUser() returned [%d]", ret);
     }

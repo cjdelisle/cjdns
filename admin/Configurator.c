@@ -102,19 +102,22 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         }
     }
 
-    Log_info(ctx->logger, "Flushing existing authorized passwords");
-    rpcCall(String_CONST("AuthorizedPasswords_flush"), NULL, ctx, ctx->alloc);
-
     for (uint32_t i = 0; i < count; i++) {
+        struct Allocator* child = Allocator_child(ctx->alloc);
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
-        Log_info(ctx->logger, "Adding authorized password #[%d].", i);
+        String* user = Dict_getString(d, String_CONST("user"));
+        if (!user) {
+          user = String_printf(child, "password [%d]", i);
+        }
+
+        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].", i, user->bytes);
 
         Dict args = Dict_CONST(
             String_CONST("authType"), Int_OBJ(1), Dict_CONST(
-            String_CONST("password"), String_OBJ(passwd), NULL
-        ));
-        struct Allocator* child = Allocator_child(ctx->alloc);
+            String_CONST("password"), String_OBJ(passwd), Dict_CONST(
+            String_CONST("user"), String_OBJ(user), NULL
+        )));
         rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx, child);
         Allocator_free(child);
     }

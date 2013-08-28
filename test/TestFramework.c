@@ -184,7 +184,7 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
     InterfaceController_registerPeer(server->ifController, NULL, NULL, true, false, &link->destIf);
 
     // Except that it has an authorizedPassword added.
-    CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, (void*)0x1, server->cryptoAuth);
+    CryptoAuth_addUser(String_CONST("abcdefg1234"), 1, String_CONST("TEST"), server->cryptoAuth);
 
     // Client has pubKey and passwd for the server.
     InterfaceController_registerPeer(client->ifController,
