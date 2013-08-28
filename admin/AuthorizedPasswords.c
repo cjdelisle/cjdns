@@ -103,8 +103,8 @@ void AuthorizedPasswords_init(struct Admin* admin,
     Admin_registerFunction("AuthorizedPasswords_add", add, context, true,
         ((struct Admin_FunctionArg[]){
             { .name = "password", .required = 1, .type = "String" },
-            { .name = "authType", .required = 0, .type = "Int" },
-            { .name = "user", .required = 0, .type = "String" }
+            { .name = "user", .required = 1, .type = "String" },
+            { .name = "authType", .required = 0, .type = "Int" }
         }), admin);
     Admin_registerFunction("AuthorizedPasswords_flush", flush, context, true, NULL, admin);
     Admin_registerFunction("AuthorizedPasswords_remove", remove, context, true,
