@@ -23,11 +23,13 @@
  * Init the AuthorizedPasswords admin function.
  * This function exports the following calls,
  *   AuthorizedPasswords_add() --- Add an authorized password routers to connect.
- *     - requires a password.
+ *     - requires a user and a password.
  *     - inputs
+ *         user: (String, mandatory)
+ *             The password to authorize.
  *         password: (String, mandatory)
  *             The password to authorize.
- *         authType: (Integer, mandatory)
+ *         authType: (Integer, optional)
  *             The way in which nodes will be allowed to authenticate with
  *             the password.
  *
@@ -36,12 +38,15 @@
  *             A message explaining what went wrong, if everything went ok,
  *             the error will be "none".
  *
- *   AuthorizedPasswords_flush() --- Remove all authorized passwords.
- *     - requires a password
- *     - inputs (none)
+ *   AuthorizedPasswords_remove() --- Remove an authorized password.
+ *     - requires a user
+ *     - inputs
+ *         user: (String, mandatory)
+ *             The password to authorize.
  *     - outputs
  *         error: (String)
- *             always "none".
+ *             A message explaining what went wrong, if everything went ok,
+ *             the error will be "none".
  *
  * @param admin the admin object.
  * @param ca the cryptoauth to add users to.

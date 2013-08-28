@@ -82,15 +82,6 @@ static void remove(Dict* args, void* vcontext, String* txid)
     }
 }
 
-static void flush(Dict* args, void* vcontext, String* txid)
-{
-    struct Context* context = (struct Context*) vcontext;
-    // remove all users,
-    // FIXME: this smokes the beacon user... not good
-    CryptoAuth_removeUsers(context->ca, NULL);
-    sendResponse(String_CONST("none"), context->admin, txid);
-}
-
 void AuthorizedPasswords_init(struct Admin* admin,
                               struct CryptoAuth* ca,
                               struct Allocator* allocator)
@@ -106,7 +97,6 @@ void AuthorizedPasswords_init(struct Admin* admin,
             { .name = "user", .required = 1, .type = "String" },
             { .name = "authType", .required = 0, .type = "Int" }
         }), admin);
-    Admin_registerFunction("AuthorizedPasswords_flush", flush, context, true, NULL, admin);
     Admin_registerFunction("AuthorizedPasswords_remove", remove, context, true,
         ((struct Admin_FunctionArg[]){
             { .name = "user", .required = 1, .type = "String" }

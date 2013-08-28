@@ -102,9 +102,6 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         }
     }
 
-    Log_info(ctx->logger, "Flushing existing authorized passwords");
-    rpcCall(String_CONST("AuthorizedPasswords_flush"), NULL, ctx, ctx->alloc);
-
     for (uint32_t i = 0; i < count; i++) {
         struct Allocator* child = Allocator_child(ctx->alloc);
         Dict* d = List_getDict(list, i);
