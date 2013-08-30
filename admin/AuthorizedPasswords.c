@@ -82,6 +82,30 @@ static void remove(Dict* args, void* vcontext, String* txid)
     }
 }
 
+static void list(Dict* args, void* vcontext, String* txid)
+{
+    struct Context* context = (struct Context*) vcontext;
+    struct Allocator* child = Allocator_child(context->allocator);
+
+    String** out = NULL;
+    int count = CryptoAuth_getUsers(context->ca, child, &out);
+
+    List* users = NULL;
+    for (int i = 0; i < count; i++)
+    {
+        users = List_addString(users, out[i], child);
+    }
+
+    Dict response = Dict_CONST(
+        String_CONST("total"), Int_OBJ(count), Dict_CONST(
+        String_CONST("users"), List_OBJ(users), NULL
+    ));
+
+    Admin_sendMessage(&response, txid, context->admin);
+
+    Allocator_free(child);
+}
+
 void AuthorizedPasswords_init(struct Admin* admin,
                               struct CryptoAuth* ca,
                               struct Allocator* allocator)
@@ -101,4 +125,5 @@ void AuthorizedPasswords_init(struct Admin* admin,
         ((struct Admin_FunctionArg[]){
             { .name = "user", .required = 1, .type = "String" }
         }), admin);
+    Admin_registerFunction("AuthorizedPasswords_list", list, context, true, NULL, admin);
 }

@@ -78,6 +78,16 @@ int32_t CryptoAuth_addUser(String* password,
 int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
 
 /**
+ * Get a list of all the users added via addUser.
+ *
+ * @param context the context used to call addUser.
+ * @param alloc the Allocator to use to create the usersOut array.
+ * @param usersOut the generated array of users.
+ * @returns the number of String*'s allocated in usersOut
+ */
+int CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc, String*** usersOut);
+
+/**
  * Get the user object associated with the authenticated session or NULL if there is none.
  * Please make sure to only call this on interfaces which were actually returned by
  * CryptoAuth_wrapInterface() as strange and interesting bugs will result otherwise.
