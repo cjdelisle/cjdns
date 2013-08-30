@@ -24,10 +24,14 @@ backhaul transit among each other in a robust, secure fashion? Complexity.
 There's now a centralization of power over the Internet. Governments are
 unashamedly storing and reading data in transit. Websites such as Wikileaks are
 censored amid public outcry. Internet filtering schemes are becoming
-commonplace.
+commonplace, while media companies lobby for dystopian copyright laws.
 
-Cjdns provides a network where these abuses of power are impossible; where the
-fundamental principles of the Internet are cryptographically protected.
+In a truly democratic society, people should be able to communicate in private:
+without censorship, without tampering, and without giving access to third
+parties.
+
+Cjdns provides a decentralized network where private communication is
+ubiquitous and cryptographically secured.
 
 
 ## How close is it to complete?
@@ -36,7 +40,8 @@ fundamental principles of the Internet are cryptographically protected.
 around the world.
 
 Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32, and
-PowerPC64. It is continually tested on Linux systems.
+PowerPC64. It's [continually tested][buildbots] on Linux, FreeBSD and OS X
+systems.
 
 While the software itself is stable, the protocols and algorithms are
 experimental and subject to change. To minimize the harm to the network, please
@@ -45,10 +50,9 @@ update your cjdns nodes often.
 
 ### You can help!
 
-We are in desperate need for buildbots running on Apple OSX systems. If you
-would like to donate one, you could mail it or set it up to run all of the time
-and provide remote shell access. Please join the [IRC channel](#community) and
-ask how you can help.
+We desperately need more OS X buildbots. If you would like to donate one, you
+could mail it, or you could administer it and provide remote shell access.
+Please join the [IRC channel](#community) and ask how you can help.
 
 
 ## Anonymity
@@ -107,12 +111,7 @@ exact location of every other node.
 
 ## How does routing work?
 
-In order to understand how cjdns routing works, it is important to understand
-how the existing Internet works when you send a packet. At each "intersection
-in the road" the router reads the address on the packet and decides which turn
-it should take.
-
-In the cjdns net, a packet goes to a router and the router labels the packet
+In a cjdns network, a packet goes to a router and the router labels the packet
 with directions to the router best able to handle it. That is, a router which
 is physically nearby and has an address numerically close to the destination
 address of the packet. The directions are added to the packet to allow it to go
@@ -162,7 +161,7 @@ Advanced configuration:
 
 Thank you for your time and interest,
 
-Caleb James DeLisle == cjdelisle == cjd
+The cjdns developers.
 
 --------------------------------------------------------------------------------
 
@@ -231,9 +230,10 @@ connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
 
-To set permissions on the conf file so that only your user can read it:
+To set permissions on the conf file so that only your user can read it and
+write to it:
 
-    chmod 400 cjdroute.conf
+    chmod 600 cjdroute.conf
 
 
 ### 2. Find a friend
@@ -372,6 +372,7 @@ You can access the admin API with:
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
 [#cjdns on Twitter]: https://twitter.com/search?q=#hyperboria
 [Project Meshnet Map]: http://map.projectmeshnet.org
+[Buildbots]: https://buildbot.meshwith.me/cjdns/waterfall
 
 [Cjdns on Wikipedia]: https://en.wikipedia.org/wiki/Cjdns
 [Distributed Hash Table]: https://en.wikipedia.org/wiki/Distributed_hash_table
