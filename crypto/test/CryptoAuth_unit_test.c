@@ -276,6 +276,34 @@ void repeatHello()
     Allocator_free(allocator);
 }
 
+void testGetUsers()
+{
+    struct Allocator* allocator = MallocAllocator_new(1<<20);
+    struct EventBase* base = EventBase_new(allocator);
+    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, base, NULL, NULL);
+    String** out = NULL;
+    int count = 0;
+
+    count = CryptoAuth_getUsers(ca, allocator, &out);
+    Assert_always(count == 0);
+    Assert_always(out == NULL);
+
+    CryptoAuth_addUser(String_CONST("pass1"), 1, String_CONST("user1"), ca);
+    count = CryptoAuth_getUsers(ca, allocator, &out);
+    Assert_always(count == 1);
+    Assert_always(out != NULL);
+    Assert_always(String_equals(String_CONST("user1"),out[0]));
+
+    CryptoAuth_addUser(String_CONST("pass2"), 1, String_CONST("user2"), ca);
+    count = CryptoAuth_getUsers(ca, allocator, &out);
+    Assert_always(count == 2);
+    Assert_always(out != NULL);
+    Assert_always(String_equals(String_CONST("user1"),out[0]));
+    Assert_always(String_equals(String_CONST("user2"),out[1]));
+
+    Allocator_free(allocator);
+}
+
 int main()
 {
     struct Allocator* allocator;
@@ -287,5 +315,6 @@ int main()
     encryptRndNonceTest();
     createNew();
     repeatHello();
+    testGetUsers();
     return 0;
 }
