@@ -1013,7 +1013,7 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 
     for (uint32_t i = 0; i < count; i++ )
     {
-        users = List_addString(users, String_new(ctx->passwords[i].user->bytes, alloc), alloc);
+        users = List_addString(users, String_clone(ctx->passwords[i].user, alloc), alloc);
     }
 
     return users;
