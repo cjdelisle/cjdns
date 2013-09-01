@@ -31,21 +31,30 @@ while True:
         break;
     i += 1;
 
-i = 0;
-responses = 0;
-for addr in addresses:
-    if (len(sys.argv) > 4 and addr != sys.argv[4]):
-        continue;
-    path = cjdns.RouterModule_lookup(addr);
-    if (len(path['result']) != 19):
-        continue;
-    result = cjdns.RouterModule_pingNode(addr, 2000);
-    if ('result' in result and result['result'] == 'pong'):
-        responses += 1;
-    print(addr + '@' + path['result'] + ' - ' + str(result));
-    for entry in allRoutes:
-        if (entry['ip'] == addr):
-            print(entry['path'] + '  ' + str(entry['link']));
-    i += 1;
-
-print(str(i) + ' total ' + str(responses) + ' respond.');
+if (len(sys.argv) > 4 and '-s' == sys.argv[4]):
+    for route in allRoutes:
+        i = 0;
+        while i < 3:
+            result = cjdns.SwitchPinger_ping(route['path'], route['path'], 10000);
+            if (i > 0): print 'attempt ' + str(i) + ' ';
+            print result;
+            if (result['result'] != 'timeout'): break;
+            i += 1;
+else:
+    i = 0;
+    responses = 0;
+    for addr in addresses:
+        if (len(sys.argv) > 4 and addr != sys.argv[4]):
+            continue;
+        path = cjdns.RouterModule_lookup(addr);
+        if (len(path['result']) != 19):
+            continue;
+        result = cjdns.RouterModule_pingNode(addr, 2000);
+        if ('result' in result and result['result'] == 'pong'):
+            responses += 1;
+        print(addr + '@' + path['result'] + ' - ' + str(result));
+#        for entry in allRoutes:
+#            if (entry['ip'] == addr):
+#                print(entry['path'] + '  ' + str(entry['link']));
+        i += 1;
+    print(str(i) + ' total ' + str(responses) + ' respond.');
