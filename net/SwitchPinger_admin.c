@@ -32,6 +32,7 @@ struct Ping
 {
     struct Context* context;
     String* txid;
+    String* path;
 };
 
 static void adminPingOnResponse(enum SwitchPinger_Result result,
@@ -48,14 +49,17 @@ static void adminPingOnResponse(enum SwitchPinger_Result result,
     String* pathStr = &(String) { .bytes = (char*) path, .len = 19 };
 
     Dict response = Dict_CONST(
-        String_CONST("result"), String_OBJ(resultStr), Dict_CONST(
         String_CONST("version"), Int_OBJ(version), NULL
-    ));
+    );
 
-    Dict d = Dict_CONST(String_CONST("path"), String_OBJ(pathStr), response);
-    if (result != SwitchPinger_Result_TIMEOUT) {
+    Dict d = Dict_CONST(String_CONST("rpath"), String_OBJ(pathStr), response);
+    if (result == SwitchPinger_Result_LABEL_MISMATCH) {
         response = d;
     }
+
+    response = Dict_CONST(String_CONST("result"), String_OBJ(resultStr), response);
+
+    response = Dict_CONST(String_CONST("path"), String_OBJ(ping->path), response);
 
     response = Dict_CONST(String_CONST("ms"), Int_OBJ(millisecondsLag), response);
 
@@ -87,6 +91,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
             ping->onResponseContext = Allocator_clone(ping->pingAlloc, (&(struct Ping) {
                 .context = context,
                 .txid = String_clone(txid, ping->pingAlloc),
+                .path = String_clone(pathStr, ping->pingAlloc)
             }));
             SwitchPinger_sendPing(ping);
         }
