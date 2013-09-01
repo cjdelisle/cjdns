@@ -22,18 +22,23 @@ struct Ping
 {
     struct Pinger_Ping public;
     struct Pinger* pinger;
-    struct Ping** selfPtr;
     struct Timeout* timeout;
     String* data;
     uint32_t timeSent;
+    uint32_t handle;
     Pinger_SEND_PING(sendPing);
     Pinger_ON_RESPONSE(onResponse);
     Identity
 };
 
+#define Map_ENABLE_HANDLES
+#define Map_VALUE_TYPE struct Ping*
+#define Map_NAME OutstandingPings
+#include "util/Map.h"
+
 struct Pinger
 {
-    struct Ping* pings[Pinger_MAX_CONCURRENT_PINGS];
+    struct Map_OutstandingPings outstandingPings;
     struct EventBase* eventBase;
     struct Log* logger;
     struct Allocator* allocator;
@@ -43,13 +48,22 @@ static void callback(String* data, struct Ping* ping)
 {
     uint32_t now = Time_currentTimeMilliseconds(ping->pinger->eventBase);
     ping->onResponse(data, now - ping->timeSent, ping->public.context);
-    *(ping->selfPtr) = NULL;
     Allocator_free(ping->public.pingAlloc);
 }
 
 static void timeoutCallback(void* vping)
 {
-    callback(NULL, (struct Ping*) vping);
+    struct Ping* p = Identity_cast((struct Ping*) vping);
+    callback(NULL, p);
+}
+
+static int freePing(struct Allocator_OnFreeJob* job)
+{
+    struct Ping* p = Identity_cast((struct Ping*) job->userData);
+    int index = Map_OutstandingPings_indexForHandle(p->handle, &p->pinger->outstandingPings);
+    Assert_true(index > -1);
+    Map_OutstandingPings_remove(index, &p->pinger->outstandingPings);
+    return 0;
 }
 
 void Pinger_sendPing(struct Pinger_Ping* ping)
@@ -64,27 +78,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    uint32_t timeoutMilliseconds,
                                    struct Pinger* pinger)
 {
-    struct Ping** location = NULL;
-    uint32_t index;
-    for (index = 0; index < Pinger_MAX_CONCURRENT_PINGS; index++) {
-        if (pinger->pings[index] == NULL) {
-            location = &pinger->pings[index];
-            break;
-        }
-    }
-
-    if (!location) {
-        return NULL;
-    }
-
     struct Allocator* alloc = Allocator_child(pinger->allocator);
-
-    // Prefix the data with the slot number.
-    String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 4, alloc);
-    Bits_memcpyConst(toSend->bytes, &index, 4);
-    if (data) {
-        Bits_memcpy(toSend->bytes + 4, data->bytes, data->len);
-    }
 
     struct Ping* ping = Allocator_clone(alloc, (&(struct Ping) {
         .public = {
@@ -92,36 +86,50 @@ struct Pinger_Ping* Pinger_newPing(String* data,
         },
         .sendPing = sendPing,
         .pinger = pinger,
-        .selfPtr = location,
-        .data = toSend,
         .timeSent = Time_currentTimeMilliseconds(pinger->eventBase),
         .onResponse = onResponse
     }));
     Identity_set(ping);
+
+    int pingIndex = Map_OutstandingPings_put(&ping, &pinger->outstandingPings);
+    ping->handle = pinger->outstandingPings.handles[pingIndex];
+
+    // Prefix the data with the handle
+    String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 4, alloc);
+    Bits_memcpyConst(toSend->bytes, &ping->handle, 4);
+    if (data) {
+        Bits_memcpy(toSend->bytes + 4, data->bytes, data->len);
+    }
+    ping->data = toSend;
+
+    Allocator_onFree(alloc, freePing, ping);
+
     ping->timeout =
         Timeout_setTimeout(timeoutCallback, ping, timeoutMilliseconds, pinger->eventBase, alloc);
-    *location = ping;
 
     return &ping->public;
 }
 
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
-    uint32_t slot = *((uint32_t*) data->bytes);
-    if (slot >= Pinger_MAX_CONCURRENT_PINGS) {
-        Log_debug(pinger->logger, "Ping out of range [%d].", slot);
-    } else if (pinger->pings[slot] == NULL) {
-        Log_debug(pinger->logger, "Got ping and slot value is null.");
+    uint32_t handle = *((uint32_t*) data->bytes);
+    int index = Map_OutstandingPings_indexForHandle(handle, &pinger->outstandingPings);
+    if (index < 0) {
+        Log_debug(pinger->logger, "Invalid ping response handle [%u].", handle);
     } else {
         data->len -= 4;
         data->bytes += 4;
-        callback(data, pinger->pings[slot]);
+        struct Ping* p = Identity_cast((struct Ping*) pinger->outstandingPings.values[index]);
+        callback(data, p);
     }
 }
 
 struct Pinger* Pinger_new(struct EventBase* eventBase, struct Log* logger, struct Allocator* alloc)
 {
     return Allocator_clone(alloc, (&(struct Pinger) {
+        .outstandingPings = {
+            .allocator = alloc
+        },
         .eventBase = eventBase,
         .logger = logger,
         .allocator = alloc
