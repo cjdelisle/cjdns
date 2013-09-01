@@ -834,8 +834,8 @@ Get a list of all the authorized users.
 
 Example:
 
-   $ ./contrib/python/cexec 'AuthorizedPasswords_list()'
-   {'total': 2, 'users': ['Test User1', 'Local Peers'], 'txid': 'W0DUG0D50K'}
+    $ ./contrib/python/cexec 'AuthorizedPasswords_list()'
+    {'total': 2, 'users': ['Test User1', 'Local Peers'], 'txid': 'W0DUG0D50K'}
 
 ### memory()
 
