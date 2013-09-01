@@ -12,15 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strrchr
+#define string_strlen
 #include "admin/AdminClient.h"
 #include "admin/Configurator.h"
 #include "benc/String.h"
+#include "util/platform/libc/string.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
-#include "util/platform/libc/strlen.h"
+#include "util/Bits.h"
 #include "util/log/Log.h"
+#include "util/platform/Sockaddr.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -149,6 +153,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
         Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
         if (connectTo) {
             struct Dict_Entry* entry = *connectTo;
+            struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
             while (entry != NULL) {
                 String* key = (String*) entry->key;
                 if (entry->val->type != Object_DICT) {
@@ -157,16 +162,30 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     exit(-1);
                 }
                 Dict* value = entry->val->as.dictionary;
-
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
-
-                struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+                char* lastColon = strrchr(key->bytes, ':');
+                if (lastColon) {
+                    char *ipstr = 0;
+                    int addrLen = (lastColon - key->bytes);
+                    ipstr = Allocator_malloc(perCallAlloc, addrLen + 1);
+                    Bits_memcpy(ipstr, key->bytes, addrLen);
+                    ipstr[addrLen] = 0;
+                    struct Sockaddr* adr;
+                    adr = Sockaddr_fromName(ipstr, perCallAlloc);
+                    if (adr != NULL) {
+                        Sockaddr_setPort(adr, atoi(lastColon+1));
+                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
+                    }
+                    else {
+                        entry = entry->next;
+                        continue;
+                    }
+                }
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
-                Allocator_free(perCallAlloc);
-
                 entry = entry->next;
             }
+            Allocator_free(perCallAlloc);
         }
     }
 }
