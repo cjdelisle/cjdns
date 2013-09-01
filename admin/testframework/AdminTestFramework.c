@@ -35,7 +35,6 @@
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
 #include "util/Assert.h"
-#include "util/Errno.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #define string_strlen

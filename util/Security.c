@@ -12,16 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strerror
 #include "exception/Except.h"
 #include "util/log/Log.h"
-#include "util/Errno.h"
 #include "util/Security.h"
+#include "util/platform/libc/string.h"
 
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <unistd.h>
-#include "util/platform/libc/string.h"
+#include <errno.h>
 
 void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
@@ -30,17 +31,17 @@ void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
         Except_raise(eh,
                      Security_setUser_NO_SUCH_USER,
                      "Failed to set UID, couldn't find user named [%s] in the system.",
-                     Errno_getString());
+                     strerror(errno));
         return;
     }
     if (setuid(pw->pw_uid)) {
-        if (Errno_get() == Errno_EPERM) {
+        if (errno == EPERM) {
             Except_raise(eh, Security_setUser_PERMISSION,
                          "You do not have permission to set UID.");
             return;
         }
         Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]",
-                     Errno_getString());
+                     strerror(errno));
     }
 }
 
@@ -57,7 +58,7 @@ void Security_noFiles(struct Except* eh)
     #endif
 
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ LIM, LIM })) {
-        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", Errno_getString());
+        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", strerror(errno));
     }
 }
 
@@ -69,6 +70,6 @@ void Security_maxMemory(unsigned long max, struct Except* eh)
         #define RLIMIT_AS RLIMIT_DATA
     #endif
     if (setrlimit(RLIMIT_AS, &(struct rlimit){ max, max })) {
-        Except_raise(eh, -1, "Failed to limit available memory [%s]", Errno_getString());
+        Except_raise(eh, -1, "Failed to limit available memory [%s]", strerror(errno));
     }
 }

@@ -19,7 +19,6 @@
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
 #include "util/Base32.h"
-#include "util/Errno.h"
 
 struct Context
 {
@@ -108,17 +107,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
-
-        if (jmp.code == ETHInterface_new_SOCKET_FAILED
-            || jmp.code == ETHInterface_new_BIND_FAILED)
-        {
-            char* err = Errno_getString();
-            Dict out2 = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
-            Admin_sendMessage(&out2, txid, ctx->admin);
-        } else {
-            Admin_sendMessage(&out, txid, ctx->admin);
-        }
-
+        Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
         return;
     }

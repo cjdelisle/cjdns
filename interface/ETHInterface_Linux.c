@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #define string_strncpy
+#define string_strerror
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/ETHInterface.h"
@@ -24,7 +25,6 @@
 #include "wire/Error.h"
 #include "wire/Ethernet.h"
 #include "util/Assert.h"
-#include "util/Errno.h"
 #include "util/platform/libc/string.h"
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define MAX_PACKET_SIZE 1496
 #define MIN_PACKET_SIZE 46
@@ -118,17 +119,16 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
                (struct sockaddr*) &addr,
                sizeof(struct sockaddr_ll)) < 0)
     {
-        enum Errno err = Errno_get();
-        switch (err) {
-            case Errno_EMSGSIZE:
+        switch (errno) {
+            case EMSGSIZE:
                 return Error_OVERSIZE_MESSAGE;
 
-            case Errno_ENOBUFS:
-            case Errno_EAGAIN:
+            case ENOBUFS:
+            case EAGAIN:
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info(context->logger, "Got error sending to socket [%s]", Errno_strerror(err));
+                Log_info(context->logger, "Got error sending to socket [%s]", strerror(errno));
         }
     }
     return 0;
@@ -211,7 +211,7 @@ static void sendBeacon(void* vcontext)
 
     int ret;
     if ((ret = sendMessage(&m, &context->generic)) != 0) {
-        Log_info(context->logger, "Got error [%d] sending beacon [%s]", ret, Errno_getString());
+        Log_info(context->logger, "Got error [%d] sending beacon [%s]", ret, strerror(errno));
     }
 }
 
@@ -334,19 +334,19 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     context->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
     if (context->socket == -1) {
         Except_raise(exHandler, ETHInterface_new_SOCKET_FAILED,
-                     "call to socket() failed. [%s]", Errno_getString());
+                     "call to socket() failed. [%s]", strerror(errno));
     }
     strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
         Except_raise(exHandler, ETHInterface_new_FAILED_FIND_IFACE,
-                     "failed to find interface index [%s]", Errno_getString());
+                     "failed to find interface index [%s]", strerror(errno));
     }
     context->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
        Except_raise(exHandler, ETHInterface_new_FAILED_FIND_MACADDR,
-                    "failed to find mac address of interface [%s]", Errno_getString());
+                    "failed to find mac address of interface [%s]", strerror(errno));
     }
 
     uint8_t srcMac[6];
@@ -368,7 +368,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
 
     if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
         Except_raise(exHandler, ETHInterface_new_BIND_FAILED,
-                     "call to bind() failed [%s]", Errno_getString());
+                     "call to bind() failed [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(context->socket);

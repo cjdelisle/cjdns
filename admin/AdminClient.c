@@ -25,7 +25,6 @@
 #include "util/Bits.h"
 #include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"

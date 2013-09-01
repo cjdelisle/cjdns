@@ -54,7 +54,6 @@
 #include "util/events/Process.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 #include "util/Security.h"
 #include "util/log/WriterLog.h"

@@ -15,7 +15,6 @@
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Event.h"
-#include "util/Errno.h"
 #include "util/Identity.h"
 
 #include <stddef.h>

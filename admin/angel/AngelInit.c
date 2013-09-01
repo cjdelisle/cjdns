@@ -35,7 +35,6 @@
 #include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 #include "util/log/WriterLog.h"
 #include "util/Security.h"

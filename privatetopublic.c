@@ -12,15 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strerror
 #include "crypto/AddressCalc.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
-#include "util/Errno.h"
 #include "net/Ducttape.h"
+#include "util/platform/libc/string.h"
+
 #include "crypto_scalarmult_curve25519.h"
 
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 
 static int usage(char* appName)
 {
@@ -54,8 +57,7 @@ int main(int argc, char** argv)
     }
     if (read(0,privateKeyHexIn,64) < 0)
     {
-        enum Errno err = Errno_get();
-        fprintf(stderr, "Reading private key failed: %s\n", Errno_strerror(err));
+        fprintf(stderr, "Reading private key failed: %s\n", strerror(errno));
         return 1;
     }
     for (uint8_t* n = privateKeyHexIn;n < privateKeyHexIn + 65;n++)

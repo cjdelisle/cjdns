@@ -19,7 +19,6 @@
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
 #include "util/events/EventBase.h"
-#include "util/Errno.h"
 #include "crypto/Key.h"
 
 struct Context
@@ -95,17 +94,7 @@ static void newInterface2(struct Context* ctx,
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
-
-        if (jmp.code == UDPInterface_new_SOCKET_FAILED
-            || jmp.code == UDPInterface_new_BIND_FAILED)
-        {
-            char* err = Errno_getString();
-            Dict out2 = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
-            Admin_sendMessage(&out2, txid, ctx->admin);
-        } else {
-            Admin_sendMessage(&out, txid, ctx->admin);
-        }
-
+        Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
     }
 

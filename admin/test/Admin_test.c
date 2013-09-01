@@ -18,7 +18,6 @@
 #include "benc/Int.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
-#include "util/Errno.h"
 #include "util/platform/libc/strlen.h"
 
 #include <stdio.h>

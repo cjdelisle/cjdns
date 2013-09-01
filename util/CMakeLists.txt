@@ -16,11 +16,8 @@ add_subdirectory(platform)
 
 find_package(Socket REQUIRED)
 
-add_library(cjdns-errno Errno.c)
-
 if(Windows)
     set(sec Security_Windows.c)
-    target_link_libraries(cjdns-errno ${SOCKET_LIBRARIES})
 else()
     set(sec Security.c)
 endif()
@@ -32,7 +29,6 @@ add_library(cjdns-security
 
 target_link_libraries(cjdns-security
     cjdns-except
-    cjdns-errno
 )
 
 add_library(util
@@ -46,7 +42,6 @@ target_link_libraries(util
     cjdmemory
     cjdns-security
     cjdns-util-log-writer
-    cjdns-errno
     cjdns-util-platform-socket
 )
 
