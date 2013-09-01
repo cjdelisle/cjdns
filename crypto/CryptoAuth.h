@@ -82,10 +82,9 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
  *
  * @param context the context used to call addUser.
  * @param alloc the Allocator to use to create the usersOut array.
- * @param usersOut the generated array of users.
- * @returns the number of String*'s allocated in usersOut
+ * @returns List* containing the user String's
  */
-int CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc, String*** usersOut);
+List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.

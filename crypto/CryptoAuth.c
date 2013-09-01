@@ -1004,26 +1004,19 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
     return count;
 }
 
-int CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc, String*** usersOut)
+List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 {
     struct CryptoAuth_pvt* ctx = Identity_cast((struct CryptoAuth_pvt*) context);
     uint32_t count = ctx->passwordCount;
 
-    if (!count)
-    {
-        return 0;
-    }
-
-    String** users = Allocator_calloc(alloc, sizeof(String*), count);
+    List* users = NULL;
 
     for (uint32_t i = 0; i < count; i++ )
     {
-        users[i] = String_new(ctx->passwords[i].user->bytes, alloc);
+        users = List_addString(users, String_new(ctx->passwords[i].user->bytes, alloc), alloc);
     }
 
-    *usersOut = users;
-
-    return count;
+    return users;
 }
 
 String* CryptoAuth_getUser(struct Interface* interface)

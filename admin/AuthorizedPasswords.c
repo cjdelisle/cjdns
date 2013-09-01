@@ -87,14 +87,8 @@ static void list(Dict* args, void* vcontext, String* txid)
     struct Context* context = (struct Context*) vcontext;
     struct Allocator* child = Allocator_child(context->allocator);
 
-    String** out = NULL;
-    int count = CryptoAuth_getUsers(context->ca, child, &out);
-
-    List* users = NULL;
-    for (int i = 0; i < count; i++)
-    {
-        users = List_addString(users, out[i], child);
-    }
+    List* users = CryptoAuth_getUsers(context->ca, child);
+    uint32_t count = List_size(users);
 
     Dict response = Dict_CONST(
         String_CONST("total"), Int_OBJ(count), Dict_CONST(
