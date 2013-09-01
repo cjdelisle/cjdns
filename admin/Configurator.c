@@ -163,20 +163,21 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 }
                 Dict* value = entry->val->as.dictionary;
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+                key = String_clone(key, perCallAlloc);
                 char* lastColon = strrchr(key->bytes, ':');
                 if (lastColon) {
-                    char *ipstr = 0;
-                    int addrLen = (lastColon - key->bytes);
-                    ipstr = Allocator_malloc(perCallAlloc, addrLen + 1);
-                    Bits_memcpy(ipstr, key->bytes, addrLen);
-                    ipstr[addrLen] = 0;
-                    struct Sockaddr* adr;
-                    adr = Sockaddr_fromName(ipstr, perCallAlloc);
-                    if (adr != NULL) {
-                        Sockaddr_setPort(adr, atoi(lastColon+1));
-                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
+                    int port = atoi(lastColon+1);
+                    if (!port) {
+                        Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);
+                        exit(-1);
                     }
-                    else {
+                    *lastColon = '\0';
+                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
+                    if (adr != NULL) {
+                        Sockaddr_setPort(adr, port);
+                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
+                    } else {
+                        Log_warn(ctx->logger, "Failed to lookup hostname [%s]", key->bytes);
                         entry = entry->next;
                         continue;
                     }
