@@ -178,6 +178,7 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     Admin_asyncEnabled()
     Admin_availableFunctions(page='')
     AuthorizedPasswords_add(password, user, authType='')
+    AuthorizedPasswords_list()
     AuthorizedPasswords_remove(user)
     Core_exit()
     Core_initTunnel(desiredTunName=0)
@@ -825,6 +826,16 @@ Examples:
     $ ./contrib/python/cexec 'AuthorizedPasswords_add(user="test",password="yh14wl2ffgcqq6bvut12xrz7g3")'
     {'error': 'Password already added.'}
 
+### AuthorizedPasswords_list()
+
+**Auth Required**
+
+Get a list of all the authorized users.
+
+Example:
+
+    $ ./contrib/python/cexec 'AuthorizedPasswords_list()'
+    {'total': 2, 'users': ['Test User1', 'Local Peers'], 'txid': 'W0DUG0D50K'}
 
 ### memory()
 

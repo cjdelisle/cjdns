@@ -24,6 +24,7 @@
 #define CryptoAuth_removeUsers Exports_CryptoAuth_removeUsers
 #define CryptoAuth_getState Exports_CryptoAuth_getState
 #define CryptoAuth_getConnectedInterface Exports_CryptoAuth_getConnectedInterface
+#define CryptoAuth_getUsers Exports_CryptoAuth_getUsers
 
 #include "crypto/CryptoAuth.c"
 
