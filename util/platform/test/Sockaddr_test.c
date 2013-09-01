@@ -42,7 +42,7 @@ void expectSuccess(char* address)
     expectConvert(address, address);
 }
 
-int main()
+void parse()
 {
     struct Sockaddr_storage test;
     Assert_always(Sockaddr_asNative(&test.addr) == ((uint8_t*)&test) + Sockaddr_OVERHEAD);
@@ -69,4 +69,20 @@ int main()
     expectFailure("[0]:12345");
     expectFailure("0");
     expectFailure("1.0.0.");
+}
+
+void fromName()
+{
+    struct Allocator* alloc;
+    BufferAllocator_STACK(alloc, 4096);
+    Sockaddr_fromName("localhost", alloc);
+    // This will fail in some cases (eg dns hijacking)
+    //Assert_always(!Sockaddr_fromName("hasjklgyolgbvlbiogi", alloc));
+}
+
+
+int main()
+{
+    parse();
+    fromName();
 }
