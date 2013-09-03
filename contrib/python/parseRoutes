@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys;
+import math;
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+
+cjdns = connectWithAdminInfo();
+allRoutes = [];
+
+def parseRoute(path):
+    if ((path & 15) == 1): return [1];
+    if (path & 1):
+        path >>= 1;
+        out = [(path & 7)];
+        if out[0] == 1: out[0] = 0;
+        path >>= 3;
+    elif ((path & 3) == 2):
+        path >>= 2;
+        out = [(path & 31)];
+        if out[0] != 0: out[0]+=1;
+        path >>= 5;
+    else:
+        path >>= 2;
+        out = [(path & 255)];
+        if out[0] != 0: out[0]+=1;
+        path >>= 8;
+
+    out.extend(parseRoute(path));
+    return out;
+
+
+i = 0;
+while True:
+    table = cjdns.NodeStore_dumpTable(i);
+    routes = table['routingTable'];
+    allRoutes += routes;
+    if (not 'more' in table):
+        break;
+    i += 1;
+
+tree = {};
+
+def getValue(node):
+    if (node['link'] == 0): return 0
+    return 64 - int(math.log(int(node['path'].replace(".", ""), 16), 2));
+
+ar = {};
+for route in allRoutes:
+    if route['ip'] not in ar or getValue(route) > getValue(ar[route['ip']]):
+        ar[route['ip']] = route;
+
+allRoutes = [];
+for k in ar.keys():
+    allRoutes.append(ar[k]);
+
+
+for route in allRoutes:
+    path = int(route['path'].replace(".", ""), 16);
+    r = parseRoute(path);
+    route['r'] = r;
+    n = tree;
+    for i in range(0,len(r)):
+        if r[i] not in n: n[r[i]] = {};
+        n = n[r[i]];
+    n['name'] = route['ip'] + '@' + route['path'] + '  ' + str(r);
+
+penaltySum = 0;
+lengthSum = 0;
+
+for route in allRoutes:
+    r = route['r'];
+    n = tree;
+    penalty = 0;
+    for i in range(0,len(r)):
+        for j in range(0,i):
+            if j not in r: penalty += 1;
+        n = n[r[i]];
+        penalty <<= 1;
+    print(str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r));
+    penaltySum += penalty;
+    lengthSum += len(r);
+
+print("average penalty " + str(float(penaltySum) / len(allRoutes)));
+print("average length " + str(float(lengthSum) / len(allRoutes)));

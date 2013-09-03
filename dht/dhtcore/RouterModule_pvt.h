@@ -28,7 +28,7 @@ struct RouterModule
     struct Address address;
 
     /** An AverageRoller for calculating the global mean response time. */
-    void* gmrtRoller;
+    struct AverageRoller* gmrtRoller;
 
     /** The storage for the searches which are in progress. */
     struct SearchStore* searchStore;
@@ -51,11 +51,7 @@ struct RouterModule
 
     struct Allocator* allocator;
 
-    /** An array of timers for in-flight pings, allocated with pingAllocator. */
-    struct RouterModule_Ping* pings[RouterModule_MAX_CONCURRENT_PINGS];
-
-    /** A memory allocator which only exists when there are pings in flight. */
-    struct Allocator* pingAllocator;
+    struct Pinger* pinger;
 
     struct Admin* admin;
 
@@ -63,6 +59,15 @@ struct RouterModule
     String gitVersion;
 
     struct Random* rand;
+
+
+    /**
+     * Used by handleIncoming() to pass a message to onResponse()
+     * while the execution goes through pinger.
+     */
+    struct DHTMessage* currentMessage;
+
+    Identity
 };
 
 #endif

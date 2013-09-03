@@ -56,7 +56,6 @@ struct Ducttape_pvt
     /** The DHT router module. */
     struct RouterModule* routerModule;
 
-
     /** The interface which interacts with the switch core. */
     struct Interface switchInterface;
 

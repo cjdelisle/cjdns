@@ -62,11 +62,6 @@ struct Janitor
     struct Random* rand;
 };
 
-static bool searchStepCallback(void* callbackContext, struct DHTMessage* result)
-{
-    return false;
-}
-
 static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
@@ -87,7 +82,7 @@ static void maintanenceCycle(void* vcontext)
     // Ping a random node.
     struct Node* randomNode = RouterModule_getNode(0, janitor->routerModule);
     if (randomNode) {
-        RouterModule_pingNode(randomNode, janitor->routerModule, 0, NULL);
+        RouterModule_pingNode(randomNode, 0, janitor->routerModule, janitor->allocator);
     }
 
     // If the node's reach is zero, run a search for it, otherwise run a random search.
@@ -111,11 +106,7 @@ static void maintanenceCycle(void* vcontext)
                        (unsigned long) janitor->routerModule->totalReach);
         #endif
 
-        RouterModule_beginSearch(targetAddr.ip6.bytes,
-                                 searchStepCallback,
-                                 janitor,
-                                 janitor->routerModule,
-                                 janitor->allocator);
+        RouterModule_search(targetAddr.ip6.bytes, janitor->routerModule, janitor->allocator);
         return;
     }
 
@@ -140,11 +131,7 @@ static void maintanenceCycle(void* vcontext)
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        RouterModule_beginSearch(targetAddr.ip6.bytes,
-                                 searchStepCallback,
-                                 janitor,
-                                 janitor->routerModule,
-                                 janitor->allocator);
+        RouterModule_search(targetAddr.ip6.bytes, janitor->routerModule, janitor->allocator);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }

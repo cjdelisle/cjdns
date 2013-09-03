@@ -591,8 +591,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
     if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
         context->timeOfLastSearch = now;
-        RouterModule_beginSearch(
-            header->nodeIp6Addr, NULL, NULL, context->routerModule, context->alloc);
+        RouterModule_search(header->nodeIp6Addr, context->routerModule, context->alloc);
     }
     return 0;
 }
@@ -1034,10 +1033,15 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
         Message_shift(message, -4);
         if (session) {
+            uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
+            if (nonce == ~0u) {
+                Log_debug(context->logger, "Got connectToMe packet at switch layer");
+                return 0;
+            }
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
                                  "running session nonce[%u]",
-                                 Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]));
+                                 nonce);
             dtHeader->receiveHandle = nonceOrHandle;
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");
@@ -1047,7 +1051,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         uint8_t ip6[16];
         uint8_t* herKey = caHeader->handshake.publicKey;
         AddressCalc_addressForPublicKey(ip6, herKey);
-        if (AddressCalc_validAddress(ip6)) {
+        // a packet which claims to be "from us" causes problems
+        if (AddressCalc_validAddress(ip6) && Bits_memcmp(ip6, &context->myAddr, 16)) {
             session = SessionManager_getSession(ip6, herKey, context->sm);
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),

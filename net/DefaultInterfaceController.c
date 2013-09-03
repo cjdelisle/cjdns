@@ -294,7 +294,13 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 // communication to the server. Here we will ping the client so when the
                 // server gets the ping response, it will insert the client into its table
                 // and know its version.
-                pingCallback(ic);
+
+                // prevent DoS by limiting the number of times this can be called per second
+                // limit it to 7, this will affect innocent packets but it doesn't matter much
+                // since this is mostly just an optimization and for keeping the tests happy.
+                if ((ic->pingCount + 1) % 7) {
+                    pingCallback(ic);
+                }
             }
         }
     } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE

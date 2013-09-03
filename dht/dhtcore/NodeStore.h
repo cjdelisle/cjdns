@@ -125,14 +125,4 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store);
  */
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
 
-/**
- * Return a node from the routing table which is likely to yield a good route but is not favored.
- * Good candidates are defined as nodes whose known link state is worse than average but their
- * label length is shorter than average. These are probably better nodes but their link state
- * is low or 0 because they have never been pinged so it's unknown.
- *
- * @param store the node store.
- */
-struct Node* NodeStore_getGoodCandidate(struct NodeStore* store);
-
 #endif

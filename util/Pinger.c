@@ -112,6 +112,10 @@ struct Pinger_Ping* Pinger_newPing(String* data,
 
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
+    if (data->len < 4) {
+        Log_debug(pinger->logger, "Invalid ping response, too short");
+        return;
+    }
     uint32_t handle = *((uint32_t*) data->bytes);
     int index = Map_OutstandingPings_indexForHandle(handle, &pinger->outstandingPings);
     if (index < 0) {

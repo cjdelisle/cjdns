@@ -35,7 +35,16 @@
  */
 struct RouterModule;
 
-struct RouterModule_Search;
+struct RouterModule_Promise;
+struct RouterModule_Promise
+{
+    void (* callback)(struct RouterModule_Promise* promise,
+                      uint32_t lag,
+                      struct Address* addr,
+                      Dict* result);
+    void* userData;
+    struct Allocator* alloc;
+};
 
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
@@ -64,25 +73,16 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
 /**
  * Start a search.
+ * The returned promise will have it's callback called for each result of the search and
+ * then it will be called with 0 milliseconds lag and NULL response indicating the search is over.
  *
- * @param callback the function to call when results come in for this search.
- *                 This function will be called for every message
- *                 which is sent back to us as a result of this search.
- *                 It is the function's job to determine if the message has meaningful results.
- *                 if it returns true then the search is assumed to be complete.
- * @param callbackContext a pointer which will be passed back to the callback when it is called.
- * @param module the router module which should perform the search.
- * @param searchAllocator a temporary allocator to use for allocating the search data.
- *                        freeing this allocator will cancel the search.
- * @return a search if all goes well, NULL if the search could not be completed because there are
- *         no nodes closer to the destination than us or if there is not enough empty search slots.
+ * @param searchTarget the address to search for.
+ * @param module the router module.
+ * @param alloc an allocator for the search, free this to cancel the search
  */
-struct RouterModule_Search* RouterModule_beginSearch(
-    uint8_t searchTarget[16],
-    bool (* const callback)(void* callbackContext, struct DHTMessage* result),
-    void* callbackContext,
-    struct RouterModule* module,
-    struct Allocator* searchAllocator);
+struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
+                                                 struct RouterModule* module,
+                                                 struct Allocator* alloc);
 
 /**
  * Manually add a node to the routing table.
@@ -100,17 +100,16 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
  * This is the best way to introduce nodes manually.
  *
  * @param node the node to ping.
- * @param module the router module.
  * @param timeoutMilliseconds the number of milliseconds to wait beforwe calling a ping timed out
  *                            if zero, it will be calculated based on the mean response time.
- * @param txid a number which will be bounced back in the ping,
- *             not useful outside of RouterModule so NULL is acceptable.
+ * @param module the router module.
+ * @param alloc to cancel the ping, free this allocator
  * @return 0 if the ping was sent, -1 if there was no more space to store state.
  */
-int RouterModule_pingNode(struct Node* node,
-                          struct RouterModule* module,
-                          uint32_t timeoutMilliseconds,
-                          String* txid);
+struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
+                                                   uint32_t timeoutMilliseconds,
+                                                   struct RouterModule* module,
+                                                   struct Allocator* alloc);
 
 int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
 

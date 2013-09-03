@@ -21,6 +21,7 @@
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
+#include "util/platform/libc/strlen.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -96,7 +97,7 @@ static inline bool Address_isSame(const struct Address* addr,
 static inline bool Address_isSameIp(const struct Address* addr,
                                     const struct Address* addr2)
 {
-    return Bits_memcmp(addr->key, addr2->key, Address_KEY_SIZE) == 0;
+    return Bits_memcmp(addr->ip6.bytes, addr2->ip6.bytes, 16) == 0;
 }
 
 static inline bool Address_equalsSearchTarget(
