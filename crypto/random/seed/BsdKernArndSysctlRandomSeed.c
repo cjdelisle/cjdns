@@ -21,6 +21,9 @@
     #include <errno.h>
     #include <sys/types.h>
     #include <sys/sysctl.h>
+    #ifndef Illumos
+        #include <sys/sysctl.h>
+    #endif
 #endif
 
 /** Number of times to try each operation. */
