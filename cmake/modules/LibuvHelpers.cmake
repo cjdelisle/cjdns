@@ -35,6 +35,15 @@ function(addDependencies)
       ${CMAKE_THREAD_LIBS_INIT}
       kvm
       )
+  elseif (ILLUMOS)
+    set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
+      ${SOCKET_LIBRARIES}
+      ${CLOCK_GETTIME_LIBRARIES}
+      ${CMAKE_THREAD_LIBS_INIT}
+      kstat
+      sendfile
+      xnet
+      )
   elseif (WIN32)
     set_property(TARGET uv PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES
       ${SOCKET_LIBRARIES}
