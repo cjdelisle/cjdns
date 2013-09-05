@@ -90,9 +90,9 @@ for route in allRoutes:
         if penalize: penalty += 1;
         penalty <<= 1;
 
-    #print(str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r));
+    print(str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r));
     penaltySum += penalty;
     lengthSum += len(r);
 
 print("average penalty " + str(float(penaltySum) / len(allRoutes)));
-#print("average length " + str(float(lengthSum) / len(allRoutes)));
+print("average length " + str(float(lengthSum) / len(allRoutes)));

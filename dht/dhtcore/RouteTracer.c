@@ -150,7 +150,9 @@ static void responseCallback(struct RouterModule_Promise* promise,
         uint32_t version = (versions) ? versions->versions[i / Address_SERIALIZED_SIZE] : 1;
         struct Node* n = NodeStore_addNode(ctx->nodeStore, &addr, 0, version);
 
-        if (!LabelSplicer_routesThrough(trace->target, n->address.path)) {
+        if (!n) {
+            // incompatible version, introduced to ourselves...
+        } else if (!LabelSplicer_routesThrough(trace->target, n->address.path)) {
             // not on the way
         } else  if (n->address.path <= fromNode->address.path) {
             // losing ground
