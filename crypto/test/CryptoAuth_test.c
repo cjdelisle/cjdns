@@ -112,7 +112,7 @@ static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface
     return Error_NONE;
 }
 
-int init(const uint8_t* privateKey,
+static int init(const uint8_t* privateKey,
          uint8_t* publicKey,
          const uint8_t* password,
          bool authenticatePackets)
