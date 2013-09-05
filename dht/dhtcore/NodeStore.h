@@ -68,6 +68,20 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           struct NodeStore* store);
 
 /**
+ * Get direct peers of this node.
+ * Will get peers with switch labels XOR close to the provided label up to max number.
+ *
+ * @param label will get peers whose labels are XOR close to this label.
+ * @param max will not return more than this number of peers.
+ * @param allocator for getting memory for the list.
+ * @param store the nodestore.
+ */
+struct NodeList* NodeStore_getPeers(uint64_t label,
+                                    const uint32_t max,
+                                    struct Allocator* allocator,
+                                    struct NodeStore* store);
+
+/**
  * Get the best nodes for servicing a lookup.
  * These are returned in reverse order, from farthest to closest.
  *

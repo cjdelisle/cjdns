@@ -343,6 +343,43 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
     return out;
 }
 
+struct NodeList* NodeStore_getPeers(uint64_t label,
+                                    const uint32_t max,
+                                    struct Allocator* allocator,
+                                    struct NodeStore* store)
+{
+    // truncate the label to the part which this node uses...
+    label &= (((uint64_t)1) << NumberCompress_bitsUsedForLabel(label)) - 1;
+
+    struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
+    out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
+
+    for (int i = 0; i < store->size; i++) {
+        uint64_t p = store->nodes[i].address.path;
+        if (LabelSplicer_isOneHop(p)) {
+            int j;
+            for (j = 0; j < (int)max; j++) {
+                if (out->nodes[j] && (out->nodes[j]->address.path ^ label) < (p ^ label)) {
+                    break;
+                }
+            }
+            if (j > 1) {
+                Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+            }
+            out->nodes[j - 1] = &store->nodes[i];
+        }
+    }
+    out->size = 0;
+    for (int i = 0; i < (int)max; i++) {
+        if (out->nodes[i]) {
+            out->nodes = &out->nodes[i];
+            out->size = max - i;
+            break;
+        }
+    }
+    return out;
+}
+
 /** See: NodeStore.h */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,

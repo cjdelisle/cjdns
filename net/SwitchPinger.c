@@ -200,6 +200,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                String* data,
                                                uint32_t timeoutMilliseconds,
                                                SwitchPinger_ResponseCallback onResponse,
+                                               struct Allocator* alloc,
                                                struct SwitchPinger* ctx)
 {
     if (data && data->len > Control_Ping_MAX_SIZE) {
@@ -207,7 +208,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     }
 
     struct Pinger_Ping* pp =
-        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, ctx->pinger);
+        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
 
     if (!pp) {
         return NULL;
@@ -237,13 +238,14 @@ void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping)
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
+                                      struct Random* rand,
                                       struct Log* logger,
                                       struct Allocator* alloc)
 {
     struct SwitchPinger* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger));
     Bits_memcpyConst(sp, (&(struct SwitchPinger) {
         .iface = iface,
-        .pinger = Pinger_new(eventBase, logger, alloc),
+        .pinger = Pinger_new(eventBase, rand, logger, alloc),
         .logger = logger,
         .allocator = alloc
     }), sizeof(struct SwitchPinger));

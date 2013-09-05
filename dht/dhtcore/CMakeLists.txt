@@ -16,6 +16,8 @@ add_library(dhtcore
     SearchStore.c
     Janitor.c
     VersionList.c
+    SearchRunner.c
+    RouteTracer.c
 )
 
 target_link_libraries(dhtcore

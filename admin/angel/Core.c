@@ -342,7 +342,7 @@ int Core_main(int argc, char** argv)
                                             rand);
 
     struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, eventBase, logger, alloc);
+        SwitchPinger_new(&dt->switchPingerIf, eventBase, rand, logger, alloc);
 
     // Interfaces.
     struct InterfaceController* ifController =

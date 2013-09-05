@@ -27,6 +27,10 @@ struct MallocAllocator_OnFreeJob {
     struct Allocator_OnFreeJob generic;
     struct MallocAllocator_pvt* alloc;
     struct MallocAllocator_OnFreeJob* next;
+
+    /* prevent async jobs from being called multiple times, nonzero = done */
+    int done;
+
     const char* file;
     int line;
 };

@@ -30,9 +30,6 @@ struct RouterModule
     /** An AverageRoller for calculating the global mean response time. */
     struct AverageRoller* gmrtRoller;
 
-    /** The storage for the searches which are in progress. */
-    struct SearchStore* searchStore;
-
     /** The storage for the nodes. */
     struct NodeStore* nodeStore;
 
@@ -41,6 +38,10 @@ struct RouterModule
 
     /** The registry which is needed so that we can send messages. */
     struct DHTModuleRegistry* registry;
+
+    struct SearchRunner* searchRunner;
+
+    struct RouteTracer* routeTracer;
 
     /** The libevent event base for handling timeouts. */
     struct EventBase* eventBase;

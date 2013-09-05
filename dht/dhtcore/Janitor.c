@@ -50,6 +50,8 @@ struct Janitor
 
     struct Timeout* timeout;
 
+    struct Log* logger;
+
     uint64_t globalMaintainenceMilliseconds;
     uint64_t timeOfNextGlobalMaintainence;
 
@@ -61,6 +63,52 @@ struct Janitor
     struct EventBase* eventBase;
     struct Random* rand;
 };
+
+struct Janitor_Search
+{
+    struct Janitor* janitor;
+    struct Address best;
+    Identity
+};
+
+static void responseCallback(struct RouterModule_Promise* promise,
+                             uint32_t lagMilliseconds,
+                             struct Node* fromNode,
+                             Dict* result)
+{
+    struct Janitor_Search* search = Identity_cast((struct Janitor_Search*)promise->userData);
+    if (fromNode) {
+        Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
+        return;
+    }
+    if (!search->best.path) {
+        Log_debug(search->janitor->logger, "Search completed with no nodes found");
+        return;
+    }
+    // end of the line, now lets trace
+
+    #ifdef Log_DEBUG
+        uint8_t printed[60];
+        Address_print(printed, &search->best);
+        Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
+    #endif
+    RouterModule_trace(search->best.path,
+                       search->janitor->routerModule,
+                       search->janitor->allocator);
+}
+
+static void search(uint8_t target[16], struct Janitor* janitor)
+{
+    struct RouterModule_Promise* rp =
+        RouterModule_search(target, janitor->routerModule, janitor->allocator);
+    struct Janitor_Search* search = Allocator_clone(rp->alloc, (&(struct Janitor_Search) {
+        .janitor = janitor
+    }));
+    Identity_set(search);
+
+    rp->callback = responseCallback;
+    rp->userData = search;
+}
 
 static void maintanenceCycle(void* vcontext)
 {
@@ -106,7 +154,7 @@ static void maintanenceCycle(void* vcontext)
                        (unsigned long) janitor->routerModule->totalReach);
         #endif
 
-        RouterModule_search(targetAddr.ip6.bytes, janitor->routerModule, janitor->allocator);
+        search(targetAddr.ip6.bytes, janitor);
         return;
     }
 
@@ -131,7 +179,7 @@ static void maintanenceCycle(void* vcontext)
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        RouterModule_search(targetAddr.ip6.bytes, janitor->routerModule, janitor->allocator);
+        search(targetAddr.ip6.bytes, janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }
@@ -140,6 +188,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
+                            struct Log* logger,
                             struct Allocator* alloc,
                             struct EventBase* eventBase,
                             struct Random* rand)
@@ -148,6 +197,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .eventBase = eventBase,
         .routerModule = routerModule,
         .nodeStore = nodeStore,
+        .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase),
         .allocator = alloc,
