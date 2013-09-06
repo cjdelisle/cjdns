@@ -227,6 +227,7 @@ static void pingCallback(void* vic)
                                      String_CONST(""),
                                      ic->timeoutMilliseconds,
                                      onPingResponse,
+                                     ic->allocator,
                                      ic->switchPinger);
 
             if (!ping) {

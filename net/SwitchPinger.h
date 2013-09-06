@@ -16,11 +16,12 @@
 #define SwitchPinger_H
 
 #include "benc/String.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
+#include "util/events/EventBase.h"
 #include "util/log/Log.h"
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
 
 enum SwitchPinger_Result
 {
@@ -84,12 +85,17 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result);
  * @param label the HOST ORDER label of the node to send the ping message to.
  * @param data the content of the ping to send, if NULL, an empty string will be
  *             returned in the response.
+ * @param timeoutMilliseconds how long to wait before failing the ping.
+ * @param onResponse the callback after the on pong or timeout.
+ * @param alloc free this to cancel the ping.
+ * @param ctx the pinger
  */
 struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                String* data,
                                                uint32_t timeoutMilliseconds,
                                                SwitchPinger_ResponseCallback onResponse,
-                                               struct SwitchPinger* sp);
+                                               struct Allocator* alloc,
+                                               struct SwitchPinger* ctx);
 
 /**
  * Send a ping message after allocating a callback structure for it.
@@ -100,6 +106,7 @@ void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping);
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
+                                      struct Random* rand,
                                       struct Log* logger,
                                       struct Allocator* alloc);
 

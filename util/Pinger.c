@@ -14,6 +14,7 @@
  */
 #include "util/Bits.h"
 #include "util/Pinger.h"
+#include "crypto/random/Random.h"
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
@@ -26,6 +27,7 @@ struct Ping
     String* data;
     uint32_t timeSent;
     uint32_t handle;
+    uint64_t cookie;
     Pinger_SEND_PING(sendPing);
     Pinger_ON_RESPONSE(onResponse);
     Identity
@@ -40,6 +42,7 @@ struct Pinger
 {
     struct Map_OutstandingPings outstandingPings;
     struct EventBase* eventBase;
+    struct Random* rand;
     struct Log* logger;
     struct Allocator* allocator;
 };
@@ -76,9 +79,10 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    Pinger_ON_RESPONSE(onResponse),
                                    Pinger_SEND_PING(sendPing),
                                    uint32_t timeoutMilliseconds,
+                                   struct Allocator* allocator,
                                    struct Pinger* pinger)
 {
-    struct Allocator* alloc = Allocator_child(pinger->allocator);
+    struct Allocator* alloc = Allocator_child(allocator);
 
     struct Ping* ping = Allocator_clone(alloc, (&(struct Ping) {
         .public = {
@@ -94,11 +98,14 @@ struct Pinger_Ping* Pinger_newPing(String* data,
     int pingIndex = Map_OutstandingPings_put(&ping, &pinger->outstandingPings);
     ping->handle = pinger->outstandingPings.handles[pingIndex];
 
-    // Prefix the data with the handle
-    String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 4, alloc);
+    ping->cookie = Random_uint64(pinger->rand);
+
+    // Prefix the data with the handle and cookie
+    String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 12, alloc);
     Bits_memcpyConst(toSend->bytes, &ping->handle, 4);
+    Bits_memcpyConst(&toSend->bytes[4], &ping->cookie, 8);
     if (data) {
-        Bits_memcpy(toSend->bytes + 4, data->bytes, data->len);
+        Bits_memcpy(toSend->bytes + 12, data->bytes, data->len);
     }
     ping->data = toSend;
 
@@ -112,7 +119,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
 
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
 {
-    if (data->len < 4) {
+    if (data->len < 12) {
         Log_debug(pinger->logger, "Invalid ping response, too short");
         return;
     }
@@ -123,17 +130,28 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
     } else {
         data->len -= 4;
         data->bytes += 4;
+        uint64_t cookie = *((uint64_t*) data->bytes);
         struct Ping* p = Identity_cast((struct Ping*) pinger->outstandingPings.values[index]);
+        if (cookie != p->cookie) {
+            Log_debug(pinger->logger, "Ping response with invalid cookie");
+            return;
+        }
+        data->len -= 8;
+        data->bytes += 8;
         callback(data, p);
     }
 }
 
-struct Pinger* Pinger_new(struct EventBase* eventBase, struct Log* logger, struct Allocator* alloc)
+struct Pinger* Pinger_new(struct EventBase* eventBase,
+                          struct Random* rand,
+                          struct Log* logger,
+                          struct Allocator* alloc)
 {
     return Allocator_clone(alloc, (&(struct Pinger) {
         .outstandingPings = {
             .allocator = alloc
         },
+        .rand = rand,
         .eventBase = eventBase,
         .logger = logger,
         .allocator = alloc

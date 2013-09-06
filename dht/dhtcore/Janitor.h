@@ -21,6 +21,7 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
+#include "util/log/Log.h"
 
 #include <stdint.h>
 
@@ -30,6 +31,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
+                            struct Log* logger,
                             struct Allocator* alloc,
                             struct EventBase* eventBase,
                             struct Random* rand);

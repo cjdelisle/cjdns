@@ -23,6 +23,9 @@ static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
 // Find nodes query. "fn"
 static String* const CJDHTConstants_QUERY_FN = String_CONST_SO("fn");
 
+// Get (direct) peers query. "gp"
+static String* const CJDHTConstants_QUERY_GP = String_CONST_SO("gp");
+
 // Ping query
 static String* const CJDHTConstants_QUERY_PING = String_CONST_SO("pn");
 

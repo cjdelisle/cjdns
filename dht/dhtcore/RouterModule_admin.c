@@ -68,7 +68,7 @@ struct Ping
 
 static void pingResponse(struct RouterModule_Promise* promise,
                          uint32_t lag,
-                         struct Address* addr,
+                         struct Node* node,
                          Dict* responseDict)
 {
     struct Ping* ping = Identity_cast((struct Ping*)promise->userData);
@@ -100,11 +100,11 @@ static void pingResponse(struct RouterModule_Promise* promise,
     response = Dict_CONST(String_CONST("ms"), Int_OBJ(lag), response);
 
     char from[60] = "";
-    if (addr) {
-        Address_print((uint8_t*)from, addr);
+    if (node) {
+        Address_print((uint8_t*)from, &node->address);
     }
     Dict fromResponse = Dict_CONST(String_CONST("from"), String_OBJ(String_CONST(from)), response);
-    if (addr) {
+    if (node) {
         response = fromResponse;
     }
 

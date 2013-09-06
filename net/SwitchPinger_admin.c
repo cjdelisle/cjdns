@@ -26,6 +26,7 @@ struct Context
 {
     struct SwitchPinger* switchPinger;
     struct Admin* admin;
+    struct Allocator* alloc;
 };
 
 struct Ping
@@ -83,8 +84,12 @@ static void adminPing(Dict* args, void* vcontext, String* txid)
     if (pathStr->len != 19 || AddrTools_parsePath(&path, (uint8_t*) pathStr->bytes)) {
         err = String_CONST("path was not parsable.");
     } else {
-        struct SwitchPinger_Ping* ping =
-            SwitchPinger_newPing(path, data, timeout, adminPingOnResponse, context->switchPinger);
+        struct SwitchPinger_Ping* ping = SwitchPinger_newPing(path,
+                                                              data,
+                                                              timeout,
+                                                              adminPingOnResponse,
+                                                              context->alloc,
+                                                              context->switchPinger);
         if (!ping) {
             err = String_CONST("no open slots to store ping, try later.");
         } else {
@@ -109,6 +114,7 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
 {
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .switchPinger = sp,
+        .alloc = alloc,
         .admin = admin
     }));
 

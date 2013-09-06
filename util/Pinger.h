@@ -18,10 +18,8 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-
+#include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
-
-#define Pinger_MAX_CONCURRENT_PINGS 256
 
 /**
  * On pong received callback.
@@ -69,6 +67,7 @@ struct Pinger_Ping
  * @param onResponse this function will be called when the ping is responded to or times out.
  * @param sendPing the function which will be called to send the ping out to the other node.
  * @param timeoutMilliseconds the number of milliseconds to wait before timeout.
+ * @param allocator cancel the ping by freeing this allocator.
  * @param pinger
  * @return a new Pinger_Ping if all goes well, NULL if there is no space.
  */
@@ -76,6 +75,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    Pinger_ON_RESPONSE(onResponse),
                                    Pinger_SEND_PING(sendPing),
                                    uint32_t timeoutMilliseconds,
+                                   struct Allocator* allocator,
                                    struct Pinger* pinger);
 
 /**
@@ -103,6 +103,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger);
  * @param alloc
  */
 struct Pinger* Pinger_new(struct EventBase* eventBase,
+                          struct Random* rand,
                           struct Log* logger,
                           struct Allocator* alloc);
 

@@ -115,8 +115,16 @@ static inline void checkCanaries(struct MallocAllocator_Allocation* alloc,
                                  struct MallocAllocator_pvt* context)
 {
     #ifdef MallocAllocator_USE_CANARIES
-        Assert_always(alloc->beginCanary == context->canary
-            && END_CANARY(alloc) == alloc->beginCanary);
+        char* canary;
+        if (alloc->beginCanary != context->canary) {
+            canary = "begin";
+        } else if (END_CANARY(alloc) != alloc->beginCanary) {
+            canary = "end";
+        } else {
+            return;
+        }
+        Assert_failure("%s:%d Fatal error: invalid [%s] canary",
+                       context->identFile, context->identLine, canary);
     #endif
 }
 
@@ -252,13 +260,17 @@ static void freeAllocator(struct MallocAllocator_pvt* context, const char* file,
     struct MallocAllocator_OnFreeJob** jobP = &context->onFree;
     while (*jobP != NULL) {
         struct MallocAllocator_OnFreeJob* job = *jobP;
-        if (!job->generic.callback
-            || job->generic.callback(&job->generic) != Allocator_ONFREE_ASYNC)
-        {
-            // Either the job has no callback or it has a callback and doesn't need async.
-            // remove it from the list.
+        if (!job->generic.callback) {
+            // no callback, remove the job
             Assert_true(!removeJob(job));
             continue;
+        } else if (!job->done) {
+            if  (job->generic.callback(&job->generic) != Allocator_ONFREE_ASYNC) {
+                Assert_true(!removeJob(job));
+                continue;
+            }
+            // asynchronously completing, don't bother it again.
+            job->done = true;
         }
         jobP = &job->next;
     }

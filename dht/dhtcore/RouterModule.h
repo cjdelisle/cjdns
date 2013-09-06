@@ -40,7 +40,7 @@ struct RouterModule_Promise
 {
     void (* callback)(struct RouterModule_Promise* promise,
                       uint32_t lag,
-                      struct Address* addr,
+                      struct Node* fromNode,
                       Dict* result);
     void* userData;
     struct Allocator* alloc;
@@ -72,17 +72,13 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Random* rand);
 
 /**
- * Start a search.
- * The returned promise will have it's callback called for each result of the search and
- * then it will be called with 0 milliseconds lag and NULL response indicating the search is over.
+ * The amount of time to wait before skipping over the first node and trying another in a search.
+ * Any node which can't beat this time will have its reach set to 0.
  *
- * @param searchTarget the address to search for.
- * @param module the router module.
- * @param alloc an allocator for the search, free this to cancel the search
+ * @param module this module.
+ * @return the timeout time.
  */
-struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
-                                                 struct RouterModule* module,
-                                                 struct Allocator* alloc);
+uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module);
 
 /**
  * Manually add a node to the routing table.
@@ -111,7 +107,21 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc);
 
+struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
+                                                     uint32_t timeoutMilliseconds,
+                                                     struct RouterModule* module,
+                                                     struct Allocator* alloc);
+void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request);
+
 int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
+
+struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
+                                                 struct RouterModule* module,
+                                                 struct Allocator* alloc);
+
+struct RouterModule_Promise* RouterModule_trace(uint64_t route,
+                                                struct RouterModule* module,
+                                                struct Allocator* alloc);
 
 /**
  * Get a node from the NodeStore, see: NodeStore_getNodeByNetworkAddr() of which this is a clone.
