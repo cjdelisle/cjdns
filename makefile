@@ -3,9 +3,9 @@ default: all
 .PHONY: all
 
 all:
-	sh do
+	/usr/bin/env bash do
 
 .PHONY: clean
 
 clean:
-	sh clean
+	/usr/bin/env bash clean
