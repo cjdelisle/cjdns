@@ -363,10 +363,11 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
                     break;
                 }
             }
-            if (j > 1) {
-                Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+            switch (j) {
+                default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
+                case 1: out->nodes[j - 1] = &store->nodes[i];
+                case 0:;
             }
-            out->nodes[j - 1] = &store->nodes[i];
         }
     }
     out->size = 0;
