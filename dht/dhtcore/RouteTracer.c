@@ -179,6 +179,10 @@ static void responseCallback(struct RouterModule_Promise* promise,
         return;
     }
 
+    if (!LabelSplicer_routesThrough(trace->target, next->address.path)) {
+        log(ctx->logger, trace, "STALLED Nodestore broke the path of the best option");
+    }
+
     traceStep(trace, next);
 }
 
