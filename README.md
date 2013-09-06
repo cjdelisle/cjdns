@@ -191,7 +191,6 @@ Alternatively, you may run the do script directly:
 
     ./do
 
-
 Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
 proceed below:
 
