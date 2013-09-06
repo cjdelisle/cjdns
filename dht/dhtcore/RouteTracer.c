@@ -253,7 +253,12 @@ struct RouterModule_Promise* RouteTracer_trace(uint64_t route,
 
     struct NodeList* firstHop = NodeStore_getPeers(route, 1, alloc, tracer->nodeStore);
 
-    traceStep(trace, (firstHop->size > 0) ? firstHop->nodes[0] : NULL);
+    struct Node* n = (firstHop->size > 0) ? firstHop->nodes[0] : NULL;
+    if (n && !LabelSplicer_routesThrough(trace->target, n->address.path)) {
+        n = NULL;
+    }
+
+    traceStep(trace, n);
 
     return &trace->pub;
 }
