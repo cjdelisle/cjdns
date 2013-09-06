@@ -91,5 +91,8 @@ for route in allRoutes:
     penaltySum += penalty;
     lengthSum += len(r);
 
-print("average penalty " + str(float(penaltySum) / len(allRoutes)));
-print("average length " + str(float(lengthSum) / len(allRoutes)));
+avgPenalty = float(penaltySum) / len(allRoutes);
+avgLength = float(lengthSum) / len(allRoutes);
+print("average penalty " + str(avgPenalty));
+print("average length " + str(avgLength));
+print("trashroute index " + str(avgPenalty / avgLength));
