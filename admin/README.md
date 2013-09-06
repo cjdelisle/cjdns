@@ -174,9 +174,11 @@ allows you to call cjdns functions from shell scripts or the command line as fol
 
 ## Cjdns Functions:
 
-    user@ubnta8:~/wrk/cjdns$ ./contrib/python/cexec 'functions' | sort
+    user@ubnta8:~/wrk/cjdns$ ./contrib/python/cexec 'functions()' | sort
     Admin_asyncEnabled()
     Admin_availableFunctions(page='')
+    AdminLog_subscribe(line='', file=0, level=0)
+    AdminLog_unsubscribe(streamId)
     AuthorizedPasswords_add(password, user, authType='')
     AuthorizedPasswords_list()
     AuthorizedPasswords_remove(user)
@@ -194,7 +196,6 @@ allows you to call cjdns functions from shell scripts or the command line as fol
     IpTunnel_showConnection(connection)
     memory()
     NodeStore_dumpTable(page)
-    None
     ping()
     RouterModule_lookup(address)
     RouterModule_pingNode(path, timeout='')
