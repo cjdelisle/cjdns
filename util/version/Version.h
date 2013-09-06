@@ -210,7 +210,7 @@
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 4
+#define Version_CURRENT_PROTOCOL 5
 #define Version_1_COMPAT
 #define Version_2_COMPAT
 #define Version_3_COMPAT
