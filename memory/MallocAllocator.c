@@ -204,19 +204,31 @@ static void releaseMemory(struct MallocAllocator_pvt* context)
  * Change the root allocator for a given subtree.
  * @param alloc an allocator.
  */
-static void setRootPointer(struct MallocAllocator_pvt* alloc,
-                           struct MallocAllocator_FirstCtx* root,
-                           struct MallocAllocator_pvt* first)
+static void changeRoot(struct MallocAllocator_pvt* alloc,
+                       struct MallocAllocator_FirstCtx* root,
+                       struct MallocAllocator_pvt* first,
+                       const char* file,
+                       int line)
 {
     Assert_true(first != alloc);
     if (!first) {
         first = alloc;
     }
+    if (alloc->rootAlloc != NULL) {
+        alloc->rootAlloc->spaceAvailable += alloc->allocatedHere;
+    }
+    if (root != NULL) {
+        if (root->spaceAvailable < (int64_t)alloc->allocatedHere) {
+            failure(alloc, "Out of memory, limit exceeded", file, line);
+        }
+        root->spaceAvailable -= alloc->allocatedHere;
+    }
+    alloc->rootAlloc = root;
+
     struct MallocAllocator_pvt* child = alloc->firstChild;
     while (child) {
         struct MallocAllocator_pvt* nextChild = child->nextSibling;
-        setRootPointer(child, root, first);
-        child->rootAlloc = root;
+        changeRoot(child, root, first, file, line);
         child = nextChild;
     }
 }
@@ -243,20 +255,24 @@ static void disconnect(struct MallocAllocator_pvt* context)
         context->nextSibling = NULL;
     }
 
-    setRootPointer(context, NULL, NULL);
+    // impossible to have a failure so using crap file/line
+    changeRoot(context, NULL, NULL, "", 0);
+
     context->lastSibling = context;
 }
 
 // connect an allocator to a new parent.
 static void connect(struct MallocAllocator_pvt* parent,
-                    struct MallocAllocator_pvt* child)
+                    struct MallocAllocator_pvt* child,
+                    const char* file,
+                    int line)
 {
     Assert_true(child->lastSibling == child);
     Assert_true(child->nextSibling == NULL);
     child->nextSibling = parent->firstChild;
     parent->firstChild = child;
     child->lastSibling = parent;
-    setRootPointer(child, parent->rootAlloc, NULL);
+    changeRoot(child, parent->rootAlloc, NULL, file, line);
 }
 
 static struct MallocAllocator_pvt* getParent(struct MallocAllocator_pvt* child)
@@ -348,7 +364,7 @@ static void freeAllocator(struct MallocAllocator_pvt* context, const char* file,
 {
     if (context->adoptions && context->adoptions->parents) {
         disconnect(context);
-        connect(context->adoptions->parents->alloc, context);
+        connect(context->adoptions->parents->alloc, context, file, line);
         disconnectAdopted(context->adoptions->parents->alloc, context);
         return;
     }
