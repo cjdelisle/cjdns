@@ -177,12 +177,15 @@ static void releaseMemory(struct MallocAllocator_pvt* context)
     #ifdef PARANOIA
         unsigned long allocatedHere = context->allocatedHere;
     #endif
+
     struct MallocAllocator_Allocation* loc = context->allocations;
     while (loc != NULL) {
         #ifdef PARANOIA
             allocatedHere -= loc->size;
         #endif
-        context->rootAlloc->spaceAvailable += loc->size;
+        if (context->rootAlloc) {
+            context->rootAlloc->spaceAvailable += loc->size;
+        }
         struct MallocAllocator_Allocation* nextLoc = loc->next;
 
         checkCanaries(loc, context);
@@ -197,6 +200,97 @@ static void releaseMemory(struct MallocAllocator_pvt* context)
     #endif
 }
 
+/**
+ * Change the root allocator for a given subtree.
+ * @param alloc an allocator.
+ */
+static void setRootPointer(struct MallocAllocator_pvt* alloc,
+                           struct MallocAllocator_FirstCtx* root,
+                           struct MallocAllocator_pvt* first)
+{
+    Assert_true(first != alloc);
+    if (!first) {
+        first = alloc;
+    }
+    struct MallocAllocator_pvt* child = alloc->firstChild;
+    while (child) {
+        struct MallocAllocator_pvt* nextChild = child->nextSibling;
+        setRootPointer(child, root, first);
+        child->rootAlloc = root;
+        child = nextChild;
+    }
+}
+
+// disconnect an allocator from it's parent.
+static void disconnect(struct MallocAllocator_pvt* context)
+{
+    // Remove this allocator from the sibling list.
+    Assert_true(context->lastSibling);
+
+    if (context->lastSibling->nextSibling == context) {
+        context->lastSibling->nextSibling = context->nextSibling;
+
+    } else if (context->lastSibling->firstChild == context) {
+        context->lastSibling->firstChild = context->nextSibling;
+
+    } else if (context->lastSibling == context) {
+        // root alloc
+        Assert_true(!context->nextSibling);
+    }
+
+    if (context->nextSibling) {
+        context->nextSibling->lastSibling = context->lastSibling;
+        context->nextSibling = NULL;
+    }
+
+    setRootPointer(context, NULL, NULL);
+    context->lastSibling = context;
+}
+
+// connect an allocator to a new parent.
+static void connect(struct MallocAllocator_pvt* parent,
+                    struct MallocAllocator_pvt* child)
+{
+    Assert_true(child->lastSibling == child);
+    Assert_true(child->nextSibling == NULL);
+    child->nextSibling = parent->firstChild;
+    parent->firstChild = child;
+    child->lastSibling = parent;
+    setRootPointer(child, parent->rootAlloc, NULL);
+}
+
+static struct MallocAllocator_pvt* getParent(struct MallocAllocator_pvt* child)
+{
+    struct MallocAllocator_pvt* ls = child->lastSibling;
+    while (ls) {
+        if (ls->firstChild == child) {
+           return ls;
+        }
+        if (ls == ls->lastSibling) {
+            // root alloc
+            return NULL;
+        }
+        child = ls;
+        ls = ls->lastSibling;
+    }
+    Assert_true(0);
+}
+
+static void freeAllocator(struct MallocAllocator_pvt* context, const char* file, int line);
+
+static void childFreed(struct MallocAllocator_pvt* child)
+{
+    struct MallocAllocator_pvt* parent = getParent(child);
+    // disconnect the child and if there are no children left then call freeAllocator()
+    // on the parent a second time.
+    disconnect(child);
+    if (parent && !parent->firstChild) {
+        // if this was the highest level allocator to be freed, parent is null
+        // because it was disconnected when Allocator_free() was called.
+        freeAllocator(parent, child->identFile, child->identLine);
+    }
+}
+
 static int onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
 {
     struct MallocAllocator_OnFreeJob* job = (struct MallocAllocator_OnFreeJob*) onFreeJob;
@@ -207,13 +301,44 @@ static int onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
     }
 
     if (!context->onFree) {
+        childFreed(context);
         // There are no more jobs, release the memory.
-        releaseMemory(context);
+        freeAllocator(context, context->identFile, context->identLine);
     }
     return 0;
 }
 
-static void disconnectAllocator(struct Allocator* allocator, const char* file, int line);
+static void disconnectAdopted(struct MallocAllocator_pvt* parent, struct MallocAllocator_pvt* child)
+{
+    Assert_true(parent->adoptions);
+    Assert_true(parent->adoptions->children);
+    struct MallocAllocator_List** cpp = &parent->adoptions->children;
+    struct MallocAllocator_List* cp;
+    int found = 0;
+    while ((cp = *cpp)) {
+        if (cp->alloc == child) {
+            *cpp = cp->next;
+            found = 1;
+            break;
+        }
+        cpp = &cp->next;
+    }
+    Assert_true(found);
+
+    Assert_true(child->adoptions);
+    Assert_true(child->adoptions->parents);
+    cpp = &child->adoptions->parents;
+    found = 0;
+    while ((cp = *cpp)) {
+        if (cp->alloc == parent) {
+            *cpp = cp->next;
+            found = 1;
+            break;
+        }
+        cpp = &cp->next;
+    }
+    Assert_true(found);
+}
 
 /**
  * Triggered when freeAllocator() is called and the allocator nolonger
@@ -221,38 +346,21 @@ static void disconnectAllocator(struct Allocator* allocator, const char* file, i
  */
 static void freeAllocator(struct MallocAllocator_pvt* context, const char* file, int line)
 {
-    Assert_true(!context->lastSibling);
-    Assert_true(!context->adoptions || !context->adoptions->parents);
-
-    // Disconnect all of the child allocators.
-    struct MallocAllocator_pvt* child = context->firstChild;
-    while (child) {
-        struct MallocAllocator_pvt* nextChild = child->nextSibling;
-        disconnectAllocator(&child->pub, file, line);
-        child = nextChild;
+    if (context->adoptions && context->adoptions->parents) {
+        disconnect(context);
+        connect(context->adoptions->parents->alloc, context);
+        disconnectAdopted(context->adoptions->parents->alloc, context);
+        return;
     }
+    // from now on, identFile/line will point to the place of freeing.
+    // this allows childFreed() to tell the truth when calling us back.
+    context->identFile = file;
+    context->identLine = line;
 
-    // Disconnect (and free if necessary) the adopted children.
-
+    // Disconnect adopted children.
     struct MallocAllocator_List* childL = context->adoptions ? context->adoptions->children : NULL;
     while (childL) {
-        struct MallocAllocator_List** cpp = &childL->alloc->adoptions->parents;
-        struct MallocAllocator_List* cp = *cpp;
-        int found = 0;
-        while ((cp = *cpp)) {
-            if (cp->alloc == context) {
-                *cpp = cp->next;
-                found = 1;
-                break;
-            }
-            cpp = &cp->next;
-        }
-        Assert_true(found);
-
-        if (!childL->alloc->adoptions->parents && !childL->alloc->lastSibling) {
-            // This child now has no remaining links to the tree.
-            freeAllocator(childL->alloc, file, line);
-        }
+        disconnectAdopted(context, childL->alloc);
         childL = childL->next;
     }
 
@@ -275,9 +383,25 @@ static void freeAllocator(struct MallocAllocator_pvt* context, const char* file,
         jobP = &job->next;
     }
 
-    if (!context->onFree) {
-        releaseMemory(context);
+    if (context->onFree) {
+        // onFreeComplete() will call us back.
+        return;
     }
+
+    // Free children
+    struct MallocAllocator_pvt* child = context->firstChild;
+    if (child) {
+        while (child) {
+            struct MallocAllocator_pvt* nextChild = child->nextSibling;
+            freeAllocator(child, file, line);
+            child = nextChild;
+        }
+        // childFreed() will call us back.
+        return;
+    }
+
+    childFreed(context);
+    releaseMemory(context);
 }
 
 /**
@@ -286,30 +410,7 @@ static void freeAllocator(struct MallocAllocator_pvt* context, const char* file,
 static void disconnectAllocator(struct Allocator* allocator, const char* file, int line)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
-
-    // Remove this allocator from the sibling list.
-    if (context->lastSibling != NULL && context->lastSibling->nextSibling == context) {
-        context->lastSibling->nextSibling = context->nextSibling;
-
-    } else if (context->lastSibling != NULL && context->lastSibling->firstChild == context) {
-        context->lastSibling->firstChild = context->nextSibling;
-
-    } else if (context->lastSibling == context) {
-        // root alloc
-        Assert_always(!context->nextSibling);
-
-    } else if (context->lastSibling != NULL) {
-        failure(context, "The last sibling of this allocator has no reference to it.", file, line);
-    }
-    if (context->nextSibling != NULL) {
-        context->nextSibling->lastSibling = context->lastSibling;
-    }
-    context->lastSibling = NULL;
-
-    if (context->adoptions && context->adoptions->parents) {
-        return;
-    }
-
+    disconnect(context);
     freeAllocator(context, file, line);
 }
 
@@ -458,22 +559,6 @@ static int removeOnFreeJob(struct Allocator_OnFreeJob* toRemove)
         jobPtr = &(*jobPtr)->next;
     }
     return -1;
-}
-
-static struct MallocAllocator_pvt* getParent(struct MallocAllocator_pvt* child)
-{
-    struct MallocAllocator_pvt* ls = child->lastSibling;
-    while (ls) {
-        if (ls->firstChild == child) {
-           return ls;
-        }
-        if (ls == ls->lastSibling) {
-            // root alloc
-            return NULL;
-        }
-        ls = ls->lastSibling;
-    }
-    Assert_true(0);
 }
 
 static bool isAncestorOf(struct MallocAllocator_pvt* maybeParent,
