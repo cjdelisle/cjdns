@@ -24,7 +24,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-struct NodeStore;
+struct NodeStore
+{
+    /** The number of nodes in the list. */
+    int size;
+};
 
 /**
  * Create a new NodeStore.
@@ -116,7 +120,13 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
 void NodeStore_updateReach(const struct Node* const node,
                            const struct NodeStore* const store);
 
-uint32_t NodeStore_size(const struct NodeStore* const store);
+
+int NodeStore_nonZeroNodes(struct NodeStore* nodeStore);
+
+static inline uint32_t NodeStore_size(const struct NodeStore* const nodeStore)
+{
+    return nodeStore->size;
+}
 
 /**
  * Get a node by its path.
