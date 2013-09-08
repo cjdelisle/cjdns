@@ -28,7 +28,7 @@
 #include "dht/dhtcore/LinkStateNodeCollector.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "dht/dhtcore/NodeStore_pvt.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
 #include "util/platform/libc/string.h"
@@ -43,6 +43,261 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <uv-private/tree.h>
+
+struct NodeStore_Node;
+struct NodeStore_Link;
+
+/**
+ * A peer represents a link between two nodes.
+ */
+struct NodeStore_Link {
+    /** The node that is this peer. */
+    struct NodeStore_Node* child;
+
+    /**
+     * The next peer which points to the same node.
+     * For each node there are many peer objects pointing to it,
+     * they are represented here as a linked list.
+     * This is used for freeing links associated with the node.
+     */
+    struct NodeStore_Link* nextPeer;
+
+    /** The parent of this peer, this is where the root of the treeEntry is. */
+    struct NodeStore_Node* parent;
+
+    /** More nodes which are downstream of this node's parent. */
+    struct {
+        struct NodeStore_Link* rbe_left;
+        struct NodeStore_Link* rbe_right;
+        struct NodeStore_Link* rbe_parent;
+        int rbe_color;
+    } treeEntry;
+
+    /** The label fragment which is spliced to this node's parent in order to reach this node. */
+    uint64_t labelFragment;
+
+    /** The quality of the link between this node and it's parent. */
+    uint32_t linkState;
+
+    Identity
+};
+
+struct Ip6 { uint8_t bytes[16]; };
+#define Map_NAME OfNodesByAddress
+#define Map_KEY_TYPE struct Ip6
+#define Map_VALUE_TYPE struct NodeStore_Node*
+#include "util/Map.h"
+
+/** A list of DHT nodes. */
+struct NodeStore_pvt
+{
+    struct NodeStore pub;
+
+    struct NodeStore_Link* selfLink;
+
+    struct Map_OfNodesByAddress nodeMap;
+
+    struct Allocator* alloc;
+
+    /** A heap of links which are not being used. */
+    struct NodeStore_Link* freePile;
+
+
+
+    /** The address of "our" node. */
+    struct Address* thisNodeAddress;
+
+    /** A pointer to the first of an array of node headers. */
+    struct NodeHeader* headers;
+
+    /** Source of random numbers. */
+    struct Random* rand;
+
+    /**
+     * A pointer to the first of the array of nodes
+     * Each node corrisponds to the header at the same index in the header array.
+     */
+    struct Node* nodes;
+
+    /** The maximum number of nodes which can be allocated. */
+    int capacity;
+
+    /** The sum of the logs base 2 of all node labels. */
+    int32_t labelSum;
+
+    /** The means for this node store to log. */
+    struct Log* logger;
+
+    /** Administration tool. */
+    struct Admin* admin;
+
+    Identity
+};
+
+static int comparePeers(const struct NodeStore_Link* a, const struct NodeStore_Link* b)
+{
+    int shift = Bits_ffs64(a->labelFragment ^ b->labelFragment);
+    return (shift) ? ((a->labelFragment >> shift) & 1) : 0;
+}
+
+struct NodeStore_Node
+{
+    /** The actual node information: reach, version, address, best path. */
+    struct Node node;
+
+    /**
+     * Peers of this node for which we know the forward direction.
+     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
+     */
+    struct PeerRBTree {
+        struct NodeStore_Link* rbh_root;
+    } peerTree;
+
+    /** Used for freeing the links associated with this node. */
+    struct NodeStore_Link* reversePeers;
+
+    Identity
+};
+
+RB_GENERATE_STATIC(PeerRBTree, NodeStore_Link, treeEntry, comparePeers)
+
+static inline void insertReversePeer(struct NodeStore_Node* child,
+                                     struct NodeStore_Link* peer)
+{
+    struct NodeStore_Link** prevP = &child->reversePeers;
+    struct NodeStore_Link* current = Identity_cast(*prevP);
+    while (current) {
+        // pointer comparison for ascending order by memory location
+        if ((char*)current->parent < (char*)peer->parent) {
+            break;
+        } else if (current->parent == peer->parent) {
+            Assert_true(0);
+        }
+        prevP = &(current->nextPeer);
+        current = Identity_cast(*prevP);
+    }
+    peer->nextPeer = current;
+    *prevP = peer;
+}
+
+static inline void freeLink(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+{
+    Allocator_realloc(store->alloc, link, 0);
+}
+
+static inline struct NodeStore_Link* getLink(struct NodeStore_pvt* store)
+{
+    return Allocator_calloc(store->alloc, sizeof(struct NodeStore_Link), 1);
+}
+
+static inline void unlinkNodes(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+{
+    // Remove the entry from the reversePeers
+    struct NodeStore_Node* child = Identity_cast(link->child);
+    struct NodeStore_Link** prevP = &child->reversePeers;
+    struct NodeStore_Link* current = Identity_cast(*prevP);
+    while (current && current != link) {
+        prevP = &(current->nextPeer);
+        current = Identity_cast(*prevP);
+    }
+    Assert_true(current);
+    *prevP = current->nextPeer;
+
+    // Remove the RBTree entry
+    struct NodeStore_Node* parent = Identity_cast(link->child);
+    RB_REMOVE(PeerRBTree, &parent->peerTree, link);
+
+    freeLink(link, store);
+}
+
+static inline void update(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+{
+    uint32_t computedReach = link->parent->node.reach - link->linkState;
+    if (computedReach > link->child->node.reach) {
+        // good news!
+
+    }
+}
+
+static inline void linkNodes(struct NodeStore_Node* parent,
+                             struct NodeStore_Node* child,
+                             uint64_t labelFragment,
+                             uint32_t linkState,
+                             struct NodeStore_pvt* store)
+{
+    // Search for peers of both the parent and the child.
+    struct NodeStore_Link* cPeers = child->reversePeers;
+    struct NodeStore_Link* pPeers = parent->reversePeers;
+    while (cPeers && pPeers) {
+        // reverse peers are in ascending order by parent memory location
+        if ((char*)cPeers->parent < (char*)pPeers->parent) {
+            cPeers = cPeers->nextPeer;
+        } else if ((char*)pPeers->parent < (char*)cPeers->parent) {
+            pPeers = pPeers->nextPeer;
+        } else if (LabelSplicer_routesThrough(cPeers->labelFragment, pPeers->labelFragment)) {
+            // the parent and child both have a common grandparent and
+            // the grandparent previously told us about a route for reaching the child
+            // and now we know that the parent falls within that route so we must disconnect
+            // the child from the grandparent before connecting the child to the parent.
+            unlinkNodes(pPeers, store);
+        } else {
+            // same grandparent but discrete paths to parent and child.
+            // advance child to continue the search.
+            cPeers = cPeers->nextPeer;
+        }
+    }
+
+    // Link it in
+    struct NodeStore_Link* link = getLink(store);
+    link->labelFragment = labelFragment;
+    link->child = child;
+    link->parent = parent;
+    insertReversePeer(child, link);
+    link->linkState = linkState;
+    RB_INSERT(PeerRBTree, &parent->peerTree, link);
+
+    // update the child's link state and possibly change it's preferred path
+    update(link, store);
+}
+
+static inline void connectPeer(struct NodeStore_Link* addThisPeer,
+                               struct NodeStore_Node* toThisNode)
+{
+    RB_INSERT(PeerRBTree, &toThisNode->peerTree, addThisPeer);
+}
+
+static inline void disconnectPeer(struct NodeStore_Link* removeThisPeer,
+                                  struct NodeStore_Node* fromThisNode)
+{
+    RB_REMOVE(PeerRBTree, &fromThisNode->peerTree, removeThisPeer);
+}
+
+
+static inline struct NodeStore_Link* findClosest(uint64_t path,
+                                                 int mustMatch,
+                                                 struct NodeStore_pvt* store)
+{
+    struct NodeStore_Link tmpl;
+    tmpl.labelFragment = path;
+    struct NodeStore_Link* link = store->selfLink;
+    struct NodeStore_Link* nextLink = link;
+    while (LabelSplicer_routesThrough(tmpl.labelFragment, nextLink->labelFragment)) {
+        link = nextLink;
+        tmpl.labelFragment = LabelSplicer_unsplice(tmpl.labelFragment, link->labelFragment);
+        nextLink = RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl);
+    }
+    Assert_true(tmpl.labelFragment);/// TODO remove this
+    if (tmpl.labelFragment != 1 && mustMatch) {
+        return NULL;
+    }
+    return link;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+
 static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 
 /** See: NodeStore.h */
@@ -53,16 +308,19 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Random* rand,
                                 struct Admin* admin)
 {
-    struct NodeStore_pvt* out = Allocator_malloc(allocator, sizeof(struct NodeStore_pvt));
-    out->thisNodeAddress = myAddress;
+    struct NodeStore_pvt* out = Allocator_clone(allocator, (&(struct NodeStore_pvt) {
+        .nodeMap = {
+            .allocator = allocator
+        },
+        .thisNodeAddress = myAddress,
+        .capacity = capacity,
+        .logger = logger,
+        .admin = admin,
+        .rand = rand,
+        .alloc = allocator
+    }));
     out->headers = Allocator_calloc(allocator, sizeof(struct NodeHeader), capacity);
     out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
-    out->capacity = capacity;
-    out->logger = logger;
-    out->pub.size = 0;
-    out->admin = admin;
-    out->labelSum = 0;
-    out->rand = rand;
     Identity_set(out);
 
     struct Admin_FunctionArg adma[1] = {
@@ -163,11 +421,18 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
+/////////////////
+
+
+
 static inline void insert(struct NodeStore_pvt* store,
                           struct Address* addr,
                           int64_t reachDifference,
                           uint32_t version)
 {
+    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
+    if (index < 0) {
+    }
 }
 
 struct Node* NodeStore_addNode(struct NodeStore* nodeStore,

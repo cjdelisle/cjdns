@@ -22,6 +22,20 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/**
+ * Find first set bit in a 64 bit integer.
+ */
+static inline int Bits_ffs64(uint64_t number)
+{
+    int out = 0;
+    do {
+        if (number & 1) {
+            return out;
+        }
+    } while (number <<= 1);
+    return 0;
+}
+
 static inline int Bits_log2x64(uint64_t number)
 {
     int out = 0;

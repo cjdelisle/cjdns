@@ -9,6 +9,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# uv-private/tree.h
+include_directories(${LIBUV_INCLUDE_DIRS})
+
 add_library(dhtcore
     NodeStore.c
     RouterModule.c
