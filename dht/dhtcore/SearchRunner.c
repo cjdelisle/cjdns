@@ -330,12 +330,6 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                                   Version_CURRENT_PROTOCOL,
                                   alloc);
 
-    if (nodes->size == 0) {
-        Log_debug(runner->logger, "Can't find any nodes to begin search.");
-        Allocator_free(alloc);
-        return NULL;
-    }
-
     for (int i = 0; i < (int)nodes->size; i++) {
         SearchStore_addNodeToSearch(&nodes->nodes[i]->address, sss);
     }
@@ -352,16 +346,9 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
 
     search->targetStr = String_newBinary((char*)targetAddr.ip6.bytes, 16, alloc);
 
-    // this timeout triggers the next search step if the response has not come in.
+    // Trigger the searchNextNode() immedietly but asynchronously.
     search->continueSearchTimeout =
-        Timeout_setTimeout(searchNextNode,
-                           search,
-                           RouterModule_searchTimeoutMilliseconds(runner->router),
-                           runner->eventBase,
-                           alloc);
-
-    // kick it off
-    searchStep(search);
+        Timeout_setTimeout(searchNextNode, search, 0, runner->eventBase, alloc);
 
     return &search->pub;
 }
