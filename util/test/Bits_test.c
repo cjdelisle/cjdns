@@ -27,6 +27,8 @@ int main()
     BufferAllocator_STACK(alloc, 2048);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
+    Assert_true(Bits_log2x64(1)==0);
+
     uint64_t x;
     Random_bytes(rand, (uint8_t*) &x, 8);
     printf("x = 0x%016" PRIx64 "\n", x);

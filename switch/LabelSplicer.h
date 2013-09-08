@@ -101,6 +101,8 @@ static inline bool LabelSplicer_routesThrough(uint64_t destination, uint64_t mid
 {
     if (midPath > destination) {
         return false;
+    } if (midPath < 2) {
+        return true;
     }
     uint64_t mask = UINT64_MAX >> (64 - Bits_log2x64(midPath));
     return (destination & mask) == (midPath & mask);

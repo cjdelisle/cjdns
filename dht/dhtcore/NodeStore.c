@@ -170,10 +170,19 @@ struct NodeStore_pvt
     Identity
 };
 
-static inline int comparePeers(const struct NodeStore_Link* a, const struct NodeStore_Link* b)
+/**
+ * Compare two peers of a node for organization in the RBTree
+ * The idea is to find the least significant bit which differs between a and b.
+ * then if that bit is a0 b1 then return -1 and if it is a1 b0 then we return 1.
+ */
+static inline int comparePeers(const struct NodeStore_Link* la, const struct NodeStore_Link* lb)
 {
-    int shift = Bits_ffs64(a->labelFragment ^ b->labelFragment);
-    return (shift) ? ((a->labelFragment >> shift) & 1) : 0;
+    uint64_t a = la->labelFragment;
+    uint64_t b = lb->labelFragment;
+    if (a == b) {
+        return 0;
+    }
+    return ((a >> (Bits_ffs64(a ^ b) - 1) ) & 1) ? 1 : -1;
 }
 
 RB_GENERATE_STATIC(PeerRBTree, NodeStore_Link, treeEntry, comparePeers)
@@ -190,6 +199,7 @@ static inline void insertReversePeer(struct NodeStore_Node* child,
         if ((char*)current->parent < (char*)peer->parent) {
             break;
         } else if (current->parent == peer->parent) {
+            // Two links between same parent<->child
             Assert_true(0);
         }
         prevP = &(current->nextPeer);
@@ -266,6 +276,17 @@ static inline void linkNodes(struct NodeStore_Node* parent,
         }
     }
 
+    #ifdef Log_DEBUG
+        uint8_t parentIp[40];
+        uint8_t childIp[40];
+        AddrTools_printIp(parentIp, parent->node.address.ip6.bytes);
+        AddrTools_printIp(childIp, child->node.address.ip6.bytes);
+        uint8_t printedLabel[20];
+        AddrTools_printPath(printedLabel, labelFragment);
+        Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
+                  parentIp, childIp, printedLabel);
+    #endif
+
     // Link it in
     struct NodeStore_Link* link = getLink(store);
     link->labelFragment = labelFragment;
@@ -295,13 +316,26 @@ static inline uint64_t findClosest(uint64_t path,
     struct NodeStore_Link tmpl = {
         .labelFragment = path
     };
-    struct NodeStore_Link* link = store->selfLink;
-    struct NodeStore_Link* nextLink = link;
-    while (LabelSplicer_routesThrough(tmpl.labelFragment, nextLink->labelFragment)) {
+
+    struct NodeStore_Link* nextLink = store->selfLink;
+    struct NodeStore_Link* link;
+    do {
         link = nextLink;
         tmpl.labelFragment = LabelSplicer_unsplice(tmpl.labelFragment, link->labelFragment);
         nextLink = RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl);
-    }
+    } while (nextLink && nextLink != link
+        && LabelSplicer_routesThrough(tmpl.labelFragment, nextLink->labelFragment));
+
+    #ifdef Log_DEBUG
+        uint8_t labelA[20];
+        uint8_t labelB[20] = "NONE";
+        AddrTools_printPath(labelA, tmpl.labelFragment);
+        if (nextLink) {
+            AddrTools_printPath(labelB, nextLink->labelFragment);
+        }
+        Log_debug(store->logger, "[%s] is not behind [%s]", labelA, labelB);
+    #endif
+
     Assert_true(tmpl.labelFragment);/// TODO remove this
     *outputNode = link->child;
     return tmpl.labelFragment;
@@ -317,7 +351,7 @@ static inline struct Node* discoverNode(struct NodeStore_pvt* store,
     if (index < 0) {
         node = Allocator_calloc(store->alloc, sizeof(struct NodeStore_Node), 1);
         Bits_memcpyConst(&node->node.address, addr, sizeof(struct Address));
-        index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
+        index = Map_OfNodesByAddress_put((struct Ip6*)&addr->ip6, &node, &store->nodeMap);
         Identity_set(node);
     } else {
         node = store->nodeMap.values[index];
@@ -526,7 +560,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     }
 
     // try inserting the node in the new RBTree...
-    discoverNode(store, addr, reachDifference, version);
+    //discoverNode(store, addr, reachDifference, version);
 
     // Keep track of the node with the longest label so if the store is full, it can be replaced.
     int worstNode = 0;

@@ -56,6 +56,8 @@ static void routesThrough()
     // 0000000000000000000000010110010100100110001110011100011001010101
     uint64_t mid =  0x000001652639c655llu;
     Assert_always(!LabelSplicer_routesThrough(dest, mid));
+
+    Assert_always(LabelSplicer_routesThrough(dest, 1));
 }
 
 int main()

@@ -27,13 +27,15 @@
  */
 static inline int Bits_ffs64(uint64_t number)
 {
-    int out = 0;
-    do {
-        if (number & 1) {
-            return out;
-        }
-    } while (number <<= 1);
-    return 0;
+    if (!number) {
+        return 0;
+    }
+    int out = 1;
+    while (!(number & 1)) {
+        number >>= 1;
+        out++;
+    }
+    return out;
 }
 
 static inline int Bits_log2x64(uint64_t number)
