@@ -255,9 +255,6 @@ static void disconnect(struct MallocAllocator_pvt* context)
         context->nextSibling = NULL;
     }
 
-    // impossible to have a failure so using crap file/line
-    changeRoot(context, NULL, NULL, "", 0);
-
     context->lastSibling = context;
 }
 
