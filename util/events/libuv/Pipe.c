@@ -35,9 +35,11 @@ struct Pipe_pvt
     uv_pipe_t server;
     uv_pipe_t peer;
 
-    /** The memory for the shutdown needs to be preallocated so onFree does not allocate memory. */
-    uv_shutdown_t serverShutdownReq;
-    uv_shutdown_t peerShutdownReq;
+    /** Job to close the handles when the allocator is freed */
+    struct Allocator_OnFreeJob* closeHandlesOnFree;
+
+    /** Job which blocks the freeing until the callback completes */
+    struct Allocator_OnFreeJob* blockFreeInsideCallback;
 
     /**
      * If the output pipe is same as the input, this points to peer.
@@ -50,11 +52,8 @@ struct Pipe_pvt
 
     int queueLen;
 
-    /**
-     * If the pipe's allocator is freed while this pointer is set,
-     * the pointed to int is set to 1.
-     */
-    int* freeing;
+    /** Used by blockFreeInsideCallback */
+    int isInCallback;
 
     /** only non-null before the connection is setup. */
     struct Pipe_WriteRequest_pvt* bufferedRequest;
@@ -153,6 +152,18 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     return Error_NONE;
 }
 
+/** Asynchronous allocator freeing. */
+static void onClose(uv_handle_t* handle)
+{
+    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)handle->data);
+    handle->data = NULL;
+    if (pipe->closeHandlesOnFree && !pipe->server.data && !pipe->peer.data) {
+        struct Allocator_OnFreeJob* job =
+            Identity_cast((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
+        job->complete(job);
+    }
+}
+
 #if Pipe_PADDING_AMOUNT < 8
     #error
 #endif
@@ -164,8 +175,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
-    int freeing = 0;
-    pipe->freeing = &freeing;
+    pipe->isInCallback = 1;
 
     Assert_true(!alloc || alloc->free == pipe->alloc->free);
 
@@ -179,7 +189,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         if (pipe->pub.onClose) {
             pipe->pub.onClose(&pipe->pub, uv_last_error(pipe->peer.loop).code);
         }
-        uv_close((uv_handle_t*) stream, NULL);
+        uv_close((uv_handle_t*) stream, onClose);
 
     } else if (nread == 0) {
         // This is common.
@@ -196,9 +206,13 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         Interface_receiveMessage(&pipe->pub.iface, m);
     }
 
-    if (alloc && !freeing) {
-        pipe->freeing = NULL;
-        Allocator_free(alloc);
+    Allocator_free(alloc);
+
+    pipe->isInCallback = 0;
+    if (pipe->blockFreeInsideCallback) {
+        struct Allocator_OnFreeJob* job =
+            Identity_cast((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
+        job->complete(job);
     }
 }
 
@@ -226,12 +240,12 @@ static void connected(uv_connect_t* req, int status)
     if (status) {
         Log_info(pipe->pub.logger, "uv_pipe_connect() failed for pipe [%s] [%s]",
                  pipe->pub.fullName, uv_err_name(uv_last_error(link->loop)) );
-        uv_close((uv_handle_t*) &pipe->peer, NULL);
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
 
     } else if (uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming)) {
         Log_info(pipe->pub.logger, "uv_read_start() failed for pipe [%s] [%s]",
                  pipe->pub.fullName, uv_err_name(uv_last_error(link->loop)) );
-        uv_close((uv_handle_t*) &pipe->peer, NULL);
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
 
     } else {
         pipe->isActive = 1;
@@ -272,13 +286,13 @@ static void listenCallback(uv_stream_t* server, int status)
         if (pipe->pub.onConnection) {
             pipe->pub.onConnection(&pipe->pub, -1);
         }
-        uv_close((uv_handle_t*) &pipe->peer, NULL);
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
     } else {
         uv_connect_t req = { .handle = (uv_stream_t*) &pipe->peer };
         connected(&req, 0);
     }
 
-    uv_close((uv_handle_t*) &pipe->server, NULL);
+    uv_close((uv_handle_t*) &pipe->server, onClose);
 
     #ifndef Windows
         // get rid of the pipe after it has been connected.
@@ -287,36 +301,28 @@ static void listenCallback(uv_stream_t* server, int status)
     #endif
 }
 
-/** Asynchronous allocator freeing. */
-static void onClosed(uv_shutdown_t* shutdown, int status)
+static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
 {
-    struct Allocator_OnFreeJob* job = Identity_cast((struct Allocator_OnFreeJob*) shutdown->data);
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
-    if (Bits_isZero(&pipe->server, sizeof(uv_pipe_t))
-        && Bits_isZero(&pipe->peer, sizeof(uv_pipe_t)))
-    {
-        job->complete(job);
+    if (!pipe->isInCallback) {
+        return 0;
     }
+    pipe->blockFreeInsideCallback = job;
+    return Allocator_ONFREE_ASYNC;
 }
-static int onFree(struct Allocator_OnFreeJob* job)
+
+static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
-    if (pipe->freeing) {
-        *pipe->freeing = 1;
+    pipe->closeHandlesOnFree = job;
+    int skip = 2;
+    if (pipe->server.data) {
+        uv_close((uv_handle_t*) &pipe->server, onClose);
+        skip--;
     }
-    int skip = 0;
-    pipe->serverShutdownReq.data = pipe->peerShutdownReq.data = job;
-    if (uv_is_closing((uv_handle_t*) &pipe->server)
-        || uv_shutdown(&pipe->serverShutdownReq, (uv_stream_t*) &pipe->server, onClosed))
-    {
-        Bits_memset(&pipe->serverShutdownReq, 0, sizeof(uv_shutdown_t));
-        skip++;
-    }
-    if (uv_is_closing((uv_handle_t*) &pipe->peer)
-        || uv_shutdown(&pipe->peerShutdownReq, (uv_stream_t*) &pipe->peer, onClosed))
-    {
-        Bits_memset(&pipe->peerShutdownReq, 0, sizeof(uv_shutdown_t));
-        skip++;
+    if (pipe->peer.data) {
+        uv_close((uv_handle_t*) &pipe->peer, onClose);
+        skip--;
     }
     if (skip == 2) {
         return 0;
@@ -365,7 +371,8 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
         out->pub.fd = &out->peer.io_watcher.fd;
     #endif
 
-    Allocator_onFree(alloc, onFree, out);
+    Allocator_onFree(alloc, closeHandlesOnFree, out);
+    Allocator_onFree(alloc, blockFreeInsideCallback, out);
 
     out->peer.data = out;
     out->server.data = out;

@@ -29,9 +29,19 @@ struct UDPAddrInterface_pvt
 {
     struct AddrInterface pub;
     struct Log* logger;
+
+    /** Job to close the handle when the allocator is freed */
+    struct Allocator_OnFreeJob* closeHandleOnFree;
+
+    /** Job which blocks the freeing until the callback completes */
+    struct Allocator_OnFreeJob* blockFreeInsideCallback;
+
     uv_udp_t uvHandle;
     int queueLen;
-    int* freeing;
+
+    /** true if we are inside of the callback, used by blockFreeInsideCallback */
+    int inCallback;
+
     Identity
 };
 
@@ -133,8 +143,7 @@ static void incoming(uv_udp_t* handle,
 {
     struct UDPAddrInterface_pvt* context = ifaceForHandle(handle);
 
-    int freeing = 0;
-    context->freeing = &freeing;
+    context->inCallback = 1;
 
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
@@ -160,8 +169,13 @@ static void incoming(uv_udp_t* handle,
         Interface_receiveMessage(&context->pub.generic, m);
     }
 
-    if (alloc && !freeing) {
-        Allocator_free(alloc);
+    Allocator_free(alloc);
+
+    context->inCallback = 0;
+    if (context->blockFreeInsideCallback) {
+        struct Allocator_OnFreeJob* job =
+            Identity_cast((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
+        job->complete(job);
     }
 }
 
@@ -183,18 +197,30 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 
 static void onClosed(uv_handle_t* wasClosed)
 {
-    struct Allocator_OnFreeJob* job = Identity_cast((struct Allocator_OnFreeJob*) wasClosed->data);
+    struct UDPAddrInterface_pvt* context =
+        Identity_cast((struct UDPAddrInterface_pvt*) wasClosed->data);
+    struct Allocator_OnFreeJob* job =
+        Identity_cast((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
     job->complete(job);
 }
-static int onFree(struct Allocator_OnFreeJob* job)
+
+static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
 {
     struct UDPAddrInterface_pvt* context =
         Identity_cast((struct UDPAddrInterface_pvt*) job->userData);
-    if (context->freeing) {
-        *context->freeing = 1;
-    }
-    context->uvHandle.data = job;
+    context->closeHandleOnFree = job;
     uv_close((uv_handle_t*)&context->uvHandle, onClosed);
+    return Allocator_ONFREE_ASYNC;
+}
+
+static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
+{
+    struct UDPAddrInterface_pvt* context =
+        Identity_cast((struct UDPAddrInterface_pvt*) job->userData);
+    if (!context->inCallback) {
+        return 0;
+    }
+    context->blockFreeInsideCallback = job;
     return Allocator_ONFREE_ASYNC;
 }
 
@@ -264,7 +290,8 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     context->pub.addr = Sockaddr_clone(&ss.addr, alloc);
     Log_debug(logger, "Bound to address [%s]", Sockaddr_print(&ss.addr, alloc));
 
-    Allocator_onFree(alloc, onFree, context);
+    Allocator_onFree(alloc, closeHandleOnFree, context);
+    Allocator_onFree(alloc, blockFreeInsideCallback, context);
 
     return &context->pub;
 }
