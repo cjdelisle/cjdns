@@ -42,31 +42,32 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <inttypes.h>
-
 #include <uv-private/tree.h>
 
 struct NodeStore_Node;
 struct NodeStore_Link;
 
 /**
- * A peer represents a link between two nodes.
+ * A link represents a link between two nodes.
+ * Links are unidirectional because deriving the inverse of a route is non-trivial.
+ * (it cannot be calculated)
  */
-struct NodeStore_Link {
-    /** The node that is this peer. */
-    struct NodeStore_Node* child;
-
-    /**
-     * The next peer which points to the same node.
-     * For each node there are many peer objects pointing to it,
-     * they are represented here as a linked list.
-     * This is used for freeing links associated with the node.
-     */
-    struct NodeStore_Link* nextPeer;
-
+struct NodeStore_Link
+{
     /** The parent of this peer, this is where the root of the treeEntry is. */
     struct NodeStore_Node* parent;
 
-    /** More nodes which are downstream of this node's parent. */
+    /** The child of this link. */
+    struct NodeStore_Node* child;
+
+    /**
+     * The next link which points to the same child.
+     * For each child there are many links pointing to it,
+     * they are represented here as a linked list.
+     */
+    struct NodeStore_Link* nextPeer;
+
+    /** Used by the parent's RBTree of links. */
     struct {
         struct NodeStore_Link* rbe_left;
         struct NodeStore_Link* rbe_right;
@@ -74,11 +75,41 @@ struct NodeStore_Link {
         int rbe_color;
     } treeEntry;
 
-    /** The label fragment which is spliced to this node's parent in order to reach this node. */
+    /** The label fragment which is spliced to this node's parent in order to reach the child. */
     uint64_t labelFragment;
 
-    /** The quality of the link between this node and it's parent. */
+    /**
+     * The quality of the link between parent and child,
+     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
+     */
     uint32_t linkState;
+
+    Identity
+};
+
+struct NodeStore_Node
+{
+    /**
+     * Address
+     * Path - best known path to this node
+     * reach - current reach
+     * version
+     */
+    struct Node node;
+
+    /** The value of the reach at the time when the best path was last computed. */
+    uint32_t reachAtTimeOfLastUpdate;
+
+    /**
+     * Peers of this node for which we know the forward direction.
+     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
+     */
+    struct PeerRBTree {
+        struct NodeStore_Link* rbh_root;
+    } peerTree;
+
+    /** Used for freeing the links associated with this node. */
+    struct NodeStore_Link* reversePeers;
 
     Identity
 };
@@ -94,19 +125,23 @@ struct NodeStore_pvt
 {
     struct NodeStore pub;
 
+// new rbtree stuff
+
+    /**
+     * The self link is a link where the parent and child are both this node.
+     * This node (the self node) is linked with all peers of this node.
+     * The self link is the prefix of all paths.
+     */
     struct NodeStore_Link* selfLink;
 
     struct Map_OfNodesByAddress nodeMap;
 
     struct Allocator* alloc;
 
-    /** A heap of links which are not being used. */
-    struct NodeStore_Link* freePile;
+//////////////////////////////////////////////////
+//
+// old flat table stuff
 
-
-
-    /** The address of "our" node. */
-    struct Address* thisNodeAddress;
 
     /** A pointer to the first of an array of node headers. */
     struct NodeHeader* headers;
@@ -141,24 +176,6 @@ static int comparePeers(const struct NodeStore_Link* a, const struct NodeStore_L
     return (shift) ? ((a->labelFragment >> shift) & 1) : 0;
 }
 
-struct NodeStore_Node
-{
-    /** The actual node information: reach, version, address, best path. */
-    struct Node node;
-
-    /**
-     * Peers of this node for which we know the forward direction.
-     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
-     */
-    struct PeerRBTree {
-        struct NodeStore_Link* rbh_root;
-    } peerTree;
-
-    /** Used for freeing the links associated with this node. */
-    struct NodeStore_Link* reversePeers;
-
-    Identity
-};
 
 RB_GENERATE_STATIC(PeerRBTree, NodeStore_Link, treeEntry, comparePeers)
 
@@ -297,6 +314,10 @@ static inline struct NodeStore_Link* findClosest(uint64_t path,
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
 
@@ -312,16 +333,33 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
         .nodeMap = {
             .allocator = allocator
         },
-        .thisNodeAddress = myAddress,
         .capacity = capacity,
         .logger = logger,
         .admin = admin,
         .rand = rand,
         .alloc = allocator
     }));
+    Identity_set(out);
+
+    // Create the self node
+    struct NodeStore_Node* selfNode = Allocator_calloc(allocator, sizeof(struct NodeStore_Node), 1);
+    Bits_memcpyConst(&selfNode->node.address, myAddress, sizeof(struct Address));
+    selfNode->node.reach = ~0u;
+    selfNode->reachAtTimeOfLastUpdate = ~0u;
+    struct NodeStore_Link* selfLink = Allocator_calloc(allocator, sizeof(struct NodeStore_Link), 1);
+    selfNode->reversePeers = selfLink;
+    selfLink->parent = selfNode;
+    selfLink->child = selfNode;
+    selfLink->labelFragment = 1;
+    selfLink->linkState = ~0u;
+    out->selfLink = selfLink;
+    Identity_set(selfNode);
+    Identity_set(selfLink);
+
+    // Create the node table
     out->headers = Allocator_calloc(allocator, sizeof(struct NodeHeader), capacity);
     out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
-    Identity_set(out);
+
 
     struct Admin_FunctionArg adma[1] = {
         { .name = "page", .required = 1, .type = "Int" },
@@ -424,6 +462,11 @@ static inline void adjustReach(struct NodeHeader* header,
 /////////////////
 
 
+static inline struct Address* getSelfAddress(struct NodeStore_pvt* store)
+{
+    return &store->selfLink->child->node.address;
+}
+
 
 static inline void insert(struct NodeStore_pvt* store,
                           struct Address* addr,
@@ -445,9 +488,10 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
         Log_debug(store->logger, "node with incompatable version");
         return NULL;
     }
+    struct Address* selfAddress = getSelfAddress(store);
 
     uint32_t pfx = Address_getPrefix(addr);
-    if (Bits_memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
+    if (Bits_memcmp(addr->ip6.bytes, selfAddress->ip6.bytes, 16) == 0) {
         Log_debug(store->logger, "got introduced to ourselves");
         return NULL;
     }
@@ -574,8 +618,8 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         .logger = store->logger
     };
 
-    collector.thisNodeDistance =
-        Address_getPrefix(store->thisNodeAddress) ^ collector.targetPrefix;
+    struct Address* selfAddress = getSelfAddress(store);
+    collector.thisNodeDistance = Address_getPrefix(selfAddress) ^ collector.targetPrefix;
 
     for (int i = 0; i < store->pub.size; i++) {
         if (store->headers[i].reach != 0) {
@@ -594,7 +638,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     struct NodeCollector* collector = NodeCollector_new(address,
                                                         max,
-                                                        store->thisNodeAddress,
+                                                        getSelfAddress(store),
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -674,7 +718,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
-                                                        store->thisNodeAddress,
+                                                        getSelfAddress(store),
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -862,7 +906,7 @@ static void addRoutingTableEntries(struct NodeStore_pvt* store,
             return;
         }
 
-        Address_printIp(ip, store->thisNodeAddress);
+        Address_printIp(ip, getSelfAddress(store));
         strcpy((char*)path, "0000.0000.0000.0001");
         sendEntries(store, &next, (j >= ENTRIES_PER_PAGE), txid);
         return;
