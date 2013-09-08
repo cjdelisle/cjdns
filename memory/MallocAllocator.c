@@ -317,7 +317,7 @@ static int onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
     }
 
     if (!context->onFree) {
-        //childFreed(context);
+        childFreed(context);
         // There are no more jobs, release the memory.
         freeAllocator(context, context->identFile, context->identLine);
     }
