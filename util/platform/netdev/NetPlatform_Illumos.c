@@ -13,6 +13,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/platform/netdev/NetPlatform.h"
+#include "util/Assert.h"
+#include "util/platform/Sockaddr.h"
+#include "util/Bits.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -91,7 +94,8 @@ static void setupRoute(const uint8_t address[16],
         Except_raise(eh, -1, "insert route [%s]", strerror(errno));
     } else if (returnLen < rm.header.rtm_msglen) {
         Except_raise(eh, -1,
-                     "insert route returned only [%d] of [%d]", returnLen, rm.header.rtm_msglen);
+                     "insert route returned only [%d] of [%d]",
+                     (int)returnLen, rm.header.rtm_msglen);
     }
 }
 
