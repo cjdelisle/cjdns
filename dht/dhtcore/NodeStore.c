@@ -170,12 +170,11 @@ struct NodeStore_pvt
     Identity
 };
 
-static int comparePeers(const struct NodeStore_Link* a, const struct NodeStore_Link* b)
+static inline int comparePeers(const struct NodeStore_Link* a, const struct NodeStore_Link* b)
 {
     int shift = Bits_ffs64(a->labelFragment ^ b->labelFragment);
     return (shift) ? ((a->labelFragment >> shift) & 1) : 0;
 }
-
 
 RB_GENERATE_STATIC(PeerRBTree, NodeStore_Link, treeEntry, comparePeers)
 
@@ -183,16 +182,18 @@ static inline void insertReversePeer(struct NodeStore_Node* child,
                                      struct NodeStore_Link* peer)
 {
     struct NodeStore_Link** prevP = &child->reversePeers;
-    struct NodeStore_Link* current = Identity_cast(*prevP);
+    struct NodeStore_Link* current = *prevP;
     while (current) {
-        // pointer comparison for ascending order by memory location
+        Identity_check(current);
+        // pointer comparison for ascending order by parent memory location
+        // see linkNodes()
         if ((char*)current->parent < (char*)peer->parent) {
             break;
         } else if (current->parent == peer->parent) {
             Assert_true(0);
         }
         prevP = &(current->nextPeer);
-        current = Identity_cast(*prevP);
+        current = *prevP;
     }
     peer->nextPeer = current;
     *prevP = peer;
@@ -270,33 +271,30 @@ static inline void linkNodes(struct NodeStore_Node* parent,
     link->labelFragment = labelFragment;
     link->child = child;
     link->parent = parent;
-    insertReversePeer(child, link);
     link->linkState = linkState;
+    Identity_set(link);
+    insertReversePeer(child, link);
     RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
     // update the child's link state and possibly change it's preferred path
     update(link, store);
 }
 
-static inline void connectPeer(struct NodeStore_Link* addThisPeer,
-                               struct NodeStore_Node* toThisNode)
+/**
+ * Find the closest node to the given path.
+ *
+ * @param path the path to the node which we want the closest node to.
+ * @param outputNode a pointer to be set to the closest node.
+ * @param store
+ * @return the label fragment linking outputNode with the given path.
+ */
+static inline uint64_t findClosest(uint64_t path,
+                                   struct NodeStore_Node** outputNode,
+                                   struct NodeStore_pvt* store)
 {
-    RB_INSERT(PeerRBTree, &toThisNode->peerTree, addThisPeer);
-}
-
-static inline void disconnectPeer(struct NodeStore_Link* removeThisPeer,
-                                  struct NodeStore_Node* fromThisNode)
-{
-    RB_REMOVE(PeerRBTree, &fromThisNode->peerTree, removeThisPeer);
-}
-
-
-static inline struct NodeStore_Link* findClosest(uint64_t path,
-                                                 int mustMatch,
-                                                 struct NodeStore_pvt* store)
-{
-    struct NodeStore_Link tmpl;
-    tmpl.labelFragment = path;
+    struct NodeStore_Link tmpl = {
+        .labelFragment = path
+    };
     struct NodeStore_Link* link = store->selfLink;
     struct NodeStore_Link* nextLink = link;
     while (LabelSplicer_routesThrough(tmpl.labelFragment, nextLink->labelFragment)) {
@@ -305,21 +303,48 @@ static inline struct NodeStore_Link* findClosest(uint64_t path,
         nextLink = RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl);
     }
     Assert_true(tmpl.labelFragment);/// TODO remove this
-    if (tmpl.labelFragment != 1 && mustMatch) {
-        return NULL;
-    }
-    return link;
+    *outputNode = link->child;
+    return tmpl.labelFragment;
 }
 
+static inline struct Node* discoverNode(struct NodeStore_pvt* store,
+                                        struct Address* addr,
+                                        int64_t reachDiff,
+                                        uint32_t version)
+{
+    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
+    struct NodeStore_Node* node;
+    if (index < 0) {
+        node = Allocator_calloc(store->alloc, sizeof(struct NodeStore_Node), 1);
+        Bits_memcpyConst(&node->node.address, addr, sizeof(struct Address));
+        index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
+        Identity_set(node);
+    } else {
+        node = store->nodeMap.values[index];
+    }
+    node->node.reach = (node->node.reach < -reachDiff) ? 0 : node->node.reach - reachDiff;
+    node->node.version = (version) ? node->node.version : version;
 
+    struct NodeStore_Node* closest;
+    uint64_t fragment = findClosest(addr->path, &closest, store);
+    if (node != closest) {
+        // TODO: linking every node with 0 link state, this can't be right.
+        linkNodes(closest, node, fragment, 0, store);
+    }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
+    return &node->node;
+}
+/*
+struct Node* NodeStore_getNode(struct NodeStore_pvt* store,
+                                        struct Address* addr,
+                                        int64_t reachDiff,
+                                        uint32_t version)
+{
+*/
+static inline struct Address* getSelfAddress(struct NodeStore_pvt* store)
+{
+    return &store->selfLink->child->node.address;
+}
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
@@ -329,45 +354,44 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Random* rand,
                                 struct Admin* admin)
 {
-    struct NodeStore_pvt* out = Allocator_clone(allocator, (&(struct NodeStore_pvt) {
+    struct Allocator* alloc = Allocator_child(allocator);
+
+    // The allocator for the old NodeStore, seperated to improve debugging
+    struct Allocator* oldAlloc = Allocator_child(alloc);
+
+    struct NodeStore_pvt* out = Allocator_clone(oldAlloc, (&(struct NodeStore_pvt) {
         .nodeMap = {
-            .allocator = allocator
+            .allocator = alloc
         },
         .capacity = capacity,
         .logger = logger,
         .admin = admin,
         .rand = rand,
-        .alloc = allocator
+        .alloc = alloc
     }));
     Identity_set(out);
 
     // Create the self node
-    struct NodeStore_Node* selfNode = Allocator_calloc(allocator, sizeof(struct NodeStore_Node), 1);
+    struct NodeStore_Node* selfNode = Allocator_calloc(alloc, sizeof(struct NodeStore_Node), 1);
     Bits_memcpyConst(&selfNode->node.address, myAddress, sizeof(struct Address));
+    Identity_set(selfNode);
+    linkNodes(selfNode, selfNode, 1, ~0u, out);
     selfNode->node.reach = ~0u;
     selfNode->reachAtTimeOfLastUpdate = ~0u;
-    struct NodeStore_Link* selfLink = Allocator_calloc(allocator, sizeof(struct NodeStore_Link), 1);
-    selfNode->reversePeers = selfLink;
-    selfLink->parent = selfNode;
-    selfLink->child = selfNode;
-    selfLink->labelFragment = 1;
-    selfLink->linkState = ~0u;
-    out->selfLink = selfLink;
-    Identity_set(selfNode);
-    Identity_set(selfLink);
+    out->selfLink = selfNode->reversePeers;
 
     // Create the node table
-    out->headers = Allocator_calloc(allocator, sizeof(struct NodeHeader), capacity);
-    out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
-
-
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "page", .required = 1, .type = "Int" },
-    };
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, adma, admin);
+    out->headers = Allocator_calloc(oldAlloc, sizeof(struct NodeHeader), capacity);
+    out->nodes = Allocator_calloc(oldAlloc, sizeof(struct Node), capacity);
 
     return &out->pub;
 }
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+
 
 static struct Node* nodeForIndex(struct NodeStore_pvt* store, uint32_t index)
 {
@@ -375,6 +399,21 @@ static struct Node* nodeForIndex(struct NodeStore_pvt* store, uint32_t index)
     out->reach = store->headers[index].reach;
     out->version = store->headers[index].version;
     return out;
+}
+
+/**
+ * Dump the table, one node at a time.
+ */
+struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
+{
+    struct NodeStore_pvt* s = Identity_cast((struct NodeStore_pvt*)store);
+    if (index >= (uint32_t)store->size) {
+        if (index == (uint32_t)store->size) {
+            return &s->selfLink->child->node;
+        }
+        return NULL;
+    }
+    return nodeForIndex(s, index);
 }
 
 /** See: NodeStore.h */
@@ -459,24 +498,6 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
-/////////////////
-
-
-static inline struct Address* getSelfAddress(struct NodeStore_pvt* store)
-{
-    return &store->selfLink->child->node.address;
-}
-
-
-static inline void insert(struct NodeStore_pvt* store,
-                          struct Address* addr,
-                          int64_t reachDifference,
-                          uint32_t version)
-{
-    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
-    if (index < 0) {
-    }
-}
 
 struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                struct Address* addr,
@@ -503,6 +524,9 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                      address);
         Assert_true(false);
     }
+
+    // try inserting the node in the new RBTree...
+    discoverNode(store, addr, reachDifference, version);
 
     // Keep track of the node with the longest label so if the store is full, it can be replaced.
     int worstNode = 0;
@@ -861,69 +885,4 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         }
     }
     return out;
-}
-
-static void sendEntries(struct NodeStore_pvt* store,
-                        struct List_Item* last,
-                        bool isMore,
-                        String* txid)
-{
-    Dict table = Dict_CONST(String_CONST("routingTable"), List_OBJ(&last), NULL);
-    if (isMore) {
-        table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
-    } else {
-        // the self route is synthetic so add 1 to the count.
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(store->pub.size + 1), table);
-    }
-    Admin_sendMessage(&table, txid, store->admin);
-}
-
-#define ENTRIES_PER_PAGE 8
-static void addRoutingTableEntries(struct NodeStore_pvt* store,
-                                   int i,
-                                   int j,
-                                   struct List_Item* last,
-                                   String* txid)
-{
-    uint8_t path[20];
-    uint8_t ip[40];
-    String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
-    String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
-    Object* link = Int_OBJ(0xFFFFFFFF);
-    Object* version = Int_OBJ(Version_CURRENT_PROTOCOL);
-    Dict entry = Dict_CONST(
-        String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
-        String_CONST("link"), link, Dict_CONST(
-        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
-        String_CONST("version"), version, NULL
-    ))));
-
-    struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
-
-    if (i >= store->pub.size || j >= ENTRIES_PER_PAGE) {
-        if (i > j) {
-            sendEntries(store, last, (j >= ENTRIES_PER_PAGE), txid);
-            return;
-        }
-
-        Address_printIp(ip, getSelfAddress(store));
-        strcpy((char*)path, "0000.0000.0000.0001");
-        sendEntries(store, &next, (j >= ENTRIES_PER_PAGE), txid);
-        return;
-    }
-
-    link->as.number = store->headers[i].reach;
-    version->as.number = store->headers[i].version;
-    Address_printIp(ip, &store->nodes[i].address);
-    AddrTools_printPath(path, store->nodes[i].address.path);
-
-    addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
-}
-
-static void dumpTable(Dict* args, void* vnodeStore, String* txid)
-{
-    struct NodeStore_pvt* store = (struct NodeStore_pvt*) vnodeStore;
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
-    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    addRoutingTableEntries(store, i, 0, NULL, txid);
 }

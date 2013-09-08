@@ -22,6 +22,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
@@ -253,6 +254,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->routeTracer =
         RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
+
+    NodeStore_admin_register(out->nodeStore, admin, allocator);
 
     Identity_set(out);
     return out;

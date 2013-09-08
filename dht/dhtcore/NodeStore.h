@@ -149,4 +149,10 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store);
  */
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
 
+
+/**
+ * Dump the table, one node at a time.
+ */
+struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index);
+
 #endif

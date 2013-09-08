@@ -22,6 +22,7 @@ add_library(dhtcore
     VersionList.c
     SearchRunner.c
     RouteTracer.c
+    NodeStore_admin.c
 )
 
 target_link_libraries(dhtcore
