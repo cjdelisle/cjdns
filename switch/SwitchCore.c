@@ -179,6 +179,10 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             return Error_NONE;
         }
         Assert_true(bits == 4);
+
+    } else if (bits > sourceBits) {
+        DEBUG_SRC_DST(sourceIf->core->logger,
+                      "Packet with bigger dest than src");
     }
 
     if (sourceBits > bits) {
