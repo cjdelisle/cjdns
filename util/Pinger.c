@@ -130,7 +130,8 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
     } else {
         data->len -= 4;
         data->bytes += 4;
-        uint64_t cookie = *((uint64_t*) data->bytes);
+        uint64_t cookie;
+        Bits_memcpyConst(&cookie, data->bytes, 8);
         struct Ping* p = Identity_cast((struct Ping*) pinger->outstandingPings.values[index]);
         if (cookie != p->cookie) {
             Log_debug(pinger->logger, "Ping response with invalid cookie");

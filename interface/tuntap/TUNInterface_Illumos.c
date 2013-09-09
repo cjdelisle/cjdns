@@ -16,6 +16,10 @@
 #include "interface/InterfaceWrapper.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "util/AddrTools.h"
+#include "util/Identity.h"
+#include "util/events/Pipe.h"
+#include "wire/Ethernet.h"
+#include "wire/Error.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -38,6 +42,7 @@ struct TUNInterface_Illumos_pvt
 {
     struct Interface generic;
     struct Pipe* const pipe;
+    Identity
 };
 
 /**
@@ -49,7 +54,7 @@ static uint16_t ethertypeForPacketType(uint8_t highByte)
     return ((highByte >> 4) == 6) ? Ethernet_TYPE_IP6 : Ethernet_TYPE_IP4;
 }
 
-static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct TUNInterface_Illumos_pvt* ctx =
         Identity_cast((struct TUNInterface_Illumos_pvt*)iface->receiverContext);
@@ -60,24 +65,22 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     Message_shift(message, 4);
     ((uint16_t*) message->bytes)[0] = 0;
-    ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(msg->bytes[0]);
+    ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[0]);
 
-    Interface_receiveMessage(&ctx->generic, msg);
+    return Interface_receiveMessage(&ctx->generic, message);
 }
 
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct TUNInterface_Illumos_pvt* ctx = Identity_cast((struct TUNInterface_Illumos_pvt*)iface);
 
     Message_shift(message, -4);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];
-    switch (ethertype) {
-        case Ethernet_TYPE_IP6: break;
-        case Ethernet_TYPE_IP4: break;
-        default Assert_always(!"Unsupported ethertype");
+    if (ethertype != Ethernet_TYPE_IP6 && ethertype != Ethernet_TYPE_IP4) {
+        Assert_always(!"Unsupported ethertype");
     }
 
-    Interface_sendMessage(ctx->wrapped, msg);
+    return Interface_sendMessage(&ctx->pipe->iface, message);
 }
 
 struct Interface* TUNInterface_new(const char* interfaceName,
@@ -127,7 +130,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
+        Except_raise(eh, TUNInterface_new_INTERNAL, error, strerror(err));
     }
 
     struct lifreq ifr = {
@@ -137,7 +140,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
-    int maxNameSize = (LIFNAMSIZ < TUNConfigurator_IFNAMSIZ) ? LIFNAMSIZ : TUNConfigurator_IFNAMSIZ;
+    int maxNameSize = (LIFNAMSIZ < TUNInterface_IFNAMSIZ) ? LIFNAMSIZ : TUNInterface_IFNAMSIZ;
     snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
     snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
 
@@ -164,12 +167,12 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_raise(eh, TUNInterface_new_INTERNAL, "%s [%s]", error, strerror(err));
     }
 
     close(ipFd);
 
-    struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
+    struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
 
     struct TUNInterface_Illumos_pvt* ctx =
         Allocator_clone(alloc, (&(struct TUNInterface_Illumos_pvt) {
@@ -177,7 +180,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         }));
     Identity_set(ctx);
 
-    InterfaceWrapper_wrap(&->iface, sendMessage, receiveMessage, &ctx->generic);
+    InterfaceWrapper_wrap(&p->iface, sendMessage, receiveMessage, &ctx->generic);
 
     return &ctx->generic;
 }
