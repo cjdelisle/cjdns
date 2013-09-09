@@ -37,7 +37,6 @@ if(NOT CLOCK_GETTIME_FOUND AND NOT NO_CLOCK_GETTIME)
                 /usr/lib/powerpc-linux-gnu/
                 /usr/lib64/
                 /usr/lib/
-                /lib/x86_64-linux-gnu/
         )
 
         if(CLOCK_GETTIME_LIBRARIES)
