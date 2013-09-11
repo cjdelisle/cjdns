@@ -281,14 +281,14 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
-static uint32_t reachAfterDecay(const uint32_t oldReach)
-{
-    return (oldReach - (oldReach / REACH_WINDOW) - 1);
-}
-
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    return (oldReach / 2);
+    switch (oldReach) {
+        case 2: return 1;
+        case 1:
+        case 0: return 0;
+        default: return oldReach / 2 + 2;
+    }
 }
 
 static inline void responseFromNode(struct Node* node,
@@ -298,8 +298,7 @@ static inline void responseFromNode(struct Node* node,
     if (node) {
         uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
         if (worst > millisecondsSinceRequest) {
-            node->reach = reachAfterDecay(node->reach) +
-                (worst - millisecondsSinceRequest) * (LINK_STATE_MULTIPLIER / REACH_WINDOW);
+            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
             NodeStore_updateReach(node, module->nodeStore);
         }
     }
@@ -683,9 +682,7 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     NodeStore_addNode(module->nodeStore, address, 1, version);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.path != address->path) {
-        for ( uint32_t i = 0 ; i < REACH_WINDOW ; i++ ) {
-            RouterModule_pingNode(best, 0, module, module->allocator);
-        }
+        RouterModule_pingNode(best, 0, module, module->allocator);
     }
 }
 
@@ -694,17 +691,8 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-    struct Node* best = NodeStore_getBest(&addr, module->nodeStore);
-    if (best) {
-        uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
-        if (now > best->timeOfNextPing) {
-            uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-            best->timeOfNextPing = now + worst;
-            RouterModule_pingNode(best, 0, module, module->allocator);
-        }
-    }
 
-    return best;
+    return NodeStore_getBest(&addr, module->nodeStore);
 }
 
 /** see RouterModule.h */
