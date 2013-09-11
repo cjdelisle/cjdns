@@ -192,6 +192,12 @@
 /** Never allow a search to be timed out in less than this number of milliseconds. */
 #define MIN_TIMEOUT 10
 
+/**
+ * Used to keep reach a weighted rolling average of recent ping times.
+ * The smaller this value, the more significant recent pings are to reach.
+ */
+#define REACH_WINDOW 8
+
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
@@ -275,14 +281,14 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
+static uint32_t reachAfterDecay(const uint32_t oldReach)
+{
+    return (oldReach - (oldReach / REACH_WINDOW));
+}
+
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    switch (oldReach) {
-        case 2: return 1;
-        case 1:
-        case 0: return 0;
-        default: return oldReach / 2 + 2;
-    }
+    return (oldReach / 2);
 }
 
 static inline void responseFromNode(struct Node* node,
@@ -292,7 +298,8 @@ static inline void responseFromNode(struct Node* node,
     if (node) {
         uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
         if (worst > millisecondsSinceRequest) {
-            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
+            node->reach = reachAfterDecay(node->reach) +
+                (worst - millisecondsSinceRequest) * (LINK_STATE_MULTIPLIER / REACH_WINDOW);
             NodeStore_updateReach(node, module->nodeStore);
         }
     }
