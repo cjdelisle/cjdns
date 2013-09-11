@@ -15,12 +15,6 @@
 #define string_strlen
 #define string_strcpy
 
-#include "admin/Admin.h"
-#include "benc/Int.h"
-#include "benc/List.h"
-#include "benc/Dict.h"
-#include "benc/String.h"
-#include "benc/Object.h"
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
@@ -43,15 +37,12 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
-
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin)
+                                struct Random* rand)
 {
     struct NodeStore* out = Allocator_malloc(allocator, sizeof(struct NodeStore));
     out->thisNodeAddress = myAddress;
@@ -60,15 +51,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->capacity = capacity;
     out->logger = logger;
     out->size = 0;
-    out->admin = admin;
     out->labelSum = 0;
     out->rand = rand;
-
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "page", .required = 1, .type = "Int" },
-    };
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, adma, admin);
-
     return out;
 }
 
@@ -525,69 +509,4 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
         }
     }
     return out;
-}
-
-static void sendEntries(struct NodeStore* store,
-                        struct List_Item* last,
-                        bool isMore,
-                        String* txid)
-{
-    Dict table = Dict_CONST(String_CONST("routingTable"), List_OBJ(&last), NULL);
-    if (isMore) {
-        table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
-    } else {
-        // the self route is synthetic so add 1 to the count.
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(store->size + 1), table);
-    }
-    Admin_sendMessage(&table, txid, store->admin);
-}
-
-#define ENTRIES_PER_PAGE 8
-static void addRoutingTableEntries(struct NodeStore* store,
-                                   int i,
-                                   int j,
-                                   struct List_Item* last,
-                                   String* txid)
-{
-    uint8_t path[20];
-    uint8_t ip[40];
-    String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
-    String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
-    Object* link = Int_OBJ(0xFFFFFFFF);
-    Object* version = Int_OBJ(Version_CURRENT_PROTOCOL);
-    Dict entry = Dict_CONST(
-        String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
-        String_CONST("link"), link, Dict_CONST(
-        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
-        String_CONST("version"), version, NULL
-    ))));
-
-    struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
-
-    if (i >= store->size || j >= ENTRIES_PER_PAGE) {
-        if (i > j) {
-            sendEntries(store, last, (j >= ENTRIES_PER_PAGE), txid);
-            return;
-        }
-
-        Address_printIp(ip, store->thisNodeAddress);
-        strcpy((char*)path, "0000.0000.0000.0001");
-        sendEntries(store, &next, (j >= ENTRIES_PER_PAGE), txid);
-        return;
-    }
-
-    link->as.number = store->headers[i].reach;
-    version->as.number = store->headers[i].version;
-    Address_printIp(ip, &store->nodes[i].address);
-    AddrTools_printPath(path, store->nodes[i].address.path);
-
-    addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
-}
-
-static void dumpTable(Dict* args, void* vnodeStore, String* txid)
-{
-    struct NodeStore* store = (struct NodeStore*) vnodeStore;
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
-    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    addRoutingTableEntries(store, i, 0, NULL, txid);
 }

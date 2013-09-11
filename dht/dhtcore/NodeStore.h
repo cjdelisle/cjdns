@@ -38,8 +38,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin);
+                                struct Random* rand);
 
 /**
  * Put a node into the store.

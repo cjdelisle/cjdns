@@ -22,6 +22,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
@@ -232,7 +233,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand, admin);
+    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand);
+    NodeStore_admin_register(out->nodeStore, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
