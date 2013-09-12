@@ -283,7 +283,7 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
 
 static uint32_t reachAfterDecay(const uint32_t oldReach)
 {
-    return (oldReach - (oldReach / REACH_WINDOW));
+    return (oldReach - (oldReach / REACH_WINDOW) - 1);
 }
 
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
@@ -683,7 +683,9 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     NodeStore_addNode(module->nodeStore, address, 1, version);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.path != address->path) {
-        RouterModule_pingNode(best, 0, module, module->allocator);
+        for ( uint32_t i = 0 ; i < REACH_WINDOW ; i++ ) {
+            RouterModule_pingNode(best, 0, module, module->allocator);
+        }
     }
 }
 
@@ -692,8 +694,16 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+    struct Node* best = NodeStore_getBest(&addr, module->nodeStore);
+    if (best) {
+        uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
+        if (now > best->timeOfNextPing) {
+            best->timeOfNextPing = now + 1024 + (Random_uint32(module->rand) % (1024 | 1)) / 2;
+            RouterModule_pingNode(best, 0, module, module->allocator);
+        }
+    }
 
-    return NodeStore_getBest(&addr, module->nodeStore);
+    return best;
 }
 
 /** see RouterModule.h */
