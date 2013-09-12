@@ -27,8 +27,6 @@
 #include "util/platform/libc/string.h"
 #include "util/version/Version.h"
 
-#include <stdio.h>
-
 static void sendEntries(struct NodeStore* store,
                         struct List_Item* last,
                         bool isMore,

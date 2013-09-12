@@ -12,9 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strcpy
-
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
@@ -25,7 +22,6 @@
 #include "dht/dhtcore/NodeStore_pvt.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
-#include "util/platform/libc/string.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -34,7 +30,6 @@
 #include "switch/LabelSplicer.h"
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <inttypes.h>
 
 /** See: NodeStore.h */
