@@ -195,28 +195,27 @@ def connect(ipAddr, port, password):
     funcOargs = {}
 
     for (i, func) in availableFunctions.items():
+        items = func.items()
 
-        argList = []
-        rargList = []
+        # grab all the required args first
+        # append all the optional args
+        rargList = [arg for arg,atts in items if atts['required']]
+        argList = rargList + [arg for arg,atts in items if not atts['required']]
+
+        # for each optional arg setup a default value with 
+        # a type which will be ignored by the core.
         oargList = {}
-
-        funcArgs[i] = rargList
-        funcOargs[i] = oargList
-
-        # If the arg is required, put it first,
-        # otherwise put it after and use a default
-        # value of a type which will be ignored by the core.
-        for arg in func:
-            argList.append(arg)
-            if (func[arg]['required']):
-                rargList.append(arg)
-            else:
+        for (arg,atts) in items:
+            if not atts['required']:
                 oargList[arg] = (
                     "''" if (func[arg]['type'] == 'Int')
                     else "0")
 
         setattr(Session, i, _functionFabric(
             i, argList, oargList, password))
+
+        funcArgs[i] = rargList
+        funcOargs[i] = oargList
 
     session = Session(sock)
 

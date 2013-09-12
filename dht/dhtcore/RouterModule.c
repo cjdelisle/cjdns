@@ -255,6 +255,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->routeTracer =
         RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
 
+    NodeStore_admin_register(out->nodeStore, admin, allocator);
+
     Identity_set(out);
     return out;
 }

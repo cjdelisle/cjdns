@@ -18,7 +18,6 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/NodeStore_pvt.h"
 #include "io/FileWriter.h"
 #include "util/Assert.h"
 #include "util/Endian.h"

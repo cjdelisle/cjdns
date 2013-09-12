@@ -18,7 +18,6 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "dht/dhtcore/NodeStore_pvt.h"
 #include "dht/dhtcore/RouterModule_pvt.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
@@ -159,10 +158,7 @@ static void maintanenceCycle(void* vcontext)
     }
 
     #ifdef Log_DEBUG
-        int nonZeroNodes = 0;
-        for (int i = 0; i < janitor->routerModule->nodeStore->size; i++) {
-            nonZeroNodes += (janitor->routerModule->nodeStore->headers[i].reach > 0);
-        }
+        int nonZeroNodes = NodeStore_nonZeroNodes(janitor->routerModule->nodeStore);
         Log_debug(janitor->routerModule->logger,
                   "Global Mean Response Time: %u non-zero nodes: [%d] zero nodes [%d] total [%d]",
                   (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),

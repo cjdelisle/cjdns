@@ -19,7 +19,7 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
 
-void NodeStore_admin_register(struct NodeStore* store,
+void NodeStore_admin_register(struct NodeStore* module,
                               struct Admin* admin,
                               struct Allocator* alloc);
 

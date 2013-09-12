@@ -20,10 +20,9 @@
 #include "util/log/Log.h"
 
 /** A list of DHT nodes. */
-struct NodeStore
+struct NodeStore_pvt
 {
-    /** The address of "our" node. */
-    struct Address* thisNodeAddress;
+    struct NodeStore pub;
 
     /** A pointer to the first of an array of node headers. */
     struct NodeHeader* headers;
@@ -40,14 +39,13 @@ struct NodeStore
     /** The maximum number of nodes which can be allocated. */
     int capacity;
 
-    /** The number of nodes in the list. */
-    int size;
-
     /** The sum of the logs base 2 of all node labels. */
     int32_t labelSum;
 
     /** The means for this node store to log. */
     struct Log* logger;
+
+    Identity
 };
 
 #endif
