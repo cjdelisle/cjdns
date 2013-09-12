@@ -234,7 +234,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
     out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand);
-    NodeStore_admin_register(out->nodeStore, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;

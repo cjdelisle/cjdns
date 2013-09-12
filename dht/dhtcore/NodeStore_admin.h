@@ -17,8 +17,10 @@
 
 #include "admin/Admin.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "memory/Allocator.h"
 
 void NodeStore_admin_register(struct NodeStore* store,
-                              struct Admin* admin);
+                              struct Admin* admin,
+                              struct Allocator* alloc);
 
 #endif

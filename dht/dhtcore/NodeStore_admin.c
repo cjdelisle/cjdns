@@ -27,7 +27,13 @@
 #include "util/platform/libc/string.h"
 #include "util/version/Version.h"
 
-static void sendEntries(struct NodeStore* store,
+struct Context
+{
+  struct Admin* admin;
+  struct NodeStore* store;
+};
+
+static void sendEntries(struct Context* context,
                         struct List_Item* last,
                         bool isMore,
                         String* txid)
@@ -37,18 +43,19 @@ static void sendEntries(struct NodeStore* store,
         table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
     } else {
         // the self route is synthetic so add 1 to the count.
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(store->size + 1), table);
+        table = Dict_CONST(String_CONST("count"), Int_OBJ(context->store->size + 1), table);
     }
-    Admin_sendMessage(&table, txid, store->admin);
+    Admin_sendMessage(&table, txid, context->admin);
 }
 
 #define ENTRIES_PER_PAGE 8
-static void addRoutingTableEntries(struct NodeStore* store,
+static void addRoutingTableEntries(struct Context* context,
                                    int i,
                                    int j,
                                    struct List_Item* last,
                                    String* txid)
 {
+    struct NodeStore* store = context->store;
     uint8_t path[20];
     uint8_t ip[40];
     String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
@@ -66,13 +73,13 @@ static void addRoutingTableEntries(struct NodeStore* store,
 
     if (i >= store->size || j >= ENTRIES_PER_PAGE) {
         if (i > j) {
-            sendEntries(store, last, (j >= ENTRIES_PER_PAGE), txid);
+            sendEntries(context, last, (j >= ENTRIES_PER_PAGE), txid);
             return;
         }
 
         Address_printIp(ip, store->thisNodeAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
-        sendEntries(store, &next, (j >= ENTRIES_PER_PAGE), txid);
+        sendEntries(context, &next, (j >= ENTRIES_PER_PAGE), txid);
         return;
     }
 
@@ -81,22 +88,27 @@ static void addRoutingTableEntries(struct NodeStore* store,
     Address_printIp(ip, &store->nodes[i].address);
     AddrTools_printPath(path, store->nodes[i].address.path);
 
-    addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
+    addRoutingTableEntries(context, i + 1, j + 1, &next, txid);
 }
 
-static void dumpTable(Dict* args, void* vnodeStore, String* txid)
+static void dumpTable(Dict* args, void* vcontext, String* txid)
 {
-    struct NodeStore* store = (struct NodeStore*) vnodeStore;
+    struct Context* context = vcontext;
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    addRoutingTableEntries(store, i, 0, NULL, txid);
+    addRoutingTableEntries(context, i, 0, NULL, txid);
 }
 
 void NodeStore_admin_register(struct NodeStore* store,
-                              struct Admin* admin)
+                              struct Admin* admin,
+                              struct Allocator* alloc)
 {
+    struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
+        .store = store,
+        .admin = admin
+    }));
     struct Admin_FunctionArg adma[1] = {
         { .name = "page", .required = 1, .type = "Int" },
     };
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, store, false, adma, admin);
+    Admin_registerFunction("NodeStore_dumpTable", dumpTable, ctx, false, adma, admin);
 }
