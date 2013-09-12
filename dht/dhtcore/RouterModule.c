@@ -698,7 +698,8 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
     if (best) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         if (now > best->timeOfNextPing) {
-            best->timeOfNextPing = now + 1024 + (Random_uint32(module->rand) % (1024 | 1)) / 2;
+            uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
+            best->timeOfNextPing = now + worst;
             RouterModule_pingNode(best, 0, module, module->allocator);
         }
     }
