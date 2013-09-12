@@ -24,9 +24,6 @@ struct NodeStore_pvt
 {
     struct NodeStore pub;
 
-    /** The address of "our" node. */
-    struct Address* thisNodeAddress;
-
     /** A pointer to the first of an array of node headers. */
     struct NodeHeader* headers;
 
@@ -47,9 +44,6 @@ struct NodeStore_pvt
 
     /** The means for this node store to log. */
     struct Log* logger;
-
-    /** Administration tool. */
-    struct Admin* admin;
 
     Identity
 };
