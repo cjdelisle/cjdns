@@ -15,6 +15,8 @@
 #ifndef Core_admin_H
 #define Core_admin_H
 
+#include "admin/Admin.h"
+
 void Core_admin_register(struct Sockaddr* ipAddr,
                          struct Ducttape* dt,
                          struct Log* logger,

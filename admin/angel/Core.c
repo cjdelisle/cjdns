@@ -323,7 +323,6 @@ int Core_main(int argc, char** argv)
                                                         addr.key,
                                                         eventBase,
                                                         logger,
-                                                        admin,
                                                         rand);
 
     SerializationModule_register(registry, logger, alloc);
@@ -337,7 +336,6 @@ int Core_main(int argc, char** argv)
                                             eventBase,
                                             alloc,
                                             logger,
-                                            admin,
                                             ipTun,
                                             rand);
 
