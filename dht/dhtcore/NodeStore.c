@@ -15,7 +15,6 @@
 #define string_strlen
 #define string_strcpy
 
-#include "admin/Admin.h"
 #include "benc/Int.h"
 #include "benc/List.h"
 #include "benc/Dict.h"
@@ -43,32 +42,23 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-static void dumpTable(Dict* msg, void* vnodeStore, String* txid);
-
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin)
+                                struct Random* rand)
 {
     struct NodeStore_pvt* out = Allocator_malloc(allocator, sizeof(struct NodeStore_pvt));
-    out->thisNodeAddress = myAddress;
+    out->pub.selfAddress = myAddress;
     out->headers = Allocator_calloc(allocator, sizeof(struct NodeHeader), capacity);
     out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
     out->capacity = capacity;
     out->logger = logger;
     out->pub.size = 0;
-    out->admin = admin;
     out->labelSum = 0;
     out->rand = rand;
     Identity_set(out);
-
-    struct Admin_FunctionArg adma[1] = {
-        { .name = "page", .required = 1, .type = "Int" },
-    };
-    Admin_registerFunction("NodeStore_dumpTable", dumpTable, out, false, adma, admin);
 
     return &out->pub;
 }
@@ -106,6 +96,18 @@ struct Node* NodeStore_getNode(struct NodeStore* nodeStore, struct Address* addr
 
     // Synchronize the reach values.
     return nodeForIndex(store, bestIndex);
+}
+
+/**
+ * Dump the table, one node at a time.
+ */
+struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
+{
+    struct NodeStore_pvt* s = Identity_cast((struct NodeStore_pvt*)store);
+    if (index >= (uint32_t)store->size) {
+        return NULL;
+    }
+    return nodeForIndex(s, index);
 }
 
 static inline uint32_t getSwitchIndex(struct Address* addr)
@@ -175,7 +177,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     }
 
     uint32_t pfx = Address_getPrefix(addr);
-    if (Bits_memcmp(addr->ip6.bytes, store->thisNodeAddress, 16) == 0) {
+    if (Bits_memcmp(addr->ip6.bytes, store->pub.selfAddress, 16) == 0) {
         Log_debug(store->logger, "got introduced to ourselves");
         return NULL;
     }
@@ -303,7 +305,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
     };
 
     collector.thisNodeDistance =
-        Address_getPrefix(store->thisNodeAddress) ^ collector.targetPrefix;
+        Address_getPrefix(store->pub.selfAddress) ^ collector.targetPrefix;
 
     for (int i = 0; i < store->pub.size; i++) {
         if (store->headers[i].reach != 0) {
@@ -322,7 +324,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     struct NodeCollector* collector = NodeCollector_new(address,
                                                         max,
-                                                        store->thisNodeAddress,
+                                                        store->pub.selfAddress,
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -402,7 +404,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
-                                                        store->thisNodeAddress,
+                                                        store->pub.selfAddress,
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -545,69 +547,4 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         }
     }
     return out;
-}
-
-static void sendEntries(struct NodeStore_pvt* store,
-                        struct List_Item* last,
-                        bool isMore,
-                        String* txid)
-{
-    Dict table = Dict_CONST(String_CONST("routingTable"), List_OBJ(&last), NULL);
-    if (isMore) {
-        table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
-    } else {
-        // the self route is synthetic so add 1 to the count.
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(store->pub.size + 1), table);
-    }
-    Admin_sendMessage(&table, txid, store->admin);
-}
-
-#define ENTRIES_PER_PAGE 8
-static void addRoutingTableEntries(struct NodeStore_pvt* store,
-                                   int i,
-                                   int j,
-                                   struct List_Item* last,
-                                   String* txid)
-{
-    uint8_t path[20];
-    uint8_t ip[40];
-    String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
-    String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
-    Object* link = Int_OBJ(0xFFFFFFFF);
-    Object* version = Int_OBJ(Version_CURRENT_PROTOCOL);
-    Dict entry = Dict_CONST(
-        String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
-        String_CONST("link"), link, Dict_CONST(
-        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
-        String_CONST("version"), version, NULL
-    ))));
-
-    struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
-
-    if (i >= store->pub.size || j >= ENTRIES_PER_PAGE) {
-        if (i > j) {
-            sendEntries(store, last, (j >= ENTRIES_PER_PAGE), txid);
-            return;
-        }
-
-        Address_printIp(ip, store->thisNodeAddress);
-        strcpy((char*)path, "0000.0000.0000.0001");
-        sendEntries(store, &next, (j >= ENTRIES_PER_PAGE), txid);
-        return;
-    }
-
-    link->as.number = store->headers[i].reach;
-    version->as.number = store->headers[i].version;
-    Address_printIp(ip, &store->nodes[i].address);
-    AddrTools_printPath(path, store->nodes[i].address.path);
-
-    addRoutingTableEntries(store, i + 1, j + 1, &next, txid);
-}
-
-static void dumpTable(Dict* args, void* vnodeStore, String* txid)
-{
-    struct NodeStore_pvt* store = (struct NodeStore_pvt*) vnodeStore;
-    int64_t* page = Dict_getInt(args, String_CONST("page"));
-    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    addRoutingTableEntries(store, i, 0, NULL, txid);
 }

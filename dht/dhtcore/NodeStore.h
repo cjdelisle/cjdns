@@ -28,6 +28,8 @@ struct NodeStore
 {
     /** The number of nodes in the list. */
     int size;
+
+    struct Address* selfAddress;
 };
 
 /**
@@ -42,8 +44,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin);
+                                struct Random* rand);
 
 /**
  * Put a node into the store.
@@ -148,5 +149,10 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store);
  * @return the number of nodes which were removed.
  */
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
+
+/**
+ * Dump the table, one node at a time.
+ */
+struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index);
 
 #endif

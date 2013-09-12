@@ -11,6 +11,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 add_library(dhtcore
     NodeStore.c
+    NodeStore_admin.c
     RouterModule.c
     RouterModule_admin.c
     SearchStore.c
