@@ -70,9 +70,28 @@ void test_getNodesByAddr()
     // make sure we can add an addr and get it back
     NodeStore_addNode(store, otherAddr, 0, Version_CURRENT_PROTOCOL);
     struct NodeList* list = NodeStore_getNodesByAddr(otherAddr, 1, alloc, store);
-    Assert_always(list != NULL);
     Assert_always(list->size == 1);
-    Assert_always(Address_isSame(&list->nodes[0]->address, otherAddr));
+    Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
+
+    // try for two
+    otherAddr->path = 0x17;
+    NodeStore_addNode(store, otherAddr, 0, Version_CURRENT_PROTOCOL);
+    list = NodeStore_getNodesByAddr(otherAddr, 2, alloc, store);
+    Assert_always(list->size == 2);
+    Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
+    Assert_always(Address_isSameIp(&list->nodes[1]->address, otherAddr));
+
+    // make sure 1 still works
+    list = NodeStore_getNodesByAddr(otherAddr, 1, alloc, store);
+    Assert_always(list->size == 1);
+}
+
+void test_size()
+{
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    Assert_always(NodeStore_size(store) == 0);
+    NodeStore_addNode(store, randomAddress(), 0, Version_CURRENT_PROTOCOL);
+    Assert_always(NodeStore_size(store) == 1);
 }
 
 int main()
@@ -84,6 +103,7 @@ int main()
 
     test_addNode();
     test_getNodesByAddr();
+    test_size();
 
     Allocator_free(alloc);
 }
