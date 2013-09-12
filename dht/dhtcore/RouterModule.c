@@ -281,6 +281,11 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
+static uint32_t reachAfterDecay(const uint32_t oldReach)
+{
+    return (oldReach - (oldReach / REACH_WINDOW));
+}
+
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
     switch (oldReach) {
@@ -298,7 +303,8 @@ static inline void responseFromNode(struct Node* node,
     if (node) {
         uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
         if (worst > millisecondsSinceRequest) {
-            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
+            node->reach = reachAfterDecay(node->reach) +
+                (worst - millisecondsSinceRequest) * (LINK_STATE_MULTIPLIER / REACH_WINDOW);
             NodeStore_updateReach(node, module->nodeStore);
         }
     }
