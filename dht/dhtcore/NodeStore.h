@@ -127,8 +127,6 @@ uint32_t NodeStore_size(const struct NodeStore* const store);
  */
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
 
-void NodeStore_remove(struct Node* node, struct NodeStore* store);
-
 /**
  * Remove all nodes who are reachable by this path.
  *

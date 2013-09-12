@@ -140,6 +140,28 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
+static void removeNode(struct Node* node, struct NodeStore* store)
+{
+    Assert_true(node >= store->nodes && node < store->nodes + store->size);
+
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug(store->logger, "Removing route to %s\n", addr);
+    #endif
+
+    store->size--;
+
+    if (node != &store->nodes[store->size]) {
+        Bits_memcpyConst(node, &store->nodes[store->size], sizeof(struct Node));
+        struct NodeHeader* header = &store->headers[node - store->nodes];
+        Bits_memcpyConst(header, &store->headers[store->size], sizeof(struct NodeHeader));
+    }
+
+    // This is needed because otherwise replaceNode will cause the labelSum to skew.
+    store->nodes[store->size].address.path = 0;
+}
+
 struct Node* NodeStore_addNode(struct NodeStore* store,
                                struct Address* addr,
                                int64_t reachDifference,
@@ -188,7 +210,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 
                 // Remove the node and continue on to add this one.
                 // If we just change the path, we get duplicates.
-                NodeStore_remove(&store->nodes[i], store);
+                removeNode(&store->nodes[i], store);
                 i--;
                 continue;
             } else if (!LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path)) {
@@ -467,35 +489,13 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* sto
     return NULL;
 }
 
-void NodeStore_remove(struct Node* node, struct NodeStore* store)
-{
-    Assert_true(node >= store->nodes && node < store->nodes + store->size);
-
-    #ifdef Log_DEBUG
-        uint8_t addr[60];
-        Address_print(addr, &node->address);
-        Log_debug(store->logger, "Removing route to %s\n", addr);
-    #endif
-
-    store->size--;
-
-    if (node != &store->nodes[store->size]) {
-        Bits_memcpyConst(node, &store->nodes[store->size], sizeof(struct Node));
-        struct NodeHeader* header = &store->headers[node - store->nodes];
-        Bits_memcpyConst(header, &store->headers[store->size], sizeof(struct NodeHeader));
-    }
-
-    // This is needed because otherwise replaceNode will cause the labelSum to skew.
-    store->nodes[store->size].address.path = 0;
-}
-
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store)
 {
     int out = 0;
     for (int32_t i = (int32_t) store->size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
             if (!LabelSplicer_isOneHop(store->nodes[i].address.path)) {
-                NodeStore_remove(&store->nodes[i], store);
+                removeNode(&store->nodes[i], store);
                 out++;
             } else {
                 logNodeZeroed(store->logger, &store->nodes[i]);
