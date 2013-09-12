@@ -163,13 +163,6 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
-static inline void insert(struct NodeStore_pvt* store,
-                          struct Address* addr,
-                          int64_t reachDifference,
-                          uint32_t version)
-{
-}
-
 struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                struct Address* addr,
                                int64_t reachDifference,

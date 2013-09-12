@@ -19,46 +19,10 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "util/log/Log.h"
 
-struct NodeStore_Node;
-
-/**
- * A peer represents a link between two nodes.
- */
-struct NodeStore_Peer {
-    /** The corrisponding node for this peer. */
-    struct NodeStore_Node* node;
-
-    /** The sibling of this peer whose labelFragment is greater. */
-    struct NodeStore_Peer* higher;
-
-    /** The sibling of this peer whose labelFragment is lesser. */
-    struct NodeStore_Peer* lower;
-
-    /** The label fragment which is spliced to this node's parent in order to reach this node. */
-    uint64_t labelFragment;
-
-    /** The quality of the link between this node and it's parent. */
-    uint32_t linkState;
-};
-
-struct NodeStore_Node
-{
-    /** The actual node information: reach, version, address, best path. */
-    struct Node node;
-
-    /** The next better node, 1 hop closer to us along the best path. */
-    struct NodeStore_Node* parent;
-
-    /** Peers of this node for which we know the forward direction. */
-    struct NodeStore_Peer* peers;
-};
-
 /** A list of DHT nodes. */
 struct NodeStore_pvt
 {
     struct NodeStore pub;
-
-    struct NodeStore_Node* me;
 
     /** The address of "our" node. */
     struct Address* thisNodeAddress;
