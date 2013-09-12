@@ -58,6 +58,8 @@ void test_addNode()
     Assert_always(NodeStore_addNode(store, myAddr, 0, Version_CURRENT_PROTOCOL) == NULL);
     // adding somebody else should not
     Assert_always(NodeStore_addNode(store, randomAddress(), 0, Version_CURRENT_PROTOCOL) != NULL);
+
+    // TODO test at capacity and verify worst reach is replaced
 }
 
 void test_getNodesByAddr()
@@ -85,12 +87,52 @@ void test_getNodesByAddr()
     Assert_always(list->size == 1);
 }
 
+void test_getPeers()
+{
+    // TOOD
+}
+
+void test_getBest()
+{
+    // TOOD
+}
+
+void test_getClosestNodes()
+{
+    // TOOD
+}
+
+void test_updateReach()
+{
+    // TOOD
+}
+
+void test_nonZeroNodes()
+{
+    // TOOD
+}
+
 void test_size()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     Assert_always(NodeStore_size(store) == 0);
     NodeStore_addNode(store, randomAddress(), 0, Version_CURRENT_PROTOCOL);
     Assert_always(NodeStore_size(store) == 1);
+}
+
+void test_getNodeByNetworkAddr()
+{
+    // TOOD
+}
+
+void test_brokenPath()
+{
+    // TOOD
+}
+
+void test_dumpTable()
+{
+    // TOOD
 }
 
 int main()
@@ -101,8 +143,16 @@ int main()
     rand = Random_new(alloc, NULL, NULL);
 
     test_addNode();
+    test_getBest();
     test_getNodesByAddr();
+    test_getPeers();
+    test_getClosestNodes();
+    test_updateReach();
+    test_nonZeroNodes();
     test_size();
+    test_getNodeByNetworkAddr();
+    test_brokenPath();
+    test_dumpTable();
 
     Allocator_free(alloc);
 }
