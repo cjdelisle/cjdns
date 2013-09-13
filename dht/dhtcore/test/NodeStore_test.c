@@ -262,7 +262,14 @@ void test_size()
 
 void test_getNodeByNetworkAddr()
 {
-    // TOOD
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    // empty case should be null
+    Assert_always(NodeStore_getNodeByNetworkAddr(0x15,store)==NULL);
+
+    // happy case
+    NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
+    Assert_always(NodeStore_getNodeByNetworkAddr(0x15,store)->address.path == 0x15);
 }
 
 void test_brokenPath()
