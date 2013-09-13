@@ -19,6 +19,7 @@
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "io/FileWriter.h"
+#include "switch/LabelSplicer.h"
 #include "util/Assert.h"
 #include "util/Endian.h"
 #include "util/log/WriterLog.h"
@@ -36,18 +37,24 @@ struct NodeStore* setUp(struct Address* myAddress, uint32_t capacity)
     return NodeStore_new(myAddress, capacity, alloc, logger, rand);
 }
 
-struct Address* randomAddress()
+struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t path)
 {
   // horrible hack...
   return Allocator_clone(alloc, (&(struct Address) {
     .ip6.ints = {
       .three = Endian_bigEndianToHost32(0xfc000000 + Random_uint16(rand)),
       .four = Random_uint32(rand),
-      .two = Random_uint32(rand),
-      .one = Random_uint32(rand)
+      .one = mostSignificantAddressSpaceWord,
+      .two = Random_uint32(rand)
     },
-    .path = 0x13
+    .path = path
   }));
+}
+
+struct Address* randomAddress()
+{
+    // TODO make a random valid encoded switch path...
+    return createAddress(Random_uint16(rand), 0x15);
 }
 
 void test_addNode()
@@ -89,12 +96,77 @@ void test_getNodesByAddr()
 
 void test_getPeers()
 {
-    // TOOD
+    // mucking around with switch labels...
+    // see switch/NumberCompress.h
+    struct Address* myAddr = createAddress(0x99,0x01);   // 0001
+    struct NodeStore* store = setUp(myAddr, 8);
+    uint64_t target = 0x1f;                              // 00011111      iface #7,#1
+    struct Address* oneHop1 = createAddress(0x02, 0x17); // 00010111      iface #3,#1
+    struct Address* oneHop2 = createAddress(0x01, 0x15); // 00010101      iface #2,#1
+    struct Address* oneHop3 = createAddress(0x04, 0x1d); // 00011101      iface #6,#1
+    struct Address* twoHop = createAddress(0x03, 0x155); // 000101010101  iface #2,#2,#1
+
+    // using variable scheme, 4 bits (suffix 1).
+    Assert_always(NumberCompress_bitsUsedForLabel(target) == 4);
+    Assert_always(NumberCompress_bitsUsedForLabel(oneHop1->path) == 4);
+    Assert_always(NumberCompress_bitsUsedForLabel(oneHop2->path) == 4);
+    Assert_always(NumberCompress_bitsUsedForLabel(oneHop3->path) == 4);
+    Assert_always(NumberCompress_bitsUsedForLabel(twoHop->path) == 4);
+
+    // verify we setup our test data correctly.
+    Assert_always(LabelSplicer_isOneHop(oneHop1->path));
+    Assert_always(LabelSplicer_isOneHop(oneHop2->path));
+    Assert_always(LabelSplicer_isOneHop(oneHop3->path));
+    Assert_always(!LabelSplicer_isOneHop(twoHop->path));
+
+    // verify empty case, should always return a NodeList
+    struct NodeList* list = NodeStore_getPeers(target, 1, alloc, store);
+    Assert_always(list != NULL);
+    Assert_always(list->size == 0);
+
+    // add test nodes
+    NodeStore_addNode(store, oneHop1, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, oneHop2, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, oneHop3, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, twoHop, 1, Version_CURRENT_PROTOCOL);
+
+    // verify we only get nodes with 1 hop labels
+    list = NodeStore_getPeers(target, 10, alloc, store);
+    Assert_always(list->size == 3);
+
+    // returns in reverse distance order ??
+    // TODO confirm this is intended behavior, unsure if there is an order
+    Assert_always(Address_isSameIp(&list->nodes[0]->address, oneHop2));
+    Assert_always(Address_isSameIp(&list->nodes[1]->address, oneHop1));
+    Assert_always(Address_isSameIp(&list->nodes[2]->address, oneHop3));
+
+    // verify max parameter works, should keep the xor closest paths
+    list = NodeStore_getPeers(target, 2, alloc, store);
+    Assert_always(list->size == 2);
+    Assert_always(Address_isSameIp(&list->nodes[0]->address, oneHop1));
+    Assert_always(Address_isSameIp(&list->nodes[1]->address, oneHop3));
 }
 
 void test_getBest()
 {
-    // TOOD
+    struct Address* myAddr = createAddress(0x99,0xff);
+    struct NodeStore* store = setUp(myAddr, 8);
+    struct Address* target = createAddress(0x01, 0x05);
+    struct Address* near = createAddress(0x05, 0x04);
+    struct Address* far = createAddress(0xff, 0xf0);
+
+    // make sure the distance from my addr to target is greater than
+    // the distance between target and near.
+    Assert_always( (Address_getPrefix(myAddr) ^ Address_getPrefix(target)) >
+                   (Address_getPrefix(target) ^ Address_getPrefix(near)) );
+
+    // add near and far, and then look for best given target
+    // need to give reach > 0 to be a valid match
+    NodeStore_addNode(store, near, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, far, 1, Version_CURRENT_PROTOCOL);
+    struct Node* best = NodeStore_getBest(near, store);
+    Assert_always(best != NULL);
+    Assert_always(Address_isSameIp(&best->address, near));
 }
 
 void test_getClosestNodes()
