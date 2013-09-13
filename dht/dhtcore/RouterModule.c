@@ -12,10 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-
-#include "benc/Int.h"
-#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/RouterModule_pvt.h"
@@ -32,7 +28,6 @@
 #include "dht/DHTModuleRegistry.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"
 #include "util/events/EventBase.h"
 #include "util/AverageRoller.h"
@@ -42,10 +37,6 @@
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 #include "util/version/Version.h"
-#include "util/platform/libc/string.h"
-
-#include <stdint.h>
-#include <stdbool.h>
 
 /*
  * The router module is the central part of the DHT engine.
