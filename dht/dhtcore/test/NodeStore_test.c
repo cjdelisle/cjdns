@@ -51,39 +51,47 @@ struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t
   }));
 }
 
+struct Address* randomIp(uint64_t path)
+{
+   return createAddress(Random_uint16(rand), path);
+}
+
 struct Address* randomAddress()
 {
     // TODO make a random valid encoded switch path...
-    return createAddress(Random_uint16(rand), 0x15);
+    return randomIp(3);
 }
 
 void test_addNode()
 {
     struct Address* myAddr = randomAddress();
-    struct NodeStore* store = setUp(myAddr, 8);
+    struct NodeStore* store = setUp(myAddr, 2);
     // adding ourselves should be null
-    Assert_always(NodeStore_addNode(store, myAddr, 0, Version_CURRENT_PROTOCOL) == NULL);
+    Assert_always(NodeStore_addNode(store, myAddr, 1, Version_CURRENT_PROTOCOL) == NULL);
     // adding somebody else should not
-    Assert_always(NodeStore_addNode(store, randomAddress(), 0, Version_CURRENT_PROTOCOL) != NULL);
+    Assert_always(NodeStore_addNode(store, randomIp(0x155), 1, Version_CURRENT_PROTOCOL) != NULL);
 
-    // TODO test at capacity and verify worst reach is replaced
+    // test at capacity and verify worst path is replaced
+    NodeStore_addNode(store, randomIp(0x157), 1, Version_CURRENT_PROTOCOL);
+    struct Node* node = NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
+    Assert_always( Address_isSameIp(&node->address, &NodeStore_dumpTable(store,1)->address) );
 }
 
 void test_getNodesByAddr()
 {
     struct Address* myAddr = randomAddress();
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* otherAddr = randomAddress();
+    struct Address* otherAddr = randomIp(5);
 
     // make sure we can add an addr and get it back
-    NodeStore_addNode(store, otherAddr, 0, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
     struct NodeList* list = NodeStore_getNodesByAddr(otherAddr, 1, alloc, store);
     Assert_always(list->size == 1);
     Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
 
     // try for two
-    otherAddr->path = 0x17;
-    NodeStore_addNode(store, otherAddr, 0, Version_CURRENT_PROTOCOL);
+    otherAddr->path = 0x7;
+    NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
     list = NodeStore_getNodesByAddr(otherAddr, 2, alloc, store);
     Assert_always(list->size == 2);
     Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
@@ -149,11 +157,11 @@ void test_getPeers()
 
 void test_getBest()
 {
-    struct Address* myAddr = createAddress(0x99,0xff);
+    struct Address* myAddr = createAddress(0x99,0x1);
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* target = createAddress(0x01, 0x05);
-    struct Address* near = createAddress(0x05, 0x04);
-    struct Address* far = createAddress(0xff, 0xf0);
+    struct Address* target = createAddress(0x01, 0x15);
+    struct Address* near = createAddress(0x05, 0x17);
+    struct Address* far = createAddress(0xff, 0x19);
 
     // make sure the distance from my addr to target is greater than
     // the distance between target and near.
@@ -171,17 +179,77 @@ void test_getBest()
 
 void test_getClosestNodes()
 {
-    // TOOD
+    // gets nodes that are "close" as in log2(path) aka # hops away
+    struct Address* myAddr = createAddress(0x99,0x1);
+    struct NodeStore* store = setUp(myAddr, 8);
+    struct Address* target = createAddress(0x06, 0x13);
+    struct Address* near1 = createAddress(0x05, 0x15);
+    struct Address* near2 = createAddress(0x08, 0x157);
+    struct Address* farGreater = createAddress(0xff, 0x1559);
+    struct Address* farLesser = createAddress(0x00, 0x155a);
+    struct NodeList* closest = NULL;
+
+    NodeStore_addNode(store, near1, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, near2, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, farGreater, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, farLesser, 1, Version_CURRENT_PROTOCOL);
+
+    // check basic case returns in reverse order
+    closest = NodeStore_getClosestNodes(store, target, NULL, 2, true,
+                                        Version_CURRENT_PROTOCOL, alloc);
+    Assert_always(closest != NULL);
+    Assert_always(closest->size == 2);
+    Assert_always(Address_isSameIp(&closest->nodes[0]->address, near2));
+    Assert_always(Address_isSameIp(&closest->nodes[1]->address, near1));
+
+    // check allowNodesFartherThanUs param works
+    // TODO figure out why this test doesn't pass...
+    // from what I can tell, the source seems to ignore this parameter.
+    // so we should either fix, or remove the param.
+    /*
+    closest = NodeStore_getClosestNodes(store, target, NULL, 10, false,
+                                        Version_CURRENT_PROTOCOL, alloc);
+    Assert_always(closest->size == 3);
+    Assert_always(Address_isSameIp(&closest->nodes[0]->address, farLesser));
+    Assert_always(Address_isSameIp(&closest->nodes[1]->address, near2));
+    Assert_always(Address_isSameIp(&closest->nodes[2]->address, near1));
+    */
 }
 
 void test_updateReach()
 {
-    // TOOD
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    struct Address* a = randomIp(0x17);  // 00010111      iface #3,#1
+    struct Address* b = randomIp(0x15);  // 00010101      iface #2,#1
+    struct Address* c = randomIp(0x155); // 000111011101  iface #2,#2,#1
+
+    // verify c routes through b
+    Assert_always(LabelSplicer_routesThrough(c->path, b->path));
+
+    NodeStore_addNode(store, a, 1, Version_CURRENT_PROTOCOL);
+    struct Node* node = NodeStore_addNode(store, b, 15, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, c, 20, Version_CURRENT_PROTOCOL);
+
+    // update reach of b, and verify reach of c is changed as well
+    node->reach = 10;
+    NodeStore_updateReach(node, store);
+    Assert_always(NodeStore_dumpTable(store, 2)->reach == 10);
 }
 
 void test_nonZeroNodes()
 {
-    // TOOD
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    struct Node* node = NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x17), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x19), 1, Version_CURRENT_PROTOCOL);
+    Assert_always(store->size == 4);
+    Assert_always(NodeStore_nonZeroNodes(store)==4);
+
+    // zero a node and make sure we get one less.
+    node->reach = 0;
+    NodeStore_updateReach(node, store);
+    Assert_always(NodeStore_nonZeroNodes(store)==3);
 }
 
 void test_size()
@@ -199,12 +267,36 @@ void test_getNodeByNetworkAddr()
 
 void test_brokenPath()
 {
-    // TOOD
+    struct Address* myAddr = randomIp(0x01);
+    struct NodeStore* store = setUp(myAddr, 8);
+    struct Address* a = randomIp(0x17);  // 00010111      iface #3,#1
+    struct Address* b = randomIp(0x15);  // 00010101      iface #2,#1
+    struct Address* c = randomIp(0x155); // 000111011101  iface #2,#2,#1
+
+    // verify c routes through b
+    Assert_always(LabelSplicer_routesThrough(c->path, b->path));
+
+    // verify removing b should invalidate c
+    NodeStore_addNode(store, a, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, b, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, c, 1, Version_CURRENT_PROTOCOL);
+    Assert_always(NodeStore_brokenPath(b->path, store)==1);
+    // should only have 1 valid route now...
+    Assert_always(NodeStore_nonZeroNodes(store)==1);
 }
 
 void test_dumpTable()
 {
-    // TOOD
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
+    struct Node* orig = NodeStore_addNode(store, randomAddress(), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
+    // verify happy case
+    struct Node* test = NodeStore_dumpTable(store, 1);
+    Assert_always(Address_isSameIp(&orig->address, &test->address));
+    // verify out of bounds index gets NULL
+    Assert_always(NodeStore_dumpTable(store, -1) == NULL);
+    Assert_always(NodeStore_dumpTable(store, 3) == NULL);
 }
 
 int main()
