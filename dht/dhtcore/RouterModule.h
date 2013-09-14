@@ -49,9 +49,6 @@ struct RouterModule_Promise
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
-/** Maximum number of pings which can be in flight at once. */
-#define RouterModule_MAX_CONCURRENT_PINGS 128
-
 /**
  * Register a new RouterModule.
  *
