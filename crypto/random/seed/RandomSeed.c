@@ -41,6 +41,8 @@ static RandomSeed_Provider PROVIDERS[] = {
     /** linux /proc/sys/kernel/random/uuid */
     ProcSysKernelRandomUuidRandomSeed_new
 };
+#define PROVIDERS_COUNT 5
+Assert_compileTime(PROVIDERS_COUNT == (sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)));
 
 struct RandomSeed_pvt
 {
@@ -51,28 +53,36 @@ struct RandomSeed_pvt
     Identity
 };
 
+struct RandomSeed_Buffer
+{
+    uint64_t output[8];
+    uint64_t input[8];
+};
+#define RandomSeed_Buffer_SIZE 128
+Assert_compileTime(sizeof(struct RandomSeed_Buffer) == RandomSeed_Buffer_SIZE);
+
 static int get(struct RandomSeed* rs, uint64_t buffer[8])
 {
     struct RandomSeed_pvt* ctx = Identity_cast((struct RandomSeed_pvt*) rs);
     Log_info(ctx->logger, "Attempting to seed random number generator");
 
     // each provider overwrites input and output is a rolling hash.
-    struct {
-        uint64_t output[8];
-        uint64_t input[8];
-    } buff = { .output = {0} };
+    struct RandomSeed_Buffer buff = { .output = {0} };
 
     int successCount = 0;
     for (int i = 0; i < ctx->rsCount; i++) {
         if (!ctx->rsList[i]->get(ctx->rsList[i], buff.input)) {
             Log_info(ctx->logger, "Trying random seed [%s] Success", ctx->rsList[i]->name);
-            crypto_hash_sha512((uint8_t*)buff.output, (uint8_t*)&buff, sizeof(buff));
+            crypto_hash_sha512((uint8_t*)buff.output,
+                               (uint8_t*)&buff,
+                               RandomSeed_Buffer_SIZE);
             successCount++;
         } else {
             Log_info(ctx->logger, "Trying random seed [%s] Failed", ctx->rsList[i]->name);
         }
     }
-    Bits_memcpyConst(buffer, buff.output, sizeof(buff.output));
+    Assert_always(sizeof(buff.output) == 64);
+    Bits_memcpyConst(buffer, buff.output, 64);
 
     if (successCount > 0) {
         Log_info(ctx->logger, "Seeding random number generator succeeded with [%d] sources",
@@ -93,7 +103,7 @@ struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
                                   struct Log* logger,
                                   struct Allocator* alloc)
 {
-    int providerCount = sizeof(PROVIDERS) / sizeof(RandomSeed_Provider);
+    int providerCount = PROVIDERS_COUNT;
     if (providers) {
         for (int i = 0; providers[i]; i++) {
             providerCount++;
@@ -110,7 +120,7 @@ struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
             }
         }
     }
-    for (int j = 0; j < (int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)); j++) {
+    for (int j = 0; j < PROVIDERS_COUNT; j++) {
         struct RandomSeed* rs = PROVIDERS[j](alloc);
         if (rs) {
             rsList[i++] = rs;
