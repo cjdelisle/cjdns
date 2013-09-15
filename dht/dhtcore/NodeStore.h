@@ -65,8 +65,25 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                int64_t reachDiff,
                                uint32_t version);
 
+/**
+ * Find the node with the closest address to targetAddress that has a non-zero reach and
+ * is closer than myAddress.
+ *
+ * @param targetAddress the address used for comparing distance
+ * @param store the NodeStore
+ * @return the node w/ address closest to targetAddress or NULL if myAddress is closest
+ */
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
+/**
+ * Find nodes that have the specified address.  These nodes will have different paths.
+ *
+ * @param address the Address to find Nodes with
+ * @param max the maximum number to return
+ * @param allocator the Allocator used to construct the NodeList
+ * @param store the NodeStore to check
+ * @return a NodeList* of up to size max nodes
+ */
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
                                           struct Allocator* allocator,
@@ -138,8 +155,6 @@ static inline uint32_t NodeStore_size(const struct NodeStore* const nodeStore)
  *         that path or NULL if no such node exists.
  */
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
-
-void NodeStore_remove(struct Node* node, struct NodeStore* store);
 
 /**
  * Remove all nodes who are reachable by this path.

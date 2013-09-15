@@ -103,7 +103,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     ReplyModule_register(registry, allocator);
 
     struct RouterModule* routerModule =
-        RouterModule_register(registry, allocator, publicKey, base, logger, NULL, rand);
+        RouterModule_register(registry, allocator, publicKey, base, logger, rand);
 
     SerializationModule_register(registry, logger, allocator);
 
@@ -111,7 +111,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct Ducttape* dt =
         Ducttape_register((uint8_t*)privateKey, registry, routerModule,
-                          switchCore, base, allocator, logger, NULL, ipTun, rand);
+                          switchCore, base, allocator, logger, ipTun, rand);
 
     struct SwitchPinger* sp = SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, allocator);
 
