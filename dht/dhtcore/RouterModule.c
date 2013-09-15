@@ -22,7 +22,6 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
@@ -239,7 +238,7 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand);
+    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand, admin);
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
@@ -260,8 +259,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->routeTracer =
         RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
-
-    NodeStore_admin_register(out->nodeStore, admin, allocator);
 
     Identity_set(out);
     return out;
@@ -694,24 +691,17 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-
-    // Ping all paths to the destination, if this has not been done recently
-    struct NodeList* nodeList = NodeStore_getNodesByAddr(&addr,
-                                                          8,
-                                                          module->allocator,
-                                                          module->nodeStore);
-    if (nodeList) {
+    struct Node* best = NodeStore_getBest(&addr, module->nodeStore);
+    if (best) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
-        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-            if (now > nodeList->nodes[i]->timeOfNextPing) {
-                uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-                nodeList->nodes[i]->timeOfNextPing = now + worst;
-                RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
-            }
+        if (now > best->timeOfNextPing) {
+            uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
+            best->timeOfNextPing = now + worst;
+            RouterModule_pingNode(best, 0, module, module->allocator);
         }
     }
 
-    return NodeStore_getBest(&addr, module->nodeStore);
+    return best;
 }
 
 /** see RouterModule.h */
