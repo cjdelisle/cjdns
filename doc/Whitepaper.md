@@ -694,7 +694,7 @@ The journey of a packet begins at the user interface device (TUN or similar).
 The user sends an IPv6 packet which comes in to the TUN device and enters the
 engine, it is checked to make sure its source and destination addresses are
 valid and then a router lookup is made on the destination address. cjdns
-addresses are the first 16 bytes of the SHA-512 of the SHA-512 of the public
+addresses are the first 16 bytes of the SHA-512 of the public
 key. All addresses must begin with the byte `0xFC` otherwise they are invalid,
 generating a key is done by brute force key generation until the result of the
 double SHA-512 begins with `0xFC`.
