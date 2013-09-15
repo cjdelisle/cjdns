@@ -691,17 +691,24 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-    struct Node* best = NodeStore_getBest(&addr, module->nodeStore);
-    if (best) {
+
+    // Ping all paths to the destination, if this has not been done recently
+    struct NodeList* nodeList = NodeStore_getNodesByAddr(&addr,
+                                                          8,
+                                                          module->allocator,
+                                                          module->nodeStore);
+    if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
-        if (now > best->timeOfNextPing) {
-            uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-            best->timeOfNextPing = now + worst;
-            RouterModule_pingNode(best, 0, module, module->allocator);
+        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+            if (now > nodeList->nodes[i]->timeOfNextPing) {
+                uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
+                nodeList->nodes[i]->timeOfNextPing = now + worst;
+                RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
+            }
         }
     }
 
-    return best;
+    return NodeStore_getBest(&addr, module->nodeStore);
 }
 
 /** see RouterModule.h */
