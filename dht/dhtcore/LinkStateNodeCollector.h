@@ -58,10 +58,10 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
     if (nodeDistance < collector->thisNodeDistance) {
 
         uint64_t value = 0;
-        #define LinkStateNodeCollector_getValue(value, header, body, nodeDistance) \
+        #define LinkStateNodeCollector_getValue(value, header, body, nodeDistance)               \
             if (value == 0) {                                                                    \
                 value = (header->reach != 0)                                                     \
-                    ? header->reach                                    \
+                    ? (header->reach * (65 - Bits_log2x64(body->address.path)) / 64 + 1)         \
                     : 0;                                                                         \
             }
 

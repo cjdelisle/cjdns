@@ -696,6 +696,7 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
     struct Node* best = NodeStore_getBest(&addr, module->nodeStore);
     if (best) {
+        // Ping the route, if we have not done so recently. Helps keep reach information updated.
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         if (now > best->timeOfNextPing) {
             uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
