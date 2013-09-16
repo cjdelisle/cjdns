@@ -160,21 +160,21 @@ void test_getBest()
     struct Address* myAddr = createAddress(0x99,0x1);
     struct NodeStore* store = setUp(myAddr, 8);
     struct Address* target = createAddress(0x01, 0x15);
-    struct Address* near = createAddress(0x05, 0x17);
-    struct Address* far = createAddress(0xff, 0x19);
+    struct Address* a = createAddress(0x05, 0x17);  // 1 hop
+    struct Address* b = createAddress(0xff, 0x199); // 2 hops
+    struct Node* best = NULL;
 
-    // make sure the distance from my addr to target is greater than
-    // the distance between target and near.
-    Assert_always( (Address_getPrefix(myAddr) ^ Address_getPrefix(target)) >
-                   (Address_getPrefix(target) ^ Address_getPrefix(near)) );
-
-    // add near and far, and then look for best given target
-    // need to give reach > 0 to be a valid match
-    NodeStore_addNode(store, near, 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, far, 1, Version_CURRENT_PROTOCOL);
-    struct Node* best = NodeStore_getBest(near, store);
+    // exact address match should be best
+    NodeStore_addNode(store, a, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, b, 1, Version_CURRENT_PROTOCOL);
+    best = NodeStore_getBest(b, store);
     Assert_always(best != NULL);
-    Assert_always(Address_isSameIp(&best->address, near));
+    Assert_always(Address_isSameIp(&best->address, b));
+
+    // shortest label should be used if no exact match
+    best = NodeStore_getBest(target, store);
+    Assert_always(best != NULL);
+    Assert_always(Address_isSameIp(&best->address, a));
 }
 
 void test_getClosestNodes()

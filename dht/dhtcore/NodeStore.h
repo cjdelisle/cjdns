@@ -66,8 +66,10 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                uint32_t version);
 
 /**
- * Find the node with the closest address to targetAddress that has a non-zero reach and
- * is closer than myAddress.
+ * Find the one best node using LinkStateNodeCollector. LinkStateNodeCollector prefers a
+ * keyspace match (same address). It breaks ties by choosing the highest version node
+ * (versions above it's own are considered the same as it's version). It breaks ties of the
+ * above two by which node has non-zero reach and finally shortest label fragment wins.
  *
  * @param targetAddress the address used for comparing distance
  * @param store the NodeStore
