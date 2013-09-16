@@ -114,9 +114,6 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
  * @param requestorsAddress if not NULL no responses will be returned which are
  *                          closer to this node in physical space.
  * @param count the number of nodes to return.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
- *                                then we are. this is required for searches but unallowable
- *                                for answering queries.
  * @param versionOfRequestingNode the version of the node who asked for the list, no nodes will
  *                                be returned which are known to be incompatible with this version.
  * @param allocator the memory allocator to use for getting the memory to store the output.
@@ -125,7 +122,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           bool allowNodesFartherThanUs,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 

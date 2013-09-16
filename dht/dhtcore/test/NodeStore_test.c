@@ -178,37 +178,22 @@ static void test_getClosestNodes()
     struct Address* myAddr = createAddress(0x99,0x1);
     struct NodeStore* store = setUp(myAddr, 8);
     struct Address* target = createAddress(0x06, 0x13);
-    struct Address* near1 = createAddress(0x05, 0x15);
-    struct Address* near2 = createAddress(0x08, 0x157);
-    struct Address* farGreater = createAddress(0xff, 0x1559);
-    struct Address* farLesser = createAddress(0x00, 0x155a);
+    struct Address* oneHop = createAddress(0x05, 0x15);
+    struct Address* twoHop = createAddress(0x08, 0x157);
     struct NodeList* closest = NULL;
 
-    NodeStore_addNode(store, near1, 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, near2, 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, farGreater, 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, farLesser, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, oneHop, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, twoHop, 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x17777), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp(0x157575), 1, Version_CURRENT_PROTOCOL);
 
-    // check basic case returns in reverse order
-    closest = NodeStore_getClosestNodes(store, target, NULL, 2, true,
+    // check basic case returns in reverse order (of hops)
+    closest = NodeStore_getClosestNodes(store, target, NULL, 2,
                                         Version_CURRENT_PROTOCOL, alloc);
     Assert_always(closest != NULL);
     Assert_always(closest->size == 2);
-    Assert_always(Address_isSameIp(&closest->nodes[0]->address, near2));
-    Assert_always(Address_isSameIp(&closest->nodes[1]->address, near1));
-
-    // check allowNodesFartherThanUs param works
-    // TODO figure out why this test doesn't pass...
-    // from what I can tell, the source seems to ignore this parameter.
-    // so we should either fix, or remove the param.
-    /*
-    closest = NodeStore_getClosestNodes(store, target, NULL, 10, false,
-                                        Version_CURRENT_PROTOCOL, alloc);
-    Assert_always(closest->size == 3);
-    Assert_always(Address_isSameIp(&closest->nodes[0]->address, farLesser));
-    Assert_always(Address_isSameIp(&closest->nodes[1]->address, near2));
-    Assert_always(Address_isSameIp(&closest->nodes[2]->address, near1));
-    */
+    Assert_always(Address_isSameIp(&closest->nodes[0]->address, twoHop));
+    Assert_always(Address_isSameIp(&closest->nodes[1]->address, oneHop));
 }
 
 static void test_updateReach()

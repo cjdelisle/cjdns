@@ -369,7 +369,6 @@ static inline int handleQuery(struct DHTMessage* message,
                                              &targetAddr,
                                              query->address,
                                              RouterModule_K + 5,
-                                             false,
                                              version,
                                              message->allocator);
 

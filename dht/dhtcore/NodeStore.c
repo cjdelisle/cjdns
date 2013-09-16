@@ -407,7 +407,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           bool allowNodesFartherThanUs,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator)
 {
