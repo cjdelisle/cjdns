@@ -211,8 +211,8 @@ network.
 Interface ID (EG: array index) to a Director and converts a Director back to
 it's internal representation. Encoding schemes may be either fixed width or
 variable width but in the case of variable width, the width must be
-self-describing as the Directors are concatinated in the Route Label without any
-kind of boundry markers.
+self-describing as the Directors are concatenated in the Route Label without any
+kind of boundary markers.
 
 * Encoding Form: A single representation form for encoding of a Director. For
 a given Encoding Form, there is only one possible way to represent a Director
@@ -236,10 +236,10 @@ shifted to the right by the number of bits in the Director, effectively
 in the path. Before sending the packet, the switch uses it's Encoding Scheme to
 craft a Director representing the Interface which the packet came *from*, does
 a bitwise reversal of this Director and places it in the empty space at the left
-of the Route Label which was exposed by the previous bitshift. In this way, the
+of the Route Label which was exposed by the previous bit shift. In this way, the
 switches build a mirror image of the return Label allowing the endpoint, or any
 hop along the path, to derive the return path by simple bitwise reversal without
-any knowlege of the Encoding Schemes used by other nodes.
+any knowledge of the Encoding Schemes used by other nodes.
 
 
 #### Example
@@ -250,7 +250,7 @@ instructing her switch to send down it's interface to Bob, the second Director
 instructing Bob's switch to send to Charlie and so on.
 
 NOTE: Spaces between bits are for illustration only, Route Labels have no
-boundry markers between Directors and switches cannot know how many bits a
+boundary markers between Directors and switches cannot know how many bits a
 Director uses unless that Director is their own.
 
 Alice's original Route Label, before entering her switch:
@@ -281,7 +281,7 @@ Route Label when it reaches Dave:
             ^-- Charlie Director for Interface(Charlie->Bob) (reversed).
 
 Supposing Dave cannot forward the packet and needs to send an error, he does
-not know where Charlie's discriminator ends and Bob's begins so he can't
+not know where Charlie's Director ends and Bob's begins so he can't
 re-order them but because they are bit reversed, he can reverse the order by
 bit reversing the entire Route Label.
 
@@ -306,7 +306,7 @@ can be carried out on Labels.
 
 #### Splice
 
-The Splice operation takes a Route Label from pointA to pointB and concatinates
+The Splice operation takes a Route Label from pointA to pointB and concatenates
 it with a Label from pointB to pointC yielding a Route Label for a route from
 pointA to pointC.
 
@@ -338,7 +338,7 @@ highest bit in the first part to be overwritten.
 #### Unsplice
 
 The inverse of the splice operation converts a full Route Label to a
-representaiton which would be useful to a node along the path. That is to say
+representation which would be useful to a node along the path. That is to say
 from routeAC and routeAB it derives routeBC.
 
 ```
@@ -375,7 +375,7 @@ Equality indicates routeAC routes through the node at the end of routeAB.
 
 ### Encoding Schemes
 
-Because the conditions underwhich the switches operate may differ dramatically,
+Because the conditions under which the switches operate may differ dramatically,
 the actual Encoding Scheme is left as an implementation detail. Some switches
 may be devices with 15 physical ports wherein a 4 bit fixed width Encoding
 Scheme would be wise, other switches may be in wireless networks where the
@@ -429,8 +429,8 @@ before the packet is sent.
 
 A still more subtle problem with variable width encoding is that a Label for the
 route between nodeA to nodeB may be different depending on how one reached
-nodeA. Since this would be a severe hinderence to efficient routing algorithms
-using path inferrence, a node is required to *describe* (through inter-router
+nodeA. Since this would be a severe hindrance to efficient routing algorithms
+using path inference, a node is required to *describe* (through inter-router
 communication) how it encodes numbers.
 
 
@@ -456,26 +456,26 @@ represented on the wire using as many bits as are given in **prefixLen**. This
 value must be the same as the prefix which will be seen in the Director in the
 label but since it is opaque, no specific byte order is defined.
 
-The Encoding Scheme Definition is represented on the wire as a concatination
+The Encoding Scheme Definition is represented on the wire as a concatenation
 of Encoding Forms. Each form is represented in *reverse* the order given above
 with **prefix** furthest to the left, followed by **bitCount** then
 **prefixLen** furthest to the right. It is sent over the wire in *little endian*
 byte order allowing the buffer to be read and written forward while the data is
-unpacketd from least signifiant bit to most significant bit.
+unpacked from least significant bit to most significant bit.
 
 
 #### Conversion between Encoding Forms
 
 Just telling other nodes how numbers are encoded is not enough to allow
-inferrence of paths. As routers chain together the Route Labels for paths
+inference of paths. As routers chain together the Route Labels for paths
 between different nodes, they need to *alter* the Encoding Form for Directors in
 the Route Labels to avoid crafting a Route Label for which the reverse path is
-not expressable.
+not expressible.
 
 The two types of alteration which need to be allowed are *extension* and
 *truncation*. Given a route between nodeX and nodeY, a node must be able to
 *extend* the first Director in that route by changing it from one of the forms
-advertized by nodeX to another. This involves changing the Director Prefix and
+advertised by nodeX to another. This involves changing the Director Prefix and
 then extending the non-prefix section of the first Director by adding zero bits
 to the left side. *Truncation* is much the opposite, one would convert the
 Director from a wider form to a narrower by changing the Director Prefix and
