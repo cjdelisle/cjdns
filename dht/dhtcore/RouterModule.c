@@ -696,9 +696,10 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
 
     // Ping all paths to the destination, if this has not been done recently
+    struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
     struct NodeList* nodeList = NodeStore_getNodesByAddr(&addr,
                                                           8,
-                                                          module->allocator,
+                                                          nodeListAlloc,
                                                           module->nodeStore);
     if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
@@ -709,6 +710,7 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                 RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
             }
         }
+    Allocator_free(nodeListAlloc);
     }
 
     return NodeStore_getBest(&addr, module->nodeStore);
