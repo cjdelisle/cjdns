@@ -141,18 +141,13 @@ static void test_getPeers()
     // verify we only get nodes with 1 hop labels
     list = NodeStore_getPeers(target, 10, alloc, store);
     Assert_always(list->size == 3);
+    for (uint32_t i=0; i < list->size; i++) {
+        Assert_always(LabelSplicer_isOneHop(list->nodes[i]->address.path));
+    }
 
-    // returns in reverse distance order ??
-    // TODO confirm this is intended behavior, unsure if there is an order
-    Assert_always(Address_isSameIp(&list->nodes[0]->address, oneHop2));
-    Assert_always(Address_isSameIp(&list->nodes[1]->address, oneHop1));
-    Assert_always(Address_isSameIp(&list->nodes[2]->address, oneHop3));
-
-    // verify max parameter works, should keep the xor closest paths
-    list = NodeStore_getPeers(target, 2, alloc, store);
-    Assert_always(list->size == 2);
-    Assert_always(Address_isSameIp(&list->nodes[0]->address, oneHop1));
-    Assert_always(Address_isSameIp(&list->nodes[1]->address, oneHop3));
+    // verify max parameter works
+    list = NodeStore_getPeers(target, 1, alloc, store);
+    Assert_always(list->size == 1);
 }
 
 static void test_getBest()
