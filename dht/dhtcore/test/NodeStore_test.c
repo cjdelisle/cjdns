@@ -28,16 +28,16 @@
 #include <stddef.h>
 #include <stdio.h>
 
-struct Allocator* alloc = NULL;
-struct Random* rand = NULL;
-struct Log* logger = NULL;
+static struct Allocator* alloc = NULL;
+static struct Random* rand = NULL;
+static struct Log* logger = NULL;
 
-struct NodeStore* setUp(struct Address* myAddress, uint32_t capacity)
+static struct NodeStore* setUp(struct Address* myAddress, uint32_t capacity)
 {
     return NodeStore_new(myAddress, capacity, alloc, logger, rand);
 }
 
-struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t path)
+static struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t path)
 {
   // horrible hack...
   return Allocator_clone(alloc, (&(struct Address) {
@@ -51,18 +51,18 @@ struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t
   }));
 }
 
-struct Address* randomIp(uint64_t path)
+static struct Address* randomIp(uint64_t path)
 {
    return createAddress(Random_uint16(rand), path);
 }
 
-struct Address* randomAddress()
+static struct Address* randomAddress()
 {
     // TODO make a random valid encoded switch path...
     return randomIp(3);
 }
 
-void test_addNode()
+static void test_addNode()
 {
     struct Address* myAddr = randomAddress();
     struct NodeStore* store = setUp(myAddr, 2);
@@ -77,7 +77,7 @@ void test_addNode()
     Assert_always( Address_isSameIp(&node->address, &NodeStore_dumpTable(store,1)->address) );
 }
 
-void test_getNodesByAddr()
+static void test_getNodesByAddr()
 {
     struct Address* myAddr = randomAddress();
     struct NodeStore* store = setUp(myAddr, 8);
@@ -102,7 +102,7 @@ void test_getNodesByAddr()
     Assert_always(list->size == 1);
 }
 
-void test_getPeers()
+static void test_getPeers()
 {
     // mucking around with switch labels...
     // see switch/NumberCompress.h
@@ -155,7 +155,7 @@ void test_getPeers()
     Assert_always(Address_isSameIp(&list->nodes[1]->address, oneHop3));
 }
 
-void test_getBest()
+static void test_getBest()
 {
     struct Address* myAddr = createAddress(0x99,0x1);
     struct NodeStore* store = setUp(myAddr, 8);
@@ -177,7 +177,7 @@ void test_getBest()
     Assert_always(Address_isSameIp(&best->address, a));
 }
 
-void test_getClosestNodes()
+static void test_getClosestNodes()
 {
     // gets nodes that are "close" as in log2(path) aka # hops away
     struct Address* myAddr = createAddress(0x99,0x1);
@@ -216,7 +216,7 @@ void test_getClosestNodes()
     */
 }
 
-void test_updateReach()
+static void test_updateReach()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     struct Address* a = randomIp(0x17);  // 00010111      iface #3,#1
@@ -236,7 +236,7 @@ void test_updateReach()
     Assert_always(NodeStore_dumpTable(store, 2)->reach == 10);
 }
 
-void test_nonZeroNodes()
+static void test_nonZeroNodes()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     struct Node* node = NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
@@ -252,7 +252,7 @@ void test_nonZeroNodes()
     Assert_always(NodeStore_nonZeroNodes(store)==3);
 }
 
-void test_size()
+static void test_size()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     Assert_always(NodeStore_size(store) == 0);
@@ -260,7 +260,7 @@ void test_size()
     Assert_always(NodeStore_size(store) == 1);
 }
 
-void test_getNodeByNetworkAddr()
+static void test_getNodeByNetworkAddr()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     // empty case should be null
@@ -272,7 +272,7 @@ void test_getNodeByNetworkAddr()
     Assert_always(NodeStore_getNodeByNetworkAddr(0x15,store)->address.path == 0x15);
 }
 
-void test_brokenPath()
+static void test_brokenPath()
 {
     struct Address* myAddr = randomIp(0x01);
     struct NodeStore* store = setUp(myAddr, 8);
@@ -292,7 +292,7 @@ void test_brokenPath()
     Assert_always(NodeStore_nonZeroNodes(store)==1);
 }
 
-void test_dumpTable()
+static void test_dumpTable()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
