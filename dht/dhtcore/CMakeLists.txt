@@ -19,6 +19,7 @@ add_library(dhtcore
     VersionList.c
     SearchRunner.c
     RouteTracer.c
+    SwitchCompression.c
 )
 
 target_link_libraries(dhtcore
