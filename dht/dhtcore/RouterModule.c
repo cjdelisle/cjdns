@@ -18,7 +18,6 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
@@ -203,7 +202,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct EventBase* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin,
                                            struct Random* rand)
 {
     struct RouterModule* const out = Allocator_calloc(allocator, sizeof(struct RouterModule), 1);
@@ -229,7 +227,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->eventBase = eventBase;
     out->logger = logger;
     out->allocator = allocator;
-    out->admin = admin;
     out->rand = rand;
     out->pinger = Pinger_new(eventBase, rand, logger, allocator);
     out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
@@ -245,8 +242,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->routeTracer =
         RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
-
-    NodeStore_admin_register(out->nodeStore, admin, allocator);
 
     Identity_set(out);
     return out;
@@ -365,7 +360,6 @@ static inline int handleQuery(struct DHTMessage* message,
                                              &targetAddr,
                                              query->address,
                                              RouterModule_K + 5,
-                                             false,
                                              version,
                                              message->allocator);
 

@@ -12,6 +12,7 @@
 set(Test_FILES
     VersionList_test.c
     SwitchCompression_test.c
+    NodeStore_test.c
 )
 set(Test_LIBRARIES
     dht
