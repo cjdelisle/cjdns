@@ -165,7 +165,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     initAngel(asClientPipe, asCoreIface, (char*)asCorePipe->name, eventBase, logger, alloc, rand);
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("0.0.0.0", &addr));
+    Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
 
     Log_info(logger, "Binding UDP admin socket");
     struct AddrInterface* udpAdmin =

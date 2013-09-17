@@ -184,178 +184,335 @@ and without the router and switch, the CryptoAuth has nothing to protect.
 
 *He doesn't think about his actions; they flow from the core of his being.*
 
-Switches use an internal numeric compression scheme to compress the interface
-index into a few bits of the 64-bit label. How they compress the number is an
-implementation detail as long as they can read a label number and know how many
-of the low bits "belong to them" as opposed to the next switch along the path.
-Also the routing interface of each node is always compressed as the 4 bits "0001".
+The switch design is unlike an IP or Ethernet router in that it need not have
+knowledge of the globally unique endpoints in the network. Like ATM switching,
+the packet header is altered at every hop and the reverse path can be derived
+at the end point or at any point along the path but unlike ATM, the switch
+does not need to store active connections and there is no connection setup.
 
-After determining the correct destination interface, the switch will bit shift
-the label to the right and add reversed bits to the now empty left side of the
-label such that if the entire label were reversed, the switch would send the
-packet in the opposite direction. In the event of an error, the switch does a
-bitwise reversal of the entire label and sends the packet back where it came
-from. By doing a full bitwise reversal, the switches need not care how other
-switches encode the numbers or be able to reverse the order since they can
-reverse the the entire label.
 
-There are always at least 3 zero bits between the reversed return path and
-the forward path, but the zeroes from the reversed source routing interface
-and the target routing interface can overlap.
+### Definitions
 
-                        1               2               3
-        0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     0 |                                                               |
-       -                         Switch Label                          -
-     4 |                                                               |
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     8 |      Type     |                  Priority                     |
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+* Interface: A point-to-point link to another cjdns switch. This may be
+emulated by Ethernet frames, UDP packets or other means.
 
-Switch headers are designed to be small and efficient. The fields include the
-`label` of which some number of bits (henceforth known as a discriminator)
-belong to each switch along the forwarding path, the `Type` field indicating
-the type of packet. Reserved packet types are `0` for opaque data, and `1` for
-switch control messages (eg errors). The `Priority` field contains a number
-which represents how important the delivery of a packet is. When a link becomes
-saturated, the switch sending packets over that link SHOULD drop packets of
-least priority and MAY decrease the priority of all packets passing through it.
-When packets are dropped, switches SHOULD emit an error packet with the inverse
-label to be sent to the sender. Switches SHOULD make adjustments based on error
-packets which are sent in response to packets which they forwarded, forwarding
-error packets is OPTIONAL, in flood situations it may not be wise.
+* Self Interface: A special Interface in each switch, packets sent for this
+interface are intended for the node which this switch is a part of. Upon
+reaching the ultimate hop in it's path, a packet is sent through the Self
+Interface so it can be handled by the next layer in the node.
 
-If Alice wants to send a packet to Fred via Bob, Charlie, Dave and Elinor, she
-will send a message over her interface to Bob's. This packet will have a label
-that causes the packet to be routed to Charlie then on to Dave.
+* Director: A binary codeword of arbitrary size which when received by the
+switch will direct it to send the packet down a given Interface.
 
-NOTE: Spaces between bits are for illustration only, switches do not know how
-many bits of a label are used by anyone other than themselves.
+* Route Label: An ordered set of Directors that describe a path through the
+network.
 
-Alice's original label, before entering her switch:
+* Encoding Scheme: The method by which a switch converts one of it's internal
+Interface ID (EG: array index) to a Director and converts a Director back to
+it's internal representation. Encoding schemes may be either fixed width or
+variable width but in the case of variable width, the width must be
+self-describing as the Directors are concatenated in the Route Label without any
+kind of boundary markers.
+
+* Encoding Form: A single representation form for encoding of a Director. For
+a given Encoding Form, there is only one possible way to represent a Director
+for a given Interface. A variable width Encoding Scheme will have multiple
+Encoding Forms while a fixed width Encoding Scheme will have only one.
+
+* Director Prefix: For switches which implement variable width encoding, the
+least significant bits of the Director is called the Director Prefix and is
+used to determine the width of the Director. **NOTE** Because the Route Label
+is read from least significant bit to most significant bit, the Director
+Prefix is actually the bits furthest to the *right* of the Director.
+
+
+### Operation
+
+When a packet comes in to the switch, the switch uses it's Encoding Scheme to
+read the least significant bits of the Route Label in order to determine the
+Director and thus the Interface to send the packet down. The Route Label is
+shifted to the right by the number of bits in the Director, effectively
+*removing* the Director and exposing the Director belonging to the next switch
+in the path. Before sending the packet, the switch uses it's Encoding Scheme to
+craft a Director representing the Interface which the packet came *from*, does
+a bitwise reversal of this Director and places it in the empty space at the left
+of the Route Label which was exposed by the previous bit shift. In this way, the
+switches build a mirror image of the return Label allowing the endpoint, or any
+hop along the path, to derive the return path by simple bitwise reversal without
+any knowledge of the Encoding Schemes used by other nodes.
+
+
+#### Example
+
+Supposing Alice wanted to send a packet to Fred via Bob, Charlie, Dave and
+Elinor, she would send a message to her switch with the first Director
+instructing her switch to send down it's interface to Bob, the second Director
+instructing Bob's switch to send to Charlie and so on.
+
+NOTE: Spaces between bits are for illustration only, Route Labels have no
+boundary markers between Directors and switches cannot know how many bits a
+Director uses unless that Director is their own.
+
+Alice's original Route Label, before entering her switch:
 
     0000000000000000000000000 0001 101011 011010 100101101 10111 0100011
-    ^^^-- unused space --^^^^                                    ^^^^^^^-- Alice's discriminator for switching to Bob.
+    ^^^-- unused space --^^^^                                    ^^^^^^^-- Alice's Director Interface(Alice->Bob).
 
-The source discriminator for a routing interface is always "0001" (and gets
-prefixed with zeroes to match the length of "0100011"), so she sends this label
-to Bob:
+Route Label when it reaches Bob:
 
     1000000 0000000000000000000000000 0001 101011 011010 100101101 10111
-    ^^^^-- Alice's discriminator for herself (reversed)            ^^^^^-- Bob's discriminator for routing to Charlie.
+    ^^^^^^^                                                        ^^^^^-- Bob's Director for Interface(Bob->Charlie).
+          ^-- Alice's Director for her Self Interface (reversed)
 
-Bob shifts off his discriminator and applies to the top of the label the bit-
-reversed discriminator for the Bob->Alice interface.
+Route Label when it reaches Charlie:
 
     11001 1000000 0000000000000000000000000 0001 101011 011010 100101101
-    ^^^^^ ^^^^-- Alice's discriminator for herself (reversed)  ^^^^^^^^^-- Charlie's discriminator for Dave.
-        ^-- Bob's discriminator for Alice, bit-reversed.
+    ^^^^^ ^^^^^^^                                              ^^^^^^^^^-- Charlie's Director for Interface(Charlie->Dave).
+      ^^^       ^-- Alice's Director for her Self Interface (reversed)
+        ^-- Bob's Director for Interface(Bob->Alice), bit-reversed.
 
 
-Charlie removes his discriminator and applies the reversed discriminator for
-sending to Bob then forwards to Dave.
+Route Label when it reaches Dave:
 
     110110011 11001 1000000 0000000000000000000000000 0001 101011 011010
-    ^^^^^^^^^ ^^^^^ ^^^^                                          ^^^^^^-- Dave's discriminator for Elinor.
-    ^^^^^^^^^ ^^^^^    ^-- Alice's discriminator for herself (reversed)
-    ^^^^^^^^^     ^-- Bob's discriminator for Alice (reversed).
-            ^-- Charlie discriminator for Bob (reversed).
+    ^^^^^^^^^ ^^^^^ ^^^^^^^                                       ^^^^^^-- Dave's Director for Interface(Dave->Elinor).
+       ^^^^^^   ^^^       ^-- Alice's Director for her Self Interface (reversed)
+          ^^^     ^-- Bob's Director for Interface(Bob->Alice) (reversed).
+            ^-- Charlie Director for Interface(Charlie->Bob) (reversed).
 
 Supposing Dave cannot forward the packet and needs to send an error, he does
-not know where Charlie's discriminator ends and Bob's begins so he can't
+not know where Charlie's Director ends and Bob's begins so he can't
 re-order them but because they are bit reversed, he can reverse the order by
-bit reversing the entire label.
+bit reversing the entire Route Label.
+
+Route Label after bit reversal:
 
     010110 110101 1000 0000000000000000000000000 0000001 10011 110011011
-                                                    ^^^^ ^^^^^ ^^^^^^^^^-- Charlie's discriminator for Bob.
-                                                    ^^^^ ^-- Bob's discriminator for Alice.
-                                                       ^ Alice's discriminator for herself.
+                                                 ^^^^^^^ ^^^^^ ^^^^^^^^^-- Charlie's Director for Interface(Charlie->Bob).
+                                                    ^^^^ ^-- Bob's Director for Interface(Bob->Alice).
+                                                       ^ Alice's Director for her Self Interface.
 
 Dave can then send the packet back to Charlie who need not know what it is in
 order to forward it correctly on to Bob and then to Alice. If the packet had
-reached Fred, he would be able to use the same technique of reversing the label
-in order to determine its origin.
+reached Fred, he would be able to use the same technique of reversing the Route
+Label in order to determine its origin.
 
-In order for labels to be able to be spliced together, the most significant bit
-in a label must always be `1` so that we know where it ends. Since all routes
-must end at a router, this means that all switches must regard `1` as a
-reference to the router which sits atop them. Specifically, any label whose
-least significant 4 bits are `0001` MUST be regarded as a self reference and
-routers must never send a message with a label for which the highest 3 bits are
-not zero. This is important so that the reverse route data applied by routers
-along the path is not mistaken for additional forward route.
 
-Supposing a node uses 8 bits to represent 256 switch slots, the 16 of those slots
-ending in `0001` must point to it's own router in order for other nodes to be able
-to splice routes through it.
+
+### Route Label Manipulations
+
+Despite a Route Label's relative opacity, there are still certain functions which
+can be carried out on Labels.
+
+#### Splice
+
+The Splice operation takes a Route Label from pointA to pointB and concatenates
+it with a Label from pointB to pointC yielding a Route Label for a route from
+pointA to pointC.
 
 Splicing is done by XORing the second part with `1` and shifting it left by the
 log base 2 of the first part, then XORing the result with the first part. 
 
 Given:
 
-    routeAB =        0000000000000000000000000000000000000000000001011101110101011001
+```
+routeAB =        0000000000000000000000000000000000000000000001011101110101011001
 
-    routeBC =        0000000000000000000000000000000000000000000000000000110101010100
-    XOR 1            0000000000000000000000000000000000000000000000000000000000000001
-    equals           0000000000000000000000000000000000000000000000000000110101010101
+routeBC =        0000000000000000000000000000000000000000000000000000110101010100
+XOR 1            0000000000000000000000000000000000000000000000000000000000000001
+equals           0000000000000000000000000000000000000000000000000000110101010101
 
-    << log2(routeAB) 0000000000000000000000000000000000110101010101000000000000000000
-    XOR  routeAB     0000000000000000000000000000000000000000000001011101110101011001
-    equals routeAC   0000000000000000000000000000000000110101010100011101110101011001
-                                                                  ^-- Overlap bit
+shift left by the log base 2 of routeAB
+                 0000000000000000000000000000000000110101010101000000000000000000
+XOR  routeAB     0000000000000000000000000000000000000000000001011101110101011001
+equals routeAC   0000000000000000000000000000000000110101010100011101110101011001
+                                                              ^-- Note the overlap bit
+```
 
 The log base 2 represents the index of the first set bit, starting from the
 right. This means that shifting by the log base 2 leaves 1 bit of overlap, this
 along with the XORing of the second part (`routeBC`) against `1` causes the
 highest bit in the first part to be overwritten.
 
+
+#### Unsplice
+
+The inverse of the splice operation converts a full Route Label to a
+representation which would be useful to a node along the path. That is to say
+from routeAC and routeAB it derives routeBC.
+
+```
+routeAC =        0000000000000000000000000000000000110101010100011101110101011001
+routeAB =        0000000000000000000000000000000000000000000001011101110101011001
+
+routeBC = routeAC shifted left by the log base 2 of routeAB
+
+routeBC          0000000000000000000000000000000000000000000000000000110101010100
+```
+
+
+#### RoutesThrough
+
 Given two routes, it is possible to determine whether one route is an extension
 of another one, this is similar to the reverse of the the splicing routine. To
-determine that routeAC "routes through" the node at the end of by routeAB, one
-simply takes the bitwise complement of zero, shifted right by 64 minus the log
-base 2 of routeAB, bitwise ANDs it against routeAB and routeAC and compares the
-results, if they are equal then routeAC begins with routeAB.
+determine whether routeAC "routes through" the node at the end of by routeAB,
+one simply removes the most significant 1 in routeAB, trims down the left side
+of routeAC so that both routes are the same length, and compares the results.
 
-    routeAC =        0000000000000000000000000000000000110101010100011101110101011001
-    routeAB =        0000000000000000000000000000000000000000000001011101110101011001
+```
+routeAC =        0000000000000000000000000000000000110101010100011101110101011001
 
-    g = 64 - min(log2(routeBC), log2(routeAC))
+routeAB =        0000000000000000000000000000000000000000000001011101110101011001
 
-    ~0 =             1111111111111111111111111111111111111111111111111111111111111111
-    >> g             0000000000000000000000000000000000000000000000111111111111111111
+Trimmed to the same langth:
 
-    h = ~0 >> g
+routeAC'         0000000000000000000000000000000000000000000000011101110101011001
+routeAB'         0000000000000000000000000000000000000000000000011101110101011001
+```
 
-    h & routeAB      0000000000000000000000000000000000000000000000011101110101011001
-    h & routeAC      0000000000000000000000000000000000000000000000011101110101011001
-
+Equality indicates routeAC routes through the node at the end of routeAB.
 
 
-In order to allow a switch to add more interfaces without knowing how many it
-will use in advance, switches should be able to add new interfaces whose
-discriminators use more bits than the ones for the old interfaces. However, when
-a switch forwards a packet, the source discriminator MUST NOT be longer than the
-destination discriminator, otherwise there would not be be enough room for it in
-the space made by shifting the label. To resolve this, a switch's number
-compression scheme MUST allow it to represent all discriminators shorter than X
-bits, using X bits. Routers MUST always return routes using at least as many
-bits in the first discriminator as are used for the discriminator for the node
-who is asking. Finally, switches MUST drop packets for which the discriminator
-is represented in fewer bits than the smallest representation of the source
-interface for the packet. Switches SHOULD send back an error packet so that the
-bogus route may be purged as soon as possible.
+### Encoding Schemes
 
-A packet whose label requests that it be routed back down the same interface from
-which it came SHOULD be dropped and an error packet SHOULD be sent back so that
-the "redundant route" may be resolved.
+Because the conditions under which the switches operate may differ dramatically,
+the actual Encoding Scheme is left as an implementation detail. Some switches
+may be devices with 15 physical ports wherein a 4 bit fixed width Encoding
+Scheme would be wise, other switches may be in wireless networks where the
+number of reachable cjdns nodes, and thus the number of Interfaces may grow and
+shrink. These devices may prefer a variable width encoding in order to save
+Label space without sacrificing expandability. There are however a few
+limitations placed upon encoding methods in order to allow the above
+manipulations.
 
-Since label space is most efficiently used when a switch's largest
-discriminator is closest in size to its smallest discriminator, renumbering
-interfaces is encouraged, especially right after start up when all interfaces
-have just been registered. However, switches SHOULD NOT re-number more than
-necessary as it breaks existing routes which run through them.
+
+#### Self Interface Director
+
+In order for Route Labels to be able to be spliced together, the most
+significant bit in a Label must always be `1` so that we know where it ends.
+Since every route ends with a Self Interface, the Director which represents the
+Self Interface must always be encoded as `1` with 3 or more leading zeros.
+Furthermore, a node must never send a packet with a Route Label for which the
+highest 3 bits are not zero. This is important so that the reverse route data
+applied by routers along the path is not mistaken for additional forward route.
+
+Finally, a switch should alias any Director ending with `0001` to the Self
+Interface Director. For example: a switch using a 6 bit fixed width Encoding
+Scheme would have to alias `010001`, `100001` and `110001` to the Self Interface
+Director `000001`. The reason for this is because an unsuspecting router might
+splice a valid path which uses every bit of the label space such that the most
+significant three bits of the entire Route Label are `0001`. In this case the
+bits added by the first switch will be right up against the Self Interface
+Director and could be mistaken for another forward Director.
+
+
+#### Variable Width Encoding
+
+If a switch implementation uses variable width encoding, it's obvious that some
+Interfaces will get short Directors while other Interfaces will be stuck with
+the longer Directors. Less obvious is what happens when a packet coming from a
+"small" Interface is sent to a "big" Interface. The switch shifts off the big
+Director leaving a big empty space on the left. To put only a small Director
+in that space would not work because there would be unaccounted for space in the
+reverse route which would cause a failure at the next switch in the path.
+
+In order to make it work, small Interfaces need to be able to be represented
+using big Directors. For any size, all smaller sizes need to be able to be
+represented.
+
+In the other direction, a packet coming from a big Interface with only a small
+next Director must be dropped (and an error sent back) because the return route
+simply cannot be represented. To prevent this problem, when a node on the far
+end of a big Interface inquires about a node behind a small Interface, the first
+Director in the Route Label must be converted by the router to the big form
+before the packet is sent.
+
+A still more subtle problem with variable width encoding is that a Label for the
+route between nodeA to nodeB may be different depending on how one reached
+nodeA. Since this would be a severe hindrance to efficient routing algorithms
+using path inference, a node is required to *describe* (through inter-router
+communication) how it encodes numbers.
+
+
+#### Encoding Scheme Definition
+
+In order to give routers the ability to chain paths from a graph of linked nodes
+while still preserving Variable Width Encoding, a node is required to describe
+it's Encoding Scheme to other nodes and adhere to a few rules to make possible
+the conversion of a Director to a wider bit width by other nodes.
+
+The Encoding Scheme Definition consists of a array of representations of the
+Encoding Forms allowed in that Encoding Scheme, each Encoding Form
+representation having the following three fields:
+
+* **prefixLen**: The number of bits in the Director Prefix. This is represented
+on the wire as a 5 bit integer.
+
+* **bitCount**: The number of bits in the Director, not including the Director
+Prefix. This is represented on the wire as a 5 bit integer.
+
+* **prefix**: The Director Prefix used in this Encoding Form, this is
+represented on the wire using as many bits as are given in **prefixLen**. This
+value must be the same as the prefix which will be seen in the Director in the
+label but since it is opaque, no specific byte order is defined.
+
+The Encoding Scheme Definition is represented on the wire as a concatenation
+of Encoding Forms. Each form is represented in *reverse* the order given above
+with **prefix** furthest to the left, followed by **bitCount** then
+**prefixLen** furthest to the right. It is sent over the wire in *little endian*
+byte order allowing the buffer to be read and written forward while the data is
+unpacked from least significant bit to most significant bit.
+
+
+#### Conversion between Encoding Forms
+
+Just telling other nodes how numbers are encoded is not enough to allow
+inference of paths. As routers chain together the Route Labels for paths
+between different nodes, they need to *alter* the Encoding Form for Directors in
+the Route Labels to avoid crafting a Route Label for which the reverse path is
+not expressible.
+
+The two types of alteration which need to be allowed are *extension* and
+*truncation*. Given a route between nodeX and nodeY, a node must be able to
+*extend* the first Director in that route by changing it from one of the forms
+advertised by nodeX to another. This involves changing the Director Prefix and
+then extending the non-prefix section of the first Director by adding zero bits
+to the left side. *Truncation* is much the opposite, one would convert the
+Director from a wider form to a narrower by changing the Director Prefix and
+truncating zero bits from the left side.
+
+In order to remain compatible with these optimizations, a switch must disregard
+a change in the number of most significant zero bits in it's Director, in the
+case of multi-byte Directors this may influence byte order decisions. Obviously
+a switch implementor must design their Encoding Scheme so that a Director is
+unambiguous and cannot be confused with the least significant bits of the data
+but since this is a requirement for a successful switch implementation, it goes
+without saying.
+
+
+
+### In Memory Representation
+
+While the switch protocol is inherently linked to the underlying carrier, there
+are certain expectations made by the protocols above the switch layer about how
+a switch header will appear in memory.
+
+
+                        1               2               3
+        0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     0 |                                                               |
+       -                          Route Label                          -
+     4 |                                                               |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     8 |      Type     |                  Priority                     |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The `Route Label` field unsurprisingly holds the 8 byte `Route Label`, the
+`Type` field indicates the type of packet. Reserved packet types are `0` for
+opaque data, and `1` for switch control messages (eg errors). The `Priority`
+field is reserved for Quality of Service purposes, in the current implementation
+it is always zero.
 
 
 ## The Router

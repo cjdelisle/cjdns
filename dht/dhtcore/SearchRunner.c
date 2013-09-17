@@ -326,7 +326,6 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                                   &targetAddr,
                                   NULL,
                                   RouterModule_K,
-                                  true,
                                   Version_CURRENT_PROTOCOL,
                                   alloc);
 
