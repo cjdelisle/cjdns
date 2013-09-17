@@ -296,12 +296,12 @@ static inline void responseFromNode(struct Node* node,
                                     struct RouterModule* module)
 {
     if (node) {
-        uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-        if (worst > millisecondsSinceRequest) {
-            node->reach = reachAfterDecay(node->reach) +
-                (worst - millisecondsSinceRequest) * (LINK_STATE_MULTIPLIER / REACH_WINDOW);
-            NodeStore_updateReach(node, module->nodeStore);
+        if (millisecondsSinceRequest == 0) {
+            millisecondsSinceRequest = 1;
         }
+        node->reach = reachAfterDecay(node->reach) +
+            ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
+        NodeStore_updateReach(node, module->nodeStore);
     }
 }
 
