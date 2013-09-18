@@ -1085,6 +1085,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "Failed decrypting message NoH[%d] state[%d]",
                              nonceOrHandle, CryptoAuth_getState(&session->iface));
+        return Error_AUTHENTICATION;
     }
 
     return 0;
