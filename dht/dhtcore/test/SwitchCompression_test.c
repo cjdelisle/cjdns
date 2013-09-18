@@ -28,7 +28,7 @@ static void randomScheme(struct SwitchCompression_Scheme* scheme, struct Random*
         scheme->bitCount++;
     }
     scheme->prefixLen &= ((1<<5)-1);
-    scheme->prefix &= ((1<<scheme->prefixLen)-1);
+    scheme->prefix &= ((((uint64_t)1)<<scheme->prefixLen)-1);
 }
 
 static struct SwitchCompression_SchemeList* randomList(struct Random* rand, struct Allocator* alloc)
