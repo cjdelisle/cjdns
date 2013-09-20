@@ -18,7 +18,7 @@
 #include "util/Bits.h"
 
 /** Greatest possible number using x bits, all are set. */
-#define MAX_BITS(x) ((1<<(x))-1)
+#define MAX_BITS(x) ((((uint64_t)1)<<(x))-1)
 
 /**
  * Decode a scheme from it's binary representation.
