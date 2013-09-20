@@ -27,6 +27,7 @@ add_library(interface
     UDPInterface_admin.c
     InterfaceConnector.c
     SessionManager.c
+    SessionManager_admin.c
     ICMP6Generator.c
     MultiInterface.c
     FramingInterface.c

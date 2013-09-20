@@ -484,8 +484,8 @@ static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beaco
 }
 
 static int getPeerStats(struct InterfaceController* ifController,
-                 struct Allocator* alloc,
-                 struct InterfaceController_peerStats** statsOut)
+                        struct Allocator* alloc,
+                        struct InterfaceController_peerStats** statsOut)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
     int count = ic->peerMap.count;
@@ -506,6 +506,10 @@ static int getPeerStats(struct InterfaceController* ifController,
         if (s->isIncomingConnection) {
             s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
         }
+        struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
+        s->duplicates = rp->duplicates;
+        s->lostPackets = rp->lostPackets;
+        s->receivedOutOfRange = rp->receivedOutOfRange;
     }
 
     *statsOut = stats;

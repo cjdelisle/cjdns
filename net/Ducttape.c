@@ -972,11 +972,11 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                   labelStr, Endian_bigEndianToHost16(ctrl->type_be));
     }
 
-    if (pong && context->public.switchPingerIf.receiveMessage) {
+    if (pong && context->pub.switchPingerIf.receiveMessage) {
         // Shift back over the header
         Message_shift(message, Headers_SwitchHeader_SIZE);
-        context->public.switchPingerIf.receiveMessage(
-            message, &context->public.switchPingerIf);
+        context->pub.switchPingerIf.receiveMessage(
+            message, &context->pub.switchPingerIf);
     }
     return Error_NONE;
 }
@@ -1149,6 +1149,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                      eventBase,
                                      cryptoAuth,
                                      allocator);
+    context->pub.sessionManager = context->sm;
 
     Bits_memcpyConst(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
@@ -1169,12 +1170,12 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     }
 
     // setup the switch pinger interface.
-    Bits_memcpyConst(&context->public.switchPingerIf, (&(struct Interface) {
+    Bits_memcpyConst(&context->pub.switchPingerIf, (&(struct Interface) {
         .sendMessage = incomingFromPinger,
         .senderContext = context
     }), sizeof(struct Interface));
 
-    return &context->public;
+    return &context->pub;
 }
 
 void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)

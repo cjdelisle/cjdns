@@ -25,6 +25,7 @@
 #define CryptoAuth_getState Exports_CryptoAuth_getState
 #define CryptoAuth_getConnectedInterface Exports_CryptoAuth_getConnectedInterface
 #define CryptoAuth_getUsers Exports_CryptoAuth_getUsers
+#define CryptoAuth_getReplayProtector Exports_CryptoAuth_getReplayProtector
 
 #include "crypto/CryptoAuth.c"
 

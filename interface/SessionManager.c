@@ -142,6 +142,18 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
     return (index == -1) ? NULL : &sm->ifaceMap.values[index];
 }
 
+struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
+                                                               struct Allocator* alloc)
+{
+    struct SessionManager_HandleList* out =
+        Allocator_malloc(alloc, sizeof(struct SessionManager_HandleList));
+    uint32_t* buff = Allocator_malloc(alloc, 4 * sm->ifaceMap.count);
+    Bits_memcpy(buff, sm->ifaceMap.handles, 4 * sm->ifaceMap.count);
+    out->handles = buff;
+    out->count = sm->ifaceMap.count;
+    return out;
+}
+
 struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           Interface_CALLBACK(encryptedOutgoing),
                                           void* interfaceContext,

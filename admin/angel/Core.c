@@ -60,6 +60,7 @@
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
 #include "util/platform/netdev/NetDev.h"
+#include "interface/SessionManager_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -366,6 +367,7 @@ int Core_main(int argc, char** argv)
     Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
+    SessionManager_admin_register(dt->sessionManager, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .allocator = alloc,

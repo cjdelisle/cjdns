@@ -45,7 +45,7 @@ enum Ducttape_SessionLayer {
 struct Ducttape_pvt
 {
     /** the public fields. */
-    struct Ducttape public;
+    struct Ducttape pub;
 
     /** The network module for the DHT. */
     struct DHTModule module;

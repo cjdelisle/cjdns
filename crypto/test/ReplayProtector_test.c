@@ -24,7 +24,7 @@ int main()
 {
     uint16_t randomShorts[8192];
     uint16_t out[8192];
-    struct ReplayProtector rp = {0,0};
+    struct ReplayProtector rp = {.bitfield = 0};
 
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 1024);

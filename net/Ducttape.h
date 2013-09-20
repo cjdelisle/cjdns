@@ -27,6 +27,7 @@
 struct Ducttape
 {
     struct Interface switchPingerIf;
+    struct SessionManager* sessionManager;
 };
 
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
