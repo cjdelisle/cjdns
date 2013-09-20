@@ -125,4 +125,6 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module);
 
+void RouterModule_updateReach(struct Node* node, struct RouterModule* module);
+
 #endif

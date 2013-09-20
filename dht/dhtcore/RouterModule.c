@@ -684,3 +684,8 @@ int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
     return NodeStore_brokenPath(path, module->nodeStore);
 }
+
+void RouterModule_updateReach(struct Node* node, struct RouterModule* module)
+{
+    NodeStore_updateReach(node, module->nodeStore);
+}

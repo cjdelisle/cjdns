@@ -749,6 +749,7 @@ static inline int incomingFromRouter(struct Message* message,
                                      struct SessionManager_Session* session,
                                      struct Ducttape_pvt* context)
 {
+    uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
@@ -756,7 +757,6 @@ static inline int incomingFromRouter(struct Message* message,
         struct IpTunnel_PacketInfoHeader* header =
             (struct IpTunnel_PacketInfoHeader*) message->bytes;
 
-        uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
         uint8_t* addr = session->ip6;
         Bits_memcpyConst(header->nodeIp6Addr, addr, 16);
         Bits_memcpyConst(header->nodeKey, pubKey, 32);
@@ -765,8 +765,24 @@ static inline int incomingFromRouter(struct Message* message,
         return ipTun->sendMessage(message, ipTun);
     }
 
+    struct Address srcAddr = {
+        .path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be)
+    };
+    Bits_memcpyConst(srcAddr.key, pubKey, 32);
+
     //Log_debug(context->logger, "Got message from router.\n");
-    return core(message, dtHeader, session, context);
+    int ret = core(message, dtHeader, session, context);
+
+    struct Node* n = RouterModule_getNode(srcAddr.path, context->routerModule);
+    if (!n) {
+        Address_getPrefix(&srcAddr);
+        RouterModule_addNode(context->routerModule, &srcAddr, session->version);
+    } else {
+        n->reach += 1;
+        RouterModule_updateReach(n, context->routerModule);
+    }
+
+    return ret;
 }
 
 
