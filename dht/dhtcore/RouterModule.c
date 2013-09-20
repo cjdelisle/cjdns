@@ -674,18 +674,12 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     }
 }
 
-struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                 struct RouterModule* module)
+// For each path to a destination, if the path has not recently been pinged, then ping it
+static inline void refreshReach(struct Address* address, struct RouterModule* module)
 {
-    struct Address addr;
-    Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-
-    // Ping all paths to the destination, if this has not been done recently
     struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
-    struct NodeList* nodeList = NodeStore_getNodesByAddr(&addr,
-                                                          8,
-                                                          nodeListAlloc,
-                                                          module->nodeStore);
+    struct NodeList* nodeList = NodeStore_getNodesByAddr(address, 8, nodeListAlloc,
+                                                         module->nodeStore);
     if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         for (uint32_t i = 0 ; i < nodeList->size ; i++) {
@@ -697,6 +691,14 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
         }
     Allocator_free(nodeListAlloc);
     }
+}
+
+struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                 struct RouterModule* module)
+{
+    struct Address addr;
+    Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+    refreshReach(&addr, module);
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }
