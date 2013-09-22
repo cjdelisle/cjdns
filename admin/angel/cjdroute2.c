@@ -355,6 +355,33 @@ static int benchmark()
     return 0;
 }
 
+static void checkRunningInstance(struct Allocator* allocator,
+                                 struct EventBase* base,
+                                 String* addr,
+                                 String* password,
+                                 struct Log* logger,
+                                 struct Except* eh)
+{
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct Sockaddr_storage pingAddrStorage;
+    if (Sockaddr_parse(addr->bytes, &pingAddrStorage)) {
+        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+                     addr->bytes);
+    }
+    struct AdminClient* adminClient =
+        AdminClient_new(&pingAddrStorage.addr, password, base, logger, alloc);
+
+    Dict* pingArgs = Dict_new(alloc);
+
+    struct AdminClient_Result* pingResult =
+        AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
+
+    if (pingResult->err == AdminClient_Error_NONE) {
+        Except_raise(eh, -1, "Startup failed: cjdroute is already running.");
+    }
+    Allocator_free(alloc);
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -450,34 +477,7 @@ int main(int argc, char** argv)
     // --------------------- Check for running instance  --------------------- //
 
     Log_info(logger, "Checking for running instance...");
-
-    struct Sockaddr_storage pingAddrStorage;
-    if (Sockaddr_parse(adminBind->bytes, &pingAddrStorage)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
-                     adminBind->bytes);
-    }
-    struct Sockaddr* pingAddr = &pingAddrStorage.addr;
-
-    struct AdminClient* adminClient = AdminClient_new(
-        pingAddr,
-        adminPass,
-        eventBase,
-        logger,
-        allocator
-    );
-
-    Dict* pingArgs = Dict_new(allocator);
-
-    struct AdminClient_Result* pingResult = AdminClient_rpcCall(
-        String_new("ping", allocator),
-        pingArgs,
-        adminClient,
-        allocator
-    );
-
-    if (pingResult->err == AdminClient_Error_NONE) {
-        Except_raise(eh, -1, "Startup failed: cjdroute is already running.");
-    }
+    checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger, eh);
 
     // --------------------- Setup Pipes to Angel --------------------- //
     char angelPipeName[64] = "client-angel-";
