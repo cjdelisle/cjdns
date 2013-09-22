@@ -15,14 +15,38 @@ if(NOT NACL_FOUND)
     message("bundled version of cnacl, will be downloaded and compiled.")
     include(ExternalProject)
 
+    # If we're dealing with an ARM processor then we need to run a (potentially remote)
+    # test to see if it supports NEON and if so then we add the -mfpu=neon flag so that
+    # it will be detected in the compiler test and used.
+    if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm" AND NOT NO_NEON)
+        include(RemoteTest)
+        message("Processor type is ARM, testing for ARM NEON")
+        try_run(returnCode
+                compileSuccess
+                ${CMAKE_BINARY_DIR}
+                ${CMAKE_SOURCE_DIR}/cmake/modules/ProbeNEON.c
+                COMPILE_DEFINITIONS -mfpt=neon
+                COMPILE_OUTPUT_VARIABLE compileOut
+                RUN_OUTPUT_VARIABLE runOut)
+
+        if (NOT compileSuccess)
+            message("NEON check failed to compile [${compileOut}]")
+        elseif (returnCode)
+            message("NEON check failed to run [${runOut}]")
+        endif ()
+            set(NEON TRUE)
+        else()
+    endif()
+
+
     # Without this, the build doesn't happen until link time.
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "cnacl-0e7f2cb782d8f940e9ed2735f727d46bef063f12.tar.gz")
+    set(tag "cnacl-exp-75ceeeefb59a717eb324dda46564547cd9fd5d28.tar.gz")
 
     # this is useless but it suppresses a warning
-    set(md5 "4947fcfaa55b622df7fd45d83545cd6c")
+    set(md5 "821987e4d2d8c9f5f45b39e4827439b5")
 
     # Configure cnacl
     set(cNaClConfig "
@@ -30,6 +54,11 @@ if(NOT NACL_FOUND)
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
         set(CMAKE_ASM_COMPILER \"${CMAKE_C_COMPILER}\")
     ")
+    if (NEON)
+        set(cNaClConfig "${cNaClConfig}
+            add_definitions(\"-mfpu=neon\")
+        ")
+    endif ()
     file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
     set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
 
