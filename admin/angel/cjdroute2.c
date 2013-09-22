@@ -371,6 +371,9 @@ static void checkRunningInstance(struct Allocator* allocator,
     struct AdminClient* adminClient =
         AdminClient_new(&pingAddrStorage.addr, password, base, logger, alloc);
 
+    // 100 milliseconds is plenty to wait for a process to respond on the same machine.
+    adminClient->millisecondsToWait = 100;
+
     Dict* pingArgs = Dict_new(alloc);
 
     struct AdminClient_Result* pingResult =
