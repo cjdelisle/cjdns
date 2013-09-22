@@ -451,26 +451,26 @@ int main(int argc, char** argv)
 
     Log_info(logger, "Checking for running instance...");
 
-    struct Sockaddr_storage pAddrStorage;
-    if (Sockaddr_parse(adminBind->bytes, &pAddrStorage)) {
+    struct Sockaddr_storage pingAddrStorage;
+    if (Sockaddr_parse(adminBind->bytes, &pingAddrStorage)) {
         Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
-    struct Sockaddr* pAddr = &pAddrStorage.addr;
+    struct Sockaddr* pingAddr = &pingAddrStorage.addr;
 
     struct AdminClient* adminClient = AdminClient_new(
-        pAddr,
+        pingAddr,
         adminPass,
         eventBase,
         logger,
         allocator
     );
 
-    Dict* pArgs = Dict_new(allocator);
+    Dict* pingArgs = Dict_new(allocator);
 
     struct AdminClient_Result* pingResult = AdminClient_rpcCall(
         String_new("ping", allocator),
-        pArgs,
+        pingArgs,
         adminClient,
         allocator
     );
