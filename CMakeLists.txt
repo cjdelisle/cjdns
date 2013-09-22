@@ -229,6 +229,11 @@ add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
+#if NEON is specified then we will force NACL to use NEON.
+if (NOT $ENV{NEON} STREQUAL "")
+    set(NEON TRUE)
+endif ()
+
 if(HAVE_LIBUV)
     find_package(Libuv REQUIRED)
 else()
@@ -240,7 +245,9 @@ if(HAVE_NACL)
 elseif(HAVE_SODIUM)
     find_package(Sodium REQUIRED)
 else()
-    find_package(NACL)
+    if (NOT $ENV{NO_EXTERNAL_NACL})
+        find_package(NACL)
+    endif ()
     find_package(NACLBundled REQUIRED)
 endif()
 include_directories(${NACL_INCLUDE_DIRS})

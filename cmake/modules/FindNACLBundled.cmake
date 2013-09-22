@@ -25,7 +25,7 @@ if(NOT NACL_FOUND)
                 compileSuccess
                 ${CMAKE_BINARY_DIR}
                 ${CMAKE_SOURCE_DIR}/cmake/modules/ProbeNEON.c
-                COMPILE_DEFINITIONS -mfpt=neon
+                COMPILE_DEFINITIONS -mfpu=neon
                 COMPILE_OUTPUT_VARIABLE compileOut
                 RUN_OUTPUT_VARIABLE runOut)
 
@@ -54,11 +54,13 @@ if(NOT NACL_FOUND)
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
         set(CMAKE_ASM_COMPILER \"${CMAKE_C_COMPILER}\")
     ")
+
     if (NEON)
         set(cNaClConfig "${cNaClConfig}
             add_definitions(\"-mfpu=neon\")
         ")
     endif ()
+
     file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
     set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
 
