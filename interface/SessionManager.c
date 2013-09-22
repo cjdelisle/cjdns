@@ -151,6 +151,9 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     Bits_memcpy(buff, sm->ifaceMap.handles, 4 * sm->ifaceMap.count);
     out->handles = buff;
     out->count = sm->ifaceMap.count;
+    for (int i = 0; i < (int)out->count; i++) {
+        buff[i] += FIRST_HANDLE;
+    }
     return out;
 }
 

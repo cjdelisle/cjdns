@@ -11,28 +11,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys;
-import math;
 from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
 from cjdnsadmin.publicToIp6 import PublicToIp6_convert;
 
 cjdns = connectWithAdminInfo();
-allPeers = [];
 
+handles = [];
 i = 0;
 while True:
-    ps = cjdns.InterfaceController_peerStats(i);
-    peers = ps['peers'];
-    allPeers += peers;
-    if (not 'more' in ps):
-        break;
-    i += 1;
+    resp = cjdns.SessionManager_getHandles(i)
+    for h in resp['handles']:
+        handles.append(h);
+    if not 'more' in resp:
+        break
+    i += 1
 
-for peer in allPeers:
-    p = (PublicToIp6_convert(peer['publicKey']) + '\t' + peer['switchLabel'] + '\tin ' +
-         str(peer['bytesIn']) + '\tout ' + str(peer['bytesOut']) + '\t' + peer['state'] +
-         '\tdup ' + str(peer['duplicates']) +
-         ' los ' + str(peer['lostPackets']) +
-         ' oor ' + str(peer['receivedOutOfRange']));
-    if peer['isIncoming'] == 1: p += '"' + peer['user'] + '"';
-    print p;
+for h in handles:
+    r = cjdns.SessionManager_sessionStats(h);
+    print(PublicToIp6_convert(r['publicKey']) +
+        ' v' + str(r['version']) +
+        ' dup ' + str(r['duplicates']) +
+        ' los ' + str(r['lostPackets']) +
+        ' oor ' + str(r['receivedOutOfRange']));
