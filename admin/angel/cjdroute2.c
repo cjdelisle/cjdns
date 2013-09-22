@@ -16,6 +16,7 @@
 #define string_strrchr
 #define string_strlen
 #include "admin/Admin.h"
+#include "admin/AdminClient.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "admin/angel/AngelInit.h"
 #include "admin/angel/Core.h"
@@ -433,6 +434,51 @@ int main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logWriter, allocator);
 
+    // --------------------- Get Admin  --------------------- //
+    Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
+    String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
+    String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
+    if (!adminPass) {
+        adminPass = String_newBinary(NULL, 32, allocator);
+        Random_base32(rand, (uint8_t*) adminPass->bytes, 32);
+        adminPass->len = strlen(adminPass->bytes);
+    }
+    if (!adminBind) {
+        Except_raise(eh, -1, "You must specify admin.bind in the cjdroute.conf file.");
+    }
+
+    // --------------------- Check for running instance  --------------------- //
+
+    Log_info(logger, "Checking for running instance...");
+
+    struct Sockaddr_storage pAddrStorage;
+    if (Sockaddr_parse(adminBind->bytes, &pAddrStorage)) {
+        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+                     adminBind->bytes);
+    }
+    struct Sockaddr* pAddr = &pAddrStorage.addr;
+
+    struct AdminClient* adminClient = AdminClient_new(
+        pAddr,
+        adminPass,
+        eventBase,
+        logger,
+        allocator
+    );
+
+    Dict* pArgs = Dict_new(allocator);
+
+    struct AdminClient_Result* pingResult = AdminClient_rpcCall(
+        String_new("ping", allocator),
+        pArgs,
+        adminClient,
+        allocator
+    );
+
+    if (pingResult->err == AdminClient_Error_NONE) {
+        Except_raise(eh, -1, "Startup failed: cjdroute is already running.");
+    }
+
     // --------------------- Setup Pipes to Angel --------------------- //
     char angelPipeName[64] = "client-angel-";
     Random_base32(rand, (uint8_t*)angelPipeName+13, 31);
@@ -458,19 +504,6 @@ int main(int argc, char** argv)
     }
     Log_info(logger, "Forking angel to background.");
     Process_spawn(corePath, args, eventBase, allocator);
-
-    // --------------------- Get Admin  --------------------- //
-    Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
-    String* adminPass = Dict_getString(configAdmin, String_CONST("password"));
-    String* adminBind = Dict_getString(configAdmin, String_CONST("bind"));
-    if (!adminPass) {
-        adminPass = String_newBinary(NULL, 32, allocator);
-        Random_base32(rand, (uint8_t*) adminPass->bytes, 32);
-        adminPass->len = strlen(adminPass->bytes);
-    }
-    if (!adminBind) {
-        adminBind = String_new("127.0.0.1:0", allocator);
-    }
 
     // --------------------- Get user for angel to setuid() ---------------------- //
     String* securityUser = NULL;
