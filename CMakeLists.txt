@@ -233,6 +233,14 @@ include_directories(${CMAKE_SOURCE_DIR})
 if (NOT $ENV{NEON} STREQUAL "")
     set(NEON TRUE)
 endif ()
+# Look for ARM NEON if it's available
+find_package(NEON)
+if (NEON)
+    # needed because the NEON asm files do not support
+    # THUMB and linking to them causes bad things.
+    add_definitions(-marm)
+endif()
+
 
 if(HAVE_LIBUV)
     find_package(Libuv REQUIRED)
