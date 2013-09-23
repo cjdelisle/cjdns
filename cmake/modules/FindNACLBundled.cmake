@@ -12,7 +12,7 @@
 cmake_minimum_required(VERSION 2.8.2)
 
 if(NOT NACL_FOUND)
-    message("bundled version of cnacl, will be downloaded and compiled.")
+    message("bundled version of cnacl compiled and used")
     include(ExternalProject)
 
     # If we're dealing with an ARM processor then we need to run a (potentially remote)
@@ -34,6 +34,7 @@ if(NOT NACL_FOUND)
         elseif (returnCode)
             message("NEON check failed to run [${runOut}]")
         endif ()
+            message("Success! Building NACL for ARM NEON")
             set(NEON TRUE)
         else()
     endif()
@@ -43,23 +44,27 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "cnacl-exp-75ceeeefb59a717eb324dda46564547cd9fd5d28.tar.gz")
+    set(tag "cnacl-exp-00ef30820b08a25a708b6833db924ca8303df542.tar.gz")
 
     # this is useless but it suppresses a warning
-    set(md5 "821987e4d2d8c9f5f45b39e4827439b5")
+    set(md5 "d4579d30a47920bf1b1f23aa6191a553")
 
     # Configure cnacl
     set(cNaClConfig "
         add_definitions(\"-fPIC\")
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
-        set(CMAKE_ASM_COMPILER \"${CMAKE_C_COMPILER}\")
+        set(CMAKE_ASM_COMPILER \"\${CMAKE_C_COMPILER}\")
     ")
 
     if (NEON)
         set(cNaClConfig "${cNaClConfig}
-            add_definitions(\"-mfpu=neon\")
+            set(CMAKE_REQUIRED_FLAGS \"\${CMAKE_REQUIRED_FLAGS} -mfpu=neon\")
         ")
     endif ()
+
+        set(cNaClConfig "${cNaClConfig}
+            set(CMAKE_REQUIRED_FLAGS \"\${CMAKE_REQUIRED_FLAGS} -Dppppp=qqqqq\")
+        ")
 
     file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
     set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
