@@ -43,21 +43,14 @@ static void writeUnroller(const struct Unroller* unroller)
 static void unroll(struct MallocAllocator_pvt* context, struct Unroller* unroller)
 {
     writeUnroller(unroller);
-    const char* ident = (context->identFile) ? strrchr(context->identFile, '/') : " UNKNOWN";
-    ident = ident ? ident + 1 : context->identFile;
+    const char* ident = (context->identFile) ? strrchr(context->identFile, '/') : "UNKNOWN";
+    ident = ident ? ident : context->identFile;
 
-    unsigned long realBytes = 0;
-    struct MallocAllocator_Allocation* alloc = context->allocations;
-    while (alloc) {
-        realBytes += alloc->size;
-        alloc = alloc->next;
-    }
-
-    fprintf(stderr, "%s:%d  [%lu] = [%lu] bytes\n",
+    fprintf(stderr, "%s:%d [%lu] bytes%s\n",
             ident,
             context->identLine,
             context->allocatedHere,
-            realBytes);
+            (context->freeing) ? " (freeing)" : "");
 
     if (context->firstChild) {
         unroll(context->firstChild, &(struct Unroller) {
@@ -178,14 +171,14 @@ static void releaseMemory(struct MallocAllocator_pvt* context)
         unsigned long allocatedHere = context->allocatedHere;
     #endif
 
+    context->rootAlloc->spaceAvailable += context->allocatedHere;
+
     struct MallocAllocator_Allocation* loc = context->allocations;
     while (loc != NULL) {
         #ifdef PARANOIA
             allocatedHere -= loc->size;
         #endif
-        if (context->rootAlloc) {
-            context->rootAlloc->spaceAvailable += loc->size;
-        }
+
         struct MallocAllocator_Allocation* nextLoc = loc->next;
 
         checkCanaries(loc, context);
@@ -297,9 +290,7 @@ static void childFreed(struct MallocAllocator_pvt* child)
     // disconnect the child and if there are no children left then call freeAllocator()
     // on the parent a second time.
     disconnect(child);
-    if (parent && !parent->firstChild) {
-        // if this was the highest level allocator to be freed, parent is null
-        // because it was disconnected when Allocator_free() was called.
+    if (parent && !parent->firstChild && parent->freeing) {
         freeAllocator(parent, child->identFile, child->identLine);
     }
 }
@@ -359,6 +350,10 @@ static void disconnectAdopted(struct MallocAllocator_pvt* parent, struct MallocA
  */
 static void freeAllocator(struct MallocAllocator_pvt* context, const char* file, int line)
 {
+    // When the last child calls us back via childFreed() we will be called the last time and
+    // if this is not set, the child will be disconnected from us and we will be left.
+    context->freeing = 1;
+
     if (context->adoptions && context->adoptions->parents) {
         disconnect(context);
         connect(context->adoptions->parents->alloc, context, file, line);
@@ -423,7 +418,6 @@ static void freeAllocator(struct MallocAllocator_pvt* context, const char* file,
 static void disconnectAllocator(struct Allocator* allocator, const char* file, int line)
 {
     struct MallocAllocator_pvt* context = Identity_cast((struct MallocAllocator_pvt*) allocator);
-    disconnect(context);
     freeAllocator(context, file, line);
 }
 
