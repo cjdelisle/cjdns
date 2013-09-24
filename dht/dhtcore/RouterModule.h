@@ -107,7 +107,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
                                                      struct Allocator* alloc);
 void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request);
 
-int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
+void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
 
 struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
                                                  struct RouterModule* module,

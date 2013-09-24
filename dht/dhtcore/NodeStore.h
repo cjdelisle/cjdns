@@ -78,20 +78,6 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
 /**
- * Find nodes that have the specified address.  These nodes will have different paths.
- *
- * @param address the Address to find Nodes with
- * @param max the maximum number to return
- * @param allocator the Allocator used to construct the NodeList
- * @param store the NodeStore to check
- * @return a NodeList* of up to size max nodes
- */
-struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
-                                          const uint32_t max,
-                                          struct Allocator* allocator,
-                                          struct NodeStore* store);
-
-/**
  * Get direct peers of this node.
  * Will get peers with switch labels XOR close to the provided label up to max number.
  *
@@ -159,7 +145,6 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* sto
  *
  * @param path the label part in host order.
  * @param store the node store.
- * @return the number of nodes which were removed.
  */
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
 

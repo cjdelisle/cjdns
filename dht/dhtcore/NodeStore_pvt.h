@@ -17,6 +17,7 @@
 
 #include "crypto/random/Random.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/NodeIndex.h"
 #include "util/log/Log.h"
 
 /** A list of DHT nodes. */
@@ -24,17 +25,14 @@ struct NodeStore_pvt
 {
     struct NodeStore pub;
 
-    /** A pointer to the first of an array of node headers. */
-    struct NodeHeader* headers;
-
     /** Source of random numbers. */
     struct Random* rand;
 
-    /**
-     * A pointer to the first of the array of nodes
-     * Each node corrisponds to the header at the same index in the header array.
-     */
-    struct Node* nodes;
+    /** array of pointers to allocated Node */
+    struct Node** nodes;
+
+    /** an index of nodes accesssible by ip6 or path */
+    struct NodeIndex* index;
 
     /** The maximum number of nodes which can be allocated. */
     int capacity;
@@ -44,6 +42,9 @@ struct NodeStore_pvt
 
     /** The means for this node store to log. */
     struct Log* logger;
+
+    /** The allocator to use for this NodeStore */
+    struct Allocator* alloc;
 
     Identity
 };

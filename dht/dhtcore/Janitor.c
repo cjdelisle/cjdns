@@ -17,7 +17,6 @@
 #include "dht/dhtcore/Janitor.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
-#include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/RouterModule_pvt.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
