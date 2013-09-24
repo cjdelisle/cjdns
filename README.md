@@ -97,6 +97,9 @@ close to the target address.
                      obvious, but I think it's neat. Currently on hype from an
                      airplane
 
+    00:36 < tester> man sites take so long to load on i2p
+    00:36 < tester> i value speed over anonymity any day
+
 
 
 ## How close is it to complete?
