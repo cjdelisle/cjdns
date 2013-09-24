@@ -99,12 +99,27 @@ static void test_basic()
     Assert_always(n4 == NodeIndex_getByIp(index, &n4->address)->node);
 }
 
+static void test_getByMaxPath()
+{
+    struct NodeIndex* index = setUp(8);
+    struct Node* n1 = createNode(0x01, 0x15);
+    struct Node* n2 = createNode(0x02, 0x135733);
+    struct Node* n3 = createNode(0x03, 0x135);
+
+    NodeIndex_put(index, n1);
+    NodeIndex_put(index, n2);
+    NodeIndex_put(index, n3);
+
+    Assert_always(n2 == NodeIndex_getByMaxPath(index));
+}
+
 int main()
 {
     alloc = MallocAllocator_new(1<<20);
     rand = Random_new(alloc, NULL, NULL);
 
     test_basic();
+    test_getByMaxPath();
 
     Allocator_free(alloc);
 }
