@@ -188,10 +188,6 @@ Clone the repository from GitHub and change to the source directory:
 
 ### 2. Build
 
-    make
-
-Alternatively, you may run the do script directly:
-
     ./do
 
 Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
