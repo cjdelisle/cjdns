@@ -224,7 +224,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     }
 
     // see if we already have any nodes with this address
-    struct NodeIndex_ipEntry* entry = NodeIndex_getByIp(store->index, addr);
+    struct NodeIndex_IpEntry* entry = NodeIndex_getByIp(store->index, addr);
     while (entry) {
         node = entry->node;
 

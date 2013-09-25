@@ -21,32 +21,32 @@
 
 struct IpTree {
   /** pointer to the root of the rb tree */
-  struct NodeIndex_ipEntry* rbh_root;
+  struct NodeIndex_IpEntry* rbh_root;
 
   /** pointer to the first of an array of entries */
-  struct NodeIndex_ipEntry* entries;
+  struct NodeIndex_IpEntry* entries;
 
   /**
    * free / used heap.
    *   0 - (size-1)      : used
    *   (size) - capacity : free
    */
-  struct NodeIndex_ipEntry** heap;
+  struct NodeIndex_IpEntry** heap;
 };
 
 struct PathTree {
   /** pointer to the root of the rb tree */
-  struct NodeIndex_pathEntry* rbh_root;
+  struct NodeIndex_PathEntry* rbh_root;
 
   /** pointer to the first of an array of entries */
-  struct NodeIndex_pathEntry* entries;
+  struct NodeIndex_PathEntry* entries;
 
   /**
    * free / used heap.
    *   0 - (size-1)      : used
    *   (size) - capacity : free
    */
-  struct NodeIndex_pathEntry** heap;
+  struct NodeIndex_PathEntry** heap;
 };
 
 struct NodeIndex {
@@ -56,7 +56,7 @@ struct NodeIndex {
   uint32_t capacity;
 };
 
-static int comparePath(struct NodeIndex_pathEntry* a, struct NodeIndex_pathEntry* b)
+static int comparePath(struct NodeIndex_PathEntry* a, struct NodeIndex_PathEntry* b)
 {
     uint64_t path_a = a->node->address.path;
     uint64_t path_b = b->node->address.path;
@@ -69,7 +69,7 @@ static int comparePath(struct NodeIndex_pathEntry* a, struct NodeIndex_pathEntry
     return 0;
 }
 
-static int compareIp(struct NodeIndex_ipEntry* entry_a, struct NodeIndex_ipEntry* entry_b)
+static int compareIp(struct NodeIndex_IpEntry* entry_a, struct NodeIndex_IpEntry* entry_b)
 {
     struct Address* a = &entry_a->node->address;
     struct Address* b = &entry_b->node->address;
@@ -89,8 +89,8 @@ static int compareIp(struct NodeIndex_ipEntry* entry_a, struct NodeIndex_ipEntry
 }
 
 // red black tree indexes
-RB_GENERATE_STATIC(PathTree, NodeIndex_pathEntry, indexEntry, comparePath)
-RB_GENERATE_STATIC(IpTree, NodeIndex_ipEntry, indexEntry, compareIp)
+RB_GENERATE_STATIC(PathTree, NodeIndex_PathEntry, indexEntry, comparePath)
+RB_GENERATE_STATIC(IpTree, NodeIndex_IpEntry, indexEntry, compareIp)
 
 // TODO allocate entries arrays and use a heap of pointers instead of dynamic alloc for tree nodes
 struct NodeIndex* NodeIndex_new(struct Allocator* alloc, const uint32_t capacity)
@@ -98,13 +98,13 @@ struct NodeIndex* NodeIndex_new(struct Allocator* alloc, const uint32_t capacity
     struct NodeIndex* index = Allocator_clone(alloc, (&(struct NodeIndex) {
         .byIp = Allocator_clone(alloc, (&(struct IpTree) {
            .rbh_root = NULL,
-           .entries = Allocator_calloc(alloc, sizeof(struct NodeIndex_ipEntry), capacity),
-           .heap = Allocator_calloc(alloc, sizeof(struct NodeIndex_ipEntry*), capacity)
+           .entries = Allocator_calloc(alloc, sizeof(struct NodeIndex_IpEntry), capacity),
+           .heap = Allocator_calloc(alloc, sizeof(struct NodeIndex_IpEntry*), capacity)
         })),
         .byPath = Allocator_clone(alloc, (&(struct PathTree) {
            .rbh_root = NULL,
-           .entries = Allocator_calloc(alloc, sizeof(struct NodeIndex_pathEntry), capacity),
-           .heap = Allocator_calloc(alloc, sizeof(struct NodeIndex_pathEntry*), capacity)
+           .entries = Allocator_calloc(alloc, sizeof(struct NodeIndex_PathEntry), capacity),
+           .heap = Allocator_calloc(alloc, sizeof(struct NodeIndex_PathEntry*), capacity)
         })),
         .capacity = capacity,
         .size = 0
@@ -125,14 +125,14 @@ struct NodeIndex* NodeIndex_new(struct Allocator* alloc, const uint32_t capacity
             .path = path                                                  \
         }                                                                 \
     };                                                                    \
-    struct NodeIndex_pathEntry name = {                                   \
+    struct NodeIndex_PathEntry name = {                                   \
         .node = &name##_node                                              \
     };
 
 #define ENTRY_FROM_IP(name, addr)                                         \
     struct Node name##_node;                                              \
     Bits_memcpyConst(&name##_node.address, addr, sizeof(struct Address)); \
-    struct NodeIndex_ipEntry name = {                                     \
+    struct NodeIndex_IpEntry name = {                                     \
         .node = &name##_node,                                             \
         .next = NULL                                                      \
     };
@@ -140,11 +140,11 @@ struct NodeIndex* NodeIndex_new(struct Allocator* alloc, const uint32_t capacity
 struct Node* NodeIndex_getByPath(struct NodeIndex* index, uint64_t path)
 {
     ENTRY_FROM_PATH(target, path)
-    struct NodeIndex_pathEntry* result = RB_FIND(PathTree, index->byPath, &target);
+    struct NodeIndex_PathEntry* result = RB_FIND(PathTree, index->byPath, &target);
     return (result) ? result->node : NULL;
 }
 
-struct NodeIndex_ipEntry* NodeIndex_getByIp(struct NodeIndex* index, struct Address* addr)
+struct NodeIndex_IpEntry* NodeIndex_getByIp(struct NodeIndex* index, struct Address* addr)
 {
     ENTRY_FROM_IP(target, addr)
     return IpTree_RB_FIND(index->byIp, &target);
@@ -152,15 +152,15 @@ struct NodeIndex_ipEntry* NodeIndex_getByIp(struct NodeIndex* index, struct Addr
 
 struct Node* NodeIndex_getByMaxPath(struct NodeIndex* index)
 {
-    struct NodeIndex_pathEntry* result = RB_MAX(PathTree, index->byPath);
+    struct NodeIndex_PathEntry* result = RB_MAX(PathTree, index->byPath);
     return (result) ? result->node : NULL;
 }
 
 static void putIp(struct NodeIndex* index, struct Node* node)
 {
-    struct NodeIndex_ipEntry* entry = index->byIp->heap[index->size];
+    struct NodeIndex_IpEntry* entry = index->byIp->heap[index->size];
     entry->node = node;
-    struct NodeIndex_ipEntry* existing = RB_FIND(IpTree, index->byIp, entry);
+    struct NodeIndex_IpEntry* existing = RB_FIND(IpTree, index->byIp, entry);
 
     if (existing) {
          // tack it on the end of the list failing if we already have it
@@ -181,9 +181,9 @@ static void putIp(struct NodeIndex* index, struct Node* node)
 
 static void putPath(struct NodeIndex* index, struct Node* node)
 {
-    struct NodeIndex_pathEntry* entry = index->byPath->heap[index->size];
+    struct NodeIndex_PathEntry* entry = index->byPath->heap[index->size];
     entry->node = node;
-    struct NodeIndex_pathEntry* existing = RB_INSERT(PathTree, index->byPath, entry);
+    struct NodeIndex_PathEntry* existing = RB_INSERT(PathTree, index->byPath, entry);
     if (existing) {
         Assert_failure("Attempted to insert dupe into NodeIndex.");
     }
@@ -204,7 +204,7 @@ static void removeIp(struct NodeIndex* index, struct Node* node)
     ENTRY_FROM_IP(entry, addr)
 
     // find linked list
-    struct NodeIndex_ipEntry* existing = RB_FIND(IpTree, index->byIp, &entry);
+    struct NodeIndex_IpEntry* existing = RB_FIND(IpTree, index->byIp, &entry);
 
     if (existing) {
 
@@ -219,7 +219,7 @@ static void removeIp(struct NodeIndex* index, struct Node* node)
         else {
             // remove from the list
             while (existing->next) {
-                struct NodeIndex_ipEntry* next = existing->next;
+                struct NodeIndex_IpEntry* next = existing->next;
                 if (next->node == node) {
                     existing->next = next->next;
                     existing = next;
@@ -244,10 +244,10 @@ static void removeIp(struct NodeIndex* index, struct Node* node)
         Assert_always(pos >= 0);
         Bits_memmove(index->byIp->heap + pos,
                      index->byIp->heap + pos + 1,
-                     sizeof(struct NodeIndex_ipEntry*)*(index->size - pos));
+                     sizeof(struct NodeIndex_IpEntry*)*(index->size - pos));
 
         // clear entry and throw pointer back on the heap
-        Bits_memset(existing, 0, sizeof(struct NodeIndex_ipEntry));
+        Bits_memset(existing, 0, sizeof(struct NodeIndex_IpEntry));
         index->byIp->heap[index->size-1] = existing;
 
     }
@@ -257,7 +257,7 @@ static bool removePath(struct NodeIndex* index, struct Node* node)
 {
     uint64_t path = node->address.path;
     ENTRY_FROM_PATH(target, path)
-    struct NodeIndex_pathEntry* existing =  RB_FIND(PathTree, index->byPath, &target);
+    struct NodeIndex_PathEntry* existing =  RB_FIND(PathTree, index->byPath, &target);
 
     if (existing) {
         Assert_always(existing->node == node);
@@ -280,10 +280,10 @@ static bool removePath(struct NodeIndex* index, struct Node* node)
         }
         Bits_memmove(index->byPath->heap + pos,
                      index->byPath->heap + pos + 1,
-                     sizeof(struct NodeIndex_pathEntry*)*(index->size - pos));
+                     sizeof(struct NodeIndex_PathEntry*)*(index->size - pos));
 
         // clear entry and throw pointer back on the heap
-        Bits_memset(existing, 0, sizeof(struct NodeIndex_pathEntry));
+        Bits_memset(existing, 0, sizeof(struct NodeIndex_PathEntry));
         index->byPath->heap[index->size-1] = existing;
     }
 
@@ -302,7 +302,7 @@ void NodeIndex_remove(struct NodeIndex* index, struct Node* node)
 
 void NodeIndex_visit(struct NodeIndex* index, void* context, void (*visit)(void *,struct Node *))
 {
-    struct NodeIndex_pathEntry* entry = RB_MIN(PathTree, index->byPath);
+    struct NodeIndex_PathEntry* entry = RB_MIN(PathTree, index->byPath);
     while (entry) {
         visit(context, entry->node);
         entry = RB_NEXT(PathTree, index->byPath, entry);

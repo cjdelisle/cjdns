@@ -21,22 +21,22 @@
 
 #include <uv-private/tree.h>
 
-struct NodeIndex_ipEntry
+struct NodeIndex_IpEntry
 {
     /** pointer to the node info */
     struct Node* node;
 
     /** a linked list of same ip as can have multiple paths */
-    struct NodeIndex_ipEntry* next;
+    struct NodeIndex_IpEntry* next;
 
     /** RB tree pointers */
-    RB_ENTRY(NodeIndex_ipEntry) indexEntry;
+    RB_ENTRY(NodeIndex_IpEntry) indexEntry;
 };
 
-struct NodeIndex_pathEntry
+struct NodeIndex_PathEntry
 {
     struct Node* node;
-    RB_ENTRY(NodeIndex_pathEntry) indexEntry;
+    RB_ENTRY(NodeIndex_PathEntry) indexEntry;
 };
 
 struct NodeIndex;
@@ -55,7 +55,7 @@ struct Node* NodeIndex_getByPath(struct NodeIndex* index, uint64_t path);
 /**
  * Get the entry node for the address (as there are potentially many nodes for this address)
  */
-struct NodeIndex_ipEntry* NodeIndex_getByIp(struct NodeIndex* index, struct Address* address);
+struct NodeIndex_IpEntry* NodeIndex_getByIp(struct NodeIndex* index, struct Address* address);
 
 /**
  * Get the worst (max) path
