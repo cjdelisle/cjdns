@@ -32,7 +32,7 @@
 static inline void DistanceNodeCollector_addNode(struct Node* node,
                                                  struct NodeCollector* collector)
 {
-    uint32_t nodeDistance = node->address.ip6.ints.one ^ collector->targetPrefix;
+    uint32_t nodeDistance = node->addressPrefix ^ collector->targetPrefix;
 
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
