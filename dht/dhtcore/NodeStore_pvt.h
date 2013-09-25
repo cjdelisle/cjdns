@@ -46,9 +46,6 @@ struct NodeStore_pvt
     /** The means for this node store to log. */
     struct Log* logger;
 
-    /** The allocator to use for this NodeStore */
-    struct Allocator* alloc;
-
     Identity
 };
 

@@ -48,7 +48,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.size = 0;
     out->labelSum = 0;
     out->rand = rand;
-    out->alloc = allocator;
     Identity_set(out);
 
     // init free / used pointer heap
