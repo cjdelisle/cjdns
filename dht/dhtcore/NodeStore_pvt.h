@@ -28,8 +28,11 @@ struct NodeStore_pvt
     /** Source of random numbers. */
     struct Random* rand;
 
-    /** array of pointers to allocated Node */
-    struct Node** nodes;
+    /** array of pointers to allocated Nodes */
+    struct Node* nodes;
+
+    /** used / free heap of node pointers */
+    struct Node** heap;
 
     /** an index of nodes accesssible by ip6 or path */
     struct NodeIndex* index;

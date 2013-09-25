@@ -40,7 +40,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 {
     struct NodeStore_pvt* out = Allocator_malloc(allocator, sizeof(struct NodeStore_pvt));
     out->pub.selfAddress = myAddress;
-    out->nodes = Allocator_calloc(allocator, sizeof(struct Node*), capacity);
+    out->nodes = Allocator_calloc(allocator, sizeof(struct Node), capacity);
+    out->heap = Allocator_calloc(allocator, sizeof(struct Node*), capacity);
     out->index = NodeIndex_new(allocator, capacity);
     out->capacity = capacity;
     out->logger = logger;
@@ -49,6 +50,11 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->rand = rand;
     out->alloc = allocator;
     Identity_set(out);
+
+    // init free / used pointer heap
+    for (uint32_t i=0; i<capacity; i++) {
+        out->heap[i] = out->nodes + i;
+    }
 
     return &out->pub;
 }
@@ -62,7 +68,7 @@ struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
     if (index >= (uint32_t)store->size) {
         return NULL;
     }
-    return s->nodes[index];
+    return s->heap[index];
 }
 
 static inline uint32_t getSwitchIndex(struct Address* addr)
@@ -129,7 +135,7 @@ static inline void adjustReach(struct NodeStore_pvt* store,
     }
 }
 
-static void removeNode(struct Node* node, struct NodeStore_pvt* store)
+static void removeNode(struct NodeStore_pvt* store, struct Node* node)
 {
     #ifdef Log_DEBUG
         uint8_t addr[60];
@@ -137,23 +143,27 @@ static void removeNode(struct Node* node, struct NodeStore_pvt* store)
         Log_debug(store->logger, "Removing route to %s\n", addr);
     #endif
 
+    // remove from the index
+    NodeIndex_remove(store->index, node);
+
+    // find the current pointer in the heap
     int pos = -1;
     for (int i = 0; i < store->pub.size; i++) {
-        if (store->nodes[i] == node) {
+        if (store->heap[i] == node) {
             pos = i;
             break;
         }
     }
+
+    // remove it from the heap
     Assert_always(pos >= 0);
+    Bits_memmove(store->heap + pos,
+                 store->heap + pos + 1,
+                 sizeof(char*)*(store->pub.size - pos));
 
-    // remove the node pointer from the list of node pointers
-    if (pos < (store->pub.size-1)) {
-        Bits_memmove(store->nodes + pos, store->nodes + pos+1, sizeof(char*)*(store->pub.size-pos));
-    }
-
-    Allocator_realloc(store->alloc, node, 0);
-
-    store->pub.size--;
+    // clear the node and throw the now unused pointer back on the heap
+    Bits_memset(node, 0, sizeof(struct Node));
+    store->heap[--store->pub.size] = node;
 }
 
 struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
@@ -186,6 +196,33 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     struct Node* node = NULL;
     struct Node* update = NULL;
 
+    // see if we already have this path under a diff address
+    node = NodeIndex_getByPath(store->index, addr->path);
+    if (node && !Address_isSameIp(&node->address, addr)) {
+        // When a node restarts, it's switch renumbers meaning that the paths to other nodes
+        // change. This causes a previously valid path to A to now point to B. The problem
+        // is that there is a real node at the end of the path to B and worse, there are real
+        // nodes behind that one. When those nodes respond to pings and searches, their reach
+        // is updated along with the now-invalid node A.
+        // This will allow incoming packets from B to clear A out of the table and replace
+        // them with B while preventing another node's memory of B from causing A to be
+        // replaced.
+        if (reachDifference > 0) {
+            // update and re-index
+            uint64_t brokenPath = node->address.path;
+            update = node;
+            replaceNode(store, update, addr, version, node->reach);
+            adjustReach(store, update, reachDifference);
+            NodeStore_brokenPath(brokenPath, &store->pub);
+        } else {
+            // TODO:
+            // We were told about another node, it might be B and it might be A (invalid).
+            // the only way to know for sure it to queue a ping to that node and wait for it
+            // to respond. We need a system for queueing pings so we don't send out a flood.
+        }
+        return update;
+    }
+
     // see if we already have any nodes with this address
     struct NodeIndex_ipEntry* entry = NodeIndex_getByIp(store->index, addr);
     while (entry) {
@@ -213,12 +250,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                            newAddr);
             #endif
 
-            // update and re-index
-            // OPTIMIZATION: tecnhincally we could just re-index the path index if we expose that
-            //               functionality.
-            update = node;
-            replaceNode(store, update, addr, version, node->reach);
-            adjustReach(store, update, reachDifference);
+            removeNode(store, node);
             break;
         }
 
@@ -226,37 +258,10 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
         entry = entry->next;
     }
 
-    // see if we already have this path under a diff address
-    node = NodeIndex_getByPath(store->index, addr->path);
-    if (node) {
-
-        // When a node restarts, it's switch renumbers meaning that the paths to other nodes
-        // change. This causes a previously valid path to A to now point to B. The problem
-        // is that there is a real node at the end of the path to B and worse, there are real
-        // nodes behind that one. When those nodes respond to pings and searches, their reach
-        // is updated along with the now-invalid node A.
-        // This will allow incoming packets from B to clear A out of the table and replace
-        // them with B while preventing another node's memory of B from causing A to be
-        // replaced.
-        if (reachDifference > 0) {
-            // update and re-index
-            update = node;
-            replaceNode(store, update, addr, version, node->reach);
-            adjustReach(store, update, reachDifference);
-        } else {
-            // TODO:
-            // We were told about another node, it might be B and it might be A (invalid).
-            // the only way to know for sure it to queue a ping to that node and wait for it
-            // to respond. We need a system for queueing pings so we don't send out a flood.
-            return NULL;
-        }
-    }
-
     // insert if we had no update
     if (!update) {
         if (store->pub.size < store->capacity) {
-            node = store->nodes[store->pub.size++] =
-                       Allocator_calloc(store->alloc, sizeof(struct Node), 1);
+            node = store->heap[store->pub.size++];
         }
         else {
             // replace the longest path if at capacity
@@ -302,8 +307,8 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         Address_getPrefix(store->pub.selfAddress) ^ collector.targetPrefix;
 
     for (int i = 0; i < store->pub.size; i++) {
-        if (store->nodes[i]->reach != 0) {
-            LinkStateNodeCollector_addNode(store->nodes[i], &collector);
+        if (store->heap[i]->reach != 0) {
+            LinkStateNodeCollector_addNode(store->heap[i], &collector);
         }
     }
 
@@ -324,7 +329,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
 
     for (int i = 0; i < store->pub.size; i++) {
-        uint64_t p = store->nodes[i]->address.path;
+        uint64_t p = store->heap[i]->address.path;
         if (LabelSplicer_isOneHop(p)) {
             int j;
             for (j = 0; j < (int)max; j++) {
@@ -334,7 +339,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
             }
             switch (j) {
                 default: Bits_memmove(out->nodes, &out->nodes[1], (j - 1) * sizeof(char*));
-                case 1: out->nodes[j - 1] = store->nodes[i];
+                case 1: out->nodes[j - 1] = store->heap[i];
                 case 0:;
             }
         }
@@ -373,15 +378,15 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 
     // naive implementation, todo make this faster
     for (int i = 0; i < store->pub.size; i++) {
-        if (requestorsAddress && store->nodes[i]->switchIndex == index) {
+        if (requestorsAddress && store->heap[i]->switchIndex == index) {
             // Nodes which are down the same interface as the node who asked.
             continue;
         }
-        if (!Version_isCompatible(store->nodes[i]->version, versionOfRequestingNode)) {
+        if (!Version_isCompatible(store->heap[i]->version, versionOfRequestingNode)) {
             // Known not to be compatable.
             continue;
         }
-        LinkStateNodeCollector_addNode(store->nodes[i], collector);
+        LinkStateNodeCollector_addNode(store->heap[i], collector);
     }
 
     struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
@@ -407,12 +412,12 @@ void NodeStore_updateReach(const struct Node* const node,
 
     uint64_t path = node->address.path;
     for (int i = 0; i < store->pub.size; i++) {
-        uint64_t dest = store->nodes[i]->address.path;
+        uint64_t dest = store->heap[i]->address.path;
         if (LabelSplicer_routesThrough(dest, path)) {
-            if (store->nodes[i]->reach > node->reach) {
-                store->nodes[i]->reach = node->reach;
+            if (store->heap[i]->reach > node->reach) {
+                store->heap[i]->reach = node->reach;
                 if (node->reach == 0) {
-                    logNodeZeroed(store->logger, store->nodes[i]);
+                    logNodeZeroed(store->logger, store->heap[i]);
                 }
             }
         } else if (LabelSplicer_routesThrough(path, dest)) {
@@ -432,8 +437,8 @@ void NodeStore_updateReach(const struct Node* const node,
              * This is a temporary workaround which just skips increasing the reach for a node
              * whose reach is 0 so that these stale nodes will not do damage.
              */
-            if (store->nodes[i]->reach < node->reach && store->nodes[i]->reach != 0) {
-                store->nodes[i]->reach = node->reach;
+            if (store->heap[i]->reach < node->reach && store->heap[i]->reach != 0) {
+                store->heap[i]->reach = node->reach;
             }
         }
     }
@@ -444,7 +449,7 @@ int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     int count = 0;
     for (int i=0; i < store->pub.size; i++ ) {
-        if (store->nodes[i]->reach > 0) {
+        if (store->heap[i]->reach > 0) {
             count++;
         }
     }
@@ -457,7 +462,7 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* nod
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     if (path == 0) {
         return (store->pub.size > 0)
-            ? store->nodes[Random_uint32(store->rand) % store->pub.size] : NULL;
+            ? store->heap[Random_uint32(store->rand) % store->pub.size] : NULL;
     }
 
     return NodeIndex_getByPath(store->index, path);
@@ -467,17 +472,20 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     int out = 0;
-    for (int i = 0; i < store->pub.size; i++) {
-        struct Node* node = store->nodes[i];
+    int i = 0;
+    while (i < store->pub.size) {
+        struct Node* node = store->heap[i];
         if (LabelSplicer_routesThrough(node->address.path, path)) {
             if (!LabelSplicer_isOneHop(node->address.path)) {
-                removeNode(node, store);
+                removeNode(store, node);
                 out++;
+                continue;
             } else {
                 logNodeZeroed(store->logger, node);
                 node->reach = 0;
             }
         }
+        i++;
     }
     return out;
 }

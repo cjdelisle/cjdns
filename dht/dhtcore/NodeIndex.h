@@ -67,18 +67,12 @@ struct Node* NodeIndex_getByMaxPath(struct NodeIndex* index);
  *
  * @return the old Node that was stored at the path or NULL
  */
-struct Node* NodeIndex_put(struct NodeIndex* index, struct Node* node);
+void NodeIndex_put(struct NodeIndex* index, struct Node* node);
 
 /**
  * Remove a node from the index.
  */
-struct Node* NodeIndex_remove(struct NodeIndex* index, struct Node* node);
-
-/**
- * Get the nth node.
- * Note: SLOW.  Finds min and then iterates.
- */
-struct Node* NodeIndex_nth(struct NodeIndex* index, uint32_t n);
+void NodeIndex_remove(struct NodeIndex* index, struct Node* node);
 
 /**
  * Visit each node in the index with the passed function
