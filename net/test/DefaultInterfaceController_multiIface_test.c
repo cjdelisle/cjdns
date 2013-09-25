@@ -28,7 +28,7 @@ int allocatorFreed(struct Allocator_OnFreeJob* job)
 // make sure unauthenticated interfaces are cleared out if they don't send valid packets.
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<20);
+    struct Allocator* alloc = MallocAllocator_new(1<<21);
     struct TestFramework* tf = TestFramework_setUp(NULL, alloc, NULL);
 
     struct Interface iface = {
