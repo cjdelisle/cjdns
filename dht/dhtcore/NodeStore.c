@@ -199,11 +199,14 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                uint32_t version)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+
+    // don't bother with incompatible versions
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
         Log_debug(store->logger, "node with incompatable version");
         return NULL;
     }
 
+    // don't bother to add ourselves
     if (Address_isSameIp(addr, store->pub.selfAddress)) {
         Log_debug(store->logger, "got introduced to ourselves");
         return NULL;
@@ -219,62 +222,59 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
         Assert_true(false);
     }
 
-    // see if we already have this path
+    // see if we already know about this path
     struct Node* node = NodeIndex_getByPath(store->index, addr->path);
     if (node) {
+
+        // if already in the store and indexed with this ip/path combo, just update and be done.
         if (Address_isSameIp(&node->address, addr)) {
-            // already in the store and indexed, just update and be done.
             node->version = version;
             adjustReach(store, node, reachDifference);
             return node;
         }
-        else {
-            // When a node restarts, it's switch renumbers meaning that the paths to other nodes
-            // change. This causes a previously valid path to A to now point to B. The problem
-            // is that there is a real node at the end of the path to B and worse, there are real
-            // nodes behind that one. When those nodes respond to pings and searches, their reach
-            // is updated along with the now-invalid node A.
-            // This will allow incoming packets from B to clear A out of the table and replace
-            // them with B while preventing another node's memory of B from causing A to be
-            // replaced.
-            if (reachDifference > 0) {
-                // clear the nodes behind this broken path to make room to insert the new one
-                removeNode(store, node);
-                NodeStore_brokenPath(addr->path, &store->pub);
-            } else {
-                // TODO:
-                // We were told about another node, it might be B and it might be A (invalid).
-                // the only way to know for sure it to queue a ping to that node and wait for it
-                // to respond. We need a system for queueing pings so we don't send out a flood.
-                return NULL;
-            }
-        }
-    }
-    else {
-        // remove any longer paths (if any) to this ip that route through this new path
-        struct NodeIndex_IpEntry* entry = NodeIndex_getByIp(store->index, addr);
-        while (entry) {
-            node = entry->node;
 
-            if (LabelSplicer_routesThrough(node->address.path, addr->path)) {
-                #ifdef Log_DEBUG
-                    uint8_t nodeAddr[60];
-                    Address_print(nodeAddr, &node->address);
-                    uint8_t newAddr[20];
-                    AddrTools_printPath(newAddr, addr->path);
-                    Log_debug(store->logger,
-                               "Found a better route to %s via %s\n",
-                               nodeAddr,
-                               newAddr);
-                #endif
-                removeNode(store, node);
-            }
+        // A different ip is being reported for this path.
+        // When a node restarts, it's switch renumbers meaning that the paths to other nodes
+        // change. This causes a previously valid path to A to now point to B.
 
-            // next entry with same addr
-            entry = entry->next;
+        if (reachDifference == 0) {
+            // TODO:
+            // We were told about another node, it might be B and it might be A (invalid).
+            // the only way to know for sure is to queue a ping to that node and wait for it
+            // to respond. We need a system for queueing pings so we don't send out a flood.
+            return NULL;
         }
+
+        // remove the node at this path and any nodes routing through this path to be safe
+        // TODO a node graph would make this more effecient
+        removeNode(store, node);
+        NodeStore_brokenPath(addr->path, &store->pub);
     }
 
+    // remove any longer paths (if any) to this ip that route through this new path
+    struct NodeIndex_IpEntry* entry = NodeIndex_getByIp(store->index, addr);
+    while (entry) {
+        node = entry->node;
+
+        if (LabelSplicer_routesThrough(node->address.path, addr->path)) {
+            #ifdef Log_DEBUG
+                uint8_t nodeAddr[60];
+                Address_print(nodeAddr, &node->address);
+                uint8_t newAddr[20];
+                AddrTools_printPath(newAddr, addr->path);
+                Log_debug(store->logger,
+                           "Found a better route to %s via %s\n",
+                           nodeAddr,
+                           newAddr);
+            #endif
+            removeNode(store, node);
+        }
+
+        // next entry with same ip
+        entry = entry->next;
+    }
+
+    // insert this new ip/path combo
     return insertNode(store, addr, reachDifference, version);
 }
 
