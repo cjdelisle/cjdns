@@ -12,31 +12,37 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SwitchCompression_H
-#define SwitchCompression_H
+#ifndef EncodingScheme_H
+#define EncodingScheme_H
 
 #include "benc/String.h"
 #include "memory/Allocator.h"
 
 #include <stdint.h>
 
-struct SwitchCompression_Scheme
+struct EncodingScheme_Form
 {
     int bitCount : 16;
     int prefixLen : 16;
     uint32_t prefix;
 };
 
-struct SwitchCompression_SchemeList
+struct EncodingScheme
 {
-    struct SwitchCompression_Scheme* elems;
-    uint32_t count;
+    struct EncodingScheme_Form* forms;
+    int count;
 };
 
-String* SwitchCompression_encodeSchemes(struct SwitchCompression_SchemeList* list,
-                                        struct Allocator* alloc);
+String* EncodingScheme_serialize(struct EncodingScheme* list,
+                                 struct Allocator* alloc);
 
-struct SwitchCompression_SchemeList* SwitchCompression_decodeSchemes(String* data,
-                                                                     struct Allocator* alloc);
+struct EncodingScheme* EncodingScheme_deserialize(String* data,
+                                                  struct Allocator* alloc);
 
+struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struct Allocator* alloc);
+
+
+struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme_Form* forms,
+                                                           int formCount,
+                                                           struct Allocator* alloc);
 #endif

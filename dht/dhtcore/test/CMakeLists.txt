@@ -11,7 +11,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set(Test_FILES
     VersionList_test.c
-    SwitchCompression_test.c
     NodeStore_test.c
 )
 set(Test_LIBRARIES

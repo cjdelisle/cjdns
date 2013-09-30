@@ -12,9 +12,12 @@
 set(Test_FILES
     LabelSplicer_test.c
     NumberCompress_test.c
+    EncodingScheme_test.c
 )
 set(Test_LIBRARIES
     switch
     util
+    cjdns-crypto-random
+    cjdns-switch-encodingscheme
 )
 include(${CMAKE_SOURCE_DIR}/cmake/modules/Test.cmake)

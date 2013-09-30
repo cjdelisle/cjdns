@@ -206,7 +206,17 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     int worstNode = 0;
     uint64_t worstPath = 0;
 
+    // becomes true when the direct peer behind this path is found.
+    int foundPeer = LabelSplicer_isOneHop(addr->path);
+
     for (int i = 0; i < store->pub.size; i++) {
+
+        if (LabelSplicer_isOneHop(store->nodes[i].address.path)
+            && LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path))
+        {
+            foundPeer = 1;
+        }
+
         if (store->headers[i].addressPrefix == pfx
             && Address_isSameIp(&store->nodes[i].address, addr))
         {
@@ -283,6 +293,13 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                    nodeAddr,
                    reachDifference);
     #endif
+
+    if (!foundPeer) {
+        #ifdef Log_DEBUG
+            Log_debug(store->logger, "Dropping discovered node because there is no peer behind it");
+        #endif
+        return NULL;
+    }
 
     for (int i = 0; i < store->pub.size; i++) {
        Assert_true(store->headers[i].addressPrefix == Address_getPrefix(&store->nodes[i].address));

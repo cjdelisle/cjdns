@@ -28,6 +28,7 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "switch/LabelSplicer.h"
+#include "switch/NumberCompress.h"
 #include "util/events/EventBase.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
@@ -383,6 +384,24 @@ static inline int handleQuery(struct DHTMessage* message,
                        &module->gitVersion,
                        message->allocator);
     }
+
+    // Always send our encoding scheme definition
+    struct EncodingScheme* scheme = NumberCompress_defineScheme(message->allocator);
+    String* flattenedScheme = EncodingScheme_serialize(scheme, message->allocator);
+    Dict_putString(message->asDict, CJDHTConstants_ENC_SCHEME, flattenedScheme, message->allocator);
+
+    // And tell the asker which encoding form their interface uses:
+    int totalBits = NumberCompress_bitsUsedForLabel(query->address->path);
+    int schemeNum = -1;
+    for (int i =  0; i < scheme->count; i++) {
+        if (totalBits == (scheme->forms[i].prefixLen + scheme->forms[i].bitCount)) {
+            schemeNum = i;
+            break;
+        }
+    }
+    Assert_true(schemeNum > -1);
+    Dict_putInt(message->asDict, CJDHTConstants_ENC_INDEX, schemeNum, message->allocator);
+
 
     return (nodeList) ? sendNodes(nodeList, message, module) : 0;
 }

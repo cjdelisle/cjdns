@@ -15,6 +15,8 @@
 #ifndef NumberCompress_H
 #define NumberCompress_H
 
+#include "switch/EncodingScheme.h"
+#include "util/Bits.h"
 #include <stdint.h>
 
 /* right now 3 implementations:
@@ -31,21 +33,6 @@
     #error "Not more than 256 peers supported"
 #endif
 
-/* public interface */
-static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label);
-static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number);
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
-                                                    const uint32_t bitsUsed);
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
-                                                      const uint32_t bitsUsed);
-// also a constant NumberCompress_INTERFACES defining the maximum number of interfaces
-
-/* Number 1 is always encoded as the 4 bits 0001; and each label ending in 0001 is decoded as
- * 4 bit number 1
- * This is required by the protocol. */
-
-
-
 /* implementations - select one based on CJDNS_MAX_PEERS
  *
  * they are all accesible with their internal names for unit testing
@@ -55,6 +42,12 @@ static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
  * Fixed 4 bit scheme: 15 peers + 1 router
  **********************/
 # define NumberCompress_4_INTERFACES 16
+
+static inline struct EncodingScheme* NumberCompress_4_defineScheme(struct Allocator* alloc)
+{
+    return EncodingScheme_defineFixedWidthScheme(4, alloc);
+}
+
 static inline uint32_t NumberCompress_4_bitsUsedForLabel(const uint64_t label)
 {
     return 4;
@@ -85,6 +78,12 @@ static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label,
 // that way XXXX is never 1
 // so map numbers 16-239 -> 32-255, and 240 <-> 1, then swap nibbles
 # define NumberCompress_8_INTERFACES 241
+
+static inline struct EncodingScheme* NumberCompress_8_defineScheme(struct Allocator* alloc)
+{
+    return EncodingScheme_defineFixedWidthScheme(8, alloc);
+}
+
 static inline uint32_t NumberCompress_8_bitsUsedForLabel(const uint64_t label)
 {
     if (1 == (label & 0xf)) {
@@ -150,6 +149,18 @@ static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label,
  *   2   00000000-11111111      00          0-256        10 (skip the number 1)
  */
 # define NumberCompress_dyn_INTERFACES 257
+static inline struct EncodingScheme* NumberCompress_dyn_defineScheme(struct Allocator* alloc)
+{
+    return EncodingScheme_defineDynWidthScheme(
+        ((struct EncodingScheme_Form[3]) {
+            { .bitCount = 3, .prefixLen = 1, .prefix = 1, },
+            { .bitCount = 5, .prefixLen = 2, .prefix = 1<<1, },
+            { .bitCount = 8, .prefixLen = 2, .prefix = 0, }
+        }),
+        3,
+        alloc);
+}
+
 static inline uint32_t NumberCompress_dyn_bitsUsedForLabel(const uint64_t label)
 {
     if (0 != (label & 0x1)) {
@@ -233,83 +244,24 @@ static inline uint32_t NumberCompress_dyn_getDecompressed(const uint64_t label,
     }
 }
 
-
+#define NumberCompress_MKNAME(x) NumberCompress__MKNAME(NumberCompress_TYPE, x)
+#define NumberCompress__MKNAME(y, x) NumberCompress___MKNAME(y, x)
+#define NumberCompress___MKNAME(y, x) NumberCompress_ ## y ## _ ## x
 
 #if CJDNS_MAX_PEERS < 16
-
-# define NumberCompress_INTERFACES NumberCompress_4_INTERFACES
-static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label)
-{
-    return NumberCompress_4_bitsUsedForLabel(label);
-}
-
-static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number)
-{
-    return NumberCompress_4_bitsUsedForNumber(number);
-}
-
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
-                                                    const uint32_t bitsUsed)
-{
-    return NumberCompress_4_getCompressed(number, bitsUsed);
-}
-
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
-                                                      const uint32_t bitsUsed)
-{
-    return NumberCompress_4_getDecompressed(label, bitsUsed);
-}
-
+    #define NumberCompress_TYPE 4
 #elif CJDNS_MAX_PEERS < 241
-
-# define NumberCompress_INTERFACES NumberCompress_8_INTERFACES
-static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label)
-{
-    return NumberCompress_8_bitsUsedForLabel(label);
-}
-
-static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number)
-{
-    return NumberCompress_8_bitsUsedForNumber(number);
-}
-
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
-                                                    const uint32_t bitsUsed)
-{
-    return NumberCompress_8_getCompressed(number, bitsUsed);
-}
-
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
-                                                      const uint32_t bitsUsed)
-{
-    return NumberCompress_8_getDecompressed(label, bitsUsed);
-}
-
+    #define NumberCompress_TYPE 8
 #else
-
-# define NumberCompress_INTERFACES NumberCompress_dyn_INTERFACES
-static inline uint32_t NumberCompress_bitsUsedForLabel(const uint64_t label)
-{
-    return NumberCompress_dyn_bitsUsedForLabel(label);
-}
-
-static inline uint32_t NumberCompress_bitsUsedForNumber(const uint32_t number)
-{
-    return NumberCompress_dyn_bitsUsedForNumber(number);
-}
-
-static inline uint64_t NumberCompress_getCompressed(const uint32_t number,
-                                                    const uint32_t bitsUsed)
-{
-    return NumberCompress_dyn_getCompressed(number, bitsUsed);
-}
-
-static inline uint32_t NumberCompress_getDecompressed(const uint64_t label,
-                                                      const uint32_t bitsUsed)
-{
-    return NumberCompress_dyn_getDecompressed(label, bitsUsed);
-}
-
+    #define NumberCompress_TYPE dyn
 #endif
+
+#define NumberCompress_INTERFACES NumberCompress_MKNAME(INTERFACES)
+#define NumberCompress_defineScheme(a) NumberCompress_MKNAME(defineScheme)(a)
+#define NumberCompress_bitsUsedForLabel(label) NumberCompress_MKNAME(bitsUsedForLabel)(label)
+#define NumberCompress_bitsUsedForNumber(number) NumberCompress_MKNAME(bitsUsedForNumber)(number)
+#define NumberCompress_getCompressed(a, b) NumberCompress_MKNAME(getCompressed)(a, b)
+#define NumberCompress_getDecompressed(a, b) NumberCompress_MKNAME(getDecompressed)(a, b)
+
 
 #endif

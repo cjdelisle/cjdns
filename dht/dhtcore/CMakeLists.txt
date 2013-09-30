@@ -19,7 +19,6 @@ add_library(dhtcore
     VersionList.c
     SearchRunner.c
     RouteTracer.c
-    SwitchCompression.c
 )
 
 target_link_libraries(dhtcore
@@ -29,6 +28,7 @@ target_link_libraries(dhtcore
     switch
     cjdns-util-version-version
     cjdns-util-events-libuv-time
+    cjdns-switch-encodingscheme
 )
 
 # Everything must be tested.
