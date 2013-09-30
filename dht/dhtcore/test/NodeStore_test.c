@@ -267,7 +267,10 @@ static void test_brokenPath()
     NodeStore_addNode(store, a, 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, b, 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, c, 1, Version_CURRENT_PROTOCOL);
-    Assert_always(NodeStore_brokenPath(b->path, store)==1);
+
+    // calling brokenPath on B directly should remove it
+    Assert_always(NodeStore_brokenPath(b->path, store)==2);
+
     // should only have 1 valid route now...
     Assert_always(NodeStore_nonZeroNodes(store)==1);
 }

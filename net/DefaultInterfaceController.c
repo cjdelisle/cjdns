@@ -370,6 +370,9 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
+    // flush the peer from the table...
+    RouterModule_brokenPath(toClose->switchLabel, ic->routerModule);
+
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
     Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
