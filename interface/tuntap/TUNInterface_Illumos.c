@@ -65,7 +65,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     Message_shift(message, 4);
     ((uint16_t*) message->bytes)[0] = 0;
-    ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[0]);
+    ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[4]);
 
     return Interface_receiveMessage(&ctx->generic, message);
 }
