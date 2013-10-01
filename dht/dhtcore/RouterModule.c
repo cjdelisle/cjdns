@@ -680,9 +680,9 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
     return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
 }
 
-int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
+void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_brokenPath(path, module->nodeStore);
+    NodeStore_brokenPath(path, module->nodeStore);
 }
 
 void RouterModule_updateReach(struct Node* node, struct RouterModule* module)

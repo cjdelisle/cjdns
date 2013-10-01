@@ -77,31 +77,6 @@ static void test_addNode()
     Assert_always( Address_isSameIp(&node->address, &NodeStore_dumpTable(store,1)->address) );
 }
 
-static void test_getNodesByAddr()
-{
-    struct Address* myAddr = randomAddress();
-    struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* otherAddr = randomIp(5);
-
-    // make sure we can add an addr and get it back
-    NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
-    struct NodeList* list = NodeStore_getNodesByAddr(otherAddr, 1, alloc, store);
-    Assert_always(list->size == 1);
-    Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
-
-    // try for two
-    otherAddr->path = 0x7;
-    NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
-    list = NodeStore_getNodesByAddr(otherAddr, 2, alloc, store);
-    Assert_always(list->size == 2);
-    Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
-    Assert_always(Address_isSameIp(&list->nodes[1]->address, otherAddr));
-
-    // make sure 1 still works
-    list = NodeStore_getNodesByAddr(otherAddr, 1, alloc, store);
-    Assert_always(list->size == 1);
-}
-
 static void test_getPeers()
 {
     // mucking around with switch labels...
@@ -295,7 +270,6 @@ int main()
 
     test_addNode();
     test_getBest();
-    test_getNodesByAddr();
     test_getPeers();
     test_getClosestNodes();
     test_updateReach();

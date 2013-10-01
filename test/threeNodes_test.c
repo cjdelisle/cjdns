@@ -189,7 +189,7 @@ void sendMessage(struct ThreeNodes* tn,
 /** Check if nodes A and C can communicate via B without A knowing that C exists. */
 int main()
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Allocator* alloc = MallocAllocator_new(1<<23);
 
     struct ThreeNodes* tn = setUp(alloc);
 

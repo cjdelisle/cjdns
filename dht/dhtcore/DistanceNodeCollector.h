@@ -15,7 +15,6 @@
 #ifndef DistanceNodeCollector_H
 #define DistanceNodeCollector_H
 
-#include "dht/dhtcore/NodeHeader.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "util/Bits.h"
 
@@ -26,21 +25,19 @@
  * Filter a node through the collector.
  * If this node is better than all of the ones known to the collector, it will be collected.
  *
- * @param header the header of the node to add.
- * @param body the node which is used in case the prefix is an exact match and it needs to
+ * @param node the node which is used in case the prefix is an exact match and it needs to
  *             look at more bits.
  * @param collector the collector to filter the node through.
  */
-static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
-                                                 struct Node* body,
+static inline void DistanceNodeCollector_addNode(struct Node* node,
                                                  struct NodeCollector* collector)
 {
-    uint32_t nodeDistance = header->addressPrefix ^ collector->targetPrefix;
+    uint32_t nodeDistance = node->addressPrefix ^ collector->targetPrefix;
 
     // This is a hack because we don't really care about
     // beyond the first 4 bytes unless it's a match.
     if (nodeDistance == 0
-        && Bits_memcmp(body->address.ip6.bytes,
+        && Bits_memcmp(node->address.ip6.bytes,
                        collector->targetAddress,
                        Address_SEARCH_TARGET_SIZE) != 0)
     {
@@ -67,7 +64,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             }
             if (i == 0) {
                 reachAndPath =
-                    (header->reach << 7) | (64 - Bits_log2x64(body->address.path));
+                    (node->reach << 7) | (64 - Bits_log2x64(node->address.path));
             }
             if (nodeDistance < nodes[i].distance) {
                 // smaller distance.
@@ -82,8 +79,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             if (i > 1) {
                 Bits_memmove(nodes, &nodes[1], (i - 1) * sizeof(struct NodeCollector_Element));
             }
-            nodes[i - 1].node = header;
-            nodes[i - 1].body = body;
+            nodes[i - 1].node = node;
             nodes[i - 1].value = reachAndPath;
             nodes[i - 1].distance = nodeDistance;
         }
