@@ -212,10 +212,14 @@ static void pingCallback(void* vic)
             bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
             uint32_t lag = ~0u;
             if (unresponsive) {
+                // flush the peer from the table...
+                RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
+
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
                 lag = ((now - ep->timeOfLastMessage) / 1024);
             } else {
