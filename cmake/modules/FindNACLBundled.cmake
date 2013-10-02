@@ -19,10 +19,10 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "cnacl-exp-00ef30820b08a25a708b6833db924ca8303df542.tar.gz")
+    set(tag "cnacl-exp-1380678059.tar.gz")
 
     # this is useless but it suppresses a warning
-    set(md5 "d4579d30a47920bf1b1f23aa6191a553")
+    set(md5 "aca219dadd377205f7ac837512d1b159")
 
     # Configure cnacl
     set(cNaClConfig "
@@ -56,6 +56,7 @@ if(NOT NACL_FOUND)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
     ExternalProject_Add(nacl_ep
         URL ${url}
+        URL_MD5 ${md5}
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl_build"
         CMAKE_ARGS ${cmakeArgs}
