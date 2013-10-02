@@ -24,8 +24,8 @@ if (OPENWRT)
     # OpenWRT's NACL is not built position independent.
     set(WITH_PIE FALSE)
 
-    # Need to tell cjdns build process that there exists an nacl on the system.
-    set(HAVE_NACL TRUE)
+    # Use the bundled NaCl because it's faster.
+    #set(HAVE_NACL TRUE)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
