@@ -321,8 +321,8 @@ static int searchOnFree(struct Allocator_OnFreeJob* job)
 {
     struct SearchRunner_Search* search =
         Identity_cast((struct SearchRunner_Search*)job->userData);
-    search->runner->searches--;
     Assert_true(search->runner->searches > 0);
+    search->runner->searches--;
     return 0;
 }
 
