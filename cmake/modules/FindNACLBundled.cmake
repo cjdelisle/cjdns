@@ -19,10 +19,10 @@ if(NOT NACL_FOUND)
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "cnacl-exp-1380678059.tar.gz")
+    set(tag "cnacl-exp-1380755260.tar.gz")
 
     # this is useless but it suppresses a warning
-    set(md5 "aca219dadd377205f7ac837512d1b159")
+    set(md5 "5902402deb7756253ea27f1a53a26c42")
 
     # Configure cnacl
     set(cNaClConfig "
