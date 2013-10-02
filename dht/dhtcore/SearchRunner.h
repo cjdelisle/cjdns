@@ -27,6 +27,8 @@ struct SearchRunner
     int unused;
 };
 
+#define SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES 30
+
 /**
  * Start a search.
  * The returned promise will have it's callback called for each result of the search and

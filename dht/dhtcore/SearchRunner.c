@@ -42,6 +42,13 @@ struct SearchRunner_pvt
     struct EventBase* eventBase;
     struct RouterModule* router;
     uint8_t myAddress[16];
+
+    /** Number of concurrent searches in operation. */
+    int searches;
+
+    /** Maximum number of concurrent searches allowed. */
+    int maxConcurrentSearches;
+
     Identity
 };
 
@@ -310,11 +317,28 @@ static void searchNextNode(void* vsearch)
     searchStep(search);
 }
 
+static int searchOnFree(struct Allocator_OnFreeJob* job)
+{
+    struct SearchRunner_Search* search =
+        Identity_cast((struct SearchRunner_Search*)job->userData);
+    search->runner->searches--;
+    Assert_true(search->runner->searches > 0);
+    return 0;
+}
+
 struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                                                  struct SearchRunner* searchRunner,
                                                  struct Allocator* allocator)
 {
     struct SearchRunner_pvt* runner = Identity_cast((struct SearchRunner_pvt*)searchRunner);
+
+    if (runner->searches > runner->maxConcurrentSearches) {
+        Log_debug(runner->logger, "Skipping search because there are already [%d] searches active",
+                  runner->searches);
+        return NULL;
+    }
+    runner->searches++;
+
     struct Allocator* alloc = Allocator_child(allocator);
     struct SearchStore_Search* sss = SearchStore_newSearch(target, runner->searchStore, alloc);
 
@@ -347,6 +371,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
         .search = sss
     }));
     Identity_set(search);
+    Allocator_onFree(alloc, searchOnFree, search);
     Bits_memcpyConst(&search->target, &targetAddr, sizeof(struct Address));
 
     search->targetStr = String_newBinary((char*)targetAddr.ip6.bytes, 16, alloc);
@@ -376,7 +401,8 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
         .nodeStore = nodeStore,
         .logger = logger,
         .eventBase = base,
-        .router = module
+        .router = module,
+        .maxConcurrentSearches = SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES
     }));
     out->searchStore = SearchStore_new(alloc, logger);
     Bits_memcpyConst(out->myAddress, myAddress, 16);
