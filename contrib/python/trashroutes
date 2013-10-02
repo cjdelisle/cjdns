@@ -19,6 +19,7 @@ cjdns = connectWithAdminInfo();
 allRoutes = [];
 
 def parseRoute(path):
+    if (path == 0): return [-1];
     if ((path & 15) == 1): return [1];
     if (path & 1):
         path >>= 1;
