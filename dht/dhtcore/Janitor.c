@@ -106,10 +106,17 @@ static void search(uint8_t target[16], struct Janitor* janitor)
         Log_debug(janitor->logger, "Skipping search because 20 are in progress");
         return;
     }
-    janitor->searches++;
 
     struct RouterModule_Promise* rp =
         RouterModule_search(target, janitor->routerModule, janitor->allocator);
+
+    if (!rp) {
+        Log_debug(janitor->logger, "RouterModule_search() returned NULL, probably full.");
+        return;
+    }
+
+    janitor->searches++;
+
     struct Janitor_Search* search = Allocator_clone(rp->alloc, (&(struct Janitor_Search) {
         .janitor = janitor
     }));
