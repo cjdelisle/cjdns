@@ -26,7 +26,7 @@ if(NOT NACL_FOUND)
 
     # Configure cnacl
     set(cNaClConfig "
-        add_definitions(\"-fPIC\")
+        add_definitions(\"-fPIC -O2 -fomit-frame-pointer\")
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
         set(CMAKE_ASM_COMPILER \"\${CMAKE_C_COMPILER}\")
     ")
