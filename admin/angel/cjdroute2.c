@@ -409,18 +409,19 @@ int main(int argc, char** argv)
 
     if (argc == 2) {
         // one argument
-        if (strcmp(argv[1], "--help") == 0) {
+        if ((strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
             return usage(argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
         } else if (strcmp(argv[1], "--pidfile") == 0) {
             // deprecated
+            fprintf(stderr, "'--pidfile' option is deprecated.\n");
             return 0;
         } else if (strcmp(argv[1], "--reconf") == 0) {
             // Performed after reading the configuration
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
-        } else if (strcmp(argv[1], "--version") == 0) {
+        } else if ((strcmp(argv[1], "--version") == 0) || (strcmp(argv[1], "-v") == 0)) {
             printf("Cjdns Git Version ID: %s\n", Version_gitVersion());
             return 0;
         } else if (strcmp(argv[1], "--cleanconf") == 0) {
@@ -434,6 +435,11 @@ int main(int argc, char** argv)
         // more than one argument?
         fprintf(stderr, "%s: too many arguments\n", argv[0]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+        // because of '--pidfile $filename'?
+        if (strcmp(argv[1], "--pidfile") == 0)
+        {
+            fprintf(stderr, "\n'--pidfile' option is deprecated.\n");
+        }
         return -1;
     }
 
