@@ -65,20 +65,20 @@ int main()
     // bad checksum
     udp->checksum_be = 1;
     struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m, &dt->pub, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
     struct Message m2 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m2, &dt->pub, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
         Checksum_udpIp6(ip6->sourceAddr, (uint8_t*) udp, strlen(pingBenc) + Headers_UDPHeader_SIZE);
     struct Message m3 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m3, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m3, &dt->pub, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
 
     Allocator_free(alloc);

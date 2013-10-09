@@ -749,6 +749,7 @@ static inline int incomingFromRouter(struct Message* message,
                                      struct SessionManager_Session* session,
                                      struct Ducttape_pvt* context)
 {
+    uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
@@ -756,7 +757,6 @@ static inline int incomingFromRouter(struct Message* message,
         struct IpTunnel_PacketInfoHeader* header =
             (struct IpTunnel_PacketInfoHeader*) message->bytes;
 
-        uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
         uint8_t* addr = session->ip6;
         Bits_memcpyConst(header->nodeIp6Addr, addr, 16);
         Bits_memcpyConst(header->nodeKey, pubKey, 32);
@@ -765,8 +765,24 @@ static inline int incomingFromRouter(struct Message* message,
         return ipTun->sendMessage(message, ipTun);
     }
 
+    struct Address srcAddr = {
+        .path = Endian_bigEndianToHost64(dtHeader->switchHeader->label_be)
+    };
+    Bits_memcpyConst(srcAddr.key, pubKey, 32);
+
     //Log_debug(context->logger, "Got message from router.\n");
-    return core(message, dtHeader, session, context);
+    int ret = core(message, dtHeader, session, context);
+
+    struct Node* n = RouterModule_getNode(srcAddr.path, context->routerModule);
+    if (!n) {
+        Address_getPrefix(&srcAddr);
+        RouterModule_addNode(context->routerModule, &srcAddr, session->version);
+    } else {
+        n->reach += 1;
+        RouterModule_updateReach(n, context->routerModule);
+    }
+
+    return ret;
 }
 
 
@@ -884,8 +900,12 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             return Error_NONE;
         }
 
-        RouterModule_brokenPath(Endian_bigEndianToHost64(switchHeader->label_be),
-                                context->routerModule);
+        // If they're a direct peer, we don't want to flush them because of an error.
+        // They will be flushed by DefaultInterfaceController if need be.
+        uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
+        if (!LabelSplicer_isOneHop(path)) {
+            RouterModule_brokenPath(path, context->routerModule);
+        }
 
         uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
         if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
@@ -956,11 +976,11 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                   labelStr, Endian_bigEndianToHost16(ctrl->type_be));
     }
 
-    if (pong && context->public.switchPingerIf.receiveMessage) {
+    if (pong && context->pub.switchPingerIf.receiveMessage) {
         // Shift back over the header
         Message_shift(message, Headers_SwitchHeader_SIZE);
-        context->public.switchPingerIf.receiveMessage(
-            message, &context->public.switchPingerIf);
+        context->pub.switchPingerIf.receiveMessage(
+            message, &context->pub.switchPingerIf);
     }
     return Error_NONE;
 }
@@ -1133,6 +1153,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                      eventBase,
                                      cryptoAuth,
                                      allocator);
+    context->pub.sessionManager = context->sm;
 
     Bits_memcpyConst(&context->module, (&(struct DHTModule) {
         .name = "Ducttape",
@@ -1153,12 +1174,12 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     }
 
     // setup the switch pinger interface.
-    Bits_memcpyConst(&context->public.switchPingerIf, (&(struct Interface) {
+    Bits_memcpyConst(&context->pub.switchPingerIf, (&(struct Interface) {
         .sendMessage = incomingFromPinger,
         .senderContext = context
     }), sizeof(struct Interface));
 
-    return &context->public;
+    return &context->pub;
 }
 
 void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)

@@ -35,26 +35,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct AdminClient
-{
-    /**
-     * This is unused but if there are ever public fields in AdminClient,
-     * this will be replaced with those and this structure will be moved to AdminClient.h
-     * currently it just prevents an empty struct error.
-     */
-    int placeholder;
-};
-
 struct Result
 {
-    struct AdminClient_Result public;
+    struct AdminClient_Result pub;
     struct Context* ctx;
     struct Allocator* alloc;
 };
 
 struct Context
 {
-    struct AdminClient public;
+    struct AdminClient pub;
     struct EventBase* eventBase;
     struct Sockaddr* targetAddr;
     struct Result* result;
@@ -100,7 +90,7 @@ static int calculateAuth(Dict* message,
 
 static void done(struct Context* ctx, enum AdminClient_Error err)
 {
-    ctx->result->public.err = err;
+    ctx->result->pub.err = err;
     EventBase_endLoop(ctx->eventBase);
 }
 
@@ -115,39 +105,42 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
     if (!getCookie) {
         Dict gc = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("cookie")), NULL);
         doCall(&gc, res, true);
-        if (res->public.err != AdminClient_Error_NONE) {
+        if (res->pub.err != AdminClient_Error_NONE) {
             return;
         }
-        cookie = Dict_getString(res->public.responseDict, String_CONST("cookie"));
+        cookie = Dict_getString(res->pub.responseDict, String_CONST("cookie"));
         if (!cookie) {
-            res->public.err = AdminClient_Error_NO_COOKIE;
+            res->pub.err = AdminClient_Error_NO_COOKIE;
         }
     }
 
     struct Writer* writer =
-        ArrayWriter_new(res->public.messageBytes, AdminClient_MAX_MESSAGE_SIZE, res->alloc);
+        ArrayWriter_new(res->pub.messageBytes, AdminClient_MAX_MESSAGE_SIZE, res->alloc);
     if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-        res->public.err = AdminClient_Error_SERIALIZATION_FAILED;
+        res->pub.err = AdminClient_Error_SERIALIZATION_FAILED;
         return;
     }
 
     if (!getCookie) {
         calculateAuth(message, res->ctx->password, cookie, res->alloc);
 
-        writer = ArrayWriter_new(res->public.messageBytes,
+        writer = ArrayWriter_new(res->pub.messageBytes,
                                  AdminClient_MAX_MESSAGE_SIZE,
                                  res->alloc);
         if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-            res->public.err = AdminClient_Error_SERIALIZATION_FAILED;
+            res->pub.err = AdminClient_Error_SERIALIZATION_FAILED;
             return;
         }
     }
 
-    struct Timeout* to =
-        Timeout_setTimeout(timeout, res->ctx, 5000, res->ctx->eventBase, res->alloc);
+    struct Timeout* to = Timeout_setTimeout(timeout,
+                                            res->ctx,
+                                            res->ctx->pub.millisecondsToWait,
+                                            res->ctx->eventBase,
+                                            res->alloc);
 
     struct Message m = {
-        .bytes = res->public.messageBytes,
+        .bytes = res->pub.messageBytes,
         .padding = AdminClient_Result_PADDING_SIZE,
         .length = writer->bytesWritten
     };
@@ -184,12 +177,12 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         done(ctx, AdminClient_Error_DESERIALIZATION_FAILED);
         return 0;
     }
-    res->public.responseDict = d;
+    res->pub.responseDict = d;
 
     int len =
         (msg->length > AdminClient_MAX_MESSAGE_SIZE) ? AdminClient_MAX_MESSAGE_SIZE : msg->length;
-    Bits_memset(res->public.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
-    Bits_memcpy(res->public.messageBytes, msg->bytes, len);
+    Bits_memset(res->pub.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
+    Bits_memcpy(res->pub.messageBytes, msg->bytes, len);
     done(ctx, AdminClient_Error_NONE);
     return 0;
 }
@@ -207,7 +200,7 @@ struct AdminClient_Result* AdminClient_rpcCall(String* function,
         String_CONST("args"), Dict_OBJ(&a), NULL
     )));
     struct Result* res = Allocator_clone(alloc, (&(struct Result) {
-        .public = {
+        .pub = {
             .err = AdminClient_Error_NONE
         },
         .ctx = ctx,
@@ -215,7 +208,7 @@ struct AdminClient_Result* AdminClient_rpcCall(String* function,
     }));
     ctx->result = res;
     doCall(&message, res, false);
-    return &res->public;
+    return &res->pub;
 }
 
 char* AdminClient_errorString(enum AdminClient_Error err)
@@ -252,6 +245,9 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
         .eventBase = eventBase,
         .logger = logger,
         .password = adminPassword,
+        .pub = {
+            .millisecondsToWait = 5000,
+        }
     }));
     Identity_set(context);
 
@@ -271,5 +267,5 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
     context->addrIface->generic.receiveMessage = receiveMessage;
     context->addrIface->generic.receiverContext = context;
 
-    return &context->public;
+    return &context->pub;
 }

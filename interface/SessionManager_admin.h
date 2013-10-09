@@ -12,31 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SwitchCompression_H
-#define SwitchCompression_H
+#ifndef SessionManager_admin_H
+#define SessionManager_admin_H
 
-#include "benc/String.h"
+#include "admin/Admin.h"
+#include "interface/SessionManager.h"
 #include "memory/Allocator.h"
 
-#include <stdint.h>
-
-struct SwitchCompression_Scheme
-{
-    int bitCount : 16;
-    int prefixLen : 16;
-    uint32_t prefix;
-};
-
-struct SwitchCompression_SchemeList
-{
-    struct SwitchCompression_Scheme* elems;
-    uint32_t count;
-};
-
-String* SwitchCompression_encodeSchemes(struct SwitchCompression_SchemeList* list,
-                                        struct Allocator* alloc);
-
-struct SwitchCompression_SchemeList* SwitchCompression_decodeSchemes(String* data,
-                                                                     struct Allocator* alloc);
+void SessionManager_admin_register(struct SessionManager* sm,
+                                   struct Admin* admin,
+                                   struct Allocator* alloc);
 
 #endif

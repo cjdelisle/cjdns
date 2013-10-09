@@ -1150,3 +1150,10 @@ struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
     }
     return NULL;
 }
+
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface)
+{
+    struct CryptoAuth_Wrapper* wrapper =
+        Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
+    return &wrapper->replayProtector;
+}

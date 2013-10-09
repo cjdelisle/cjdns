@@ -206,7 +206,17 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     int worstNode = 0;
     uint64_t worstPath = 0;
 
+    // becomes true when the direct peer behind this path is found.
+    int foundPeer = LabelSplicer_isOneHop(addr->path);
+
     for (int i = 0; i < store->pub.size; i++) {
+
+        if (LabelSplicer_isOneHop(store->nodes[i].address.path)
+            && LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path))
+        {
+            foundPeer = 1;
+        }
+
         if (store->headers[i].addressPrefix == pfx
             && Address_isSameIp(&store->nodes[i].address, addr))
         {
@@ -283,6 +293,13 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                    nodeAddr,
                    reachDifference);
     #endif
+
+    if (!foundPeer) {
+        #ifdef Log_DEBUG
+            Log_debug(store->logger, "Dropping discovered node because there is no peer behind it");
+        #endif
+        return NULL;
+    }
 
     for (int i = 0; i < store->pub.size; i++) {
        Assert_true(store->headers[i].addressPrefix == Address_getPrefix(&store->nodes[i].address));
@@ -469,25 +486,7 @@ void NodeStore_updateReach(const struct Node* const node,
                 }
             }
         } else if (LabelSplicer_routesThrough(path, dest)) {
-            /*
-             * When a switch restarts, it repopulates it's slots in random order.
-             * Nodes have stale entries in their tables that predate the switch restart.
-             * these entries contain valid keys with valid paths but the key does not match
-             * the path. Worse these nodes share the stale routes with others.
-             *
-             * Normally the reach of nodes which are invalid is set to 0 and they are not
-             * bothered with anymore. Unfortunately in this case, the path is valid and
-             * there are valid entries which are "behind" that node.
-             * When one of these nodes is pinged, it's reach is updated and the invalid node
-             * gets it's reach updated at the same time so it will potentially be selected for
-             * forwarding a packet to.
-             *
-             * This is a temporary workaround which just skips increasing the reach for a node
-             * whose reach is 0 so that these stale nodes will not do damage.
-             */
-            if (store->headers[i].reach < node->reach && store->headers[i].reach != 0) {
-                store->headers[i].reach = node->reach;
-            }
+            store->headers[i].reach = node->reach;
         }
     }
 }
@@ -525,13 +524,11 @@ int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
     int out = 0;
     for (int32_t i = (int32_t) store->pub.size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
-            if (!LabelSplicer_isOneHop(store->nodes[i].address.path)) {
-                removeNode(&store->nodes[i], store);
-                out++;
-            } else {
-                logNodeZeroed(store->logger, &store->nodes[i]);
-                store->headers[i].reach = 0;
+            if (LabelSplicer_isOneHop(store->nodes[i].address.path)) {
+                Assert_true(store->nodes[i].address.path == path);
             }
+            removeNode(&store->nodes[i], store);
+            out++;
         }
     }
     return out;

@@ -61,6 +61,9 @@ struct Janitor
 
     struct EventBase* eventBase;
     struct Random* rand;
+
+    /** Number of concurrent searches taking place. */
+    int searches;
 };
 
 struct Janitor_Search
@@ -80,6 +83,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
         Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
         return;
     }
+    search->janitor->searches--;
     if (!search->best.path) {
         Log_debug(search->janitor->logger, "Search completed with no nodes found");
         return;
@@ -98,8 +102,21 @@ static void responseCallback(struct RouterModule_Promise* promise,
 
 static void search(uint8_t target[16], struct Janitor* janitor)
 {
+    if (janitor->searches >= 20) {
+        Log_debug(janitor->logger, "Skipping search because 20 are in progress");
+        return;
+    }
+
     struct RouterModule_Promise* rp =
         RouterModule_search(target, janitor->routerModule, janitor->allocator);
+
+    if (!rp) {
+        Log_debug(janitor->logger, "RouterModule_search() returned NULL, probably full.");
+        return;
+    }
+
+    janitor->searches++;
+
     struct Janitor_Search* search = Allocator_clone(rp->alloc, (&(struct Janitor_Search) {
         .janitor = janitor
     }));

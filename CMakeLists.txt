@@ -24,8 +24,8 @@ if (OPENWRT)
     # OpenWRT's NACL is not built position independent.
     set(WITH_PIE FALSE)
 
-    # Need to tell cjdns build process that there exists an nacl on the system.
-    set(HAVE_NACL TRUE)
+    # Use the bundled NaCl because it's faster.
+    #set(HAVE_NACL TRUE)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
@@ -142,6 +142,18 @@ else()
     )
 endif()
 
+OPTION(NO_CODESYTLE "No codestyle checks")
+
+# check codestyle
+if(NOT NO_CODESTYLE)
+    set(checker ${CMAKE_SOURCE_DIR}/cmake/modules/CheckCodestyle.cmake)
+    add_custom_command(OUTPUT check.codestyle
+        COMMAND ${CMAKE_COMMAND}
+        -DCSD=${CMAKE_SOURCE_DIR} -DSKIP=CMakeFiles -P ${checker}
+    )
+    add_custom_target(check_output ALL DEPENDS check.codestyle)
+endif()
+
 check_c_compiler_flag(-fcatch-undefined-behavior HAS_CATCH_UNDEFINED)
 if(HAS_CATCH_UNDEFINED)
     add_definitions(-fcatch-undefined-behavior)
@@ -173,16 +185,16 @@ if ("$ENV{NO_DEBUG}" STREQUAL "")
     add_definitions(-g)
 endif()
 
+set(LDFLAGS ${CMAKE_EXE_LINKER_FLAGS})
 if(Windows)
-    set(CMAKE_EXE_LINKER_FLAGS "")
 elseif(ILLUMOS)
     # TODO make this less ugly
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -lsocket")
-else(APPLE)
+    set(LDFLAGS "${LDFLAGS} ${PIE} -lsocket")
+elseif(APPLE)
     # apple seems to set noexecstack by default and not support relro.
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE}")
+    set(LDFLAGS "${LDFLAGS} ${PIE}")
 else()
-    set(CMAKE_EXE_LINKER_FLAGS "${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
+    set(LDFLAGS "${LDFLAGS} ${PIE} -Wl,-z,relro,-z,now,-z,noexecstack")
 endif()
 
 # logging
@@ -200,7 +212,7 @@ add_definitions("-D Log_${Log_LEVEL}")
 
 if (NOT $ENV{GCOV} STREQUAL "")
     add_definitions(-fprofile-arcs -ftest-coverage)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
+    set(LDFLAGS "${LDFLAGS} -fprofile-arcs -ftest-coverage")
 endif()
 
 #IF(NOT CMAKE_BUILD_TYPE)
@@ -213,7 +225,7 @@ endif()
 OPTION(WITH_LTO "Building with link time optimization.")
 if(WITH_LTO)
     add_definitions(-flto)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_C_FLAGS} -flto -fuse-linker-plugin -fwhole-program")
+    set(LDFLAGS "${LDFLAGS} -flto -fuse-linker-plugin -fwhole-program")
 endif()
 
 
@@ -229,6 +241,19 @@ add_definitions("-D PARANOIA=1")
 
 include_directories(${CMAKE_SOURCE_DIR})
 
+#if NEON is specified then we will force NACL to use NEON.
+if (NOT $ENV{NEON} STREQUAL "")
+    set(NEON TRUE)
+endif ()
+# Look for ARM NEON if it's available
+find_package(NEON)
+if (NEON)
+    # needed because the NEON asm files do not support
+    # THUMB and linking to them causes bad things.
+    add_definitions(-marm)
+endif()
+
+
 if(HAVE_LIBUV)
     find_package(Libuv REQUIRED)
 else()
@@ -240,10 +265,14 @@ if(HAVE_NACL)
 elseif(HAVE_SODIUM)
     find_package(Sodium REQUIRED)
 else()
-    find_package(NACL)
+    if (NOT $ENV{NO_EXTERNAL_NACL})
+        find_package(NACL)
+    endif ()
     find_package(NACLBundled REQUIRED)
 endif()
 include_directories(${NACL_INCLUDE_DIRS})
+
+set(CMAKE_EXE_LINKER_FLAGS "${LDFLAGS}")
 
 add_subdirectory(admin)
 add_subdirectory(benc)
@@ -292,18 +321,5 @@ target_link_libraries(publictoip6
     cjdns-crypto-key
 )
 
-OPTION(NO_CODESYTLE "No codestyle checks")
-
-# check codestyle
-if(NOT NO_CODESTYLE)
-    set(checker ${CMAKE_SOURCE_DIR}/cmake/modules/CheckCodestyle.cmake)
-    add_custom_command(OUTPUT check.codestyle
-        COMMAND ${CMAKE_COMMAND}
-        -DCSD=${CMAKE_SOURCE_DIR} -DSKIP=CMakeFiles -P ${checker}
-    )
-    add_custom_target(check_output ALL DEPENDS check.codestyle)
-endif()
-
-# Everything must be tested.
 enable_testing()
 add_subdirectory(test)

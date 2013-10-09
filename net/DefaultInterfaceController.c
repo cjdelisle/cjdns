@@ -212,10 +212,14 @@ static void pingCallback(void* vic)
             bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
             uint32_t lag = ~0u;
             if (unresponsive) {
+                // flush the peer from the table...
+                RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
+
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
                 lag = ((now - ep->timeOfLastMessage) / 1024);
             } else {
@@ -370,6 +374,9 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
+    // flush the peer from the table...
+    RouterModule_brokenPath(toClose->switchLabel, ic->routerModule);
+
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
     Map_OfIFCPeerByExernalIf_remove(index, &ic->peerMap);
@@ -484,8 +491,8 @@ static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beaco
 }
 
 static int getPeerStats(struct InterfaceController* ifController,
-                 struct Allocator* alloc,
-                 struct InterfaceController_peerStats** statsOut)
+                        struct Allocator* alloc,
+                        struct InterfaceController_peerStats** statsOut)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
     int count = ic->peerMap.count;
@@ -506,6 +513,10 @@ static int getPeerStats(struct InterfaceController* ifController,
         if (s->isIncomingConnection) {
             s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
         }
+        struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
+        s->duplicates = rp->duplicates;
+        s->lostPackets = rp->lostPackets;
+        s->receivedOutOfRange = rp->receivedOutOfRange;
     }
 
     *statsOut = stats;

@@ -56,10 +56,10 @@ static struct Address* randomIp(uint64_t path)
    return createAddress(Random_uint16(rand), path);
 }
 
+// This creates a random address which is a peer
 static struct Address* randomAddress()
 {
-    // TODO make a random valid encoded switch path...
-    return randomIp(3);
+    return randomIp(0x13);
 }
 
 static void test_addNode()
@@ -68,7 +68,14 @@ static void test_addNode()
     struct NodeStore* store = setUp(myAddr, 2);
     // adding ourselves should be null
     Assert_always(NodeStore_addNode(store, myAddr, 1, Version_CURRENT_PROTOCOL) == NULL);
-    // adding somebody else should not
+
+    // adding a random node with no peer should be null
+    Assert_always(NodeStore_addNode(store, randomIp(0x155), 1, Version_CURRENT_PROTOCOL) == NULL);
+
+    // adding a peer should be non-null
+    Assert_always(NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL) != NULL);
+
+    // adding a node behind our peer should also be non-null
     Assert_always(NodeStore_addNode(store, randomIp(0x155), 1, Version_CURRENT_PROTOCOL) != NULL);
 
     // test at capacity and verify worst path is replaced
@@ -81,7 +88,7 @@ static void test_getNodesByAddr()
 {
     struct Address* myAddr = randomAddress();
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* otherAddr = randomIp(5);
+    struct Address* otherAddr = randomIp(0x13);
 
     // make sure we can add an addr and get it back
     NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
@@ -90,7 +97,7 @@ static void test_getNodesByAddr()
     Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
 
     // try for two
-    otherAddr->path = 0x7;
+    otherAddr->path = 0x15;
     NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
     list = NodeStore_getNodesByAddr(otherAddr, 2, alloc, store);
     Assert_always(list->size == 2);
@@ -156,7 +163,7 @@ static void test_getBest()
     struct NodeStore* store = setUp(myAddr, 8);
     struct Address* target = createAddress(0x01, 0x15);
     struct Address* a = createAddress(0x05, 0x17);  // 1 hop
-    struct Address* b = createAddress(0xff, 0x199); // 2 hops
+    struct Address* b = createAddress(0xff, 0x177); // 2 hops (behind 0x17)
     struct Node* best = NULL;
 
     // exact address match should be best
@@ -179,7 +186,7 @@ static void test_getClosestNodes()
     struct NodeStore* store = setUp(myAddr, 8);
     struct Address* target = createAddress(0x06, 0x13);
     struct Address* oneHop = createAddress(0x05, 0x15);
-    struct Address* twoHop = createAddress(0x08, 0x157);
+    struct Address* twoHop = createAddress(0x08, 0x155);
     struct NodeList* closest = NULL;
 
     NodeStore_addNode(store, oneHop, 1, Version_CURRENT_PROTOCOL);
@@ -267,7 +274,10 @@ static void test_brokenPath()
     NodeStore_addNode(store, a, 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, b, 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, c, 1, Version_CURRENT_PROTOCOL);
-    Assert_always(NodeStore_brokenPath(b->path, store)==1);
+
+    // calling brokenPath on B directly should remove it
+    Assert_always(NodeStore_brokenPath(b->path, store)==2);
+
     // should only have 1 valid route now...
     Assert_always(NodeStore_nonZeroNodes(store)==1);
 }
@@ -276,7 +286,7 @@ static void test_dumpTable()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
-    struct Node* orig = NodeStore_addNode(store, randomAddress(), 1, Version_CURRENT_PROTOCOL);
+    struct Node* orig = NodeStore_addNode(store, randomIp(0x17), 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
     // verify happy case
     struct Node* test = NodeStore_dumpTable(store, 1);

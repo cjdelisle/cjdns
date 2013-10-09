@@ -75,10 +75,13 @@ struct AdminClient_Result
     Dict* responseDict;
 };
 
-struct AdminClient;
+struct AdminClient
+{
+    /** How long to wait for a response from the cjdns node. */
+    uint32_t millisecondsToWait;
+};
 
 char* AdminClient_errorString(enum AdminClient_Error err);
-
 
 struct AdminClient_Result* AdminClient_rpcCall(String* function,
                                                Dict* args,

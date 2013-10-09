@@ -236,6 +236,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     if (sourceIndex == destIndex) {
         DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
+        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+        return Error_NONE;
     }
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));

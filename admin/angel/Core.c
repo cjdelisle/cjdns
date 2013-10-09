@@ -54,12 +54,14 @@
 #include "switch/SwitchCore.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
+#include "util/events/Timeout.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
 #include "util/platform/netdev/NetDev.h"
+#include "interface/SessionManager_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -118,6 +120,7 @@ struct Context
     struct Admin* admin;
     struct Log* logger;
     struct Hermes* hermes;
+    struct EventBase* base;
     String* exitTxid;
 };
 
@@ -130,6 +133,12 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
     Admin_sendMessage(&d, txid, context->admin);
 }
 
+static void shutdown(void* vcontext)
+{
+    struct Context* context = vcontext;
+    Allocator_free(context->allocator);
+}
+
 static void onAngelExitResponse(Dict* message, void* vcontext)
 {
     struct Context* context = vcontext;
@@ -137,7 +146,7 @@ static void onAngelExitResponse(Dict* message, void* vcontext)
     Log_info(context->logger, "Exiting");
     Dict d = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("none")), NULL);
     Admin_sendMessage(&d, context->exitTxid, context->admin);
-    exit(0);
+    Timeout_setTimeout(shutdown, context, 1, context->base, context->allocator);
 }
 
 static void adminExit(Dict* input, void* vcontext, String* txid)
@@ -366,12 +375,14 @@ int Core_main(int argc, char** argv)
     Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
+    SessionManager_admin_register(dt->sessionManager, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .allocator = alloc,
         .admin = admin,
         .logger = logger,
-        .hermes = hermes
+        .hermes = hermes,
+        .base = eventBase,
     }));
     Admin_registerFunction("memory", adminMemory, ctx, false, NULL, admin);
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);

@@ -15,13 +15,31 @@
 #ifndef ReplayProtector_H
 #define ReplayProtector_H
 
-#include <stdint.h>
+#include "util/Bits.h"
+
 #include <stdbool.h>
 
 struct ReplayProtector
 {
+    /** internal bitfield. */
+    uint64_t bitfield;
+
+    /** Internal offset. */
     uint32_t baseOffset;
-    uint32_t bitfield;
+
+    /** Number of definite duplicate packets. */
+    uint32_t duplicates;
+
+    /** Number of lost packets. */
+    uint32_t lostPackets;
+
+    /**
+     * Number of packets which could not be verified because they were out of range.
+     * Growing lostPackets and receivedOutOfRange together indicate severe packet
+     * reordering issues.
+     * receivedOutOfRange growing along indicates duplicate packets.
+     */
+    uint32_t receivedOutOfRange;
 };
 
 /**
@@ -37,21 +55,24 @@ struct ReplayProtector
 static inline bool ReplayProtector_checkNonce(const uint32_t nonce, struct ReplayProtector* context)
 {
     if (nonce < context->baseOffset) {
+        context->receivedOutOfRange++;
         return false;
     }
 
     uint32_t offset = nonce - context->baseOffset;
 
-    if (offset > 20) {
-        context->baseOffset += offset - 20;
-        context->bitfield = ((offset > 51) ? 0 : context->bitfield >> (offset - 20)) | (1 << 20);
-        return true;
+    while (offset > 32) {
+        context->baseOffset += 32;
+        context->lostPackets += 32 - Bits_popCountx32(context->bitfield & 0xffffffffu);
+        context->bitfield >>= 32;
+        offset -= 32;
     }
 
-    if (context->bitfield & (1 << offset)) {
+    if (context->bitfield & (((uint64_t)1) << offset)) {
+        context->duplicates++;
         return false;
     }
-    context->bitfield |= (1 << offset);
+    context->bitfield |= (((uint64_t)1) << offset);
     return true;
 }
 

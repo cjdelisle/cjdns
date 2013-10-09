@@ -14,50 +14,50 @@
  */
 #include "benc/String.h"
 #include "crypto/random/Random.h"
-#include "dht/dhtcore/SwitchCompression.h"
+#include "switch/EncodingScheme.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "util/Bits.h"
 
-static void randomScheme(struct SwitchCompression_Scheme* scheme, struct Random* rand)
+static void randomForm(struct EncodingScheme_Form* form, struct Random* rand)
 {
-    Random_bytes(rand, (uint8_t*)scheme, sizeof(struct SwitchCompression_Scheme));
-    //Bits_memset(scheme, 0xff, sizeof(struct SwitchCompression_Scheme));
-    scheme->bitCount &= ((1<<5)-1);
-    if (!scheme->bitCount) {
-        scheme->bitCount++;
+    Random_bytes(rand, (uint8_t*)form, sizeof(struct EncodingScheme_Form));
+    //Bits_memset(form, 0xff, sizeof(struct EncodingScheme_Form));
+    form->bitCount &= ((1<<5)-1);
+    if (!form->bitCount) {
+        form->bitCount++;
     }
-    scheme->prefixLen &= ((1<<5)-1);
-    scheme->prefix &= ((((uint64_t)1)<<scheme->prefixLen)-1);
+    form->prefixLen &= ((1<<5)-1);
+    form->prefix &= ((((uint64_t)1)<<form->prefixLen)-1);
 }
 
-static struct SwitchCompression_SchemeList* randomList(struct Random* rand, struct Allocator* alloc)
+static struct EncodingScheme* randomList(struct Random* rand, struct Allocator* alloc)
 {
-    struct SwitchCompression_SchemeList* out =
-        Allocator_malloc(alloc, sizeof(struct SwitchCompression_SchemeList));
+    struct EncodingScheme* out =
+        Allocator_malloc(alloc, sizeof(struct EncodingScheme));
     out->count = Random_uint32(rand) % 50;
-    out->elems = Allocator_malloc(alloc, sizeof(struct SwitchCompression_Scheme) * out->count);
+    out->forms = Allocator_malloc(alloc, sizeof(struct EncodingScheme_Form) * out->count);
     for (int i = 0; i < (int)out->count; i++) {
-        randomScheme(&out->elems[i], rand);
+        randomForm(&out->forms[i], rand);
     }
     return out;
 }
 
-static void assertEqual(struct SwitchCompression_SchemeList* a,
-                        struct SwitchCompression_SchemeList* b)
+static void assertEqual(struct EncodingScheme* a,
+                        struct EncodingScheme* b)
 {
     Assert_always(b);
     Assert_always(a->count == b->count);
     Assert_always(
-        !Bits_memcmp(a->elems, b->elems, sizeof(struct SwitchCompression_Scheme) * a->count));
+        !Bits_memcmp(a->forms, b->forms, sizeof(struct EncodingScheme_Form) * a->count));
 }
 
 static void randomTest(struct Allocator* parent, struct Random* rand)
 {
     struct Allocator* alloc = Allocator_child(parent);
-    struct SwitchCompression_SchemeList* control = randomList(rand, alloc);
-    String* data = SwitchCompression_encodeSchemes(control, alloc);
-    struct SwitchCompression_SchemeList* test = SwitchCompression_decodeSchemes(data, alloc);
+    struct EncodingScheme* control = randomList(rand, alloc);
+    String* data = EncodingScheme_serialize(control, alloc);
+    struct EncodingScheme* test = EncodingScheme_deserialize(data, alloc);
     assertEqual(control, test);
     Allocator_free(alloc);
 }
@@ -68,13 +68,13 @@ static void fuzzTest(struct Allocator* parent, struct Random* rand)
     struct Allocator* alloc = Allocator_child(parent);
     String* data = String_newBinary(NULL, Random_uint32(rand) % 1024, alloc);
     Random_bytes(rand, (uint8_t*)data->bytes, data->len);
-    SwitchCompression_decodeSchemes(data, alloc);
+    EncodingScheme_deserialize(data, alloc);
     Allocator_free(alloc);
 }
 
 static void encoding(struct Allocator* parent)
 {
-    struct SwitchCompression_Scheme schemes[3] = {
+    struct EncodingScheme_Form forms[3] = {
         {
             .prefixLen = 15,
             .bitCount = 0,
@@ -99,12 +99,12 @@ static void encoding(struct Allocator* parent)
     // 01111111 00001001 11111110 11111111 00000111
     //
     // or \x0f\xfc\xff\x29\xf8\xff\x7f\x09\xfe\xff\x07
-    struct SwitchCompression_SchemeList list = {
+    struct EncodingScheme list = {
         .count = 3,
-        .elems = schemes
+        .forms = forms
     };
     struct Allocator* alloc = Allocator_child(parent);
-    String* data = SwitchCompression_encodeSchemes(&list, alloc);
+    String* data = EncodingScheme_serialize(&list, alloc);
     Assert_always(data->len == 11);
     Assert_always(!Bits_memcmp(data->bytes, "\x0f\xfc\xff\x29\xf8\xff\x7f\x09\xfe\xff\x07", 11));
     Allocator_free(alloc);

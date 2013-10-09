@@ -12,24 +12,31 @@
 cmake_minimum_required(VERSION 2.8.2)
 
 if(NOT NACL_FOUND)
-    message("bundled version of cnacl, will be downloaded and compiled.")
+    message("bundled version of cnacl compiled and used")
     include(ExternalProject)
 
     # Without this, the build doesn't happen until link time.
     include_directories(${NACL_USE_FILES})
 
     # the name of the tag
-    set(tag "cnacl-0e7f2cb782d8f940e9ed2735f727d46bef063f12.tar.gz")
+    set(tag "cnacl-exp-1380755260.tar.gz")
 
     # this is useless but it suppresses a warning
-    set(md5 "4947fcfaa55b622df7fd45d83545cd6c")
+    set(md5 "5902402deb7756253ea27f1a53a26c42")
 
     # Configure cnacl
     set(cNaClConfig "
-        add_definitions(\"-fPIC\")
+        add_definitions(\"-fPIC -O2 -fomit-frame-pointer\")
         set(MY_CMAKE_ASM_FLAGS \"-fPIC\")
-        set(CMAKE_ASM_COMPILER \"${CMAKE_C_COMPILER}\")
+        set(CMAKE_ASM_COMPILER \"\${CMAKE_C_COMPILER}\")
     ")
+
+    if (NEON)
+        set(cNaClConfig "${cNaClConfig}
+            set(CMAKE_REQUIRED_FLAGS \"\${CMAKE_REQUIRED_FLAGS} -mfpu=neon\")
+        ")
+    endif ()
+
     file(WRITE ${CMAKE_BINARY_DIR}/cNaClConfig.cmake "${cNaClConfig}")
     set(cmakeArgs "-DCNACL_CONFIG_SCRIPT=${CMAKE_BINARY_DIR}/cNaClConfig.cmake")
 
@@ -49,6 +56,7 @@ if(NOT NACL_FOUND)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nacl_build")
     ExternalProject_Add(nacl_ep
         URL ${url}
+        URL_MD5 ${md5}
         SOURCE_DIR "${CMAKE_BINARY_DIR}/nacl"
         BINARY_DIR "${CMAKE_BINARY_DIR}/nacl_build"
         CMAKE_ARGS ${cmakeArgs}

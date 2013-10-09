@@ -1376,3 +1376,59 @@ gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00)
 
 $  git log | head -1
 commit e6fda6a418f5e719fe07cf0c866e546288de6cb1
+
+
+
+
+
+user@debian-mips:~/cjdns$ ./cjdroute --bench
+1380772514 INFO RandomSeed.c:67 Attempting to seed random number generator
+1380772514 INFO RandomSeed.c:81 Trying random seed [RtlGenRandom() (Windows)] Failed
+1380772514 INFO RandomSeed.c:81 Trying random seed [sysctl(KERN_ARND) (BSD)] Failed
+1380772514 INFO RandomSeed.c:75 Trying random seed [/dev/urandom] Success
+1380772514 INFO RandomSeed.c:75 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Success
+1380772514 INFO RandomSeed.c:75 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+1380772514 INFO RandomSeed.c:89 Seeding random number generator succeeded with [3] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 79280ms. 6 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 82869ms. 144 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 110807ms. 4 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 138062ms. 86 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 4345ms. 11783 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 53083ms. 22606 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 17659ms. 2899 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 91680ms. 13089 Kb/s
+
+user@debian-mips:~/cjdns$ git log -n 1
+commit 9a3db93cd3ea5b3583ecc3b741518dd0e6ec8764
+Author: Caleb James DeLisle <cjd@hyperboria.ca>
+Date:   Wed Oct 2 22:07:13 2013 -0400
+
+    Sometimes SearchRunner_search() returns null
+user@debian-mips:~/cjdns$ cat /proc/cpuinfo 
+system type		: MIPS Malta
+processor		: 0
+cpu model		: MIPS 24Kc V0.0  FPU V0.0
+BogoMIPS		: 561.15
+wait instruction	: yes
+microsecond timers	: yes
+tlb_entries		: 16
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0ff8]
+ASEs implemented	: mips16
+shadow register sets	: 1
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+user@debian-mips:~/cjdns$ 
+
