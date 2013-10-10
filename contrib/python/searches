@@ -22,5 +22,5 @@ while (True):
         if i != 0: print;
         break;
     print(str(i) + ' tar: ' + search['target'] + '  last asked: ' + search['lastNodeAsked'] +
-        '  asked: ' + str(search['totalRequests']));
+        '  asked: ' + str(search['totalRequests']) + ' count: ' + str(search['activeSearches']));
     i = i + 1;

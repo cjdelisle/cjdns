@@ -346,19 +346,20 @@ struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunne
 {
     struct SearchRunner_pvt* runner = Identity_cast((struct SearchRunner_pvt*)searchRunner);
     struct SearchRunner_Search* search = runner->firstSearch;
-    while (search && number--) {
+    while (search && number > 0) {
         search = search->nextSearch;
-    }
-    if (number != -1) {
-        return NULL;
+        number--;
     }
 
     struct SearchRunner_SearchData* out =
         Allocator_calloc(alloc, sizeof(struct SearchRunner_SearchData), 1);
 
-    Bits_memcpyConst(out->target, &search->target.ip6.bytes, 16);
-    Bits_memcpyConst(&out->lastNodeAsked, &search->lastNodeAsked, sizeof(struct Address));
-    out->totalRequests = search->totalRequests;
+    if (search) {
+        Bits_memcpyConst(out->target, &search->target.ip6.bytes, 16);
+        Bits_memcpyConst(&out->lastNodeAsked, &search->lastNodeAsked, sizeof(struct Address));
+        out->totalRequests = search->totalRequests;
+    }
+    out->activeSearches = runner->searches;
 
     return out;
 }
@@ -374,7 +375,6 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                   runner->searches);
         return NULL;
     }
-    runner->searches++;
 
     struct Allocator* alloc = Allocator_child(allocator);
     struct SearchStore_Search* sss = SearchStore_newSearch(target, runner->searchStore, alloc);
@@ -408,6 +408,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
         .search = sss
     }));
     Identity_set(search);
+    runner->searches++;
     Allocator_onFree(alloc, searchOnFree, search);
     Bits_memcpyConst(&search->target, &targetAddr, sizeof(struct Address));
 

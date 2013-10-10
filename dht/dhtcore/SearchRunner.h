@@ -33,6 +33,9 @@ struct SearchRunner_SearchData
 
     /** How many people we have asked. */
     int totalRequests;
+
+    /** Number of searches which are currently active. */
+    int activeSearches;
 };
 
 struct SearchRunner

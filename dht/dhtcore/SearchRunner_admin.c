@@ -43,7 +43,7 @@ static void showActiveSearch(Dict* args, void* vctx, String* txid)
     // Nothing is an error
     Dict_putString(dict, String_new("error", alloc), String_new("none", alloc), alloc);
 
-    if (search) {
+    if (number < search->activeSearches) {
         uint8_t target[40];
         AddrTools_printIp(target, search->target);
         Dict_putString(dict, String_new("target", alloc), String_new((char*)target, alloc), alloc);
@@ -57,6 +57,7 @@ static void showActiveSearch(Dict* args, void* vctx, String* txid)
 
         Dict_putInt(dict, String_new("totalRequests", alloc), search->totalRequests, alloc);
     }
+    Dict_putInt(dict, String_new("activeSearches", alloc), search->activeSearches, alloc);
 
     Admin_sendMessage(dict, txid, ctx->admin);
 
