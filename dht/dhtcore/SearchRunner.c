@@ -332,6 +332,9 @@ static int searchOnFree(struct Allocator_OnFreeJob* job)
         Identity_cast((struct SearchRunner_Search*)job->userData);
 
     *search->thisSearch = search->nextSearch;
+    if (search->nextSearch) {
+        search->nextSearch->thisSearch = search->thisSearch;
+    }
     Assert_true(search->runner->searches > 0);
     search->runner->searches--;
     return 0;
@@ -408,8 +411,8 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     Allocator_onFree(alloc, searchOnFree, search);
     Bits_memcpyConst(&search->target, &targetAddr, sizeof(struct Address));
 
-    search->nextSearch = runner->firstSearch;
     if (runner->firstSearch) {
+        search->nextSearch = runner->firstSearch;
         runner->firstSearch->thisSearch = &search->nextSearch;
     }
     runner->firstSearch = search;
