@@ -12,8 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcmp
 #include "memory/MallocAllocator.h"
 #include "crypto/random/Random.h"
+#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
@@ -24,6 +26,9 @@
 #include "util/Endian.h"
 #include "util/log/WriterLog.h"
 #include "util/version/Version.h"
+#include "util/platform/libc/string.h"
+
+#include "crypto_scalarmult_curve25519.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -31,29 +36,83 @@
 static struct Allocator* alloc = NULL;
 static struct Random* rand = NULL;
 static struct Log* logger = NULL;
+static bool genKeys = 0;
+static int nextKey = 0;
+
+static char* KEYS[] = {
+    #include "dht/dhtcore/test/TestKeys.data"
+};
 
 static struct NodeStore* setUp(struct Address* myAddress, uint32_t capacity)
 {
     return NodeStore_new(myAddress, capacity, alloc, logger, rand);
 }
 
-static struct Address* createAddress(uint32_t mostSignificantAddressSpaceWord, uint64_t path)
+static void missingKey()
 {
-  // horrible hack...
-  return Allocator_clone(alloc, (&(struct Address) {
-    .ip6.ints = {
-      .three = Endian_bigEndianToHost32(0xfc000000 + Random_uint16(rand)),
-      .four = Random_uint32(rand),
-      .one = mostSignificantAddressSpaceWord,
-      .two = Random_uint32(rand)
-    },
-    .path = path
-  }));
+    printf("mismatching key, run this:\n"
+           "./build/dht/dhtcore/test/NodeStore_test --genkeys | sed -ne "
+           "'s/^created new key: \\[\\(.\\{32\\}\\)\\(.\\{32\\}\\)\\]$/\"\\1\"\\n\"\\2\",/p' "
+           "| sed 's/\\([0-9a-f]\\{2\\}\\)/\\\\x\\1/g' > TestKeys.data && "
+           "mv ./TestKeys.data ./dht/dhtcore/test/\n");
+    Assert_true(false);
+}
+
+
+static struct Address* createAddress(int mostSignificantAddressSpaceByte, uint64_t path)
+{
+    struct Address address = { .path = 0 };
+
+    if (!genKeys) {
+        if ((int)(sizeof(KEYS) * sizeof(char*)) < (nextKey + 1)) {
+            missingKey();
+        }
+        Bits_memcpyConst(address.key, KEYS[nextKey], 32);
+        if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)
+            && (mostSignificantAddressSpaceByte == -1
+                || address.ip6.bytes[8] == mostSignificantAddressSpaceByte))
+        {
+            nextKey++;
+            uint8_t publicKeyHex[65];
+            Hex_encode(publicKeyHex, 65, address.key, 32);
+            printf("created new key: [%s]\n", publicKeyHex);
+
+            address.path = path;
+            return Allocator_clone(alloc, &address);
+        } else {
+            uint8_t publicKeyHex[65];
+            Hex_encode(publicKeyHex, 65, address.key, 32);
+            printf("bad key: [%s]\n", publicKeyHex);
+            if (address.ip6.ints.three) {
+                uint8_t printedAddr[40];
+                AddrTools_printIp(printedAddr, address.ip6.bytes);
+                printf("addr: [%s]\n", printedAddr);
+            }
+                missingKey();
+        }
+    }
+
+    for (;;) {
+        Random_bytes(rand, address.key, 32);
+        // Brute force for keys until one matches FC00:/8
+        if (AddressCalc_addressForPublicKey(address.ip6.bytes, address.key)
+            && (mostSignificantAddressSpaceByte == -1
+                || address.ip6.bytes[8] == mostSignificantAddressSpaceByte))
+        {
+
+            uint8_t publicKeyHex[65];
+            Hex_encode(publicKeyHex, 65, address.key, 32);
+            printf("created new key: [%s]\n", publicKeyHex);
+
+            address.path = path;
+            return Allocator_clone(alloc, &address);
+        }
+    }
 }
 
 static struct Address* randomIp(uint64_t path)
 {
-   return createAddress(Random_uint16(rand), path);
+   return createAddress(-1, path);
 }
 
 // This creates a random address which is a peer
@@ -296,8 +355,12 @@ static void test_dumpTable()
     Assert_always(NodeStore_dumpTable(store, 3) == NULL);
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc > 1 && !strcmp(argv[argc-1], "--genkeys")) {
+        genKeys = 1;
+    }
+
     alloc = MallocAllocator_new(1<<20);
     struct Writer* writer = FileWriter_new(stdout, alloc);
     logger = WriterLog_new(writer, alloc);

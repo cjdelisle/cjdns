@@ -59,7 +59,7 @@ static void dumpTable_addEntries(struct Context* ctx,
     String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
     String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
     Object* link = Int_OBJ(0xFFFFFFFF);
-    Object* version = Int_OBJ(Version_DEFAULT_ASSUMPTION);
+    Object* version = Int_OBJ(Version_CURRENT_PROTOCOL);
     Dict entry = Dict_CONST(
         String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
         String_CONST("link"), link, Dict_CONST(

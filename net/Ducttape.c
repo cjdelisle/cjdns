@@ -900,12 +900,8 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             return Error_NONE;
         }
 
-        // If they're a direct peer, we don't want to flush them because of an error.
-        // They will be flushed by DefaultInterfaceController if need be.
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-        if (!LabelSplicer_isOneHop(path)) {
-            RouterModule_brokenPath(path, context->routerModule);
-        }
+        RouterModule_brokenPath(path, context->routerModule);
 
         uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
         if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
