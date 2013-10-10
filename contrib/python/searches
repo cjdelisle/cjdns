@@ -18,7 +18,9 @@ cjdns = connectWithAdminInfo();
 i = 0;
 while (True):
     search = cjdns.SearchRunner_showActiveSearch(i);
-    if ('target' not in search): break;
+    if ('target' not in search):
+        if i != 0: print;
+        break;
     print(str(i) + ' tar: ' + search['target'] + '  last asked: ' + search['lastNodeAsked'] +
         '  asked: ' + str(search['totalRequests']));
     i = i + 1;

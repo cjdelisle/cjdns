@@ -33,7 +33,7 @@ if(NOT NACL_FOUND)
 
     if (NEON)
         set(cNaClConfig "${cNaClConfig}
-            set(CMAKE_REQUIRED_FLAGS \"\${CMAKE_REQUIRED_FLAGS} -mfpu=neon\")
+            set(CMAKE_REQUIRED_FLAGS \"\${CMAKE_REQUIRED_FLAGS} -mfpu=neon -mfloat-abi=softfp\")
         ")
     endif ()
 
