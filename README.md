@@ -60,7 +60,7 @@ Cjdns guarantees confidentiality, authenticity and integrity of data by using
 modern cryptography in a non-intrusive way. Information transmitted over a cjdns
 network can't be altered or read en-route. While you can create multiple
 identities, it's practically impossible to impersonate other nodes on the
-network and since a node's IPv6 address is the fingerprint of it's key,
+network and since a node's IPv6 address is the fingerprint of its key,
 man-in-the-middle attacks are not possible.
 
 
