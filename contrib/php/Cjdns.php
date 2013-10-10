@@ -66,6 +66,21 @@ class Cjdns {
         $this->send_raw($request);
         return $this->receive($txid);
     }
+    
+    // Modified copy of the original function, for making calls without password authorization
+    public function call_noauth($function, $args) {
+        $cookie = $this->getCookie();
+        $txid = $this->randStr();
+        $request = array("q" => $function,
+            "args" => $args,
+            "txid" => $txid
+            );
+        $requestBencoded = bencode($request);
+        $request['hash'] = hash("sha256", $requestBencoded);
+        $this->send_raw($request);
+        return $this->receive($txid);
+    }
+
 
     function __construct($password, $host="127.0.0.1", $port=11234) {
         $this->socket = stream_socket_client("udp://".$host.":".$port, $errorno, $errorstr);
