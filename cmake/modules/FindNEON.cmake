@@ -18,14 +18,14 @@ if (NOT NEON AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm" AND NOT NO_NEON)
 
     message("Processor type is ARM, testing for ARM NEON")
     try_run(returnCode
-            compileFail
+            compileSuccess
             ${CMAKE_BINARY_DIR}
             ${CMAKE_SOURCE_DIR}/cmake/modules/ProbeNEON.c
             COMPILE_DEFINITIONS -mfpu=neon -mfloat-abi=softfp
             COMPILE_OUTPUT_VARIABLE compileOut
             RUN_OUTPUT_VARIABLE runOut)
 
-    if (compileFail)
+    if (NOT compileSuccess)
         message("NEON check failed to compile [${compileOut}]")
     elseif (returnCode)
         message("NEON check failed to run [${runOut}]")
