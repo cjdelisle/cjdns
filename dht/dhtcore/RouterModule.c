@@ -12,14 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "benc/String.h"
 #include "dht/Address.h"
-#include "dht/dhtcore/Janitor.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_pvt.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/SearchRunner.h"
-#include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTMessage.h"
@@ -154,18 +153,6 @@
  */
 #define GMRT_INITAL_MILLISECONDS 5000
 
-/** The number of nodes which we will keep track of. */
-#define NODE_STORE_SIZE 8192
-
-/** The number of milliseconds between attempting local maintenance searches. */
-#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
-
-/**
- * The number of milliseconds to pass between global maintainence searches.
- * These are searches for random targets which are used to discover new nodes.
- */
-#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
-
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
 /** The number of times the GMRT before pings should be timed out. */
@@ -196,6 +183,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  * @param myAddress the address for this DHT node.
+ * @param nodeStore the place to put the nodes
  * @return the RouterModule.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
@@ -203,7 +191,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct EventBase* eventBase,
                                            struct Log* logger,
-                                           struct Random* rand)
+                                           struct Random* rand,
+                                           struct NodeStore* nodeStore)
 {
     struct RouterModule* const out = Allocator_calloc(allocator, sizeof(struct RouterModule), 1);
 
@@ -223,26 +212,13 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand);
+    out->nodeStore = nodeStore;
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
     out->allocator = allocator;
     out->rand = rand;
     out->pinger = Pinger_new(eventBase, rand, logger, allocator);
-    out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                               GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                               out,
-                               out->nodeStore,
-                               logger,
-                               allocator,
-                               eventBase,
-                               rand);
-    out->searchRunner =
-        SearchRunner_new(out->nodeStore, logger, eventBase, out, out->address.ip6.bytes, allocator);
-
-    out->routeTracer =
-        RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
 
     Identity_set(out);
     return out;
@@ -659,21 +635,6 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
 }
 
 /** See: RouterModule.h */
-struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
-                                                 struct RouterModule* module,
-                                                 struct Allocator* alloc)
-{
-    return SearchRunner_search(searchTarget, module->searchRunner, alloc);
-}
-
-struct RouterModule_Promise* RouterModule_trace(uint64_t route,
-                                                struct RouterModule* module,
-                                                struct Allocator* alloc)
-{
-    return RouteTracer_trace(route, module->routeTracer, alloc);
-}
-
-/** See: RouterModule.h */
 void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {
     Address_getPrefix(address);
@@ -707,4 +668,9 @@ int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 void RouterModule_updateReach(struct Node* node, struct RouterModule* module)
 {
     NodeStore_updateReach(node, module->nodeStore);
+}
+
+uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module)
+{
+    return (uint32_t) AverageRoller_getAverage(module->gmrtRoller);
 }

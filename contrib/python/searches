@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -9,29 +10,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-add_library(dhtcore
-    NodeStore.c
-    NodeStore_admin.c
-    RouterModule.c
-    RouterModule_admin.c
-    SearchStore.c
-    Janitor.c
-    VersionList.c
-    SearchRunner.c
-    SearchRunner_admin.c
-    RouteTracer.c
-)
 
-target_link_libraries(dhtcore
-    cjdbenc
-    util
-    crypto
-    switch
-    cjdns-util-version-version
-    cjdns-util-events-libuv-time
-    cjdns-switch-encodingscheme
-)
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
 
-# Everything must be tested.
-enable_testing()
-add_subdirectory(test)
+cjdns = connectWithAdminInfo();
+
+i = 0;
+while (True):
+    search = cjdns.SearchRunner_showActiveSearch(i);
+    if ('target' not in search): break;
+    print(str(i) + ' tar: ' + search['target'] + '  last asked: ' + search['lastNodeAsked'] +
+        '  asked: ' + str(search['totalRequests']));
+    i = i + 1;
