@@ -268,7 +268,7 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
         case 2: return 1;
         case 1:
         case 0: return 0;
-        default: return oldReach / 2 + 2;
+        default: return oldReach / 2;
     }
 }
 
