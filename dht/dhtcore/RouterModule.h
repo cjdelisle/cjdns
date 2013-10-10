@@ -19,6 +19,7 @@
 #include "dht/Address.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
@@ -57,13 +58,15 @@ struct RouterModule_Promise
  * @param eventBase the libevent base.
  * @param logger the means of writing logs.
  * @param rand a source of random numbers
+ * @param nodeStore
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct EventBase* eventBase,
                                            struct Log* logger,
-                                           struct Random* rand);
+                                           struct Random* rand,
+                                           struct NodeStore* nodeStore);
 
 /**
  * The amount of time to wait before skipping over the first node and trying another in a search.
@@ -105,17 +108,10 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
                                                      uint32_t timeoutMilliseconds,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc);
+
 void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request);
 
 int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
-
-struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
-                                                 struct RouterModule* module,
-                                                 struct Allocator* alloc);
-
-struct RouterModule_Promise* RouterModule_trace(uint64_t route,
-                                                struct RouterModule* module,
-                                                struct Allocator* alloc);
 
 /**
  * Get a node from the NodeStore, see: NodeStore_getNodeByNetworkAddr() of which this is a clone.
@@ -126,5 +122,7 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module);
 
 void RouterModule_updateReach(struct Node* node, struct RouterModule* module);
+
+uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
 
 #endif

@@ -39,14 +39,8 @@ struct RouterModule
     /** The registry which is needed so that we can send messages. */
     struct DHTModuleRegistry* registry;
 
-    struct SearchRunner* searchRunner;
-
-    struct RouteTracer* routeTracer;
-
     /** The libevent event base for handling timeouts. */
     struct EventBase* eventBase;
-
-    struct Janitor* janitor;
 
     struct Log* logger;
 

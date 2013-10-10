@@ -28,7 +28,13 @@
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
+#include "dht/dhtcore/RouteTracer.h"
+#include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/SearchRunner_admin.h"
+#include "dht/dhtcore/NodeStore_admin.h"
+#include "dht/dhtcore/Janitor.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/UDPInterface_admin.h"
@@ -70,6 +76,18 @@
 
 // Failsafe: abort if more than 2^22 bytes are allocated (4MB)
 #define ALLOCATOR_FAILSAFE (1<<22)
+
+/** The number of nodes which we will keep track of. */
+#define NODE_STORE_SIZE 8192
+
+/** The number of milliseconds between attempting local maintenance searches. */
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
+
+/**
+ * The number of milliseconds to pass between global maintainence searches.
+ * These are searches for random targets which are used to discover new nodes.
+ */
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
 
 /**
  * The worst possible packet overhead.
@@ -326,13 +344,32 @@ int Core_main(int argc, char** argv)
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 
-    // Router
-    struct RouterModule* router = RouterModule_register(registry,
-                                                        alloc,
-                                                        addr.key,
-                                                        eventBase,
-                                                        logger,
-                                                        rand);
+
+    struct NodeStore* nodeStore = NodeStore_new(&addr, NODE_STORE_SIZE, alloc, logger, rand);
+
+    struct RouterModule* routerModule = RouterModule_register(registry,
+                                                              alloc,
+                                                              addr.key,
+                                                              eventBase,
+                                                              logger,
+                                                              rand,
+                                                              nodeStore);
+    struct RouteTracer* routeTracer =
+        RouteTracer_new(nodeStore, routerModule, addr.ip6.bytes, eventBase, logger, alloc);
+
+    struct SearchRunner* searchRunner =
+        SearchRunner_new(nodeStore, logger, eventBase, routerModule, addr.ip6.bytes, alloc);
+
+    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                routerModule,
+                nodeStore,
+                searchRunner,
+                routeTracer,
+                logger,
+                alloc,
+                eventBase,
+                rand);
 
     SerializationModule_register(registry, logger, alloc);
 
@@ -340,7 +377,8 @@ int Core_main(int argc, char** argv)
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
-                                            router,
+                                            routerModule,
+                                            searchRunner,
                                             switchCore,
                                             eventBase,
                                             alloc,
@@ -355,7 +393,7 @@ int Core_main(int argc, char** argv)
     struct InterfaceController* ifController =
         DefaultInterfaceController_new(cryptoAuth,
                                        switchCore,
-                                       router,
+                                       routerModule,
                                        logger,
                                        eventBase,
                                        sp,
@@ -369,7 +407,9 @@ int Core_main(int argc, char** argv)
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #endif
-    RouterModule_admin_register(router, admin, alloc);
+    NodeStore_admin_register(nodeStore, admin, alloc);
+    RouterModule_admin_register(routerModule, admin, alloc);
+    SearchRunner_admin_register(searchRunner, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
     Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);

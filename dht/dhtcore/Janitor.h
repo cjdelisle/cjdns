@@ -18,6 +18,8 @@
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
@@ -31,6 +33,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
+                            struct SearchRunner* searchRunner,
+                            struct RouteTracer* routeTracer,
                             struct Log* logger,
                             struct Allocator* alloc,
                             struct EventBase* eventBase,

@@ -203,7 +203,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     }
 
     // Keep track of the node with the longest label so if the store is full, it can be replaced.
-    int worstNode = 0;
+    int worstNode = -1;
     uint64_t worstPath = 0;
 
     // becomes true when the direct peer behind this path is found.
@@ -217,11 +217,24 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
             foundPeer = 1;
         }
 
+        if (store->pub.size >= store->capacity && store->nodes[i].address.path > worstPath) {
+            worstPath = store->nodes[i].address.path;
+            worstNode = i;
+        }
+
         if (store->headers[i].addressPrefix == pfx
             && Address_isSameIp(&store->nodes[i].address, addr))
         {
+            // same address
+            #ifdef PARANOIA
+                uint8_t realAddr[16];
+                AddressCalc_addressForPublicKey(realAddr, addr->key);
+                Assert_true(!Bits_memcmp(realAddr, addr->ip6.bytes, 16));
+            #endif
+
             if (store->nodes[i].address.path == addr->path) {
-                // same address...
+                // same node
+
             } else if (LabelSplicer_routesThrough(store->nodes[i].address.path, addr->path)) {
                 #ifdef Log_DEBUG
                     uint8_t nodeAddr[60];
@@ -234,6 +247,11 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                newAddr);
                 #endif
 
+                // We can take the reach of the existing node with us because this path is a
+                // subpath of the one we were using so it's functionality implies this path's
+                // functionality.
+                reachDifference += store->headers[i].reach;
+
                 // Remove the node and continue on to add this one.
                 // If we just change the path, we get duplicates.
                 removeNode(&store->nodes[i], store);
@@ -244,24 +262,30 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                 continue;
             }
 
+            // either same node or discovered a redundant route to the same node.
             adjustReach(&store->headers[i], reachDifference, store);
             store->headers[i].version = version;
             return nodeForIndex(store, i);
 
         } else if (store->nodes[i].address.path == addr->path) {
+            // same path different addr.
+
             // When a node restarts, it's switch renumbers meaning that the paths to other nodes
             // change. This causes a previously valid path to A to now point to B. The problem
             // is that there is a real node at the end of the path to B and worse, there are real
-            // nodes behind that one. When those nodes respond to pings and searches, their reach
-            // is updated along with the now-invalid node A.
+            // nodes behind that one. Those nodes may respond properly to *switch* pings but not
+            // to router pings or searches because their addresses are different so the keys don't
+            // match.
+            //
             // This will allow incoming packets from B to clear A out of the table and replace
             // them with B while preventing another node's memory of B from causing A to be
-            // replaced.
+            // replaced. Being *told* about a node implies reachDifference == 0, having first hand
+            // experience of it's existance implies reachDifference > 0.
             if (reachDifference > 0) {
-                replaceNode(&store->nodes[i], &store->headers[i], addr, store);
-                store->headers[i].reach = reachDifference;
-                store->headers[i].version = version;
-                return nodeForIndex(store, i);
+                // Removing and adding back because of the creepy above comment about duplicates.
+                removeNode(&store->nodes[i], store);
+                i--;
+                continue;
             } else {
                 // TODO:
                 // We were told about another node, it might be B and it might be A (invalid).
@@ -270,19 +294,6 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                 return NULL;
             }
         }
-
-        if (store->pub.size >= store->capacity && store->nodes[i].address.path > worstPath) {
-            worstPath = store->nodes[i].address.path;
-            worstNode = i;
-        }
-
-        #ifdef Log_DEBUG
-            if (store->headers[i].addressPrefix == pfx) {
-                uint8_t realAddr[16];
-                AddressCalc_addressForPublicKey(realAddr, addr->key);
-                Assert_true(!Bits_memcmp(realAddr, addr->ip6.bytes, 16));
-            }
-        #endif
     }
 
     #ifdef Log_DEBUG
@@ -295,17 +306,19 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     #endif
 
     if (!foundPeer) {
-        #ifdef Log_DEBUG
-            Log_debug(store->logger, "Dropping discovered node because there is no peer behind it");
-        #endif
+        Log_debug(store->logger, "Dropping discovered node because there is no peer behind it");
         return NULL;
     }
 
-    for (int i = 0; i < store->pub.size; i++) {
-       Assert_true(store->headers[i].addressPrefix == Address_getPrefix(&store->nodes[i].address));
-       Assert_true(!(!Bits_memcmp(&store->nodes[i].address.ip6, &addr->ip6, 16)
-           && store->nodes[i].address.path == addr->path));
-    }
+    #ifdef PARANOIA
+        for (int i = 0; i < store->pub.size; i++) {
+           Assert_true(store->headers[i].addressPrefix ==
+                           Address_getPrefix(&store->nodes[i].address));
+           Assert_true(!(!Bits_memcmp(&store->nodes[i].address.ip6, &addr->ip6, 16)
+               && store->nodes[i].address.path == addr->path));
+        }
+        Assert_true(store->pub.size < store->capacity || worstNode != -1);
+    #endif
 
     int insertionIndex = (store->pub.size >= store->capacity) ? worstNode : store->pub.size++;
 
@@ -478,14 +491,16 @@ void NodeStore_updateReach(const struct Node* const node,
     uint64_t path = node->address.path;
     for (int i = 0; i < store->pub.size; i++) {
         uint64_t dest = store->nodes[i].address.path;
-        if (LabelSplicer_routesThrough(dest, path)) {
-            if (store->headers[i].reach > node->reach) {
-                store->headers[i].reach = node->reach;
-                if (node->reach == 0) {
-                    logNodeZeroed(store->logger, &store->nodes[i]);
-                }
+        if (LabelSplicer_routesThrough(dest, path)
+            && store->headers[i].reach > node->reach)
+        {
+            store->headers[i].reach = node->reach;
+            if (node->reach == 0) {
+                logNodeZeroed(store->logger, &store->nodes[i]);
             }
-        } else if (LabelSplicer_routesThrough(path, dest)) {
+        } else if (LabelSplicer_routesThrough(path, dest)
+            && store->headers[i].reach < node->reach)
+        {
             store->headers[i].reach = node->reach;
         }
     }

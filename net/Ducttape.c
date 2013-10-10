@@ -21,6 +21,7 @@
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/SearchRunner.h"
 #include "exception/Jmp.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
@@ -591,7 +592,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
     if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
         context->timeOfLastSearch = now;
-        RouterModule_search(header->nodeIp6Addr, context->routerModule, context->alloc);
+        SearchRunner_search(header->nodeIp6Addr, context->searchRunner, context->alloc);
     }
     return 0;
 }
@@ -900,12 +901,8 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             return Error_NONE;
         }
 
-        // If they're a direct peer, we don't want to flush them because of an error.
-        // They will be flushed by DefaultInterfaceController if need be.
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-        if (!LabelSplicer_isOneHop(path)) {
-            RouterModule_brokenPath(path, context->routerModule);
-        }
+        RouterModule_brokenPath(path, context->routerModule);
 
         uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
         if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
@@ -1120,6 +1117,7 @@ static uint8_t incomingFromPinger(struct Message* message, struct Interface* ifa
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
+                                   struct SearchRunner* searchRunner,
                                    struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
@@ -1133,6 +1131,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;
+    context->searchRunner = searchRunner;
     Identity_set(context);
 
     context->ipTunnel = ipTun;

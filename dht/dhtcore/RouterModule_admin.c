@@ -17,9 +17,7 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "dht/dhtcore/Node.h"
-#include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/RouterModule.h"
-#include "dht/dhtcore/RouterModule_pvt.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
 #include "memory/Allocator.h"
@@ -180,6 +178,4 @@ void RouterModule_admin_register(struct RouterModule* module,
             { .name = "path", .required = 1, .type = "String" },
             { .name = "timeout", .required = 0, .type = "Int" },
         }), admin);
-
-    NodeStore_admin_register(module->nodeStore, admin, alloc);
 }

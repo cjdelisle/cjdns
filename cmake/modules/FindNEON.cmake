@@ -21,7 +21,7 @@ if (NOT NEON AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm" AND NOT NO_NEON)
             compileSuccess
             ${CMAKE_BINARY_DIR}
             ${CMAKE_SOURCE_DIR}/cmake/modules/ProbeNEON.c
-            COMPILE_DEFINITIONS -mfpu=neon
+            COMPILE_DEFINITIONS -mfpu=neon -mfloat-abi=softfp
             COMPILE_OUTPUT_VARIABLE compileOut
             RUN_OUTPUT_VARIABLE runOut)
 
@@ -29,8 +29,8 @@ if (NOT NEON AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^arm" AND NOT NO_NEON)
         message("NEON check failed to compile [${compileOut}]")
     elseif (returnCode)
         message("NEON check failed to run [${runOut}]")
-    endif ()
+    else ()
         message("Success! Building NACL for ARM NEON")
         set(NEON TRUE)
-    else()
+    endif()
 endif()

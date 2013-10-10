@@ -46,6 +46,20 @@ static inline void Random_ints(struct Random* rand, uint32_t* location, uint64_t
 {
     Random_bytes(rand, (uint8_t*) location, count*4);
 }
+
+static inline int16_t Random_int8(struct Random* rand)
+{
+    int8_t ret;
+    Random_bytes(rand, (uint8_t*)&ret, 1);
+    return ret;
+}
+static inline uint16_t Random_uint8(struct Random* rand)
+{
+    uint8_t ret;
+    Random_bytes(rand, (uint8_t*)&ret, 1);
+    return ret;
+}
+
 static inline int16_t Random_int16(struct Random* rand)
 {
     int16_t ret;
