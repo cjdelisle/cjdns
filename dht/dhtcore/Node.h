@@ -34,6 +34,12 @@ struct Node
 
     /** The address of the node. */
     struct Address address;
+
+    /**
+     * If we lookup a node and the current time is later than this, ping it.
+     * In ms, as per Time_currentTimeMilliseconds.
+     */
+    uint64_t timeOfNextPing;
 };
 
 #endif
