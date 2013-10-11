@@ -258,7 +258,7 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
 
 static uint32_t reachAfterDecay(const uint32_t oldReach)
 {
-    return (oldReach - (oldReach / REACH_WINDOW) - 1);
+    return (oldReach - (oldReach / REACH_WINDOW));
 }
 
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
@@ -674,8 +674,7 @@ static inline void refreshReach(struct Address* address, struct RouterModule* mo
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         for (uint32_t i = 0 ; i < nodeList->size ; i++) {
             if (now > nodeList->nodes[i]->timeOfNextPing) {
-                uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-                nodeList->nodes[i]->timeOfNextPing = now + worst;
+                nodeList->nodes[i]->timeOfNextPing = now + LOCAL_MAINTENANCE_SEARCH_MILLISECONDS;
                 RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
             }
         }
