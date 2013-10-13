@@ -19,8 +19,11 @@
 
 #define Except_BUFFER_SZ 1024
 
+struct Except;
 struct Except
 {
+    struct Except* next;
+
     void (* exception)(char* message, int code, struct Except* handler);
 
     char message[Except_BUFFER_SZ];
@@ -29,5 +32,13 @@ struct Except
 Gcc_NORETURN
 Gcc_PRINTF(3, 4)
 void Except_raise(struct Except* eh, int code, char* format, ...);
+
+Gcc_NORETURN
+Gcc_PRINTF(3, 4)
+void Except__throw(char* file, int line, char* format, ...);
+#define Except_throw(...) Except__throw(__FILE__, __LINE__, __VA_ARGS__)
+
+/** Set the default handler, make sure to null it after you are finished! */
+void Except_setDefaultHandler(struct Except* eh);
 
 #endif

@@ -21,10 +21,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static struct Except* Except_uncheckedHandler = NULL;
+
 void Except_raise(struct Except* eh, int code, char* format, ...)
 {
     va_list args;
     va_start(args, format);
+
+    if (!eh) {
+        eh = Except_uncheckedHandler;
+    }
 
     if (eh) {
         vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
@@ -34,4 +40,45 @@ void Except_raise(struct Except* eh, int code, char* format, ...)
     }
     abort();
     exit(100);
+}
+
+void Except_throw(char* file, int line, char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    char* subFile = strrchr(file, '/');
+    if (!subFile) {
+        subFile = file;
+    }
+
+    if (Except_uncheckedHandler) {
+        int remaining = Except_BUFFER_SZ;
+        int len = snprintf(Except_uncheckedHandler->message, remaining, "%s:%d ", subFile, line);
+        remaining -= len;
+        if (remaining > 0) {
+            vsnprintf(&Except_uncheckedHandler->message[len], remaining, format, args);
+        }
+        eh->exception(Except_uncheckedHandler->message, code, eh);
+    } else {
+        printf("%s:%d ", subFile, line);
+        vprintf(format, args);
+        printf("\n");
+    }
+    abort();
+    exit(100);
+}
+
+void Except_setDefaultHandler(struct Except* eh);
+{
+    if (!eh) {
+        if (Except_uncheckedHandler) {
+            Except_uncheckedHandler = Except_uncheckedHandler->next;
+        }
+    } else {
+        if (Except_uncheckedHandler) {
+            eh->next = Except_uncheckedHandler;
+        }
+        Except_uncheckedHandler = eh;
+    }
 }

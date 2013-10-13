@@ -15,7 +15,7 @@
 #ifndef Message_H
 #define Message_H
 
-#include "util/Assert.h"
+#include "exception/Except.h"
 #include <stdint.h>
 
 #include "memory/Allocator.h"
@@ -87,12 +87,13 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
+#ifndef Message_shift
 static inline int Message_shift(struct Message* toShift, int32_t amount)
 {
-    if (amount > 0) {
-        Assert_true(toShift->padding >= amount);
-    } else {
-        Assert_true(toShift->length >= (-amount));
+    if (amount > 0 && toShift->padding < amount) {
+        Except_throw("buffer overflow");
+    } else if (toShift->length < (-amount)) {
+        Except_throw("buffer underflow");
     }
 
     toShift->length += amount;
@@ -102,6 +103,7 @@ static inline int Message_shift(struct Message* toShift, int32_t amount)
 
     return 1;
 }
+#endif
 
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
@@ -115,8 +117,33 @@ static inline void Message_pop(struct Message* restrict msg,
                                void* restrict object,
                                size_t size)
 {
-    Bits_memcpy(object, msg->bytes, size);
     Message_shift(msg, -((int)size));
+    Bits_memcpy(object, &msg->bytes[-((int)size)], size);
 }
+
+#define Message_popGeneric(size) \
+    static inline uint ## size ## _t Message_pop ## size (struct Message* msg) \
+    {                                                                          \
+        uint ## size ## _t out;                                                \
+        Message_pop(msg, &out, (size)/8);                                      \
+        return out;                                                            \
+    }
+
+Message_popGeneric(8)
+Message_popGeneric(16)
+Message_popGeneric(32)
+Message_popGeneric(64)
+
+
+#define Message_pushGeneric(size) \
+    static inline void Message_push ## size (struct Message* msg, uint ## size ## _t dat) \
+    {                                                                                     \
+        Message_push(msg, &dat, (size)/8);                                                \
+    }
+
+Message_pushGeneric(8)
+Message_pushGeneric(16)
+Message_pushGeneric(32)
+Message_pushGeneric(64)
 
 #endif

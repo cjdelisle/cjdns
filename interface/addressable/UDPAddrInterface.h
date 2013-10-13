@@ -26,7 +26,7 @@
 #define UDPAddrInterface_BUFFER_CAP 3500
 
 /** Maximum number of bytes to hold in queue before dropping packets. */
-#define UDPAddrInterface_MAX_QUEUE 100000
+#define UDPAddrInterface_MAX_QUEUE 16384
 
 /**
  * @param base the event loop context.
