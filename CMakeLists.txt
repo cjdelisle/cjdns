@@ -32,7 +32,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 # validation
-add_definitions(-Wall -Wextra -std=c99 -pedantic)
+## disable pointer-sign because it encourages casts which are not checked.
+add_definitions(-Wall -Wextra -Wno-pointer-sign -std=c99 -pedantic)
 if ("$ENV{NO_WERROR}" STREQUAL "")
     add_definitions(-Werror)
 endif()
