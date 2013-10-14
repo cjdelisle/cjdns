@@ -49,6 +49,12 @@ struct SwitchPinger
 
     bool isError;
 
+    /** Pings which are currently waiting for responses. */
+    int outstandingPings;
+
+    /** Maximum number of pings which can be outstanding at one time. */
+    int maxConcurrentPings;
+
     Identity
 };
 
@@ -196,6 +202,15 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
     };
 }
 
+static int onPingFree(struct Allocator_OnFreeJob* job)
+{
+    struct Ping* ping = Identity_cast((struct Ping*)job->userData);
+    struct SwitchPinger* ctx = Identity_cast(ping->context);
+    ctx->outstandingPings--;
+    Assert_true(ctx->outstandingPings >= 0);
+    return 0;
+}
+
 struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                String* data,
                                                uint32_t timeoutMilliseconds,
@@ -207,12 +222,14 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         return NULL;
     }
 
-    struct Pinger_Ping* pp =
-        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
-
-    if (!pp) {
+    if (ctx->outstandingPings > ctx->maxConcurrentPings) {
+        Log_debug(ctx->logger, "Skipping switch ping because there are already [%d] outstanding",
+                  ctx->outstandingPings);
         return NULL;
     }
+
+    struct Pinger_Ping* pp =
+        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
 
     struct Ping* ping = Allocator_clone(pp->pingAlloc, (&(struct Ping) {
         .public = {
@@ -225,7 +242,9 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         .pingerPing = pp
     }));
     Identity_set(ping);
+    Allocator_onFree(pp->pingAlloc, onPingFree, ping);
     pp->context = ping;
+    ctx->outstandingPings++;
 
     return &ping->public;
 }
@@ -247,7 +266,8 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
         .iface = iface,
         .pinger = Pinger_new(eventBase, rand, logger, alloc),
         .logger = logger,
-        .allocator = alloc
+        .allocator = alloc,
+        .maxConcurrentPings = SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS,
     }), sizeof(struct SwitchPinger));
     iface->receiveMessage = receiveMessage;
     iface->receiverContext = sp;

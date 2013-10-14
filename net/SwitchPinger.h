@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+#define SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS 50
+
 enum SwitchPinger_Result
 {
     /** Ping responded to ok. */
