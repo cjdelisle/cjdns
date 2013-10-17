@@ -100,6 +100,9 @@ close to the target address.
     00:36 < tester> man sites take so long to load on i2p
     00:36 < tester> i value speed over anonymity any day
 
+    <DuoNoxSol> it's notably more reliable than the normal internet
+    <DuoNoxSol> even though it really really shouldn't be
+    <DuoNoxSol> seeing as the connections are largely over the normal internet
 
 
 ## How close is it to complete?

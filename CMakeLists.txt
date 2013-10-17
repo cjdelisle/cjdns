@@ -322,5 +322,18 @@ target_link_libraries(publictoip6
     cjdns-crypto-key
 )
 
+add_executable(dnsserv
+    dnsserv.c
+)
+target_link_libraries(dnsserv
+    util
+    cjdmemory
+    cjdio
+    interface
+    ${LIBUV_LIBRARIES}
+    cjdns-crypto-random
+    cjdbenc_JsonBencSerializer
+)
+
 enable_testing()
 add_subdirectory(test)

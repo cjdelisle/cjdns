@@ -49,6 +49,19 @@ struct Message
         .capacity = messageLength                              \
     }
 
+static inline struct Message* Message_new(uint32_t messageLength,
+                                          uint32_t amountOfPadding,
+                                          struct Allocator* alloc)
+{
+    uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
+    struct Message* out = Allocator_malloc(alloc, sizeof(struct Message));
+    out->bytes = &buff[amountOfPadding];
+    out->length = out->capacity = messageLength;
+    out->padding = amountOfPadding;
+    out->alloc = alloc;
+    return out;
+}
+
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
@@ -87,7 +100,6 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-#ifndef Message_shift
 static inline int Message_shift(struct Message* toShift, int32_t amount)
 {
     if (amount > 0 && toShift->padding < amount) {
@@ -103,7 +115,6 @@ static inline int Message_shift(struct Message* toShift, int32_t amount)
 
     return 1;
 }
-#endif
 
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
@@ -126,7 +137,7 @@ static inline void Message_pop(struct Message* restrict msg,
     {                                                                          \
         uint ## size ## _t out;                                                \
         Message_pop(msg, &out, (size)/8);                                      \
-        return out;                                                            \
+        return Endian_bigEndianToHost ## size (out);                           \
     }
 
 Message_popGeneric(8)
@@ -138,7 +149,8 @@ Message_popGeneric(64)
 #define Message_pushGeneric(size) \
     static inline void Message_push ## size (struct Message* msg, uint ## size ## _t dat) \
     {                                                                                     \
-        Message_push(msg, &dat, (size)/8);                                                \
+        uint ## size ## _t x = Endian_hostToBigEndian ## size (dat);                      \
+        Message_push(msg, &x, (size)/8);                                                  \
     }
 
 Message_pushGeneric(8)

@@ -14,6 +14,8 @@
  */
 #define _POSIX_C_SOURCE 200112L
 
+#define string_strrchr
+
 #include "exception/Except.h"
 
 #include <stdarg.h>
@@ -42,7 +44,7 @@ void Except_raise(struct Except* eh, int code, char* format, ...)
     exit(100);
 }
 
-void Except_throw(char* file, int line, char* format, ...)
+void Except__throw(char* file, int line, char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -53,13 +55,14 @@ void Except_throw(char* file, int line, char* format, ...)
     }
 
     if (Except_uncheckedHandler) {
+        struct Except* eh = Except_uncheckedHandler;
         int remaining = Except_BUFFER_SZ;
-        int len = snprintf(Except_uncheckedHandler->message, remaining, "%s:%d ", subFile, line);
+        int len = snprintf(eh->message, remaining, "%s:%d ", subFile, line);
         remaining -= len;
         if (remaining > 0) {
-            vsnprintf(&Except_uncheckedHandler->message[len], remaining, format, args);
+            vsnprintf(&eh->message[len], remaining, format, args);
         }
-        eh->exception(Except_uncheckedHandler->message, code, eh);
+        eh->exception(eh->message, 0, eh);
     } else {
         printf("%s:%d ", subFile, line);
         vprintf(format, args);
@@ -69,7 +72,7 @@ void Except_throw(char* file, int line, char* format, ...)
     exit(100);
 }
 
-void Except_setDefaultHandler(struct Except* eh);
+void Except_setDefaultHandler(struct Except* eh)
 {
     if (!eh) {
         if (Except_uncheckedHandler) {

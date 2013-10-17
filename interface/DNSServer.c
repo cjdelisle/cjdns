@@ -12,25 +12,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "interface/DNSServer.h"
+#include "benc/String.h"
+#include "exception/Jmp.h"
+#include "crypto/AddressCalc.h"
+#include "util/Base32.h"
+#include "util/Identity.h"
 #include "wire/Message.h"
+#include "wire/Error.h"
 
-
-enum RCode {
-    RCode_NO_ERROR = 0,
-    RCode_FORMAT_ERROR = 1,
-    RCode_SERVER_ERROR = 2,
-    RCode_NXDOMAIN = 3,
-    RCode_NOT_IMPLEMENTED = 4,
-    RCode_REFUSED = 5,
-    RCode_XYDOMAIN = 6,
-    RCode_YXRRSET = 7,
-    RCode_NXRRSET = 8,
-    RCode_NOT_AUTH = 9,
+enum ResponseCode {
+    ResponseCode_NO_ERROR = 0,
+    ResponseCode_FORMAT_ERROR = 1,
+    ResponseCode_SERVER_ERROR = 2,
+    ResponseCode_NXDOMAIN = 3,
+    ResponseCode_NOT_IMPLEMENTED = 4,
+    ResponseCode_REFUSED = 5,
+    ResponseCode_XYDOMAIN = 6,
+    ResponseCode_YXRRSET = 7,
+    ResponseCode_NXRRSET = 8,
+    ResponseCode_NOT_AUTH_FOR_ZONE = 9,
 };
 
-enum Record {
-    Record_TXT = 16,
-    Record_AAAA = 28
+enum Type {
+    Type_TXT = 16,
+    Type_AAAA = 28
+};
+
+enum Class {
+    Class_IN = 1
 };
 
 struct DNSServer_RR
@@ -71,6 +81,16 @@ struct DNSServer_Message
     struct DNSServer_RR** answers;
     struct DNSServer_RR** authorities;
     struct DNSServer_RR** additionals;
+};
+
+struct DNSServer_pvt
+{
+    struct DNSServer pub;
+    struct Interface* iface;
+    struct Log* logger;
+    struct RainflyClient* rainfly;
+    uint32_t addrSize;
+    Identity
 };
 
 static void parseFlags(uint16_t flags, struct DNSServer_Flags* out)
@@ -121,14 +141,18 @@ static String** parseName(struct Message* msg, struct Allocator* alloc)
         Message_pop(msg, str->bytes, len);
         len = Message_pop8(msg);
     }
+    return array;
 }
 
 static void serializeName(struct Message* msg, String** name)
 {
     Message_push8(msg, 0);
-    for (int i = 0; name[i]; i++) {
+    int i;
+    for (i = 0; name[i]; i++) ;
+    i--;
+    for (;i >= 0; i--) {
         Message_push(msg, name[i]->bytes, name[i]->len);
-        Message.push8(msg, name[i]->len);
+        Message_push8(msg, name[i]->len);
     }
 }
 
@@ -138,6 +162,7 @@ static struct DNSServer_Question* parseQuestion(struct Message* msg, struct Allo
     q->name = parseName(msg, alloc);
     q->type = Message_pop16(msg);
     q->class = Message_pop16(msg);
+    return q;
 }
 
 static void serializeQuestion(struct Message* msg, struct DNSServer_Question* q)
@@ -150,13 +175,14 @@ static void serializeQuestion(struct Message* msg, struct DNSServer_Question* q)
 static struct DNSServer_RR* parseRR(struct Message* msg, struct Allocator* alloc)
 {
     struct DNSServer_RR* rr = Allocator_malloc(alloc, sizeof(struct DNSServer_RR));
-    rr->name = parseName(msg, alloc, eh);
+    rr->name = parseName(msg, alloc);
     rr->type = Message_pop16(msg);
     rr->class = Message_pop16(msg);
     rr->ttl = Message_pop32(msg);
     uint16_t dataLen = Message_pop16(msg);
     rr->data = String_newBinary(NULL, dataLen, alloc);
     Message_pop(msg, rr->data->bytes, dataLen);
+    return rr;
 }
 
 static void serializeRR(struct Message* msg, struct DNSServer_RR* rr)
@@ -171,7 +197,7 @@ static void serializeRR(struct Message* msg, struct DNSServer_RR* rr)
 
 static struct DNSServer_Message* parseMessage(struct Message* msg, struct Allocator* alloc)
 {
-    struct DNSServer_Message* dmsg = Allocator_calloc(alloc, sizeof(struct DNSServer_Message), 1);
+    struct DNSServer_Message* dmesg = Allocator_calloc(alloc, sizeof(struct DNSServer_Message), 1);
     dmesg->id = Message_pop16(msg);
 
     uint16_t flags = Message_pop16(msg);
@@ -219,12 +245,12 @@ static void serializeMessage(struct Message* msg, struct DNSServer_Message* dmes
         totalAuthorityRRs++;
     }
     for (int i = 0; dmesg->answers && dmesg->answers[i]; i++) {
-        serializeRR(msg, answers->answers[i]);
+        serializeRR(msg, dmesg->answers[i]);
         totalAnswerRRs++;
     }
     for (int i = 0; dmesg->questions && dmesg->questions[i]; i++) {
         serializeQuestion(msg, dmesg->questions[i]);
-        totalQuestions++
+        totalQuestions++;
     }
 
     Message_push16(msg, totalAdditionalRRs);
@@ -234,12 +260,268 @@ static void serializeMessage(struct Message* msg, struct DNSServer_Message* dmes
 
     Message_push16(msg, flagsAsInt(&dmesg->flags));
     Message_push16(msg, dmesg->id);
+}
+
+static int cannonicalizeDomain(String* str)
+{
+    #define XX(x,y) [((uint8_t)x)]=y,
+    static const char numForAscii[256] =
+    {
+        XX('a','a') XX('b','b') XX('c','c') XX('d','d')
+        XX('e','e') XX('f','f') XX('g','g') XX('h','h')
+        XX('i','i') XX('j','j') XX('k','k') XX('l','l')
+        XX('m','m') XX('n','n') XX('o','o') XX('p','p')
+        XX('q','q') XX('r','r') XX('s','s') XX('t','t')
+        XX('u','u') XX('v','v') XX('w','w') XX('x','x')
+        XX('y','y') XX('z','z')
+
+        XX('A','a') XX('B','b') XX('C','c') XX('D','d')
+        XX('E','e') XX('F','f') XX('G','g') XX('H','h')
+        XX('I','i') XX('J','j') XX('K','k') XX('L','l')
+        XX('M','m') XX('N','n') XX('O','o') XX('P','p')
+        XX('Q','q') XX('R','r') XX('S','s') XX('T','t')
+        XX('U','u') XX('V','v') XX('W','w') XX('X','x')
+        XX('Y','y') XX('Z','z')
+
+        XX('0','0') XX('1','1') XX('2','2') XX('3','3')
+        XX('4','4') XX('5','5') XX('6','6') XX('7','7')
+        XX('8','8') XX('9','9')
+
+        XX('-','-')
+    };
+    #undef XX
+    for (int i = 0; i < (int)str->len; i++) {
+        if (!(str->bytes[i] = numForAscii[(uint8_t)str->bytes[i]])) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static uint8_t sendResponse(struct Message* msg,
+                            struct DNSServer_Message* dmesg,
+                            uint8_t* sourceAddr,
+                            struct DNSServer_pvt* ctx)
+{
+    dmesg->flags.isResponse = 1;
+    serializeMessage(msg, dmesg);
+    Message_push(msg, sourceAddr, ctx->addrSize);
+    return Interface_sendMessage(ctx->iface, msg);
+}
+
+static uint8_t handleDotK(struct Message* msg,
+                          struct DNSServer_Message* dmesg,
+                          struct DNSServer_Question* q,
+                          uint8_t* sourceAddr,
+                          struct DNSServer_pvt* ctx)
+{
+    // .k address lookup
+    String* domain = q->name[0];
+    uint8_t publicKey[32];
+    uint8_t ipv6[16];
+    if (Base32_decode(publicKey, 32, domain->bytes, domain->len) != 32) {
+        Log_debug(ctx->logger, "Unparsable .k address [%s]", domain->bytes);
+
+    } else if (!AddressCalc_addressForPublicKey(ipv6, publicKey)) {
+        Log_debug(ctx->logger, "Invalid (not fc prefix) .k address [%s]", q->name[0]->bytes);
+
+    } else if (q->type != Type_AAAA || q->class != Class_IN) {
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NO_ERROR;
+        dmesg->answers = NULL;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        sendResponse(msg, dmesg, sourceAddr, ctx);
+        return Error_NONE;
+
+    } else {
+        struct DNSServer_RR rr = {
+            .name = q->name,
+            .type = Type_AAAA,
+            .class = Class_IN,
+            .ttl = ~0,
+            .data = &(String) { .bytes = ipv6, .len = 16 }
+        };
+        struct DNSServer_RR* answers[2] = { &rr, NULL };
+        dmesg->answers = answers;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NO_ERROR;
+        sendResponse(msg, dmesg, sourceAddr, ctx);
+
+        return Error_NONE;
+    }
+
+    Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+    dmesg->flags.responseCode = ResponseCode_NXDOMAIN;
+    dmesg->answers = NULL;
+    dmesg->authorities = NULL;
+    dmesg->additionals = NULL;
+    sendResponse(msg, dmesg, sourceAddr, ctx);
+    return Error_NONE;
+}
+
+struct DNSServer_RainflyRequest
+{
+    struct RainflyClient_Lookup* lookup;
+    struct Sockaddr* addr;
+    struct Message* msg;
+    struct DNSServer_Message* dmesg;
+    struct DNSServer_pvt* ctx;
+    Identity
 };
+
+static void onRainflyReply(struct RainflyClient_Lookup* promise,
+                           Dict* value,
+                           enum RainflyClient_ResponseCode code)
+{
+    struct DNSServer_RainflyRequest* lookup =
+        Identity_cast((struct DNSServer_RainflyRequest*)promise->userData);
+    struct DNSServer_pvt* ctx =
+        Identity_cast((struct DNSServer_pvt*)lookup->ctx);
+
+    struct DNSServer_Message* dmesg = lookup->dmesg;
+    struct DNSServer_Question* q = dmesg->questions[0];
+
+    String* cjdns = Dict_getString(value, String_CONST("cjdns"));
+    uint8_t publicKey[32];
+    uint8_t ipv6[16];
+    if (code) {
+        // got error code
+    } else if (!cjdns || cjdns->len < 3) {
+        // no error, no answer
+
+    } else if (Base32_decode(publicKey, 32, cjdns->bytes, cjdns->len-2) != 32) {
+        Log_debug(ctx->logger, "Unparsable .k address [%s]", cjdns->bytes);
+
+    } else if (!AddressCalc_addressForPublicKey(ipv6, publicKey)) {
+        Log_debug(ctx->logger, "Invalid (not fc prefix) .k address [%s]", cjdns->bytes);
+
+    } else {
+
+        struct DNSServer_RR rr = {
+            .name = q->name,
+            .type = Type_AAAA,
+            .class = Class_IN,
+            .ttl = 153600,
+            .data = &(String) { .bytes = ipv6, .len = 16 }
+        };
+        struct DNSServer_RR* answers[2] = { &rr, NULL };
+        dmesg->answers = answers;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NO_ERROR;
+        sendResponse(lookup->msg, dmesg, (uint8_t*)lookup->addr, ctx);
+
+        return;
+    }
+
+    Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+    dmesg->flags.responseCode = code;
+    dmesg->answers = NULL;
+    dmesg->authorities = NULL;
+    dmesg->additionals = NULL;
+    sendResponse(lookup->msg, dmesg, (uint8_t*)lookup->addr, ctx);
+    return;
+}
+
+static uint8_t handleDotH(struct Message* msg,
+                          struct DNSServer_Message* dmesg,
+                          struct DNSServer_Question* q,
+                          uint8_t* sourceAddr,
+                          struct DNSServer_pvt* ctx)
+{
+    // .h address lookup
+    if (q->type != Type_AAAA || q->class != Class_IN) {
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NO_ERROR;
+        dmesg->answers = NULL;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        sendResponse(msg, dmesg, sourceAddr, ctx);
+        return Error_NONE;
+    }
+
+    String* domain = q->name[0];
+
+    if (cannonicalizeDomain(domain)) {
+        // invalid domain
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NXDOMAIN;
+        dmesg->answers = NULL;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        sendResponse(msg, dmesg, sourceAddr, ctx);
+        return Error_NONE;
+    }
+
+    struct RainflyClient_Lookup* lookup = RainflyClient_lookup(ctx->rainfly, domain);
+    Allocator_adopt(lookup->alloc, msg->alloc);
+    struct DNSServer_RainflyRequest* req =
+        Allocator_calloc(lookup->alloc, sizeof(struct DNSServer_RainflyRequest), 1);
+    req->lookup = lookup;
+    req->addr = Sockaddr_clone((struct Sockaddr*)sourceAddr, msg->alloc);
+    req->msg = msg;
+    req->dmesg = dmesg;
+    req->ctx = ctx;
+    Identity_set(req);
+    lookup->onReply = onRainflyReply;
+    lookup->userData = req;
+
+    return Error_NONE;
+}
 
 static uint8_t receiveB(struct Message* msg, struct DNSServer_pvt* ctx)
 {
-    struct DNSServer_Message* dmsg = parseMessage(msg, msg->allocator);
-    
+    uint8_t* sourceAddr = Allocator_malloc(msg->alloc, ctx->addrSize);
+    Message_pop(msg, sourceAddr, ctx->addrSize);
+
+    struct DNSServer_Message* dmesg = parseMessage(msg, msg->alloc);
+
+    if (msg->length > 0) {
+        Log_debug(ctx->logger, "[%d] bytes of crap following DNS request", msg->length);
+        Message_shift(msg, -(msg->length));
+    }
+
+    if (!dmesg->questions || !dmesg->questions[0]) {
+        Log_debug(ctx->logger, "Got DNS query with no questions");
+        return Error_NONE;
+    }
+    struct DNSServer_Question* q = dmesg->questions[0];
+
+    if (!q->name[0] || !q->name[1] || q->name[2]) {
+        // TODO handle subdomains
+        Log_debug(ctx->logger, "Got DNS query with subdomains");
+        return Error_NONE;
+    }
+
+    String* tld = NULL;
+    for (int i = 0; q->name[i]; i++) {
+        if (cannonicalizeDomain(q->name[i])) {
+            Log_debug(ctx->logger, "Invalid chars in domain");
+            return Error_NONE;
+        }
+        tld = q->name[i];
+    }
+
+    if (String_equals(tld, String_CONST("h"))) {
+        return handleDotH(msg, dmesg, q, sourceAddr, ctx);
+
+    } else if (String_equals(tld, String_CONST("k"))) {
+        return handleDotK(msg, dmesg, q, sourceAddr, ctx);
+
+    } else {
+        // not authoritative for zone
+        Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
+        dmesg->flags.responseCode = ResponseCode_NOT_AUTH_FOR_ZONE;
+        dmesg->answers = NULL;
+        dmesg->authorities = NULL;
+        dmesg->additionals = NULL;
+        sendResponse(msg, dmesg, sourceAddr, ctx);
+    }
+    return Error_NONE;
 }
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
@@ -248,7 +530,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     struct Jmp jmp = {.code=0};
     Jmp_try(jmp) {
-        Except_setDefaultHandler(jmp.handler);
+        Except_setDefaultHandler(&jmp.handler);
         uint8_t ret = receiveB(msg, ctx);
         Except_setDefaultHandler(NULL);
         return ret;
@@ -259,39 +541,21 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return Error_NONE;
 }
 
-
-static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+struct DNSServer* DNSServer_new(struct AddrInterface* iface,
+                                struct Log* logger,
+                                struct RainflyClient* rainfly)
 {
-    struct DNSServer_pvt* ctx = Identity_cast((struct DNSServer_pvt*)iface);
-
-    Assert_true(msg->length >= 4);
-
-    uint16_t ethertype = ((uint16_t*) msg->bytes)[1];
-    uint16_t afType_be = 0;
-    if (ethertype == Ethernet_TYPE_IP6) {
-        afType_be = ctx->afInet6_be;
-    } else if (ethertype == Ethernet_TYPE_IP4) {
-        afType_be = ctx->afInet_be;
-    } else {
-        Assert_always(!"Unsupported ethertype");
-    }
-    ((uint16_t*) msg->bytes)[0] = 0;
-    ((uint16_t*) msg->bytes)[1] = afType_be;
-
-    return Interface_sendMessage(ctx->wrapped, msg);
-}
-
-struct Interface* DNSServer_new(struct Interface* wrapped, struct Log* logger)
-{
-    struct DNSServer_pvt* context = Allocator_clone(wrapped->allocator, (&(struct DNSServer_pvt) {
-        .wrapped = wrapped,
-        .afInet6_be = Endian_hostToBigEndian16(Sockaddr_AF_INET6),
-        .afInet_be = Endian_hostToBigEndian16(Sockaddr_AF_INET),
-        .logger = logger
-    }));
+    struct DNSServer_pvt* context =
+        Allocator_clone(iface->generic.allocator, (&(struct DNSServer_pvt) {
+            .iface = &iface->generic,
+            .logger = logger,
+            .addrSize = iface->addr->addrLen,
+            .rainfly = rainfly
+        }));
     Identity_set(context);
 
-    InterfaceWrapper_wrap(wrapped, sendMessage, receiveMessage, &context->generic);
+    iface->generic.receiveMessage = receiveMessage;
+    iface->generic.receiverContext = context;
 
-    return &context->generic;
+    return &context->pub;
 }

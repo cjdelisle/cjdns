@@ -32,6 +32,8 @@ add_library(interface
     MultiInterface.c
     FramingInterface.c
     InterfaceController_admin.c
+    DNSServer.c
+    RainflyClient.c
 )
 
 target_link_libraries(interface
