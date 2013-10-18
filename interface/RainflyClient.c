@@ -135,7 +135,12 @@ static int compare(String* a, String* b)
     if (a->len != b->len) {
         return (a->len > b->len) ? 1 : -1;
     }
-    return Bits_memcmp(a->bytes, b->bytes, a->len);
+    for (int i = 0; i < (int)a->len; i++) {
+        if (a->bytes[i] != b->bytes[i]) {
+            return ((uint8_t)a->bytes[i]) > ((uint8_t)b->bytes[i]) ? 1 : -1;
+        }
+    }
+    return 0;
 }
 
 static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx)
@@ -188,8 +193,19 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
     enum RainflyClient_ResponseCode code = RainflyClient_ResponseCode_NO_ERROR;
     String* domain = lookup->pub.domain;
     if (!String_equals(namesAndValue[0], domain)) {
-        if (compare(namesAndValue[0], domain) == compare(domain, namesAndValue[1])) {
-            Log_debug(ctx->logger, "Invalid message, domain not in range");
+        if (compare(namesAndValue[0], namesAndValue[1]) == 1) {
+            // they returned the last entry in the set
+            // it must fall outside of range
+            if (compare(domain, namesAndValue[0]) != 1 && compare(namesAndValue[1], domain) != 1) {
+                Log_debug(ctx->logger, "Invalid NXDOMAIN with last entry [%s] -> [%s] req: [%s]",
+                          namesAndValue[0]->bytes, namesAndValue[1]->bytes, domain->bytes);
+                return;
+            }
+        } else if (compare(domain, namesAndValue[0]) != 1
+            || compare(namesAndValue[1], domain) != 1)
+        {
+            Log_debug(ctx->logger, "Invalid NXDOMAIN, domain not in range [%s] -> [%s] req: [%s]",
+                      namesAndValue[0]->bytes, namesAndValue[1]->bytes, domain->bytes);
             return;
         }
         Log_debug(ctx->logger, "Domain [%s] Nonexistant [%s] -> [%s]",

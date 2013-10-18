@@ -34,18 +34,25 @@ static void genconf()
 {
     printf("{\n"
             "    \"dns\": {\n"
-            "        \"bind\": \"[::]:5353\",\n"
+            "        \"bind\": \"[::]:53\",\n"
             "        \"authorities\": [\n"
             "            \"7kuc3jcyql3cm8lx5zdj8vc0tkz8679kyx83utbm1ub5bxpf4mf1.mittens.h\",\n"
             "            \"tvlxu5rbcj76rfdmsw9xd3kjn79fhv6kpvl2hzv98637j4rdj1b1.tom.h\",\n"
             "            \"kkxfwnm3upf0jv35jq4lx0dn0z3m9bh71gv84cdjlcp68w1qckt1.maru.h\",\n"
             "            \"02wmqfu7v0kdq17fwv68hk646bdvhcr8ybk2ycy7ddzv21n5nb60.scruffy.h\"\n"
             "        ],\n"
+            "\n"
             "        \"servers\": [\n"
             "            \"[fc71:ec46:57a0:2bbc:537d:b680:3630:93e4]:9001\",\n"
             "            \"[fc8e:9a1c:27c3:281b:29b1:1a04:3701:c125]:9001\",\n"
             "            \"[fcad:0450:4a40:9778:14e2:e442:6678:3161]:9001\",\n"
             "            \"[fc2f:baa8:4a89:2db5:6789:aa75:07e6:4cb2]:9001\"\n"
+            "        ]\n"
+            "\n"
+            "        // Where your non .h domain lookups will go\n"
+            "        \"legacy\": [\n"
+            "            \"4.2.2.1:53\"\n"
+            "            \"8.8.8.8:53\"\n"
             "        ]\n"
             "        \"minSignatures\":2\n"
             "    }\n"
@@ -86,7 +93,7 @@ int main(int argc, char** argv)
     String* bind = Dict_getString(dns, String_CONST("bind"));
     Assert_true(!Sockaddr_parse(bind ? bind->bytes : "[::]:5353", &addr));
     struct AddrInterface* iface = UDPAddrInterface_new(base, &addr.addr, alloc, NULL, logger);
-    DNSServer_new(iface, logger, client);
+    struct DNSServer* dnsServer = DNSServer_new(iface, logger, client);
 
     List* auth = Dict_getList(dns, String_CONST("authorities"));
     for (int i = 0; i < (int)List_size(auth); i++) {
@@ -123,6 +130,25 @@ int main(int argc, char** argv)
 
         if (RainflyClient_addServer(client, &node.addr)) {
             Log_warn(logger, "Failed to add server to RainflyClient [%s]", str->bytes);
+        }
+    }
+
+    List* legacy = Dict_getList(dns, String_CONST("legacy"));
+    for (int i = 0; i < (int)List_size(legacy); i++) {
+        String* str = List_getString(legacy, i);
+        if (!str) {
+            Log_warn(logger, "Element [%d] in [dns.legacy] list of wrong type", i);
+            continue;
+        }
+
+        struct Sockaddr_storage node;
+        if (Sockaddr_parse(str->bytes, &node)) {
+            Log_warn(logger, "Failed to parse legacy server name [%s]", str->bytes);
+            continue;
+        }
+
+        if (DNSServer_addServer(dnsServer, &node.addr)) {
+            Log_warn(logger, "Failed to add server to DNSServer [%s]", str->bytes);
         }
     }
 

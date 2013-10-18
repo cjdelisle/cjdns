@@ -18,11 +18,15 @@
 #include "interface/addressable/AddrInterface.h"
 #include "util/log/Log.h"
 #include "interface/RainflyClient.h"
+#include "util/platform/Sockaddr.h"
 
 struct DNSServer
 {
     int unused;
 };
+
+#define DNSServer_addServer_WRONG_ADDRESS_TYPE -1
+int DNSServer_addServer(struct DNSServer* dns, struct Sockaddr* server);
 
 struct DNSServer* DNSServer_new(struct AddrInterface* iface,
                                 struct Log* logger,
