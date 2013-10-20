@@ -313,6 +313,13 @@ static uint8_t sendResponse(struct Message* msg,
     dmesg->flags.isResponse = 1;
     serializeMessage(msg, dmesg);
     Message_push(msg, sourceAddr, ctx->addr->addrLen);
+    // lazy man's alignment
+    if ((uintptr_t)(msg->bytes) % 8) {
+        int len = (((uintptr_t)(msg->bytes)) % 8);
+        Message_shift(msg, len);
+        Bits_memmove(msg->bytes, &msg->bytes[len], msg->length - len);
+        msg->length -= len;
+    }
     return Interface_sendMessage(ctx->iface, msg);
 }
 

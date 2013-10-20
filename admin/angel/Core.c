@@ -46,6 +46,10 @@
 #include "interface/InterfaceController_admin.h"
 #include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
+#include "interface/RainflyClient.h"
+#include "interface/RainflyClient_admin.h"
+#include "interface/DNSServer.h"
+#include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
@@ -400,6 +404,19 @@ int Core_main(int argc, char** argv)
                                        rand,
                                        alloc);
 
+    // ------------------- DNS -------------------------//
+
+    struct Sockaddr_storage rainflyAddr;
+    Assert_true(!Sockaddr_parse("::", &rainflyAddr));
+    struct AddrInterface* rainflyIface =
+        UDPAddrInterface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
+    struct RainflyClient* rainfly = RainflyClient_new(rainflyIface, eventBase, rand, logger);
+    Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
+    struct AddrInterface* magicUDP =
+        PacketHeaderToUDPAddrInterface_new(&dt->magicInterface, alloc, &rainflyAddr.addr);
+    DNSServer_new(magicUDP, logger, rainfly);
+
+
     // ------------------- Register RPC functions ----------------------- //
     InterfaceController_admin_register(ifController, admin, alloc);
     SwitchPinger_admin_register(sp, admin, alloc);
@@ -416,6 +433,7 @@ int Core_main(int argc, char** argv)
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
     SessionManager_admin_register(dt->sessionManager, admin, alloc);
+    RainflyClient_admin_register(rainfly, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .allocator = alloc,

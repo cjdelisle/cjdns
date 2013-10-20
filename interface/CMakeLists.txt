@@ -34,6 +34,7 @@ add_library(interface
     InterfaceController_admin.c
     DNSServer.c
     RainflyClient.c
+    RainflyClient_admin.c
 )
 
 target_link_libraries(interface
@@ -42,6 +43,7 @@ target_link_libraries(interface
     util
     cjdns-crypto-key
     cjdns-util-platform-socket
+    cjdbenc_JsonBencSerializer # RainflyClient
 )
 
 add_subdirectory(addressable)

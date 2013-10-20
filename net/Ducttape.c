@@ -441,6 +441,8 @@ static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* 
     Assert_true(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
     Assert_true(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
 
+    TUNMessageType_push(msg, Ethernet_TYPE_IP6);
+
     if (ctx->userIf) {
         return Interface_sendMessage(ctx->userIf, msg);
     }

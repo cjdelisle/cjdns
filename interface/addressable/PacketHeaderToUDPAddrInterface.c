@@ -43,7 +43,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     struct Headers_UDPHeader udp;
     udp.srcPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(context->pub.addr));
     udp.destPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(addr));
-    udp.length_be = Endian_hostToBigEndian16(message->length);
+    udp.length_be = Endian_hostToBigEndian16(message->length + Headers_UDPHeader_SIZE);
     udp.checksum_be = 0;
     Message_push(message, &udp, sizeof(struct Headers_UDPHeader));
 
