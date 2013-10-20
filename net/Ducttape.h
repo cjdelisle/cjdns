@@ -28,6 +28,7 @@
 struct Ducttape
 {
     struct Interface switchPingerIf;
+    struct Interface magicInterface;
     struct SessionManager* sessionManager;
 };
 

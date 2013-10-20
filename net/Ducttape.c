@@ -48,6 +48,8 @@
 /** Size of the per-message workspace. */
 #define PER_MESSAGE_BUF_SZ 8192
 
+#define FC_ONE "\xfc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1"
+
 /**
  * In order to easily tell the incoming connection requests from messages which
  * are addressed to a specific interface by its handle, the most significant bit
@@ -174,7 +176,8 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 
     Message_shift(&message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
-    uh->sourceAndDestPorts = 0;
+    uh->srcPort_be = 0;
+    uh->destPort_be = 0;
     uh->length_be = Endian_hostToBigEndian16(dmessage->length);
     uh->checksum_be = 0;
 
@@ -237,7 +240,8 @@ static inline bool isRouterTraffic(struct Message* message, struct Headers_IP6He
 
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     return message->length >= Headers_UDPHeader_SIZE
-        && uh->sourceAndDestPorts == 0
+        && uh->srcPort_be == 0
+        && uh->destPort_be == 0
         && (int) Endian_bigEndianToHost16(uh->length_be) ==
             (message->length - Headers_UDPHeader_SIZE);
 }
@@ -425,6 +429,24 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
     return (Bits_memcmp(header->destinationAddr, context->myAddr.ip6.bytes, 16) == 0);
 }
 
+static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* iface)
+{
+    struct Ducttape_pvt* ctx =
+        Identity_cast((struct Ducttape_pvt*)
+            &((uint8_t*)iface)[-offsetof(struct Ducttape, magicInterface)]);
+
+    Assert_true(msg->length >= Headers_IP6Header_SIZE);
+    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+
+    Assert_true(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
+    Assert_true(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
+
+    if (ctx->userIf) {
+        return Interface_sendMessage(ctx->userIf, msg);
+    }
+    return Error_NONE;
+}
+
 // Called by the TUN device.
 static inline uint8_t incomingFromTun(struct Message* message,
                                       struct Interface* iface)
@@ -464,6 +486,10 @@ static inline uint8_t incomingFromTun(struct Message* message,
         TUNMessageType_push(message, ethertype);
         iface->sendMessage(message, iface);
         return Error_NONE;
+    }
+
+    if (!Bits_memcmp(header->destinationAddr, FC_ONE, 16)) {
+        return Interface_receiveMessage(&context->pub.magicInterface, message);
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
@@ -1132,6 +1158,10 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     context->eventBase = eventBase;
     context->alloc = allocator;
     context->searchRunner = searchRunner;
+    Bits_memcpyConst(&context->pub.magicInterface, (&(struct Interface) {
+        .sendMessage = magicInterfaceSendMessage,
+        .allocator = allocator
+    }), sizeof(struct Interface));
     Identity_set(context);
 
     context->ipTunnel = ipTun;

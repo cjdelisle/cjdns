@@ -12,6 +12,7 @@
 
 add_library(cjdns-interface-addressable-adapter
     AddrInterfaceAdapter.c
+    PacketHeaderToUDPAddrInterface.c
 )
 
 enable_testing()

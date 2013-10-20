@@ -371,14 +371,13 @@ static inline int Headers_getIpVersion(void* header)
 }
 
 #define Headers_setIpVersion(header) \
-    ((uint8_t*) header)[0] |= (                                          \
+    (((uint8_t*) header)[0] |= (                                         \
         (sizeof(*header) == Headers_IP4Header_SIZE) ? 4 : 6              \
-    ) << 4;                                                              \
-    Assert_compileTime(sizeof(*header) == Headers_IP4Header_SIZE         \
-        || sizeof(*header) == Headers_IP6Header_SIZE)
+    ) << 4)
 
 struct Headers_UDPHeader {
-    uint32_t sourceAndDestPorts;
+    uint16_t srcPort_be;
+    uint16_t destPort_be;
     uint16_t length_be;
     uint16_t checksum_be;
 };

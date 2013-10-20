@@ -54,7 +54,8 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     Assert_always(!Checksum_udpIp6(ip->sourceAddr, message->bytes, length));
 
-    Assert_always(uh->sourceAndDestPorts == 0);
+    Assert_always(uh->srcPort_be == 0);
+    Assert_always(uh->destPort_be == 0);
     Assert_always(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
 
     Message_shift(message, -Headers_UDPHeader_SIZE);
@@ -112,7 +113,8 @@ int main()
     Message_shift(message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
 
-    uh->sourceAndDestPorts = 0;
+    uh->srcPort_be = 0;
+    uh->destPort_be = 0;
     uh->length_be = Endian_hostToBigEndian16(message->length - Headers_UDPHeader_SIZE);
     uint16_t* checksum = &uh->checksum_be;
     *checksum = 0;

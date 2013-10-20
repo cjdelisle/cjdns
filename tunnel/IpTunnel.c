@@ -190,7 +190,8 @@ static uint8_t sendControlMessage(Dict* dict,
     // do UDP header.
     Message_shift(message, Headers_UDPHeader_SIZE);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-    uh->sourceAndDestPorts = 0;
+    uh->srcPort_be = 0;
+    uh->destPort_be = 0;
     uh->length_be = Endian_hostToBigEndian16(w->bytesWritten);
     uh->checksum_be = 0;
 
@@ -291,7 +292,10 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
     }
 
     length -= Headers_UDPHeader_SIZE;
-    if (Endian_bigEndianToHost16(udp->length_be) != length || udp->sourceAndDestPorts != 0) {
+    if (Endian_bigEndianToHost16(udp->length_be) != length
+        || udp->srcPort_be != 0
+        || udp->destPort_be != 0)
+    {
         Log_warn(context->logger, "Invalid UDP packet (length mismatch or wrong ports)");
         return Error_INVALID;
     }

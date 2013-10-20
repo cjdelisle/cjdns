@@ -54,7 +54,8 @@ int main()
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) &ip6[1];
     ip6->hopLimit = 0;
     ip6->nextHeader = 17;
-    udp->sourceAndDestPorts = 0;
+    udp->srcPort_be = 0;
+    udp->destPort_be = 0;
     udp->length_be = Endian_hostToBigEndian16(strlen(pingBenc));
 
     strncpy((char*)(udp + 1), pingBenc, strlen(pingBenc));
