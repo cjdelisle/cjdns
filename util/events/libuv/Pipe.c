@@ -167,7 +167,7 @@ static void onClose(uv_handle_t* handle)
 #if Pipe_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
+#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
