@@ -24,7 +24,7 @@
 #include "crypto/random/Random.h"
 
 #define RainflyClient_DEFAULT_MIN_SIGNATURES 2
-#define RainflyClient_DEFAULT_MAX_TRIES 1
+#define RainflyClient_DEFAULT_MAX_TRIES 3
 
 struct RainflyClient
 {

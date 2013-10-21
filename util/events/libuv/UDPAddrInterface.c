@@ -135,7 +135,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 #if UDPAddrInterface_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
+#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,

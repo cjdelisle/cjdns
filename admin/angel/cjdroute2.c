@@ -317,7 +317,7 @@ static int genconf(struct Random* rand)
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
            "    \"noBackground\":0,\n"
            "\n");
-    printf("    // DNS, this server will be vailable at address fc00::1\n"
+    printf("    // DNS, this server will be available at address fc00::1\n"
            "    \"dns\":\n"
            "    {\n"
            "        // Who to trust\n"
