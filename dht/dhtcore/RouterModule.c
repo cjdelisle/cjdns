@@ -153,6 +153,18 @@
  */
 #define GMRT_INITAL_MILLISECONDS 5000
 
+/** The number of nodes which we will keep track of. */
+#define NODE_STORE_SIZE 8192
+
+/** The number of milliseconds between attempting local maintenance searches. */
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
+
+/**
+ * The number of milliseconds to pass between global maintainence searches.
+ * These are searches for random targets which are used to discover new nodes.
+ */
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
+
 #define SEARCH_REPEAT_MILLISECONDS 7500
 
 /** The number of times the GMRT before pings should be timed out. */
@@ -169,6 +181,12 @@
 
 /** Never allow a search to be timed out in less than this number of milliseconds. */
 #define MIN_TIMEOUT 10
+
+/**
+ * Used to keep reach a weighted rolling average of recent ping times.
+ * The smaller this value, the more significant recent pings are to reach.
+ */
+#define REACH_WINDOW 8
 
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
@@ -238,14 +256,14 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
+static uint32_t reachAfterDecay(const uint32_t oldReach)
+{
+    return (oldReach - (oldReach / REACH_WINDOW));
+}
+
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    switch (oldReach) {
-        case 2: return 1;
-        case 1:
-        case 0: return 0;
-        default: return oldReach / 2;
-    }
+    return (oldReach / 2);
 }
 
 static inline void responseFromNode(struct Node* node,
@@ -253,11 +271,12 @@ static inline void responseFromNode(struct Node* node,
                                     struct RouterModule* module)
 {
     if (node) {
-        uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-        if (worst > millisecondsSinceRequest) {
-            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
-            NodeStore_updateReach(node, module->nodeStore);
+        if (millisecondsSinceRequest == 0) {
+            millisecondsSinceRequest = 1;
         }
+        node->reach = reachAfterDecay(node->reach) +
+            ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
+        NodeStore_updateReach(node, module->nodeStore);
     }
 }
 
@@ -645,11 +664,30 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     }
 }
 
+// For each path to a destination, if the path has not recently been pinged, then ping it
+static inline void refreshReach(struct Address* address, struct RouterModule* module)
+{
+    struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
+    struct NodeList* nodeList = NodeStore_getNodesByAddr(address, 8, nodeListAlloc,
+                                                         module->nodeStore);
+    if (nodeList) {
+        uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
+        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+            if (now > nodeList->nodes[i]->timeOfNextPing) {
+                nodeList->nodes[i]->timeOfNextPing = now + LOCAL_MAINTENANCE_SEARCH_MILLISECONDS;
+                RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
+            }
+        }
+    Allocator_free(nodeListAlloc);
+    }
+}
+
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module)
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+    refreshReach(&addr, module);
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }

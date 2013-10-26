@@ -54,20 +54,27 @@ class Cjdns {
     public function call($function, $args) {
         $cookie = $this->getCookie();
         $txid = $this->randStr();
-        $request = array("q" => "auth",
-            "aq" => $function,
-            "hash" => hash("sha256", $this->password.$cookie),
-            "cookie" => $cookie,
-            "args" => $args,
-            "txid" => $txid
-            );
+        if ($this->password != NULL) {
+            $request = array("q" => "auth",
+                "aq" => $function,
+                "hash" => hash("sha256", $this->password.$cookie),
+                "cookie" => $cookie,
+                "args" => $args,
+                "txid" => $txid
+                );
+        } else {
+            $request = array("q" => $function,
+                "args" => $args,
+                "txid" => $txid
+                );
+        }
         $requestBencoded = bencode($request);
         $request['hash'] = hash("sha256", $requestBencoded);
         $this->send_raw($request);
         return $this->receive($txid);
     }
-
-    function __construct($password, $host="127.0.0.1", $port=11234) {
+    
+    function __construct($password=NULL, $host="127.0.0.1", $port=11234) {
         $this->socket = stream_socket_client("udp://".$host.":".$port, $errorno, $errorstr);
         if(!$this->socket) {
             die("Failed to connect, Error #$errorno: $errorstr");
