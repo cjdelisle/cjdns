@@ -15,6 +15,8 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
+#include "interface/tuntap/TUNInterface.h"
+#include "util/events/Pipe.h"
 #include "util/Bits.h"
 
 #include <errno.h>
