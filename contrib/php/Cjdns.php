@@ -1,4 +1,4 @@
-<?
+<?php
 
 class Cjdns {
     public $buffersize = 69632;
