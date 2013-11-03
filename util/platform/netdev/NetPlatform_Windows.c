@@ -196,5 +196,5 @@ void NetPlatform_setMTU(const char* interfaceName,
                         struct Log* logger,
                         struct Except* eh)
 {
-    Except_raise(eh, -1, "unimplemented");
+    Except_throw(eh, "unimplemented");
 }

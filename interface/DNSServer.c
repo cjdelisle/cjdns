@@ -336,7 +336,7 @@ static int trySendResponse(struct Message* msg,
                            struct Sockaddr* sourceAddr,
                            struct DNSServer_pvt* ctx)
 {
-    struct Jmp j = { .code = 0 };
+    struct Jmp j = { .message = NULL };
     Jmp_try(j) {
         sendResponse(msg, dmesg, sourceAddr, ctx, &j.handler);
         return 0;
@@ -592,7 +592,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct DNSServer_pvt* const ctx = Identity_cast((struct DNSServer_pvt*)iface->receiverContext);
 
-    struct Jmp jmp = {.code=0};
+    struct Jmp jmp = { .message = NULL };
     Jmp_try(jmp) {
         receiveB(msg, ctx, &jmp.handler);
     } Jmp_catch {

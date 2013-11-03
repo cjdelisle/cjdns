@@ -18,11 +18,9 @@
 #include "exception/Except.h"
 #include "util/log/Log.h"
 
-#define Security_setUser_NO_SUCH_USER -1
-#define Security_setUser_PERMISSION -2
-#define Security_setUser_INTERNAL -3
-
-void Security_setUser(char* userName, struct Log* logger, struct Except* eh);
+/** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
+#define Security_setUser_PERMISSION -1
+int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
 void Security_noFiles(struct Except* eh);
 

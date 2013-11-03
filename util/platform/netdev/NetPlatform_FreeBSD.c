@@ -44,7 +44,7 @@ static void addIp4Address(const char* interfaceName,
                           struct Except* eh)
 {
     // TODO: implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Except_raise(eh, -1, "unimplemented");
+    Except_throw(eh, "unimplemented");
 }
 
 static void addIp6Address(const char* interfaceName,
@@ -71,7 +71,7 @@ static void addIp6Address(const char* interfaceName,
     int err = getaddrinfo((const char *)myIp, NULL, &hints, &result);
     if (err) {
         // Should never happen since the address is specified as binary.
-        Except_raise(eh, -1, "bad IPv6 address [%s]", gai_strerror(err));
+        Except_throw(eh, "bad IPv6 address [%s]", gai_strerror(err));
     }
 
     Bits_memcpy(&in6_addreq.ifra_addr, result->ai_addr, result->ai_addrlen);
@@ -97,13 +97,13 @@ static void addIp6Address(const char* interfaceName,
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
     if (s < 0) {
-        Except_raise(eh, -1, "socket() [%s]", strerror(errno));
+        Except_throw(eh, "socket() [%s]", strerror(errno));
     }
 
     if (ioctl(s, SIOCAIFADDR_IN6, &in6_addreq) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, -1, "ioctl(SIOCAIFADDR) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCAIFADDR) [%s]", strerror(err));
     }
 
     Log_info(logger, "Configured IPv6 [%s/%i] for [%s]", myIp, prefixLen, interfaceName);
@@ -135,7 +135,7 @@ void NetPlatform_setMTU(const char* interfaceName,
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
 
     if (s < 0) {
-        Except_raise(eh, -1, "socket() [%s]", strerror(errno));
+        Except_throw(eh, "socket() [%s]", strerror(errno));
     }
 
 
@@ -149,6 +149,6 @@ void NetPlatform_setMTU(const char* interfaceName,
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
        int err = errno;
        close(s);
-       Except_raise(eh, -1, "ioctl(SIOCSIFMTU) failed [%s]", strerror(err));
+       Except_throw(eh, "ioctl(SIOCSIFMTU) failed [%s]", strerror(err));
     }
 }

@@ -126,7 +126,7 @@ static void parsePrivateKey(uint8_t privateKey[32],
     crypto_scalarmult_curve25519_base(addr->key, privateKey);
     AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
     if (!AddressCalc_validAddress(addr->ip6.bytes)) {
-        Except_raise(eh, -1, "Ip address outside of the FC00/8 range, invalid private key.");
+        Except_throw(eh, "Ip address outside of the FC00/8 range, invalid private key.");
     }
 }
 
@@ -200,7 +200,7 @@ static Dict* getInitialConfig(struct Interface* iface,
     struct Reader* reader = ArrayReader_new(m->bytes, m->length, alloc);
     Dict* config = Dict_new(alloc);
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
-        Except_raise(eh, -1, "Failed to parse initial configuration.");
+        Except_throw(eh, "Failed to parse initial configuration.");
     }
 
     return config;
@@ -251,7 +251,7 @@ int Core_main(int argc, char** argv)
     struct Except* eh = NULL;
 
     if (argc != 3) {
-        Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
+        Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
@@ -287,27 +287,27 @@ int Core_main(int argc, char** argv)
     String* bind = Dict_getString(adminConf, String_CONST("bind"));
     if (!(pass && privateKeyHex && bind)) {
         if (!pass) {
-            Except_raise(eh, -1, "Expected 'pass'");
+            Except_throw(eh, "Expected 'pass'");
         }
         if (!bind) {
-            Except_raise(eh, -1, "Expected 'bind'");
+            Except_throw(eh, "Expected 'bind'");
         }
         if (!privateKeyHex) {
-            Except_raise(eh, -1, "Expected 'privateKey'");
+            Except_throw(eh, "Expected 'privateKey'");
         }
-        Except_raise(eh, -1, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
+        Except_throw(eh, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
     }
     Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
     {
-        Except_raise(eh, -1, "privateKey must be 64 bytes of hex.");
+        Except_throw(eh, "privateKey must be 64 bytes of hex.");
     }
 
     struct Sockaddr_storage bindAddr;
     if (Sockaddr_parse(bind->bytes, &bindAddr)) {
-        Except_raise(eh, -1, "bind address [%s] unparsable", bind->bytes);
+        Except_throw(eh, "bind address [%s] unparsable", bind->bytes);
     }
 
     struct AddrInterface* udpAdmin =

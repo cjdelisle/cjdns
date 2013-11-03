@@ -24,14 +24,10 @@ struct Except
 {
     struct Except* next;
 
-    void (* exception)(char* message, int code, struct Except* handler);
+    void (* exception)(char* message, struct Except* handler);
 
     char message[Except_BUFFER_SZ];
 };
-
-Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
 
 Gcc_NORETURN
 Gcc_PRINTF(4, 5)

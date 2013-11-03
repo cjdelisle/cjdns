@@ -52,24 +52,20 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     struct ifreq ifRequest = { .ifr_flags = IFF_TUN };
     if (interfaceName) {
         if (strlen(interfaceName) > maxNameSize) {
-            Except_raise(eh, TUNInterface_new_BAD_TUNNEL,
-                         "tunnel name too big, limit is [%d] characters", maxNameSize);
+            Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
         }
         strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
     int fileno = open("/dev/net/tun", O_RDWR);
 
     if (fileno < 0) {
-        int err = errno;
-        int code = (err == EPERM) ? TUNInterface_new_PERMISSION : TUNInterface_new_INTERNAL;
-        Except_raise(eh, code, "open(\"/dev/net/tun\") [%s]", strerror(err));
+        Except_throw(eh, "open(\"/dev/net/tun\") [%s]", strerror(errno));
     }
 
     if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
         int err = errno;
-        int code = (err == EPERM) ? TUNInterface_new_PERMISSION : TUNInterface_new_INTERNAL;
         close(fileno);
-        Except_raise(eh, code, "ioctl(TUNSETIFF) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
     strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
 

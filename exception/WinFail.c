@@ -3056,10 +3056,10 @@ char* WinFail_strerror(long status)
 
 void WinFail_fail(struct Except* eh, const char* msg, LONG status)
 {
-    Except_raise(eh, -1, "%s [%s]", msg, WinFail_strerror(status));
+    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(status));
 }
 
 void WinFail_failWithLastError(struct Except* eh, const char* msg)
 {
-    Except_raise(eh, -1, "%s [%s]", msg, WinFail_strerror(GetLastError()));
+    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(GetLastError()));
 }

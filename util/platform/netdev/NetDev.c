@@ -32,19 +32,19 @@ void NetDev_addAddress(const char* ifName,
     BufferAllocator_STACK(alloc, 256);
     char* printedAddr = Sockaddr_print(sa, alloc);
     if (addrFam != Sockaddr_AF_INET && addrFam != Sockaddr_AF_INET6) {
-        Except_raise(eh, -1, "Unknown address type for address [%s]", printedAddr);
+        Except_throw(eh, "Unknown address type for address [%s]", printedAddr);
     }
 
     int prefixMax = (addrFam == Sockaddr_AF_INET6) ? 128 : 32;
     if (prefixLen < 0 || prefixLen > prefixMax) {
-        Except_raise(eh, -1, "prefixLen [%d] must be greater than 0 and less than %d",
+        Except_throw(eh, "prefixLen [%d] must be greater than 0 and less than %d",
                      prefixLen, prefixMax);
     }
 
     void* addr;
     int len = Sockaddr_getAddress(sa, &addr);
     if (len < 0 || len != prefixMax / 8) {
-        Except_raise(eh, -1, "Invalid sockaddr [%s]", printedAddr);
+        Except_throw(eh, "Invalid sockaddr [%s]", printedAddr);
     }
 
     Log_info(logger, "Setting IP address [%s/%d] on interface [%s]",

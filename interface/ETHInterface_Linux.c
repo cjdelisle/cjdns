@@ -333,20 +333,17 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
 
     context->socket = socket(AF_PACKET, SOCK_DGRAM, Ethernet_TYPE_CJDNS);
     if (context->socket == -1) {
-        Except_raise(exHandler, ETHInterface_new_SOCKET_FAILED,
-                     "call to socket() failed. [%s]", strerror(errno));
+        Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
     }
     strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
-        Except_raise(exHandler, ETHInterface_new_FAILED_FIND_IFACE,
-                     "failed to find interface index [%s]", strerror(errno));
+        Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
     }
     context->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
-       Except_raise(exHandler, ETHInterface_new_FAILED_FIND_MACADDR,
-                    "failed to find mac address of interface [%s]", strerror(errno));
+       Except_throw(exHandler, "failed to find mac address of interface [%s]", strerror(errno));
     }
 
     uint8_t srcMac[6];
@@ -367,8 +364,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     };
 
     if (bind(context->socket, (struct sockaddr*) &context->addrBase, sizeof(struct sockaddr_ll))) {
-        Except_raise(exHandler, ETHInterface_new_BIND_FAILED,
-                     "call to bind() failed [%s]", strerror(errno));
+        Except_throw(exHandler, "call to bind() failed [%s]", strerror(errno));
     }
 
     Socket_makeNonBlocking(context->socket);

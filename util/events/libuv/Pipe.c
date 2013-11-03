@@ -362,7 +362,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     }));
 
     if (uv_pipe_init(ctx->loop, &out->peer, 0) || uv_pipe_init(ctx->loop, &out->server, 0)) {
-        Except_raise(eh, -1, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
     }
 
     #ifdef Windows
@@ -395,14 +395,14 @@ struct Pipe* Pipe_forFiles(int inFd,
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
 
     if (uv_pipe_open(&out->peer, inFd)) {
-        Except_raise(eh, -1, "uv_pipe_open(inFd) failed [%s]",
+        Except_throw(eh, "uv_pipe_open(inFd) failed [%s]",
                      uv_err_name(uv_last_error(ctx->loop)));
     }
 
     if (inFd != outFd) {
         out->out = &out->server;
         if (uv_pipe_open(out->out, outFd)) {
-            Except_raise(eh, -1, "uv_pipe_open(outFd) failed [%s]",
+            Except_throw(eh, "uv_pipe_open(outFd) failed [%s]",
                          uv_err_name(uv_last_error(ctx->loop)));
         }
     }
@@ -424,7 +424,7 @@ struct Pipe* Pipe_named(const char* name,
     // Attempt to create pipe.
     if (!uv_pipe_bind(&out->server, out->pub.fullName)) {
         if (uv_listen((uv_stream_t*) &out->server, 1, listenCallback)) {
-            Except_raise(eh, -1, "uv_listen() failed [%s] for pipe [%s]",
+            Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
                          uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
         }
         return &out->pub;
@@ -438,7 +438,7 @@ struct Pipe* Pipe_named(const char* name,
         return &out->pub;
     }
 
-    Except_raise(eh, -1, "uv_pipe_bind() failed [%s] for pipe [%s]",
+    Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
                  uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
 
     return &out->pub;

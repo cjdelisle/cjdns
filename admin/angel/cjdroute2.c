@@ -389,7 +389,7 @@ static void checkRunningInstance(struct Allocator* allocator,
     struct Allocator* alloc = Allocator_child(allocator);
     struct Sockaddr_storage pingAddrStorage;
     if (Sockaddr_parse(addr->bytes, &pingAddrStorage)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      addr->bytes);
     }
     struct AdminClient* adminClient =
@@ -404,7 +404,7 @@ static void checkRunningInstance(struct Allocator* allocator,
         AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
 
     if (pingResult->err == AdminClient_Error_NONE) {
-        Except_raise(eh, -1, "Startup failed: cjdroute is already running.");
+        Except_throw(eh, "Startup failed: cjdroute is already running.");
     }
     Allocator_free(alloc);
 }
@@ -504,7 +504,7 @@ int main(int argc, char** argv)
         adminPass->len = strlen(adminPass->bytes);
     }
     if (!adminBind) {
-        Except_raise(eh, -1, "You must specify admin.bind in the cjdroute.conf file.");
+        Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
     }
 
     // --------------------- Check for running instance  --------------------- //
@@ -528,12 +528,12 @@ int main(int argc, char** argv)
     char* corePath = Process_getPath(allocator);
 
     if (!corePath) {
-        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
+        Except_throw(eh, "Can't find a usable cjdns core executable, "
                              "make sure it is in the same directory as cjdroute");
     }
 
     if (!privateKey) {
-        Except_raise(eh, -1, "Need to specify privateKey.");
+        Except_throw(eh, "Need to specify privateKey.");
     }
     Log_info(logger, "Forking angel to background.");
     Process_spawn(corePath, args, eventBase, allocator);
@@ -572,7 +572,7 @@ int main(int argc, char** argv)
     uint8_t buff[CONFIG_BUFF_SIZE] = {0};
     struct Writer* toAngelWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, allocator);
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
-        Except_raise(eh, -1, "Failed to serialize pre-configuration");
+        Except_throw(eh, "Failed to serialize pre-configuration");
     }
     struct Message* toAngelMsg = &(struct Message) {
         .bytes = buff,
@@ -594,7 +594,7 @@ int main(int argc, char** argv)
                                                       allocator,
                                                       &responseFromAngel))
     {
-        Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
+        Except_throw(eh, "Failed to parse pre-configuration response [%s]", buff);
     }
 
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
@@ -602,11 +602,11 @@ int main(int argc, char** argv)
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
 
     if (!adminBind) {
-        Except_raise(eh, -1, "didn't get address and port back from angel");
+        Except_throw(eh, "didn't get address and port back from angel");
     }
     struct Sockaddr_storage adminAddr;
     if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
 

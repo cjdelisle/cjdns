@@ -24,25 +24,19 @@
 #include <unistd.h>
 #include <errno.h>
 
-void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
+int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
-        Except_raise(eh,
-                     Security_setUser_NO_SUCH_USER,
-                     "Failed to set UID, couldn't find user named [%s] in the system.",
-                     strerror(errno));
-        return;
+        Except_throw(eh, "Failed to set UID, couldn't find user named [%s].", strerror(errno));
     }
     if (setuid(pw->pw_uid)) {
         if (errno == EPERM) {
-            Except_raise(eh, Security_setUser_PERMISSION,
-                         "You do not have permission to set UID.");
-            return;
+            return Security_setUser_PERMISSION;
         }
-        Except_raise(eh, Security_setUser_INTERNAL, "Failed to set UID [%s]",
-                     strerror(errno));
+        Except_throw(eh, "Failed to set UID [%s]", strerror(errno));
     }
+    return 0;
 }
 
 void Security_noFiles(struct Except* eh)
@@ -58,7 +52,7 @@ void Security_noFiles(struct Except* eh)
     #endif
 
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ LIM, LIM })) {
-        Except_raise(eh, -1, "Failed to set open file limit to zero [%s]", strerror(errno));
+        Except_throw(eh, "Failed to set open file limit to zero [%s]", strerror(errno));
     }
 }
 
@@ -70,6 +64,6 @@ void Security_maxMemory(unsigned long max, struct Except* eh)
         #define RLIMIT_AS RLIMIT_DATA
     #endif
     if (setrlimit(RLIMIT_AS, &(struct rlimit){ max, max })) {
-        Except_raise(eh, -1, "Failed to limit available memory [%s]", strerror(errno));
+        Except_throw(eh, "Failed to limit available memory [%s]", strerror(errno));
     }
 }

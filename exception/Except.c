@@ -23,21 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void Except_raise(struct Except* eh, int code, char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-
-    if (eh) {
-        vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
-        eh->exception(eh->message, code, eh);
-    } else {
-        vprintf(format, args);
-    }
-    abort();
-    exit(100);
-}
-
 void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
 {
     va_list args;
@@ -55,7 +40,7 @@ void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
         if (remaining > 0) {
             vsnprintf(&eh->message[len], remaining, format, args);
         }
-        eh->exception(eh->message, 0, eh);
+        eh->exception(eh->message, eh);
     } else {
         printf("%s:%d ", subFile, line);
         vprintf(format, args);

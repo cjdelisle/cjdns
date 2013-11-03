@@ -268,16 +268,14 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     }
 
     if (ret) {
-        Except_raise(exHandler,
-                     UDPAddrInterface_new_BIND_FAILED,
-                     "call to uv_udp_bind() failed [%s]",
+        Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
                      uv_err_name(uv_last_error(base->loop)));
     }
 
     if (uv_udp_recv_start(&context->uvHandle, allocate, incoming)) {
         const char* err = uv_err_name(uv_last_error(base->loop));
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_raise(exHandler, -1, "uv_udp_recv_start() failed [%s]", err);
+        Except_throw(exHandler, "uv_udp_recv_start() failed [%s]", err);
     }
 
     int nameLen = sizeof(struct Sockaddr_storage);
@@ -285,7 +283,7 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     if (uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen)) {
         const char* err = uv_err_name(uv_last_error(base->loop));
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_raise(exHandler, -1, "uv_udp_getsockname() failed [%s]", err);
+        Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
     }
     ss.addr.addrLen = nameLen+8;
 

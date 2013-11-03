@@ -65,7 +65,7 @@ static int socketForIfName(const char* interfaceName,
     int s;
 
     if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
-        Except_raise(eh, -1, "socket() [%s]", strerror(errno));
+        Except_throw(eh, "socket() [%s]", strerror(errno));
     }
 
     Bits_memset(ifRequestOut, 0, sizeof(struct ifreq));
@@ -74,7 +74,7 @@ static int socketForIfName(const char* interfaceName,
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, -1, "ioctl(SIOCGIFINDEX) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCGIFINDEX) [%s]", strerror(err));
     }
     return s;
 }
@@ -87,7 +87,7 @@ static void checkInterfaceUp(int socket,
     if (ioctl(socket, SIOCGIFFLAGS, ifRequest) < 0) {
         int err = errno;
         close(socket);
-        Except_raise(eh, -1, "ioctl(SIOCGIFFLAGS) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCGIFFLAGS) [%s]", strerror(err));
     }
 
     if (ifRequest->ifr_flags & IFF_UP & IFF_RUNNING) {
@@ -101,7 +101,7 @@ static void checkInterfaceUp(int socket,
     if (ioctl(socket, SIOCSIFFLAGS, ifRequest) < 0) {
         int err = errno;
         close(socket);
-        Except_raise(eh, -1, "ioctl(SIOCSIFFLAGS) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCSIFFLAGS) [%s]", strerror(err));
     }
 }
 
@@ -129,7 +129,7 @@ void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
             int err = errno;
             close(s);
-            Except_raise(eh, -1, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
+            Except_throw(eh, "ioctl(SIOCSIFADDR) [%s]", strerror(err));
         }
 
 
@@ -141,7 +141,7 @@ void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFADDR, &ifRequest) < 0) {
             int err = errno;
             close(s);
-            Except_raise(eh, -1, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
+            Except_throw(eh, "ioctl(SIOCSIFADDR) failed: [%s]", strerror(err));
         }
 
         uint32_t x = ~0 << (32 - prefixLen);
@@ -152,7 +152,7 @@ void NetPlatform_addAddress(const char* interfaceName,
         if (ioctl(s, SIOCSIFNETMASK, &ifRequest) < 0) {
             int err = errno;
             close(s);
-            Except_raise(eh, -1, "ioctl(SIOCSIFNETMASK) failed: [%s]", strerror(err));
+            Except_throw(eh, "ioctl(SIOCSIFNETMASK) failed: [%s]", strerror(err));
         }
     } else {
         Assert_always(0);
@@ -175,7 +175,7 @@ void NetPlatform_setMTU(const char* interfaceName,
     if (ioctl(s, SIOCSIFMTU, &ifRequest) < 0) {
         int err = errno;
         close(s);
-        Except_raise(eh, -1, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
+        Except_throw(eh, "ioctl(SIOCSIFMTU) [%s]", strerror(err));
     }
 
     close(s);

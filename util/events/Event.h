@@ -25,7 +25,6 @@ struct Event
     int unused;
 };
 
-#define Event_socketRead_INTERNAL -1
 struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
                                int s,

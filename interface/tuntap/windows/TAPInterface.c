@@ -104,7 +104,7 @@ static void getVersion(HANDLE tap, struct TAPInterface_Version_pvt* version, str
     }
     if (version_len != sizeof(struct TAPInterface_Version_pvt)) {
         CloseHandle(tap);
-        Except_raise(eh, -1, "DeviceIoControl(TAP_IOCTL_GET_VERSION) out size [%d] expected [%d]",
+        Except_throw(eh, "DeviceIoControl(TAP_IOCTL_GET_VERSION) out size [%d] expected [%d]",
                      (int)version_len, (int)sizeof(struct TAPInterface_Version_pvt));
     }
 }
