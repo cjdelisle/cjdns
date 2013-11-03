@@ -199,7 +199,11 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
                 key = String_clone(key, perCallAlloc);
                 char* lastColon = strrchr(key->bytes, ':');
-                if (lastColon) {
+
+                if (!Sockaddr_parse(key->bytes, NULL)) {
+                    // it's a sockaddr, fall through
+                } else if (lastColon) {
+                    // try it as a hostname.
                     int port = atoi(lastColon+1);
                     if (!port) {
                         Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);

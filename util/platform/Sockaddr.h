@@ -48,7 +48,8 @@ const struct Sockaddr* const Sockaddr_LOOPBACK6;
  * Parse a sockaddr from a string, may be IP4 or IP6.
  *
  * @param str a string representation of the sockaddr.
- * @param output a sockaddr_storage to populate.
+ * @param output a sockaddr_storage to populate, if null then the validity of the string will be
+ *               checked only.
  * @return 0 if all goes well, -1 if there is an error.
  */
 int Sockaddr_parse(const char* str, struct Sockaddr_storage* out);

@@ -81,6 +81,10 @@ struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocat
 
 int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
 {
+    struct Sockaddr_storage unusedOut;
+    if (!out) {
+        out = &unusedOut;
+    }
     Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
     char* lastColon = strrchr(str, ':');
     if (!lastColon || lastColon == strchr(str, ':')) {
