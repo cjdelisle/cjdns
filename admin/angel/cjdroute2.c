@@ -529,7 +529,7 @@ int main(int argc, char** argv)
 
     if (!corePath) {
         Except_throw(eh, "Can't find a usable cjdns core executable, "
-                             "make sure it is in the same directory as cjdroute");
+                         "make sure it is in the same directory as cjdroute");
     }
 
     if (!privateKey) {
