@@ -54,16 +54,28 @@ struct NodeStore_Link;
  */
 struct NodeStore_Link
 {
-    /** A list of NodeStore_Links where the child of each link is the parent of this one. */
-    struct NodeStore_Link* parentLinkList;
-
-    /** The parent of this link. */
-    struct Node* parent;
+    /** The parent of this peer, this is where the root of the treeEntry is. */
+    struct NodeStore_Node* parent;
 
     /** The child of this link. */
-    struct Node* child;
+    struct NodeStore_Node* child;
 
-    /** The label fragment which is spliced to this parent's path in order to reach the child. */
+    /**
+     * The next link which points to the same child.
+     * For each child there are many links pointing to it,
+     * they are represented here as a linked list.
+     */
+    struct NodeStore_Link* nextPeer;
+
+    /** Used by the parent's RBTree of links. */
+    struct {
+        struct NodeStore_Link* rbe_left;
+        struct NodeStore_Link* rbe_right;
+        struct NodeStore_Link* rbe_parent;
+        int rbe_color;
+    } treeEntry;
+
+    /** The label fragment which is spliced to this node's parent in order to reach the child. */
     uint64_t labelFragment;
 
     /**
@@ -72,23 +84,32 @@ struct NodeStore_Link
      */
     uint32_t linkState;
 
+    Identity
+};
+
+struct NodeStore_Node
+{
     /**
-     * Links where 
+     * Address
+     * Path - best known path to this node
+     * reach - current reach
+     * version
+     */
+    struct Node node;
+
+    /** The value of the reach at the time when the best path was last computed. */
+    uint32_t reachAtTimeOfLastUpdate;
+
+    /**
+     * Peers of this node for which we know the forward direction.
+     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
      */
     struct PeerRBTree {
         struct NodeStore_Link* rbh_root;
-    } childLinks;
+    } peerTree;
 
-    /** The next element in grandparentList which is references by grandchildren of this link. */
-    struct NodeStore_Link* nextGrandparent;
-
-    /** Next elements in the grandchildren tree of the grandparents of this link. */
-    struct {
-        struct NodeStore_Link* rbe_left;
-        struct NodeStore_Link* rbe_right;
-        struct NodeStore_Link* rbe_parent;
-        int rbe_color;
-    } treeEntry;
+    /** Used for freeing the links associated with this node. */
+    struct NodeStore_Link* reversePeers;
 
     Identity
 };
