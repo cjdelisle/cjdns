@@ -155,7 +155,9 @@ class Bencode
     /**
      * A callback function used by {@link isAssoc()}.
      *
-     * @return  int
+     * @param $a
+     * @param $b
+     * @return int
      */
     protected static function isAssocCallback($a, $b)
     {
