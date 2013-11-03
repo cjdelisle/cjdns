@@ -198,7 +198,7 @@ emulated by Ethernet frames, UDP packets or other means.
 
 * Self Interface: A special Interface in each switch, packets sent for this
 interface are intended for the node which this switch is a part of. Upon
-reaching the ultimate hop in it's path, a packet is sent through the Self
+reaching the ultimate hop in its path, a packet is sent through the Self
 Interface so it can be handled by the next layer in the node.
 
 * Director: A binary codeword of arbitrary size which when received by the
