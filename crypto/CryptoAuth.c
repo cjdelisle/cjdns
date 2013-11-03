@@ -231,7 +231,7 @@ static inline int decryptRndNonce(uint8_t nonce[24],
     }
 
     Bits_memcpyConst(startAt, paddingSpace, 16);
-    Message_shift(msg, -16);
+    Message_shift(msg, -16, NULL);
     return 0;
 }
 
@@ -257,7 +257,7 @@ static inline void encryptRndNonce(uint8_t nonce[24],
         startAt, startAt, msg->length + 32, nonce, secret);
 
     Bits_memcpyConst(startAt, paddingSpace, 16);
-    Message_shift(msg, 16);
+    Message_shift(msg, 16, NULL);
 }
 
 /**
@@ -376,7 +376,7 @@ static uint8_t genReverseHandshake(struct Message* message,
                                    union Headers_CryptoAuth* header)
 {
     wrapper->nextNonce = 0;
-    Message_shift(message, -Headers_CryptoAuth_SIZE);
+    Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage != NULL) {
@@ -389,7 +389,7 @@ static uint8_t genReverseHandshake(struct Message* message,
     wrapper->bufferedMessage = Message_clone(message, bmalloc);
     Assert_true(wrapper->nextNonce == 0);
 
-    Message_shift(message, Headers_CryptoAuth_SIZE);
+    Message_shift(message, Headers_CryptoAuth_SIZE, NULL);
     header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = UINT32_MAX;
     message->length = Headers_CryptoAuth_SIZE;
@@ -410,7 +410,7 @@ static uint8_t encryptHandshake(struct Message* message,
                                 struct CryptoAuth_Wrapper* wrapper,
                                 int setupMessage)
 {
-    Message_shift(message, sizeof(union Headers_CryptoAuth));
+    Message_shift(message, sizeof(union Headers_CryptoAuth), NULL);
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
 
@@ -542,7 +542,7 @@ static uint8_t encryptHandshake(struct Message* message,
     }
 
     // Shift message over the encryptedTempKey field.
-    Message_shift(message, 32 - Headers_CryptoAuth_SIZE);
+    Message_shift(message, 32 - Headers_CryptoAuth_SIZE, NULL);
 
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
 
@@ -565,7 +565,7 @@ static uint8_t encryptHandshake(struct Message* message,
     #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
-    Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16);
+    Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16, NULL);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
@@ -581,7 +581,7 @@ static inline uint8_t encryptMessage(struct Message* message,
             wrapper->isInitiator,
             wrapper->authenticatePackets);
 
-    Message_shift(message, 4);
+    Message_shift(message, 4, NULL);
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
     header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
@@ -696,7 +696,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         if (!knowHerKey(wrapper)) {
             Bits_memcpyConst(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
         }
-        Message_shift(message, -Headers_CryptoAuth_SIZE);
+        Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
         message->length = 0;
         wrapper->nextNonce = 0;
         wrapper->user = NULL;
@@ -778,7 +778,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     }
 
     // Shift it on top of the authenticator before the encrypted public key
-    Message_shift(message, 48 - Headers_CryptoAuth_SIZE);
+    Message_shift(message, 48 - Headers_CryptoAuth_SIZE, NULL);
 
     #ifdef Log_KEYS
         uint8_t sharedSecretHex[65];
@@ -818,7 +818,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                   tempKeyHex);
     #endif
 
-    Message_shift(message, -32);
+    Message_shift(message, -32, NULL);
     wrapper->nextNonce = nextNonce;
     if (nextNonce == 2) {
         wrapper->isInitiator = false;
@@ -866,7 +866,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     #ifdef Log_DEBUG
         Assert_true(!((uintptr_t)received->bytes % 4) || !"alignment fault");
     #endif
-    Message_shift(received, -4);
+    Message_shift(received, -4, NULL);
 
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
@@ -905,7 +905,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     } else {
         cryptoAuthDebug0(wrapper, "Received handshake message during established connection");
     }
-    Message_shift(received, 4);
+    Message_shift(received, 4, NULL);
     return decryptHandshake(wrapper, nonce, received, header);
 }
 
@@ -1149,4 +1149,11 @@ struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
         return &wrapper->externalInterface;
     }
     return NULL;
+}
+
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface)
+{
+    struct CryptoAuth_Wrapper* wrapper =
+        Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
+    return &wrapper->replayProtector;
 }

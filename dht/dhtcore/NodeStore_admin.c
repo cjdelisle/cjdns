@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strcpy
+#define string_strlen
 #include "admin/Admin.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
@@ -21,6 +23,7 @@
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "memory/Allocator.h"
 #include "util/version/Version.h"
+#include "util/platform/libc/string.h"
 
 struct Context {
     struct Admin* admin;
@@ -66,16 +69,24 @@ static void dumpTable_addEntries(struct Context* ctx,
 
     struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
 
+    if (i >= ctx->store->size || j >= ENTRIES_PER_PAGE) {
+        if (i > j) {
+            dumpTable_send(ctx, last, (j >= ENTRIES_PER_PAGE), txid);
+            return;
+        }
+
+        Address_printIp(ip, ctx->store->selfAddress);
+        strcpy((char*)path, "0000.0000.0000.0001");
+        dumpTable_send(ctx, &next, (j >= ENTRIES_PER_PAGE), txid);
+        return;
+    }
+
     struct Node* n = NodeStore_dumpTable(ctx->store, i);
     link->as.number = n->reach;
     version->as.number = n->version;
     Address_printIp(ip, &n->address);
     AddrTools_printPath(path, n->address.path);
 
-    if (i >= ctx->store->size || j >= ENTRIES_PER_PAGE) {
-        dumpTable_send(ctx, &next, (j >= ENTRIES_PER_PAGE), txid);
-        return;
-    }
     dumpTable_addEntries(ctx, i + 1, j + 1, &next, txid);
 }
 

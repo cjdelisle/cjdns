@@ -79,10 +79,10 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         outgoing->length = 0;
         outgoing->padding = 512;
         outgoing->bytes = buffer + 512;
-        Message_shift(outgoing, 12);
+        Message_shift(outgoing, 12, NULL);
         Bits_memcpyConst(outgoing->bytes, "hello world", 12);
 
-        Message_shift(outgoing, Headers_SwitchHeader_SIZE);
+        Message_shift(outgoing, Headers_SwitchHeader_SIZE, NULL);
         Bits_memcpyConst(outgoing->bytes, (&(struct Headers_SwitchHeader) {
             .label_be = Endian_hostToBigEndian64(1),
             .lowBits_be = 0

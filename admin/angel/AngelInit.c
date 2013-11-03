@@ -56,11 +56,11 @@ static void initCore(char* coreBinaryPath,
     if ((file = fopen(coreBinaryPath, "r")) != NULL) {
         fclose(file);
     } else {
-        Except_raise(eh, -1, "Can't open core executable [%s] for reading.", coreBinaryPath);
+        Except_throw(eh, "Can't open core executable [%s] for reading.", coreBinaryPath);
     }
 
     if (Process_spawn(coreBinaryPath, args, base, alloc)) {
-        Except_raise(eh, -1, "Failed to spawn core process.");
+        Except_throw(eh, "Failed to spawn core process.");
     }
 }
 
@@ -76,7 +76,7 @@ static void sendConfToCore(struct Interface* toCoreInterface,
 
     struct Writer* writer = ArrayWriter_new(start, CONFIG_BUFF_SIZE - 33, tempAlloc);
     if (StandardBencSerializer_get()->serializeDictionary(writer, config)) {
-        Except_raise(eh, -1, "Failed to serialize pre-configuration for core.");
+        Except_throw(eh, "Failed to serialize pre-configuration for core.");
     }
     struct Message* m = &(struct Message) {
         .bytes = start,
@@ -90,15 +90,12 @@ static void sendConfToCore(struct Interface* toCoreInterface,
 
 static void setUser(char* user, struct Log* logger, struct Except* eh)
 {
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        Security_setUser(user, logger, &jmp.handler);
-    } Jmp_catch {
-        if (jmp.code == Security_setUser_PERMISSION) {
-            return;
-        }
-        Except_raise(eh, jmp.code, "%s", jmp.message);
+    int res = 0;
+    switch ((res = Security_setUser(user, logger, eh))) {
+        case Security_setUser_PERMISSION: return;
+        default:;
     }
+    Except_throw(eh, "Security_setUser() returned unknown result [%d]", res);
 }
 
 static struct Pipe* getClientPipe(int argc,
@@ -190,7 +187,7 @@ int AngelInit_main(int argc, char** argv)
     struct Reader* reader = ArrayReader_new(preConf->bytes, preConf->length, tempAlloc);
     Dict config;
     if (StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, &config)) {
-        Except_raise(eh, -1, "Failed to parse configuration.");
+        Except_throw(eh, "Failed to parse configuration.");
     }
 
     Dict* admin = Dict_getDict(&config, String_CONST("admin"));
@@ -201,7 +198,7 @@ int AngelInit_main(int argc, char** argv)
     String* corePipeName = Dict_getString(admin, String_CONST("corePipeName"));
 
     if (!bind || !pass || (!core && !corePipeName)) {
-        Except_raise(eh, -1, "missing configuration params in preconfig. [%s]", preConf->bytes);
+        Except_throw(eh, "missing configuration params in preconfig. [%s]", preConf->bytes);
     }
 
     if (!corePipeName) {

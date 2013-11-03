@@ -44,6 +44,12 @@ struct SessionManager_Session
     uint8_t ip6[16];
 };
 
+struct SessionManager_HandleList
+{
+    uint32_t count;
+    uint32_t* handles;
+};
+
 /**
  * Create a new session manager for keeping track of and expiring crypto sessions.
  * The typical use case is discriminating between packets by ip address, keyOffset is the number
@@ -87,5 +93,11 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
  */
 struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm);
+
+/**
+ * Get the list of all handles.
+ */
+struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
+                                                               struct Allocator* alloc);
 
 #endif

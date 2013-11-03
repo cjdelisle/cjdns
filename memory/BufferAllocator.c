@@ -78,12 +78,12 @@ static void* allocatorMalloc(unsigned long length,
     char* endOfAlloc = pointer + length;
 
     if (endOfAlloc >= context->endPointer) {
-        Except_raise(context->onOOM, -1, "BufferAllocator ran out of memory [%s:%d]",
+        Except_throw(context->onOOM, "BufferAllocator ran out of memory [%s:%d]",
                      identFile, identLine);
     }
 
     if (endOfAlloc < *(context->pPointer)) {
-        Except_raise(context->onOOM, -2, "BufferAllocator integer overflow [%s:%d]",
+        Except_throw(context->onOOM, "BufferAllocator integer overflow [%s:%d]",
                      identFile, identLine);
     }
 

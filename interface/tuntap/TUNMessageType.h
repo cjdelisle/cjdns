@@ -17,16 +17,18 @@
 
 #include "wire/Message.h"
 
-static inline void TUNMessageType_push(struct Message* message, uint16_t ethertype)
+static inline void TUNMessageType_push(struct Message* message,
+                                       uint16_t ethertype,
+                                       struct Except* eh)
 {
-    Message_shift(message, 4);
+    Message_shift(message, 4, eh);
     ((uint16_t*) message->bytes)[0] = 0;
     ((uint16_t*) message->bytes)[1] = ethertype;
 }
 
-static inline uint16_t TUNMessageType_pop(struct Message* message)
+static inline uint16_t TUNMessageType_pop(struct Message* message, struct Except* eh)
 {
-    Message_shift(message, -4);
+    Message_shift(message, -4, eh);
     return ((uint16_t*) message->bytes)[-1];
 }
 

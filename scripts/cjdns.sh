@@ -12,6 +12,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+### BEGIN INIT INFO
+# Provides:          cjdns
+# Required-Start:    $remote_fs $network
+# Required-Stop:     $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts, stops, restarts and upgrades cjdns
+### END INIT INFO
+
 ###
 # cjdns.sh
 #

@@ -35,6 +35,7 @@ struct Address
 {
     union {
         struct {
+            // tricksy: this is effectively a 64 bit rotate of the following bytes array
             uint32_t three;
             uint32_t four;
             uint32_t one;

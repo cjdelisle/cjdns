@@ -15,12 +15,14 @@ include_directories(${LIBUV_INCLUDE_DIRS})
 
 add_library(dhtcore
     NodeStore.c
+    NodeStore_admin.c
     RouterModule.c
     RouterModule_admin.c
     SearchStore.c
     Janitor.c
     VersionList.c
     SearchRunner.c
+    SearchRunner_admin.c
     RouteTracer.c
     NodeStore_admin.c
 )
@@ -32,6 +34,7 @@ target_link_libraries(dhtcore
     switch
     cjdns-util-version-version
     cjdns-util-events-libuv-time
+    cjdns-switch-encodingscheme
 )
 
 # Everything must be tested.

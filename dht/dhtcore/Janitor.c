@@ -18,7 +18,9 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeHeader.h"
-#include "dht/dhtcore/RouterModule_pvt.h"
+#include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/RouteTracer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "memory/BufferAllocator.h"
@@ -47,6 +49,10 @@ struct Janitor
 
     struct NodeStore* nodeStore;
 
+    struct SearchRunner* searchRunner;
+
+    struct RouteTracer* routeTracer;
+
     struct Timeout* timeout;
 
     struct Log* logger;
@@ -61,6 +67,9 @@ struct Janitor
 
     struct EventBase* eventBase;
     struct Random* rand;
+
+    /** Number of concurrent searches taking place. */
+    int searches;
 };
 
 struct Janitor_Search
@@ -80,6 +89,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
         Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
         return;
     }
+    search->janitor->searches--;
     if (!search->best.path) {
         Log_debug(search->janitor->logger, "Search completed with no nodes found");
         return;
@@ -91,15 +101,28 @@ static void responseCallback(struct RouterModule_Promise* promise,
         Address_print(printed, &search->best);
         Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
     #endif
-    RouterModule_trace(search->best.path,
-                       search->janitor->routerModule,
-                       search->janitor->allocator);
+    RouteTracer_trace(search->best.path,
+                      search->janitor->routeTracer,
+                      search->janitor->allocator);
 }
 
 static void search(uint8_t target[16], struct Janitor* janitor)
 {
+    if (janitor->searches >= 20) {
+        Log_debug(janitor->logger, "Skipping search because 20 are in progress");
+        return;
+    }
+
     struct RouterModule_Promise* rp =
-        RouterModule_search(target, janitor->routerModule, janitor->allocator);
+        SearchRunner_search(target, janitor->searchRunner, janitor->allocator);
+
+    if (!rp) {
+        Log_debug(janitor->logger, "RouterModule_search() returned NULL, probably full.");
+        return;
+    }
+
+    janitor->searches++;
+
     struct Janitor_Search* search = Allocator_clone(rp->alloc, (&(struct Janitor_Search) {
         .janitor = janitor
     }));
@@ -117,7 +140,7 @@ static void maintanenceCycle(void* vcontext)
 
     if (NodeStore_size(janitor->nodeStore) == 0) {
         if (now > janitor->timeOfNextGlobalMaintainence) {
-            Log_warn(janitor->routerModule->logger,
+            Log_warn(janitor->logger,
                      "No nodes in routing table, check network connection and configuration.");
             janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
         }
@@ -146,11 +169,10 @@ static void maintanenceCycle(void* vcontext)
         #ifdef Log_DEBUG
             uint8_t printable[40];
             Address_printIp(printable, &targetAddr);
-            Log_debug(janitor->routerModule->logger,
-                       "Running search for %s, node count: %u total reach: %lu\n",
+            Log_debug(janitor->logger,
+                       "Running search for %s, node count: %u\n",
                        printable,
-                       (unsigned int) NodeStore_size(janitor->nodeStore),
-                       (unsigned long) janitor->routerModule->totalReach);
+                       (unsigned int) NodeStore_size(janitor->nodeStore));
         #endif
 
         search(targetAddr.ip6.bytes, janitor);
@@ -158,17 +180,17 @@ static void maintanenceCycle(void* vcontext)
     }
 
     #ifdef Log_DEBUG
-        int nonZeroNodes = NodeStore_nonZeroNodes(janitor->routerModule->nodeStore);
-        Log_debug(janitor->routerModule->logger,
+        int nonZeroNodes = NodeStore_nonZeroNodes(janitor->nodeStore);
+        Log_debug(janitor->logger,
                   "Global Mean Response Time: %u non-zero nodes: [%d] zero nodes [%d] total [%d]",
-                  (unsigned int) AverageRoller_getAverage(janitor->routerModule->gmrtRoller),
+                  RouterModule_globalMeanResponseTime(janitor->routerModule),
                   nonZeroNodes,
-                  janitor->routerModule->nodeStore->size - nonZeroNodes,
-                  janitor->routerModule->nodeStore->size);
+                  janitor->nodeStore->size - nonZeroNodes,
+                  janitor->nodeStore->size);
 
         /* Accessible via admin interface.
         size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
-        Log_debug(janitor->routerModule->logger,
+        Log_debug(janitor->logger,
                    "Using %u bytes of memory.\n",
                    (unsigned int) bytes);
         */
@@ -184,6 +206,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
+                            struct SearchRunner* searchRunner,
+                            struct RouteTracer* routeTracer,
                             struct Log* logger,
                             struct Allocator* alloc,
                             struct EventBase* eventBase,
@@ -193,6 +217,8 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .eventBase = eventBase,
         .routerModule = routerModule,
         .nodeStore = nodeStore,
+        .searchRunner = searchRunner,
+        .routeTracer = routeTracer,
         .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase),

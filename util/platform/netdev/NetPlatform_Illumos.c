@@ -86,14 +86,14 @@ static void setupRoute(const uint8_t address[16],
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (sock == -1) {
-        Except_raise(eh, -1, "open route socket [%s]", strerror(errno));
+        Except_throw(eh, "open route socket [%s]", strerror(errno));
     }
 
     ssize_t returnLen = write(sock, (char*) &rm, rm.header.rtm_msglen);
     if (returnLen < 0) {
-        Except_raise(eh, -1, "insert route [%s]", strerror(errno));
+        Except_throw(eh, "insert route [%s]", strerror(errno));
     } else if (returnLen < rm.header.rtm_msglen) {
-        Except_raise(eh, -1,
+        Except_throw(eh,
                      "insert route returned only [%d] of [%d]",
                      (int)returnLen, rm.header.rtm_msglen);
     }
@@ -106,7 +106,7 @@ static void addIp4Address(const char* interfaceName,
                           struct Except* eh)
 {
     // TODO: implement this and then remove the exception from TUNInterface_ipv4_root_test.c
-    Except_raise(eh, -1, "unimplemented");
+    Except_throw(eh, "unimplemented");
 }
 
 static void addIp6Address(const char* interfaceName,
@@ -157,7 +157,7 @@ static void addIp6Address(const char* interfaceName,
     if (error) {
         int err = errno;
         close(udpSock);
-        Except_raise(eh, -1, "%s [%s]",
+        Except_throw(eh, "%s [%s]",
                      error, strerror(err));
     }
     close(udpSock);
@@ -186,5 +186,5 @@ void NetPlatform_setMTU(const char* interfaceName,
                         struct Log* logger,
                         struct Except* eh)
 {
-    Except_raise(eh, -1, "Not implemented in Illumos");
+    Except_throw(eh, "Not implemented in Illumos");
 }

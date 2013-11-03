@@ -22,10 +22,28 @@
 #include "util/Bits.h"
 #include "memory/Allocator.h"
 
+
+struct SearchRunner_SearchData
+{
+    /** What we're searching for */
+    uint8_t target[16];
+
+    /** Who we last asked about it. */
+    struct Address lastNodeAsked;
+
+    /** How many people we have asked. */
+    int totalRequests;
+
+    /** Number of searches which are currently active. */
+    int activeSearches;
+};
+
 struct SearchRunner
 {
     int unused;
 };
+
+#define SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES 30
 
 /**
  * Start a search.
@@ -39,6 +57,19 @@ struct SearchRunner
 struct RouterModule_Promise* SearchRunner_search(uint8_t searchTarget[16],
                                                  struct SearchRunner* runner,
                                                  struct Allocator* alloc);
+
+/**
+ * Show an active search.
+ *
+ * @param runner
+ * @param number the search number
+ * @param alloc the allocator to use for the output
+ * @return an active search or null if number exceeds the index of the
+ *         highest numbered active search.
+ */
+struct SearchRunner_SearchData* SearchRunner_showActiveSearch(struct SearchRunner* runner,
+                                                              int number,
+                                                              struct Allocator* alloc);
 
 struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct Log* logger,

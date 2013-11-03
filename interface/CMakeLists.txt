@@ -27,10 +27,14 @@ add_library(interface
     UDPInterface_admin.c
     InterfaceConnector.c
     SessionManager.c
+    SessionManager_admin.c
     ICMP6Generator.c
     MultiInterface.c
     FramingInterface.c
     InterfaceController_admin.c
+    DNSServer.c
+    RainflyClient.c
+    RainflyClient_admin.c
 )
 
 target_link_libraries(interface
@@ -39,6 +43,7 @@ target_link_libraries(interface
     util
     cjdns-crypto-key
     cjdns-util-platform-socket
+    cjdbenc_JsonBencSerializer # RainflyClient
 )
 
 add_subdirectory(addressable)

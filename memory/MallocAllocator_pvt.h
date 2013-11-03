@@ -102,6 +102,9 @@ struct MallocAllocator_pvt
     const char* identFile;
     int identLine;
 
+    /** If true then this allocator is in the process of being freed. */
+    int freeing;
+
     #ifdef MallocAllocator_USE_CANARIES
         /** The canary for allocations made with this allocator constant to allow varification. */
         long canary;

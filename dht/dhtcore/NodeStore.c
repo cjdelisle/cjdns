@@ -12,15 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strcpy
-
-#include "admin/Admin.h"
-#include "benc/Int.h"
-#include "benc/List.h"
-#include "benc/Dict.h"
-#include "benc/String.h"
-#include "benc/Object.h"
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/CJDHTConstants.h"
@@ -31,7 +22,6 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeCollector.h"
 #include "dht/dhtcore/NodeList.h"
-#include "util/platform/libc/string.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -40,9 +30,9 @@
 #include "switch/LabelSplicer.h"
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <inttypes.h>
 #include <uv-private/tree.h>
+
 
 struct NodeStore_Node;
 struct NodeStore_Link;
@@ -163,9 +153,6 @@ struct NodeStore_pvt
 
     /** The means for this node store to log. */
     struct Log* logger;
-
-    /** Administration tool. */
-    struct Admin* admin;
 
     Identity
 };
@@ -375,18 +362,13 @@ struct Node* NodeStore_getNode(struct NodeStore_pvt* store,
                                         uint32_t version)
 {
 */
-static inline struct Address* getSelfAddress(struct NodeStore_pvt* store)
-{
-    return &store->selfLink->child->node.address;
-}
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin)
+                                struct Random* rand)
 {
     struct Allocator* alloc = Allocator_child(allocator);
 
@@ -399,7 +381,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
         },
         .capacity = capacity,
         .logger = logger,
-        .admin = admin,
         .rand = rand,
         .alloc = alloc
     }));
@@ -413,6 +394,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     selfNode->node.reach = ~0u;
     selfNode->reachAtTimeOfLastUpdate = ~0u;
     out->selfLink = selfNode->reversePeers;
+
+    out->pub.selfAddress = &selfNode->node.address;
 
     // Create the node table
     out->headers = Allocator_calloc(oldAlloc, sizeof(struct NodeHeader), capacity);
@@ -433,21 +416,6 @@ static struct Node* nodeForIndex(struct NodeStore_pvt* store, uint32_t index)
     out->reach = store->headers[index].reach;
     out->version = store->headers[index].version;
     return out;
-}
-
-/**
- * Dump the table, one node at a time.
- */
-struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
-{
-    struct NodeStore_pvt* s = Identity_cast((struct NodeStore_pvt*)store);
-    if (index >= (uint32_t)store->size) {
-        if (index == (uint32_t)store->size) {
-            return &s->selfLink->child->node;
-        }
-        return NULL;
-    }
-    return nodeForIndex(s, index);
 }
 
 /** See: NodeStore.h */
@@ -475,6 +443,18 @@ struct Node* NodeStore_getNode(struct NodeStore* nodeStore, struct Address* addr
 
     // Synchronize the reach values.
     return nodeForIndex(store, bestIndex);
+}
+
+/**
+ * Dump the table, one node at a time.
+ */
+struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
+{
+    struct NodeStore_pvt* s = Identity_cast((struct NodeStore_pvt*)store);
+    if (index >= (uint32_t)store->size) {
+        return NULL;
+    }
+    return nodeForIndex(s, index);
 }
 
 static inline uint32_t getSwitchIndex(struct Address* addr)
@@ -532,6 +512,27 @@ static inline void adjustReach(struct NodeHeader* header,
     }
 }
 
+static void removeNode(struct Node* node, struct NodeStore_pvt* store)
+{
+    Assert_true(node >= store->nodes && node < store->nodes + store->pub.size);
+
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug(store->logger, "Removing route to %s\n", addr);
+    #endif
+
+    store->pub.size--;
+
+    if (node != &store->nodes[store->pub.size]) {
+        Bits_memcpyConst(node, &store->nodes[store->pub.size], sizeof(struct Node));
+        struct NodeHeader* header = &store->headers[node - store->nodes];
+        Bits_memcpyConst(header, &store->headers[store->pub.size], sizeof(struct NodeHeader));
+    }
+
+    // This is needed because otherwise replaceNode will cause the labelSum to skew.
+    store->nodes[store->pub.size].address.path = 0;
+}
 
 struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                struct Address* addr,
@@ -543,10 +544,9 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
         Log_debug(store->logger, "node with incompatable version");
         return NULL;
     }
-    struct Address* selfAddress = getSelfAddress(store);
 
     uint32_t pfx = Address_getPrefix(addr);
-    if (Bits_memcmp(addr->ip6.bytes, selfAddress->ip6.bytes, 16) == 0) {
+    if (Bits_memcmp(addr->ip6.bytes, store->pub.selfAddress, 16) == 0) {
         Log_debug(store->logger, "got introduced to ourselves");
         return NULL;
     }
@@ -563,15 +563,38 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     //discoverNode(store, addr, reachDifference, version);
 
     // Keep track of the node with the longest label so if the store is full, it can be replaced.
-    int worstNode = 0;
+    int worstNode = -1;
     uint64_t worstPath = 0;
 
+    // becomes true when the direct peer behind this path is found.
+    int foundPeer = LabelSplicer_isOneHop(addr->path);
+
     for (int i = 0; i < store->pub.size; i++) {
+
+        if (LabelSplicer_isOneHop(store->nodes[i].address.path)
+            && LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path))
+        {
+            foundPeer = 1;
+        }
+
+        if (store->pub.size >= store->capacity && store->nodes[i].address.path > worstPath) {
+            worstPath = store->nodes[i].address.path;
+            worstNode = i;
+        }
+
         if (store->headers[i].addressPrefix == pfx
             && Address_isSameIp(&store->nodes[i].address, addr))
         {
+            // same address
+            #ifdef PARANOIA
+                uint8_t realAddr[16];
+                AddressCalc_addressForPublicKey(realAddr, addr->key);
+                Assert_true(!Bits_memcmp(realAddr, addr->ip6.bytes, 16));
+            #endif
+
             if (store->nodes[i].address.path == addr->path) {
-                // same address...
+                // same node
+
             } else if (LabelSplicer_routesThrough(store->nodes[i].address.path, addr->path)) {
                 #ifdef Log_DEBUG
                     uint8_t nodeAddr[60];
@@ -584,9 +607,15 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                                newAddr);
                 #endif
 
+                // We can take the reach of the existing node with us because this path is a
+                // subpath of the one we were using so it's functionality implies this path's
+                // functionality.
+                reachDifference += store->headers[i].reach;
+
                 // Remove the node and continue on to add this one.
                 // If we just change the path, we get duplicates.
-                NodeStore_remove(&store->nodes[i], &store->pub);
+                removeNode(&store->nodes[i], store);
+
                 i--;
                 continue;
             } else if (!LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path)) {
@@ -594,24 +623,30 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                 continue;
             }
 
+            // either same node or discovered a redundant route to the same node.
             adjustReach(&store->headers[i], reachDifference, store);
             store->headers[i].version = version;
             return nodeForIndex(store, i);
 
         } else if (store->nodes[i].address.path == addr->path) {
+            // same path different addr.
+
             // When a node restarts, it's switch renumbers meaning that the paths to other nodes
             // change. This causes a previously valid path to A to now point to B. The problem
             // is that there is a real node at the end of the path to B and worse, there are real
-            // nodes behind that one. When those nodes respond to pings and searches, their reach
-            // is updated along with the now-invalid node A.
+            // nodes behind that one. Those nodes may respond properly to *switch* pings but not
+            // to router pings or searches because their addresses are different so the keys don't
+            // match.
+            //
             // This will allow incoming packets from B to clear A out of the table and replace
             // them with B while preventing another node's memory of B from causing A to be
-            // replaced.
+            // replaced. Being *told* about a node implies reachDifference == 0, having first hand
+            // experience of it's existance implies reachDifference > 0.
             if (reachDifference > 0) {
-                replaceNode(&store->nodes[i], &store->headers[i], addr, store);
-                store->headers[i].reach = reachDifference;
-                store->headers[i].version = version;
-                return nodeForIndex(store, i);
+                // Removing and adding back because of the creepy above comment about duplicates.
+                removeNode(&store->nodes[i], store);
+                i--;
+                continue;
             } else {
                 // TODO:
                 // We were told about another node, it might be B and it might be A (invalid).
@@ -620,19 +655,6 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                 return NULL;
             }
         }
-
-        if (store->pub.size >= store->capacity && store->nodes[i].address.path > worstPath) {
-            worstPath = store->nodes[i].address.path;
-            worstNode = i;
-        }
-
-        #ifdef Log_DEBUG
-            if (store->headers[i].addressPrefix == pfx) {
-                uint8_t realAddr[16];
-                AddressCalc_addressForPublicKey(realAddr, addr->key);
-                Assert_true(!Bits_memcmp(realAddr, addr->ip6.bytes, 16));
-            }
-        #endif
     }
 
     #ifdef Log_DEBUG
@@ -644,11 +666,20 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                    reachDifference);
     #endif
 
-    for (int i = 0; i < store->pub.size; i++) {
-       Assert_true(store->headers[i].addressPrefix == Address_getPrefix(&store->nodes[i].address));
-       Assert_true(!(!Bits_memcmp(&store->nodes[i].address.ip6, &addr->ip6, 16)
-           && store->nodes[i].address.path == addr->path));
+    if (!foundPeer) {
+        Log_debug(store->logger, "Dropping discovered node because there is no peer behind it");
+        return NULL;
     }
+
+    #ifdef PARANOIA
+        for (int i = 0; i < store->pub.size; i++) {
+           Assert_true(store->headers[i].addressPrefix ==
+                           Address_getPrefix(&store->nodes[i].address));
+           Assert_true(!(!Bits_memcmp(&store->nodes[i].address.ip6, &addr->ip6, 16)
+               && store->nodes[i].address.path == addr->path));
+        }
+        Assert_true(store->pub.size < store->capacity || worstNode != -1);
+    #endif
 
     int insertionIndex = (store->pub.size >= store->capacity) ? worstNode : store->pub.size++;
 
@@ -676,8 +707,8 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
         .logger = store->logger
     };
 
-    struct Address* selfAddress = getSelfAddress(store);
-    collector.thisNodeDistance = Address_getPrefix(selfAddress) ^ collector.targetPrefix;
+    collector.thisNodeDistance =
+        Address_getPrefix(store->pub.selfAddress) ^ collector.targetPrefix;
 
     for (int i = 0; i < store->pub.size; i++) {
         if (store->headers[i].reach != 0) {
@@ -696,7 +727,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     struct NodeCollector* collector = NodeCollector_new(address,
                                                         max,
-                                                        getSelfAddress(store),
+                                                        store->pub.selfAddress,
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -767,7 +798,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           bool allowNodesFartherThanUs,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator)
 {
@@ -776,7 +806,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     // LinkStateNodeCollector strictly requires that allowNodesFartherThanUs be true.
     struct NodeCollector* collector = NodeCollector_new(targetAddress,
                                                         count,
-                                                        getSelfAddress(store),
+                                                        store->pub.selfAddress,
                                                         true,
                                                         store->logger,
                                                         allocator);
@@ -822,33 +852,17 @@ void NodeStore_updateReach(const struct Node* const node,
     uint64_t path = node->address.path;
     for (int i = 0; i < store->pub.size; i++) {
         uint64_t dest = store->nodes[i].address.path;
-        if (LabelSplicer_routesThrough(dest, path)) {
-            if (store->headers[i].reach > node->reach) {
-                store->headers[i].reach = node->reach;
-                if (node->reach == 0) {
-                    logNodeZeroed(store->logger, &store->nodes[i]);
-                }
+        if (LabelSplicer_routesThrough(dest, path)
+            && store->headers[i].reach > node->reach)
+        {
+            store->headers[i].reach = node->reach;
+            if (node->reach == 0) {
+                logNodeZeroed(store->logger, &store->nodes[i]);
             }
-        } else if (LabelSplicer_routesThrough(path, dest)) {
-            /*
-             * When a switch restarts, it repopulates it's slots in random order.
-             * Nodes have stale entries in their tables that predate the switch restart.
-             * these entries contain valid keys with valid paths but the key does not match
-             * the path. Worse these nodes share the stale routes with others.
-             *
-             * Normally the reach of nodes which are invalid is set to 0 and they are not
-             * bothered with anymore. Unfortunately in this case, the path is valid and
-             * there are valid entries which are "behind" that node.
-             * When one of these nodes is pinged, it's reach is updated and the invalid node
-             * gets it's reach updated at the same time so it will potentially be selected for
-             * forwarding a packet to.
-             *
-             * This is a temporary workaround which just skips increasing the reach for a node
-             * whose reach is 0 so that these stale nodes will not do damage.
-             */
-            if (store->headers[i].reach < node->reach && store->headers[i].reach != 0) {
-                store->headers[i].reach = node->reach;
-            }
+        } else if (LabelSplicer_routesThrough(path, dest)
+            && store->headers[i].reach < node->reach)
+        {
+            store->headers[i].reach = node->reach;
         }
     }
 }
@@ -880,42 +894,17 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* nod
     return NULL;
 }
 
-void NodeStore_remove(struct Node* node, struct NodeStore* nodeStore)
-{
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    Assert_true(node >= store->nodes && node < store->nodes + store->pub.size);
-
-    #ifdef Log_DEBUG
-        uint8_t addr[60];
-        Address_print(addr, &node->address);
-        Log_debug(store->logger, "Removing route to %s\n", addr);
-    #endif
-
-    store->pub.size--;
-
-    if (node != &store->nodes[store->pub.size]) {
-        Bits_memcpyConst(node, &store->nodes[store->pub.size], sizeof(struct Node));
-        struct NodeHeader* header = &store->headers[node - store->nodes];
-        Bits_memcpyConst(header, &store->headers[store->pub.size], sizeof(struct NodeHeader));
-    }
-
-    // This is needed because otherwise replaceNode will cause the labelSum to skew.
-    store->nodes[store->pub.size].address.path = 0;
-}
-
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     int out = 0;
     for (int32_t i = (int32_t) store->pub.size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
-            if (!LabelSplicer_isOneHop(store->nodes[i].address.path)) {
-                NodeStore_remove(&store->nodes[i], &store->pub);
-                out++;
-            } else {
-                logNodeZeroed(store->logger, &store->nodes[i]);
-                store->headers[i].reach = 0;
+            if (LabelSplicer_isOneHop(store->nodes[i].address.path)) {
+                Assert_true(store->nodes[i].address.path == path);
             }
+            removeNode(&store->nodes[i], store);
+            out++;
         }
     }
     return out;

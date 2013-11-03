@@ -38,6 +38,15 @@ static inline int Bits_ffs64(uint64_t number)
     return out;
 }
 
+static inline int Bits_popCountx32(uint32_t number)
+{
+    int out = 0;
+    for (int i = 0; i < 32; i++) {
+        out += ((number >> i) & 1);
+    }
+    return out;
+}
+
 static inline int Bits_log2x64(uint64_t number)
 {
     int out = 0;

@@ -231,7 +231,7 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
     union Random_SeedGen* seedGen = Allocator_calloc(alloc, sizeof(union Random_SeedGen), 1);
 
     if (RandomSeed_get(seed, seedGen->buff)) {
-        Except_raise(eh, -1, "Unable to initialize secure random number generator");
+        Except_throw(eh, "Unable to initialize secure random number generator");
     }
 
     struct Random* rand = Allocator_calloc(alloc, sizeof(struct Random), 1);

@@ -19,15 +19,20 @@
 
 #define Except_BUFFER_SZ 1024
 
+struct Except;
 struct Except
 {
-    void (* exception)(char* message, int code, struct Except* handler);
+    struct Except* next;
+
+    void (* exception)(char* message, struct Except* handler);
 
     char message[Except_BUFFER_SZ];
 };
 
 Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
+Gcc_PRINTF(4, 5)
+void Except__throw(char* file, int line, struct Except* eh, char* format, ...);
+#define Except_throw(...) Except__throw(__FILE__, __LINE__, __VA_ARGS__)
+
 
 #endif

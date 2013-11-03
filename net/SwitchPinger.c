@@ -49,6 +49,12 @@ struct SwitchPinger
 
     bool isError;
 
+    /** Pings which are currently waiting for responses. */
+    int outstandingPings;
+
+    /** Maximum number of pings which can be outstanding at one time. */
+    int maxConcurrentPings;
+
     Identity
 };
 
@@ -72,15 +78,15 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
     ctx->incomingVersion = 0;
     Assert_true(Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL);
-    Message_shift(msg, -Headers_SwitchHeader_SIZE);
+    Message_shift(msg, -Headers_SwitchHeader_SIZE, NULL);
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->type_be == Control_PONG_be) {
-        Message_shift(msg, -Control_HEADER_SIZE);
+        Message_shift(msg, -Control_HEADER_SIZE, NULL);
         ctx->isError = false;
         struct Control_Ping* pongHeader = (struct Control_Ping*) msg->bytes;
         if (msg->length >= Control_Pong_MIN_SIZE) {
             ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
-            Message_shift(msg, -Control_Pong_HEADER_SIZE);
+            Message_shift(msg, -Control_Pong_HEADER_SIZE, NULL);
             if (pongHeader->magic != Control_Pong_MAGIC) {
                 Log_debug(ctx->logger, "dropped invalid switch pong");
                 return Error_INVALID;
@@ -98,7 +104,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
           + Headers_SwitchHeader_SIZE
           + Control_HEADER_SIZE
           + Control_Ping_HEADER_SIZE
-        ));
+        ), NULL);
         ctx->isError = true;
 
     } else {
@@ -146,18 +152,18 @@ static void sendPing(String* data, void* sendPingContext)
     Assert_true(data->len < (BUFFER_SZ / 2));
     Bits_memcpy(msg.bytes, data->bytes, data->len);
 
-    Message_shift(&msg, Control_Ping_HEADER_SIZE);
+    Message_shift(&msg, Control_Ping_HEADER_SIZE, NULL);
     struct Control_Ping* pingHeader = (struct Control_Ping*) msg.bytes;
     pingHeader->magic = Control_Ping_MAGIC;
     pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Message_shift(&msg, Control_HEADER_SIZE);
+    Message_shift(&msg, Control_HEADER_SIZE, NULL);
     struct Control* ctrl = (struct Control*) msg.bytes;
     ctrl->checksum_be = 0;
     ctrl->type_be = Control_PING_be;
     ctrl->checksum_be = Checksum_engine(msg.bytes, msg.length);
 
-    Message_shift(&msg, Headers_SwitchHeader_SIZE);
+    Message_shift(&msg, Headers_SwitchHeader_SIZE, NULL);
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg.bytes;
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
     Headers_setPriorityAndMessageType(switchHeader, 0, Headers_SwitchHeader_TYPE_CONTROL);
@@ -196,6 +202,15 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
     };
 }
 
+static int onPingFree(struct Allocator_OnFreeJob* job)
+{
+    struct Ping* ping = Identity_cast((struct Ping*)job->userData);
+    struct SwitchPinger* ctx = Identity_cast(ping->context);
+    ctx->outstandingPings--;
+    Assert_true(ctx->outstandingPings >= 0);
+    return 0;
+}
+
 struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                String* data,
                                                uint32_t timeoutMilliseconds,
@@ -207,12 +222,14 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         return NULL;
     }
 
-    struct Pinger_Ping* pp =
-        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
-
-    if (!pp) {
+    if (ctx->outstandingPings > ctx->maxConcurrentPings) {
+        Log_debug(ctx->logger, "Skipping switch ping because there are already [%d] outstanding",
+                  ctx->outstandingPings);
         return NULL;
     }
+
+    struct Pinger_Ping* pp =
+        Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
 
     struct Ping* ping = Allocator_clone(pp->pingAlloc, (&(struct Ping) {
         .public = {
@@ -225,7 +242,9 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         .pingerPing = pp
     }));
     Identity_set(ping);
+    Allocator_onFree(pp->pingAlloc, onPingFree, ping);
     pp->context = ping;
+    ctx->outstandingPings++;
 
     return &ping->public;
 }
@@ -247,7 +266,8 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
         .iface = iface,
         .pinger = Pinger_new(eventBase, rand, logger, alloc),
         .logger = logger,
-        .allocator = alloc
+        .allocator = alloc,
+        .maxConcurrentPings = SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS,
     }), sizeof(struct SwitchPinger));
     iface->receiveMessage = receiveMessage;
     iface->receiverContext = sp;

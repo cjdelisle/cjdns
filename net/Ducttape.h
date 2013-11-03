@@ -17,6 +17,7 @@
 
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/SearchRunner.h"
 #include "switch/SwitchCore.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -27,16 +28,18 @@
 struct Ducttape
 {
     struct Interface switchPingerIf;
+    struct Interface magicInterface;
+    struct SessionManager* sessionManager;
 };
 
 struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
+                                   struct SearchRunner* searchRunner,
                                    struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
                                    struct Log* logger,
-                                   struct Admin* admin,
                                    struct IpTunnel* ipTun,
                                    struct Random* rand);
 

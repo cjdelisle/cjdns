@@ -43,8 +43,8 @@ int main()
 
     struct Message* msg;
     Message_STACK(msg, 0, 128);
-    Message_push(msg, "invalid poop", 12);
-    Message_push(msg, "The Key ", 8);
+    Message_push(msg, "invalid poop", 12, NULL);
+    Message_push(msg, "The Key ", 8, NULL);
     iface.receiveMessage(msg, &iface);
 
     Assert_true(allocatorsFreed == 1);

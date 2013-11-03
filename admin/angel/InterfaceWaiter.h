@@ -28,10 +28,8 @@
  * @param eventBase a libevent context.
  * @param alloc the allocator which will be used to allocate the space for the message.
  * @param eh an exception handler in case something goes wrong.
- *           InterfaceWaiter_getData_TIMEOUT if the message isn't available within 2 seconds.
  * @return the message.
  */
-#define InterfaceWaiter_waitForData_TIMEOUT -1
 struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
                                             struct EventBase* eventBase,
                                             struct Allocator* alloc,

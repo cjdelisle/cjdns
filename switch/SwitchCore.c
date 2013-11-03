@@ -124,7 +124,8 @@ static inline void sendError(struct SwitchInterface* iface,
 
     // Shift back so we can add another header.
     Message_shift(cause,
-                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE);
+                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  NULL);
     struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
@@ -236,6 +237,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     if (sourceIndex == destIndex) {
         DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
+        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+        return Error_NONE;
     }
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));

@@ -54,7 +54,8 @@ int main()
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) &ip6[1];
     ip6->hopLimit = 0;
     ip6->nextHeader = 17;
-    udp->sourceAndDestPorts = 0;
+    udp->srcPort_be = 0;
+    udp->destPort_be = 0;
     udp->length_be = Endian_hostToBigEndian16(strlen(pingBenc));
 
     strncpy((char*)(udp + 1), pingBenc, strlen(pingBenc));
@@ -65,20 +66,20 @@ int main()
     // bad checksum
     udp->checksum_be = 1;
     struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m, &dt->pub, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
     struct Message m2 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m2, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m2, &dt->pub, herPublicKey);
     Assert_always(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
         Checksum_udpIp6(ip6->sourceAddr, (uint8_t*) udp, strlen(pingBenc) + Headers_UDPHeader_SIZE);
     struct Message m3 = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
-    Ducttape_injectIncomingForMe(&m3, &dt->public, herPublicKey);
+    Ducttape_injectIncomingForMe(&m3, &dt->pub, herPublicKey);
     Assert_always(dt->switchInterface.receiverContext);
 
     Allocator_free(alloc);

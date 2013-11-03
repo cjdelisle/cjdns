@@ -127,6 +127,40 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
+static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
+{
+    List* servers = Dict_getList(dns, String_CONST("servers"));
+    int count = List_size(servers);
+    for (int i = 0; i < count; i++) {
+        String* server = List_getString(servers, i);
+        if (!server) {
+            Except_throw(eh, "dns.servers[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addServer"), d, ctx, ctx->alloc);
+    }
+
+    List* keys = Dict_getList(dns, String_CONST("keys"));
+    count = List_size(keys);
+    for (int i = 0; i < count; i++) {
+        String* key = List_getString(keys, i);
+        if (!key) {
+            Except_throw(eh, "dns.keys[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addKey"), d, ctx, ctx->alloc);
+    }
+
+    int64_t* minSigs = Dict_getInt(dns, String_CONST("minSignatures"));
+    if (minSigs) {
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putInt(d, String_CONST("count"), *minSigs, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_minSignatures"), d, ctx, ctx->alloc);
+    }
+}
+
 static void udpInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
@@ -349,6 +383,7 @@ void Configurator_config(Dict* config,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
+    struct Except* eh = NULL;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
         AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
@@ -372,6 +407,9 @@ void Configurator_config(Dict* config,
 
     List* securityList = Dict_getList(config, String_CONST("security"));
     security(securityList, tempAlloc, &ctx);
+
+    Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
+    dns(dnsConf, &ctx, eh);
 
     Allocator_free(tempAlloc);
 }

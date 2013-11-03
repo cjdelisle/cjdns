@@ -28,6 +28,8 @@ struct NodeStore
 {
     /** The number of nodes in the list. */
     int size;
+
+    struct Address* selfAddress;
 };
 
 /**
@@ -42,8 +44,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger,
-                                struct Random* rand,
-                                struct Admin* admin);
+                                struct Random* rand);
 
 /**
  * Put a node into the store.
@@ -64,8 +65,27 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
                                int64_t reachDiff,
                                uint32_t version);
 
+/**
+ * Find the one best node using LinkStateNodeCollector. LinkStateNodeCollector prefers a
+ * keyspace match (same address). It breaks ties by choosing the highest version node
+ * (versions above it's own are considered the same as it's version). It breaks ties of the
+ * above two by which node has non-zero reach and finally shortest label fragment wins.
+ *
+ * @param targetAddress the address used for comparing distance
+ * @param store the NodeStore
+ * @return the node w/ address closest to targetAddress or NULL if myAddress is closest
+ */
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
+/**
+ * Find nodes that have the specified address.  These nodes will have different paths.
+ *
+ * @param address the Address to find Nodes with
+ * @param max the maximum number to return
+ * @param allocator the Allocator used to construct the NodeList
+ * @param store the NodeStore to check
+ * @return a NodeList* of up to size max nodes
+ */
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
                                           struct Allocator* allocator,
@@ -94,9 +114,6 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
  * @param requestorsAddress if not NULL no responses will be returned which are
  *                          closer to this node in physical space.
  * @param count the number of nodes to return.
- * @param allowNodesFartherThanUs if true then return nodes which are farther than the target
- *                                then we are. this is required for searches but unallowable
- *                                for answering queries.
  * @param versionOfRequestingNode the version of the node who asked for the list, no nodes will
  *                                be returned which are known to be incompatible with this version.
  * @param allocator the memory allocator to use for getting the memory to store the output.
@@ -105,7 +122,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           bool allowNodesFartherThanUs,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
@@ -138,8 +154,6 @@ static inline uint32_t NodeStore_size(const struct NodeStore* const nodeStore)
  */
 struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
 
-void NodeStore_remove(struct Node* node, struct NodeStore* store);
-
 /**
  * Remove all nodes who are reachable by this path.
  *
@@ -148,7 +162,6 @@ void NodeStore_remove(struct Node* node, struct NodeStore* store);
  * @return the number of nodes which were removed.
  */
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
-
 
 /**
  * Dump the table, one node at a time.

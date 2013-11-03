@@ -28,7 +28,13 @@
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "dht/ReplyModule.h"
 #include "dht/SerializationModule.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
+#include "dht/dhtcore/RouteTracer.h"
+#include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/SearchRunner_admin.h"
+#include "dht/dhtcore/NodeStore_admin.h"
+#include "dht/dhtcore/Janitor.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/UDPInterface_admin.h"
@@ -40,6 +46,10 @@
 #include "interface/InterfaceController_admin.h"
 #include "interface/FramingInterface.h"
 #include "interface/ICMP6Generator.h"
+#include "interface/RainflyClient.h"
+#include "interface/RainflyClient_admin.h"
+#include "interface/DNSServer.h"
+#include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
 #include "io/ArrayReader.h"
 #include "io/ArrayWriter.h"
 #include "io/FileWriter.h"
@@ -54,6 +64,7 @@
 #include "switch/SwitchCore.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
+#include "util/events/Timeout.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
@@ -61,6 +72,7 @@
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
 #include "util/platform/netdev/NetDev.h"
+#include "interface/SessionManager_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -69,6 +81,18 @@
 
 // Failsafe: abort if more than 2^22 bytes are allocated (4MB)
 #define ALLOCATOR_FAILSAFE (1<<22)
+
+/** The number of nodes which we will keep track of. */
+#define NODE_STORE_SIZE 8192
+
+/** The number of milliseconds between attempting local maintenance searches. */
+#define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
+
+/**
+ * The number of milliseconds to pass between global maintainence searches.
+ * These are searches for random targets which are used to discover new nodes.
+ */
+#define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
 
 /**
  * The worst possible packet overhead.
@@ -103,7 +127,7 @@ static void parsePrivateKey(uint8_t privateKey[32],
     crypto_scalarmult_curve25519_base(addr->key, privateKey);
     AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
     if (!AddressCalc_validAddress(addr->ip6.bytes)) {
-        Except_raise(eh, -1, "Ip address outside of the FC00/8 range, invalid private key.");
+        Except_throw(eh, "Ip address outside of the FC00/8 range, invalid private key.");
     }
 }
 
@@ -177,7 +201,7 @@ static Dict* getInitialConfig(struct Interface* iface,
     struct Reader* reader = ArrayReader_new(m->bytes, m->length, alloc);
     Dict* config = Dict_new(alloc);
     if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
-        Except_raise(eh, -1, "Failed to parse initial configuration.");
+        Except_throw(eh, "Failed to parse initial configuration.");
     }
 
     return config;
@@ -228,7 +252,7 @@ int Core_main(int argc, char** argv)
     struct Except* eh = NULL;
 
     if (argc != 3) {
-        Except_raise(eh, -1, "This is internal to cjdns and shouldn't started manually.");
+        Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
     }
 
     struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
@@ -264,27 +288,27 @@ int Core_main(int argc, char** argv)
     String* bind = Dict_getString(adminConf, String_CONST("bind"));
     if (!(pass && privateKeyHex && bind)) {
         if (!pass) {
-            Except_raise(eh, -1, "Expected 'pass'");
+            Except_throw(eh, "Expected 'pass'");
         }
         if (!bind) {
-            Except_raise(eh, -1, "Expected 'bind'");
+            Except_throw(eh, "Expected 'bind'");
         }
         if (!privateKeyHex) {
-            Except_raise(eh, -1, "Expected 'privateKey'");
+            Except_throw(eh, "Expected 'privateKey'");
         }
-        Except_raise(eh, -1, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
+        Except_throw(eh, "Expected 'pass', 'privateKey' and 'bind' in configuration.");
     }
     Log_keys(logger, "Starting core with admin password [%s]", pass->bytes);
     uint8_t privateKey[32];
     if (privateKeyHex->len != 64
         || Hex_decode(privateKey, 32, (uint8_t*) privateKeyHex->bytes, 64) != 32)
     {
-        Except_raise(eh, -1, "privateKey must be 64 bytes of hex.");
+        Except_throw(eh, "privateKey must be 64 bytes of hex.");
     }
 
     struct Sockaddr_storage bindAddr;
     if (Sockaddr_parse(bind->bytes, &bindAddr)) {
-        Except_raise(eh, -1, "bind address [%s] unparsable", bind->bytes);
+        Except_throw(eh, "bind address [%s] unparsable", bind->bytes);
     }
 
     struct AddrInterface* udpAdmin =
@@ -325,14 +349,32 @@ int Core_main(int argc, char** argv)
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 
-    // Router
-    struct RouterModule* router = RouterModule_register(registry,
-                                                        alloc,
-                                                        addr.key,
-                                                        eventBase,
-                                                        logger,
-                                                        admin,
-                                                        rand);
+
+    struct NodeStore* nodeStore = NodeStore_new(&addr, NODE_STORE_SIZE, alloc, logger, rand);
+
+    struct RouterModule* routerModule = RouterModule_register(registry,
+                                                              alloc,
+                                                              addr.key,
+                                                              eventBase,
+                                                              logger,
+                                                              rand,
+                                                              nodeStore);
+    struct RouteTracer* routeTracer =
+        RouteTracer_new(nodeStore, routerModule, addr.ip6.bytes, eventBase, logger, alloc);
+
+    struct SearchRunner* searchRunner =
+        SearchRunner_new(nodeStore, logger, eventBase, routerModule, addr.ip6.bytes, alloc);
+
+    Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
+                routerModule,
+                nodeStore,
+                searchRunner,
+                routeTracer,
+                logger,
+                alloc,
+                eventBase,
+                rand);
 
     SerializationModule_register(registry, logger, alloc);
 
@@ -340,12 +382,12 @@ int Core_main(int argc, char** argv)
 
     struct Ducttape* dt = Ducttape_register(privateKey,
                                             registry,
-                                            router,
+                                            routerModule,
+                                            searchRunner,
                                             switchCore,
                                             eventBase,
                                             alloc,
                                             logger,
-                                            admin,
                                             ipTun,
                                             rand);
 
@@ -356,12 +398,25 @@ int Core_main(int argc, char** argv)
     struct InterfaceController* ifController =
         DefaultInterfaceController_new(cryptoAuth,
                                        switchCore,
-                                       router,
+                                       routerModule,
                                        logger,
                                        eventBase,
                                        sp,
                                        rand,
                                        alloc);
+
+    // ------------------- DNS -------------------------//
+
+    struct Sockaddr_storage rainflyAddr;
+    Assert_true(!Sockaddr_parse("::", &rainflyAddr));
+    struct AddrInterface* rainflyIface =
+        UDPAddrInterface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
+    struct RainflyClient* rainfly = RainflyClient_new(rainflyIface, eventBase, rand, logger);
+    Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
+    struct AddrInterface* magicUDP =
+        PacketHeaderToUDPAddrInterface_new(&dt->magicInterface, alloc, &rainflyAddr.addr);
+    DNSServer_new(magicUDP, logger, rainfly);
+
 
     // ------------------- Register RPC functions ----------------------- //
     InterfaceController_admin_register(ifController, admin, alloc);
@@ -370,19 +425,23 @@ int Core_main(int argc, char** argv)
 #ifdef HAS_ETH_INTERFACE
     ETHInterface_admin_register(eventBase, alloc, logger, admin, ifController);
 #endif
-    RouterModule_admin_register(router, admin, alloc);
+    NodeStore_admin_register(nodeStore, admin, alloc);
+    RouterModule_admin_register(routerModule, admin, alloc);
+    SearchRunner_admin_register(searchRunner, admin, alloc);
     AuthorizedPasswords_init(admin, cryptoAuth, alloc);
     Admin_registerFunction("ping", adminPing, admin, false, NULL, admin);
     Core_admin_register(myAddr, dt, logger, ipTun, alloc, admin, eventBase);
     Security_admin_register(alloc, logger, admin);
     IpTunnel_admin_register(ipTun, admin, alloc);
+    SessionManager_admin_register(dt->sessionManager, admin, alloc);
+    RainflyClient_admin_register(rainfly, admin, alloc);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .allocator = alloc,
         .admin = admin,
         .logger = logger,
         .hermes = hermes,
-        .base = eventBase
+        .base = eventBase,
     }));
     Admin_registerFunction("memory", adminMemory, ctx, false, NULL, admin);
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);

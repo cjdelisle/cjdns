@@ -14,6 +14,7 @@
 import sys;
 import math;
 from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.publicToIp6 import PublicToIp6_convert;
 
 cjdns = connectWithAdminInfo();
 allPeers = [];
@@ -28,7 +29,10 @@ while True:
     i += 1;
 
 for peer in allPeers:
-    p = (peer['publicKey'] + '\t' + peer['switchLabel'] + '\tin ' + str(peer['bytesIn']) +
-        '\tout ' + str(peer['bytesOut']) + '\t' + peer['state']);
-    if peer['isIncoming'] == 1: p += '"' + peer['user'] + '"';
+    p = (PublicToIp6_convert(peer['publicKey']) + '\t' + peer['switchLabel'] + '\tin ' +
+         str(peer['bytesIn']) + '\tout ' + str(peer['bytesOut']) + '\t' + peer['state'] +
+         '\tdup ' + str(peer['duplicates']) +
+         ' los ' + str(peer['lostPackets']) +
+         ' oor ' + str(peer['receivedOutOfRange']));
+    if 'user' in peer: p += '"' + peer['user'] + '"';
     print p;

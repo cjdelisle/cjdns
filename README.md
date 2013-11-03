@@ -1,6 +1,6 @@
-# Cjdns
+# cjdns
 
-Русская версия Readme [README_RU.md](README_RU.md)
+Русская версия Readme: [README_RU.md](README_RU.md)
 
 #### *Networking Reinvented*
 
@@ -60,7 +60,7 @@ Cjdns guarantees confidentiality, authenticity and integrity of data by using
 modern cryptography in a non-intrusive way. Information transmitted over a cjdns
 network can't be altered or read en-route. While you can create multiple
 identities, it's practically impossible to impersonate other nodes on the
-network and since a node's IPv6 address is the fingerprint of it's key,
+network and since a node's IPv6 address is the fingerprint of its key,
 man-in-the-middle attacks are not possible.
 
 
@@ -97,6 +97,12 @@ close to the target address.
                      obvious, but I think it's neat. Currently on hype from an
                      airplane
 
+    00:36 < tester> man sites take so long to load on i2p
+    00:36 < tester> i value speed over anonymity any day
+
+    <DuoNoxSol> it's notably more reliable than the normal internet
+    <DuoNoxSol> even though it really really shouldn't be
+    <DuoNoxSol> seeing as the connections are largely over the normal internet
 
 
 ## How close is it to complete?
@@ -104,13 +110,12 @@ close to the target address.
 [Hyperboria][] is the largest cjdns network, with hundreds of active nodes
 around the world.
 
-Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, PowerPC32, and
-PowerPC64. It's [continually tested][buildbots] on Linux, FreeBSD and OS X
+Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
+It's [continually tested][buildbots] on Linux, FreeBSD, OS X, and Illumos
 systems.
 
-While the software itself is stable, the protocols and algorithms are
-experimental and subject to change. To minimize the harm to the network, please
-update your cjdns nodes often.
+The protocols and algorithms are experimental and subject to change.
+To minimize the harm to the network, please update your cjdns nodes often.
 
 
 ### You can help!
@@ -185,10 +190,6 @@ Clone the repository from GitHub and change to the source directory:
 
 ### 2. Build
 
-    make
-
-Alternatively, you may run the do script directly:
-
     ./do
 
 Look for `Build completed successfully, type ./cjdroute to begin setup.`, then
@@ -231,10 +232,10 @@ connections and anyone who connected to you will no longer be able to connect.
 A compromised conf file means that other people can impersonate you on the
 network.
 
-To set permissions on the conf file so that only your user can read it and
-write to it:
+To set generate a conf file with permissions set so that only your user can
+read it and write to it:
 
-    chmod 600 cjdroute.conf
+    (umask 077 && ./cjdroute --genconf > cjdroute.conf)
 
 
 ### 2. Find a friend

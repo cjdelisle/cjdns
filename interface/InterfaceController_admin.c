@@ -51,6 +51,10 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     String* isIncoming = String_CONST("isIncoming");
     String* user = String_CONST("user");
 
+    String* duplicates = String_CONST("duplicates");
+    String* lostPackets = String_CONST("lostPackets");
+    String* receivedOutOfRange = String_CONST("receivedOutOfRange");
+
     List* list = NULL;
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
         Dict* d = Dict_new(alloc);
@@ -68,6 +72,9 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
         Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
 
         Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
+        Dict_putInt(d, duplicates, stats[i].duplicates, alloc);
+        Dict_putInt(d, lostPackets, stats[i].lostPackets, alloc);
+        Dict_putInt(d, receivedOutOfRange, stats[i].receivedOutOfRange, alloc);
 
         if (stats[i].isIncomingConnection) {
             Dict_putString(d, user, stats[i].user, alloc);

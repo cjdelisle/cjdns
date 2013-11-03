@@ -191,6 +191,12 @@ static inline uint64_t Endian_byteSwap64_manual(uint64_t input)
         ((Endian_isBigEndian()) ? (input) : Endian_byteSwap64(input))
 #endif
 
+// looks silly but some macros want to be able to do generic swapping for any common int type.
+#define Endian_littleEndianToHost8(x) (x)
+#define Endian_bigEndianToHost8(x) (x)
+#define Endian_hostToLittleEndian8(x) (x)
+#define Endian_hostToBigEndian8(x) (x)
+
 #define Endian_littleEndianToHost16(x) Endian_hostToLittleEndian16(x)
 #define Endian_bigEndianToHost16(x) Endian_hostToBigEndian16(x)
 #define Endian_littleEndianToHost32(x) Endian_hostToLittleEndian32(x)

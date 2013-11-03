@@ -28,26 +28,11 @@ struct ETHInterface;
  * @param bindDevice the name of the device to bind to.
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
- *    Exceptions:
- *        ETHInterface_new_PARSE_ADDRESS_FAILED Couldn't parse interface address as a MAC address
- *        ETHInterface_new_FAILED_CREATING_EVENT Failed creating the event or registering it with
- *                                               the libevent event base (shouldn't happen)
- *        ETHInterface_new_FAILED_FIND_IFACE Failed to find a device with the given name
- *        ETHInterface_new_FAILED_FIND_MACADDR Failed to find the MAC address of the interface
- *        ETHInterface_new_SOCKET_FAILED Failed calling socket(), check EVUTIL_SOCKET_ERROR()
- *        ETHInterface_new_BIND_FAILED Failed calling bind(), check EVUTIL_SOCKET_ERROR()
- *
  * @param logger
  * @param ic the controller which this interface should register with
  *           and use when starting connections.
  * @return a new ETHInterface.
  */
-#define ETHInterface_new_PARSE_ADDRESS_FAILED -1
-#define ETHInterface_new_FAILED_CREATING_EVENT -2
-#define ETHInterface_new_FAILED_FIND_IFACE -3
-#define ETHInterface_new_FAILED_FIND_MACADDR -4
-#define ETHInterface_new_SOCKET_FAILED -5
-#define ETHInterface_new_BIND_FAILED -6
 struct ETHInterface* ETHInterface_new(struct EventBase* base,
                                       const char* bindDevice,
                                       struct Allocator* allocator,

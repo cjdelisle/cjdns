@@ -194,4 +194,9 @@ int CryptoAuth_getState(struct Interface* iface);
  */
 struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface);
 
+/**
+ * Get the structure which is used to protect against packet replay attacks.
+ */
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface);
+
 #endif
