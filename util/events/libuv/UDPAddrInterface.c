@@ -285,10 +285,10 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
         Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
     }
-    ss.addr.addrLen = nameLen+8;
+    ss.addr.addrLen = nameLen + 8;
 
     context->pub.addr = Sockaddr_clone(&ss.addr, alloc);
-    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(&ss.addr, alloc));
+    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(context->pub.addr, alloc));
 
     Allocator_onFree(alloc, closeHandleOnFree, context);
     Allocator_onFree(alloc, blockFreeInsideCallback, context);

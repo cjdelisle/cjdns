@@ -33,7 +33,7 @@ int UDPInterface_beginConnection(const char* address,
     if (Sockaddr_parse(address, &addr)) {
         return UDPInterface_beginConnection_BAD_ADDRESS;
     }
-    if (addr.addr.addrLen != udp->addr->addrLen) {
+    if (Sockaddr_getFamily(&addr.addr) != Sockaddr_getFamily(udp->addr)) {
         return UDPInterface_beginConnection_ADDRESS_MISMATCH;
     }
 
