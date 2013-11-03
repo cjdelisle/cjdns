@@ -59,9 +59,12 @@ uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
           subsubtype = msg->bytes[40];
         }
     } else if (!Bits_memcmp(type, "0800", 4)) {
+return 0;
         Bits_memcpyConst(type, "ipv4", 5);
         subtype = msg->bytes[9];
 //        typeCode = 4;
+    } else {
+return 0;
     }
 //       6000000000183aff0000000000000000000000000000000fff0200000000000000000001ff000018 870
 //6000000000201101fd000000000000000000000000000001ff020000000000000000000000010003 eee914...
@@ -102,9 +105,11 @@ printf("init test");
 
     char* ifName;
     struct Interface* iface = TAPInterface_new(NULL, &ifName, NULL, logger, base, alloc);
-    iface = NDPServer_new(iface, alloc);
-    iface->receiveMessage = receiveMessage;
-    iface->receiverContext = alloc;
+    struct NDPServer* ndp = NDPServer_new(iface, alloc);
+    ndp->generic.receiveMessage = receiveMessage;
+    ndp->generic.receiverContext = alloc;
+    ndp->advertisePrefix[0] = 0xfd;
+    ndp->prefixLen = 8;
 
     struct Sockaddr_storage ss;
     Assert_true(!Sockaddr_parse("fd00::1", &ss));

@@ -85,8 +85,8 @@ static uint8_t receiveMessageChild(struct Message* m, struct Interface* iface)
     Assert_always(m->length == strlen(MESSAGE));
     Assert_always(!Bits_memcmp(m->bytes, MESSAGE, strlen(MESSAGE)));
 
-    Message_shift(m, -((int)strlen(MESSAGE)) );
-    Message_push(m, MESSAGEB, strlen(MESSAGEB));
+    Message_shift(m, -((int)strlen(MESSAGE)), NULL);
+    Message_push(m, MESSAGEB, strlen(MESSAGEB), NULL);
 
     Interface_sendMessage(iface, m);
 

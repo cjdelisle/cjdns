@@ -92,8 +92,8 @@ int main(int argc, char** argv)
     struct Message* msg;
     Message_STACK(msg, 0, 128);
 
-    Message_push(msg, "Hello World", 12);
-    Message_push(msg, udpA->addr, udpA->addr->addrLen);
+    Message_push(msg, "Hello World", 12, NULL);
+    Message_push(msg, udpA->addr, udpA->addr->addrLen, NULL);
 
     struct Interface* ifA = &((struct UDPInterface_pvt*) udpA)->udpBase->generic;
     struct Interface* ifB = &((struct UDPInterface_pvt*) udpB)->udpBase->generic;

@@ -34,16 +34,16 @@
 #define TUNA 1
 uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNB;
     return 0;
 }
 uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node A [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNA;
     return 0;
@@ -116,11 +116,11 @@ void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
 
     if (bToA) {
         TestFramework_craftIPHeader(msg, tn->nodeB->ip, tn->nodeA->ip);
-        TUNMessageType_push(msg, Ethernet_TYPE_IP6);
+        TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
         tn->tunIfB.receiveMessage(msg, &tn->tunIfB);
     } else {
         TestFramework_craftIPHeader(msg, tn->nodeA->ip, tn->nodeB->ip);
-        TUNMessageType_push(msg, Ethernet_TYPE_IP6);
+        TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
         tn->tunIfA.receiveMessage(msg, &tn->tunIfA);
     }
 

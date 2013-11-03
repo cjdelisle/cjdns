@@ -21,11 +21,24 @@
 Gcc_NORETURN
 void WinFail_fail(struct Except* eh, const char* msg, long status);
 
+Gcc_NORETURN
+void WinFail_failWithLastError(struct Except* eh, const char* msg);
+
+char* WinFail_strerror(long status);
+
 #define WinFail_check(eh, expr) \
     do {                                              \
         long status = (expr);                         \
         if (status != ERROR_SUCCESS) {                \
             WinFail_fail(eh, #expr, status);          \
+        }                                             \
+    } while (0)
+// CHECKFILES_IGNORE expected ;
+
+#define WinFail_assert(eh, expr) \
+    do {                                              \
+        if (!(expr)) {                                \
+            WinFail_failWithLastError(eh, #expr);     \
         }                                             \
     } while (0)
 // CHECKFILES_IGNORE expected ;

@@ -107,8 +107,8 @@ int main()
         struct Message* msg;
         Message_STACK(msg, 0, 128);
 
-        Message_push(msg, "hello world", 12);
-        Message_push(msg, entry, 16);
+        Message_push(msg, "hello world", 12, NULL);
+        Message_push(msg, entry, 16, NULL);
 
         externalIf.receiveMessage(msg, &externalIf);
 

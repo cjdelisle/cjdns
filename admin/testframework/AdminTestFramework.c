@@ -111,7 +111,7 @@ static void initAngel(struct Pipe* asClientPipe,
         .padding = 0,
         .capacity = strlen(coreToAngelResponse)
     };
-    Message_shift(m, -24);
+    Message_shift(m, -24, NULL);
     m = Message_clone(m, tempAlloc);
 
     Interface_sendMessage(asCoreIface, m);

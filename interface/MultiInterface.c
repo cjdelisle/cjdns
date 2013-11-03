@@ -91,7 +91,7 @@ struct MultiInterface_pvt
 static uint8_t sendMessage(struct Message* msg, struct Interface* peerIface)
 {
     struct Peer* p = Identity_cast((struct Peer*) peerIface);
-    Message_push(msg, p->key.bytes, p->key.keySize);
+    Message_push(msg, p->key.bytes, p->key.keySize, NULL);
     return p->multiIface->iface->sendMessage(msg, p->multiIface->iface);
 }
 
@@ -154,12 +154,12 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
         Identity_cast((struct MultiInterface_pvt*) external->receiverContext);
 
     // push the key size to the message.
-    Message_push(msg, &mif->pub.keySize, 4);
+    Message_push(msg, &mif->pub.keySize, 4, NULL);
 
     struct Peer* p = peerForKey(mif, (struct MapKey*) msg->bytes, true);
 
     // pop the key size and key
-    Message_shift(msg, -(mif->pub.keySize + 4));
+    Message_shift(msg, -(mif->pub.keySize + 4), NULL);
 
     // into the core.
     uint8_t ret = p->internalIf.receiveMessage(msg, &p->internalIf);

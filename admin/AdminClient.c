@@ -144,7 +144,7 @@ static void doCall(Dict* message, struct Result* res, bool getCookie)
         .padding = AdminClient_Result_PADDING_SIZE,
         .length = writer->bytesWritten
     };
-    Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen);
+    Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen, NULL);
 
     struct Allocator* child = Allocator_child(res->alloc);
     struct Message* msg = Message_clone(&m, child);
@@ -163,7 +163,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct Result* res = ctx->result;
 
     struct Sockaddr_storage source;
-    Message_pop(msg, &source, ctx->targetAddr->addrLen);
+    Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
                  Sockaddr_print(&source.addr, res->alloc),

@@ -135,85 +135,89 @@ static uint16_t flagsAsInt(struct DNSServer_Flags* flags)
     #undef PUSH
 }
 
-static String** parseName(struct Message* msg, struct Allocator* alloc)
+static String** parseName(struct Message* msg, struct Allocator* alloc, struct Except* eh)
 {
     String** array = Allocator_calloc(alloc, sizeof(uintptr_t), 1);
-    uint8_t len = Message_pop8(msg);
+    uint8_t len = Message_pop8(msg, eh);
     int count = 0;
     while (len) {
         count++;
         array = Allocator_realloc(alloc, array, sizeof(uintptr_t) * count + 1);
         array[count] = NULL;
         String* str = array[count-1] = String_newBinary(NULL, len, alloc);
-        Message_pop(msg, str->bytes, len);
-        len = Message_pop8(msg);
+        Message_pop(msg, str->bytes, len, eh);
+        len = Message_pop8(msg, eh);
     }
     return array;
 }
 
-static void serializeName(struct Message* msg, String** name)
+static void serializeName(struct Message* msg, String** name, struct Except* eh)
 {
-    Message_push8(msg, 0);
+    Message_push8(msg, 0, eh);
     int i;
     for (i = 0; name[i]; i++) ;
     i--;
     for (;i >= 0; i--) {
-        Message_push(msg, name[i]->bytes, name[i]->len);
-        Message_push8(msg, name[i]->len);
+        Message_push(msg, name[i]->bytes, name[i]->len, eh);
+        Message_push8(msg, name[i]->len, eh);
     }
 }
 
-static struct DNSServer_Question* parseQuestion(struct Message* msg, struct Allocator* alloc)
+static struct DNSServer_Question* parseQuestion(struct Message* msg,
+                                                struct Allocator* alloc,
+                                                struct Except* eh)
 {
     struct DNSServer_Question* q = Allocator_malloc(alloc, sizeof(struct DNSServer_Question));
-    q->name = parseName(msg, alloc);
-    q->type = Message_pop16(msg);
-    q->class = Message_pop16(msg);
+    q->name = parseName(msg, alloc, eh);
+    q->type = Message_pop16(msg, eh);
+    q->class = Message_pop16(msg, eh);
     return q;
 }
 
-static void serializeQuestion(struct Message* msg, struct DNSServer_Question* q)
+static void serializeQuestion(struct Message* msg, struct DNSServer_Question* q, struct Except* eh)
 {
-    Message_push16(msg, q->class);
-    Message_push16(msg, q->type);
-    serializeName(msg, q->name);
+    Message_push16(msg, q->class, eh);
+    Message_push16(msg, q->type, eh);
+    serializeName(msg, q->name, eh);
 }
 
-static struct DNSServer_RR* parseRR(struct Message* msg, struct Allocator* alloc)
+static struct DNSServer_RR* parseRR(struct Message* msg, struct Allocator* alloc, struct Except* eh)
 {
     struct DNSServer_RR* rr = Allocator_malloc(alloc, sizeof(struct DNSServer_RR));
-    rr->name = parseName(msg, alloc);
-    rr->type = Message_pop16(msg);
-    rr->class = Message_pop16(msg);
-    rr->ttl = Message_pop32(msg);
-    uint16_t dataLen = Message_pop16(msg);
+    rr->name = parseName(msg, alloc, eh);
+    rr->type = Message_pop16(msg, eh);
+    rr->class = Message_pop16(msg, eh);
+    rr->ttl = Message_pop32(msg, eh);
+    uint16_t dataLen = Message_pop16(msg, eh);
     rr->data = String_newBinary(NULL, dataLen, alloc);
-    Message_pop(msg, rr->data->bytes, dataLen);
+    Message_pop(msg, rr->data->bytes, dataLen, eh);
     return rr;
 }
 
-static void serializeRR(struct Message* msg, struct DNSServer_RR* rr)
+static void serializeRR(struct Message* msg, struct DNSServer_RR* rr, struct Except* eh)
 {
-    Message_push(msg, rr->data->bytes, rr->data->len);
-    Message_push16(msg, rr->data->len);
-    Message_push32(msg, rr->ttl);
-    Message_push16(msg, rr->class);
-    Message_push16(msg, rr->type);
-    serializeName(msg, rr->name);
+    Message_push(msg, rr->data->bytes, rr->data->len, eh);
+    Message_push16(msg, rr->data->len, eh);
+    Message_push32(msg, rr->ttl, eh);
+    Message_push16(msg, rr->class, eh);
+    Message_push16(msg, rr->type, eh);
+    serializeName(msg, rr->name, eh);
 }
 
-static struct DNSServer_Message* parseMessage(struct Message* msg, struct Allocator* alloc)
+static struct DNSServer_Message* parseMessage(struct Message* msg,
+                                              struct Allocator* alloc,
+                                              struct Except* eh)
 {
     struct DNSServer_Message* dmesg = Allocator_calloc(alloc, sizeof(struct DNSServer_Message), 1);
-    dmesg->id = Message_pop16(msg);
+    dmesg->id = Message_pop16(msg, eh);
 
-    uint16_t flags = Message_pop16(msg);
+    uint16_t flags = Message_pop16(msg, eh);
     parseFlags(flags, &dmesg->flags);
 
-    int totalQuestions = Message_pop16(msg);
-    int totalAnswerRRs = Message_pop16(msg);
-    int totalAuthorityRRs = Message_pop16(msg);
-    int totalAdditionalRRs = Message_pop16(msg);
+    int totalQuestions = Message_pop16(msg, eh);
+    int totalAnswerRRs = Message_pop16(msg, eh);
+    int totalAuthorityRRs = Message_pop16(msg, eh);
+    int totalAdditionalRRs = Message_pop16(msg, eh);
 
     dmesg->questions = Allocator_calloc(alloc, sizeof(uintptr_t), totalQuestions+1);
     dmesg->answers = Allocator_calloc(alloc, sizeof(uintptr_t), totalAnswerRRs+1);
@@ -221,22 +225,24 @@ static struct DNSServer_Message* parseMessage(struct Message* msg, struct Alloca
     dmesg->additionals = Allocator_calloc(alloc, sizeof(uintptr_t), totalAdditionalRRs+1);
 
     for (int i = 0; i < totalQuestions; i++) {
-        dmesg->questions[i] = parseQuestion(msg, alloc);
+        dmesg->questions[i] = parseQuestion(msg, alloc, eh);
     }
     for (int i = 0; i < totalAnswerRRs; i++) {
-        dmesg->answers[i] = parseRR(msg, alloc);
+        dmesg->answers[i] = parseRR(msg, alloc, eh);
     }
     for (int i = 0; i < totalAuthorityRRs; i++) {
-        dmesg->authorities[i] = parseRR(msg, alloc);
+        dmesg->authorities[i] = parseRR(msg, alloc, eh);
     }
     for (int i = 0; i < totalAdditionalRRs; i++) {
-        dmesg->additionals[i] = parseRR(msg, alloc);
+        dmesg->additionals[i] = parseRR(msg, alloc, eh);
     }
 
     return dmesg;
 }
 
-static void serializeMessage(struct Message* msg, struct DNSServer_Message* dmesg)
+static void serializeMessage(struct Message* msg,
+                             struct DNSServer_Message* dmesg,
+                             struct Except* eh)
 {
     int totalAdditionalRRs = 0;
     int totalAuthorityRRs = 0;
@@ -244,29 +250,29 @@ static void serializeMessage(struct Message* msg, struct DNSServer_Message* dmes
     int totalQuestions = 0;
 
     for (int i = 0; dmesg->additionals && dmesg->additionals[i]; i++) {
-        serializeRR(msg, dmesg->additionals[i]);
+        serializeRR(msg, dmesg->additionals[i], eh);
         totalAdditionalRRs++;
     }
     for (int i = 0; dmesg->authorities && dmesg->authorities[i]; i++) {
-        serializeRR(msg, dmesg->authorities[i]);
+        serializeRR(msg, dmesg->authorities[i], eh);
         totalAuthorityRRs++;
     }
     for (int i = 0; dmesg->answers && dmesg->answers[i]; i++) {
-        serializeRR(msg, dmesg->answers[i]);
+        serializeRR(msg, dmesg->answers[i], eh);
         totalAnswerRRs++;
     }
     for (int i = 0; dmesg->questions && dmesg->questions[i]; i++) {
-        serializeQuestion(msg, dmesg->questions[i]);
+        serializeQuestion(msg, dmesg->questions[i], eh);
         totalQuestions++;
     }
 
-    Message_push16(msg, totalAdditionalRRs);
-    Message_push16(msg, totalAuthorityRRs);
-    Message_push16(msg, totalAnswerRRs);
-    Message_push16(msg, totalQuestions);
+    Message_push16(msg, totalAdditionalRRs, eh);
+    Message_push16(msg, totalAuthorityRRs, eh);
+    Message_push16(msg, totalAnswerRRs, eh);
+    Message_push16(msg, totalQuestions, eh);
 
-    Message_push16(msg, flagsAsInt(&dmesg->flags));
-    Message_push16(msg, dmesg->id);
+    Message_push16(msg, flagsAsInt(&dmesg->flags), eh);
+    Message_push16(msg, dmesg->id, eh);
 }
 
 static int cannonicalizeDomain(String* str)
@@ -308,19 +314,35 @@ static int cannonicalizeDomain(String* str)
 static uint8_t sendResponse(struct Message* msg,
                             struct DNSServer_Message* dmesg,
                             struct Sockaddr* sourceAddr,
-                            struct DNSServer_pvt* ctx)
+                            struct DNSServer_pvt* ctx,
+                            struct Except* eh)
 {
     dmesg->flags.isResponse = 1;
-    serializeMessage(msg, dmesg);
-    Message_push(msg, sourceAddr, ctx->addr->addrLen);
+    serializeMessage(msg, dmesg, eh);
+    Message_push(msg, sourceAddr, ctx->addr->addrLen, eh);
     // lazy man's alignment
     if ((uintptr_t)(msg->bytes) % 8) {
         int len = (((uintptr_t)(msg->bytes)) % 8);
-        Message_shift(msg, len);
+        Message_shift(msg, len, eh);
         Bits_memmove(msg->bytes, &msg->bytes[len], msg->length - len);
         msg->length -= len;
     }
     return Interface_sendMessage(ctx->iface, msg);
+}
+
+/** @return non-zero on failure. */
+static int trySendResponse(struct Message* msg,
+                           struct DNSServer_Message* dmesg,
+                           struct Sockaddr* sourceAddr,
+                           struct DNSServer_pvt* ctx)
+{
+    struct Jmp j = { .code = 0 };
+    Jmp_try(j) {
+        sendResponse(msg, dmesg, sourceAddr, ctx, &j.handler);
+        return 0;
+    } Jmp_catch {
+        return -1;
+    }
 }
 
 static uint8_t handleDotK(struct Message* msg,
@@ -345,7 +367,7 @@ static uint8_t handleDotK(struct Message* msg,
         dmesg->answers = NULL;
         dmesg->authorities = NULL;
         dmesg->additionals = NULL;
-        sendResponse(msg, dmesg, sourceAddr, ctx);
+        sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
         return Error_NONE;
 
     } else {
@@ -362,7 +384,7 @@ static uint8_t handleDotK(struct Message* msg,
         dmesg->additionals = NULL;
         Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
         dmesg->flags.responseCode = ResponseCode_NO_ERROR;
-        sendResponse(msg, dmesg, sourceAddr, ctx);
+        sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
 
         return Error_NONE;
     }
@@ -372,7 +394,7 @@ static uint8_t handleDotK(struct Message* msg,
     dmesg->answers = NULL;
     dmesg->authorities = NULL;
     dmesg->additionals = NULL;
-    sendResponse(msg, dmesg, sourceAddr, ctx);
+    sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
     return Error_NONE;
 }
 
@@ -427,9 +449,11 @@ static void onRainflyReply(struct RainflyClient_Lookup* promise,
         dmesg->additionals = NULL;
         Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
         dmesg->flags.responseCode = ResponseCode_NO_ERROR;
-        sendResponse(lookup->msg, dmesg, lookup->addr, ctx);
-
-        return;
+        if (!trySendResponse(lookup->msg, dmesg, lookup->addr, ctx)) {
+            return;
+        } else {
+            code = RainflyClient_ResponseCode_SERVER_ERROR;
+        }
     }
 
     Bits_memset(&dmesg->flags, 0, sizeof(struct DNSServer_Flags));
@@ -437,7 +461,7 @@ static void onRainflyReply(struct RainflyClient_Lookup* promise,
     dmesg->answers = NULL;
     dmesg->authorities = NULL;
     dmesg->additionals = NULL;
-    sendResponse(lookup->msg, dmesg, lookup->addr, ctx);
+    sendResponse(lookup->msg, dmesg, lookup->addr, ctx, NULL);
     return;
 }
 
@@ -455,7 +479,7 @@ static uint8_t handleDotH(struct Message* msg,
         dmesg->answers = NULL;
         dmesg->authorities = NULL;
         dmesg->additionals = NULL;
-        sendResponse(msg, dmesg, sourceAddr, ctx);
+        sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
         return Error_NONE;
     }
 
@@ -466,7 +490,7 @@ static uint8_t handleDotH(struct Message* msg,
         dmesg->answers = NULL;
         dmesg->authorities = NULL;
         dmesg->additionals = NULL;
-        sendResponse(msg, dmesg, sourceAddr, ctx);
+        sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
         return Error_NONE;
     }
 
@@ -495,16 +519,16 @@ static void legacyResponse(struct Message* msg,
 {
 }
 
-static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx)
+static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx, struct Except* eh)
 {
     struct Sockaddr* sourceAddr = Allocator_malloc(msg->alloc, ctx->addr->addrLen);
-    Message_pop(msg, sourceAddr, ctx->addr->addrLen);
+    Message_pop(msg, sourceAddr, ctx->addr->addrLen, eh);
 
-    struct DNSServer_Message* dmesg = parseMessage(msg, msg->alloc);
+    struct DNSServer_Message* dmesg = parseMessage(msg, msg->alloc, eh);
 
     if (msg->length > 0) {
         Log_debug(ctx->logger, "[%d] bytes of crap following DNS request", msg->length);
-        Message_shift(msg, -(msg->length));
+        Message_shift(msg, -(msg->length), NULL);
     }
 
     if (!dmesg->questions || !dmesg->questions[0]) {
@@ -559,7 +583,7 @@ static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx)
         dmesg->answers = NULL;
         dmesg->authorities = NULL;
         dmesg->additionals = NULL;
-        sendResponse(msg, dmesg, sourceAddr, ctx);
+        sendResponse(msg, dmesg, sourceAddr, ctx, NULL);
     }
     return;
 }
@@ -570,12 +594,10 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     struct Jmp jmp = {.code=0};
     Jmp_try(jmp) {
-        Except_setDefaultHandler(&jmp.handler);
-        receiveB(msg, ctx);
+        receiveB(msg, ctx, &jmp.handler);
     } Jmp_catch {
         Log_debug(ctx->logger, "Failed to parse dns message [%s]", jmp.message);
     }
-    Except_setDefaultHandler(NULL);
     return Error_NONE;
 }
 

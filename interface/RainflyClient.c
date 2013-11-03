@@ -100,14 +100,14 @@ static String** readNames(struct Message* msg, int count, struct Allocator* allo
         if (msg->length < 1) {
             return NULL;
         }
-        int len = Message_pop8(msg);
+        int len = Message_pop8(msg, NULL);
         out[i] = String_newBinary(NULL, len, alloc);
-        Message_pop(msg, out[i]->bytes, len);
+        Message_pop(msg, out[i]->bytes, len, NULL);
         totalLen += len + 1;
     }
 
     while (totalLen++ % 8) {
-        if (Message_pop8(msg)) {
+        if (Message_pop8(msg, NULL)) {
             return NULL;
         }
     }
@@ -122,11 +122,11 @@ static void writeNames(struct Message* msg, String** names)
         totalLength += names[i]->len + 1;
     }
     while (totalLength++ % 8) {
-        Message_push8(msg, 0);
+        Message_push8(msg, 0, NULL);
     }
     while (--i >= 0) {
-        Message_push(msg, names[i]->bytes, names[i]->len);
-        Message_push8(msg, names[i]->len);
+        Message_push(msg, names[i]->bytes, names[i]->len, NULL);
+        Message_push8(msg, names[i]->len, NULL);
     }
 }
 
@@ -152,11 +152,11 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
         return;
     }
 
-    uint32_t cookie = Message_pop8(msg);
+    uint32_t cookie = Message_pop8(msg, NULL);
     cookie <<= 16;
-    cookie |= Message_pop16(msg);
+    cookie |= Message_pop16(msg, NULL);
 
-    uint32_t height = Message_pop32(msg);
+    uint32_t height = Message_pop32(msg, NULL);
     String** namesAndValue = readNames(msg, 3, msg->alloc);
 
     if (!namesAndValue) {
@@ -172,13 +172,13 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
 
     struct RainflyClient_Sig* sigs = Allocator_malloc(msg->alloc, msg->length);
     for (int i = count-1; i >= 0; i--) {
-        Message_pop(msg, sigs[i].bytes, 64);
+        Message_pop(msg, sigs[i].bytes, 64, NULL);
     }
 
-    Message_shift(msg, -msg->length);
+    Message_shift(msg, -msg->length, NULL);
 
     writeNames(msg, namesAndValue);
-    Message_push32(msg, height);
+    Message_push32(msg, height, NULL);
 
     // find the matching lookup
     struct RainflyClient_Lookup_pvt* lookup = ctx->lookups;
@@ -217,7 +217,7 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
     uint8_t* scratch = Allocator_malloc(msg->alloc, msg->length + 64);
     for (int i = 0; i < count; i++) {
         unsigned long long x = 32;
-        Message_push(msg, sigs[i].bytes, 64);
+        Message_push(msg, sigs[i].bytes, 64, NULL);
         uint8_t* key = ctx->hotKeys[(lookup->firstKey + i) % ctx->keyCount].bytes;
         if (!crypto_sign_ed25519_open(scratch, &x, msg->bytes, msg->length, key)
             && (int)x == msg->length - 64)
@@ -229,7 +229,7 @@ static void handleLookupReply(struct Message* msg, struct RainflyClient_pvt* ctx
         } else {
             Log_debug(ctx->logger, "invalid signature [%d] on [%s]", i, namesAndValue[0]->bytes);
         }
-        Message_shift(msg, -64);
+        Message_shift(msg, -64, NULL);
     }
 
     if (validSigs < ctx->pub.minSignatures) {
@@ -262,8 +262,8 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
         return;
     }
 
-    uint8_t keyCount = Message_pop8(msg);
-    uint16_t start = Message_pop16(msg);
+    uint8_t keyCount = Message_pop8(msg, NULL);
+    uint16_t start = Message_pop16(msg, NULL);
     if (keyCount > ctx->keyCount) {
         Log_debug(ctx->logger, "keycount too high");
         return;
@@ -273,7 +273,7 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
         return;
     }
 
-    uint32_t bitField = Message_pop32(msg);
+    uint32_t bitField = Message_pop32(msg, NULL);
 
     if ((Bits_popCountx32(bitField) * (64+32)) != msg->length) {
         Log_debug(ctx->logger, "incorrect message size");
@@ -294,7 +294,7 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
         // We only use the first 32
         uint8_t hotKey[96];
         uint8_t sig[96];
-        Message_pop(msg, sig, 96);
+        Message_pop(msg, sig, 96, NULL);
         unsigned long long x = 32;
         if (!crypto_sign_ed25519_open(hotKey, &x, sig, 96, ctx->keys[i].bytes) && x == 32) {
             Log_debug(ctx->logger, "valid signature [%d]", i);
@@ -316,9 +316,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return Error_NONE;
     }
 
-    Message_shift(msg, -ctx->addr->addrLen);
+    Message_shift(msg, -ctx->addr->addrLen, NULL);
 
-    uint8_t operation = Message_pop8(msg);
+    uint8_t operation = Message_pop8(msg, NULL);
     if (!(operation & (1<<7))) {
         Log_debug(ctx->logger, "query");
     }
@@ -363,19 +363,19 @@ static void sendHotKeysRequest(void* vRainflyClient)
     int j = 0;
     int i = start;
     do {
-        Message_push(msg, ctx->keys[i].bytes, 32);
+        Message_push(msg, ctx->keys[i].bytes, 32, NULL);
         i = (i + 1) % ctx->keyCount;
     } while (i != start && ++j < 10);
 
     // only 24 bits of space to put some information so put the beginning key and the current
     // number of keys so we can reconstruct which keys we sent when we get the response.
-    Message_push16(msg, start);
-    Message_push8(msg, ctx->keyCount);
+    Message_push16(msg, start, NULL);
+    Message_push8(msg, ctx->keyCount, NULL);
 
-    Message_push8(msg, RequestType_HOT_KEYS);
+    Message_push8(msg, RequestType_HOT_KEYS, NULL);
 
     int server = Random_uint32(ctx->rand) % ctx->serverCount;
-    Message_push(msg, ctx->servers[server], ctx->addr->addrLen);
+    Message_push(msg, ctx->servers[server], ctx->addr->addrLen, NULL);
 
     Log_debug(ctx->logger, "Sending hotkeys request to [%s]",
               Sockaddr_print(ctx->servers[server], alloc));
@@ -423,7 +423,7 @@ static void tryNextServer(void* vLookup)
     int j = 0;
     int i = start;
     do {
-        Message_push(msg, ctx->hotKeys[i].bytes, 32);
+        Message_push(msg, ctx->hotKeys[i].bytes, 32, NULL);
         i = (i + 1) % ctx->keyCount;
     } while (i != start && ++j < 10);
 
@@ -431,10 +431,10 @@ static void tryNextServer(void* vLookup)
     writeNames(msg, (String*[]) { lookup->pub.domain, NULL });
 
     uint32_t typeAndIdent = lookup->cookie | (RequestType_LOOKUP << 24);
-    Message_push32(msg, typeAndIdent);
+    Message_push32(msg, typeAndIdent, NULL);
 
     int server = lookup->server++ % ctx->serverCount;
-    Message_push(msg, ctx->servers[server], ctx->addr->addrLen);
+    Message_push(msg, ctx->servers[server], ctx->addr->addrLen, NULL);
 
     Log_debug(ctx->logger, "Sending lookup request to [%s]",
               Sockaddr_print(ctx->servers[server], alloc));

@@ -23,16 +23,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static struct Except* Except_uncheckedHandler = NULL;
-
 void Except_raise(struct Except* eh, int code, char* format, ...)
 {
     va_list args;
     va_start(args, format);
-
-    if (!eh) {
-        eh = Except_uncheckedHandler;
-    }
 
     if (eh) {
         vsnprintf(eh->message, Except_BUFFER_SZ, format, args);
@@ -44,7 +38,7 @@ void Except_raise(struct Except* eh, int code, char* format, ...)
     exit(100);
 }
 
-void Except__throw(char* file, int line, char* format, ...)
+void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -54,8 +48,7 @@ void Except__throw(char* file, int line, char* format, ...)
         subFile = file;
     }
 
-    if (Except_uncheckedHandler) {
-        struct Except* eh = Except_uncheckedHandler;
+    if (eh) {
         int remaining = Except_BUFFER_SZ;
         int len = snprintf(eh->message, remaining, "%s:%d ", subFile, line);
         remaining -= len;
@@ -70,18 +63,4 @@ void Except__throw(char* file, int line, char* format, ...)
     }
     abort();
     exit(100);
-}
-
-void Except_setDefaultHandler(struct Except* eh)
-{
-    if (!eh) {
-        if (Except_uncheckedHandler) {
-            Except_uncheckedHandler = Except_uncheckedHandler->next;
-        }
-    } else {
-        if (Except_uncheckedHandler) {
-            eh->next = Except_uncheckedHandler;
-        }
-        Except_uncheckedHandler = eh;
-    }
 }

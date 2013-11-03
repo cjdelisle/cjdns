@@ -16,6 +16,7 @@
 #include "interface/tuntap/windows/NDPServer.h"
 #include "interface/InterfaceWrapper.h"
 #include "util/Bits.h"
+#include "util/Checksum.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Ethernet.h"
@@ -24,7 +25,7 @@
 
 struct NDPServer_pvt
 {
-    struct Interface pub;
+    struct NDPServer pub;
     struct Interface* wrapped;
     Identity
 };
@@ -33,101 +34,176 @@ struct NDPServer_pvt
 //                        ff  02  00  00  00  00  00  00  00  00  00  01  ff  00  00  02 870099
 #define UNICAST_ADDR   "\xfe\x80\0\0\0\0\0\0\0\0\0\0\0\0\0\x08"
 
-/**
- * 0 - not a solicitation
- * 1 - multicast solicitation
- * 2 - unicast solicitation
- */
+#define ALL_ROUTERS    "\xff\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\x02"
+
+
 #include <stdio.h>
 #include "util/Hex.h"
-static int getMessageType(struct Message* msg)
+
+
+static int sendResponse(struct Message* msg,
+                        struct Ethernet* eth,
+                        struct Headers_IP6Header* ip6,
+                        struct NDPServer_pvt* ns)
 {
-    if (msg->length < Ethernet_SIZE + Headers_IP6Header_SIZE + NDPHeader_NeighborAdvert_SIZE) {
+    Bits_memcpyConst(ip6->destinationAddr, ip6->sourceAddr, 16);
+    Bits_memcpyConst(ip6->sourceAddr, UNICAST_ADDR, 16);
+    ip6->hopLimit = 255;
+
+    struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
+    adv->checksum = Checksum_icmp6(ip6->sourceAddr, msg->bytes, msg->length);
+
+    Message_push(msg, ip6, sizeof(struct Headers_IP6Header));
+
+    // Eth
+    Message_push(msg, eth, sizeof(struct Ethernet));
+    struct Ethernet* ethP = (struct Ethernet*) msg->bytes;
+    Bits_memcpyConst(ethP->destAddr, eth->srcAddr, 6);
+    Bits_memcpyConst(ethP->srcAddr, eth->destAddr, 6);
+
+printf("responding\n");
+    Interface_sendMessage(ns->wrapped, msg);
+    return 1;
+}
+
+static int tryRouterSolicitation(struct Message* msg,
+                                 struct Ethernet* eth,
+                                 struct Headers_IP6Header* ip6,
+                                 struct NDPServer_pvt* ns)
+{
+    if (msg->length < NDPHeader_RouterSolicitation_SIZE) {
         return 0;
     }
-    struct Ethernet* eth = (struct Ethernet*) msg->bytes;
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (&eth[1]);
-    struct NDPHeader_NeighborAdvert* adv = (struct NDPHeader_NeighborAdvert*) (&ip6[1]);
+    struct NDPHeader_RouterSolicitation* sol = (struct NDPHeader_RouterSolicitation*)msg->bytes;
 
-    if (eth->ethertype != Ethernet_TYPE_IP6) {
+    if (sol->oneThirtyThree != 133 || sol->zero != 0) {
+printf("wrong type/code for router solicitation\n");
         return 0;
     }
 
-    int type;
-    if (!Bits_memcmp(ip6->destinationAddr, UNICAST_ADDR, 16)) {
-        type = 2;
-    } else if (!Bits_memcmp(ip6->destinationAddr, MULTICAST_ADDR, 13)) {
-        type = 1;
-    } else {
+    if (ns->pub.prefixLen < 1 || ns->pub.prefixLen > 128) {
+printf("address prefix not set\n");
         return 0;
     }
-printf("got multicast!\n");
-    if (ip6->nextHeader != 58 /* IPPROTO_ICMPV6 */) {
-printf("wrong type\n");
-        return 0;
 
-    } else if (Bits_memcmp(adv->targetAddr, UNICAST_ADDR, 16)) {
-uint8_t buff[33] = "error";
-Hex_encode(buff, 33, adv->targetAddr, 16);
-printf("wrong target: [%s]\n", buff);
-        return 0;
-
-    } else if (adv->oneThirtyFive != 135 || adv->zero != 0) {
-printf("wrong type/code\n");
+    if (Bits_memcmp(ip6->destinationAddr, UNICAST_ADDR, 16)
+        && Bits_memcmp(ip6->destinationAddr, ALL_ROUTERS, 16))
+    {
+printf("wrong address for router solicitation\n");
         return 0;
     }
-    return type;
+
+    // now we're committed.
+    Message_shift(msg, -msg->length);
+
+    // Prefix option
+    struct NDPHeader_RouterAdvert_PrefixOpt prefix = {
+        .three = 3,
+        .four = 4,
+        .bits = 0,
+        .validLifetimeSeconds_be = 0xffffffffu,
+        .preferredLifetimeSeconds_be = 0xffffffffu,
+        .reservedTwo = 0
+    };
+    Bits_memcpyConst(prefix.prefix, ns->pub.advertisePrefix, 16);
+    prefix.prefixLen = ns->pub.prefixLen;
+    Message_push(msg, &prefix, sizeof(struct NDPHeader_RouterAdvert_PrefixOpt));
+
+    // NDP message
+    struct NDPHeader_RouterAdvert adv = {
+        .oneThirtyFour = 134,
+        .zero = 0,
+        .checksum = 0,
+        .currentHopLimit = 0,
+        .bits = 0,
+        .routerLifetime_be = Endian_hostToBigEndian16(10),
+        .reachableTime_be = 0,
+        .retransTime_be = 0
+    };
+    Message_push(msg, &adv, sizeof(struct NDPHeader_RouterAdvert));
+
+    sendResponse(msg, eth, ip6, ns);
+    return 1;
+}
+
+static int tryNeighborSolicitation(struct Message* msg,
+                                   struct Ethernet* eth,
+                                   struct Headers_IP6Header* ip6,
+                                   struct NDPServer_pvt* ns)
+{
+    if (msg->length < NDPHeader_RouterSolicitation_SIZE) {
+        return 0;
+    }
+    struct NDPHeader_NeighborSolicitation* sol = (struct NDPHeader_NeighborSolicitation*)msg->bytes;
+
+    if (sol->oneThirtyFive != 135 || sol->zero != 0) {
+printf("wrong type/code for neighbor solicitation\n");
+        return 0;
+    }
+
+    if (Bits_memcmp(ip6->destinationAddr, UNICAST_ADDR, 16)
+        && Bits_memcmp(ip6->destinationAddr, MULTICAST_ADDR, 13))
+    {
+printf("wrong address for neighbor solicitation\n");
+        return 0;
+    }
+
+    // now we're committed.
+    Message_shift(msg, -msg->length);
+
+    struct NDPHeader_NeighborAdvert_MacOpt macOpt = {
+        .two = 2,
+        .one = 1
+    };
+    Bits_memcpyConst(macOpt.mac, eth->destAddr, 6);
+    Message_push(msg, &macOpt, sizeof(struct NDPHeader_NeighborAdvert_MacOpt));
+
+    struct NDPHeader_NeighborAdvert na = {
+        .oneThirtySix = 136,
+        .zero = 0,
+        .checksum = 0,
+        .bits = NDPHeader_NeighborAdvert_bits_ROUTER
+            | NDPHeader_NeighborAdvert_bits_SOLICITED
+            | NDPHeader_NeighborAdvert_bits_OVERRIDE
+    };
+    Bits_memcpyConst(na.targetAddr, UNICAST_ADDR, 16);
+    Message_push(msg, &na, sizeof(struct NDPHeader_NeighborAdvert));
+
+    sendResponse(msg, eth, ip6, ns);
+    return 1;
 }
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct NDPServer_pvt* ns = Identity_cast((struct NDPServer_pvt*)iface->receiverContext);
 
-    int msgType = getMessageType(msg);
-    if (!msgType) {
-        return Interface_receiveMessage(&ns->pub, msg);
+    if (msg->length < Ethernet_SIZE + Headers_IP6Header_SIZE) {
+        return Interface_receiveMessage(&ns->pub.generic, msg);
+    }
+
+    struct Ethernet* eth = (struct Ethernet*) msg->bytes;
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (&eth[1]);
+
+    if (eth->ethertype != Ethernet_TYPE_IP6 || ip6->nextHeader != 58 /* ICMPv6 */) {
+        return Interface_receiveMessage(&ns->pub.generic, msg);
     }
 
     // store the eth and ip6 headers so they don't get clobbered
-    struct Ethernet eth;
-    Message_pop(msg, &eth, sizeof(eth));
+    struct Ethernet storedEth;
+    Message_pop(msg, &storedEth, sizeof(struct Ethernet));
 
     struct Headers_IP6Header storedIp6;
-    Message_pop(msg, &storedIp6, sizeof(storedIp6));
+    Message_pop(msg, &storedIp6, sizeof(struct Headers_IP6Header));
 
-    Message_shift(msg, -msg->length);
-
-    // NDP mac address option
-    struct NDPHeader_NeighborAdvert_MacOpt macOpt = { .two = 2, .one = 1 };
-    Bits_memcpyConst(&macOpt, eth.destAddr, 6);
-    Message_push(msg, &macOpt, sizeof(macOpt));
-
-    // NDP message
-    struct NDPHeader_NeighborAdvert adv = {
-        .oneThirtyFive = 135,
-        .bits = NDPHeader_NeighborAdvert_bits_SOLICITED | NDPHeader_NeighborAdvert_bits_OVERRIDE
-    };
-    Bits_memcpyConst(adv.targetAddr, storedIp6.destinationAddr, 16);
-    Message_push(msg, &adv, sizeof(adv));
-
-    // IPv6
-    struct Headers_IP6Header ip6 = {
-        .payloadLength_be = Endian_hostToBigEndian16(msg->length),
-        .nextHeader = 58, /* IPPROTO_ICMPV6 */
-        .hopLimit = 255
-    };
-    Headers_setIpVersion(&ip6);
-    Bits_memcpyConst(ip6.sourceAddr, UNICAST_ADDR, 16);
-    Bits_memcpyConst(ip6.destinationAddr, storedIp6.sourceAddr, 16);
-    Message_push(msg, &ip6, sizeof(ip6));
-
-    // Eth
-    Message_push(msg, &eth, sizeof(eth));
-    struct Ethernet* ethP = (struct Ethernet*) msg->bytes;
-    Bits_memcpy(ethP->destAddr, eth.srcAddr, 6);
-    Bits_memcpy(ethP->srcAddr, eth.destAddr, 6);
-printf("responding\n");
-    return Interface_receiveMessage(ns->wrapped, msg);
+    if (!tryNeighborSolicitation(msg, &storedEth, &storedIp6, ns)
+        && !tryRouterSolicitation(msg, &storedEth, &storedIp6, ns))
+    {
+        Message_push(msg, &storedIp6, sizeof(struct Headers_IP6Header));
+        Message_push(msg, &storedEth, sizeof(struct Ethernet));
+        return Interface_receiveMessage(&ns->pub.generic, msg);
+    }
+    // responding happens in sendResponse..
+    return 0;
 }
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
@@ -136,11 +212,11 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     return Interface_sendMessage(ns->wrapped, msg);
 }
 
-struct Interface* NDPServer_new(struct Interface* external, struct Allocator* alloc)
+struct NDPServer* NDPServer_new(struct Interface* external, struct Allocator* alloc)
 {
     struct NDPServer_pvt* out = Allocator_calloc(alloc, sizeof(struct NDPServer_pvt), 1);
     out->wrapped = external;
     Identity_set(out);
-    InterfaceWrapper_wrap(external, sendMessage, receiveMessage, &out->pub);
+    InterfaceWrapper_wrap(external, sendMessage, receiveMessage, &out->pub.generic);
     return &out->pub;
 }

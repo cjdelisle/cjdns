@@ -100,12 +100,12 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline int Message_shift(struct Message* toShift, int32_t amount)
+static inline int Message_shift(struct Message* toShift, int32_t amount, struct Except* eh)
 {
     if (amount > 0 && toShift->padding < amount) {
-        Except_throw("buffer overflow");
+        Except_throw(eh, "buffer overflow");
     } else if (toShift->length < (-amount)) {
-        Except_throw("buffer underflow");
+        Except_throw(eh, "buffer underflow");
     }
 
     toShift->length += amount;
@@ -118,26 +118,28 @@ static inline int Message_shift(struct Message* toShift, int32_t amount)
 
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
-                                size_t size)
+                                size_t size,
+                                struct Except* eh)
 {
-    Message_shift(msg, (int)size);
+    Message_shift(msg, (int)size, eh);
     Bits_memcpy(msg->bytes, object, size);
 }
 
 static inline void Message_pop(struct Message* restrict msg,
                                void* restrict object,
-                               size_t size)
+                               size_t size,
+                               struct Except* eh)
 {
-    Message_shift(msg, -((int)size));
+    Message_shift(msg, -((int)size), eh);
     Bits_memcpy(object, &msg->bytes[-((int)size)], size);
 }
 
 #define Message_popGeneric(size) \
-    static inline uint ## size ## _t Message_pop ## size (struct Message* msg) \
-    {                                                                          \
-        uint ## size ## _t out;                                                \
-        Message_pop(msg, &out, (size)/8);                                      \
-        return Endian_bigEndianToHost ## size (out);                           \
+    static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
+    {                                                                                             \
+        uint ## size ## _t out;                                                                   \
+        Message_pop(msg, &out, (size)/8, eh);                                                     \
+        return Endian_bigEndianToHost ## size (out);                                              \
     }
 
 Message_popGeneric(8)
@@ -147,10 +149,11 @@ Message_popGeneric(64)
 
 
 #define Message_pushGeneric(size) \
-    static inline void Message_push ## size (struct Message* msg, uint ## size ## _t dat) \
+    static inline void Message_push ## size                                               \
+        (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
     {                                                                                     \
         uint ## size ## _t x = Endian_hostToBigEndian ## size (dat);                      \
-        Message_push(msg, &x, (size)/8);                                                  \
+        Message_push(msg, &x, (size)/8, eh);                                              \
     }
 
 Message_pushGeneric(8)

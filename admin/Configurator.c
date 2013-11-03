@@ -127,14 +127,14 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
-static void dns(Dict* dns, struct Context* ctx)
+static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
 {
     List* servers = Dict_getList(dns, String_CONST("servers"));
     int count = List_size(servers);
     for (int i = 0; i < count; i++) {
         String* server = List_getString(servers, i);
         if (!server) {
-            Except_throw("dns.servers[%d] is not a string", i);
+            Except_throw(eh, "dns.servers[%d] is not a string", i);
         }
         Dict* d = Dict_new(ctx->alloc);
         Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
@@ -146,7 +146,7 @@ static void dns(Dict* dns, struct Context* ctx)
     for (int i = 0; i < count; i++) {
         String* key = List_getString(keys, i);
         if (!key) {
-            Except_throw("dns.keys[%d] is not a string", i);
+            Except_throw(eh, "dns.keys[%d] is not a string", i);
         }
         Dict* d = Dict_new(ctx->alloc);
         Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
@@ -383,6 +383,7 @@ void Configurator_config(Dict* config,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
+    struct Except* eh = NULL;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
         AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
@@ -408,7 +409,7 @@ void Configurator_config(Dict* config,
     security(securityList, tempAlloc, &ctx);
 
     Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
-    dns(dnsConf, &ctx);
+    dns(dnsConf, &ctx, eh);
 
     Allocator_free(tempAlloc);
 }

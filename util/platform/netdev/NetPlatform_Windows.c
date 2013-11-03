@@ -108,10 +108,10 @@ static void setupRoute(const char* deviceName,
 
     MIB_IPFORWARD_ROW2 row = {
         .InterfaceLuid = getLuid(deviceName, eh),
-        .ValidLifetime = 0xffffffff,
-        .PreferredLifetime = 0xffffffff,
+        .ValidLifetime = WSA_INFINITE,
+        .PreferredLifetime = WSA_INFINITE,
         .Metric = 0xffffffff,
-        .Protocol = MIB_IPPROTO_NT_STATIC,
+        .Protocol = MIB_IPPROTO_NETMGMT,
         .SitePrefixLength = 255,
 
         .DestinationPrefix = {
@@ -119,12 +119,18 @@ static void setupRoute(const char* deviceName,
             .Prefix = { .si_family = addrFam }
         },
 
-        .NextHop = { .si_family = addrFam }
+        .NextHop = { .si_family = addrFam },
+
+        .Loopback = false,
+        .AutoconfigureAddress = false,
+        .Immortal = false,
+        .Age = 0,
+        .Origin = 0
     };
 
     if (addrFam == AF_INET6) {
-        Bits_memcpyConst(&row.DestinationPrefix.Prefix.Ipv6.sin6_addr, addrBytes, 16);
-        Bits_memcpyConst(&row.NextHop.Ipv6.sin6_addr, addrBytes, 16);
+        Bits_memcpyConst(&row.DestinationPrefix.Prefix.Ipv6.sin6_addr, addrBytes, 15);
+        row.DestinationPrefix.Prefix.Ipv6.sin6_family = AF_INET6;
         // set the gateway addr to the client's addr +1
         uint64_t addr[2];
         Bits_memcpyConst(addr, addrBytes, 16);
@@ -132,21 +138,22 @@ static void setupRoute(const char* deviceName,
         if (!addr[1]) {
             addr[0] = Endian_hostToBigEndian64(Endian_bigEndianToHost64(addr[0]) + 1);
         }
-        Bits_memcpyConst(&row.NextHop.Ipv6.sin6_addr, addr, 16);
+//        Bits_memcpyConst(&row.NextHop.Ipv6.sin6_addr, addr, 16);
     } else {
         Bits_memcpyConst(&row.DestinationPrefix.Prefix.Ipv4.sin_addr, addrBytes, 4);
+        row.DestinationPrefix.Prefix.Ipv4.sin_family = AF_INET;
         uint32_t addr;
         Bits_memcpyConst(&addr, addrBytes, 4);
         addr = Endian_hostToBigEndian32(Endian_bigEndianToHost32(addr) + 1);
         Bits_memcpyConst(&row.NextHop.Ipv4.sin_addr, &addr, 4);
     }
 
+    //InitializeIpForwardEntry(&row);
     uint8_t buff[sizeof(row) * 2 + 1];
     Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
-    printf("%s\n", buff);
-    InitializeIpForwardEntry(&row);
-    Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
-    printf("%s<\n", buff);
+    printf("%s %d\n", buff, row.SitePrefixLength);
+//    Hex_encode(buff, sizeof(buff), (uint8_t*) &row, sizeof(row));
+//    printf("%s %d<\n", buff, row.SitePrefixLength);
 
     WinFail_check(eh, CreateIpForwardEntry2(&row));
 }
@@ -180,7 +187,7 @@ void NetPlatform_addAddress(const char* name,
     ipRow.OnLinkPrefixLength = prefixLen;
 
     WinFail_check(eh, CreateUnicastIpAddressEntry(&ipRow));
-
+return;
     setupRoute(name, addrBytes, prefixLen, addrFam, eh);
 }
 

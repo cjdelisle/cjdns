@@ -174,7 +174,7 @@ void Hermes_callAngel(Dict* message,
         .padding = 0
     };
     m->capacity = m->length;
-    Message_shift(m, -PADDING);
+    Message_shift(m, -PADDING, NULL);
 
     Log_debug(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
 

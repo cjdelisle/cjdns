@@ -65,10 +65,10 @@ static struct Message* mergeMessage(struct FramingInterface_pvt* fi, struct Mess
     out->capacity = 0;
     out->alloc = fi->frameAlloc;
 
-    Message_push(out, last->bytes, last->length);
+    Message_push(out, last->bytes, last->length, NULL);
 
     for (part = fi->frameParts; part; part = part->next) {
-        Message_push(out, part->msg->bytes, part->msg->length);
+        Message_push(out, part->msg->bytes, part->msg->length, NULL);
     }
 
     Assert_true(fullLength <= out->length);
@@ -112,7 +112,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
                 return Error_NONE;
             }
             fi->header.bytes[fi->headerIndex] = msg->bytes[0];
-            Message_shift(msg, -1);
+            Message_shift(msg, -1, NULL);
             fi->headerIndex++;
         }
         fi->headerIndex = 0;
@@ -131,7 +131,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
             struct Message* m = Allocator_clone(msg->alloc, msg);
             m->length = fi->bytesRemaining;
             Interface_receiveMessage(&fi->generic, m);
-            Message_shift(msg, -fi->bytesRemaining);
+            Message_shift(msg, -fi->bytesRemaining, NULL);
             fi->bytesRemaining = 0;
             continue;
 
@@ -141,9 +141,9 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
             m->capacity = m->length = msg->length + 4;
             m->bytes = Allocator_malloc(fi->frameAlloc, m->length);
             m->alloc = fi->frameAlloc;
-            Message_shift(m, -m->length);
-            Message_push(m, msg->bytes, msg->length);
-            Message_push(m, fi->header.bytes, 4);
+            Message_shift(m, -m->length, NULL);
+            Message_push(m, msg->bytes, msg->length, NULL);
+            Message_push(m, fi->header.bytes, 4, NULL);
 
             fi->bytesRemaining -= msg->length;
             fi->frameParts = Allocator_malloc(fi->frameAlloc, sizeof(struct MessageList));
@@ -159,7 +159,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     struct FramingInterface_pvt* fi = Identity_cast((struct FramingInterface_pvt*)iface);
 
     int32_t length_be = Endian_hostToBigEndian32((uint32_t)msg->length);
-    Message_push(msg, &length_be, 4);
+    Message_push(msg, &length_be, 4, NULL);
 
     return Interface_sendMessage(fi->wrapped, msg);
 }

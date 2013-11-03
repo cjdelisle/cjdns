@@ -158,7 +158,7 @@ static uint8_t sendToNode(struct Message* message,
                           struct IpTunnel_Connection* connection,
                           struct IpTunnel_pvt* context)
 {
-    Message_push(message, &connection->header, IpTunnel_PacketInfoHeader_SIZE);
+    Message_push(message, &connection->header, IpTunnel_PacketInfoHeader_SIZE, NULL);
     if (context->pub.nodeInterface.receiveMessage) {
         return context->pub.nodeInterface.receiveMessage(message, &context->pub.nodeInterface);
     }
@@ -188,7 +188,7 @@ static uint8_t sendControlMessage(Dict* dict,
     #endif
 
     // do UDP header.
-    Message_shift(message, Headers_UDPHeader_SIZE);
+    Message_shift(message, Headers_UDPHeader_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     uh->srcPort_be = 0;
     uh->destPort_be = 0;
@@ -197,7 +197,7 @@ static uint8_t sendControlMessage(Dict* dict,
 
     uint16_t payloadLength = message->length;
 
-    Message_shift(message, Headers_IP6Header_SIZE);
+    Message_shift(message, Headers_IP6Header_SIZE, NULL);
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     header->versionClassAndFlowLabel = 0;
     header->flowLabelLow_be = 0;
@@ -283,7 +283,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
         return Error_INVALID;
     }
 
-    Message_shift(message, -Headers_IP6Header_SIZE);
+    Message_shift(message, -Headers_IP6Header_SIZE, NULL);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) message->bytes;
 
     if (Checksum_udpIp6(header->sourceAddr, message->bytes, length)) {
@@ -300,7 +300,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
         return Error_INVALID;
     }
 
-    Message_shift(message, -Headers_UDPHeader_SIZE);
+    Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
 
     message->length = length;
     return 0;
@@ -621,7 +621,7 @@ static uint8_t ip6FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNMessageType_push(message, Ethernet_TYPE_IP6);
+    TUNMessageType_push(message, Ethernet_TYPE_IP6, NULL);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -644,7 +644,7 @@ static uint8_t ip4FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNMessageType_push(message, Ethernet_TYPE_IP4);
+    TUNMessageType_push(message, Ethernet_TYPE_IP4, NULL);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -673,7 +673,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
         return 0;
     }
 
-    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
+    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
 
     if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
         return ip6FromNode(message, conn, context);

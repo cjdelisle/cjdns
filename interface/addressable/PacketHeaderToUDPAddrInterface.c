@@ -37,7 +37,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
         Identity_cast((struct PacketHeaderToUDPAddrInterface_pvt*) iface);
 
     struct Sockaddr_storage ss;
-    Message_pop(message, &ss, context->pub.addr->addrLen);
+    Message_pop(message, &ss, context->pub.addr->addrLen, NULL);
     struct Sockaddr* addr = &ss.addr;
 
     struct Headers_UDPHeader udp;
@@ -45,7 +45,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     udp.destPort_be = Endian_hostToBigEndian16(Sockaddr_getPort(addr));
     udp.length_be = Endian_hostToBigEndian16(message->length + Headers_UDPHeader_SIZE);
     udp.checksum_be = 0;
-    Message_push(message, &udp, sizeof(struct Headers_UDPHeader));
+    Message_push(message, &udp, sizeof(struct Headers_UDPHeader), NULL);
 
     struct Headers_IP6Header ip = {
         .nextHeader = 17,
@@ -62,7 +62,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     uint16_t checksum = Checksum_udpIp6(ip.sourceAddr, message->bytes, message->length);
     ((struct Headers_UDPHeader*)message->bytes)->checksum_be = checksum;
 
-    Message_push(message, &ip, sizeof(struct Headers_IP6Header));
+    Message_push(message, &ip, sizeof(struct Headers_IP6Header), NULL);
 
     return Interface_sendMessage(context->wrapped, message);
 }
@@ -99,8 +99,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE));
-    Message_push(message, addr, addr->addrLen);
+    Message_shift(message, -(Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE), NULL);
+    Message_push(message, addr, addr->addrLen, NULL);
 
     return Interface_receiveMessage(&context->pub.generic, message);
 }

@@ -89,7 +89,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
 
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
-    Message_pop(message, addr.sll_addr, 8);
+    Message_pop(message, addr.sll_addr, 8, NULL);
 
     /* Cut down on the noise
     uint8_t buff[sizeof(addr) * 2 + 1] = {0};
@@ -104,13 +104,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
     }
     if (pad > 0) {
         int length = message->length;
-        Message_shift(message, pad*8);
+        Message_shift(message, pad*8, NULL);
         Bits_memset(message->bytes, 0, pad*8);
         Bits_memmove(message->bytes, &message->bytes[pad*8], length);
     }
     Assert_true(pad < 8);
     uint16_t padAndId_be = Endian_hostToBigEndian16((context->id << 3) | pad);
-    Message_push(message, &padAndId_be, 2);
+    Message_push(message, &padAndId_be, 2, NULL);
 
     if (sendto(context->socket,
                message->bytes,
@@ -144,7 +144,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
 
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
-    Message_pop(msg, addr.sll_addr, 8);
+    Message_pop(msg, addr.sll_addr, 8, NULL);
     if (msg->length < Headers_Beacon_SIZE) {
         // Oversize messages are ok because beacons may contain more information in the future.
         Log_debug(context->logger, "Dropping wrong size beacon, expected [%d] got [%d]",
@@ -227,7 +227,7 @@ static void handleEvent(void* vcontext)
 
     // Knock it out of alignment by 2 bytes so that it will be
     // aligned when the idAndPadding is shifted off.
-    Message_shift(&message, 2);
+    Message_shift(&message, 2, NULL);
 
     int rc = recvfrom(context->socket,
                       message.bytes,
@@ -245,13 +245,13 @@ static void handleEvent(void* vcontext)
 
     // Pop the first 2 bytes of the message containing the node id and amount of padding.
     uint16_t idAndPadding_be;
-    Message_pop(&message, &idAndPadding_be, 2);
+    Message_pop(&message, &idAndPadding_be, 2, NULL);
 
     const uint16_t idAndPadding = Endian_bigEndianToHost16(idAndPadding_be);
     message.length = rc - 2 - ((idAndPadding & 7) * 8);
     const uint16_t id = idAndPadding >> 3;
-    Message_push(&message, &id, 2);
-    Message_push(&message, addr.sll_addr, 6);
+    Message_push(&message, &id, 2, NULL);
+    Message_push(&message, addr.sll_addr, 6, NULL);
 
     if (addr.sll_pkttype == PACKET_BROADCAST) {
         handleBeacon(&message, context);

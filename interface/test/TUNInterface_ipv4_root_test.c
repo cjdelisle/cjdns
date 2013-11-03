@@ -52,7 +52,7 @@ static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
-    uint16_t ethertype = TUNMessageType_pop(msg);
+    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP4) {
         printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
         return 0;
@@ -68,7 +68,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     Bits_memcpyConst(header->destAddr, testAddrA, 4);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 4);
 
-    TUNMessageType_push(msg, ethertype);
+    TUNMessageType_push(msg, ethertype, NULL);
 
     return iface->sendMessage(msg, iface);
 }
@@ -120,8 +120,8 @@ int main(int argc, char** argv)
 
     struct Message* msg;
     Message_STACK(msg, 0, 64);
-    Message_push(msg, "Hello World", 12);
-    Message_push(msg, dest, dest->addrLen);
+    Message_push(msg, "Hello World", 12, NULL);
+    Message_push(msg, dest, dest->addrLen, NULL);
 
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;

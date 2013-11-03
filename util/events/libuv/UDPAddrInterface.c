@@ -102,7 +102,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     Identity_set(req);
 
     struct Sockaddr_storage ss;
-    Message_pop(m, &ss, context->pub.addr->addrLen);
+    Message_pop(m, &ss, context->pub.addr->addrLen, NULL);
     Assert_true(ss.addr.addrLen == context->pub.addr->addrLen);
 
     req->length = m->length;
@@ -166,8 +166,8 @@ static void incoming(uv_udp_t* handle,
         m->bytes = (uint8_t*)buf.base;
         m->alloc = alloc;
         Sockaddr_normalizeNative(addr);
-        Message_push(m, addr, context->pub.addr->addrLen - 8);
-        Message_push(m, &context->pub.addr->addrLen, 8);
+        Message_push(m, addr, context->pub.addr->addrLen - 8, NULL);
+        Message_push(m, &context->pub.addr->addrLen, 8, NULL);
         Interface_receiveMessage(&context->pub.generic, m);
     }
 
