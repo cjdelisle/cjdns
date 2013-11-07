@@ -19,12 +19,20 @@ add_library(dht
     DHTModuleRegistry.c
     SerializationModule.c
     ReplyModule.c
+    EncodingSchemeModule.c
 )
 
 # This is needed because NACL must be built first because header files are generated.
 add_dependencies(dht NACL)
 
-target_link_libraries(dht cjdbenc cjdbenc_StandardBencSerializer util interface ${NACL_LIBRARIES})
+target_link_libraries(dht
+    cjdns-switch-encodingscheme
+    cjdbenc
+    cjdbenc_StandardBencSerializer
+    util
+    interface
+    ${NACL_LIBRARIES}
+)
 
 # Everything must be tested.
 enable_testing()

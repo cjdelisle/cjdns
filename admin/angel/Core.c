@@ -27,6 +27,7 @@
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "dht/ReplyModule.h"
+#include "dht/EncodingSchemeModule.h"
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
@@ -375,6 +376,8 @@ int Core_main(int argc, char** argv)
                 alloc,
                 eventBase,
                 rand);
+
+    EncodingSchemeModule_register(registry, alloc);
 
     SerializationModule_register(registry, logger, alloc);
 
