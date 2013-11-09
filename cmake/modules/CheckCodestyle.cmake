@@ -14,7 +14,7 @@ find_program(perl perl)
 if(NOT perl)
     message("Couldn't find perl, skipping codestyle check.")
 else()
-    execute_process(COMMAND ${perl} ${CSD}/scripts/checkfiles.pl
+    execute_process(COMMAND ${perl} ${CSD}/cmake/modules/CodestyleChecker.pl
         WORKING_DIRECTORY ${CSD}
         OUTPUT_VARIABLE out
     )
