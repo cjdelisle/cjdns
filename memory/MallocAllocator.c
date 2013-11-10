@@ -164,6 +164,16 @@ static int removeJob(struct MallocAllocator_OnFreeJob* job)
     }
 }
 
+static void releaseAllocation(struct MallocAllocator_pvt* context,
+                              struct MallocAllocator_Allocation* allocation)
+{
+    checkCanaries(allocation, context);
+
+    // TODO: make this optional.
+    Bits_memset(allocation, 0xee, allocation->size);
+    free(allocation);
+}
+
 static void releaseMemory(struct MallocAllocator_pvt* context)
 {
     // Free all of the allocations including the one which holds the allocator.
@@ -180,12 +190,7 @@ static void releaseMemory(struct MallocAllocator_pvt* context)
         #endif
 
         struct MallocAllocator_Allocation* nextLoc = loc->next;
-
-        checkCanaries(loc, context);
-
-        // TODO: make this optional.
-        Bits_memset(loc, 0xee, loc->size);
-        free(loc);
+        releaseAllocation(context, loc);
         loc = nextLoc;
     }
     #ifdef PARANOIA
@@ -486,6 +491,12 @@ static void* allocatorRealloc(const void* original,
     }
 
     struct MallocAllocator_Allocation* nextLoc = origLoc->next;
+
+    if (size == 0) {
+        // realloc(0) means free()
+        *locPtr = nextLoc;
+        releaseAllocation(context, origLoc);
+    }
 
     size_t realSize = getRealSize(size);
     if (context->rootAlloc->spaceAvailable + origLoc->size < realSize) {
