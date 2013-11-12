@@ -49,6 +49,11 @@ struct RouterModule_Promise
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
+/** Set this in the compile to make the node a dumb client which will not advertize routes. */
+#ifndef RouterModule_DUMB_CLIENT
+    #define RouterModule_DUMB_CLIENT 0
+#endif
+
 /**
  * Register a new RouterModule.
  *

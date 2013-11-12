@@ -398,7 +398,7 @@ static inline int handleQuery(struct DHTMessage* message,
     Dict_putInt(message->asDict, CJDHTConstants_ENC_INDEX, schemeNum, message->allocator);
 
 
-    return (nodeList) ? sendNodes(nodeList, message, module) : 0;
+    return (nodeList && !(RouterModule_DUMB_CLIENT)) ? sendNodes(nodeList, message, module) : 0;
 }
 
 /**

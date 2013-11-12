@@ -239,6 +239,10 @@ add_definitions("-D Identity_CHECK=1")
 # add in a billion checks which slow things down but catch bugs.
 add_definitions("-D PARANOIA=1")
 
+if (NOT $ENV{DUMB_CLIENT} STREQUAL "")
+    add_definitions("-D RouterModule_DUMB_CLIENT=1")
+endif ()
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 #if NEON is specified then we will force NACL to use NEON.
