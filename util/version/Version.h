@@ -215,6 +215,7 @@
 #define Version_2_COMPAT
 #define Version_3_COMPAT
 #define Version_4_COMPAT
+#define Version_5_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 1
 #define Version_DEFAULT_ASSUMPTION 1

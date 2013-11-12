@@ -37,6 +37,7 @@ add_library(util
     Pinger.c
     Security_admin.c
     Assert.c
+    Order.c
 )
 target_link_libraries(util
     cjdmemory

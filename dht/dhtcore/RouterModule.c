@@ -282,7 +282,8 @@ static inline void responseFromNode(struct Node* node,
 
 static inline int sendNodes(struct NodeList* nodeList,
                             struct DHTMessage* message,
-                            struct RouterModule* module)
+                            struct RouterModule* module,
+                            uint32_t askerVersion)
 {
     struct DHTMessage* query = message->replyTo;
     String* nodes = Allocator_malloc(message->allocator, sizeof(String));
@@ -302,7 +303,7 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
 
         versions->versions[i] = nodeList->nodes[i]->version;
     }
@@ -380,7 +381,7 @@ static inline int handleQuery(struct DHTMessage* message,
                        message->allocator);
     }
 
-    return (nodeList) ? sendNodes(nodeList, message, module) : 0;
+    return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
 }
 
 /**
@@ -654,14 +655,15 @@ static inline void refreshReach(struct Address* address, struct RouterModule* mo
                                                          module->nodeStore);
     if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
-        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+        for (uint32_t i = 0; i < nodeList->size; i++) {
             if (now > nodeList->nodes[i]->timeOfNextPing) {
                 nodeList->nodes[i]->timeOfNextPing = now + LOCAL_MAINTENANCE_SEARCH_MILLISECONDS;
+                Assert_true(nodeList->nodes[i]->address.path != 0);
                 RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
             }
         }
-    Allocator_free(nodeListAlloc);
     }
+    Allocator_free(nodeListAlloc);
 }
 
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],

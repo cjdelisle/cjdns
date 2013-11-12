@@ -377,7 +377,7 @@ int Core_main(int argc, char** argv)
                 eventBase,
                 rand);
 
-    EncodingSchemeModule_register(registry, alloc);
+    EncodingSchemeModule_register(registry, nodeStore, logger, alloc);
 
     SerializationModule_register(registry, logger, alloc);
 

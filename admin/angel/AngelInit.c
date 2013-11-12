@@ -93,6 +93,7 @@ static void setUser(char* user, struct Log* logger, struct Except* eh)
     int res = 0;
     switch ((res = Security_setUser(user, logger, eh))) {
         case Security_setUser_PERMISSION: return;
+        case 0: return;
         default:;
     }
     Except_throw(eh, "Security_setUser() returned unknown result [%d]", res);

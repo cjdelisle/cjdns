@@ -20,6 +20,7 @@
 #include "dht/dhtcore/Node.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
+#include "switch/EncodingScheme.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -45,6 +46,24 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
                                 struct Log* logger,
                                 struct Random* rand);
+
+/**
+ * Discover a new node (or rediscover an existing one).
+ *
+ * @param nodeStore the store
+ * @param addr the address of the new node
+ * @param reachDiff the amount to credit this node
+ * @param version the protocol version
+ * @param scheme the encoding scheme used by this node.
+ * @param encodingFormNumber a number representing the encoding form used to represent the
+ *                           interface through which the message reached them.
+ */
+struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                    struct Address* addr,
+                                    int64_t reachDiff,
+                                    uint32_t version,
+                                    struct EncodingScheme* scheme,
+                                    int encodingFormNumber);
 
 /**
  * Put a node into the store.

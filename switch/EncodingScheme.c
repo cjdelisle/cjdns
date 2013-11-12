@@ -20,6 +20,84 @@
 /** Greatest possible number using x bits, all are set. */
 #define MAX_BITS(x) ((((uint64_t)1)<<(x))-1)
 
+int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel)
+{
+    if (scheme->count == 1) {
+        return 0;
+    }
+
+    for (int i = 0; i < scheme->count; i++) {
+        struct EncodingScheme_Form* form = &scheme->forms[i];
+        Assert_true(form->prefixLen > 0 && form->prefixLen < 32);
+        Assert_true(form->bitCount > 0 && form->bitCount < 32);
+        if (0 == ((form->prefix ^ (uint32_t)routeLabel) << (32 - form->prefixLen))) {
+            return i;
+        }
+    }
+    return EncodingScheme_getFormNum_INVALID;
+}
+
+uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
+                                     uint64_t routeLabel,
+                                     int convertTo)
+{
+    if (scheme->count == 1) {
+        // fixed width encoding, this is easy
+        switch (convertTo) {
+            case 0:
+            case EncodingScheme_convertLabel_convertTo_CANNONICAL: return routeLabel;
+            default: return EncodingScheme_convertLabel_INVALID;
+        }
+    }
+
+    int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
+    if (formNum == EncodingScheme_getFormNum_INVALID) {
+        return EncodingScheme_convertLabel_INVALID;
+    }
+
+    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
+
+    routeLabel >>= currentForm->prefixLen;
+    uint64_t director = routeLabel & MAX_BITS(currentForm->bitCount);
+    routeLabel >>= currentForm->bitCount;
+
+    int minBits = Bits_log2x64(director) + 1;
+    if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
+        for (int i = 0; i < scheme->count; i++) {
+            struct EncodingScheme_Form* form = &scheme->forms[i];
+            if (form->bitCount >= minBits) {
+                convertTo = i;
+                break;
+            }
+        }
+    }
+
+    if (convertTo < 0 || convertTo >= scheme->count) {
+        // convertTo value is insane
+        return EncodingScheme_convertLabel_INVALID;
+    }
+
+    struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
+
+    if (minBits > nextForm->bitCount) {
+        // won't fit in requested form
+        return EncodingScheme_convertLabel_INVALID;
+    }
+    if (EncodingScheme_formSize(nextForm) > EncodingScheme_formSize(currentForm)
+        && (Bits_log2x64(routeLabel) + nextForm->bitCount + nextForm->prefixLen) > 59)
+    {
+        // All labels need 3 high zero bits
+        return EncodingScheme_convertLabel_INVALID;
+    }
+
+    routeLabel <<= nextForm->bitCount;
+    routeLabel |= director;
+    routeLabel <<= nextForm->prefixLen;
+    routeLabel |= nextForm->prefix;
+    return routeLabel;
+}
+
+
 /**
  * Decode a form from it's binary representation.
  * Can only use a maximum of 41 bits.
@@ -56,12 +134,62 @@ static inline int encodeForm(struct EncodingScheme_Form* in, uint64_t* data, int
     return 5 + 5 + in->prefixLen;
 }
 
+bool EncodingScheme_isSane(struct EncodingScheme* scheme)
+{
+    // Check for obviously insane encoding.
+    if (scheme->count == 0) {
+        // No encoding schemes
+        return false;
+    }
+
+    if (scheme->count == 1) {
+        // Fixed width encoding, prefix is not allowed and bitcount must be non-zero
+        if (scheme->forms[0].prefixLen != 0) {
+            // prefixLen must be 0
+            return false;
+        }
+        if (scheme->forms[0].bitCount == 0) {
+            // bitcount must be non-zero
+            return false;
+        }
+        return true;
+    }
+
+    // Variable width encoding.
+    for (int i = 0; i < scheme->count; i++) {
+        struct EncodingScheme_Form* form = &scheme->forms[i];
+
+        if (form->prefixLen == 0) {
+            // Prefix must exist in order to distinguish between forms
+            return false;
+        }
+        if (form->bitCount == 0) {
+            // Bitcount must be non-zero
+            return false;
+        }
+        if (EncodingScheme_formSize(form) > 59) {
+            // cannot be represented in the usable space in a label
+            return false;
+        }
+        if (i > 0 && form->bitCount <= scheme->forms[i-1].bitCount) {
+            // Forms must be in ascending order.
+            return false;
+        }
+        for (int j = 0; j < scheme->count; j++) {
+            // Forms must be distinguishable by their prefixes.
+            if (j != i && (scheme->forms[j].prefix & MAX_BITS(form->prefixLen)) == form->prefix)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 String* EncodingScheme_serialize(struct EncodingScheme* list,
                                  struct Allocator* alloc)
 {
-    if (list->count == 0) {
-        return String_new("", alloc);
-    }
+    Assert_true(EncodingScheme_isSane(list));
 
     // Create the string as the largest that is possible for the list size.
     String* out = String_newBinary(NULL, list->count * 6, alloc);
@@ -91,7 +219,7 @@ String* EncodingScheme_serialize(struct EncodingScheme* list,
 struct EncodingScheme* EncodingScheme_deserialize(String* data,
                                                   struct Allocator* alloc)
 {
-    struct EncodingScheme_Form* out = NULL;
+    struct EncodingScheme_Form* forms = NULL;
     int outCount = 0;
 
     uint64_t block = 0;
@@ -116,15 +244,25 @@ struct EncodingScheme* EncodingScheme_deserialize(String* data,
         }
         block >>= ret;
 
+        #ifdef PARANOIA
+            if (next.prefixLen == 0) {
+                Assert_true(next.prefix == 0);
+            } else {
+                Assert_true(next.prefix >> next.prefixLen == 0);
+            }
+        #endif
+
         outCount += 1;
-        out = Allocator_realloc(alloc, out, outCount * sizeof(struct EncodingScheme_Form));
-        Bits_memcpyConst(&out[outCount-1], &next, sizeof(struct EncodingScheme_Form));
+        forms = Allocator_realloc(alloc, forms, outCount * sizeof(struct EncodingScheme_Form));
+        Bits_memcpyConst(&forms[outCount-1], &next, sizeof(struct EncodingScheme_Form));
     }
 
-    return Allocator_clone(alloc, (&(struct EncodingScheme) {
-        .forms = out,
+    struct EncodingScheme* out = Allocator_clone(alloc, (&(struct EncodingScheme) {
+        .forms = forms,
         .count = outCount
     }));
+
+    return EncodingScheme_isSane(out) ? out : NULL;
 }
 
 struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struct Allocator* alloc)
@@ -160,4 +298,12 @@ struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme
         .count = formCount,
         .forms = formsCopy
     }));
+}
+
+int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)
+{
+    if (a->count == b->count) {
+        return Bits_memcmp(a->forms, b->forms, sizeof(struct EncodingScheme_Form) * a->count);
+    }
+    return a->count > b->count ? 1 : -1;
 }

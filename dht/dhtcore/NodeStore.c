@@ -65,8 +65,19 @@ struct NodeStore_Link
         int rbe_color;
     } treeEntry;
 
-    /** The label fragment which is spliced to this node's parent in order to reach the child. */
-    uint64_t labelFragment;
+    /**
+     * The label which would be used to reach the child from the parent.
+     * This label is in a cannonical state and must be altered so that the first Director uses
+     * at least as many bits as are required to reach the grandparent from the parent
+     * in the reverse direction.
+     */
+    uint64_t cannonicalLabel;
+
+    /**
+     * The Encoding Form number which is used to represent the first director in the path from
+     * child to parent.
+     */
+    uint32_t encodingFormNumber;
 
     /**
      * The quality of the link between parent and child,
@@ -87,6 +98,9 @@ struct NodeStore_Node
      */
     struct Node node;
 
+    /** The encoding method used by this node. */
+    struct EncodingScheme* scheme;
+
     /** The value of the reach at the time when the best path was last computed. */
     uint32_t reachAtTimeOfLastUpdate;
 
@@ -100,6 +114,8 @@ struct NodeStore_Node
 
     /** Used for freeing the links associated with this node. */
     struct NodeStore_Link* reversePeers;
+
+    struct Allocator* alloc;
 
     Identity
 };
@@ -164,8 +180,8 @@ struct NodeStore_pvt
  */
 static inline int comparePeers(const struct NodeStore_Link* la, const struct NodeStore_Link* lb)
 {
-    uint64_t a = la->labelFragment;
-    uint64_t b = lb->labelFragment;
+    uint64_t a = la->cannonicalLabel;
+    uint64_t b = lb->cannonicalLabel;
     if (a == b) {
         return 0;
     }
@@ -237,8 +253,9 @@ static inline void update(struct NodeStore_Link* link, struct NodeStore_pvt* sto
 
 static inline void linkNodes(struct NodeStore_Node* parent,
                              struct NodeStore_Node* child,
-                             uint64_t labelFragment,
+                             uint64_t cannonicalLabel,
                              uint32_t linkState,
+                             int encodingFormNumber,
                              struct NodeStore_pvt* store)
 {
     // Search for peers of both the parent and the child.
@@ -250,7 +267,9 @@ static inline void linkNodes(struct NodeStore_Node* parent,
             cPeers = cPeers->nextPeer;
         } else if ((char*)pPeers->parent < (char*)cPeers->parent) {
             pPeers = pPeers->nextPeer;
-        } else if (LabelSplicer_routesThrough(cPeers->labelFragment, pPeers->labelFragment)) {
+        } else if (LabelSplicer_routesThrough(cPeers->cannonicalLabel,
+                                              pPeers->cannonicalLabel))
+        {
             // the parent and child both have a common grandparent and
             // the grandparent previously told us about a route for reaching the child
             // and now we know that the parent falls within that route so we must disconnect
@@ -269,14 +288,15 @@ static inline void linkNodes(struct NodeStore_Node* parent,
         AddrTools_printIp(parentIp, parent->node.address.ip6.bytes);
         AddrTools_printIp(childIp, child->node.address.ip6.bytes);
         uint8_t printedLabel[20];
-        AddrTools_printPath(printedLabel, labelFragment);
+        AddrTools_printPath(printedLabel, cannonicalLabel);
         Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
                   parentIp, childIp, printedLabel);
     #endif
 
     // Link it in
     struct NodeStore_Link* link = getLink(store);
-    link->labelFragment = labelFragment;
+    link->cannonicalLabel = cannonicalLabel;
+    link->encodingFormNumber = encodingFormNumber;
     link->child = child;
     link->parent = parent;
     link->linkState = linkState;
@@ -292,69 +312,103 @@ static inline void linkNodes(struct NodeStore_Node* parent,
  * Find the closest node to the given path.
  *
  * @param path the path to the node which we want the closest node to.
- * @param outputNode a pointer to be set to the closest node.
+ * @param output a pointer to be set to the link to the closest node.
  * @param store
  * @return the label fragment linking outputNode with the given path.
  */
 static inline uint64_t findClosest(uint64_t path,
-                                   struct NodeStore_Node** outputNode,
+                                   struct NodeStore_Link** output,
                                    struct NodeStore_pvt* store)
 {
     struct NodeStore_Link tmpl = {
-        .labelFragment = path
+        // The path from us is always cannonical
+        .cannonicalLabel = path
     };
 
     struct NodeStore_Link* nextLink = store->selfLink;
     struct NodeStore_Link* link;
-    do {
+    for (;;) {
         link = nextLink;
-        tmpl.labelFragment = LabelSplicer_unsplice(tmpl.labelFragment, link->labelFragment);
+        // First we splice off the parent's Director leaving the child's Director.
+        tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
+        // Then we cannoicalize the child's Director
+        tmpl.cannonicalLabel =
+            EncodingScheme_convertLabel(link->child->scheme,
+                                        tmpl.cannonicalLabel,
+                                        EncodingScheme_convertLabel_convertTo_CANNONICAL);
+
+        Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
+
+        // Then we search for the next peer in the path
         nextLink = RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl);
-    } while (nextLink && nextLink != link
-        && LabelSplicer_routesThrough(tmpl.labelFragment, nextLink->labelFragment));
+
+        if (!nextLink) {
+            // node has no peers
+            break;
+        }
+
+        // TODO: understand why this was in the original while statement.
+        Assert_true(nextLink != link);
+
+        Assert_true(nextLink->child->scheme);
+
+        if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel)) {
+            // child of next link is not in the path, we reached the end.
+            break;
+        }
+    }
 
     #ifdef Log_DEBUG
         uint8_t labelA[20];
         uint8_t labelB[20] = "NONE";
-        AddrTools_printPath(labelA, tmpl.labelFragment);
+        AddrTools_printPath(labelA, tmpl.cannonicalLabel);
         if (nextLink) {
-            AddrTools_printPath(labelB, nextLink->labelFragment);
+            AddrTools_printPath(labelB, nextLink->cannonicalLabel);
         }
         Log_debug(store->logger, "[%s] is not behind [%s]", labelA, labelB);
     #endif
 
-    Assert_true(tmpl.labelFragment);/// TODO remove this
-    *outputNode = link->child;
-    return tmpl.labelFragment;
+    Assert_true(tmpl.cannonicalLabel);/// TODO remove this
+    *output = link;
+    return tmpl.cannonicalLabel;
 }
 
-static inline struct Node* discoverNode(struct NodeStore_pvt* store,
-                                        struct Address* addr,
-                                        int64_t reachDiff,
-                                        uint32_t version)
+struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                    struct Address* addr,
+                                    int64_t reachDiff,
+                                    uint32_t version,
+                                    struct EncodingScheme* scheme,
+                                    int encodingFormNumber)
 {
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
     struct NodeStore_Node* node;
     if (index < 0) {
-        node = Allocator_calloc(store->alloc, sizeof(struct NodeStore_Node), 1);
+        struct Allocator* alloc = Allocator_child(store->alloc);
+        node = Allocator_calloc(alloc, sizeof(struct NodeStore_Node), 1);
+        node->alloc = alloc;
         Bits_memcpyConst(&node->node.address, addr, sizeof(struct Address));
         index = Map_OfNodesByAddress_put((struct Ip6*)&addr->ip6, &node, &store->nodeMap);
+        node->scheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
     } else {
         node = store->nodeMap.values[index];
     }
     node->node.reach = (node->node.reach < -reachDiff) ? 0 : node->node.reach - reachDiff;
-    node->node.version = (version) ? node->node.version : version;
+    node->node.version = (version) ? version : node->node.version;
+    Assert_true(node->node.version);
+    Assert_true(EncodingScheme_equals(scheme, node->scheme));
 
-    struct NodeStore_Node* closest;
-    uint64_t fragment = findClosest(addr->path, &closest, store);
-    if (node != closest) {
+    struct NodeStore_Link* closest;
+    uint64_t path = findClosest(addr->path, &closest, store);
+    if (node != closest->child) {
         // TODO: linking every node with 0 link state, this can't be right.
-        linkNodes(closest, node, fragment, 0, store);
+        linkNodes(closest->child, node, path, 0, encodingFormNumber, store);
     }
 
     return &node->node;
 }
+
 /*
 struct Node* NodeStore_getNode(struct NodeStore_pvt* store,
                                         struct Address* addr,
@@ -389,8 +443,9 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     // Create the self node
     struct NodeStore_Node* selfNode = Allocator_calloc(alloc, sizeof(struct NodeStore_Node), 1);
     Bits_memcpyConst(&selfNode->node.address, myAddress, sizeof(struct Address));
+    selfNode->scheme = NumberCompress_defineScheme(alloc);
     Identity_set(selfNode);
-    linkNodes(selfNode, selfNode, 1, ~0u, out);
+    linkNodes(selfNode, selfNode, 1, ~0u, 0, out);
     selfNode->node.reach = ~0u;
     selfNode->reachAtTimeOfLastUpdate = ~0u;
     out->selfLink = selfNode->reversePeers;
@@ -733,6 +788,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                                         allocator);
 
     for (int i = 0; i < store->pub.size; i++) {
+        Assert_true(store->nodes[i].address.path != 0);
         DistanceNodeCollector_addNode(store->headers + i, store->nodes + i, collector);
     }
 
@@ -745,6 +801,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
             && !Bits_memcmp(collector->nodes[i].body->address.ip6.bytes, address->ip6.bytes, 16))
         {
             out->nodes[outIndex] = collector->nodes[i].body;
+            Assert_true(out->nodes[outIndex]->address.path != 0);
             outIndex++;
         }
     }

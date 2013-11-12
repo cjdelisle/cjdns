@@ -12,17 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EncodingSchemeModule_H
-#define EncodingSchemeModule_H
+#include "util/Order.h"
 
-#include "dht/DHTModuleRegistry.h"
-#include "memory/Allocator.h"
-#include "dht/dhtcore/NodeStore.h"
-#include "util/log/Log.h"
+#include <stdlib.h>
 
-void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
-                                   struct NodeStore* ns,
-                                   struct Log* logger,
-                                   struct Allocator* alloc);
-
-#endif
+void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare)
+{
+    qsort(base, num, size, compare);
+}

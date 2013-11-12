@@ -16,6 +16,7 @@
 #define CJDHTConstants_H
 
 #include "benc/Object.h"
+#include "util/version/Version.h"
 
 // Signifying that this message is a query and defining the query type.
 static String* const CJDHTConstants_QUERY = String_CONST_SO("q");
@@ -50,8 +51,14 @@ static String* const CJDHTConstants_PROTOCOL = String_CONST_SO("p");
 // The encoding scheme definition for this node's switch encoding.
 static String* const CJDHTConstants_ENC_SCHEME = String_CONST_SO("es");
 
+#ifdef Version_5_COMPAT
 // The *index* of the smallest encoding form which can represent the interface which
-// the querying node is behind.
+// the querying node is behind. Deprecated in v6
 static String* const CJDHTConstants_ENC_INDEX = String_CONST_SO("ei");
+#endif
+
+// The interface index of the interface through which a given message was
+// sent or received, attached to all messages so that
+static String* const CJDHTConstants_IF_INDEX = String_CONST_SO("i");
 
 #endif

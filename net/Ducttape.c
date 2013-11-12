@@ -286,6 +286,7 @@ static inline uint8_t incomingForMe(struct Message* message,
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
+    Bits_memcpyConst(addr.key, herPublicKey, 32);
     //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
 
     if (Bits_memcmp(addr.ip6.bytes, dtHeader->ip6Header->sourceAddr, 16)) {
