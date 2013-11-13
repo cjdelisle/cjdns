@@ -142,6 +142,13 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
         return false;
     }
 
+    if (scheme->count > 31) {
+        // impossible, each form must have a different bitCount and bitCount
+        // can only be expressed in 5 bits limiting it to 31 bits max and a form
+        // using zero bits is not allowed so there are only 31 max possibilities.
+        return false;
+    }
+
     if (scheme->count == 1) {
         // Fixed width encoding, prefix is not allowed and bitcount must be non-zero
         if (scheme->forms[0].prefixLen != 0) {

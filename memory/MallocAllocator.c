@@ -495,6 +495,8 @@ static void* allocatorRealloc(const void* original,
     if (size == 0) {
         // realloc(0) means free()
         *locPtr = nextLoc;
+        context->rootAlloc->spaceAvailable += origLoc->size;
+        context->allocatedHere -= origLoc->size;
         releaseAllocation(context, origLoc);
     }
 

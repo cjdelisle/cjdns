@@ -36,6 +36,7 @@
 
 struct NodeStore_Node;
 struct NodeStore_Link;
+struct NodeStore_Linkx;
 
 /**
  * A link represents a link between two nodes.
@@ -44,7 +45,25 @@ struct NodeStore_Link;
  */
 struct NodeStore_Link
 {
-    /** The parent of this peer, this is where the root of the treeEntry is. */
+    /** Used by the parent's RBTree of links. */
+    struct NodeStore_Linkx* rbe_left;
+    struct NodeStore_Linkx* rbe_right;
+    struct NodeStore_Linkx* rbe_parent;
+    int rbe_color : 2;
+
+    /**
+     * The Encoding Form number which is used to represent the first director in the path from
+     * child to parent.
+     */
+    uint32_t encodingFormNumber : 5;
+
+    /**
+     * The quality of the link between parent and child,
+     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
+     */
+    uint32_t linkState;
+
+    /** The parent of this peer, this is where the root of the RBTree is. */
     struct NodeStore_Node* parent;
 
     /** The child of this link. */
@@ -57,14 +76,6 @@ struct NodeStore_Link
      */
     struct NodeStore_Link* nextPeer;
 
-    /** Used by the parent's RBTree of links. */
-    struct {
-        struct NodeStore_Link* rbe_left;
-        struct NodeStore_Link* rbe_right;
-        struct NodeStore_Link* rbe_parent;
-        int rbe_color;
-    } treeEntry;
-
     /**
      * The label which would be used to reach the child from the parent.
      * This label is in a cannonical state and must be altered so that the first Director uses
@@ -73,19 +84,17 @@ struct NodeStore_Link
      */
     uint64_t cannonicalLabel;
 
-    /**
-     * The Encoding Form number which is used to represent the first director in the path from
-     * child to parent.
-     */
-    uint32_t encodingFormNumber;
-
-    /**
-     * The quality of the link between parent and child,
-     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
-     */
-    uint32_t linkState;
-
     Identity
+};
+
+/**
+ * Exists only for pleasing the RBTree which really wants it's fields
+ * to be inside of an inner structure. Embedding the fields in the link
+ * itself gives us an 8-12 byte memory savings.
+ */
+struct NodeStore_Linkx
+{
+    struct NodeStore_Link link;
 };
 
 struct NodeStore_Node
@@ -109,7 +118,7 @@ struct NodeStore_Node
      * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
      */
     struct PeerRBTree {
-        struct NodeStore_Link* rbh_root;
+        struct NodeStore_Linkx* rbh_root;
     } peerTree;
 
     /** Used for freeing the links associated with this node. */
@@ -178,17 +187,17 @@ struct NodeStore_pvt
  * The idea is to find the least significant bit which differs between a and b.
  * then if that bit is a0 b1 then return -1 and if it is a1 b0 then we return 1.
  */
-static inline int comparePeers(const struct NodeStore_Link* la, const struct NodeStore_Link* lb)
+static inline int comparePeers(const struct NodeStore_Linkx* la, const struct NodeStore_Linkx* lb)
 {
-    uint64_t a = la->cannonicalLabel;
-    uint64_t b = lb->cannonicalLabel;
+    uint64_t a = la->link.cannonicalLabel;
+    uint64_t b = lb->link.cannonicalLabel;
     if (a == b) {
         return 0;
     }
     return ((a >> (Bits_ffs64(a ^ b) - 1) ) & 1) ? 1 : -1;
 }
 
-RB_GENERATE_STATIC(PeerRBTree, NodeStore_Link, treeEntry, comparePeers)
+RB_GENERATE_STATIC(PeerRBTree, NodeStore_Linkx, link, comparePeers)
 
 static inline void insertReversePeer(struct NodeStore_Node* child,
                                      struct NodeStore_Link* peer)
@@ -203,6 +212,7 @@ static inline void insertReversePeer(struct NodeStore_Node* child,
             break;
         } else if (current->parent == peer->parent) {
             // Two links between same parent<->child
+            // This should always be caught inside of linkNodes()
             Assert_true(0);
         }
         prevP = &(current->nextPeer);
@@ -237,24 +247,43 @@ static inline void unlinkNodes(struct NodeStore_Link* link, struct NodeStore_pvt
 
     // Remove the RBTree entry
     struct NodeStore_Node* parent = Identity_cast(link->child);
-    RB_REMOVE(PeerRBTree, &parent->peerTree, link);
+    RB_REMOVE(PeerRBTree, &parent->peerTree, (struct NodeStore_Linkx*)link);
 
     freeLink(link, store);
 }
 
-static inline void update(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+static inline void logLink(struct NodeStore_pvt* store,
+                           struct NodeStore_Link* link,
+                           char* message)
 {
-    uint32_t computedReach = link->parent->node.reach - link->linkState;
-    if (computedReach > link->child->node.reach) {
-        // good news!
+    #ifdef Log_DEBUG
+        uint8_t parent[40];
+        uint8_t child[40];
+        AddrTools_printIp(parent, link->parent->node.address.ip6.bytes);
+        AddrTools_printIp(child, link->child->node.address.ip6.bytes);
+        uint8_t path[20];
+        AddrTools_printPath(path, link->cannonicalLabel);
+        Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
+    #endif
+}
 
+static inline void update(struct NodeStore_Link* link,
+                          int64_t linkStateDiff,
+                          struct NodeStore_pvt* store)
+{
+    if (linkStateDiff + link->linkState > UINT32_MAX) {
+        link->linkState = UINT32_MAX;
+        logLink(store, link, "link state set to maximum");
+    } else if (linkStateDiff + link->linkState < 0) {
+        link->linkState = UINT32_MAX;
+        logLink(store, link, "link state set to zero");
     }
 }
 
 static inline void linkNodes(struct NodeStore_Node* parent,
                              struct NodeStore_Node* child,
                              uint64_t cannonicalLabel,
-                             uint32_t linkState,
+                             int64_t linkStateDiff,
                              int encodingFormNumber,
                              struct NodeStore_pvt* store)
 {
@@ -262,6 +291,20 @@ static inline void linkNodes(struct NodeStore_Node* parent,
     struct NodeStore_Link* cPeers = child->reversePeers;
     struct NodeStore_Link* pPeers = parent->reversePeers;
     while (cPeers && pPeers) {
+        if (cPeers->parent == parent) {
+            if (cPeers->cannonicalLabel != cannonicalLabel) {
+                logLink(store, cPeers, "Relinking nodes with different label");
+                //Assert_true(0);//TODO: remove
+                cPeers->encodingFormNumber = encodingFormNumber;
+                cPeers->cannonicalLabel = cannonicalLabel;
+            } else if (cPeers->encodingFormNumber != encodingFormNumber) {
+                logLink(store, cPeers, "Relinking nodes with different encoding form");
+                Assert_true(0);//TODO: remove
+            }
+            update(cPeers, linkStateDiff, store);
+            return;
+        }
+
         // reverse peers are in ascending order by parent memory location
         if ((char*)cPeers->parent < (char*)pPeers->parent) {
             cPeers = cPeers->nextPeer;
@@ -299,13 +342,12 @@ static inline void linkNodes(struct NodeStore_Node* parent,
     link->encodingFormNumber = encodingFormNumber;
     link->child = child;
     link->parent = parent;
-    link->linkState = linkState;
     Identity_set(link);
     insertReversePeer(child, link);
-    RB_INSERT(PeerRBTree, &parent->peerTree, link);
+    RB_INSERT(PeerRBTree, &parent->peerTree, (struct NodeStore_Linkx*)link);
 
     // update the child's link state and possibly change it's preferred path
-    update(link, store);
+    update(link, linkStateDiff, store);
 }
 
 /**
@@ -340,7 +382,8 @@ static inline uint64_t findClosest(uint64_t path,
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
         // Then we search for the next peer in the path
-        nextLink = RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl);
+        nextLink = (struct NodeStore_Link*)
+            RB_NFIND(PeerRBTree, &link->child->peerTree, (struct NodeStore_Linkx*)&tmpl);
 
         if (!nextLink) {
             // node has no peers
@@ -356,6 +399,16 @@ static inline uint64_t findClosest(uint64_t path,
             // child of next link is not in the path, we reached the end.
             break;
         }
+
+        #ifdef Log_DEBUG
+            uint8_t labelA[20];
+            uint8_t labelB[20] = "NONE";
+            AddrTools_printPath(labelA, path);
+            if (nextLink) {
+                AddrTools_printPath(labelB, nextLink->cannonicalLabel);
+            }
+            Log_debug(store->logger, "[%s] is behind [%s]", labelA, labelB);
+        #endif
     }
 
     #ifdef Log_DEBUG
@@ -381,6 +434,13 @@ struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                     int encodingFormNumber)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+
+    #ifdef Log_DEBUG
+        uint8_t printedAddr[60];
+        Address_print(printedAddr, addr);
+        Log_debug(store->logger, "Discover node [%s]", printedAddr);
+    #endif
+
     int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
     struct NodeStore_Node* node;
     if (index < 0) {
@@ -401,6 +461,10 @@ struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     struct NodeStore_Link* closest;
     uint64_t path = findClosest(addr->path, &closest, store);
+    path = EncodingScheme_convertLabel(scheme,
+                                       path,
+                                       EncodingScheme_convertLabel_convertTo_CANNONICAL);
+    Assert_true(path != EncodingScheme_convertLabel_INVALID);
     if (node != closest->child) {
         // TODO: linking every node with 0 link state, this can't be right.
         linkNodes(closest->child, node, path, 0, encodingFormNumber, store);
