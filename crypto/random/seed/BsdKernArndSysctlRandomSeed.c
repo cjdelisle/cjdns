@@ -20,7 +20,7 @@
     #include <unistd.h>
     #include <errno.h>
     #include <sys/types.h>
-    #ifndef Illumos
+    #if !defined Illumos && !defined __ILP32__
         #include <sys/sysctl.h>
     #endif
 #endif
