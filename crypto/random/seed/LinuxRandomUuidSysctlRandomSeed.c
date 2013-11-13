@@ -17,7 +17,7 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 
-#ifdef Linux
+#if defined Linux && !defined __ILP32__
 
 #include <unistd.h>
 #include <sys/sysctl.h>
