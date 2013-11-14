@@ -98,6 +98,96 @@ static void dumpTable(Dict* args, void* vcontext, String* txid)
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
+static void getLink(Dict* args, void* vcontext, String* txid)
+{
+    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    Dict* ret = Dict_new(alloc);
+    Dict* result = Dict_new(alloc);
+    Dict_putDict(ret, String_new("result", alloc), result, alloc);
+    Dict_putString(ret, String_new("error", alloc), String_new("none", alloc), alloc);
+
+    struct Node_Link* link;
+
+    String* routeS = Dict_getString(args, String_new("route", alloc));
+    uint64_t route;
+    if (routeS->len != 19 || AddrTools_parsePath(&route, routeS->bytes)) {
+        Dict_putString(ret,
+                       String_new("error", alloc),
+                       String_new("Could not parse path", alloc),
+                       alloc);
+
+    } else if ((link = NodeStore_getLink(ctx->store, route))) {
+        Dict_putInt(result,
+                    String_new("encodingFormNumber", alloc),
+                    link->encodingFormNumber,
+                    alloc);
+        Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+
+        String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
+        AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
+        Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
+
+        String* parent = String_newBinary(NULL, 39, alloc);
+        AddrTools_printIp(parent->bytes, link->parent->address.ip6.bytes);
+        Dict_putString(result, String_new("parent", alloc), parent, alloc);
+
+        String* child = String_newBinary(NULL, 39, alloc);
+        AddrTools_printIp(child->bytes, link->child->address.ip6.bytes);
+        Dict_putString(result, String_new("child", alloc), child, alloc);
+    }
+
+    Admin_sendMessage(ret, txid, ctx->admin);
+    Allocator_free(alloc);
+}
+static void getNode(Dict* args, void* vcontext, String* txid)
+{
+/*
+    //struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16])
+    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    Dict* ret = Dict_new(alloc);
+    Dict* result = Dict_new(alloc);
+    Dict_putDict(ret, String_new("result", alloc), result, alloc);
+    Dict_putString(ret, String_new("error", alloc), String_new("none", alloc), alloc);
+
+    struct Node_Two* node;
+
+    String* routeS = Dict_getString(args, String_new("key", alloc));
+    uint64_t route;
+    if (routeS->len != 19 || AddrTools_parsePath(&route, routeS->bytes)) {
+        Dict_putString(ret,
+                       String_new("error", alloc),
+                       String_new("Could not parse path", alloc),
+                       alloc);
+
+    } else if ((link = NodeStore_getLink(ctx->store, route))) {
+        Dict_putInt(result,
+                    String_new("encodingFormNumber", alloc),
+                    link->encodingFormNumber,
+                    alloc);
+        Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+
+        String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
+        AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
+        Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
+
+        String* parent = String_newBinary(NULL, 39, alloc);
+        AddrTools_printIp(parent->bytes, link->parent->address.ip6.bytes);
+        Dict_putString(result, String_new("parent", alloc), parent, alloc);
+
+        String* child = String_newBinary(NULL, 39, alloc);
+        AddrTools_printIp(child->bytes, link->child->address.ip6.bytes);
+        Dict_putString(result, String_new("child", alloc), child, alloc);
+    }
+
+    Admin_sendMessage(ret, txid, ctx->admin);
+    Allocator_free(alloc);
+*/
+}
+
 void NodeStore_admin_register(struct NodeStore* nodeStore,
                               struct Admin* admin,
                               struct Allocator* alloc)
@@ -112,5 +202,14 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
     Admin_registerFunction("NodeStore_dumpTable", dumpTable, ctx, false,
         ((struct Admin_FunctionArg[]) {
             { .name = "page", .required = 1, .type = "Int" },
+        }), admin);
+
+    Admin_registerFunction("NodeStore_getLink", getLink, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "route", .required = 1, .type = "String" },
+        }), admin);
+    Admin_registerFunction("NodeStore_getNode", getNode, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "key", .required = 1, .type = "String" },
         }), admin);
 }

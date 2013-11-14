@@ -110,7 +110,7 @@ static inline uint8_t sendToRouter(struct Message* message,
         #endif
             // Put the handle into the message so that it's authenticated.
             // see: sendToSwitch()
-            Log_debug(context->logger, "Sending receive handle under CryptoAuth");
+            //Log_debug(context->logger, "Sending receive handle under CryptoAuth");
             Message_push(message, &session->receiveHandle_be, 4, NULL);
         #ifdef Version_2_COMPAT
         } else {
@@ -388,10 +388,10 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct SessionManager_Session* session,
                                    struct Ducttape_pvt* context)
 {
-    uint64_t label = dtHeader->switchLabel;
+    //uint64_t label = dtHeader->switchLabel;
 
     if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
-        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
+        //debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
         uint32_t sendHandle_be = session->sendHandle_be;
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
@@ -400,7 +400,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         #endif
         Message_push(message, &sendHandle_be, 4, NULL);
     } else {
-        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
+        //debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
             Message_push(message, &session->receiveHandle_be, 4, NULL);
@@ -534,7 +534,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
         #endif
         return Error_UNDELIVERABLE;
     }
-
+/*
     #ifdef Log_DEBUG
         uint8_t destAddr[40];
         AddrTools_printIp(destAddr, header->destinationAddr);
@@ -542,7 +542,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Address_print(nhAddr, &bestNext->address);
         Log_debug(context->logger, "Sending to [%s] via [%s]", destAddr, nhAddr);
     #endif
-
+*/
     struct SessionManager_Session* session =
         SessionManager_getSession(header->destinationAddr, NULL, context->sm);
 
@@ -1084,10 +1084,12 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                 Log_debug(context->logger, "Got connectToMe packet at switch layer");
                 return 0;
             }
+            /*
             debugHandlesAndLabel(context->logger, session,
                                  Endian_bigEndianToHost64(switchHeader->label_be),
                                  "running session nonce[%u]",
                                  nonce);
+            */
             dtHeader->receiveHandle = nonceOrHandle;
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");

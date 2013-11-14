@@ -34,105 +34,10 @@
 #include <uv-private/tree.h>
 
 
-struct NodeStore_Node;
-struct NodeStore_Link;
-struct NodeStore_Linkx;
-
-/**
- * A link represents a link between two nodes.
- * Links are unidirectional because deriving the inverse of a route is non-trivial.
- * (it cannot be calculated)
- */
-struct NodeStore_Link
-{
-    /** Used by the parent's RBTree of links. */
-    struct NodeStore_Linkx* rbe_left;
-    struct NodeStore_Linkx* rbe_right;
-    struct NodeStore_Linkx* rbe_parent;
-    int rbe_color : 2;
-
-    /**
-     * The Encoding Form number which is used to represent the first director in the path from
-     * child to parent.
-     */
-    uint32_t encodingFormNumber : 5;
-
-    /**
-     * The quality of the link between parent and child,
-     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
-     */
-    uint32_t linkState;
-
-    /** The parent of this peer, this is where the root of the RBTree is. */
-    struct NodeStore_Node* parent;
-
-    /** The child of this link. */
-    struct NodeStore_Node* child;
-
-    /**
-     * The next link which points to the same child.
-     * For each child there are many links pointing to it,
-     * they are represented here as a linked list.
-     */
-    struct NodeStore_Link* nextPeer;
-
-    /**
-     * The label which would be used to reach the child from the parent.
-     * This label is in a cannonical state and must be altered so that the first Director uses
-     * at least as many bits as are required to reach the grandparent from the parent
-     * in the reverse direction.
-     */
-    uint64_t cannonicalLabel;
-
-    Identity
-};
-
-/**
- * Exists only for pleasing the RBTree which really wants it's fields
- * to be inside of an inner structure. Embedding the fields in the link
- * itself gives us an 8-12 byte memory savings.
- */
-struct NodeStore_Linkx
-{
-    struct NodeStore_Link link;
-};
-
-struct NodeStore_Node
-{
-    /**
-     * Address
-     * Path - best known path to this node
-     * reach - current reach
-     * version
-     */
-    struct Node node;
-
-    /** The encoding method used by this node. */
-    struct EncodingScheme* scheme;
-
-    /** The value of the reach at the time when the best path was last computed. */
-    uint32_t reachAtTimeOfLastUpdate;
-
-    /**
-     * Peers of this node for which we know the forward direction.
-     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
-     */
-    struct PeerRBTree {
-        struct NodeStore_Linkx* rbh_root;
-    } peerTree;
-
-    /** Used for freeing the links associated with this node. */
-    struct NodeStore_Link* reversePeers;
-
-    struct Allocator* alloc;
-
-    Identity
-};
-
 struct Ip6 { uint8_t bytes[16]; };
 #define Map_NAME OfNodesByAddress
 #define Map_KEY_TYPE struct Ip6
-#define Map_VALUE_TYPE struct NodeStore_Node*
+#define Map_VALUE_TYPE struct Node_Two*
 #include "util/Map.h"
 
 /** A list of DHT nodes. */
@@ -147,7 +52,7 @@ struct NodeStore_pvt
      * This node (the self node) is linked with all peers of this node.
      * The self link is the prefix of all paths.
      */
-    struct NodeStore_Link* selfLink;
+    struct Node_Link* selfLink;
 
     struct Map_OfNodesByAddress nodeMap;
 
@@ -187,7 +92,7 @@ struct NodeStore_pvt
  * The idea is to find the least significant bit which differs between a and b.
  * then if that bit is a0 b1 then return -1 and if it is a1 b0 then we return 1.
  */
-static inline int comparePeers(const struct NodeStore_Linkx* la, const struct NodeStore_Linkx* lb)
+static inline int comparePeers(const struct Node_Linkx* la, const struct Node_Linkx* lb)
 {
     uint64_t a = la->link.cannonicalLabel;
     uint64_t b = lb->link.cannonicalLabel;
@@ -197,13 +102,13 @@ static inline int comparePeers(const struct NodeStore_Linkx* la, const struct No
     return ((a >> (Bits_ffs64(a ^ b) - 1) ) & 1) ? 1 : -1;
 }
 
-RB_GENERATE_STATIC(PeerRBTree, NodeStore_Linkx, link, comparePeers)
+RB_GENERATE_STATIC(PeerRBTree, Node_Linkx, link, comparePeers)
 
-static inline void insertReversePeer(struct NodeStore_Node* child,
-                                     struct NodeStore_Link* peer)
+static inline void insertReversePeer(struct Node_Two* child,
+                                     struct Node_Link* peer)
 {
-    struct NodeStore_Link** prevP = &child->reversePeers;
-    struct NodeStore_Link* current = *prevP;
+    struct Node_Link** prevP = &child->reversePeers;
+    struct Node_Link* current = *prevP;
     while (current) {
         Identity_check(current);
         // pointer comparison for ascending order by parent memory location
@@ -222,22 +127,22 @@ static inline void insertReversePeer(struct NodeStore_Node* child,
     *prevP = peer;
 }
 
-static inline void freeLink(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+static inline void freeLink(struct Node_Link* link, struct NodeStore_pvt* store)
 {
     Allocator_realloc(store->alloc, link, 0);
 }
 
-static inline struct NodeStore_Link* getLink(struct NodeStore_pvt* store)
+static inline struct Node_Link* getLink(struct NodeStore_pvt* store)
 {
-    return Allocator_calloc(store->alloc, sizeof(struct NodeStore_Link), 1);
+    return Allocator_calloc(store->alloc, sizeof(struct Node_Link), 1);
 }
 
-static inline void unlinkNodes(struct NodeStore_Link* link, struct NodeStore_pvt* store)
+static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
 {
     // Remove the entry from the reversePeers
-    struct NodeStore_Node* child = Identity_cast(link->child);
-    struct NodeStore_Link** prevP = &child->reversePeers;
-    struct NodeStore_Link* current = Identity_cast(*prevP);
+    struct Node_Two* child = Identity_cast(link->child);
+    struct Node_Link** prevP = &child->reversePeers;
+    struct Node_Link* current = Identity_cast(*prevP);
     while (current && current != link) {
         prevP = &(current->nextPeer);
         current = Identity_cast(*prevP);
@@ -246,28 +151,28 @@ static inline void unlinkNodes(struct NodeStore_Link* link, struct NodeStore_pvt
     *prevP = current->nextPeer;
 
     // Remove the RBTree entry
-    struct NodeStore_Node* parent = Identity_cast(link->child);
-    RB_REMOVE(PeerRBTree, &parent->peerTree, (struct NodeStore_Linkx*)link);
+    struct Node_Two* parent = Identity_cast(link->child);
+    RB_REMOVE(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link);
 
     freeLink(link, store);
 }
 
 static inline void logLink(struct NodeStore_pvt* store,
-                           struct NodeStore_Link* link,
+                           struct Node_Link* link,
                            char* message)
 {
     #ifdef Log_DEBUG
         uint8_t parent[40];
         uint8_t child[40];
-        AddrTools_printIp(parent, link->parent->node.address.ip6.bytes);
-        AddrTools_printIp(child, link->child->node.address.ip6.bytes);
+        AddrTools_printIp(parent, link->parent->address.ip6.bytes);
+        AddrTools_printIp(child, link->child->address.ip6.bytes);
         uint8_t path[20];
         AddrTools_printPath(path, link->cannonicalLabel);
         Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
     #endif
 }
 
-static inline void update(struct NodeStore_Link* link,
+static inline void update(struct Node_Link* link,
                           int64_t linkStateDiff,
                           struct NodeStore_pvt* store)
 {
@@ -277,20 +182,33 @@ static inline void update(struct NodeStore_Link* link,
     } else if (linkStateDiff + link->linkState < 0) {
         link->linkState = UINT32_MAX;
         logLink(store, link, "link state set to zero");
+    } else {
+        link->linkState += linkStateDiff;
     }
 }
 
-static inline void linkNodes(struct NodeStore_Node* parent,
-                             struct NodeStore_Node* child,
+/**
+ * Link two nodes in the graph together.
+ * If a parent of the child node is also a parent of the parent node, they are
+ * unlinked (the link is split and the child is inserted in the middle).
+ *
+ * @param parent the current end of the graph
+ * @param child the new node to extend the graph
+ * @param cannonicalLabel the label for getting from the parent to the child.
+ * @param linkStateDiff how much to change the link state for this link.
+ * @param store
+ */
+static inline void linkNodes(struct Node_Two* parent,
+                             struct Node_Two* child,
                              uint64_t cannonicalLabel,
                              int64_t linkStateDiff,
                              int encodingFormNumber,
                              struct NodeStore_pvt* store)
 {
     // Search for peers of both the parent and the child.
-    struct NodeStore_Link* cPeers = child->reversePeers;
-    struct NodeStore_Link* pPeers = parent->reversePeers;
-    while (cPeers && pPeers) {
+    struct Node_Link* cPeers = child->reversePeers;
+    struct Node_Link* pPeers = parent->reversePeers;
+    while (cPeers) {
         if (cPeers->parent == parent) {
             if (cPeers->cannonicalLabel != cannonicalLabel) {
                 logLink(store, cPeers, "Relinking nodes with different label");
@@ -305,6 +223,11 @@ static inline void linkNodes(struct NodeStore_Node* parent,
             return;
         }
 
+        if (!pPeers) {
+            cPeers = cPeers->nextPeer;
+            continue;
+        }
+
         // reverse peers are in ascending order by parent memory location
         if ((char*)cPeers->parent < (char*)pPeers->parent) {
             cPeers = cPeers->nextPeer;
@@ -317,7 +240,9 @@ static inline void linkNodes(struct NodeStore_Node* parent,
             // the grandparent previously told us about a route for reaching the child
             // and now we know that the parent falls within that route so we must disconnect
             // the child from the grandparent before connecting the child to the parent.
-            unlinkNodes(pPeers, store);
+            struct Node_Link* unlinkParent = pPeers;
+            pPeers = pPeers->nextPeer;
+            unlinkNodes(unlinkParent, store);
         } else {
             // same grandparent but discrete paths to parent and child.
             // advance child to continue the search.
@@ -328,8 +253,8 @@ static inline void linkNodes(struct NodeStore_Node* parent,
     #ifdef Log_DEBUG
         uint8_t parentIp[40];
         uint8_t childIp[40];
-        AddrTools_printIp(parentIp, parent->node.address.ip6.bytes);
-        AddrTools_printIp(childIp, child->node.address.ip6.bytes);
+        AddrTools_printIp(parentIp, parent->address.ip6.bytes);
+        AddrTools_printIp(childIp, child->address.ip6.bytes);
         uint8_t printedLabel[20];
         AddrTools_printPath(printedLabel, cannonicalLabel);
         Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
@@ -337,14 +262,14 @@ static inline void linkNodes(struct NodeStore_Node* parent,
     #endif
 
     // Link it in
-    struct NodeStore_Link* link = getLink(store);
+    struct Node_Link* link = getLink(store);
     link->cannonicalLabel = cannonicalLabel;
     link->encodingFormNumber = encodingFormNumber;
     link->child = child;
     link->parent = parent;
     Identity_set(link);
     insertReversePeer(child, link);
-    RB_INSERT(PeerRBTree, &parent->peerTree, (struct NodeStore_Linkx*)link);
+    RB_INSERT(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link);
 
     // update the child's link state and possibly change it's preferred path
     update(link, linkStateDiff, store);
@@ -359,16 +284,16 @@ static inline void linkNodes(struct NodeStore_Node* parent,
  * @return the label fragment linking outputNode with the given path.
  */
 static inline uint64_t findClosest(uint64_t path,
-                                   struct NodeStore_Link** output,
+                                   struct Node_Link** output,
                                    struct NodeStore_pvt* store)
 {
-    struct NodeStore_Link tmpl = {
+    struct Node_Link tmpl = {
         // The path from us is always cannonical
         .cannonicalLabel = path
     };
 
-    struct NodeStore_Link* nextLink = store->selfLink;
-    struct NodeStore_Link* link;
+    struct Node_Link* nextLink = store->selfLink;
+    struct Node_Link* link;
     for (;;) {
         link = nextLink;
         // First we splice off the parent's Director leaving the child's Director.
@@ -382,8 +307,8 @@ static inline uint64_t findClosest(uint64_t path,
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
         // Then we search for the next peer in the path
-        nextLink = (struct NodeStore_Link*)
-            RB_NFIND(PeerRBTree, &link->child->peerTree, (struct NodeStore_Linkx*)&tmpl);
+        nextLink = (struct Node_Link*)
+            RB_NFIND(PeerRBTree, &link->child->peerTree, (struct Node_Linkx*)&tmpl);
 
         if (!nextLink) {
             // node has no peers
@@ -391,9 +316,14 @@ static inline uint64_t findClosest(uint64_t path,
         }
 
         // TODO: understand why this was in the original while statement.
-        Assert_true(nextLink != link);
+        Assert_true(nextLink != link || link == store->selfLink);
 
         Assert_true(nextLink->child->scheme);
+
+        if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
+            // found a match
+            break;
+        }
 
         if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel)) {
             // child of next link is not in the path, we reached the end.
@@ -403,11 +333,14 @@ static inline uint64_t findClosest(uint64_t path,
         #ifdef Log_DEBUG
             uint8_t labelA[20];
             uint8_t labelB[20] = "NONE";
-            AddrTools_printPath(labelA, path);
+            uint8_t searchingFor[20];
+            AddrTools_printPath(labelA, tmpl.cannonicalLabel);
+            AddrTools_printPath(searchingFor, path);
             if (nextLink) {
                 AddrTools_printPath(labelB, nextLink->cannonicalLabel);
             }
-            Log_debug(store->logger, "[%s] is behind [%s]", labelA, labelB);
+            Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
+                      labelA, labelB, searchingFor);
         #endif
     }
 
@@ -426,12 +359,12 @@ static inline uint64_t findClosest(uint64_t path,
     return tmpl.cannonicalLabel;
 }
 
-struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
-                                    struct Address* addr,
-                                    int64_t reachDiff,
-                                    uint32_t version,
-                                    struct EncodingScheme* scheme,
-                                    int encodingFormNumber)
+struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                        struct Address* addr,
+                                        int64_t reachDiff,
+                                        uint32_t version,
+                                        struct EncodingScheme* scheme,
+                                        int encodingFormNumber)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
@@ -442,24 +375,24 @@ struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
     #endif
 
     int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
-    struct NodeStore_Node* node;
+    struct Node_Two* node;
     if (index < 0) {
         struct Allocator* alloc = Allocator_child(store->alloc);
-        node = Allocator_calloc(alloc, sizeof(struct NodeStore_Node), 1);
+        node = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
         node->alloc = alloc;
-        Bits_memcpyConst(&node->node.address, addr, sizeof(struct Address));
+        Bits_memcpyConst(&node->address, addr, sizeof(struct Address));
         index = Map_OfNodesByAddress_put((struct Ip6*)&addr->ip6, &node, &store->nodeMap);
         node->scheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
     } else {
         node = store->nodeMap.values[index];
     }
-    node->node.reach = (node->node.reach < -reachDiff) ? 0 : node->node.reach - reachDiff;
-    node->node.version = (version) ? version : node->node.version;
-    Assert_true(node->node.version);
+    node->reach = (node->reach < -reachDiff) ? 0 : node->reach - reachDiff;
+    node->version = (version) ? version : node->version;
+    Assert_true(node->version);
     Assert_true(EncodingScheme_equals(scheme, node->scheme));
 
-    struct NodeStore_Link* closest;
+    struct Node_Link* closest;
     uint64_t path = findClosest(addr->path, &closest, store);
     path = EncodingScheme_convertLabel(scheme,
                                        path,
@@ -470,16 +403,29 @@ struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
         linkNodes(closest->child, node, path, 0, encodingFormNumber, store);
     }
 
-    return &node->node;
+    return node;
 }
 
-/*
-struct Node* NodeStore_getNode(struct NodeStore_pvt* store,
-                                        struct Address* addr,
-                                        int64_t reachDiff,
-                                        uint32_t version)
+struct Node_Two* NodeStore_getNode2(struct NodeStore* nodeStore, uint8_t addr[16])
 {
-*/
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr, &store->nodeMap);
+    if (index == -1) {
+        return NULL;
+    }
+    return store->nodeMap.values[index];
+}
+
+struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore, uint64_t routeLabel)
+{
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct Node_Link* out = NULL;
+    uint64_t link = findClosest(routeLabel, &out, store);
+    if (link != 1) {
+        return NULL;
+    }
+    return out;
+}
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
@@ -505,16 +451,16 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Identity_set(out);
 
     // Create the self node
-    struct NodeStore_Node* selfNode = Allocator_calloc(alloc, sizeof(struct NodeStore_Node), 1);
-    Bits_memcpyConst(&selfNode->node.address, myAddress, sizeof(struct Address));
+    struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
+    Bits_memcpyConst(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->scheme = NumberCompress_defineScheme(alloc);
     Identity_set(selfNode);
-    linkNodes(selfNode, selfNode, 1, ~0u, 0, out);
-    selfNode->node.reach = ~0u;
+    linkNodes(selfNode, selfNode, 1, 0xFFFFFFFFu, 0, out);
+    selfNode->reach = ~0u;
     selfNode->reachAtTimeOfLastUpdate = ~0u;
     out->selfLink = selfNode->reversePeers;
 
-    out->pub.selfAddress = &selfNode->node.address;
+    out->pub.selfAddress = &selfNode->address;
 
     // Create the node table
     out->headers = Allocator_calloc(oldAlloc, sizeof(struct NodeHeader), capacity);

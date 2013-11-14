@@ -77,10 +77,10 @@ static void failure(struct MallocAllocator_pvt* context,
     // can't use this allocator because it failed.
     unroll(rootAlloc, NULL);
 
-    Assert_failure("%s:%d Fatal error: [%s] totalBytes [%lu] remaining [%lu]",
+    Assert_failure("%s:%d Fatal error: [%s] totalBytes [%ld] remaining [%ld]",
                    identFile, identLine, message,
-                   (unsigned long)context->rootAlloc->maxSpace,
-                   (unsigned long)context->rootAlloc->spaceAvailable);
+                   (long)context->rootAlloc->maxSpace,
+                   (long)context->rootAlloc->spaceAvailable);
 }
 
 static inline unsigned long getRealSize(unsigned long requestedSize)
@@ -495,9 +495,11 @@ static void* allocatorRealloc(const void* original,
     if (size == 0) {
         // realloc(0) means free()
         *locPtr = nextLoc;
+        Assert_true(origLoc->size <= context->allocatedHere);
         context->rootAlloc->spaceAvailable += origLoc->size;
         context->allocatedHere -= origLoc->size;
         releaseAllocation(context, origLoc);
+        return NULL;
     }
 
     size_t realSize = getRealSize(size);

@@ -100,7 +100,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return -1;
     }
 
-    //NodeStore_discoverNode(ctx->ns, message->address, 2, version, scheme, form);
+    NodeStore_discoverNode(ctx->ns, message->address, 2, version, scheme, form);
 
     return 0;
 }

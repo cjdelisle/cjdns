@@ -16,9 +16,10 @@
 #define Node_H
 
 #include "dht/Address.h"
-
-#include <stdint.h>
-#include <stdbool.h>
+#include "switch/EncodingScheme.h"
+#include "memory/Allocator.h"
+#include "util/Assert.h"
+#include "util/Identity.h"
 
 /** A network address for reaching a peer, in the format which is sent over the wire. */
 struct Node
@@ -40,6 +41,121 @@ struct Node
      * In ms, as per Time_currentTimeMilliseconds.
      */
     uint64_t timeOfNextPing;
+};
+
+struct Node_Linkx;
+struct Node_Link;
+
+struct Node_Two
+{
+    /**
+     * The reach of the node (how big/fast/close it is).
+     * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
+     */
+    uint32_t reach;
+
+    /** The version of the node, must be synchronized with NodeHeader */
+    uint32_t version;
+
+    /** The address of the node. */
+    struct Address address;
+
+    /**
+     * If we lookup a node and the current time is later than this, ping it.
+     * In ms, as per Time_currentTimeMilliseconds.
+     */
+    uint64_t timeOfNextPing;
+
+    // new stuff
+
+    /** The encoding method used by this node. */
+    struct EncodingScheme* scheme;
+
+    /** The value of the reach at the time when the best path was last computed. */
+    uint32_t reachAtTimeOfLastUpdate;
+
+    /**
+     * Peers of this node for which we know the forward direction.
+     * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
+     */
+    struct PeerRBTree {
+        struct Node_Linkx* rbh_root;
+    } peerTree;
+
+    /** Used for freeing the links associated with this node. */
+    struct Node_Link* reversePeers;
+
+    struct Allocator* alloc;
+
+    Identity
+};
+
+// Make sure Node_Two is castable to Node
+#define Node_ASSERT_MATCHES(field) \
+    Assert_compileTime(offsetof(struct Node_Two, field) == offsetof(struct Node, field))
+Node_ASSERT_MATCHES(reach);
+Node_ASSERT_MATCHES(version);
+Node_ASSERT_MATCHES(address);
+Node_ASSERT_MATCHES(timeOfNextPing);
+#undef Node_ASSERT_MATCHES
+
+/**
+ * A link represents a link between two nodes.
+ * Links are unidirectional because deriving the inverse of a route is non-trivial.
+ * (it cannot be calculated)
+ */
+struct Node_Link
+{
+    /** Used by the parent's RBTree of links. */
+    struct Node_Linkx* rbe_left;
+    struct Node_Linkx* rbe_right;
+    struct Node_Linkx* rbe_parent;
+    int rbe_color : 2;
+
+    /**
+     * The Encoding Form number which is used to represent the first director in the path from
+     * child to parent.
+     */
+    uint32_t encodingFormNumber : 5;
+
+    /**
+     * The quality of the link between parent and child,
+     * between 0xFFFFFFFF (perfect) and 0 (intolerable).
+     */
+    uint32_t linkState;
+
+    /** The parent of this peer, this is where the root of the RBTree is. */
+    struct Node_Two* parent;
+
+    /** The child of this link. */
+    struct Node_Two* child;
+
+    /**
+     * The next link which points to the same child.
+     * For each child there are many links pointing to it,
+     * they are represented here as a linked list.
+     */
+    struct Node_Link* nextPeer;
+
+    /**
+     * The label which would be used to reach the child from the parent.
+     * This label is in a cannonical state and must be altered so that the first Director uses
+     * at least as many bits as are required to reach the grandparent from the parent
+     * in the reverse direction.
+     */
+    uint64_t cannonicalLabel;
+
+    Identity
+};
+
+/**
+ * Exists only for pleasing the RBTree which really wants it's fields
+ * to be inside of an inner structure. Embedding the fields in the link
+ * itself gives us an 8-12 byte memory savings.
+ */
+struct Node_Linkx
+{
+    struct Node_Link link;
 };
 
 #endif

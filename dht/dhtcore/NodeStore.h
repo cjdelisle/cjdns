@@ -58,12 +58,15 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  * @param encodingFormNumber a number representing the encoding form used to represent the
  *                           interface through which the message reached them.
  */
-struct Node* NodeStore_discoverNode(struct NodeStore* nodeStore,
-                                    struct Address* addr,
-                                    int64_t reachDiff,
-                                    uint32_t version,
-                                    struct EncodingScheme* scheme,
-                                    int encodingFormNumber);
+struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                        struct Address* addr,
+                                        int64_t reachDiff,
+                                        uint32_t version,
+                                        struct EncodingScheme* scheme,
+                                        int encodingFormNumber);
+
+struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16]);
+struct Node_Link* NodeStore_getLink(struct NodeStore* store, uint64_t routeLabel);
 
 /**
  * Put a node into the store.
