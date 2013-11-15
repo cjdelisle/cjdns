@@ -409,22 +409,43 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 struct Node_Two* NodeStore_getNode2(struct NodeStore* nodeStore, uint8_t addr[16])
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr, &store->nodeMap);
+    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)addr, &store->nodeMap);
     if (index == -1) {
         return NULL;
     }
     return store->nodeMap.values[index];
 }
 
-struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore, uint64_t routeLabel)
+struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
+                                    uint8_t parent[16],
+                                    uint32_t linkNum)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    struct Node_Link* out = NULL;
-    uint64_t link = findClosest(routeLabel, &out, store);
-    if (link != 1) {
+
+    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)parent, &store->nodeMap);
+    if (index == -1) {
         return NULL;
     }
-    return out;
+    struct Node_Two* node = store->nodeMap.values[index];
+
+    uint32_t i = 0;
+    struct Node_Linkx* link;
+    RB_FOREACH(link, PeerRBTree, &node->peerTree) {
+        if (i++ == linkNum) {
+            return &link->link;
+        }
+    }
+    return NULL;
+}
+
+uint32_t NodeStore_linkCount(struct Node_Two* node)
+{
+    uint32_t i = 0;
+    struct Node_Linkx* link;
+    RB_FOREACH(link, PeerRBTree, &node->peerTree) {
+        i++;
+    }
+    return i;
 }
 
 /** See: NodeStore.h */
@@ -457,7 +478,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Identity_set(selfNode);
     linkNodes(selfNode, selfNode, 1, 0xFFFFFFFFu, 0, out);
     selfNode->reach = ~0u;
-    selfNode->reachAtTimeOfLastUpdate = ~0u;
     out->selfLink = selfNode->reversePeers;
 
     out->pub.selfAddress = &selfNode->address;

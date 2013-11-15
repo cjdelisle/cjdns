@@ -71,9 +71,6 @@ struct Node_Two
     /** The encoding method used by this node. */
     struct EncodingScheme* scheme;
 
-    /** The value of the reach at the time when the best path was last computed. */
-    uint32_t reachAtTimeOfLastUpdate;
-
     /**
      * Peers of this node for which we know the forward direction.
      * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)

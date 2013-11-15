@@ -66,7 +66,10 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         int encodingFormNumber);
 
 struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16]);
-struct Node_Link* NodeStore_getLink(struct NodeStore* store, uint64_t routeLabel);
+struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
+                                    uint8_t parent[16],
+                                    uint32_t linkNum);
+uint32_t NodeStore_linkCount(struct Node_Two* node);
 
 /**
  * Put a node into the store.

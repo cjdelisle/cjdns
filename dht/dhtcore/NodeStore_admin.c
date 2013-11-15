@@ -18,6 +18,7 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
+#include "crypto/Key.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_admin.h"
@@ -110,15 +111,17 @@ static void getLink(Dict* args, void* vcontext, String* txid)
 
     struct Node_Link* link;
 
-    String* routeS = Dict_getString(args, String_new("route", alloc));
-    uint64_t route;
-    if (routeS->len != 19 || AddrTools_parsePath(&route, routeS->bytes)) {
+    String* ipStr = Dict_getString(args, String_new("parent", alloc));
+    int64_t* linkNum = Dict_getInt(args, String_new("linkNum", alloc));
+    uint8_t ip[16];
+    if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
+        Dict_remove(ret, String_CONST("result"));
         Dict_putString(ret,
                        String_new("error", alloc),
-                       String_new("Could not parse path", alloc),
+                       String_new("Could not parse ip", alloc),
                        alloc);
 
-    } else if ((link = NodeStore_getLink(ctx->store, route))) {
+    } else if ((link = NodeStore_getLink(ctx->store, ip, *linkNum))) {
         Dict_putInt(result,
                     String_new("encodingFormNumber", alloc),
                     link->encodingFormNumber,
@@ -143,8 +146,6 @@ static void getLink(Dict* args, void* vcontext, String* txid)
 }
 static void getNode(Dict* args, void* vcontext, String* txid)
 {
-/*
-    //struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16])
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 
     struct Allocator* alloc = Allocator_child(ctx->alloc);
@@ -155,37 +156,27 @@ static void getNode(Dict* args, void* vcontext, String* txid)
 
     struct Node_Two* node;
 
-    String* routeS = Dict_getString(args, String_new("key", alloc));
-    uint64_t route;
-    if (routeS->len != 19 || AddrTools_parsePath(&route, routeS->bytes)) {
+    String* ipStr = Dict_getString(args, String_new("ip", alloc));
+    uint8_t ip[16];
+    if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
+        Dict_remove(ret, String_CONST("result"));
         Dict_putString(ret,
                        String_new("error", alloc),
-                       String_new("Could not parse path", alloc),
+                       String_new("Could not parse ip", alloc),
                        alloc);
 
-    } else if ((link = NodeStore_getLink(ctx->store, route))) {
-        Dict_putInt(result,
-                    String_new("encodingFormNumber", alloc),
-                    link->encodingFormNumber,
-                    alloc);
-        Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+    } else if ((node = NodeStore_getNode2(ctx->store, ip))) {
+        Dict_putInt(result, String_new("protocolVersion", alloc), node->version, alloc);
 
-        String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
-        AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
-        Dict_putString(result, String_new("cannonicalLabel", alloc), cannonicalLabel, alloc);
+        String* key = Key_stringify(node->address.key, alloc);
+        Dict_putString(result, String_new("key", alloc), key, alloc);
 
-        String* parent = String_newBinary(NULL, 39, alloc);
-        AddrTools_printIp(parent->bytes, link->parent->address.ip6.bytes);
-        Dict_putString(result, String_new("parent", alloc), parent, alloc);
-
-        String* child = String_newBinary(NULL, 39, alloc);
-        AddrTools_printIp(child->bytes, link->child->address.ip6.bytes);
-        Dict_putString(result, String_new("child", alloc), child, alloc);
+        uint32_t linkCount = NodeStore_linkCount(node);
+        Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
     }
 
     Admin_sendMessage(ret, txid, ctx->admin);
     Allocator_free(alloc);
-*/
 }
 
 void NodeStore_admin_register(struct NodeStore* nodeStore,
@@ -206,10 +197,11 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
 
     Admin_registerFunction("NodeStore_getLink", getLink, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "route", .required = 1, .type = "String" },
+            { .name = "parent", .required = 1, .type = "String" },
+            { .name = "linkNum", .required = 1, .type = "Int" },
         }), admin);
     Admin_registerFunction("NodeStore_getNode", getNode, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "key", .required = 1, .type = "String" },
+            { .name = "ip", .required = 1, .type = "String" },
         }), admin);
 }
