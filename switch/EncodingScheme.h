@@ -16,6 +16,7 @@
 #define EncodingScheme_H
 
 #include "benc/String.h"
+#include "benc/List.h"
 #include "memory/Allocator.h"
 
 #include <stdint.h>
@@ -92,5 +93,8 @@ static inline int EncodingScheme_formSize(const struct EncodingScheme_Form* form
 int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b);
 
 #define EncodingScheme_equals(a,b) (!EncodingScheme_compare(a,b))
+
+struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* alloc);
+List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc);
 
 #endif

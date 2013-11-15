@@ -23,6 +23,7 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "memory/Allocator.h"
+#include "switch/EncodingScheme.h"
 #include "util/version/Version.h"
 #include "util/platform/libc/string.h"
 
@@ -173,6 +174,9 @@ static void getNode(Dict* args, void* vcontext, String* txid)
 
         uint32_t linkCount = NodeStore_linkCount(node);
         Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
+
+        List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
+        Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
     }
 
     Admin_sendMessage(ret, txid, ctx->admin);

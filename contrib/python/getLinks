@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.publicToIp6 import PublicToIp6_convert;
+
+cjdns = connectWithAdminInfo();
+
+def getLink(node, num, spaces):
+    resp = cjdns.NodeStore_getLink(node, num);
+    getNode(resp['result']['child'], resp['result']['cannonicalLabel'], spaces + '  ');
+
+def getNode(next, path, spaces):
+    resp = cjdns.NodeStore_getNode(next);
+    print spaces + next + '  ' + path;
+    for i in range(0, int(resp['result']['linkCount'])):
+        getLink(next, i, spaces);
+
+getNode("fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84", '', '');

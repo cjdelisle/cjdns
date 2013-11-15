@@ -16,6 +16,7 @@
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"
+#include "util/Hex.h"
 
 /** Greatest possible number using x bits, all are set. */
 #define MAX_BITS(x) ((((uint64_t)1)<<(x))-1)
@@ -191,6 +192,52 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
         }
     }
     return true;
+}
+
+List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc)
+{
+    Assert_true(EncodingScheme_isSane(list));
+    String* prefixLen = String_new("prefixLen", alloc);
+    String* bitCount = String_new("bitCount", alloc);
+    String* prefix = String_new("prefix", alloc);
+    List* scheme = NULL;
+    for (int i = 0; i < (int)list->count; i++) {
+        Dict* form = Dict_new(alloc);
+        Dict_putInt(form, prefixLen, list->forms[i].prefixLen, alloc);
+        Dict_putInt(form, bitCount, list->forms[i].bitCount, alloc);
+        String* pfx = String_newBinary(NULL, 8, alloc);
+        Hex_encode(pfx->bytes, 8, (uint8_t*)&list->forms[i].prefix, 4);
+        Dict_putString(form, prefix, pfx, alloc);
+        scheme = List_addDict(scheme, form, alloc);
+    }
+    return scheme;
+}
+
+struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* alloc)
+{
+    struct EncodingScheme* list = Allocator_malloc(alloc, sizeof(struct EncodingScheme));
+    list->count = List_size(scheme);
+    list->forms = Allocator_malloc(alloc, sizeof(struct EncodingScheme_Form) * list->count);
+    for (int i = 0; i < (int)list->count; i++) {
+        Dict* form = List_getDict(scheme, i);
+        uint64_t* prefixLen = Dict_getInt(form, String_CONST("prefixLen"));
+        uint64_t* bitCount = Dict_getInt(form, String_CONST("bitCount"));
+        String* prefixStr = Dict_getString(form, String_CONST("prefix"));
+        if (!prefixLen || !bitCount || !prefixStr || prefixStr->len != 8) {
+            return NULL;
+        }
+        uint32_t prefix;
+        if (Hex_decode((uint8_t*)&prefix, 4, prefixStr->bytes, 8) != 4) {
+            return NULL;
+        }
+        list->forms[i].prefixLen = *prefixLen;
+        list->forms[i].bitCount = *bitCount;
+        list->forms[i].prefix = prefix;
+    }
+    if (!EncodingScheme_isSane(list)) {
+        return NULL;
+    }
+    return list;
 }
 
 String* EncodingScheme_serialize(struct EncodingScheme* list,

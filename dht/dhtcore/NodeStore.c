@@ -300,7 +300,7 @@ static inline uint64_t findClosest(uint64_t path,
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
         // Then we cannoicalize the child's Director
         tmpl.cannonicalLabel =
-            EncodingScheme_convertLabel(link->child->scheme,
+            EncodingScheme_convertLabel(link->child->encodingScheme,
                                         tmpl.cannonicalLabel,
                                         EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
@@ -318,7 +318,7 @@ static inline uint64_t findClosest(uint64_t path,
         // TODO: understand why this was in the original while statement.
         Assert_true(nextLink != link || link == store->selfLink);
 
-        Assert_true(nextLink->child->scheme);
+        Assert_true(nextLink->child->encodingScheme);
 
         if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
             // found a match
@@ -382,7 +382,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         node->alloc = alloc;
         Bits_memcpyConst(&node->address, addr, sizeof(struct Address));
         index = Map_OfNodesByAddress_put((struct Ip6*)&addr->ip6, &node, &store->nodeMap);
-        node->scheme = EncodingScheme_clone(scheme, node->alloc);
+        node->encodingScheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
     } else {
         node = store->nodeMap.values[index];
@@ -390,7 +390,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
     node->reach = (node->reach < -reachDiff) ? 0 : node->reach - reachDiff;
     node->version = (version) ? version : node->version;
     Assert_true(node->version);
-    Assert_true(EncodingScheme_equals(scheme, node->scheme));
+    Assert_true(EncodingScheme_equals(scheme, node->encodingScheme));
 
     struct Node_Link* closest;
     uint64_t path = findClosest(addr->path, &closest, store);
@@ -474,7 +474,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
     Bits_memcpyConst(&selfNode->address, myAddress, sizeof(struct Address));
-    selfNode->scheme = NumberCompress_defineScheme(alloc);
+    selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     Identity_set(selfNode);
     linkNodes(selfNode, selfNode, 1, 0xFFFFFFFFu, 0, out);
     selfNode->reach = ~0u;

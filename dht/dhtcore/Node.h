@@ -69,7 +69,7 @@ struct Node_Two
     // new stuff
 
     /** The encoding method used by this node. */
-    struct EncodingScheme* scheme;
+    struct EncodingScheme* encodingScheme;
 
     /**
      * Peers of this node for which we know the forward direction.
