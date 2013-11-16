@@ -14,7 +14,6 @@
  */
 
 #include "admin/angel/Core.h"
-#include "memory/BufferAllocator.h"
 #include "exception/Jmp.h"
 #include "util/platform/Sockaddr.h"
 #include "admin/angel/Core_admin.h"
@@ -43,9 +42,6 @@ static void sendResponse(String* error,
 static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = (struct Context*) vcontext;
-    #define BUFFERSZ 1024
-    uint8_t buffer[BUFFERSZ];
-    struct Allocator* const alloc = BufferAllocator_new(buffer, BUFFERSZ);
 
     struct Jmp jmp;
     Jmp_try(jmp) {
@@ -59,12 +55,12 @@ static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocato
                         ctx->alloc,
                         &jmp.handler);
     } Jmp_catch {
-        String* error = String_printf(alloc, "Failed to configure tunnel [%s]", jmp.message);
-        sendResponse(error, ctx->admin, txid, alloc);
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
         return;
     }
 
-    sendResponse(String_CONST("none"), ctx->admin, txid, alloc);
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
 }
 
 void Core_admin_register(struct Sockaddr* ipAddr,

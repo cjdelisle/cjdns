@@ -24,7 +24,6 @@
 #include "io/ArrayWriter.h"
 #include "io/Writer.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
@@ -112,8 +111,8 @@ struct Admin
 
     struct Map_LastMessageTimeByAddr map;
 
-    /** non-zero if we are currently in an admin request. */
-    int inRequest;
+    /** non-null if we are currently in an admin request. */
+    struct Message* currentRequest;
 
     /** non-zero if this session able to receive asynchronous messages. */
     int asyncEnabled;
@@ -132,10 +131,11 @@ static uint8_t sendMessage(struct Message* message, struct Sockaddr* dest, struc
     return admin->iface->generic.sendMessage(message, &admin->iface->generic);
 }
 
-static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
+static int sendBenc(Dict* message,
+                    struct Sockaddr* dest,
+                    struct Allocator* alloc,
+                    struct Admin* admin)
 {
-    struct Allocator* alloc = Allocator_child(admin->allocator);
-
     #define SEND_MESSAGE_PADDING 32
     uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
 
@@ -151,7 +151,6 @@ static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
     };
     struct Message* msg = Message_clone(&m, alloc);
     int out = sendMessage(msg, dest, admin);
-    Allocator_free(alloc);
     return out;
 }
 
@@ -203,17 +202,18 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     // if this is an async call, check if we've got any input from that client.
     // if the client is nresponsive then fail the call so logs don't get sent
     // out forever after a disconnection.
-    if (!admin->inRequest) {
+    struct Allocator* alloc;
+    if (!admin->currentRequest) {
         struct Sockaddr* addrPtr = (struct Sockaddr*) &addr.addr;
         int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
         uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
         if (index < 0 || checkAddress(admin, index, now)) {
             return -1;
         }
+        alloc = Allocator_child(admin->allocator);
+    } else {
+        alloc = admin->currentRequest->alloc;
     }
-
-    struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 256);
 
     // Bounce back the user-supplied txid.
     String userTxid = {
@@ -221,10 +221,14 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         .len = txid->len - admin->addrLen
     };
     if (txid->len > admin->addrLen) {
-        Dict_putString(message, TXID, &userTxid, allocator);
+        Dict_putString(message, TXID, &userTxid, alloc);
     }
 
-    return sendBenc(message, &addr.addr, admin);
+    return sendBenc(message, &addr.addr, alloc, admin);
+
+    if (!admin->currentRequest) {
+        Allocator_free(alloc);
+    }
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin* admin)
@@ -258,12 +262,14 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
 }
 
-static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Admin* admin)
+static bool checkArgs(Dict* args,
+                      struct Function* func,
+                      String* txid,
+                      struct Allocator* requestAlloc,
+                      struct Admin* admin)
 {
     struct Dict_Entry* entry = *func->args;
     String* error = NULL;
-    uint8_t buffer[1024];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 1024);
     while (entry != NULL) {
         String* key = (String*) entry->key;
         Assert_true(entry->val->type == Object_DICT);
@@ -278,7 +284,7 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
             || (type == INTEGER && !Dict_getInt(args, key))
             || (type == LIST && !Dict_getList(args, key)))
         {
-            error = String_printf(alloc,
+            error = String_printf(requestAlloc,
                                   "Entry [%s] is required and must be of type [%s]",
                                   key->bytes,
                                   type->bytes);
@@ -394,7 +400,7 @@ static void handleRequest(Dict* messageDict,
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
-            if (checkArgs(args, &admin->functions[i], txid, admin)) {
+            if (checkArgs(args, &admin->functions[i], txid, message->alloc, admin)) {
                 admin->functions[i].call(args, admin->functions[i].context, txid, message->alloc);
             }
             noFunctionsCalled = false;
@@ -466,11 +472,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     Message_pop(message, &addrStore, admin->addrLen, NULL);
 
     struct Allocator* alloc = Allocator_child(admin->allocator);
-    admin->inRequest = 1;
+    admin->currentRequest = message;
 
     handleMessage(message, &addrStore.addr, alloc, admin);
 
-    admin->inRequest = 0;
+    admin->currentRequest = NULL;
     Allocator_free(alloc);
     return 0;
 }

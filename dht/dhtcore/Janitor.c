@@ -23,8 +23,6 @@
 #include "dht/dhtcore/RouteTracer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
 #include "util/events/EventBase.h"

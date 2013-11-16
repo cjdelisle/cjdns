@@ -14,7 +14,6 @@
  */
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
-#include "memory/BufferAllocator.h"
 #include "util/platform/libc/strlen.h"
 
 struct Context
@@ -24,17 +23,14 @@ struct Context
     struct Allocator* allocator;
 };
 
-static void sendResponse(String* msg, struct Admin* admin, String* txid)
+static void sendResponse(String* msg, struct Admin* admin, String* txid, struct Allocator* alloc)
 {
-    #define BUFFERSZ 1024
-    uint8_t buffer[BUFFERSZ];
-    struct Allocator* alloc = BufferAllocator_new(buffer, BUFFERSZ);
     Dict* output = Dict_new(alloc);
     Dict_putString(output, String_CONST("error"), msg, alloc);
     Admin_sendMessage(output, txid, admin);
 }
 
-static void add(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void add(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = (struct Context*) vcontext;
 
@@ -45,27 +41,29 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* requ
     if (!authType) {
         authType = &one;
     } else if (*authType < 1 || *authType > 255) {
-        sendResponse(String_CONST("Specified auth type is not supported."), context->admin, txid);
+        sendResponse(String_CONST("Specified auth type is not supported."),
+                     context->admin, txid, alloc);
         return;
     }
     int32_t ret = CryptoAuth_addUser(passwd, *authType, user, context->ca);
 
     switch (ret) {
         case 0:
-            sendResponse(String_CONST("none"), context->admin, txid);
+            sendResponse(String_CONST("none"), context->admin, txid, alloc);
             break;
         case CryptoAuth_addUser_INVALID_AUTHTYPE:
             sendResponse(String_CONST("Specified auth type is not supported."),
-                         context->admin, txid);
+                         context->admin, txid, alloc);
             break;
         case CryptoAuth_addUser_OUT_OF_SPACE:
-            sendResponse(String_CONST("Out of memory to store password."), context->admin, txid);
+            sendResponse(String_CONST("Out of memory to store password."),
+                         context->admin, txid, alloc);
             break;
         case CryptoAuth_addUser_DUPLICATE:
-            sendResponse(String_CONST("Password already added."), context->admin, txid);
+            sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
             break;
         default:
-            sendResponse(String_CONST("Unknown error."), context->admin, txid);
+            sendResponse(String_CONST("Unknown error."), context->admin, txid, alloc);
     }
 }
 
@@ -76,9 +74,9 @@ static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* r
 
     int32_t ret = CryptoAuth_removeUsers(context->ca, user);
     if (ret) {
-        sendResponse(String_CONST("none"), context->admin, txid);
+        sendResponse(String_CONST("none"), context->admin, txid, requestAlloc);
     } else {
-        sendResponse(String_CONST("Unknown error."), context->admin, txid);
+        sendResponse(String_CONST("Unknown error."), context->admin, txid, requestAlloc);
     }
 }
 

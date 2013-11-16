@@ -24,7 +24,6 @@
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/BufferAllocator.h"
 #include "interface/FramingInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "io/ArrayReader.h"
@@ -49,11 +48,11 @@ static void spawnAngel(char* asClientPipeName, struct EventBase* base, struct Al
 {
     char* args[] = { "angel", asClientPipeName, NULL };
 
-    uint8_t allocBuff[1024];
-    struct Allocator* tempAlloc = BufferAllocator_new(allocBuff, 1024);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
     char* path = Process_getPath(tempAlloc);
     Assert_true(path);
     Process_spawn(path, args, base, alloc);
+    Allocator_free(tempAlloc);
 }
 
 /** @return a string representing the address and port to connect to. */
