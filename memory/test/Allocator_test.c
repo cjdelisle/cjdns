@@ -18,38 +18,39 @@
 #include <stdio.h>
 
 #include "memory/Allocator.h"
-#include "memory/MallocAllocator_pvt.h"
+#include "memory/Allocator_pvt.h"
+#include "memory/MallocAllocator.h"
 
-#ifdef MallocAllocator_USE_CANARIES
-    #define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation) + sizeof(long)
+#ifdef Allocator_USE_CANARIES
+    #define ALLOCATION_SIZE sizeof(struct Allocator_Allocation_pvt) + sizeof(long)
 #else
-    #define ALLOCATION_SIZE sizeof(struct MallocAllocator_Allocation)
+    #define ALLOCATION_SIZE sizeof(struct Allocator_Allocation_pvt)
 #endif
-#define ALLOCATOR_SIZE sizeof(struct MallocAllocator_pvt)
+#define ALLOCATOR_SIZE sizeof(struct Allocator_pvt)
 
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
 
-    bytesUsed = MallocAllocator_bytesAllocated(alloc);
-    Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct MallocAllocator_FirstCtx));
+    bytesUsed = Allocator_bytesAllocated(alloc);
+    Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct Allocator_FirstCtx));
     Allocator_malloc(alloc, 25);
     bytesUsed += (((25 / sizeof(char*)) + 1) * sizeof(char*)) + ALLOCATION_SIZE;
-    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     struct Allocator* child = Allocator_child(alloc);
     bytesUsed += ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_malloc(child, 30);
     bytesUsed += 32 + ALLOCATION_SIZE;
-    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(child);
     bytesUsed -= 32 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    Assert_always(MallocAllocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(alloc);
 }

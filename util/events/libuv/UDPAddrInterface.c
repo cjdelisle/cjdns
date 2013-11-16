@@ -175,9 +175,7 @@ static void incoming(uv_udp_t* handle,
 
     context->inCallback = 0;
     if (context->blockFreeInsideCallback) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
     }
 }
 
@@ -201,9 +199,7 @@ static void onClosed(uv_handle_t* wasClosed)
 {
     struct UDPAddrInterface_pvt* context =
         Identity_cast((struct UDPAddrInterface_pvt*) wasClosed->data);
-    struct Allocator_OnFreeJob* job =
-        Identity_cast((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
-    job->complete(job);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
 }
 
 static int closeHandleOnFree(struct Allocator_OnFreeJob* job)

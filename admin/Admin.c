@@ -134,15 +134,14 @@ static uint8_t sendMessage(struct Message* message, struct Sockaddr* dest, struc
 
 static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
 {
-    struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 256);
+    struct Allocator* alloc = Allocator_child(admin->allocator);
 
     #define SEND_MESSAGE_PADDING 32
     uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
 
     struct Writer* w = ArrayWriter_new(buff + SEND_MESSAGE_PADDING,
                                        Admin_MAX_RESPONSE_SIZE,
-                                       allocator);
+                                       alloc);
     StandardBencSerializer_get()->serializeDictionary(w, message);
 
     struct Message m = {
@@ -150,7 +149,6 @@ static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
         .length = w->bytesWritten,
         .padding = SEND_MESSAGE_PADDING
     };
-    struct Allocator* alloc = Allocator_child(admin->allocator);
     struct Message* msg = Message_clone(&m, alloc);
     int out = sendMessage(msg, dest, admin);
     Allocator_free(alloc);

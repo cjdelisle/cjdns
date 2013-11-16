@@ -15,7 +15,6 @@
 #include "interface/Interface.h"
 #include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
@@ -84,8 +83,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 512);
+    struct Allocator* alloc = Allocator_child(message->alloc);
     struct Sockaddr* addr = Sockaddr_clone(context->pub.addr, alloc);
     uint8_t* addrPtr = NULL;
     Assert_true(Sockaddr_getAddress(addr, &addrPtr) == 16);

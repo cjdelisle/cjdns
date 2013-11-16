@@ -171,7 +171,7 @@ int AngelInit_main(int argc, char** argv)
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
     struct Random* rand = Random_new(alloc, logger, eh);
-    MallocAllocator_setCanary(alloc, (long)Random_int64(rand));
+    Allocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct EventBase* eventBase = EventBase_new(alloc);
 

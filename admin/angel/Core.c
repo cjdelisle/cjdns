@@ -152,7 +152,7 @@ static void adminMemory(Dict* input, void* vcontext, String* txid)
 {
     struct Context* context = vcontext;
     Dict d = Dict_CONST(
-        String_CONST("bytes"), Int_OBJ(MallocAllocator_bytesAllocated(context->allocator)), NULL
+        String_CONST("bytes"), Int_OBJ(Allocator_bytesAllocated(context->allocator)), NULL
     );
     Admin_sendMessage(&d, txid, context->admin);
 }
@@ -268,7 +268,7 @@ int Core_main(int argc, char** argv)
     struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
 
     // -------------------- Change Canary Value ---------------------- //
-    MallocAllocator_setCanary(alloc, (long)Random_int64(rand));
+    Allocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
 
 

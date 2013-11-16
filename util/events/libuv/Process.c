@@ -30,8 +30,7 @@ struct Process_pvt
 
 static void onFree2(uv_handle_t* process)
 {
-    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*) process->data);
-    j->complete(j);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) process->data);
 }
 
 static int onFree(struct Allocator_OnFreeJob* job)

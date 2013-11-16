@@ -77,19 +77,9 @@ static inline uint8_t incomingDHT(struct Message* message,
     Bits_memcpy(dht.bytes, message->bytes, length);
 
     dht.address = addr;
+    dht.allocator = message->alloc;
 
-    uint8_t buffer[PER_MESSAGE_BUF_SZ];
-    dht.allocator = BufferAllocator_new(buffer, PER_MESSAGE_BUF_SZ);
-
-    struct Jmp j;
-    Jmp_try(j) {
-        BufferAllocator_onOOM(dht.allocator, &j.handler);
-        DHTModuleRegistry_handleIncoming(&dht, context->registry);
-    } Jmp_catch {
-        uint8_t printed[60];
-        Address_print(printed, addr);
-        Log_warn(context->logger, "Parsing message from [%s] failed; out of memory.", printed);
-    }
+    DHTModuleRegistry_handleIncoming(&dht, context->registry);
 
     // TODO: return something meaningful.
     return Error_NONE;

@@ -302,6 +302,8 @@ void testGetUsers()
 
 int main()
 {
+    testGetUsers();
+
     struct Allocator* allocator;
     BufferAllocator_STACK(allocator, 512);
     eventBase = EventBase_new(allocator);
@@ -311,6 +313,6 @@ int main()
     encryptRndNonceTest();
     createNew();
     repeatHello();
-    testGetUsers();
+    Allocator_free(allocator);
     return 0;
 }

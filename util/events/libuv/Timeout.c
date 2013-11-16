@@ -41,8 +41,7 @@ static void handleEvent(uv_timer_t* handle, int status)
 
 static void onFree2(uv_handle_t* timer)
 {
-    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*)timer->data);
-    j->complete(j);
+    Allocator_onFreeComplete(timer->data);
 }
 
 static int onFree(struct Allocator_OnFreeJob* job)

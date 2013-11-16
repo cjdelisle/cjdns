@@ -17,7 +17,6 @@
 
 #include "memory/Allocator.h"
 #include "util/UniqueName.h"
-#include "exception/Except.h"
 
 /**
  * Create a new Allocator which allocates from to a user supplied buffer.
@@ -29,24 +28,16 @@
  * @param length the size of the array. If more is written than this length,
  *               further allocations will fail and return NULL.
  */
-struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
-                                                  unsigned long length,
-                                                  char* file,
-                                                  int line);
+struct Allocator* BufferAllocator__new(void* buffer,
+                                       unsigned long length,
+                                       char* file,
+                                       int line);
 
-#define BufferAllocator_new(buffer, length) \
-    BufferAllocator_newWithIdentity(buffer, length, __FILE__, __LINE__)
+#define BufferAllocator_new(a,b) BufferAllocator__new((a),(b),__FILE__,__LINE__)
 
 // This relies on the fact that UniqueName is only unique on a per-line basis.
 #define BufferAllocator_STACK(name, length) \
     uint8_t UniqueName_get()[length]; \
     name = BufferAllocator_new(UniqueName_get(), length);
-
-/**
- * @param bufferAllocator the buffer allocator to set this on.
- * @param eh an exception handler.
- */
-void BufferAllocator_onOOM(struct Allocator* bufferAllocator,
-                           struct Except* eh);
 
 #endif

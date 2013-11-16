@@ -101,6 +101,7 @@ int main()
 
     struct Message* message;
     Message_STACK(message, 64, 512);
+    message->alloc = alloc;
 
     const char* requestForAddresses =
         "d"

@@ -158,9 +158,7 @@ static void onClose(uv_handle_t* handle)
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
     if (pipe->closeHandlesOnFree && !pipe->server.data && !pipe->peer.data) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
     }
 }
 
@@ -177,7 +175,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
     pipe->isInCallback = 1;
 
-    Assert_true(!alloc || alloc->free == pipe->alloc->free);
+    Assert_true(!alloc || alloc->fileName == pipe->alloc->fileName);
 
     if (nread < 0) {
         if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
@@ -210,9 +208,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 
     pipe->isInCallback = 0;
     if (pipe->blockFreeInsideCallback) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
     }
 }
 

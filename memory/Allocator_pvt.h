@@ -12,52 +12,55 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MallocAllocator_pvt_H
-#define MallocAllocator_pvt_H
+#ifndef Allocator_pvt_H
+#define Allocator_pvt_H
 
-#include "memory/MallocAllocator.h"
+#include "memory/Allocator.h"
 #include "util/Identity.h"
 
 #include <stdint.h>
 
-struct MallocAllocator_pvt;
+struct Allocator_pvt;
 
-struct MallocAllocator_OnFreeJob;
-struct MallocAllocator_OnFreeJob {
-    struct Allocator_OnFreeJob generic;
-    struct MallocAllocator_pvt* alloc;
-    struct MallocAllocator_OnFreeJob* next;
+struct Allocator_OnFreeJob_pvt;
+struct Allocator_OnFreeJob_pvt {
+    struct Allocator_OnFreeJob pub;
+    struct Allocator_pvt* alloc;
+    struct Allocator_OnFreeJob_pvt* next;
 
     /* prevent async jobs from being called multiple times, nonzero = done */
     int done;
 
     const char* file;
     int line;
+
+    /** Set by allocator. */
+    Identity
 };
 
-struct MallocAllocator_Allocation;
-struct MallocAllocator_Allocation {
-    struct MallocAllocator_Allocation* next;
-    size_t size;
-#ifdef MallocAllocator_USE_CANARIES
+struct Allocator_Allocation_pvt;
+struct Allocator_Allocation_pvt {
+    struct Allocator_Allocation pub;
+    struct Allocator_Allocation_pvt* next;
+#ifdef Allocator_USE_CANARIES
     long beginCanary;
 #endif
 };
 
 /** Singly linked list of allocators. */
-struct MallocAllocator_List;
-struct MallocAllocator_List {
-    struct MallocAllocator_pvt* alloc;
-    struct MallocAllocator_List* next;
+struct Allocator_List;
+struct Allocator_List {
+    struct Allocator_pvt* alloc;
+    struct Allocator_List* next;
 };
 
-struct MallocAllocator_Adoptions {
-    struct MallocAllocator_List* parents;
-    struct MallocAllocator_List* children;
+struct Allocator_Adoptions {
+    struct Allocator_List* parents;
+    struct Allocator_List* children;
 };
 
 /** Internal state for Allocator. */
-struct MallocAllocator_pvt
+struct Allocator_pvt
 {
     /** This allocator. */
     struct Allocator pub;
@@ -66,10 +69,10 @@ struct MallocAllocator_pvt
      * A linked list of the allocations made with this allocator.
      * These are all freed when the allocator is freed.
      */
-    struct MallocAllocator_Allocation* allocations;
+    struct Allocator_Allocation_pvt* allocations;
 
     /** A linked list of jobs which must be done when this allocator is freed. */
-    struct MallocAllocator_OnFreeJob* onFree;
+    struct Allocator_OnFreeJob_pvt* onFree;
 
     /**
      * When this allocator is freed, lastSibling->nextSibling will be set to nextSibling
@@ -77,16 +80,16 @@ struct MallocAllocator_pvt
      * GOTCHYA: if this is the first sibling, lastSibling will point to the parent and
      *          in that case, lastSibling->firstChild becomes nextSibling.
      */
-    struct MallocAllocator_pvt* lastSibling;
+    struct Allocator_pvt* lastSibling;
 
     /** A pointer to the next allocator which is a child of the same parent. */
-    struct MallocAllocator_pvt* nextSibling;
+    struct Allocator_pvt* nextSibling;
 
     /** The first child allocator, this will be freed when this allocator is freed. */
-    struct MallocAllocator_pvt* firstChild;
+    struct Allocator_pvt* firstChild;
 
     /** The root allocator with additional tree-global data. */
-    struct MallocAllocator_FirstCtx* rootAlloc;
+    struct Allocator_FirstCtx* rootAlloc;
 
     /** The number of bytes allocated by *this* allocator (but not it's children). */
     unsigned long allocatedHere;
@@ -96,16 +99,9 @@ struct MallocAllocator_pvt
      * Otherwise it is a linked list of adopted parents and children of this allocator.
      * The structure here is allocated by THIS ALLOCATOR, not by it's parent or child.
      */
-    struct MallocAllocator_Adoptions* adoptions;
+    struct Allocator_Adoptions* adoptions;
 
-    /** This is the location where the allocator was created. */
-    const char* identFile;
-    int identLine;
-
-    /** If true then this allocator is in the process of being freed. */
-    int freeing;
-
-    #ifdef MallocAllocator_USE_CANARIES
+    #ifdef Allocator_USE_CANARIES
         /** The canary for allocations made with this allocator constant to allow varification. */
         long canary;
 
@@ -118,10 +114,14 @@ struct MallocAllocator_pvt
 };
 
 /** The first ("genesis") allocator, not a child of any other allocator. */
-struct MallocAllocator_FirstCtx
+struct Allocator_FirstCtx
 {
     /** The context for the first allocator. */
-    struct MallocAllocator_pvt context;
+    struct Allocator_pvt context;
+
+    Allocator_Provider provider;
+
+    Allocator_Provider_CONTEXT_TYPE* providerContext;
 
     /** The number of bytes which can be allocated by this allocator and all of its family. */
     int64_t spaceAvailable;

@@ -43,8 +43,7 @@ static void handleEvent(uv_poll_t* handle, int status, int events)
 
 static void freeEvent2(uv_handle_t* handle)
 {
-    struct Allocator_OnFreeJob* job = Identity_cast((struct Allocator_OnFreeJob*)handle->data);
-    job->complete(job);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*)handle->data);
 }
 
 static int freeEvent(struct Allocator_OnFreeJob* job)

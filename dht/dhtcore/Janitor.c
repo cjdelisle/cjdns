@@ -187,13 +187,6 @@ static void maintanenceCycle(void* vcontext)
                   nonZeroNodes,
                   janitor->nodeStore->size - nonZeroNodes,
                   janitor->nodeStore->size);
-
-        /* Accessible via admin interface.
-        size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
-        Log_debug(janitor->logger,
-                   "Using %u bytes of memory.\n",
-                   (unsigned int) bytes);
-        */
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {

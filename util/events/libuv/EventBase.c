@@ -87,7 +87,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
 
     if (ctx->onFree) {
         uv_loop_delete(ctx->loop);
-        ctx->onFree->complete(ctx->onFree);
+        Allocator_onFreeComplete(ctx->onFree);
         return;
     }
 }

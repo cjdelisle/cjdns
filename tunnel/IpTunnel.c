@@ -168,15 +168,12 @@ static uint8_t sendToNode(struct Message* message,
 
 static uint8_t sendControlMessage(Dict* dict,
                                   struct IpTunnel_Connection* connection,
+                                  struct Allocator* requestAlloc,
                                   struct IpTunnel_pvt* context)
 {
-    struct Message* message;
-    Message_STACK(message, 512, 512);
+    struct Message* message = Message_new(512, 512, requestAlloc);
 
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 256);
-
-    struct Writer* w = ArrayWriter_new(message->bytes, message->length, alloc);
+    struct Writer* w = ArrayWriter_new(message->bytes, message->length, requestAlloc);
     StandardBencSerializer_get()->serializeDictionary(w, dict);
     message->length = w->bytesWritten;
 
@@ -232,7 +229,10 @@ static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
         String_CONST("txid"), String_OBJ((&(String){ .len = 4, .bytes = (char*)&number })),
         NULL
     ));
-    return sendControlMessage(&d, conn, context);
+    struct Allocator* msgAlloc = Allocator_child(context->allocator);
+    uint8_t ret = sendControlMessage(&d, conn, msgAlloc, context);
+    Allocator_free(msgAlloc);
+    return ret;
 }
 
 /**
@@ -308,7 +308,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
 
 static uint8_t requestForAddresses(Dict* request,
                                    struct IpTunnel_Connection* conn,
-                                   struct Allocator* alloc,
+                                   struct Allocator* requestAlloc,
                                    struct IpTunnel_pvt* context)
 {
     #ifdef Log_DEBUG
@@ -321,20 +321,20 @@ static uint8_t requestForAddresses(Dict* request,
         Log_warn(context->logger, "got request for addresses from outgoing connection");
         return Error_INVALID;
     }
-    Dict* addresses = Dict_new(alloc);
+    Dict* addresses = Dict_new(requestAlloc);
     bool noAddresses = true;
     if (!Bits_isZero(conn->connectionIp6, 16)) {
         Dict_putString(addresses,
                        String_CONST("ip6"),
-                       String_newBinary((char*)conn->connectionIp6, 16, alloc),
-                       alloc);
+                       String_newBinary((char*)conn->connectionIp6, 16, requestAlloc),
+                       requestAlloc);
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
         Dict_putString(addresses,
                        String_CONST("ip4"),
-                       String_newBinary((char*)conn->connectionIp4, 4, alloc),
-                       alloc);
+                       String_newBinary((char*)conn->connectionIp4, 4, requestAlloc),
+                       requestAlloc);
         noAddresses = false;
     }
     if (noAddresses) {
@@ -342,15 +342,15 @@ static uint8_t requestForAddresses(Dict* request,
         return 0;
     }
 
-    Dict* msg = Dict_new(alloc);
-    Dict_putDict(msg, String_CONST("addresses"), addresses, alloc);
+    Dict* msg = Dict_new(requestAlloc);
+    Dict_putDict(msg, String_CONST("addresses"), addresses, requestAlloc);
 
     String* txid = Dict_getString(request, String_CONST("txid"));
     if (txid) {
-        Dict_putString(msg, String_CONST("txid"), txid, alloc);
+        Dict_putString(msg, String_CONST("txid"), txid, requestAlloc);
     }
 
-    return sendControlMessage(msg, conn, context);
+    return sendControlMessage(msg, conn, requestAlloc, context);
 }
 
 static void addAddressCallback(Dict* responseMessage, void* vcontext)
@@ -492,8 +492,7 @@ static uint8_t incomingControlMessage(struct Message* message,
         message->bytes[message->length - 1] = lastChar;
     #endif
 
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    struct Allocator* alloc = Allocator_child(message->alloc);
 
     struct Reader* r = ArrayReader_new(message->bytes, message->length, alloc);
     Dict dStore;
