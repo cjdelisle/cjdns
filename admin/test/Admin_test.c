@@ -28,7 +28,7 @@ struct Context {
     bool called;
 };
 
-static void adminFunc(Dict* input, void* vcontext, String* txid)
+static void adminFunc(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
     ctx->called = true;

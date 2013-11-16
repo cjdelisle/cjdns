@@ -34,7 +34,7 @@ static void sendResponse(String* msg, struct Admin* admin, String* txid)
     Admin_sendMessage(output, txid, admin);
 }
 
-static void add(Dict* args, void* vcontext, String* txid)
+static void add(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
 
@@ -69,7 +69,7 @@ static void add(Dict* args, void* vcontext, String* txid)
     }
 }
 
-static void remove(Dict* args, void* vcontext, String* txid)
+static void remove(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
     String* user = Dict_getString(args, String_CONST("user"));
@@ -82,7 +82,7 @@ static void remove(Dict* args, void* vcontext, String* txid)
     }
 }
 
-static void list(Dict* args, void* vcontext, String* txid)
+static void list(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
     struct Allocator* child = Allocator_child(context->allocator);

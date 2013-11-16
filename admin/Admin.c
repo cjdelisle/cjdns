@@ -90,7 +90,7 @@ static inline int Map_LastMessageTimeByAddr_compare(struct Sockaddr** keyA, stru
 struct Function
 {
     String* name;
-    Admin_FUNCTION(call);
+    Admin_Function call;
     void* context;
     bool needsAuth;
     Dict* args;
@@ -292,7 +292,7 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
     return !error;
 }
 
-static void asyncEnabled(Dict* args, void* vAdmin, String* txid)
+static void asyncEnabled(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
 {
     struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
     int64_t enabled = admin->asyncEnabled;
@@ -301,12 +301,11 @@ static void asyncEnabled(Dict* args, void* vAdmin, String* txid)
 }
 
 #define ENTRIES_PER_PAGE 8
-static void availableFunctions(Dict* args, void* vAdmin, String* txid)
+static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Allocator* tempAlloc)
 {
     struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    struct Allocator* tempAlloc = Allocator_child(admin->allocator);
 
     Dict* d = Dict_new(tempAlloc);
     Dict* functions = Dict_new(tempAlloc);
@@ -321,8 +320,6 @@ static void availableFunctions(Dict* args, void* vAdmin, String* txid)
     Dict_putDict(d, String_CONST("availableFunctions"), functions, tempAlloc);
 
     Admin_sendMessage(d, txid, admin);
-    Allocator_free(tempAlloc);
-    return;
 }
 
 static void handleRequest(Dict* messageDict,
@@ -398,7 +395,7 @@ static void handleRequest(Dict* messageDict,
             && (authed || !admin->functions[i].needsAuth))
         {
             if (checkArgs(args, &admin->functions[i], txid, admin)) {
-                admin->functions[i].call(args, admin->functions[i].context, txid);
+                admin->functions[i].call(args, admin->functions[i].context, txid, message->alloc);
             }
             noFunctionsCalled = false;
         }
@@ -479,7 +476,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 }
 
 void Admin_registerFunctionWithArgCount(char* name,
-                                        Admin_FUNCTION(callback),
+                                        Admin_Function callback,
                                         void* callbackContext,
                                         bool needsAuth,
                                         struct Admin_FunctionArg* arguments,

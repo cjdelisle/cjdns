@@ -40,7 +40,7 @@ static void sendResponse(String* error,
     Admin_sendMessage(output, txid, admin);
 }
 
-static void initTunnel(Dict* args, void* vcontext, String* txid)
+static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = (struct Context*) vcontext;
     #define BUFFERSZ 1024

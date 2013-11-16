@@ -92,7 +92,7 @@ static void dumpTable_addEntries(struct Context* ctx,
     dumpTable_addEntries(ctx, i + 1, j + 1, &next, txid);
 }
 
-static void dumpTable(Dict* args, void* vcontext, String* txid)
+static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
@@ -100,7 +100,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid)
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
-static void getLink(Dict* args, void* vcontext, String* txid)
+static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 
@@ -145,7 +145,7 @@ static void getLink(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(ret, txid, ctx->admin);
     Allocator_free(alloc);
 }
-static void getNode(Dict* args, void* vcontext, String* txid)
+static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 

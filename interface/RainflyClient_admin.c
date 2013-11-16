@@ -30,7 +30,7 @@ struct Context
     struct Admin* admin;
 };
 
-static void addKey(Dict* args, void* vcontext, String* txid)
+static void addKey(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);
@@ -62,7 +62,7 @@ static void addKey(Dict* args, void* vcontext, String* txid)
     Allocator_free(alloc);
 }
 
-static void minSinatures(Dict* args, void* vcontext, String* txid)
+static void minSinatures(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);
@@ -82,7 +82,7 @@ static void minSinatures(Dict* args, void* vcontext, String* txid)
     Allocator_free(alloc);
 }
 
-static void addServer(Dict* args, void* vcontext, String* txid)
+static void addServer(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);

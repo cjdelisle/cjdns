@@ -48,7 +48,10 @@ static void sendError(char* error, String* txid, struct Admin* admin)
     Admin_sendMessage(&resp, txid, admin);
 }
 
-static void allowConnection(Dict* args, void* vcontext, String* txid)
+static void allowConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
     String* publicKeyOfAuthorizedNode =
@@ -90,7 +93,7 @@ static void allowConnection(Dict* args, void* vcontext, String* txid)
 }
 
 
-static void connectTo(Dict* args, void* vcontext, String* txid)
+static void connectTo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     String* publicKeyOfNodeToConnectTo =
@@ -107,7 +110,10 @@ static void connectTo(Dict* args, void* vcontext, String* txid)
     sendResponse(conn, txid, context->admin);
 }
 
-static void removeConnection(Dict* args, void* vcontext, String* txid)
+static void removeConnection(Dict* args,
+                             void* vcontext,
+                             String* txid,
+                             struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
 /*
@@ -120,7 +126,10 @@ static void removeConnection(Dict* args, void* vcontext, String* txid)
     sendError("not implemented", txid, context->admin);
 }
 
-static void listConnections(Dict* args, void* vcontext, String* txid)
+static void listConnections(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc;
@@ -167,7 +176,7 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     Admin_sendMessage(d, txid, admin);
 }
 
-static void showConnection(Dict* args, void* vcontext, String* txid)
+static void showConnection(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     int connNum = (int) *(Dict_getInt(args, String_CONST("connection")));

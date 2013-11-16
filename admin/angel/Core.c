@@ -132,7 +132,7 @@ static void parsePrivateKey(uint8_t privateKey[32],
     }
 }
 
-static void adminPing(Dict* input, void* vadmin, String* txid)
+static void adminPing(Dict* input, void* vadmin, String* txid, struct Allocator* requestAlloc)
 {
     Dict d = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("pong")), NULL);
     Admin_sendMessage(&d, txid, (struct Admin*) vadmin);
@@ -148,7 +148,7 @@ struct Context
     String* exitTxid;
 };
 
-static void adminMemory(Dict* input, void* vcontext, String* txid)
+static void adminMemory(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     Dict d = Dict_CONST(
@@ -173,7 +173,7 @@ static void onAngelExitResponse(Dict* message, void* vcontext)
     Timeout_setTimeout(shutdown, context, 1, context->base, context->allocator);
 }
 
-static void adminExit(Dict* input, void* vcontext, String* txid)
+static void adminExit(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     Log_info(context->logger, "Got request to exit");

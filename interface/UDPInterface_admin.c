@@ -33,7 +33,10 @@ struct Context
     struct UDPInterface** ifaces;
 };
 
-static void beginConnection(Dict* args, void* vcontext, String* txid)
+static void beginConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
 
@@ -113,7 +116,7 @@ static void newInterface2(struct Context* ctx,
     ctx->ifCount++;
 }
 
-static void newInterface(Dict* args, void* vcontext, String* txid)
+static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
     String* bindAddress = Dict_getString(args, String_CONST("bindAddress"));
