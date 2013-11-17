@@ -233,7 +233,7 @@ struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* a
         }
         list->forms[i].prefixLen = *prefixLen;
         list->forms[i].bitCount = *bitCount;
-        list->forms[i].prefix = Endian_bigEndianToHost32(prefix);
+        list->forms[i].prefix = Endian_bigEndianToHost32(prefix_be);
     }
     if (!EncodingScheme_isSane(list)) {
         return NULL;
