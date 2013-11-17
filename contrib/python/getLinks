@@ -16,14 +16,17 @@ from cjdnsadmin.publicToIp6 import PublicToIp6_convert;
 
 cjdns = connectWithAdminInfo();
 
-def getLink(node, num, spaces):
+def getLink(node, num, nodes, spaces):
     resp = cjdns.NodeStore_getLink(node, num);
-    getNode(resp['result']['child'], resp['result']['cannonicalLabel'], spaces + '  ');
+    getNode(resp['result'], resp['result']['cannonicalLabel'], nodes, spaces + '  ');
 
-def getNode(next, path, spaces):
-    resp = cjdns.NodeStore_getNode(next);
-    print spaces + next + '  ' + path;
+def getNode(next, path, nodes, spaces):
+    if (next['child'] in nodes): return;
+    nodes.append(next['child']);
+    resp = cjdns.NodeStore_getNode(next['child']);
+    print spaces + str(next) + ',';
+    print str(resp['result']) + ',';
     for i in range(0, int(resp['result']['linkCount'])):
-        getLink(next, i, spaces);
+        getLink(next['child'], i, nodes, spaces);
 
-getNode("fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84", '', '');
+getNode({"child":"fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84"}, '', [], '');

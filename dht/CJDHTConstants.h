@@ -51,14 +51,12 @@ static String* const CJDHTConstants_PROTOCOL = String_CONST_SO("p");
 // The encoding scheme definition for this node's switch encoding.
 static String* const CJDHTConstants_ENC_SCHEME = String_CONST_SO("es");
 
-#ifdef Version_5_COMPAT
 // The *index* of the smallest encoding form which can represent the interface which
-// the querying node is behind. Deprecated in v6
+// the querying node is behind.
 static String* const CJDHTConstants_ENC_INDEX = String_CONST_SO("ei");
-#endif
 
-// The interface index of the interface through which a given message was
-// sent or received, attached to all messages so that
-static String* const CJDHTConstants_IF_INDEX = String_CONST_SO("i");
+// Encoding scheme and index for the closest peer along the path.
+static String* const CJDHTConstants_PEER_ENC_SCHEME = String_CONST_SO("pes");
+static String* const CJDHTConstants_PEER_ENC_INDEX = String_CONST_SO("pei");
 
 #endif

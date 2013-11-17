@@ -421,13 +421,14 @@ struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
                                     uint32_t linkNum)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-
-    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)parent, &store->nodeMap);
-    if (index == -1) {
-        return NULL;
+    struct Node_Two* node = store->selfLink->child;
+    if (!Bits_isZero(parent, 16)) {
+        int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)parent, &store->nodeMap);
+        if (index == -1) {
+            return NULL;
+        }
+        node = store->nodeMap.values[index];
     }
-    struct Node_Two* node = store->nodeMap.values[index];
-
     uint32_t i = 0;
     struct Node_Linkx* link;
     RB_FOREACH(link, PeerRBTree, &node->peerTree) {

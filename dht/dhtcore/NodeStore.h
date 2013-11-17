@@ -55,8 +55,8 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  * @param reachDiff the amount to credit this node
  * @param version the protocol version
  * @param scheme the encoding scheme used by this node.
- * @param encodingFormNumber a number representing the encoding form used to represent the
- *                           interface through which the message reached them.
+ * @param encodingFormNumber the number of the smallest possible encoding form for to encoding
+ *                           the interface number through which this message came.
  */
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct Address* addr,
