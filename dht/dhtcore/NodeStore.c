@@ -94,6 +94,7 @@ struct NodeStore_pvt
  */
 static inline int comparePeers(const struct Node_Linkx* la, const struct Node_Linkx* lb)
 {
+    Identity_check(&lb->link);
     uint64_t a = la->link.cannonicalLabel;
     uint64_t b = lb->link.cannonicalLabel;
     if (a == b) {
@@ -113,12 +114,8 @@ static inline void insertReversePeer(struct Node_Two* child,
         Identity_check(current);
         // pointer comparison for ascending order by parent memory location
         // see linkNodes()
-        if ((char*)current->parent < (char*)peer->parent) {
+        if ((char*)current->parent <= (char*)peer->parent) {
             break;
-        } else if (current->parent == peer->parent) {
-            // Two links between same parent<->child
-            // This should always be caught inside of linkNodes()
-            Assert_true(0);
         }
         prevP = &(current->nextPeer);
         current = *prevP;
@@ -142,16 +139,23 @@ static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* sto
     // Remove the entry from the reversePeers
     struct Node_Two* child = Identity_cast(link->child);
     struct Node_Link** prevP = &child->reversePeers;
-    struct Node_Link* current = Identity_cast(*prevP);
-    while (current && current != link) {
+    struct Node_Link* current = *prevP;
+    while (current != link) {
+        Assert_true(current);
+        Identity_check(current);
         prevP = &(current->nextPeer);
-        current = Identity_cast(*prevP);
+        current = current->nextPeer;
     }
-    Assert_true(current);
+    if (current->nextPeer) {
+        Identity_check(current->nextPeer);
+    }
     *prevP = current->nextPeer;
 
     // Remove the RBTree entry
-    struct Node_Two* parent = Identity_cast(link->child);
+    struct Node_Two* parent = Identity_cast(link->parent);
+    #ifdef PARANOIA
+        Assert_true(RB_FIND(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link));
+    #endif
     RB_REMOVE(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link);
 
     freeLink(link, store);
@@ -208,16 +212,19 @@ static inline void linkNodes(struct Node_Two* parent,
     // Search for peers of both the parent and the child.
     struct Node_Link* cPeers = child->reversePeers;
     struct Node_Link* pPeers = parent->reversePeers;
+    int differentLabel = 0;
     while (cPeers) {
-        if (cPeers->parent == parent) {
-            if (cPeers->cannonicalLabel != cannonicalLabel) {
-                logLink(store, cPeers, "Relinking nodes with different label");
-                //Assert_true(0);//TODO: remove
-                cPeers->encodingFormNumber = encodingFormNumber;
-                cPeers->cannonicalLabel = cannonicalLabel;
-            } else if (cPeers->encodingFormNumber != encodingFormNumber) {
+        if (cPeers->parent == parent && cPeers->cannonicalLabel != cannonicalLabel) {
+            // multiple paths between A and B are ok because they
+            // will have divergent paths following the first director.
+            differentLabel = 1;
+
+        } else if (cPeers->parent == parent) {
+            if (cPeers->encodingFormNumber != encodingFormNumber) {
                 logLink(store, cPeers, "Relinking nodes with different encoding form");
-                Assert_true(0);//TODO: remove
+                // This can happen when C renumbers but B->C is the same because B did
+                // not renumber, EG: if C restarts.
+                cPeers->encodingFormNumber = encodingFormNumber;
             }
             update(cPeers, linkStateDiff, store);
             return;
@@ -257,8 +264,8 @@ static inline void linkNodes(struct Node_Two* parent,
         AddrTools_printIp(childIp, child->address.ip6.bytes);
         uint8_t printedLabel[20];
         AddrTools_printPath(printedLabel, cannonicalLabel);
-        Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
-                  parentIp, childIp, printedLabel);
+        Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]%s",
+                  parentIp, childIp, printedLabel, differentLabel ? " DIFFERENT LABEL" : "");
     #endif
 
     // Link it in
@@ -358,6 +365,59 @@ static inline uint64_t findClosest(uint64_t path,
     *output = link;
     return tmpl.cannonicalLabel;
 }
+
+/**
+ * Splice together two route links.
+ * Modify the first Director in the child route label so it's size is greater than or equal to
+ * that of the incoming interface to the child node which is specified by childInEncodingForm.
+ *
+ * @param parent the low bits to be spliced on, this should be linkAB->cannonicalLabel.
+ * @param child either the cannonicalLabel to a destination or the result of a previous call
+ *              to splice().
+ * @param childScheme the encoding scheme used by the child node: linkAB->child->scheme.
+ * @param childInEncodingForm the smallest encoding form which can represent the interface into
+ *                            the child through which the packet will travel.
+ *                            linkAB->encodingFormNumber
+ *
+static uint64_t splice(uint64_t parent,
+                       uint64_t child,
+                       struct EncodingScheme* childScheme,
+                       int childInEncodingForm)
+{
+    int childOutEncodingForm = EncodingScheme_getFormNum(childScheme, child);
+    if (childInEncodingForm > childOutEncodingForm) {
+        child = EncodingScheme_convertLabel(childScheme, child, childInEncodingForm);
+    }
+    return LabelSplicer_splice(child, parent);
+}*/
+
+/**
+ * Extend a route by splicing on another link.
+ * This will modify the Encoding Form of the first Director in next section of the route to make
+ * it's size greater than or equal to the size of the return route through the parent node in the
+ * link.
+ *
+ * @param routeLabel the label for reaching the parent node
+ * @param link the link to extend the route with
+ * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
+ */
+static uint64_t extendRoute(uint64_t routeLabel, struct Node_Link* link, int previousLinkEncoding)
+{
+    uint64_t next = link->cannonicalLabel;
+    int nextLinkEncoding = EncodingScheme_getFormNum(link->parent->encodingScheme, next);
+    if (previousLinkEncoding > nextLinkEncoding) {
+        EncodingScheme_convertLabel(link->parent->encodingScheme, next, previousLinkEncoding);
+    }
+    return LabelSplicer_splice(next, routeLabel);
+}
+
+uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
+                                 uint8_t* addresses,
+                                 int addressCount)
+{
+    return extendRoute(0, NULL, 0);
+}
+
 
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct Address* addr,
