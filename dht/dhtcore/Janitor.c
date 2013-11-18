@@ -78,8 +78,8 @@ struct Janitor_Search
 
     uint8_t target[16];
 
-    #define Janitor_Search_searchType_GLOBAL 1
-    #define Janitor_Search_searchType_LOCAL 2
+    #define Janitor_Search_searchType_COMPLETE 1
+    #define Janitor_Search_searchType_PARTIAL 2
     int searchType;
 
     struct Allocator* alloc;
@@ -96,7 +96,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
     if (fromNode) {
         Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
 
-        if (search->searchType == Janitor_Search_searchType_GLOBAL) {
+        if (search->searchType == Janitor_Search_searchType_COMPLETE) {
             return;
         }
         struct Node* n = RouterModule_lookup(search->target, search->janitor->routerModule);
@@ -127,8 +127,8 @@ static void responseCallback(struct RouterModule_Promise* promise,
     Allocator_free(search->alloc);
 }
 
-#define search_searchType_GLOBAL Janitor_Search_searchType_GLOBAL
-#define search_searchType_LOCAL Janitor_Search_searchType_LOCAL
+#define search_searchType_COMPLETE Janitor_Search_searchType_COMPLETE
+#define search_searchType_PARTIAL Janitor_Search_searchType_PARTIAL
 static void search(uint8_t target[16], struct Janitor* janitor, int searchType)
 {
     if (janitor->searches >= 20) {
@@ -183,9 +183,12 @@ static void maintanenceCycle(void* vcontext)
     }
 
     // If the node's reach is zero, run a search for it, otherwise run a random search.
+    int searchType;
     if (randomNode && randomNode->reach == 0) {
+        searchType = search_searchType_COMPLETE;
         Bits_memcpyConst(&targetAddr, &randomNode->address, Address_SIZE);
     } else {
+        searchType = search_searchType_PARTIAL;
         Random_bytes(janitor->rand, targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
@@ -202,7 +205,7 @@ static void maintanenceCycle(void* vcontext)
                        (unsigned int) NodeStore_size(janitor->nodeStore));
         #endif
 
-        search(targetAddr.ip6.bytes, janitor, search_searchType_LOCAL);
+        search(targetAddr.ip6.bytes, janitor, searchType);
         return;
     }
 
@@ -217,7 +220,7 @@ static void maintanenceCycle(void* vcontext)
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        search(targetAddr.ip6.bytes, janitor, search_searchType_GLOBAL);
+        search(targetAddr.ip6.bytes, janitor, search_searchType_COMPLETE);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }
