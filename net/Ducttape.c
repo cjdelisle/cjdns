@@ -584,11 +584,12 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     if (n) {
         if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
             // Found the node.
+            /* noisy
             #ifdef Log_DEBUG
                 uint8_t nhAddr[60];
                 Address_print(nhAddr, &n->address);
                 Log_debug(context->logger, "Sending arbitrary data to [%s]", nhAddr);
-            #endif
+            #endif*/
 
             struct SessionManager_Session* session =
                 SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
@@ -707,7 +708,7 @@ static inline int core(struct Message* message,
                 Log_debug(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
             } else {
                 // Definitely forwarding on behalf of someone else.
-                Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
+                //Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
             }
         #endif
         return sendToRouter(message, dtHeader, nextHopSession, context);
