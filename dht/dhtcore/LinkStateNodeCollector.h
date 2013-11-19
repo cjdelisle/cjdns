@@ -60,7 +60,7 @@ static inline void LinkStateNodeCollector_addNode(struct NodeHeader* header,
         uint64_t value = 0;
         #define LinkStateNodeCollector_getValue(value, header, body, nodeDistance)               \
             if (value == 0 && header->reach > 0) {                                               \
-                value = header->reach  * (64 - Bits_log2x64(body->address.path));                \
+                value = header->reach * (64 - Bits_log2x64(body->address.path));                 \
             }
 
         // 0 distance (match) always wins,
