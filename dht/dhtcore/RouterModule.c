@@ -188,6 +188,9 @@
  */
 #define REACH_WINDOW 8
 
+/** Allow this many missed pings before we start zeroing reach, reduces lag spikes. */
+#define PING_GRACE_COUNT 2
+
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
@@ -274,6 +277,7 @@ static inline void responseFromNode(struct Node* node,
         if (millisecondsSinceRequest == 0) {
             millisecondsSinceRequest = 1;
         }
+        node->missedPings = 0;
         node->reach = reachAfterDecay(node->reach) +
             ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
         NodeStore_updateReach(node, module->nodeStore);
@@ -467,7 +471,15 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
     // Ping timeout -> decrease reach
     if (n) {
 
-        uint32_t newReach = reachAfterTimeout(n->reach);
+        uint32_t newReach;
+
+        n->missedPings++;
+        if (n->missedPings > PING_GRACE_COUNT) {
+            newReach = reachAfterTimeout(n->reach);
+        }
+        else {
+            newReach = n->reach;
+        }
 
         #ifdef Log_DEBUG
             uint8_t addr[60];
