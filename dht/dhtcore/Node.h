@@ -47,6 +47,9 @@ struct Node
      * leading to latency spikes.
      */
     uint8_t missedPings;
+
+    /** Used to track if we're waiting for a ping response from this node. */
+    bool outstandingPing;
 };
 
 #endif
