@@ -353,7 +353,7 @@ stay on [IRC](#community) so that people can reach you.
 ## Admin interface
 
 When cjdnroute is up and running, the admin interface will be available at
-<http://localhost:11234> (this can be changed in the cjdroute.conf
+`localhost:11234` (this can be changed in the cjdroute.conf
 configuration file). See [admin/README.md](admin/README.md) for more
 information about the admin interface.
 
