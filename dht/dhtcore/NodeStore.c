@@ -134,10 +134,34 @@ static inline struct Node_Link* getLink(struct NodeStore_pvt* store)
     return Allocator_calloc(store->alloc, sizeof(struct Node_Link), 1);
 }
 
+static inline void verifyNode(struct Node_Two* node)
+{
+    struct Node_Link* link;
+    for (link = node->reversePeers; link; link = link->nextPeer) {
+         Assert_true(link->child == node);
+         Assert_true(RB_FIND(PeerRBTree, &link->parent->peerTree, (struct Node_Linkx*)link));
+    }
+    struct Node_Linkx* linkx;
+    RB_FOREACH(linkx, PeerRBTree, &node->peerTree) {
+        Assert_true(linkx->link.parent == node);
+        struct Node_Link* rlink = NULL;
+        for (rlink = linkx->link.child->reversePeers; rlink; rlink = rlink->nextPeer) {
+            if (rlink->parent == node) {
+                break;
+            }
+        }
+        Assert_true(rlink);
+    }
+}
+
 static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
 {
-    // Remove the entry from the reversePeers
     struct Node_Two* child = Identity_cast(link->child);
+    struct Node_Two* parent = Identity_cast(link->parent);
+    verifyNode(child);
+    verifyNode(parent);
+
+    // Remove the entry from the reversePeers
     struct Node_Link** prevP = &child->reversePeers;
     struct Node_Link* current = *prevP;
     while (current != link) {
@@ -152,13 +176,15 @@ static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* sto
     *prevP = current->nextPeer;
 
     // Remove the RBTree entry
-    struct Node_Two* parent = Identity_cast(link->parent);
     #ifdef PARANOIA
         Assert_true(RB_FIND(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link));
     #endif
     RB_REMOVE(PeerRBTree, &parent->peerTree, (struct Node_Linkx*)link);
 
     freeLink(link, store);
+
+    verifyNode(child);
+    verifyNode(parent);
 }
 
 static inline void logLink(struct NodeStore_pvt* store,
@@ -209,6 +235,9 @@ static inline void linkNodes(struct Node_Two* parent,
                              int encodingFormNumber,
                              struct NodeStore_pvt* store)
 {
+    verifyNode(child);
+    verifyNode(parent);
+
     // Search for peers of both the parent and the child.
     struct Node_Link* cPeers = child->reversePeers;
     struct Node_Link* pPeers = parent->reversePeers;
@@ -280,6 +309,9 @@ static inline void linkNodes(struct Node_Two* parent,
 
     // update the child's link state and possibly change it's preferred path
     update(link, linkStateDiff, store);
+
+    verifyNode(child);
+    verifyNode(parent);
 }
 
 /**
@@ -411,11 +443,36 @@ static uint64_t extendRoute(uint64_t routeLabel, struct Node_Link* link, int pre
     return LabelSplicer_splice(next, routeLabel);
 }
 
+#define NodeStore_getRouteLabel_NODE_NOT_FOUND ((~((uint64_t)0))-1)
+#define NodeStore_getRouteLabel_LINK_NOT_FOUND ((~((uint64_t)0))-2)
 uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
                                  uint8_t* addresses,
                                  int addressCount)
 {
-    return extendRoute(0, NULL, 0);
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    uint64_t route = 1;
+    struct Node_Two* node = store->selfLink->child;
+    // Self link always uses encoding zero
+    int previousLinkEncoding = 0;
+    for (int i = 0; i < addressCount; i++) {
+        int nodeIdx = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addresses[addressCount * 16],
+                                                       &store->nodeMap);
+        if (nodeIdx < 0) {
+            return NodeStore_getRouteLabel_NODE_NOT_FOUND;
+        }
+        struct Node_Two* nextNode = store->nodeMap.values[nodeIdx];
+        struct Node_Link* link = node->reversePeers;
+        while (link && link->parent != node) {
+            link = link->nextPeer;
+        }
+        if (!link) {
+            return NodeStore_getRouteLabel_LINK_NOT_FOUND;
+        }
+        route = extendRoute(route, link, previousLinkEncoding);
+        previousLinkEncoding = link->encodingFormNumber;
+        node = nextNode;
+    }
+    return route;
 }
 
 

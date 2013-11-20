@@ -24,9 +24,9 @@ def getNode(next, path, nodes, spaces):
     if (next['child'] in nodes): return;
     nodes.append(next['child']);
     resp = cjdns.NodeStore_getNode(next['child']);
-    print spaces + str(next) + ',';
-    print str(resp['result']) + ',';
+    print spaces + str(next['child']) + '  ' + str(next['cannonicalLabel']);
+    #print str(resp['result']) + ',';
     for i in range(0, int(resp['result']['linkCount'])):
         getLink(next['child'], i, nodes, spaces);
 
-getNode({"child":"fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84"}, '', [], '');
+getNode({"child":"fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84","cannonicalLabel":""}, '', [], '');

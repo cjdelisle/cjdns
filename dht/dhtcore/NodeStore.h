@@ -72,6 +72,24 @@ struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
 uint32_t NodeStore_linkCount(struct Node_Two* node);
 
 /**
+ * Get a route label for a given path through the network.
+ *
+ * @param nodeStore the store
+ * @param addresses an array of addresses which constitute a path
+ * @param addressCount the number of elements in the array.
+ * @return a path if all goes well, otherwise NodeStore_getRouteLabel_NODE_NOT_FOUND
+ *         if one of the nodes along the path cannot be found or
+ *         NodeStore_getRouteLabel_LINK_NOT_FOUND if one of the nodes in the path is found but
+ *         is not linked to the previous node in the path.
+ */
+#define NodeStore_getRouteLabel_NODE_NOT_FOUND ((~((uint64_t)0))-1)
+#define NodeStore_getRouteLabel_LINK_NOT_FOUND ((~((uint64_t)0))-2)
+uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
+                                 uint8_t* addresses,
+                                 int addressCount);
+
+
+/**
  * Put a node into the store.
  *
  * @param store a node store to insert into.

@@ -100,11 +100,10 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
-static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 
-    struct Allocator* alloc = Allocator_child(ctx->alloc);
     Dict* ret = Dict_new(alloc);
     Dict* result = Dict_new(alloc);
     Dict_putDict(ret, String_new("result", alloc), result, alloc);
@@ -143,13 +142,11 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
     }
 
     Admin_sendMessage(ret, txid, ctx->admin);
-    Allocator_free(alloc);
 }
-static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 
-    struct Allocator* alloc = Allocator_child(ctx->alloc);
     Dict* ret = Dict_new(alloc);
     Dict* result = Dict_new(alloc);
     Dict_putDict(ret, String_new("result", alloc), result, alloc);
@@ -180,7 +177,54 @@ static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* 
     }
 
     Admin_sendMessage(ret, txid, ctx->admin);
-    Allocator_free(alloc);
+}
+
+static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+    List* addresses = Dict_getList(args, String_CONST("addresses"));
+    int count = List_size(addresses);
+    uint8_t* addrBuff = Allocator_calloc(requestAlloc, List_size(addresses), 16);
+    char* err = NULL;
+    for (int i = 0; i < count; i++) {
+        String* addr = List_getString(addresses, i);
+        if (!addr) {
+            err = "Element in addresses list which is not a string";
+        } else if (addr->len != 39) {
+            err = "Address of incorrect length, must be a 39 character full ipv6 address";
+        } else if (AddrTools_parseIp(&addrBuff[i*16], addr->bytes)) {
+            err = "Failed to parse address";
+        } else {
+            continue;
+        }
+        break;
+    }
+    uint64_t label;
+    if (!err) {
+        label = NodeStore_getRouteLabel(ctx->store, addrBuff, count);
+        if (label == NodeStore_getRouteLabel_NODE_NOT_FOUND) {
+            err = "NodeStore_getRouteLabel_NODE_NOT_FOUND";
+        } else if (label == NodeStore_getRouteLabel_LINK_NOT_FOUND) {
+            err = "NodeStore_getRouteLabel_LINK_NOT_FOUND";
+        }
+    }
+    Dict* response = Dict_new(requestAlloc);
+    if (!err) {
+        String* printedPath = String_newBinary(NULL, 19, requestAlloc);
+        AddrTools_printPath(printedPath->bytes, label);
+        Dict_putString(response, String_new("result", requestAlloc), printedPath, requestAlloc);
+        Dict_putString(response,
+                       String_new("error", requestAlloc),
+                       String_new("none", requestAlloc),
+                       requestAlloc);
+        Admin_sendMessage(response, txid, ctx->admin);
+    } else {
+        Dict_putString(response,
+                       String_new("error", requestAlloc),
+                       String_new(err, requestAlloc),
+                       requestAlloc);
+        Admin_sendMessage(response, txid, ctx->admin);
+    }
 }
 
 void NodeStore_admin_register(struct NodeStore* nodeStore,
@@ -207,5 +251,9 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
     Admin_registerFunction("NodeStore_getNode", getNode, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "ip", .required = 1, .type = "String" },
+        }), admin);
+    Admin_registerFunction("NodeStore_getRouteLabel", getRouteLabel, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "addresses", .required = 1, .type = "List" },
         }), admin);
 }
