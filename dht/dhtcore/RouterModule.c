@@ -686,8 +686,8 @@ static inline void refreshReach(struct Address* address, struct RouterModule* mo
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         for (uint32_t i = 0 ; i < nodeList->size ; i++) {
             if (now > nodeList->nodes[i]->timeOfNextPing) {
-                nodeList->nodes[i]->timeOfNextPing = now + LOCAL_MAINTENANCE_SEARCH_MILLISECONDS;
                 RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
+                nodeList->nodes[i]->timeOfNextPing = now + pingTimeoutMilliseconds(module);
             }
         }
     Allocator_free(nodeListAlloc);
