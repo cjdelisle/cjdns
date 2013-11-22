@@ -658,7 +658,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
         (struct IpTunnel_pvt*)(((char*)nodeIf) - offsetof(struct IpTunnel, nodeInterface));
     Identity_check(context);
 
-    Log_debug(context->logger, "Got incoming message");
+    //Log_debug(context->logger, "Got incoming message");
 
     Assert_true(message->length >= IpTunnel_PacketInfoHeader_SIZE);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;

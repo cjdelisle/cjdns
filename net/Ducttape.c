@@ -502,11 +502,11 @@ static inline uint8_t incomingFromTun(struct Message* message,
 
         if (!Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
             // Direct send, skip the innermost layer of encryption.
-            #ifdef Log_DEBUG
+            /*#ifdef Log_DEBUG
                 uint8_t nhAddr[60];
                 Address_print(nhAddr, &bestNext->address);
                 Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
-            #endif
+            #endif*/
             return sendToRouter(message, dtHeader, nextHopSession, context);
         }
         // else { the message will need to be 3 layer encrypted but since we already did a lookup

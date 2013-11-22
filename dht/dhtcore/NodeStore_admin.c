@@ -199,7 +199,7 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
         }
         break;
     }
-    uint64_t label;
+    uint64_t label = UINT64_MAX;
     if (!err) {
         label = NodeStore_getRouteLabel(ctx->store, addrBuff, count);
         if (label == NodeStore_getRouteLabel_NODE_NOT_FOUND) {
@@ -212,6 +212,7 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
     if (!err) {
         String* printedPath = String_newBinary(NULL, 19, requestAlloc);
         AddrTools_printPath(printedPath->bytes, label);
+Dict_putInt(response, String_new("hops", requestAlloc), count, requestAlloc);
         Dict_putString(response, String_new("result", requestAlloc), printedPath, requestAlloc);
         Dict_putString(response,
                        String_new("error", requestAlloc),

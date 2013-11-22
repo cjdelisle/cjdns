@@ -43,7 +43,6 @@ struct Node
     uint64_t timeOfNextPing;
 };
 
-struct Node_Linkx;
 struct Node_Link;
 
 struct Node_Two
@@ -76,7 +75,7 @@ struct Node_Two
      * Use RB_NFIND(PeerRBTree, node->peerTree, struct type* elm)
      */
     struct PeerRBTree {
-        struct Node_Linkx* rbh_root;
+        struct Node_Link* rbh_root;
     } peerTree;
 
     /** Used for freeing the links associated with this node. */
@@ -104,16 +103,18 @@ Node_ASSERT_MATCHES(timeOfNextPing);
 struct Node_Link
 {
     /** Used by the parent's RBTree of links. */
-    struct Node_Linkx* rbe_left;
-    struct Node_Linkx* rbe_right;
-    struct Node_Linkx* rbe_parent;
-    int rbe_color : 2;
+    struct {
+        struct Node_Link* rbe_left;
+        struct Node_Link* rbe_right;
+        struct Node_Link* rbe_parent;
+        int rbe_color;
+    } peerTree;
 
     /**
      * The Encoding Form number which is used to represent the first director in the path from
      * child to parent.
      */
-    uint32_t encodingFormNumber : 5;
+    int encodingFormNumber;
 
     /**
      * The quality of the link between parent and child,
@@ -141,18 +142,9 @@ struct Node_Link
      * in the reverse direction.
      */
     uint64_t cannonicalLabel;
+    unsigned long linkAddr;
 
     Identity
-};
-
-/**
- * Exists only for pleasing the RBTree which really wants it's fields
- * to be inside of an inner structure. Embedding the fields in the link
- * itself gives us an 8-12 byte memory savings.
- */
-struct Node_Linkx
-{
-    struct Node_Link link;
 };
 
 #endif

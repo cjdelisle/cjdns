@@ -29,4 +29,4 @@ def getNode(next, path, nodes, spaces):
     for i in range(0, int(resp['result']['linkCount'])):
         getLink(next['child'], i, nodes, spaces);
 
-getNode({"child":"fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84","cannonicalLabel":""}, '', [], '');
+getNode({"child":"fc88:dfd0:89d4:abfe:0de2:a17a:6ed5:6fb1","cannonicalLabel":""}, '', [], '');
