@@ -15,7 +15,7 @@
 #ifndef SerializationModule_H
 #define SerializationModule_H
 
-#include "DHTModuleRegistry.h"
+#include "dht/DHTModuleRegistry.h"
 
 /**
  * Register a new SerializationModule.

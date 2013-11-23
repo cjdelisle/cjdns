@@ -15,7 +15,7 @@
 #ifndef FileWriter_H
 #define FileWriter_H
 
-#include "Writer.h"
+#include "io/Writer.h"
 #include "memory/Allocator.h"
 #include <stdio.h>
 

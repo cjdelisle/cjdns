@@ -15,7 +15,7 @@
 #ifndef ArrayWriter_H
 #define ArrayWriter_H
 
-#include "Writer.h"
+#include "io/Writer.h"
 #include "memory/Allocator.h"
 
 /**

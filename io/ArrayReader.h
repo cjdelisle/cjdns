@@ -15,7 +15,7 @@
 #ifndef ArrayReader_H
 #define ArrayReader_H
 
-#include "Reader.h"
+#include "io/Reader.h"
 #include "memory/Allocator.h"
 
 /**

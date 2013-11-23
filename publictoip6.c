@@ -14,7 +14,6 @@
  */
 #include "crypto/Key.h"
 #include "util/AddrTools.h"
-
 #include <stdio.h>
 
 static int usage(char* appName)
