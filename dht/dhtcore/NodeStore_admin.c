@@ -182,37 +182,34 @@ static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* 
 static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
-    List* addresses = Dict_getList(args, String_CONST("addresses"));
-    int count = List_size(addresses);
-    uint8_t* addrBuff = Allocator_calloc(requestAlloc, List_size(addresses), 16);
+
     char* err = NULL;
-    for (int i = 0; i < count; i++) {
-        String* addr = List_getString(addresses, i);
-        if (!addr) {
-            err = "Element in addresses list which is not a string";
-        } else if (addr->len != 39) {
-            err = "Address of incorrect length, must be a 39 character full ipv6 address";
-        } else if (AddrTools_parseIp(&addrBuff[i*16], addr->bytes)) {
-            err = "Failed to parse address";
-        } else {
-            continue;
-        }
-        break;
+
+    String* pathToParentS = Dict_getString(args, String_CONST("pathToParent"));
+    uint64_t pathToParent;
+    if (pathToParentS->len != 19) {
+        err = "pathToParent incorrect length";
+    } else if (AddrTools_parsePath(&pathToParent, pathToParentS->bytes)) {
+        err = "Failed to parse pathToParent";
     }
+
+    String* childAddressS = Dict_getString(args, String_CONST("childAddress"));
+    uint8_t childAddress[16];
+    if (childAddressS->len != 39) {
+        err = "childAddress of incorrect length, must be a 39 character full ipv6 address";
+    } else if (AddrTools_parseIp(childAddress, childAddressS->bytes)) {
+        err = "Failed to parse childAddress";
+    }
+
     uint64_t label = UINT64_MAX;
     if (!err) {
-        label = NodeStore_getRouteLabel(ctx->store, addrBuff, count);
-        if (label == NodeStore_getRouteLabel_NODE_NOT_FOUND) {
-            err = "NodeStore_getRouteLabel_NODE_NOT_FOUND";
-        } else if (label == NodeStore_getRouteLabel_LINK_NOT_FOUND) {
-            err = "NodeStore_getRouteLabel_LINK_NOT_FOUND";
-        }
+        label = NodeStore_getRouteLabel(ctx->store, pathToParent, childAddress);
+        err = NodeStore_getRouteLabel_strerror(label);
     }
     Dict* response = Dict_new(requestAlloc);
     if (!err) {
         String* printedPath = String_newBinary(NULL, 19, requestAlloc);
         AddrTools_printPath(printedPath->bytes, label);
-Dict_putInt(response, String_new("hops", requestAlloc), count, requestAlloc);
         Dict_putString(response, String_new("result", requestAlloc), printedPath, requestAlloc);
         Dict_putString(response,
                        String_new("error", requestAlloc),
@@ -255,6 +252,7 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
         }), admin);
     Admin_registerFunction("NodeStore_getRouteLabel", getRouteLabel, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "addresses", .required = 1, .type = "List" },
+            { .name = "pathToParent", .required = 1, .type = "String" },
+            { .name = "childAddress", .required = 1, .type = "String" }
         }), admin);
 }

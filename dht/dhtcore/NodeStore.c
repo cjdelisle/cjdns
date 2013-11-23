@@ -91,7 +91,12 @@ struct NodeStore_pvt
  * Compare two peers of a node for organization in the RBTree
  * The idea is to find the least significant bit which differs between a and b.
  * then if that bit is a0 b1 then return -1 and if it is a1 b0 then we return 1.
+ *
+ * Entries are placed in reverse order by label length
  */
+// My memory is really bad
+#define A_COMES_FIRST 1
+#define B_COMES_FIRST -1
 static inline int comparePeers(const struct Node_Link* la, const struct Node_Link* lb)
 {
     Identity_check(lb);
@@ -100,7 +105,26 @@ static inline int comparePeers(const struct Node_Link* la, const struct Node_Lin
     if (a == b) {
         return 0;
     }
-    return ((a >> (Bits_ffs64(a ^ b) - 1) ) & 1) ? 1 : -1;
+/*
+    if (LabelSplicer_routesThrough(b, a)) {
+        return A_COMES_FIRST;
+    }
+    if (LabelSplicer_routesThrough(a, b)) {
+        return B_COMES_FIRST;
+    }
+    if (a < b) {
+        return B_COMES_FIRST;
+    }
+    return A_COMES_FIRST;
+*/
+    int log2Diff = Bits_log2x64(b) - Bits_log2x64(a);
+    if (log2Diff) {
+        return log2Diff;
+    }
+    if (Bits_bitReverse64(a) < Bits_bitReverse64(b)) {
+        return A_COMES_FIRST;
+    }
+    return B_COMES_FIRST;
 }
 
 RB_GENERATE_STATIC(PeerRBTree, Node_Link, peerTree, comparePeers)
@@ -172,13 +196,21 @@ static inline void verifyNode(struct Node_Two* node)
 static void verifyLinks(struct NodeStore_pvt* store)
 {
     for (int i = 0; i < store->linkCount; i++) {
-        Assert_true(store->links[i]->linkAddr == (uintptr_t)store->links[i]);
+        struct Node_Link* link = store->links[i];
+        Assert_true(link->linkAddr == (uintptr_t)link);
+        Assert_true(link->cannonicalLabel != 1 || link == store->selfLink || !store->selfLink);
+        verifyNode(link->child);
     }
 }
 
 static struct Node_Link* rbGetPrevious(struct Node_Link* link)
 {
     return Identity_ncast(RB_PREV(PeerRBTree, NULL, link));
+}
+
+static struct Node_Link* rbGetNext(struct Node_Link* link)
+{
+    return Identity_ncast(RB_NEXT(PeerRBTree, NULL, link));
 }
 
 static struct Node_Link* rbFind(struct Node_Two* node, struct Node_Link* target)
@@ -194,17 +226,13 @@ static struct Node_Link* rbFindOrNext(struct Node_Two* node, struct Node_Link* t
 static void rbRemove(struct Node_Two* tree, struct Node_Link* toRemove, struct NodeStore_pvt* store)
 {
     #ifdef PARANOIA
-        verifyLinks(store);
         struct Node_Link* preRemove = rbFind(tree, toRemove);
         Assert_true(preRemove == toRemove);
-        verifyLinks(store);
     #endif
     RB_REMOVE(PeerRBTree, &tree->peerTree, toRemove);
     #ifdef PARANOIA
-        verifyLinks(store);
         struct Node_Link* postRemove = rbFind(tree, toRemove);
         Assert_true(!postRemove);
-        verifyLinks(store);
     #endif
 }
 
@@ -304,6 +332,8 @@ static inline void linkNodes(struct Node_Two* parent,
     verifyNode(parent);
     verifyLinks(store);
 
+    Assert_true((parent != child && cannonicalLabel != 1) || store->selfLink == NULL);
+
     int differentLabel = 0;
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &parent->peerTree) {
@@ -382,10 +412,9 @@ static inline uint64_t findClosest(uint64_t path,
         .cannonicalLabel = path
     };
 
-    struct Node_Link* nextLink = store->selfLink;
-    struct Node_Link* link;
+    struct Node_Link* nextLink;
+    struct Node_Link* link = store->selfLink;
     for (;;) {
-        link = nextLink;
         // First we splice off the parent's Director leaving the child's Director.
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
         // Then we cannoicalize the child's Director
@@ -399,33 +428,52 @@ static inline uint64_t findClosest(uint64_t path,
         // Then we search for the next peer in the path
         nextLink = rbFindOrNext(link->child, &tmpl);
 
-        if (!nextLink) {
+        while (nextLink
+            && !LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel))
+        {
+            logLink(store, nextLink, "GETTING NEXT LINK");
+            nextLink = rbGetNext(nextLink);
+        }
+
+        if (link == store->selfLink) {
+            Log_debug(store->logger, "unspliced %08lx to %08lx nl=%08lx",
+                      path, tmpl.cannonicalLabel, nextLink ? nextLink->cannonicalLabel : 0);
+        }
+
+        if (!nextLink || nextLink == store->selfLink) {
             // node has no peers
             break;
         }
 
+        struct Node_Link* previous = rbGetPrevious(nextLink);
+        if (previous) {
+            logLink(store, previous, "PREVIOUS LINK");
+        } else {
+            Log_debug(store->logger, "previous link is null");
+        }
+
         Identity_check(nextLink);
         Assert_true(nextLink->child->encodingScheme);
+        link = nextLink;
 
-        if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
+        if (tmpl.cannonicalLabel == link->cannonicalLabel) {
             // found a match
+            tmpl.cannonicalLabel = 1;
             break;
         }
 
-        if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel)) {
+        if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, link->cannonicalLabel)) {
             // child of next link is not in the path, we reached the end.
             break;
         }
 
         #ifdef Log_DEBUG
             uint8_t labelA[20];
-            uint8_t labelB[20] = "NONE";
+            uint8_t labelB[20];
             uint8_t searchingFor[20];
             AddrTools_printPath(labelA, tmpl.cannonicalLabel);
             AddrTools_printPath(searchingFor, path);
-            if (nextLink) {
-                AddrTools_printPath(labelB, nextLink->cannonicalLabel);
-            }
+            AddrTools_printPath(labelB, link->cannonicalLabel);
             Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
                       labelA, labelB, searchingFor);
         #endif
@@ -447,31 +495,6 @@ static inline uint64_t findClosest(uint64_t path,
 }
 
 /**
- * Splice together two route links.
- * Modify the first Director in the child route label so it's size is greater than or equal to
- * that of the incoming interface to the child node which is specified by childInEncodingForm.
- *
- * @param parent the low bits to be spliced on, this should be linkAB->cannonicalLabel.
- * @param child either the cannonicalLabel to a destination or the result of a previous call
- *              to splice().
- * @param childScheme the encoding scheme used by the child node: linkAB->child->scheme.
- * @param childInEncodingForm the smallest encoding form which can represent the interface into
- *                            the child through which the packet will travel.
- *                            linkAB->encodingFormNumber
- *
-static uint64_t splice(uint64_t parent,
-                       uint64_t child,
-                       struct EncodingScheme* childScheme,
-                       int childInEncodingForm)
-{
-    int childOutEncodingForm = EncodingScheme_getFormNum(childScheme, child);
-    if (childInEncodingForm > childOutEncodingForm) {
-        child = EncodingScheme_convertLabel(childScheme, child, childInEncodingForm);
-    }
-    return LabelSplicer_splice(child, parent);
-}*/
-
-/**
  * Extend a route by splicing on another link.
  * This will modify the Encoding Form of the first Director in next section of the route to make
  * it's size greater than or equal to the size of the return route through the parent node in the
@@ -489,38 +512,6 @@ static uint64_t extendRoute(uint64_t routeLabel, struct Node_Link* link, int pre
         EncodingScheme_convertLabel(link->parent->encodingScheme, next, previousLinkEncoding);
     }
     return LabelSplicer_splice(next, routeLabel);
-}
-
-#define NodeStore_getRouteLabel_NODE_NOT_FOUND ((~((uint64_t)0))-1)
-#define NodeStore_getRouteLabel_LINK_NOT_FOUND ((~((uint64_t)0))-2)
-uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
-                                 uint8_t* addresses,
-                                 int addressCount)
-{
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    uint64_t route = 1;
-    struct Node_Two* node = store->selfLink->child;
-    // Self link always uses encoding zero
-    int previousLinkEncoding = 0;
-    for (int i = 0; i < addressCount; i++) {
-        int nodeIdx = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addresses[i * 16],
-                                                       &store->nodeMap);
-        if (nodeIdx < 0) {
-            return NodeStore_getRouteLabel_NODE_NOT_FOUND;
-        }
-        struct Node_Two* nextNode = store->nodeMap.values[nodeIdx];
-        struct Node_Link* link = node->reversePeers;
-        while (link && link->parent != node) {
-            link = link->nextPeer;
-        }
-        if (!link) {
-            return NodeStore_getRouteLabel_LINK_NOT_FOUND;
-        }
-        route = extendRoute(route, link, previousLinkEncoding);
-        previousLinkEncoding = link->encodingFormNumber;
-        node = nextNode;
-    }
-    return route;
 }
 
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
@@ -566,6 +557,12 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     struct Node_Link* closest = NULL;
     uint64_t path = findClosest(addr->path, &closest, store);
+
+    if (closest->child == node) {
+        // Link is already known.
+        update(closest, 0, store);
+        return node;
+    }
 
     // Check whether the parent is already linked with a node which is "behind" the child.
     struct Node_Link* previous = rbGetPrevious(closest);
@@ -633,6 +630,49 @@ struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
         }
     }
     return NULL;
+}
+
+char* NodeStore_getRouteLabel_strerror(uint64_t returnVal)
+{
+    switch (returnVal) {
+        case NodeStore_getRouteLabel_PARENT_NOT_FOUND:
+            return "NodeStore_getRouteLabel_PARENT_NOT_FOUND";
+        case NodeStore_getRouteLabel_CHILD_NOT_FOUND:
+            return "NodeStore_getRouteLabel_CHILD_NOT_FOUND";
+        case NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD:
+            return "NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD";
+        default: return NULL;
+    }
+}
+
+uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
+                                 uint64_t pathToParent,
+                                 uint8_t childAddress[16])
+{
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct Node_Link* linkToParent;
+    if (findClosest(pathToParent, &linkToParent, store) != 1) {
+        return NodeStore_getRouteLabel_PARENT_NOT_FOUND;
+    }
+    logLink(store, linkToParent, "NodeStore_getRouteLabel() PARENT");
+    struct Node_Link* linkToChild = NULL;
+    // reverse so that short labels are preferred
+    RB_FOREACH_REVERSE(linkToChild, PeerRBTree, &linkToParent->child->peerTree) {
+        if (!Bits_memcmp(childAddress, linkToChild->child->address.ip6.bytes, 16)) {
+            if (linkToParent == store->selfLink) {
+                return linkToChild->cannonicalLabel;
+            }
+            return extendRoute(pathToParent, linkToChild, linkToParent->encodingFormNumber);
+        }
+    }
+
+    // This is just for more useful errors, we know there will be an error we just don't know
+    // yet whether the child node does not exist at all (typo in address?) or it exists but there
+    // is no link to it from the parent.
+    if (Map_OfNodesByAddress_indexForKey((struct Ip6*)childAddress, &store->nodeMap) < 0) {
+        return NodeStore_getRouteLabel_CHILD_NOT_FOUND;
+    }
+    return NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD;
 }
 
 uint32_t NodeStore_linkCount(struct Node_Two* node)

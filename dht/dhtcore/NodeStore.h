@@ -75,18 +75,27 @@ uint32_t NodeStore_linkCount(struct Node_Two* node);
  * Get a route label for a given path through the network.
  *
  * @param nodeStore the store
- * @param addresses an array of addresses which constitute a path
- * @param addressCount the number of elements in the array.
- * @return a path if all goes well, otherwise NodeStore_getRouteLabel_NODE_NOT_FOUND
- *         if one of the nodes along the path cannot be found or
- *         NodeStore_getRouteLabel_LINK_NOT_FOUND if one of the nodes in the path is found but
- *         is not linked to the previous node in the path.
+ * @param pathToParent a label for getting to a node.
+ * @param childAddress an ipv6 address of a child linked to that node.
+ * @return a path if all goes well, otherwise:
+ *         NodeStore_getRouteLabel_PARENT_NOT_FOUND if the path to the parent node does not
+ *         lead to a known node, or:
+ *         NodeStore_getRouteLabel_CHILD_NOT_FOUND if the childAddress is not in the store or:
+ *         NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD if the parent node is not a peer
+ *         of the child node.
  */
-#define NodeStore_getRouteLabel_NODE_NOT_FOUND ((~((uint64_t)0))-1)
-#define NodeStore_getRouteLabel_LINK_NOT_FOUND ((~((uint64_t)0))-2)
+#define NodeStore_getRouteLabel_PARENT_NOT_FOUND           ((~((uint64_t)0))-1)
+#define NodeStore_getRouteLabel_CHILD_NOT_FOUND            ((~((uint64_t)0))-2)
+#define NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD ((~((uint64_t)0))-3)
 uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
-                                 uint8_t* addresses,
-                                 int addressCount);
+                                 uint64_t pathToParent,
+                                 uint8_t childAddress[16]);
+
+/**
+ * @return a human readable version of the error response from getRouteLabel or return NULL if
+ *         getRouteLabel succeeded.
+ */
+char* NodeStore_getRouteLabel_strerror(uint64_t returnVal);
 
 
 /**

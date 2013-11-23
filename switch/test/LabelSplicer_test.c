@@ -19,6 +19,11 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+static void unsplice()
+{
+    Assert_true(0x13 == LabelSplicer_unsplice(0x13, 1));
+}
+
 static void splice()
 {
     // 000000100
@@ -65,5 +70,6 @@ int main()
     splice();
     isOneHop();
     routesThrough();
+    unsplice();
     return 0;
 }
