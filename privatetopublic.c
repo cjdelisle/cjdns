@@ -14,9 +14,9 @@
  */
 #define string_strerror
 #include "crypto/AddressCalc.h"
+#include "dht/Address.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
-#include "net/Ducttape.h"
 #include "util/platform/libc/string.h"
 
 #include "crypto_scalarmult_curve25519.h"

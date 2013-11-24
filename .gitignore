@@ -1,5 +1,9 @@
 build
 buildw32
+buildjs
+privatetopublic
+publictoip6
+cjdroutejs
 *.pyc
 .clang_complete
 /cjdroute
