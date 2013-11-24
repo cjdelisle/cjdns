@@ -14,5 +14,9 @@
  */
 #ifndef StandardBencSerializer_H
 #define StandardBencSerializer_H
+
+#include "util/Linker.h"
+Linker_require("benc/serialization/standard/StandardBencSerializer.c")
+
 const struct BencSerializer* StandardBencSerializer_get();
 #endif

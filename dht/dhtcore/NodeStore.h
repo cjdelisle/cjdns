@@ -21,6 +21,8 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/NodeStore.c")
 
 #include <stdint.h>
 #include <stdbool.h>

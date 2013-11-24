@@ -16,7 +16,6 @@
 #include "admin/AdminLog.h"
 #include "admin/angel/Angel.h"
 #include "admin/angel/Core.h"
-#include "admin/angel/Core_admin.h"
 #include "admin/angel/InterfaceWaiter.h"
 #include "admin/angel/Hermes.h"
 #include "admin/AuthorizedPasswords.h"
@@ -36,6 +35,7 @@
 #include "dht/dhtcore/SearchRunner_admin.h"
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "dht/dhtcore/Janitor.h"
+#include "exception/Jmp.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/UDPInterface_admin.h"
@@ -192,6 +192,75 @@ static void angelDied(struct Pipe* p, int status)
 {
     exit(1);
 }
+
+struct Core_Context
+{
+    struct Sockaddr* ipAddr;
+    struct Ducttape* ducttape;
+    struct Log* logger;
+    struct Allocator* alloc;
+    struct Admin* admin;
+    struct EventBase* eventBase;
+    struct IpTunnel* ipTunnel;
+};
+
+static void sendResponse(String* error,
+                         struct Admin* admin,
+                         String* txid,
+                         struct Allocator* tempAlloc)
+{
+    Dict* output = Dict_new(tempAlloc);
+    Dict_putString(output, String_CONST("error"), error, tempAlloc);
+    Admin_sendMessage(output, txid, admin);
+}
+
+static void initTunnel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+{
+    struct Core_Context* const ctx = (struct Core_Context*) vcontext;
+
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        Core_initTunnel(Dict_getString(args, String_CONST("desiredTunName")),
+                        ctx->ipAddr,
+                        8,
+                        ctx->ducttape,
+                        ctx->logger,
+                        ctx->ipTunnel,
+                        ctx->eventBase,
+                        ctx->alloc,
+                        &jmp.handler);
+    } Jmp_catch {
+        String* error = String_printf(requestAlloc, "Failed to configure tunnel [%s]", jmp.message);
+        sendResponse(error, ctx->admin, txid, requestAlloc);
+        return;
+    }
+
+    sendResponse(String_CONST("none"), ctx->admin, txid, requestAlloc);
+}
+
+void Core_admin_register(struct Sockaddr* ipAddr,
+                         struct Ducttape* dt,
+                         struct Log* logger,
+                         struct IpTunnel* ipTunnel,
+                         struct Allocator* alloc,
+                         struct Admin* admin,
+                         struct EventBase* eventBase)
+{
+    struct Core_Context* ctx = Allocator_malloc(alloc, sizeof(struct Core_Context));
+    ctx->ipAddr = ipAddr;
+    ctx->ducttape = dt;
+    ctx->logger = logger;
+    ctx->alloc = alloc;
+    ctx->admin = admin;
+    ctx->eventBase = eventBase;
+    ctx->ipTunnel = ipTunnel;
+
+    struct Admin_FunctionArg args[] = {
+        { .name = "desiredTunName", .required = 0, .type = "String" }
+    };
+    Admin_registerFunction("Core_initTunnel", initTunnel, ctx, true, args, admin);
+}
+
 
 static Dict* getInitialConfig(struct Interface* iface,
                               struct EventBase* eventBase,

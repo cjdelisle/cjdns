@@ -18,7 +18,8 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
-#include "util/platform/Socket.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Event.c")
 
 struct Event
 {

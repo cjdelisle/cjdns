@@ -18,7 +18,6 @@
 #include "memory/Allocator.h"
 #include "memory/Allocator_pvt.h"
 #include "util/Bits.h"
-#include "util/log/Log.h"
 
 #include <stdio.h>
 

@@ -19,6 +19,8 @@
 #include "memory/Allocator.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("dht/EncodingSchemeModule.c")
 
 void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
                                    struct NodeStore* ns,

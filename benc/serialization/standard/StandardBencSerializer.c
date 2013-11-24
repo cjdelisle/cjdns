@@ -16,7 +16,8 @@
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "benc/Object.h"
+#include "benc/Dict.h"
+#include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
 #define string_strlen
 #include "util/platform/libc/string.h"

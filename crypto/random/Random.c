@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/random/seed/RandomSeed.h"
+#include "crypto/random/seed/SystemRandomSeed.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
@@ -250,6 +251,6 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
 {
-    struct RandomSeed* rs = RandomSeed_new(NULL, logger, alloc);
+    struct RandomSeed* rs = SystemRandomSeed_new(NULL, logger, alloc);
     return Random_newWithSeed(alloc, logger, rs, eh);
 }

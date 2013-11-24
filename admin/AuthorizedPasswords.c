@@ -14,6 +14,8 @@
  */
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
+#include "benc/List.h"
+#include "benc/String.h"
 #include "util/platform/libc/strlen.h"
 
 struct Context

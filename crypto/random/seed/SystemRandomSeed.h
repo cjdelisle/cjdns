@@ -12,17 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Core_admin_H
-#define Core_admin_H
+#ifndef SystemRandomSeed_H
+#define SystemRandomSeed_H
 
-#include "admin/Admin.h"
+#include "crypto/random/seed/RandomSeed.h"
+#include "crypto/random/seed/SystemRandomSeed.h"
+#include "util/Linker.h"
+Linker_require("crypto/random/seed/SystemRandomSeed.c")
 
-void Core_admin_register(struct Sockaddr* ipAddr,
-                         struct Ducttape* dt,
-                         struct Log* logger,
-                         struct IpTunnel* ipTunnel,
-                         struct Allocator* alloc,
-                         struct Admin* admin,
-                         struct EventBase* eventBase);
+/**
+ * Create a new randomseed with the default system providers as well as optionally more providers
+ * additionalProviders is a null terminalted list.
+ */
+struct RandomSeed* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
+                                        struct Log* logger,
+                                        struct Allocator* alloc);
 
 #endif

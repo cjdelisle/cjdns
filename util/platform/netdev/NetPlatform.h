@@ -17,6 +17,8 @@
 
 #include "exception/Except.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("util/platform/netdev/NetPlatform_" + state.systemName + ".c")
 
 #include <stdint.h>
 

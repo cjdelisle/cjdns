@@ -15,15 +15,13 @@
 #ifndef String_H
 #define String_H
 
+#include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "util/platform/libc/strlen.h"
+#include "util/Linker.h"
+Linker_require("benc/String.c")
 
 #include <stdbool.h>
-
-typedef struct {
-    unsigned long len;
-    char* bytes;
-} String;
 
 /**
  * Create a new bencoded string from a C null terminated string.

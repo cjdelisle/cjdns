@@ -20,8 +20,9 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
-
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/testframework/AdminTestFramework.c")
 
 struct AdminTestFramework
 {

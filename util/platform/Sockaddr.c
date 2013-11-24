@@ -15,6 +15,7 @@
 #define string_strrchr
 #define string_strchr
 #define string_strlen
+#define _GNU_SOURCE // libuv
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
@@ -26,6 +27,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include <uv.h>
 
 struct Sockaddr_pvt

@@ -21,8 +21,6 @@ add_library(cjdns-util-events-libuv-time
     Time.c
     Timeout.c
 )
-set_target_properties(cjdns-util-events-libuv-time
-        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")
 
 add_library(cjdns-util-events-libuv
     EventBase.c
@@ -39,4 +37,4 @@ target_link_libraries(cjdns-util-events-libuv
 )
 
 set_target_properties(cjdns-util-events-libuv
-        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE -fno-strict-aliasing -Wno-error")
+        PROPERTIES COMPILE_FLAGS "-fno-strict-aliasing -Wno-error")

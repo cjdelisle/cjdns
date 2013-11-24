@@ -15,7 +15,7 @@
 #ifndef CJDHTConstants_H
 #define CJDHTConstants_H
 
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "util/version/Version.h"
 
 // Signifying that this message is a query and defining the query type.

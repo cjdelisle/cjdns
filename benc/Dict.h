@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
+#include "util/Linker.h"
+Linker_require("benc/Dict.c")
 
 struct Dict_Entry;
 struct Dict_Entry {

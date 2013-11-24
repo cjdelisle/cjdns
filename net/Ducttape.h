@@ -22,8 +22,9 @@
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "wire/Headers.h"
-
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("net/Ducttape.c")
 
 struct Ducttape
 {

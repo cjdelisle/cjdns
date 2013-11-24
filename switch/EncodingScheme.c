@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "benc/String.h"
+#include "benc/Dict.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
 #include "util/Bits.h"

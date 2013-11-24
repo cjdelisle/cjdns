@@ -15,6 +15,9 @@
 #ifndef Order_H
 #define Order_H
 
+#include "util/Linker.h"
+Linker_require("util/Order.c")
+
 #include <stddef.h>
 typedef int (* Order_Comparator)(const void* a, const void* b);
 void Order_qsort(void* base, size_t num, size_t size, Order_Comparator compare);

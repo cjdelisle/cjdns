@@ -18,6 +18,8 @@
 #include "admin/Admin.h"
 #include "crypto/CryptoAuth.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("admin/AuthorizedPasswords.c")
 
 /**
  * Init the AuthorizedPasswords admin function.

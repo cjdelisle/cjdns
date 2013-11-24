@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("crypto/random/seed/RandomSeed.c")
 
 #include <stdint.h>
 

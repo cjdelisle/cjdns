@@ -14,6 +14,7 @@
  */
 #include "admin/angel/Hermes.h"
 #include "benc/Dict.h"
+#include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "memory/Allocator.h"

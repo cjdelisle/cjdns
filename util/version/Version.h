@@ -16,6 +16,8 @@
 #define Version_H
 
 #include <stdint.h>
+#include "util/Linker.h"
+Linker_require("util/version/Version.c")
 
 /**
  * Cjdns Protocol Versions

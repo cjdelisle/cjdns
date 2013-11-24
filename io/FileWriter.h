@@ -17,6 +17,8 @@
 
 #include "io/Writer.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/FileWriter.c")
 #include <stdio.h>
 
 /**

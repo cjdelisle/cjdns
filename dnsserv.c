@@ -14,6 +14,8 @@
  */
 #define string_strlen
 #define string_strcmp
+#include "benc/List.h"
+#include "benc/Dict.h"
 #include "util/Base32.h"
 #include "util/platform/libc/string.h"
 #include "memory/MallocAllocator.h"

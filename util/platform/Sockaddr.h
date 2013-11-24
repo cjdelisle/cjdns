@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/Endian.h"
+#include "util/Linker.h"
+Linker_require("util/platform/Sockaddr.c")
 
 #include <stdint.h>
 

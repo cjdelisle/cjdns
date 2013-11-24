@@ -19,6 +19,8 @@
 #include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
+#include "util/Linker.h"
+Linker_require("interface/addressable/PacketHeaderToUDPAddrInterface.c")
 
 struct AddrInterface* PacketHeaderToUDPAddrInterface_new(struct Interface* toWrap,
                                                          struct Allocator* alloc,

@@ -21,6 +21,9 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+// TODO: Move this into util/events
+Linker_require("util/events/libuv/UDPAddrInterface.c")
 
 #define UDPAddrInterface_PADDING_AMOUNT 512
 #define UDPAddrInterface_BUFFER_CAP 3500

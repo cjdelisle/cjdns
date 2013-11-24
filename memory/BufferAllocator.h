@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/UniqueName.h"
+#include "util/Linker.h"
+Linker_require("memory/BufferAllocator.c")
 
 /**
  * Create a new Allocator which allocates from to a user supplied buffer.

@@ -21,6 +21,8 @@
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/angel/Hermes.c")
 
 /**
  * Hermes is the god of transitions and boundaries, moving freely between

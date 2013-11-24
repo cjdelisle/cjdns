@@ -16,6 +16,8 @@
 #define Assert_H
 
 #include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("util/Assert.c")
 
 #define Assert_STRING(x) #x
 

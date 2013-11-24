@@ -14,7 +14,7 @@
  */
 #ifndef Time_H
 #define Time_H
-
+#define _GNU_SOURCE // libuv's fault
 #include "util/events/libuv/EventBase_pvt.h"
 
 #include <uv.h>

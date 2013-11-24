@@ -18,8 +18,9 @@
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "exception/Except.h"
-
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/angel/InterfaceWaiter.c")
 
 /**
  * Wait for incoming data on an interface.

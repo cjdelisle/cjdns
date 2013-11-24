@@ -18,6 +18,8 @@
 #include "admin/Admin.h"
 #include "interface/RainflyClient.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/RainflyClient_admin.c")
 
 void RainflyClient_admin_register(struct RainflyClient* rainfly,
                                   struct Admin* admin,

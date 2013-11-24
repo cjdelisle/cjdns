@@ -16,6 +16,7 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "crypto/Key.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"

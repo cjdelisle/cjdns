@@ -51,8 +51,7 @@ var cc = function (content, fileName, args, callback, noArg) {
     gcc.stderr.on('data', function(dat) { err += dat.toString() ; });
     gcc.on('close', function(ret) {
         if (ret) {
-            err = err.replace(/<stdin>:/, fileName+":");
-            err = err.replace(/\n<stdin>:/g, '\n'+fileName+":");
+            err = err.replace(/<stdin>:/g, fileName+":");
             callback(error("\n" + err));
         }
         callback(undefined, out);
@@ -63,12 +62,12 @@ var cc = function (content, fileName, args, callback, noArg) {
     });
 };
 
-var execJs = function (js, fileObj, callback) {
+var execJs = function (js, state, fileName, callback) {
     var x;
     var err;
     try {
-        var func = eval('func = function(file) { ' + js + ' };');
-        x = func(fileObj) || '';
+        var func = eval('func = function(file, state) { ' + js + ' };');
+        x = func(state.files[fileName], state) || '';
     } catch (e) {
         err = e;
         err.message += "Content: [" + js + "]";
@@ -78,7 +77,7 @@ var execJs = function (js, fileObj, callback) {
 
 var debug = console.log;
 
-var preprocess = function (content, fileObj, callback) {
+var preprocess = function (content, state, fileName, callback) {
     var captures = [];
     nThen(function (waitFor) {
         content = content.replace(/<\?js(.*)\?>/g, function (x, capture) {
@@ -86,7 +85,7 @@ var preprocess = function (content, fileObj, callback) {
             return '<?js?>';
         });
         captures.forEach(function (capture, i) {
-            execJs(capture, fileObj, waitFor(function (err, ret) {
+            execJs(capture, state, fileName, waitFor(function (err, ret) {
                 if (err) {
                     callback(err);
                     callback = function() {};
@@ -144,7 +143,7 @@ var compile = function (fileName, state, callback)
     }).nThen(function (waitFor) {
 
         debug("Preprocess 1");
-        preprocess(fileContent, state.files[fileName], waitFor(function (err, output) {
+        preprocess(fileContent, state, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
             fileContent = output;
         }));
@@ -176,7 +175,7 @@ var compile = function (fileName, state, callback)
 
     }).nThen(function (waitFor) {
         debug("Preprocess 2");
-        preprocess(fileContent, state.files[fileName], waitFor(function (err, output) {
+        preprocess(fileContent, state, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
             fileContent = output;
 //debug(output);
@@ -235,8 +234,18 @@ var getMTimes = function (files, mtimes, callback)
         callback(undefined, mtimes);
     });
 };
+/*
+Linking C executable twoNodes_test
+cd /home/user/wrk/cjdns/build/test && /usr/bin/cmake -E cmake_link_script CMakeFiles/twoNodes_test.dir/link.txt --verbose=1
+/usr/bin/cc      
+
+-pie -Wl,-z,relro,-z,now,-z,noexecstack CMakeFiles/twoNodes_test.dir/twoNodes_test.c.o  -o twoNodes_test -rdynamic libTestFramework.a ../dht/dhtcore/libdhtcore.a ../switch/libswitch.a ../util/version/libcjdns-util-version-version.a ../admin/libcjdns-admin.a ../net/libcjdnet.a ../dht/libdht.a ../benc/serialization/standard/libcjdbenc_StandardBencSerializer.a ../switch/libcjdns-switch-encodingscheme.a ../tunnel/libcjdns-tunnel-iptunnel.a ../interface/libinterface.a ../benc/serialization/json/libcjdbenc_JsonBencSerializer.a ../interface/libcjdns-interface-eth.a ../interface/tuntap/libcjdns-interface-tuntap.a ../util/events/libuv/libcjdns-util-events-libuv.a ../util/events/libuv/libcjdns-util-events-libuv-time.a ../crypto/libcjdns-crypto-key.a ../crypto/libcrypto.a ../admin/angel/libcjdns-admin-hermes.a ../crypto/random/libcjdns-crypto-random.a ../crypto/random/seed/libcjdns-crypto-random-seed.a ../nacl_build/libnacl.a ../libnacl_test_dependency.a ../benc/libcjdbenc.a ../util/libutil.a ../util/platform/libcjdns-util-platform-socket.a ../benc/libcjdbenc.a ../util/libutil.a ../util/platform/libcjdns-util-platform-socket.a ../io/libcjdio.a ../memory/libcjdmemory.a ../util/libcjdns-security.a ../exception/libcjdns-except.a ../util/log/libcjdns-util-log-writer.a ../util/log/libcjdns-util-log.a ../libuv/libuv.a -lpthread ../liblibuv_dep.a 
+*/
+
+// -pie -Wl,-z,relro,-z,now,-z,noexecstack -lpthread
 
 var CONFIG = {
+    systemName: 'Linux',
     cflags: [
         '-std=c99',
         '-Wall',
@@ -258,10 +267,17 @@ var CONFIG = {
         '-D','CJDNS_MAX_PEERS=256',
         '-D','Identity_CHECK=1',
         '-D','PARANOIA=1',
-        '-D','HAS_JS_PREPROCESSOR'
+        '-D','HAS_JS_PREPROCESSOR',
+        '-D','GIT_VERSION="0000000000000000000000000000000000000000"'
+    ],
+    ldflags: [
+        '-pie',
+        '-Wl,-z,relro,-z,now,-z,noexecstack',
+        '-lpthread'
     ],
     includeDirs: [
-        'build/nacl_build/include/'
+        'build/nacl_build/include/',
+        'build/libuv/include/'
     ]
 };
 
@@ -269,12 +285,12 @@ var removeFile = function (state, fileName, callback)
 {
     nThen(function (waitFor) {
         var f = state.files[fileName];
+        delete state.files[fileName];
         if (typeof(f.obj) === 'string') {
             Fs.unlink(f.obj, waitFor(function (err) {
                 if (err) { throw err; }
             }));
         }
-        delete state.files[fileName];
     }).nThen(function (waitFor) {
         callback();
     });
@@ -355,17 +371,40 @@ var main = function() {
 
     }).nThen(function(waitFor) {
 
-        // Get the thing we mean to build
-        console.log("compiling " + file);
-        compile(file, state, waitFor(function (err) {
-debug('done');
-            if (err) { throw err; }
-        }));
+        // Recursive compilation
+        var doCycle = function (toCompile, parentStack, callback) {
+            if (toCompile.length === 0) { callback(); return; }
+            for (var file = toCompile.pop(); file; file = toCompile.pop()) {
+                (function(file) {
+                    var stack = [];
+                    stack.push.apply(stack, parentStack);
+                    debug("compiling " + file);
+                    stack.push(file);
+                    if (stack.indexOf(file) !== stack.length-1) {
+                        throw new Error("Dependency loops are bad and you should feel bad\n" + 
+                                        "Dependency stack:\n" + stack.reverse().join('\n'));
+                    }
+                    compile(file, state, waitFor(function (err) {
+                        if (err) { throw err; }
+                        var toCompile = [];
+                        state.files[file].links.forEach(function(link) {
+                            if (link === file) { return; }
+                            toCompile.push(link);
+                        });
+                        doCycle(toCompile, stack, waitFor(function () {
+                            if (stack.pop() !== file) { throw new Error(); }
+                        }));
+                    }));
+                })(file);
+            }
+        };
+        doCycle([file], [], waitFor());
 
     }).nThen(function(waitFor) {
 
         // After preprocess2 is complete, we know the linker dependencies
         // and can begin compiling those
+        var toCompile = [file];
         state.files[file].links.forEach(function (file) {
             compile(file, state, waitFor(function (err) {
                 if (err) { throw err; }
@@ -382,11 +421,33 @@ debug('done');
     }).nThen(function(waitFor) {
 
         //compile(file, state.files[file], 'jsbuild', waitFor());
+        var getLinkOrder = function (fileName, files) {
+            var completeFiles = [];
+            var stack = [];
+            var getFile = function (name) {
+                if (stack.indexOf(name) > -1) { throw new Error("Cyclical linkage: " + stack); }
+                stack.push(name);
+                var f = files[name];
+                debug('Resolving links for ' + name + ' ' + f);
+                for (var i = 0; i < f.links.length; i++) {
+                    if (f.links[i] === name) { continue; }
+                    if (completeFiles.indexOf(f.links[i]) > -1) { continue; }
+                    getFile(f.links[i]);
+                }
+                completeFiles.push(name);
+                stack.pop();
+            };
+            getFile(fileName);
+            return completeFiles;
+        };
+        console.log(getLinkOrder(file, state.files));
 
     }).nThen(function(waitFor) {
 
         console.log('done');
-        console.log(JSON.stringify(state, null, '  '));
+        Fs.writeFile(state.buildDir+'/state.json', JSON.stringify(state, null, '  '), waitFor(function(err) {
+            if (err) { throw err; }
+        }));
 
     });
 

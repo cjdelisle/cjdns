@@ -17,6 +17,8 @@
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/windows/NDPServer.c")
 
 struct NDPServer
 {

@@ -22,6 +22,8 @@
 #include "util/Endian.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("crypto/CryptoAuth.c")
 
 #include <stdint.h>
 #include <stdbool.h>

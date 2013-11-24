@@ -19,6 +19,8 @@
 #include "util/log/Log.h"
 #include "interface/RainflyClient.h"
 #include "util/platform/Sockaddr.h"
+#include "util/Linker.h"
+Linker_require("interface/DNSServer.c")
 
 struct DNSServer
 {

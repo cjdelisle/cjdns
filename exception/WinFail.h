@@ -17,6 +17,8 @@
 
 #include "exception/Except.h"
 #include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("exception/WinFail.c")
 
 Gcc_NORETURN
 void WinFail_fail(struct Except* eh, const char* msg, long status);

@@ -17,6 +17,12 @@
 
 #include "exception/Except.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+#ifdef Windows
+    Linker_require("util/Security_Windows.c")
+#else
+    Linker_require("util/Security.c")
+#endif
 
 /** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
 #define Security_setUser_PERMISSION -1

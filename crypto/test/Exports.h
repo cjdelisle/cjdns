@@ -19,6 +19,8 @@
 
 #include "crypto/CryptoAuth.h"
 #include "wire/Message.h"
+#include "util/Linker.h"
+Linker_require("crypto/test/Exports.c")
 
 void Exports_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
 

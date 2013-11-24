@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _GNU_SOURCE // libuv's fault
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"

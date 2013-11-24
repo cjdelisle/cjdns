@@ -22,6 +22,8 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "crypto/random/Random.h"
+#include "util/Linker.h"
+Linker_require("interface/RainflyClient.c")
 
 #define RainflyClient_DEFAULT_MIN_SIGNATURES 2
 #define RainflyClient_DEFAULT_MAX_TRIES 3

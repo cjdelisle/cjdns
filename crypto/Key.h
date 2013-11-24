@@ -17,6 +17,8 @@
 
 #include "benc/String.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("crypto/Key.c")
 
 #include <stdint.h>
 

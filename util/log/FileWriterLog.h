@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("util/log/FileWriterLog.c")
 #include <stdio.h>
 
 struct Log* FileWriterLog_new(FILE* writeTo, struct Allocator* alloc);

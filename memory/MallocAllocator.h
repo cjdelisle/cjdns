@@ -16,6 +16,8 @@
 #define MallocAllocator_H
 
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("memory/MallocAllocator.c")
 
 /**
  * Create a new Allocator which is a wrapper around malloc().

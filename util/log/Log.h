@@ -16,6 +16,8 @@
 #define Log_H
 
 #include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("util/log/Log.c")
 
 enum Log_Level
 {

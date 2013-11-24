@@ -20,6 +20,7 @@
 #include "util/platform/libc/string.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
+#include "benc/List.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
 #include "util/Bits.h"
