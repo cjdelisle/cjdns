@@ -45,7 +45,6 @@ add_library(cjdns-admin-hermes
 
 add_library(cjdns-core
     Core.c
-    Core_admin.c
 )
 
 target_link_libraries(cjdns-core

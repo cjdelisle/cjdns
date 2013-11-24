@@ -15,6 +15,7 @@
 #define string_strcpy
 #define string_strlen
 #include "benc/List.h"
+#include "benc/String.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"

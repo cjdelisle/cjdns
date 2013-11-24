@@ -29,6 +29,7 @@ add_library(cjdns-crypto-random-seed
     LinuxRandomUuidSysctlRandomSeed.c
     ProcSysKernelRandomUuidRandomSeed.c
     RandomSeed.c
+    SystemRandomSeed.c
     RtlGenRandomSeed.c
 )
 

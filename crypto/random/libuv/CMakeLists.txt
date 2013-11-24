@@ -29,6 +29,3 @@ target_link_libraries(cjdns-crypto-random-libuv
     cjdns-crypto-random
     ${LIBUV_LIBRARIES}
 )
-
-set_target_properties(cjdns-crypto-random-libuv
-        PROPERTIES COMPILE_FLAGS "-D _GNU_SOURCE")

@@ -20,7 +20,7 @@
 #include "io/ArrayReader.h"
 #include "io/Writer.h"
 #include "io/ArrayWriter.h"
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/Assert.h"

@@ -19,7 +19,7 @@
 #include "crypto/CryptoAuth.h"
 #include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
