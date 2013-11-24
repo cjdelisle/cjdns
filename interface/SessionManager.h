@@ -18,9 +18,11 @@
 #include "crypto/CryptoAuth.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("interface/SessionManager.c")
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
 
 struct SessionManager;
 

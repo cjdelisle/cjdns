@@ -42,8 +42,6 @@ var error = function (message)
 
 var cc = function (content, fileName, args, callback, noArg) {
     if (noArg) { throw new Error(); }
-    //args = args || [];
-    //args.push.apply(args, ['-I', '.', '-E', '-x', 'c', '-']);
     var gcc = Spawn('gcc', args);
     var err = '';
     var out = '';
@@ -51,15 +49,19 @@ var cc = function (content, fileName, args, callback, noArg) {
     gcc.stderr.on('data', function(dat) { err += dat.toString() ; });
     gcc.on('close', function(ret) {
         if (ret) {
-            err = err.replace(/<stdin>:/g, fileName+":");
+            if (fileName) {
+                err = err.replace(/<stdin>:/g, fileName+":");
+            }
             callback(error("\n" + err));
         }
         callback(undefined, out);
     });
-    gcc.stdin.write(content, function (err) {
-        if (err) { throw err; }
-        gcc.stdin.end();
-    });
+    if (content) {
+        gcc.stdin.write(content, function (err) {
+            if (err) { throw err; }
+            gcc.stdin.end();
+        });
+    }
 };
 
 var execJs = function (js, state, fileName, callback) {
@@ -91,7 +93,7 @@ var preprocess = function (content, state, fileName, callback) {
                     callback = function() {};
                     return;
                 }
-                debug('[' + capture + '] --> [' + ret + ']');
+                //debug('[' + capture + '] --> [' + ret + ']');
                 captures[i] = ret;
             }));
         });
@@ -118,38 +120,38 @@ var getFile = function ()
     };
 };
 
+var getObjectFile = function (cFile) {
+    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o'
+};
+
 var compile = function (fileName, state, callback)
 {
     if (typeof(state.files[fileName]) !== 'undefined') {
-        callback(undefined);
+        callback();
         return;
     }
     debug('compile('+fileName+')');
-    var outFile = state.buildDir+'/'+fileName.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o';
+    var outFile = state.buildDir+'/'+getObjectFile(fileName);
     state.files[fileName] = getFile();
     var fileContent;
     nThen(function (waitFor) {
 
-        debug("Load file");
+        //debug("Load file");
         Fs_readFile(fileName, waitFor(function (err, ret) {
-            if (err) {
-                waitFor.abort();
-                callback(err);
-                return;
-            }
+            if (err) { throw err; }
             fileContent = ret.toString('utf8');
         }));
 
     }).nThen(function (waitFor) {
 
-        debug("Preprocess 1");
+        //debug("Preprocess 1");
         preprocess(fileContent, state, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
             fileContent = output;
         }));
 
     }).nThen(function (waitFor) {
-        debug("CPP -MM");
+        //debug("CPP -MM");
         var flags = ['-E', '-MM'];
         flags.push.apply(flags, state.cflags);
         flags.push('-');
@@ -164,7 +166,7 @@ var compile = function (fileName, state, callback)
         }));
 
     }).nThen(function (waitFor) {
-        debug("CPP");
+        //debug("CPP");
         var flags = ['-E'];
         flags.push.apply(flags, state.cflags);
         flags.push('-');
@@ -174,11 +176,10 @@ var compile = function (fileName, state, callback)
         }));
 
     }).nThen(function (waitFor) {
-        debug("Preprocess 2");
+        //debug("Preprocess 2");
         preprocess(fileContent, state, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
             fileContent = output;
-//debug(output);
         }));
 
         Fs.exists(outFile, waitFor(function (exists) {
@@ -191,7 +192,7 @@ var compile = function (fileName, state, callback)
 
     }).nThen(function (waitFor) {
 
-        debug("CC");
+        //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile,'-'];
         flags.push.apply(flags, state.cflags);
         cc(fileContent, fileName, flags, waitFor(function (err) {
@@ -270,10 +271,15 @@ var CONFIG = {
         '-D','HAS_JS_PREPROCESSOR',
         '-D','GIT_VERSION="0000000000000000000000000000000000000000"'
     ],
+    outFile: 'cjdroutejs',
     ldflags: [
         '-pie',
-        '-Wl,-z,relro,-z,now,-z,noexecstack',
-        '-lpthread'
+        '-Wl,-z,relro,-z,now,-z,noexecstack'
+    ],
+    libs: [
+        './build/libuv/libuv.a',
+        '-lpthread',
+        './build/nacl_build/libnacl.a'
     ],
     includeDirs: [
         'build/nacl_build/include/',
@@ -294,6 +300,63 @@ var removeFile = function (state, fileName, callback)
     }).nThen(function (waitFor) {
         callback();
     });
+};
+
+var recursiveCompile = function (fileName, state, callback)
+{
+    // Recursive compilation
+    var doCycle = function (toCompile, parentStack, callback) {
+        if (toCompile.length === 0) { callback(); return; }
+        nThen(function(waitFor) {
+            for (var file = toCompile.pop(); file; file = toCompile.pop()) {
+                (function(file) {
+                    var stack = [];
+                    stack.push.apply(stack, parentStack);
+                    //debug("compiling " + file);
+                    stack.push(file);
+                    if (stack.indexOf(file) !== stack.length-1) {
+                        throw new Error("Dependency loops are bad and you should feel bad\n" + 
+                                        "Dependency stack:\n" + stack.reverse().join('\n'));
+                    }
+                    compile(file, state, waitFor(function (err) {
+                        if (err) { throw err; }
+                        var toCompile = [];
+                        state.files[file].links.forEach(function(link) {
+                            if (link === file) { return; }
+                            toCompile.push(link);
+                        });
+                        doCycle(toCompile, stack, waitFor(function () {
+                            if (stack[stack.length-1] !== file) { throw new Error(); }
+                            stack.pop();
+                        }));
+                    }));
+                })(file);
+            }
+        }).nThen(function (waitFor) {
+            callback();
+        });
+    };
+    doCycle([fileName], [], callback);
+};
+
+var getLinkOrder = function (fileName, files) {
+    var completeFiles = [];
+    var stack = [];
+    var getFile = function (name) {
+        if (stack.indexOf(name) > -1) { throw new Error("Cyclical linkage: " + stack); }
+        stack.push(name);
+        var f = files[name];
+        //debug('Resolving links for ' + name + ' ' + f);
+        for (var i = 0; i < f.links.length; i++) {
+            if (f.links[i] === name) { continue; }
+            if (completeFiles.indexOf(f.links[i]) > -1) { continue; }
+            getFile(f.links[i]);
+        }
+        completeFiles.push(name);
+        stack.pop();
+    };
+    getFile(fileName);
+    return completeFiles;
 };
 
 var setUp = function (callback) {
@@ -371,47 +434,11 @@ var main = function() {
 
     }).nThen(function(waitFor) {
 
-        // Recursive compilation
-        var doCycle = function (toCompile, parentStack, callback) {
-            if (toCompile.length === 0) { callback(); return; }
-            for (var file = toCompile.pop(); file; file = toCompile.pop()) {
-                (function(file) {
-                    var stack = [];
-                    stack.push.apply(stack, parentStack);
-                    debug("compiling " + file);
-                    stack.push(file);
-                    if (stack.indexOf(file) !== stack.length-1) {
-                        throw new Error("Dependency loops are bad and you should feel bad\n" + 
-                                        "Dependency stack:\n" + stack.reverse().join('\n'));
-                    }
-                    compile(file, state, waitFor(function (err) {
-                        if (err) { throw err; }
-                        var toCompile = [];
-                        state.files[file].links.forEach(function(link) {
-                            if (link === file) { return; }
-                            toCompile.push(link);
-                        });
-                        doCycle(toCompile, stack, waitFor(function () {
-                            if (stack.pop() !== file) { throw new Error(); }
-                        }));
-                    }));
-                })(file);
-            }
-        };
-        doCycle([file], [], waitFor());
+        recursiveCompile(file, state, waitFor());
 
     }).nThen(function(waitFor) {
 
-        // After preprocess2 is complete, we know the linker dependencies
-        // and can begin compiling those
-        var toCompile = [file];
-        state.files[file].links.forEach(function (file) {
-            compile(file, state, waitFor(function (err) {
-                if (err) { throw err; }
-            }));
-        });
-
-    }).nThen(function(waitFor) {
+console.log("done compile");
 
         getMTimes(state.files, state.mtimes, waitFor(function (err, mtimes) {
             if (err) { throw err; }
@@ -420,27 +447,20 @@ var main = function() {
 
     }).nThen(function(waitFor) {
 
-        //compile(file, state.files[file], 'jsbuild', waitFor());
-        var getLinkOrder = function (fileName, files) {
-            var completeFiles = [];
-            var stack = [];
-            var getFile = function (name) {
-                if (stack.indexOf(name) > -1) { throw new Error("Cyclical linkage: " + stack); }
-                stack.push(name);
-                var f = files[name];
-                debug('Resolving links for ' + name + ' ' + f);
-                for (var i = 0; i < f.links.length; i++) {
-                    if (f.links[i] === name) { continue; }
-                    if (completeFiles.indexOf(f.links[i]) > -1) { continue; }
-                    getFile(f.links[i]);
-                }
-                completeFiles.push(name);
-                stack.pop();
-            };
-            getFile(fileName);
-            return completeFiles;
-        };
-        console.log(getLinkOrder(file, state.files));
+        var linkOrder = getLinkOrder(file, state.files);
+        for (var i = 0; i < linkOrder.length; i++) {
+            linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
+        }
+        var ldArgs = [];
+        ldArgs.push.apply(ldArgs, state.ldflags);
+        ldArgs.push.apply(ldArgs, ['-o', state.outFile]);
+        ldArgs.push.apply(ldArgs, linkOrder);
+        ldArgs.push.apply(ldArgs, state.libs);
+        debug("Linking " + state.outFile);
+
+        cc(undefined, undefined, ldArgs, waitFor(function (err, ret) {
+            if (err) { throw err; }
+        }));
 
     }).nThen(function(waitFor) {
 
