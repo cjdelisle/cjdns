@@ -58,9 +58,9 @@ var CONFIG = {
 
 Builder.setUp(CONFIG, function (builder) {
 
-   builder.makeExecutable('admin/angel/cjdroute2.c', 'cjdroutejs');
-   builder.makeExecutable('publictoip6.c', 'publictoip6');
-   builder.makeExecutable('privatetopublic.c', 'privatetopublic');
+    builder.makeExecutable('admin/angel/cjdroute2.c', 'cjdroutejs');
+    builder.makeExecutable('publictoip6.c', 'publictoip6');
+    builder.makeExecutable('privatetopublic.c', 'privatetopublic');
 
 });
 
