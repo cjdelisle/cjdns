@@ -16,6 +16,8 @@
 #define Allocator_H
 
 #include "util/Identity.h"
+#include "util/Linker.h"
+Linker_require("memory/Allocator.c")
 
 #if !defined(Allocator_USE_CANARIES) && defined(PARANOIA)
     //#define Allocator_USE_CANARIES
