@@ -16,5 +16,23 @@
 
 const uint8_t* Version_gitVersion()
 {
-    return (uint8_t*) GIT_VERSION;
+    return (uint8_t*)
+    #ifdef HAS_JS_PREPROCESSOR
+        <?js
+            var done = this.async();
+            require('fs').readFile('.git/logs/HEAD', function (err, ret) {
+                if (err) { throw err; }
+                var lines = ret.toString('utf8').split('\n');
+                var hashes = lines[lines.length-2].split(' ');
+                var head = hashes[1];
+                if (!(/^[a-f0-9]{40}$/.test(head))) {
+                    throw new Error(head + ' does not look like a git hash');
+                }
+                done('"'+head+'"');
+            });
+        ?>
+    #else
+        GIT_VERSION
+    #endif
+    ;
 }

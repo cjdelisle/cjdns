@@ -36,10 +36,10 @@ void Assert_failure(const char* format, ...);
 
 /** Runtime assertion which is always applied. */
 #define Assert_always(expr) do { \
-        if (!(expr)) {                                                                \
-            Assert_failure("Assertion failure [%s:%d] [%s]\n", __FILE__, __LINE__,    \
-                           #expr);                                                    \
-        }                                                                             \
+        if (!(expr)) {                                                                   \
+            Assert_failure("Assertion failure [%s:%d] [%s]\n", Gcc_SHORT_FILE, Gcc_LINE, \
+                           #expr);                                                       \
+        }                                                                                \
     } while (0)
 /* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 

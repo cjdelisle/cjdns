@@ -29,6 +29,17 @@
 
 #endif
 
+#ifdef HAS_JS_PREPROCESSOR
+#define Gcc_SHORT_FILE <?\
+js                                                                    \
+    return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"';   \
+?>
+#else
+    #define Gcc_SHORT_FILE __FILE__
+#endif
+
+#define Gcc_LINE __LINE__
+
 Gcc_PRINTF(1,2)
 static inline void Gcc_checkPrintf(const char* format, ...)
 {

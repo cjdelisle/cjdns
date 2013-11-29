@@ -16,6 +16,7 @@
 #define MallocAllocator_H
 
 #include "memory/Allocator.h"
+#include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("memory/MallocAllocator.c")
 
@@ -27,6 +28,6 @@ Linker_require("memory/MallocAllocator.c")
  *                  will be halted with an error.
  */
 struct Allocator* MallocAllocator__new(unsigned long sizeLimit, const char* file, int line);
-#define MallocAllocator_new(sl) MallocAllocator__new((sl),__FILE__,__LINE__)
+#define MallocAllocator_new(sl) MallocAllocator__new((sl),Gcc_SHORT_FILE,Gcc_LINE)
 
 #endif

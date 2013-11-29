@@ -17,6 +17,7 @@
 
 #include "memory/Allocator.h"
 #include "util/UniqueName.h"
+#include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("memory/BufferAllocator.c")
 
@@ -35,7 +36,7 @@ struct Allocator* BufferAllocator__new(void* buffer,
                                        char* file,
                                        int line);
 
-#define BufferAllocator_new(a,b) BufferAllocator__new((a),(b),__FILE__,__LINE__)
+#define BufferAllocator_new(a,b) BufferAllocator__new((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 // This relies on the fact that UniqueName is only unique on a per-line basis.
 #define BufferAllocator_STACK(name, length) \

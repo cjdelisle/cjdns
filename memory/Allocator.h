@@ -16,6 +16,7 @@
 #define Allocator_H
 
 #include "util/Identity.h"
+#include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("memory/Allocator.c")
 
@@ -152,7 +153,7 @@ void* Allocator__malloc(struct Allocator* allocator,
                         unsigned long length,
                         const char* fileName,
                         int lineNum);
-#define Allocator_malloc(a, b) Allocator__malloc((a),(b),__FILE__,__LINE__)
+#define Allocator_malloc(a, b) Allocator__malloc((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Allocate some memory from this memory allocator.
@@ -171,7 +172,7 @@ void* Allocator__calloc(struct Allocator* alloc,
                         unsigned long count,
                         const char* fileName,
                         int lineNum);
-#define Allocator_calloc(a, b, c) Allocator__calloc((a),(b),(c),__FILE__,__LINE__)
+#define Allocator_calloc(a, b, c) Allocator__calloc((a),(b),(c),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Re-allocate memory so that an allocation can be expanded.
@@ -192,7 +193,7 @@ void* Allocator__realloc(struct Allocator* allocator,
                          unsigned long size,
                          const char* fileName,
                          int lineNum);
-#define Allocator_realloc(a, b, c) Allocator__realloc((a),(b),(c),__FILE__,__LINE__)
+#define Allocator_realloc(a, b, c) Allocator__realloc((a),(b),(c),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Allocate some memory and copy something into that memory space.
@@ -210,7 +211,7 @@ void* Allocator__clone(struct Allocator* allocator,
                        unsigned long length,
                        const char* fileName,
                        int lineNum);
-#define Allocator_clone(a, b) Allocator__clone((a),(b),sizeof(*(b)),__FILE__,__LINE__)
+#define Allocator_clone(a, b) Allocator__clone((a),(b),sizeof(*(b)),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Spawn a new child of this allocator.
@@ -221,7 +222,7 @@ void* Allocator__clone(struct Allocator* allocator,
  * @return a child allocator.
  */
 struct Allocator* Allocator__child(struct Allocator* alloc, const char* fileName, int lineNum);
-#define Allocator_child(a) Allocator__child((a),__FILE__,__LINE__)
+#define Allocator_child(a) Allocator__child((a),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Sever the link between an allocator and it's original parent.
@@ -232,7 +233,7 @@ struct Allocator* Allocator__child(struct Allocator* alloc, const char* fileName
  * @param alloc the allocator to disconnect from it's parent.
  */
 void Allocator__free(struct Allocator* alloc, const char* file, int line);
-#define Allocator_free(a) Allocator__free((a),__FILE__,__LINE__)
+#define Allocator_free(a) Allocator__free((a),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Add a function to be called when the allocator is freed.
@@ -246,7 +247,7 @@ struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
                                               void* context,
                                               const char* file,
                                               int line);
-#define Allocator_onFree(a, b, c) Allocator__onFree((a), (b), (c), __FILE__, __LINE__)
+#define Allocator_onFree(a, b, c) Allocator__onFree((a), (b), (c), Gcc_SHORT_FILE, Gcc_LINE)
 
 /**
  * Remove a function which was registered with Allocator_onFree().
@@ -293,7 +294,7 @@ void Allocator__adopt(struct Allocator* parentAlloc,
                       struct Allocator* alloc,
                       const char* fileName,
                       int lineNum);
-#define Allocator_adopt(a, b) Allocator__adopt((a),(b),__FILE__,__LINE__)
+#define Allocator_adopt(a, b) Allocator__adopt((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Set the heap protection canary for the next child allocator.

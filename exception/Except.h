@@ -34,7 +34,7 @@ struct Except
 Gcc_NORETURN
 Gcc_PRINTF(4, 5)
 void Except__throw(char* file, int line, struct Except* eh, char* format, ...);
-#define Except_throw(...) Except__throw(__FILE__, __LINE__, __VA_ARGS__)
+#define Except_throw(...) Except__throw(Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__)
 
 
 #endif

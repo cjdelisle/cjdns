@@ -46,7 +46,11 @@ void Log_print(struct Log* log,
     inLogger--;
 
     if (droppedMessages && !inLogger) {
-        Log_print(log, Log_Level_INFO, __FILE__, __LINE__, "There were [%d] dropped log messages.",
+        Log_print(log,
+                  Log_Level_ERROR,
+                  Gcc_SHORT_FILE,
+                  Gcc_LINE,
+                  "There were [%d] dropped log messages.",
                   droppedMessages);
         droppedMessages = 0;
     }
