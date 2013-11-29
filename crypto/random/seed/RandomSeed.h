@@ -43,6 +43,7 @@ struct RandomSeed
 };
 
 struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+                                  int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc);
 

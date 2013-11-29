@@ -41,27 +41,20 @@ static RandomSeed_Provider PROVIDERS[] = {
 Assert_compileTime(PROVIDERS_COUNT == (sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)));
 
 struct RandomSeed* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
+                                        int additionalProviderCount,
                                         struct Log* logger,
                                         struct Allocator* alloc)
 {
-    int providerCount = PROVIDERS_COUNT;
-    if (additionalProviders) {
-        for (int i = 0; additionalProviders[i]; i++) {
-            providerCount++;
-        }
-    }
+    int providerCount = PROVIDERS_COUNT + additionalProviderCount;
 
     RandomSeed_Provider* allProviders =
-        Allocator_calloc(alloc, sizeof(RandomSeed_Provider), providerCount);
+        Allocator_calloc(alloc, sizeof(RandomSeed_Provider), providerCount+1);
     int i = 0;
-    if (additionalProviders) {
-        for (int j = 0; allProviders[j];) {
-            allProviders[i++] = additionalProviders[j++];
-        }
+    for (int j = 0; j < additionalProviderCount; j++) {
+        allProviders[i++] = additionalProviders[j];
     }
     for (int j = 0; j < PROVIDERS_COUNT; j++) {
-        allProviders[i++] = PROVIDERS[j++];
+        allProviders[i++] = PROVIDERS[j];
     }
-
-    return RandomSeed_new(allProviders,logger, alloc);
+    return RandomSeed_new(allProviders, providerCount, logger, alloc);
 }

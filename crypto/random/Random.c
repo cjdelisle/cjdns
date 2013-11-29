@@ -251,6 +251,6 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
 {
-    struct RandomSeed* rs = SystemRandomSeed_new(NULL, logger, alloc);
+    struct RandomSeed* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
     return Random_newWithSeed(alloc, logger, rs, eh);
 }

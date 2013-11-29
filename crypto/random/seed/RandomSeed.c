@@ -75,14 +75,10 @@ int RandomSeed_get(struct RandomSeed* rs, uint64_t buffer[8])
 }
 
 struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+                                  int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc)
 {
-    int providerCount = 0;
-    for (int i = 0; providers[i]; i++) {
-        providerCount++;
-    }
-
     struct RandomSeed** rsList = Allocator_calloc(alloc, sizeof(struct RandomSeed), providerCount);
     int i = 0;
     for (int j = 0; j < providerCount; j++) {

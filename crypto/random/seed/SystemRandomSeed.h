@@ -25,6 +25,7 @@ Linker_require("crypto/random/seed/SystemRandomSeed.c")
  * additionalProviders is a null terminalted list.
  */
 struct RandomSeed* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
+                                        int additionalProviderCount,
                                         struct Log* logger,
                                         struct Allocator* alloc);
 
