@@ -326,6 +326,7 @@ static inline void linkNodes(struct Node_Two* parent,
                              uint64_t cannonicalLabel,
                              int64_t linkStateDiff,
                              int encodingFormNumber,
+                             uint64_t discoveredPath,
                              struct NodeStore_pvt* store)
 {
     verifyNode(child);
@@ -383,6 +384,7 @@ static inline void linkNodes(struct Node_Two* parent,
     link->child = child;
     link->parent = parent;
     link->linkAddr = (uintptr_t)link;
+    link->discoveredPath = discoveredPath;
     Identity_set(link);
     insertReversePeer(child, link);
     rbInsert(parent, link);
@@ -521,7 +523,6 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct EncodingScheme* scheme,
                                         int encodingFormNumber)
 {
-return NULL;
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
     verifyLinks(store);
@@ -567,7 +568,12 @@ return NULL;
 
     // Check whether the parent is already linked with a node which is "behind" the child.
     struct Node_Link* previous = rbGetPrevious(closest);
-    while (previous && LabelSplicer_routesThrough(previous->cannonicalLabel, path)) {
+    while (previous) {
+        // try next grandchild
+        if (!LabelSplicer_routesThrough(previous->cannonicalLabel, path)) {
+            previous = rbGetPrevious(previous);
+            continue;
+        }
         struct Node_Two* grandChild = previous->child;
         // unsplice and cannonicalize so we now have a path from child to grandchild
         uint64_t childToGrandchild = LabelSplicer_unsplice(previous->cannonicalLabel, path);
@@ -578,22 +584,37 @@ return NULL;
 
         logLink(store, previous, "Unlinking");
 
-        // Link child to grandchild
-        linkNodes(node, grandChild, childToGrandchild,
-                  previous->linkState, previous->encodingFormNumber, store);
+        if (node != grandChild && previous->cannonicalLabel != path) {
+            // Link child to grandchild
+            linkNodes(node, grandChild, childToGrandchild,
+                      previous->linkState, previous->encodingFormNumber, addr->path, store);
 
-        // try next grandchild
-        struct Node_Link* nPrevious = rbGetPrevious(previous);
+        } else if (node != grandChild) {
+            // 2 different nodes with the same switch slot?
+            // If this message travelled along a very long route then lets skip doing anything
+            // because it might be bad/stale/etc.
+            // If this message travelled a short distance then lets unlink the old entry and
+            // link in the new one.
+            if (previous->discoveredPath < addr->path) {
+                // TODO: we might be returning a node which has no links to the tree...
+                return node;
+            }
+        } else {
+            // 2 possibilities can lead here.
+            // #1 Redundant route, parent->child->grandChild->a->b->c->grandChild
+            // #2 non-cannonical route which once cannonicalized is equal to the original.
+            // in either case, we want to kill the link and install the new better one.
+        }
 
         // unlink parent from grandchild
-        unlinkNodes(previous, store);
-
-        previous = nPrevious;
+        struct Node_Link* unlink = previous;
+        previous = rbGetPrevious(previous);
+        unlinkNodes(unlink, store);
     }
 
     // link parent to child
     // TODO: linking every node with 0 link state, this can't be right.
-    linkNodes(closest->child, node, path, 0, encodingFormNumber, store);
+    linkNodes(closest->child, node, path, 0, encodingFormNumber, addr->path, store);
 
     verifyLinks(store);
 
@@ -716,7 +737,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     selfNode->alloc = alloc;
     Identity_set(selfNode);
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
-    linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, out);
+    linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     out->selfLink = selfNode->reversePeers;
 
     out->pub.selfAddress = &out->selfLink->child->address;

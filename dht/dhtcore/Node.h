@@ -142,6 +142,10 @@ struct Node_Link
      * in the reverse direction.
      */
     uint64_t cannonicalLabel;
+
+    /** The path which the incoming packet followed when this node was discovered. */
+    uint64_t discoveredPath;
+
     unsigned long linkAddr;
 
     Identity
