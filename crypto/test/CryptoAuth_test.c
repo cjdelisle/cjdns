@@ -113,9 +113,9 @@ static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface
 }
 
 static int init(const uint8_t* privateKey,
-         uint8_t* publicKey,
-         const uint8_t* password,
-         bool authenticatePackets)
+                uint8_t* publicKey,
+                const uint8_t* password,
+                bool authenticatePackets)
 {
     printf("\nSetting up:\n");
     struct Allocator* allocator = MallocAllocator_new(1048576);
@@ -191,7 +191,7 @@ static int sendToIf2(const char* x)
     return 0;
 }
 
-int normal()
+static int normal()
 {
     simpleInit();
     return
@@ -201,7 +201,7 @@ int normal()
       | sendToIf1("goodbye");
 }
 
-int repeatKey()
+static int repeatKey()
 {
     simpleInit();
     return
@@ -212,7 +212,7 @@ int repeatKey()
       | sendToIf1("goodbye");
 }
 
-int repeatHello()
+static int repeatHello()
 {
     init(privateKey, publicKey, NULL, false);
     return
@@ -223,7 +223,7 @@ int repeatHello()
       | sendToIf1("goodbye");
 }
 
-int chatter()
+static int chatter()
 {
     simpleInit();
     return
@@ -242,7 +242,7 @@ int chatter()
       | sendToIf1("goodbye");
 }
 
-int auth()
+static int auth()
 {
     init(privateKey, publicKey, (uint8_t*)"password", false);
     return
@@ -252,7 +252,7 @@ int auth()
       | sendToIf1("goodbye");
 }
 
-int authWithoutKey()
+static int authWithoutKey()
 {
     init(NULL, NULL, (uint8_t*)"password", false);
     return
@@ -262,7 +262,7 @@ int authWithoutKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305()
+static int poly1305()
 {
     init(privateKey, publicKey, NULL, true);
     return
@@ -272,7 +272,7 @@ int poly1305()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKey()
+static int poly1305UnknownKey()
 {
     init(NULL, NULL, NULL, true);
     return
@@ -282,7 +282,7 @@ int poly1305UnknownKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305AndPassword()
+static int poly1305AndPassword()
 {
     init(privateKey, publicKey, (uint8_t*)"aPassword", true);
     return
@@ -292,7 +292,7 @@ int poly1305AndPassword()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKeyAndPassword()
+static int poly1305UnknownKeyAndPassword()
 {
     init(NULL, NULL, (uint8_t*)"anotherPassword", true);
     return
@@ -302,7 +302,7 @@ int poly1305UnknownKeyAndPassword()
       | sendToIf1("goodbye");
 }
 
-int reset()
+static int reset()
 {
     simpleInit();
     int ret =
@@ -321,7 +321,7 @@ int reset()
       | sendToIf1("goodbye");
 }
 
-int authAndReset()
+static int authAndReset()
 {
     printf("\n\nSetting up authAndReset()\n");
     init(privateKey, publicKey, (uint8_t*)"password", false);
@@ -341,7 +341,7 @@ int authAndReset()
       | sendToIf1("goodbye");
 }
 
-void connectToMe()
+static void connectToMe()
 {
     simpleInit();
     sendToIf1("hello world");
@@ -350,7 +350,7 @@ void connectToMe()
     sendToIf1("goodbye");
 }
 
-void connectToMeDropMsg()
+static void connectToMeDropMsg()
 {
     simpleInit();
     // send a message which is lost in the network.
@@ -383,4 +383,5 @@ int main()
     authAndReset();
     connectToMe();
     connectToMeDropMsg();
+    return 0;
 }

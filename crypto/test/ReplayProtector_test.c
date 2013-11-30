@@ -14,7 +14,7 @@
  */
 #include "crypto/ReplayProtector.h"
 #include "crypto/random/Random.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 
 #include "util/Assert.h"
 #include <stdint.h>
@@ -22,7 +22,7 @@
 
 #define CYCLES 1
 
-void testDuplicates(struct Random* rand)
+static void testDuplicates(struct Random* rand)
 {
     uint16_t randomShorts[8192];
     uint16_t out[8192];
@@ -47,10 +47,10 @@ void testDuplicates(struct Random* rand)
 
 int main()
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    struct Allocator* alloc = MallocAllocator_new(4096);
     struct Random* rand = Random_new(alloc, NULL, NULL);
     for (int i = 0; i < CYCLES; i++) {
         testDuplicates(rand);
     }
+    return 0;
 }

@@ -18,6 +18,8 @@
 #include "benc/String.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "crypto/test/Exports.h"
+#include "crypto/random/Random.h"
+#include "crypto/random/test/DeterminentRandomSeed.h"
 #include "io/FileWriter.h"
 #include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
@@ -44,7 +46,7 @@ static struct EventBase* eventBase;
 
 static uint8_t* hello = (uint8_t*) "Hello World";
 
-void encryptRndNonceTest()
+static void encryptRndNonceTest()
 {
     uint8_t buff[44];
     Bits_memset(buff, 0, 44);
@@ -71,10 +73,17 @@ void encryptRndNonceTest()
     Assert_always(m.length == 12 && !Bits_memcmp(m.bytes, "hello world", m.length));
 }
 
-void createNew()
+static struct Random* evilRandom(struct Allocator* alloc, struct Log* logger)
+{
+    struct RandomSeed* evilSeed = DeterminentRandomSeed_new(alloc);
+    return Random_newWithSeed(alloc, logger, evilSeed, NULL);
+}
+
+static void createNew()
 {
     struct Allocator* allocator = MallocAllocator_new(BUFFER_SIZE);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, privateKey, eventBase, NULL, NULL);
+    struct CryptoAuth* ca =
+        CryptoAuth_new(allocator, privateKey, eventBase, NULL, evilRandom(allocator, NULL));
     /*for (int i = 0; i < 32; i++) {
         printf("%.2x", ca->publicKey[i]);
     }*/
@@ -94,21 +103,16 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     return Error_NONE;
 }
 
-// This needs to be determinent.
-void Random_bytes(struct Random* rand, uint8_t* buffer, uint64_t size)
-{
-    Bits_memset(buffer, 0xFF, size);
-}
-
-struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
-                      uint8_t* herPublicKey,
-                      uint8_t* authPassword,
-                      struct Message** resultMessage)
+static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
+                                        uint8_t* herPublicKey,
+                                        uint8_t* authPassword,
+                                        struct Message** resultMessage)
 {
     struct Allocator* allocator = MallocAllocator_new(8192*2);
     struct Writer* writer = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(writer, allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, myPrivateKey, eventBase, logger, NULL);
+    struct CryptoAuth* ca =
+        CryptoAuth_new(allocator, myPrivateKey, eventBase, logger, evilRandom(allocator, logger));
 
     struct Interface* iface = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessage,
@@ -137,7 +141,7 @@ struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
     return wrapper;
 }
 
-void testHello(uint8_t* password, uint8_t* expectedOutput)
+static void testHello(uint8_t* password, uint8_t* expectedOutput)
 {
     Assert_always(strlen((char*)expectedOutput) == 264);
     struct Message* outMessage;
@@ -163,31 +167,31 @@ void testHello(uint8_t* password, uint8_t* expectedOutput)
     }
 }
 
-void helloNoAuth()
+static void helloNoAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "0000000000ffffffffffffff7fff7fffffffffffffffffffffffffffffffffff"
-        "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
-        "6a4d8c53aeaa5a22e6f55c4f45d6906e90ef53d53593d71a4f1af6484ceec3d2"
-        "691858481b2fe05d51aaba9a74925c4595fc57ab3287d1fb325a9d0aa238476b"
-        "f9a5c117";
+        "00000000007691d3802a9d047c403525497a185dabda71739c1f35465fac3448"
+        "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
+        "74bee22a90642a6b4188f374afd90ccc97bb61873b5d8a3b4a6071b60b26a8c7"
+        "2d6484634df315c4d3ad63de42fe3e4ebfd83bcdab2e1f5f40dc5a08eda4e6c6"
+        "b7067d3b";
 
     testHello(NULL, expected);
 }
 
-void helloWithAuth()
+static void helloWithAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "0000000001641c99f7719f5700003eb1ffffffffffffffffffffffffffffffff"
-        "ffffffffffffffff847c0d2c375234f365e660955187a3735a0f7613d1609d3a"
-        "6a4d8c53aeaa5a2289427cd94d2710830662b77ef3b00cd6aab129686fce50e9"
-        "823d7db9ff0b37c46a7dcfbb40a43ba7b42fb09dfed7d06fed814ddf977e3d9a"
-        "2cc44ab6";
+        "0000000001641c99f7719f5700003eb1497a185dabda71739c1f35465fac3448"
+        "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
+        "74bee22a90642a6b022e089e0550ca84b86884af6a0263fa5fff9ba07583aea4"
+        "acb000dbe4115623cf335c63981b9645b6c89fbdc3ad757744879751de0f215d"
+        "2479131d";
 
     testHello((uint8_t*)"password", expected);
 }
 
-void receiveHelloWithNoAuth()
+static void receiveHelloWithNoAuth()
 {
     uint8_t* messageHex = (uint8_t*)
         "0000000000ffffffffffffff7fffffffffffffffffffffffffffffffffffffff"
@@ -218,12 +222,13 @@ void receiveHelloWithNoAuth()
     //printf("bytes=%s  length=%u\n", finalOut->bytes, finalOut->length);
 }
 
-void repeatHello()
+static void repeatHello()
 {
     struct Allocator* allocator = MallocAllocator_new(1<<20);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, eventBase, logger, NULL);
+    struct CryptoAuth* ca =
+       CryptoAuth_new(allocator, NULL, eventBase, logger, evilRandom(allocator, logger));
 
     struct Message* out = NULL;
     struct Interface iface = {
@@ -256,7 +261,7 @@ void repeatHello()
     // Check the nonce
     Assert_always(!Bits_memcmp(msg2.bytes, "\0\0\0\1", 4));
 
-    ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, NULL);
+    ca = CryptoAuth_new(allocator, privateKey, eventBase, logger, evilRandom(allocator, logger));
     struct Message* finalOut = NULL;
     struct CryptoAuth_Wrapper wrapper2 = {
         .context = (struct CryptoAuth_pvt*) ca,
@@ -278,11 +283,12 @@ void repeatHello()
     Allocator_free(allocator);
 }
 
-void testGetUsers()
+static void testGetUsers()
 {
     struct Allocator* allocator = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(allocator);
-    struct CryptoAuth* ca = CryptoAuth_new(allocator, NULL, base, NULL, NULL);
+    struct CryptoAuth* ca =
+        CryptoAuth_new(allocator, NULL, base, NULL, evilRandom(allocator, NULL));
     List* users = NULL;
 
     users = CryptoAuth_getUsers(ca, allocator);

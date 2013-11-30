@@ -36,7 +36,7 @@ static uint8_t nodeCjdnsIp6[16];
 static uint8_t* fakeIp6ToGive = (uint8_t*) "\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1";
 static int called = 0;
 
-uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
+static uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
 {
     struct IpTunnel_PacketInfoHeader* pi = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Assert_always(!Bits_memcmp(nodeCjdnsIp6, pi->nodeIp6Addr, 16));
@@ -72,7 +72,7 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-uint8_t messageToTun(struct Message* message, struct Interface* iface)
+static uint8_t messageToTun(struct Message* message, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
@@ -160,4 +160,5 @@ int main()
     Assert_true(called);
 
     Allocator_free(alloc);
+    return 0;
 }

@@ -53,4 +53,5 @@ int main()
     Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(alloc);
+    return 0;
 }

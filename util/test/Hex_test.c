@@ -43,4 +43,5 @@ int main()
     Assert_always(Hex_decode(bytes2, 32, hex, 64) == 32);
 
     Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
+    return 0;
 }

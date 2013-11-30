@@ -379,4 +379,5 @@ int main(int argc, char** argv)
     test_dumpTable();
 
     Allocator_free(alloc);
+    return 0;
 }

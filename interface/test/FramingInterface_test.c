@@ -27,7 +27,7 @@ union MessageLength
     uint8_t bytes[4];
 };
 
-uint8_t messageOut(struct Message* msg, struct Interface* iface)
+static uint8_t messageOut(struct Message* msg, struct Interface* iface)
 {
     struct Message** msgPtr = iface->receiverContext;
     Allocator_adopt((*msgPtr)->alloc, msg->alloc);
@@ -35,7 +35,7 @@ uint8_t messageOut(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
+static void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
 {
     struct Allocator* child = Allocator_child(cloneWith);
     toSend = Message_clone(toSend, child);

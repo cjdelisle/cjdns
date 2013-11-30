@@ -20,4 +20,5 @@ int main()
     uint8_t out[16];
     Assert_true(!AddrTools_parseIp(out, (uint8_t*)"[::1]"));
     Assert_true(!Bits_memcmp(out, (uint8_t*)"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16));
+    return 0;
 }

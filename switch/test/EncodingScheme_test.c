@@ -237,4 +237,5 @@ int main()
         convertLabelRand(rand, scheme);
         Allocator_free(tempAlloc);
     }
+    return 0;
 }

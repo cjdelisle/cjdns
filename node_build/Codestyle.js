@@ -64,16 +64,15 @@ var parseFile = function (fileName, fileContent) {
             }
         }
 
-        if (!(/_test/.test(fileName))) {
-            // implementations..  TUNConfigurator_Linux contains TUNConfigurator_doStuff...
-            var n = name.replace(/_.*/, '');
-            if ((/^\w+\s.*\(/).test(line)) {
-                if (!(/^int main\(/.test(line)
-                    || line.indexOf(' '+n) > -1
-                    || /^[ ]?static /.test(line)))
-                {
-                    error("all globally visible functions must begin with the name of the file.");
-                }
+
+        // implementations..  TUNConfigurator_Linux contains TUNConfigurator_doStuff...
+        var n = name.replace(/_.*/, '');
+        if ((/^\w+\s.*\(/).test(line)) {
+            if (!(/^int main\(/.test(line)
+                || line.indexOf(' '+n) > -1
+                || /^[ ]?static /.test(line)))
+            {
+                error("all globally visible functions must begin with the name of the file.");
             }
         }
 

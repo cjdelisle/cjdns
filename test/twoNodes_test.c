@@ -32,7 +32,7 @@
 
 #define TUNB 2
 #define TUNA 1
-uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -40,7 +40,7 @@ uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
     *((int*)iface->senderContext) = TUNB;
     return 0;
 }
-uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -104,7 +104,7 @@ static struct TwoNodes* setUp(struct Allocator* alloc)
     return out;
 }
 
-void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
+static void sendMessage(struct TwoNodes* tn, char* message, bool bToA)
 {
     struct Message* msg;
     Message_STACK(msg, 64, 512);
@@ -144,4 +144,5 @@ int main()
     sendMessage(tn, "byebye", false);
 
     Allocator_free(alloc);
+    return 0;
 }

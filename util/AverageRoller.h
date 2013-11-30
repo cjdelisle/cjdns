@@ -22,7 +22,10 @@
 #include "util/Linker.h"
 Linker_require("util/AverageRoller.c")
 
-struct AverageRoller;
+struct AverageRoller
+{
+    int unused;
+};
 
 /**
  * Create a new AverageRoller.
@@ -41,6 +44,18 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
  * @return the average over the last windowSeconds active seconds.
  */
 uint32_t AverageRoller_getAverage(struct AverageRoller* roller);
+
+/**
+ * Update the roller with a new entry at a manually specified point in time.
+ *
+ * @param averageRoller the roller to update.
+ * @param now the number of seconds since the epoch.
+ * @param newEntry the a new number to be factored into the average.
+ * @return the average over the last windowSeconds seconds.
+ */
+uint32_t AverageRoller_updateAtTime(struct AverageRoller* averageRoller,
+                                    const uint64_t now,
+                                    const uint32_t newEntry);
 
 /**
  * Update the roller with a new entry and get the average.

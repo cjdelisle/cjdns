@@ -71,4 +71,5 @@ int main()
         }
         Allocator_free(alloc);
     }
+    return 0;
 }

@@ -160,4 +160,5 @@ int main()
     fragTest(alloc, rand, 1500, 100);
 
     Allocator_free(alloc);
+    return 0;
 }

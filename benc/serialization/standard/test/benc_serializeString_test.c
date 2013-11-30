@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 
-int expect(char* str, struct Writer* writer, struct Reader* reader)
+static int expect(char* str, struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
     char buffer[32];
@@ -40,7 +40,7 @@ int expect(char* str, struct Writer* writer, struct Reader* reader)
     return ret;
 }
 
-void testSerialize(struct Writer* writer, struct Reader* reader)
+static void testSerialize(struct Writer* writer, struct Reader* reader)
 {
     Assert_always(!StandardBencSerializer_get()->serializeString(writer, String_CONST("hello")));
     Assert_always(!expect("5:hello", writer, reader));
@@ -49,7 +49,7 @@ void testSerialize(struct Writer* writer, struct Reader* reader)
     Assert_always(!expect("0:", writer, reader));
 }
 
-void testParse(struct Writer* w, struct Reader* r, struct Allocator* alloc)
+static void testParse(struct Writer* w, struct Reader* r, struct Allocator* alloc)
 {
     char* badBenc = "d2:aq21:RouterModule_pingNode4:argsd4:path39:fcd9:6a75:6c9c7:timeouti4000ee"
                     "6:cookie0:4:hash64:09c6bcd1482df339757c99bbc5e796192968a28562f701fb53a57ed6"
@@ -72,4 +72,5 @@ int main()
     testParse(writer, reader, alloc);
 
     Allocator_free(alloc);
+    return 0;
 }

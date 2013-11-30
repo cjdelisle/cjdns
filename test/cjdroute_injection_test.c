@@ -100,4 +100,5 @@ int main()
 
     Allocator_free(alloc);
     Allocator_free(allocator);
+    return 0;
 }

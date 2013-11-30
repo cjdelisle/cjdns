@@ -19,7 +19,7 @@
 #include "test/TestFramework.h"
 
 static int allocatorsFreed;
-int allocatorFreed(struct Allocator_OnFreeJob* job)
+static int allocatorFreed(struct Allocator_OnFreeJob* job)
 {
     allocatorsFreed++;
     return 0;
@@ -50,4 +50,5 @@ int main()
     Assert_true(allocatorsFreed == 1);
 
     Allocator_free(alloc);
+    return 0;
 }

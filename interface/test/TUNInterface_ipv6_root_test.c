@@ -43,8 +43,8 @@
     #define sleep(x) Sleep(1000*x)
 #endif
 
-const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
-const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
+static const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+static const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
 
 /*
  * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
@@ -160,4 +160,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(fail, NULL, 10000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

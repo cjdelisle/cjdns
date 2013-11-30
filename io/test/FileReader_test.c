@@ -63,4 +63,5 @@ int main()
     CMP(128);
 
     Allocator_free(alloc);
+    return 0;
 }

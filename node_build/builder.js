@@ -86,7 +86,8 @@ var cc = function (args, callback, content) {
 };
 
 // You Were Warned
-var execJs = function (js, state, file, callback) {
+var execJs = function (js, state, file, fileName, callback) {
+    var res;
     var x;
     var err;
     // # 74 "./wire/Message.h"
@@ -96,26 +97,30 @@ var execJs = function (js, state, file, callback) {
     }, 10000);
     nThen(function (waitFor) {
         try {
-            var func = new Function('file','state','require',js);
+            var func = new Function('file','state','require','fileName',js);
             func.async = function () {
                 return waitFor(function (result) {
-                    x = result || '';
+                    res = result;
                 });
             };
-            x = func.call(func,file,state,require) || '';
+            x = func.call(func,file,state,require,fileName);
         } catch (e) {
             err = e;
             err.message += "\nContent: [" + js + "]";
+            clearTimeout(to);
+            process.nextTick(function() { callback(res); });
         }
     }).nThen(function (waitFor) {
+        if (err) { return; }
+        res = res || x || '';
         clearTimeout(to);
-        process.nextTick(function() { callback(err, x); });
+        process.nextTick(function() { callback(undefined, res); });
     });
 };
 
 var debug = console.log;
 
-var preprocess = function (content, state, fileObj, callback) {
+var preprocess = function (content, state, fileObj, fileName, callback) {
     var elems;
     nThen(function (waitFor) {
         elems = content.split('<?js');
@@ -123,7 +128,7 @@ var preprocess = function (content, state, fileObj, callback) {
             if (!i) { return; }
             var capture = elem.substring(0,elem.indexOf('?>'));
             var remainder = elem.substring(capture.length+2);
-            execJs(capture, state, fileObj, waitFor(function (err, ret) {
+            execJs(capture, state, fileObj, fileName, waitFor(function (err, ret) {
                 if (err) {
                     callback(err);
                     callback = function() {};
@@ -144,6 +149,7 @@ var getFile = function ()
     return {
         includes: [],
         links: [],
+        cflags: [],
         oldmtime: 0
     };
 };
@@ -177,6 +183,7 @@ var compileFile = function (fileName, state, tempDir, callback)
             //debug("CPP -MM");
             var flags = ['-E', '-MM'];
             flags.push.apply(flags, state.cflags);
+            flags.push.apply(flags, state['cflags'+fileName]);
             flags.push(fileName);
             cc(flags, waitFor(function (err, output) {
                 if (err) { throw err; }
@@ -192,6 +199,7 @@ var compileFile = function (fileName, state, tempDir, callback)
             //debug("CPP");
             var flags = ['-E'];
             flags.push.apply(flags, state.cflags);
+            flags.push.apply(flags, state['cflags'+fileName]);
             flags.push(fileName);
             cc(flags, waitFor(function (err, output) {
                 if (err) { throw err; }
@@ -202,7 +210,7 @@ var compileFile = function (fileName, state, tempDir, callback)
     }).nThen(function (waitFor) {
 
         //debug("Preprocess");
-        preprocess(fileContent, state, fileObj, waitFor(function (err, output) {
+        preprocess(fileContent, state, fileObj, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
             if (state.useTempFiles) {
                 Fs.writeFile(preprocessed, output, waitFor(function (err) {
@@ -228,6 +236,7 @@ var compileFile = function (fileName, state, tempDir, callback)
         //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile];
         flags.push.apply(flags, state.cflags);
+        flags.push.apply(flags, state['cflags'+fileName]);
         if (state.useTempFiles) {
             flags.push(preprocessed);
         } else {

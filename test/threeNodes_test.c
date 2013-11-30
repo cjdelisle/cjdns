@@ -33,7 +33,7 @@
 #define TUNC 3
 #define TUNB 2
 #define TUNA 1
-uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -41,7 +41,8 @@ uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
     *((int*)iface->senderContext) = TUNC;
     return 0;
 }
-uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
+
+static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -49,7 +50,8 @@ uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
     *((int*)iface->senderContext) = TUNB;
     return 0;
 }
-uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
+
+static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
     Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
@@ -139,10 +141,10 @@ static struct ThreeNodes* setUp(struct Allocator* alloc)
     return out;
 }
 
-void sendMessage(struct ThreeNodes* tn,
-                 char* message,
-                 struct TestFramework* from,
-                 struct TestFramework* to)
+static void sendMessage(struct ThreeNodes* tn,
+                        char* message,
+                        struct TestFramework* from,
+                        struct TestFramework* to)
 {
     struct Message* msg;
     Message_STACK(msg, 64, 512);
@@ -208,4 +210,5 @@ int main()
     sendMessage(tn, "establish", tn->nodeA, tn->nodeC);
 
     Allocator_free(alloc);
+    return 0;
 }

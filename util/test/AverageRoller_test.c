@@ -12,8 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "memory/BufferAllocator.h"
-#include "util/AverageRoller.c"
+#include "memory/MallocAllocator.h"
+#include "util/AverageRoller.h"
+#include "util/AverageRoller_pvt.h"
 #include "util/events/EventBase.h"
 
 #include <stdio.h>
@@ -45,28 +46,27 @@ int main()
 
     const uint32_t windowSeconds = 3;
 
-    uint8_t buffer[4096];
-    struct Allocator* allocator = BufferAllocator_new(buffer, 4096);
+    struct Allocator* allocator = MallocAllocator_new(4096);
 
     struct EventBase* eventBase = EventBase_new(allocator);
 
-    struct AverageRoller* roller =
-        (struct AverageRoller*) AverageRoller_new(windowSeconds, eventBase, allocator);
+    struct AverageRoller_pvt* roller =
+        (struct AverageRoller_pvt*) AverageRoller_new(windowSeconds, eventBase, allocator);
     // To make life easy we will pretend it's january first 1970...
     roller->lastUpdateTime = 0;
 
     uint32_t ret = 0;
     for (uint32_t i = 0; i < ENTRY_COUNT; i++)
     {
-        uint32_t average = update(roller, testData[i][0], testData[i][1]);
+        uint32_t average = AverageRoller_updateAtTime(&roller->pub, testData[i][0], testData[i][1]);
 
-        if (average != testData[i][2]) {
+        //if (average != testData[i][2]) {
             printf("For average #%d, expected %d, got %d,  float: %f,  entryCount: %d\n",
                    (int) i, (int) testData[i][2], (int) average,
                    ((float) roller->sum) / roller->entryCount,
                    (int) roller->entryCount);
             ret = 1;
-        }
+        //}
     }
     return ret;
 }

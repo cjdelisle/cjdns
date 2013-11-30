@@ -40,8 +40,8 @@
 #include <stdlib.h>
 
 // On loan from the DoD, thanks guys.
-const uint8_t testAddrA[4] = {11, 0, 0, 1};
-const uint8_t testAddrB[4] = {11, 0, 0, 2};
+static const uint8_t testAddrA[4] = {11, 0, 0, 1};
+static const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
 /*
  * Setup a UDPAddrInterface and a TUNInterface, test sending traffic between them.
@@ -132,4 +132,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

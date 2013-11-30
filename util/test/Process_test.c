@@ -151,4 +151,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 
     EventBase_beginLoop(eb);
+    return 0;
 }

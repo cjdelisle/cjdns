@@ -87,4 +87,5 @@ int main(int argc, char** argv)
 
 
     AdminTestFramework_tearDown(fw);
+    return 0;
 }

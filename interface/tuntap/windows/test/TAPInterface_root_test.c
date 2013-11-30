@@ -27,7 +27,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/platform/netdev/NetDev.h"
 
-uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
     if (msg->length < 20) {
@@ -89,7 +89,7 @@ return 0;
     return 0;
 }
 
-void fail(void* vAlloc)
+static void fail(void* vAlloc)
 {
 printf("Test failed\n");
     struct Allocator* alloc = vAlloc;

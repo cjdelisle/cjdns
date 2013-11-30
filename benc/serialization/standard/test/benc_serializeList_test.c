@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 
-int parseEmptyList()
+static int parseEmptyList()
 {
     char* test = "d" "2:hi" "le" "e";
     struct Allocator* alloc = MallocAllocator_new(1<<20);

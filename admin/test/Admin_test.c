@@ -62,4 +62,5 @@ int main(int argc, char** argv)
     standardClient(&ctx);
 
     AdminTestFramework_tearDown(framework);
+    return 0;
 }

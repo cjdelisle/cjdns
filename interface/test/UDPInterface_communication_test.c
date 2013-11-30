@@ -110,4 +110,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

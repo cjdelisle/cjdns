@@ -19,13 +19,13 @@
 #include "util/Assert.h"
 #include "util/platform/libc/string.h"
 
-void expectFailure(char* address)
+static void expectFailure(char* address)
 {
     struct Sockaddr_storage ss;
     Assert_always(Sockaddr_parse(address, &ss));
 }
 
-void expectConvert(char* address, char* expectedOutput)
+static void expectConvert(char* address, char* expectedOutput)
 {
     struct Sockaddr_storage ss;
     Assert_always(!Sockaddr_parse(address, &ss));
@@ -37,12 +37,12 @@ void expectConvert(char* address, char* expectedOutput)
     Assert_always(!strcmp(outAddr, expectedOutput));
 }
 
-void expectSuccess(char* address)
+static void expectSuccess(char* address)
 {
     expectConvert(address, address);
 }
 
-void parse()
+static void parse()
 {
     struct Sockaddr_storage test;
     Assert_always(Sockaddr_asNative(&test.addr) == ((uint8_t*)&test) + Sockaddr_OVERHEAD);
@@ -71,7 +71,7 @@ void parse()
     expectFailure("1.0.0.");
 }
 
-void fromName()
+static void fromName()
 {
     struct Allocator* alloc;
     BufferAllocator_STACK(alloc, 4096);
@@ -85,4 +85,5 @@ int main()
 {
     parse();
     fromName();
+    return 0;
 }
