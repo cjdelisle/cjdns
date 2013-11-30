@@ -1,0 +1,23 @@
+# This still doesn't work but it's here for hacking on.
+# To try it out:
+#
+# sudo apt-get install gcc-mingw32
+# mkdir buildw32 && cd buildw32
+# cmake -DCMAKE_TOOLCHAIN_FILE=../CMakeWindows.txt ..
+# make
+#
+# Fix errors as they appear :)
+#
+
+# the name of the target operating system
+SET(CMAKE_SYSTEM_NAME Windows)
+
+# which compilers to use for C and C++
+SET(CMAKE_C_COMPILER i586-mingw32msvc-gcc)
+SET(CMAKE_CXX_COMPILER i586-mingw32msvc-g++)
+SET(CMAKE_RC_COMPILER i586-mingw32msvc-windres)
+
+# here is the target environment located
+SET(CMAKE_FIND_ROOT_PATH /usr/i586-mingw32msvc)
+
+add_definitions("-D random=rand")

@@ -1,0 +1,124 @@
+{
+  "PLAN_IMPLEMENTATIONS": [
+    [
+      "crypto_hashblocks",
+      "sha512",
+      "inplace"
+    ],
+    [
+      "crypto_scalarmult",
+      "curve25519",
+      "donna_c64"
+    ],
+    [
+      "crypto_hash",
+      "sha512",
+      "ref"
+    ],
+    [
+      "crypto_stream",
+      "salsa20",
+      "amd64_xmm6"
+    ],
+    [
+      "crypto_verify",
+      "16",
+      "ref"
+    ],
+    [
+      "crypto_stream",
+      "aes128ctr",
+      "core2"
+    ],
+    [
+      "crypto_stream",
+      "salsa2012",
+      "amd64_xmm6"
+    ],
+    [
+      "crypto_box",
+      "curve25519xsalsa20poly1305",
+      "ref"
+    ],
+    [
+      "crypto_onetimeauth",
+      "poly1305",
+      "amd64"
+    ],
+    [
+      "crypto_stream",
+      "xsalsa20",
+      "ref"
+    ],
+    [
+      "crypto_core",
+      "salsa208",
+      "ref"
+    ],
+    [
+      "crypto_hashblocks",
+      "sha256",
+      "ref"
+    ],
+    [
+      "crypto_core",
+      "hsalsa20",
+      "ref"
+    ],
+    [
+      "crypto_core",
+      "salsa2012",
+      "ref"
+    ],
+    [
+      "crypto_verify",
+      "32",
+      "ref"
+    ],
+    [
+      "crypto_hash",
+      "sha256",
+      "ref"
+    ],
+    [
+      "crypto_core",
+      "salsa20",
+      "ref"
+    ],
+    [
+      "crypto_auth",
+      "hmacsha256",
+      "ref"
+    ],
+    [
+      "crypto_sign",
+      "ed25519",
+      "ref10"
+    ],
+    [
+      "crypto_secretbox",
+      "xsalsa20poly1305",
+      "ref"
+    ],
+    [
+      "crypto_auth",
+      "hmacsha512256",
+      "ref"
+    ],
+    [
+      "crypto_stream",
+      "salsa208",
+      "amd64_xmm6"
+    ]
+  ],
+  "PLAN_TYPES": [
+    "typedef unsigned short crypto_uint16;",
+    "typedef unsigned long long crypto_uint64;",
+    "typedef unsigned char crypto_uint8;",
+    "typedef long long crypto_int64;",
+    "typedef short crypto_int16;",
+    "typedef signed char crypto_int8;",
+    "typedef int crypto_int32;",
+    "typedef unsigned int crypto_uint32;"
+  ]
+}
