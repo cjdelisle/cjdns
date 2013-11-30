@@ -157,7 +157,7 @@ require('./builder').configure({
     builder.compile('admin/angel/cjdroute2.c', 'cjdroute');
     builder.compile('publictoip6.c', 'publictoip6');
     builder.compile('privatetopublic.c', 'privatetopublic');
-    builder.compile('test/cjdroutetest.c', 'testcjdroute');
+    builder.compile('testcjdroute.c', 'testcjdroute');
 
     Codestyle.checkDir('.', true, waitFor(function (err) {
         if (err) { console.log("Codestyle error"); throw err; }
