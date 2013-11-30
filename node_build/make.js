@@ -154,7 +154,7 @@ require('./builder').configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.compile('admin/angel/cjdroute2.c', 'cjdroutejs');
+    builder.compile('admin/angel/cjdroute2.c', 'cjdroute');
     builder.compile('publictoip6.c', 'publictoip6');
     builder.compile('privatetopublic.c', 'privatetopublic');
 
