@@ -277,7 +277,6 @@ static inline void responseFromNode(struct Node* node,
         if (millisecondsSinceRequest == 0) {
             millisecondsSinceRequest = 1;
         }
-        node->outstandingPing = false;
         node->missedPings = 0;
         node->reach = reachAfterDecay(node->reach) +
             ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
@@ -474,7 +473,6 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 
         uint32_t newReach;
 
-        n->outstandingPing = false;
         if (n->missedPings < 255) {
             n->missedPings++;
         }
@@ -482,7 +480,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
             newReach = reachAfterTimeout(n->reach);
         }
         else {
-            newReach = n->reach;
+            newReach = reachAfterDecay(n->reach);
         }
 
         #ifdef Log_DEBUG
@@ -666,7 +664,6 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
     Dict* d = Dict_new(promise->alloc);
     Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_PING, promise->alloc);
     RouterModule_sendMessage(promise, d);
-    node->outstandingPing = true;
     return promise;
 }
 
@@ -690,8 +687,7 @@ static inline void refreshReach(struct Address* address, struct RouterModule* mo
     if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-            if ( now > nodeList->nodes[i]->timeOfNextPing
-                 && !nodeList->nodes[i]->outstandingPing ) {
+            if ( now > nodeList->nodes[i]->timeOfNextPing ) {
 
                 RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
                 nodeList->nodes[i]->timeOfNextPing = now +
