@@ -18,6 +18,7 @@ var Spawn = require('child_process').spawn;
 var nThen = require('nthen');
 var Extend = require('node.extend');
 var Crypto = require('crypto');
+var Semaphore = require('./Semaphore');
 
 /*
  * Why hello dear packager,
@@ -52,29 +53,17 @@ var error = function (message)
     }
 };
 
-var toCompile = [];
-var compilers = 0;
-var cc = function (args, callback, content) {
-    toCompile.push(function() {
-        compilers++;
+var sema = Semaphore.create(WORKERS);
+var compiler = function (args, callback, content) {
+    sema.take(function (returnAfter) {
         var gcc = Spawn('gcc', args);
         var err = '';
         var out = '';
         gcc.stdout.on('data', function(dat) { out += dat.toString() ; });
         gcc.stderr.on('data', function(dat) { err += dat.toString() ; });
-        gcc.on('close', function(ret) {
-            compilers--;
-            if (ret) {
-                callback(error("gcc " + args.join(' ') + "\n\n" + err));
-            }
-            while (compilers < WORKERS && toCompile.length > 0) {
-                toCompile.shift()();
-            }
-            if (err !== '') {
-                debug(err);
-            }
-            callback(undefined, out);
-        });
+        gcc.on('close', returnAfter(function(ret) {
+            callback(ret, out, err);
+        }));
         if (content) {
             gcc.stdin.write(content, function (err) {
                 if (err) { throw err; }
@@ -82,9 +71,18 @@ var cc = function (args, callback, content) {
             });
         }
     });
-    while (compilers < WORKERS && toCompile.length > 0) {
-        toCompile.shift()();
-    }
+};
+
+var cc = function (args, callback, content) {
+    compiler(args, function (ret, out, err) {
+        if (ret) {
+            callback(error("gcc " + args.join(' ') + "\n\n" + err));
+        }
+        if (err !== '') {
+            debug(err);
+        }
+        callback(undefined, out);
+    }, content);
 };
 
 // You Were Warned
@@ -516,7 +514,8 @@ module.exports.configure = function (params, configure) {
         if (state) { return; }
         state = getStatePrototype();
         configure({
-            config: state
+            config: state,
+            compiler: compiler
         }, waitFor);
 
     }).nThen(function(waitFor) {

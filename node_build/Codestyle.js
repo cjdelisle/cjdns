@@ -209,6 +209,7 @@ var main = function (dir, runInFork, callback) {
                         if (err) { throw err; }
                         if (file === '.git') {
                         } else if (file === 'contrib') {
+                        } else if (file === 'dependencies') {
                         } else if (gitIgnoreLines.indexOf(file) !== -1) {
                         } else {
                             if (stat.isDirectory()) {

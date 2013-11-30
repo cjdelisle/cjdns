@@ -13,7 +13,52 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 var Fs = require('fs');
+var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
+var Semaphore = require('./Semaphore');
+var Spawn = require('child_process').spawn;
+var Os = require('os');
+
+var WORKERS = Math.floor(Os.cpus().length * 1.25);
+
+var sema = Semaphore.create(512);
+var cp = function (src, dest, callback) {
+    Fs.stat(src, function (err, stat) {
+        if (err) { throw err; }
+        if (stat.isDirectory()) {
+            var subFiles;
+            nThen(function (waitFor) {
+                Fs.mkdir(dest, waitFor(function (err) {
+                    if (err) { throw err; }
+                }));
+                Fs.readdir(src, waitFor(function (err, list) {
+                    if (err) { throw err; }
+                    subFiles = list;
+                }));
+            }).nThen(function (waitFor) {
+                subFiles.forEach(function (file) {
+                    cp(src + '/' + file, dest + '/' + file, waitFor());
+                });
+            }).nThen(function (waitFor) {
+                callback();
+            });
+        } else {
+            sema.take(function (returnAfter) {
+                Fs.readFile(src, function (err, content) {
+                    if (err) { throw err; }
+                    Fs.writeFile(dest, content, returnAfter(function (err) {
+                        if (err) { throw err; }
+                        callback();
+                    }));
+                });
+            });
+        }
+    });
+};
+
+process.on('exit', function () {
+    console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
+});
 
 require('./builder').configure({
     rebuildIfChanges: Fs.readFileSync(__filename).toString('utf8'),
@@ -55,21 +100,58 @@ require('./builder').configure({
         '-pie',
         '-Wl,-z,relro,-z,now,-z,noexecstack'
     );
-    builder.config.libs.push(
-        './build/libuv/libuv.a',
-        '-lpthread',
-        './build/nacl_build/libnacl.a'
-    );
-    builder.config.includeDirs.push(
-        'build/nacl_build/include/',
-        'build/libuv/include/'
-    );
-/*
-    var GitVersion = require('./GitVersion');
-    GitVersion.get(waitFor(function (version) {
-        builder.config.cflags.push('-D','GIT_VERSION="'+version+'"');
-    }));
-*/
+
+    // Build dependencies
+    nThen(function (waitFor) {
+        Fs.exists('buildjs/dependencies', waitFor(function (exists) {
+            if (exists) { return; }
+            console.log("Copy dependencies");
+            cp('./node_build/dependencies', './buildjs/dependencies', waitFor());
+        }));
+    }).nThen(function (waitFor) {
+        builder.config.libs.push(
+            'buildjs/dependencies/cnacl/jsbuild/libnacl.a'
+        );
+        builder.config.includeDirs.push(
+            'buildjs/dependencies/cnacl/jsbuild/include/'
+        );
+        Fs.exists('buildjs/dependencies/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
+            if (exists) { return; }
+            console.log("Build NaCl");
+            var cwd = process.cwd();
+            process.chdir('./buildjs/dependencies/cnacl/');
+            var NaCl = require(process.cwd() + '/node_build/make.js');
+            NaCl.build(function (args, callback) {
+                args.unshift('-fPIC', '-O2', '-fomit-frame-pointer');
+                builder.compiler(args, callback);
+            }, waitFor(function () {
+                process.chdir(cwd);
+            }));
+        }));
+
+    }).nThen(function (waitFor) {
+        builder.config.libs.push(
+            'buildjs/dependencies/libuv/libuv.a',
+            '-lpthread'
+        );
+        builder.config.includeDirs.push(
+            'buildjs/dependencies/libuv/include/'
+        );
+        Fs.exists('buildjs/dependencies/libuv/libuv.a', waitFor(function (exists) {
+            if (exists) { return; }
+            console.log("Build Libuv");
+            var cwd = process.cwd();
+            process.chdir('./buildjs/dependencies/libuv/');
+            var make = Spawn('make', ['-j', WORKERS, 'CFLAGS=-fPIC']);
+            make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
+            make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+            make.on('close', waitFor(function () {
+                process.chdir(cwd);
+            }));
+        }));
+
+    }).nThen(waitFor());
+
 }).build(function (builder, waitFor) {
 
     builder.compile('admin/angel/cjdroute2.c', 'cjdroutejs');
