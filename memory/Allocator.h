@@ -20,10 +20,6 @@
 #include "util/Linker.h"
 Linker_require("memory/Allocator.c")
 
-#if !defined(Allocator_USE_CANARIES) && defined(PARANOIA)
-    //#define Allocator_USE_CANARIES
-#endif
-
 /**
  * A handle which is provided in response to calls to Allocator_onFree().
  * This handle is sutable for use with Allocator_notOnFree() to cancel a job.

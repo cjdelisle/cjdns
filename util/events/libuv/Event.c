@@ -62,7 +62,7 @@ struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                struct Allocator* allocator,
                                struct Except* eh)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     struct Allocator* alloc = Allocator_child(allocator);
     struct Event_pvt* out = Allocator_clone(alloc, (&(struct Event_pvt) {
         .callback = callback,

@@ -122,8 +122,10 @@ static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
     Message_shift(msg, headersSize, NULL);
 
     // sanity check
-    Assert_true(!Bits_memcmp(&msg->bytes[msg->length], nextMessage->bytes, 8));
-    uint64_t msgNextPartFirstLong = ((uint64_t*)nextMessage->bytes)[0];
+    #ifdef PARANOIA
+        Assert_true(!Bits_memcmp(&msg->bytes[msg->length], nextMessage->bytes, 8));
+        uint64_t msgNextPartFirstLong = ((uint64_t*)nextMessage->bytes)[0];
+    #endif
 
     // Set the required fields.
     // RFC-2460 includes the fragment header in the offset so we have to add another 8 bytes.

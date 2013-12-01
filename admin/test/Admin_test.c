@@ -53,7 +53,7 @@ static void standardClient(struct Context* ctx)
 
 int main(int argc, char** argv)
 {
-    struct AdminTestFramework* framework = AdminTestFramework_setUp(argc, argv);
+    struct AdminTestFramework* framework = AdminTestFramework_setUp(argc, argv, "Admin_test");
     struct Context ctx = {
         .framework = framework
     };

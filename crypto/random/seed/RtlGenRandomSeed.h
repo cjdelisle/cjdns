@@ -16,10 +16,14 @@
 #define RtlGenRandomSeed_H
 
 #include "crypto/random/seed/RandomSeed.h"
+#include "crypto/random/seed/RandomSeedProvider.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("crypto/random/seed/RtlGenRandomSeed.c")
 
-struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc);
+#ifdef win32
+    Linker_require("crypto/random/seed/RtlGenRandomSeed.c")
+    struct RandomSeed* RtlGenRandomSeed_new(struct Allocator* alloc);
+    RandomSeedProvider_register(RtlGenRandomSeed_new)
+#endif
 
 #endif

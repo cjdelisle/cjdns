@@ -1159,3 +1159,26 @@ struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface)
         Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
     return &wrapper->replayProtector;
 }
+
+// For testing:
+void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32])
+{
+    encryptRndNonce(nonce, msg, secret);
+}
+
+int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32])
+{
+    return decryptRndNonce(nonce, msg, secret);
+}
+
+uint8_t CryptoAuth_encryptHandshake(struct Message* message,
+                                    struct CryptoAuth_Wrapper* wrapper,
+                                    int setupMessage)
+{
+    return encryptHandshake(message, wrapper, setupMessage);
+}
+
+uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Interface* interface)
+{
+    return receiveMessage(received, interface);
+}

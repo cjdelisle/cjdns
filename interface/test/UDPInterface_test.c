@@ -42,7 +42,7 @@ static int registerPeer(struct InterfaceController* ic,
 
 int main(int argc, char** argv)
 {
-    struct AdminTestFramework* fw = AdminTestFramework_setUp(argc, argv);
+    struct AdminTestFramework* fw = AdminTestFramework_setUp(argc, argv, "UDPInterface_test");
 
     // mock interface controller.
     struct InterfaceController ifController = {

@@ -74,7 +74,7 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
 
 static uint8_t messageToTun(struct Message* message, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
     Assert_always(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
@@ -157,7 +157,7 @@ int main()
 
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_true(called);
+    Assert_always(called);
 
     Allocator_free(alloc);
     return 0;

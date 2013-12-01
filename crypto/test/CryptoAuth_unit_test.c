@@ -17,11 +17,9 @@
 #include "benc/List.h"
 #include "benc/String.h"
 #include "crypto/CryptoAuth_pvt.h"
-#include "crypto/test/Exports.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/test/DeterminentRandomSeed.h"
 #include "io/FileWriter.h"
-#include "memory/BufferAllocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/platform/libc/string.h"
@@ -60,7 +58,7 @@ static void encryptRndNonceTest()
     struct Message m = { .bytes=&buff[32], .length=12, .padding=32};
     strcpy((char*) m.bytes, "hello world");
 
-    Exports_encryptRndNonce(nonce, &m, secret);
+    CryptoAuth_encryptRndNonce(nonce, &m, secret);
 
     uint8_t* expected = (uint8_t*) "1391ac5d03ba9f7099bffbb6e6c69d67ae5bd79391a5b94399b293dc";
     uint8_t output[57];
@@ -69,7 +67,7 @@ static void encryptRndNonceTest()
     //printf("\n%s\n%s\n", (char*) expected, (char*) output);
     Assert_always(!Bits_memcmp(expected, output, 56));
 
-    Assert_always(!Exports_decryptRndNonce(nonce, &m, secret));
+    Assert_always(!CryptoAuth_decryptRndNonce(nonce, &m, secret));
     Assert_always(m.length == 12 && !Bits_memcmp(m.bytes, "hello world", m.length));
 }
 
@@ -123,7 +121,9 @@ static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
         .context = (struct CryptoAuth_pvt*) ca,
         .wrappedInterface = iface
     }));
-    Identity_set(wrapper);
+    #ifdef Identity_CHECK
+        wrapper->Identity_verifier = ((struct CryptoAuth_pvt*)ca)->Identity_verifier;
+    #endif
 
     if (authPassword) {
         struct Interface temp = {
@@ -155,7 +155,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
         .bytes = msgBuff + Headers_CryptoAuth_SIZE
     };
     Bits_memcpyConst(msg.bytes, hello, 12);
-    Exports_encryptHandshake(&msg, wrapper);
+    CryptoAuth_encryptHandshake(&msg, wrapper, 0);
 
     uint8_t actual[265];
     Assert_always(Hex_encode(actual, 265, outMessage->bytes, outMessage->length) > 0);
@@ -214,7 +214,7 @@ static void receiveHelloWithNoAuth()
     wrapper->externalInterface.receiveMessage = receiveMessage;
     wrapper->externalInterface.receiverContext = &finalOut;
 
-    Exports_receiveMessage(&incoming, &(struct Interface) { .receiverContext = wrapper } );
+    CryptoAuth_receiveMessage(&incoming, &(struct Interface) { .receiverContext = wrapper } );
 
     Assert_always(finalOut);
     Assert_always(finalOut->length == 12);
@@ -253,10 +253,10 @@ static void repeatHello()
     Bits_memcpyConst(&msg2, &msg, sizeof(struct Message));
 
     Bits_memcpyConst(msg2.bytes, hello, 12);
-    Exports_encryptHandshake(&msg, &wrapper);
+    CryptoAuth_encryptHandshake(&msg, &wrapper, 0);
 
     Bits_memcpyConst(msg2.bytes, hello, 12);
-    Exports_encryptHandshake(&msg2, &wrapper);
+    CryptoAuth_encryptHandshake(&msg2, &wrapper, 0);
 
     // Check the nonce
     Assert_always(!Bits_memcmp(msg2.bytes, "\0\0\0\1", 4));
@@ -271,9 +271,11 @@ static void repeatHello()
         },
         .wrappedInterface = &iface
     };
-    Identity_set(&wrapper2);
+    #ifdef Identity_CHECK
+        wrapper2.Identity_verifier = ((struct CryptoAuth_pvt*)ca)->Identity_verifier;
+    #endif
 
-    Exports_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
+    CryptoAuth_receiveMessage(out, &(struct Interface) { .receiverContext = &wrapper2 } );
 
     Assert_always(finalOut);
     Assert_always(finalOut->length == 12);
@@ -312,8 +314,7 @@ int main()
 {
     testGetUsers();
 
-    struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 512);
+    struct Allocator* allocator = MallocAllocator_new(4096);
     eventBase = EventBase_new(allocator);
     helloNoAuth();
     helloWithAuth();

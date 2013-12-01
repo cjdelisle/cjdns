@@ -34,11 +34,12 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
+#include "test/RootTest.h"
 
 #include <unistd.h>
 #include <stdlib.h>
 
-#ifdef Windows
+#ifdef win32
     #include <windows.h>
     #define sleep(x) Sleep(1000*x)
 #endif
@@ -92,7 +93,7 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_true(!"timeout");
+    Assert_always(!"timeout");
 }
 
 static struct AddrInterface* setupUDP(struct EventBase* base,
@@ -123,9 +124,9 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
+    Assert_always(!Sockaddr_parse("[fd00::1]", &addr));
 
-    #ifdef BSD
+    #ifdef freebsd
         // tun is not setup synchronously in bsd but it lets you bind to the tun's
         // address anyway.
         sleep(1);
@@ -139,11 +140,11 @@ int main(int argc, char** argv)
             break;
         }
     }
-    Assert_true(udp);
+    Assert_always(udp);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addrBytes;
-    Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
+    Assert_always(16 == Sockaddr_getAddress(dest, &addrBytes));
     Bits_memcpy(addrBytes, testAddrB, 16);
 
     struct Message* msg;

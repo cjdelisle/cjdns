@@ -55,7 +55,7 @@ static void missingKey()
            "'s/^created new key: \\[\\(.\\{32\\}\\)\\(.\\{32\\}\\)\\]$/\"\\1\"\\n\"\\2\",/p' "
            "| sed 's/\\([0-9a-f]\\{2\\}\\)/\\\\x\\1/g' > TestKeys.data && "
            "mv ./TestKeys.data ./dht/dhtcore/test/\n");
-    Assert_true(false);
+    Assert_always(false);
 }
 
 

@@ -31,8 +31,8 @@ struct Allocator_OnFreeJob_pvt {
     /* prevent async jobs from being called multiple times, nonzero = done */
     int done;
 
-    const char* file;
     int line;
+    const char* file;
 
     /** Set by allocator. */
     Identity
@@ -43,7 +43,7 @@ struct Allocator_Allocation_pvt {
     struct Allocator_Allocation pub;
     struct Allocator_Allocation_pvt* next;
 #ifdef Allocator_USE_CANARIES
-    long beginCanary;
+    unsigned long beginCanary;
 #endif
 };
 
@@ -103,10 +103,10 @@ struct Allocator_pvt
 
     #ifdef Allocator_USE_CANARIES
         /** The canary for allocations made with this allocator constant to allow varification. */
-        long canary;
+        unsigned long canary;
 
         /** The canary which will be used for the next allocator, mutable. */
-        long nextCanary;
+        unsigned long nextCanary;
     #endif
 
     /** For checking structure integrity. */

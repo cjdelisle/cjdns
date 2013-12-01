@@ -68,7 +68,7 @@ static uint8_t receiveMessageB(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_true(!"timeout");
+    Assert_always(!"timeout");
 }
 
 int main(int argc, char** argv)
@@ -84,7 +84,7 @@ int main(int argc, char** argv)
     };
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
+    Assert_always(!Sockaddr_parse("127.0.0.1", &addr));
 
     struct UDPInterface* udpA = UDPInterface_new(base, &addr.addr, alloc, NULL, logger, &ic);
     struct UDPInterface* udpB = UDPInterface_new(base, &addr.addr, alloc, NULL, logger, &ic);

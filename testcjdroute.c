@@ -12,6 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strlen
+#define string_strcmp
+#include "util/Assert.h"
+#include "util/platform/libc/string.h"
+#include "util/events/Time.h"
+#include "util/events/EventBase.h"
+#include "memory/MallocAllocator.h"
+
 #include <stdio.h>
 
 <?js
@@ -19,23 +27,71 @@
     var Tests = require("./Tests");
     Tests.get(function (tests) {
         var prototypes = [];
-        var mainContent = [];
+        var listContent = [];
         tests.forEach(function (test) {
             var main = /^.*\/([^\/]+)\.c$/.exec(test)[1] + '_main';
             (state['cflags'+test] = state['cflags'+test] || []).push('-D', 'main='+main);
             file.links.push(test);
-            mainContent.push('printf("'+test+'\\n");');
-            mainContent.push(main+'(argc, argv);');
+            listContent.push('{ .func = '+main+', .name = "'+test.replace(/^.*\/|.c$/g, '')+'" },');
             prototypes.push('int '+main+'(int argc, char** argv);');
         });
-        done(prototypes.join('\n'));
-        process.nextTick(function() { mainDone(mainContent.join('\n')); });
+        file.testcjdroute_tests = listContent.join('\n');
+        file.testcjdroute_prototypes = prototypes.join('\n');
+        done();
     });
 ?>
 
+<?js return file.testcjdroute_prototypes; ?>
+
+ typedef int (* Test)(int argc, char** argv);
+
+static struct {
+    Test func;
+    char* name;
+} TESTS[] = {
+    <?js return file.testcjdroute_tests ?>
+};
+
+static uint64_t runTest(Test test,
+                        char* name,
+                        uint64_t startTime,
+                        int argc,
+                        char** argv,
+                        struct EventBase* base)
+{
+    fprintf(stderr, "Running test %s", name);
+    Assert_always(!test(argc, argv));
+    uint64_t now = Time_hrtime();
+    char* seventySpaces = "                                                                      ";
+    int count = strlen(name);
+    if (count > 69) { count = 69; }
+    fprintf(stderr, "%s%d.%d ms\n",
+            &seventySpaces[count],
+            (int)((now - startTime)/1000000),
+            (int)((now - startTime)/1000)%1000);
+    return now;
+}
+
 int main(int argc, char** argv)
 {
-    <?js
-        mainDone = this.async();
-    ?>
+    struct Allocator* alloc = MallocAllocator_new(4096);
+    struct EventBase* base = EventBase_new(alloc);
+    uint64_t now = Time_hrtime();
+    uint64_t startTime = now;
+    if (argc > 1) {
+        for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
+            if (!strcmp(TESTS[i].name, argv[1])) {
+                TESTS[i].func(argc, argv);
+                return 0;
+            }
+        }
+    }
+    for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
+        now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, base);
+    }
+    fprintf(stderr, "Total test time %d.%d ms\n",
+            (int)((now - startTime)/1000000),
+            (int)((now - startTime)/1000)%1000);
+    Allocator_free(alloc);
+    return 0;
 }

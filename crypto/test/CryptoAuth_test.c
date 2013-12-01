@@ -17,7 +17,6 @@
 #define string_strlen
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"

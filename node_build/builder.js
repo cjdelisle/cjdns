@@ -108,7 +108,7 @@ var execJs = function (js, state, file, fileName, callback) {
             err = e;
             err.message += "\nContent: [" + js + "]";
             clearTimeout(to);
-            process.nextTick(function() { callback(res); });
+            throw err;
         }
     }).nThen(function (waitFor) {
         if (err) { return; }
@@ -120,26 +120,67 @@ var execJs = function (js, state, file, fileName, callback) {
 
 var debug = console.log;
 
-var preprocess = function (content, state, fileObj, fileName, callback) {
-    var elems;
-    nThen(function (waitFor) {
-        elems = content.split('<?js');
-        elems.forEach(function (elem, i) {
-            if (!i) { return; }
-            var capture = elem.substring(0,elem.indexOf('?>'));
-            var remainder = elem.substring(capture.length+2);
-            execJs(capture, state, fileObj, fileName, waitFor(function (err, ret) {
-                if (err) {
-                    callback(err);
-                    callback = function() {};
-                    return;
-                }
-                //debug('[' + capture + '] --> [' + ret + '] [' + remainder.substring(0,100) + ']');
-                elems[i] = ret + remainder;
-                //if (elems[i].indexOf('?>') !== -1) { throw new Error(); }
+var preprocessBlock = function (block, state, fileObj, fileName, callback) {
+    // a block is an array of strings and arrays, any inside arrays must be
+    // preprocessed first. deep first top to bottom.
+
+    var error = false;
+    var nt = nThen;
+    block.forEach(function (elem, i) {
+        if (typeof(elem) === 'string') { return; }
+        nt = nt(function (waitFor) {
+            preprocessBlock(elem, state, fileObj, fileName, waitFor(function (err, ret) {
+                if (err) { throw err; }
+                block[i] = ret;
             }));
-        });
-    }).nThen(function (waitFor) {
+        }).nThen;
+    });
+
+    nt(function (waitFor) {
+        if (error) { return; }
+        var capture = block.join('');
+        execJs(capture, state, fileObj, fileName, waitFor(function (err, ret) {
+            if (err) { throw err; }
+            callback(undefined, ret);
+        }));
+    });
+};
+
+var preprocess = function (content, state, fileObj, fileName, callback) {
+    // <?js file.Test_mainFunc = "<?js return 'RootTest_'+file.RootTest_mainFunc; ?>" ?>
+    // worse:
+    // <?js file.Test_mainFunc = "<?js var done = this.async(); process.nextTick(done); ?>" ?>
+
+    var flatArray = content.split(/(<\?js|\?>)/);
+    var elems = [];
+    var unflatten = function (array, startAt, out) {
+        for (var i = startAt; i < array.length; i++) {
+            if (!((i - startAt) % 2)) {
+                out.push(array[i]);
+            } else if (array[i] === '<?js') {
+                var next = [];
+                out.push(next);
+                i = unflatten(array, i+1, next);
+            } else if (array[i] === '?>') {
+                return i;
+            }
+        }
+        return i;
+    };
+    if (unflatten(flatArray, 0, elems) !== flatArray.length) { throw new Error() };
+
+    var nt = nThen;
+    elems.forEach(function (elem, i) {
+        if (typeof(elem) === 'string') { return; }
+        nt = nt(function (waitFor) {
+            preprocessBlock(elem, state, fileObj, fileName, waitFor(function (err, ret) {
+                if (err) { throw err; }
+                elems[i] = ret;
+            }));
+        }).nThen;
+    });
+
+    nt(function (waitFor) {
         callback(undefined, elems.join(''));
     });
 };
@@ -174,7 +215,7 @@ var compileFile = function (fileName, state, tempDir, callback)
     currentlyCompiling[fileName].push(callback);
 
     //debug('\033[2;32mCompiling ' + fileName + '\033[0m');
-    var preprocessed = tempDir + '/' + getObjectFile(fileName) + '.i';
+    var preprocessed = state.buildDir+'/'+getObjectFile(fileName)+'.i';
     var outFile = state.buildDir+'/'+getObjectFile(fileName);
     var fileContent;
     var fileObj = getFile();
@@ -209,6 +250,15 @@ var compileFile = function (fileName, state, tempDir, callback)
 
     }).nThen(function (waitFor) {
 
+        Fs.exists(preprocessed, waitFor(function (exists) {
+            if (!exists) { return; }
+            Fs.unlink(preprocessed, waitFor(function (err) {
+                if (err) { throw err; }
+            }));
+        }));
+
+    }).nThen(function (waitFor) {
+
         //debug("Preprocess");
         preprocess(fileContent, state, fileObj, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
@@ -224,11 +274,10 @@ var compileFile = function (fileName, state, tempDir, callback)
         }));
 
         Fs.exists(outFile, waitFor(function (exists) {
-            if (exists) {
-                Fs.unlink(outFile, waitFor(function (err) {
-                    if (err) { throw err; }
-                }));
-            }
+            if (!exists) { return; }
+            Fs.unlink(outFile, waitFor(function (err) {
+                if (err) { throw err; }
+            }));
         }));
 
     }).nThen(function (waitFor) {
@@ -488,7 +537,9 @@ module.exports.configure = function (params, configure) {
     }
 
     var state;
-    var buildStage;
+    var buildStage = function () {};
+    var testStage = function () {};
+    var packStage = function () {};
 
     nThen(function(waitFor) {
         // make the build directory
@@ -531,6 +582,7 @@ module.exports.configure = function (params, configure) {
 
         state.buildDir = params.buildDir;
         for (var i = 0; i < state.includeDirs.length; i++) {
+            if (state.cflags[state.cflags.indexOf(state.includeDirs[i])-1] == '-I') { continue; }
             state.cflags.push('-I');
             state.cflags.push(state.includeDirs[i]);
         }
@@ -571,6 +623,14 @@ module.exports.configure = function (params, configure) {
 
         debug("Compile " + time() + "ms");
 
+    }).nThen(function (waitFor) {
+
+        testStage({ }, waitFor);
+
+    }).nThen(function(waitFor) {
+
+        packStage({ }, waitFor);
+
     }).nThen(function(waitFor) {
 
         getMTimes(state.files, state.mtimes, waitFor(function (err, mtimes) {
@@ -592,6 +652,16 @@ module.exports.configure = function (params, configure) {
     return {
         build: function (build) {
             buildStage = build;
+            return {
+                test: function (test) {
+                    testStage = test;
+                    return {
+                        pack: function (pack) {
+                            packStage = pack;
+                        }
+                    };
+                }
+            };
         }
     };
 };

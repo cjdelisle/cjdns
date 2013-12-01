@@ -114,3 +114,8 @@ int EventBase_eventCount(struct EventBase* eventBase)
     uv_walk(ctx->loop, countCallback, &eventCount);
     return eventCount;
 }
+
+struct EventBase_pvt* EventBase_privatize(struct EventBase* base)
+{
+    return Identity_cast((struct EventBase_pvt*) base);
+}

@@ -15,30 +15,15 @@
 #include "crypto/random/seed/RandomSeed.h"
 #include "util/log/Log.h"
 
+#include "crypto/random/seed/RandomSeedProvider.h"
 #include "crypto/random/seed/RtlGenRandomSeed.h"
 #include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
 #include "crypto/random/seed/DevUrandomRandomSeed.h"
 #include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
 #include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
 
-static RandomSeed_Provider PROVIDERS[] = {
-    /** windows */
-    RtlGenRandomSeed_new,
-
-    /** bsd syscall(KERN_ARND) */
-    BsdKernArndSysctlRandomSeed_new,
-
-    /** /dev/urandom */
-    DevUrandomRandomSeed_new,
-
-    /** linux syscall(RANDOM_UUID) */
-    LinuxRandomUuidSysctlRandomSeed_new,
-
-    /** linux /proc/sys/kernel/random/uuid */
-    ProcSysKernelRandomUuidRandomSeed_new
-};
-#define PROVIDERS_COUNT 5
-Assert_compileTime(PROVIDERS_COUNT == (sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)));
+static RandomSeed_Provider PROVIDERS[] = { RandomSeedProvider_list() };
+#define PROVIDERS_COUNT ((int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)))
 
 struct RandomSeed* SystemRandomSeed_new(RandomSeed_Provider* additionalProviders,
                                         int additionalProviderCount,

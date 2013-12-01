@@ -169,6 +169,7 @@ static inline struct Node_Link* getLink(struct NodeStore_pvt* store)
 
 static inline void verifyNode(struct Node_Two* node)
 {
+#ifdef PARANOIA
     struct Node_Link* link;
     for (link = node->reversePeers; link; link = link->nextPeer) {
         Assert_true(link->linkAddr == (uintptr_t)link);
@@ -191,6 +192,7 @@ static inline void verifyNode(struct Node_Two* node)
         Assert_true(rlink);
         lastLink = link;
     }
+#endif
 }
 
 static void verifyLinks(struct NodeStore_pvt* store)

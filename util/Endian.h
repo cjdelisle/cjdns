@@ -17,15 +17,15 @@
 
 #include <stdint.h>
 
-#ifdef Linux
+#ifdef linux
     #include <byteswap.h>
 #endif
 
-#ifdef Darwin
+#ifdef darwin
     #include <libkern/OSByteOrder.h>
 #endif
 
-#ifdef BSD
+#ifdef freebsd
     #include <sys/endian.h>
 #endif
 

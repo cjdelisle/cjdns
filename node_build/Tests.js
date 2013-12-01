@@ -18,7 +18,7 @@ var nThen = require("nthen");
 var Tests = module.exports;
 
 var getTests = function (file, tests, callback) {
-    if (/\/(.git|buildjs|node_build|contrib|windows)\//.test(file)) { callback(); return; }
+    if (/\/(.git|buildjs|node_build|contrib)\//.test(file)) { callback(); return; }
     Fs.stat(file, function (err, stat) {
         if (err) { throw err; }
         if (stat.isDirectory()) {
@@ -33,7 +33,7 @@ var getTests = function (file, tests, callback) {
                 callback();
             });
             return;
-        } else if (/_test\.c$/.test(file)) {
+        } else if (/_test\.c$/.test(file) && tests.indexOf(file) === -1) {
             tests.push(file);
         }
         callback();

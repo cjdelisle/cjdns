@@ -26,7 +26,7 @@ uint64_t Time_hrtime()
 
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     return uv_now(base->loop) + base->baseTime;
 }
 

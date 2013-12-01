@@ -36,6 +36,7 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
+#include "test/RootTest.h"
 
 #include <stdlib.h>
 
@@ -88,13 +89,13 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_true(!"timeout");
+    Assert_always(!"timeout");
 }
 
 int main(int argc, char** argv)
 {
     // TODO: fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
-    #if defined(Illumos) || defined(Darwin) || defined(FreeBSD) || defined(OpenBSD)
+    #if defined(sunos) || defined(darwin) || defined(freebsd)
         return 0;
     #endif
 
@@ -110,12 +111,12 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 30, logger, NULL);
 
     struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse("0.0.0.0", &ss));
+    Assert_always(!Sockaddr_parse("0.0.0.0", &ss));
     struct AddrInterface* udp = UDPAddrInterface_new(base, &ss.addr, alloc, NULL, logger);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addr;
-    Assert_true(4 == Sockaddr_getAddress(dest, &addr));
+    Assert_always(4 == Sockaddr_getAddress(dest, &addr));
     Bits_memcpy(addr, testAddrB, 4);
 
     struct Message* msg;

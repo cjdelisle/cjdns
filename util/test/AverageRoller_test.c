@@ -60,13 +60,13 @@ int main()
     {
         uint32_t average = AverageRoller_updateAtTime(&roller->pub, testData[i][0], testData[i][1]);
 
-        //if (average != testData[i][2]) {
+        if (average != testData[i][2]) {
             printf("For average #%d, expected %d, got %d,  float: %f,  entryCount: %d\n",
                    (int) i, (int) testData[i][2], (int) average,
                    ((float) roller->sum) / roller->entryCount,
                    (int) roller->entryCount);
             ret = 1;
-        //}
+        }
     }
     return ret;
 }

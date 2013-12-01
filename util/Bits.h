@@ -17,7 +17,6 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
-#include "util/log/Log.h"
 #include "util/Gcc.h"
 
 #include <stdint.h>
@@ -182,7 +181,7 @@ static inline void* Bits_memcpyDebug(void* out,
  * @param in the buffer to read from.
  * @param length the number of bytes to copy.
  */
-#ifdef Log_DEBUG
+#ifdef PARANOIA
     #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, Gcc_SHORT_FILE, Gcc_LINE)
 #else
     #define Bits_memcpy(a,b,c) Bits_memcpyNoDebug(a,b,c)

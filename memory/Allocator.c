@@ -83,12 +83,12 @@ static inline unsigned long getRealSize(unsigned long requestedSize)
     return ((requestedSize + (sizeof(char*) - 1)) & ~(sizeof(char*) - 1)) // align
         + sizeof(struct Allocator_Allocation_pvt)
     #ifdef Allocator_USE_CANARIES
-        + sizeof(long)
+        + sizeof(unsigned long)
     #endif
     ;
 }
 
-#define END_CANARY(alloc) ((long*) alloc)[ (alloc->size / sizeof(long)) - 1 ]
+#define END_CANARY(alloc) ((unsigned long*) alloc)[ (alloc->pub.size / sizeof(unsigned long)) - 1 ]
 
 static inline void setCanaries(struct Allocator_Allocation_pvt* alloc,
                                struct Allocator_pvt* context)
@@ -110,8 +110,8 @@ static inline void checkCanaries(struct Allocator_Allocation_pvt* alloc,
         } else {
             return;
         }
-        Assert_failure("%s:%d Fatal error: invalid [%s] canary",
-                       context->fileName, context->pub.lineNum, canary);
+        Assert_failure("%s:%d Fatal error: invalid [%s] canary\n",
+                       context->pub.fileName, context->pub.lineNum, canary);
     #endif
 }
 
@@ -234,39 +234,6 @@ static void releaseMemory(struct Allocator_pvt* context,
     #endif
 }
 
-/**
- * Change the root allocator for a given subtree.
- * @param alloc an allocator.
- *
-static void changeRoot(struct Allocator_pvt* alloc,
-                       struct Allocator_FirstCtx* root,
-                       struct Allocator_pvt* first,
-                       const char* file,
-                       int line)
-{
-    Assert_true(first != alloc);
-    if (!first) {
-        first = alloc;
-    }
-    if (alloc->rootAlloc != NULL) {
-        alloc->rootAlloc->spaceAvailable += alloc->allocatedHere;
-    }
-    if (root != NULL) {
-        if (root->spaceAvailable < (int64_t)alloc->allocatedHere) {
-            failure(alloc, "Out of memory, limit exceeded", file, line);
-        }
-        root->spaceAvailable -= alloc->allocatedHere;
-    }
-    alloc->rootAlloc = root;
-
-    struct Allocator_pvt* child = alloc->firstChild;
-    while (child) {
-        struct Allocator_pvt* nextChild = child->nextSibling;
-        changeRoot(child, root, first, file, line);
-        child = nextChild;
-    }
-}
-*/
 // disconnect an allocator from it's parent.
 static void disconnect(struct Allocator_pvt* context)
 {
@@ -303,7 +270,6 @@ static void connect(struct Allocator_pvt* parent,
     child->nextSibling = parent->firstChild;
     parent->firstChild = child;
     child->lastSibling = parent;
-    //changeRoot(child, parent->rootAlloc, NULL, file, line);
 }
 
 static struct Allocator_pvt* getParent(struct Allocator_pvt* child)
@@ -320,7 +286,7 @@ static struct Allocator_pvt* getParent(struct Allocator_pvt* child)
         child = ls;
         ls = ls->lastSibling;
     }
-    Assert_true(0);
+    Assert_always(0);
 }
 
 static void freeAllocator(struct Allocator_pvt* context, const char* file, int line);
@@ -346,7 +312,6 @@ void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob)
     }
 
     if (!context->onFree) {
-        //childFreed(context);
         // There are no more jobs, release the memory.
         freeAllocator(context, context->pub.fileName, context->pub.lineNum);
     }
@@ -367,7 +332,7 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
         }
         cpp = &cp->next;
     }
-    Assert_true(found);
+    Assert_always(found);
 
     Assert_true(child->adoptions);
     Assert_true(child->adoptions->parents);
@@ -381,7 +346,7 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
         }
         cpp = &cp->next;
     }
-    Assert_true(found);
+    Assert_always(found);
 }
 
 /**
@@ -578,8 +543,9 @@ struct Allocator* Allocator__child(struct Allocator* allocator, const char* file
     };
     Identity_set(&stackChild);
     #ifdef Allocator_USE_CANARIES
-        child->nextCanary = child->canary = parent->nextCanary;
+        stackChild.nextCanary = stackChild.canary = parent->nextCanary;
     #endif
+
     struct Allocator_pvt* child =
         newAllocation(&stackChild, sizeof(struct Allocator_pvt), file, line);
     Bits_memcpyConst(child, &stackChild, sizeof(struct Allocator_pvt));
@@ -721,8 +687,8 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
                 .lineNum = lineNum,
             },
             #ifdef Allocator_USE_CANARIES
-            .canary = (long) 0x09F911029D74E35Bll,
-            .nextCanary = (long) 0xD84156C5635688C0ll,
+            .canary = (unsigned long) CompileTimeRandom_uint64(),
+            .nextCanary = (unsigned long) CompileTimeRandom_uint64(),
             #endif
         }
     };

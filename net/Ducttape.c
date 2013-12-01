@@ -426,11 +426,13 @@ static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* 
         Identity_cast((struct Ducttape_pvt*)
             &((uint8_t*)iface)[-offsetof(struct Ducttape, magicInterface)]);
 
-    Assert_true(msg->length >= Headers_IP6Header_SIZE);
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
+    #ifdef PARANOIA
+        Assert_true(msg->length >= Headers_IP6Header_SIZE);
+        struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
 
-    Assert_true(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
-    Assert_true(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
+        Assert_true(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
+        Assert_true(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
+    #endif
 
     TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
 
@@ -882,7 +884,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
         Log_debug(context->logger, "Sending layer3 message");
         return outgoingFromMe(message, dtHeader, session, context);
     } else {
-        Assert_true(0);
+        Assert_always(0);
     }
 }
 

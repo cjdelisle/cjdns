@@ -21,7 +21,7 @@
 
 static void unsplice()
 {
-    Assert_true(0x13 == LabelSplicer_unsplice(0x13, 1));
+    Assert_always(0x13 == LabelSplicer_unsplice(0x13, 1));
 }
 
 static void splice()

@@ -44,9 +44,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-static void spawnAngel(char* asClientPipeName, struct EventBase* base, struct Allocator* alloc)
+static void spawnAngel(char* testName,
+                       char* asClientPipeName,
+                       struct EventBase* base,
+                       struct Allocator* alloc)
 {
-    char* args[] = { "angel", asClientPipeName, NULL };
+    char* args[] = { testName, "angel", asClientPipeName, NULL };
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
     char* path = Process_getPath(tempAlloc);
@@ -131,10 +134,10 @@ static void initAngel(struct Pipe* asClientPipe,
  * The "core process" pipes all of its inputs back to the originating process
  */
 
-struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
+struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char* testName)
 {
-    if (argc > 1 && !strcmp("angel", argv[1])) {
-        exit(AngelInit_main(argc, argv));
+    if (argc > 2 && !strcmp(testName, argv[1]) && !strcmp("angel", argv[2])) {
+        exit(AngelInit_main(argc-1, &argv[1]));
     }
 
     struct Allocator* alloc = MallocAllocator_new(1<<20);
@@ -158,7 +161,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv)
     asCorePipe->logger = logger;
     struct Interface* asCoreIface = FramingInterface_new(65535, &asCorePipe->iface, alloc);
 
-    spawnAngel(asClientPipeName, eventBase, alloc);
+    spawnAngel(testName, asClientPipeName, eventBase, alloc);
 
     Log_info(logger, "Initializing Angel");
     initAngel(asClientPipe, asCoreIface, (char*)asCorePipe->name, eventBase, logger, alloc, rand);

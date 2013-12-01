@@ -298,7 +298,7 @@ struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct
 
 void Sockaddr_normalizeNative(void* nativeSockaddr)
 {
-#if defined(BSD) || defined(Darwin)
+#if defined(freebsd) || defined(openbsd) || defined(darwin)
     ((struct sockaddr*)nativeSockaddr)->sa_len = 0;
 #endif
 }

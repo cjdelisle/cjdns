@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define string_strlen
+#define string_strcmp
 #include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
@@ -21,7 +23,7 @@
 #include "util/events/Process.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
-#include "util/platform/libc/strlen.h"
+#include "util/platform/libc/string.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
@@ -118,8 +120,8 @@ int main(int argc, char** argv)
     ctx->base = eb;
     ctx->log = log;
 
-    if (argc > 1) {
-        child(argv[1], ctx);
+    if (argc > 3 && !strcmp("Process_test", argv[1]) && !strcmp("child", argv[2])) {
+        child(argv[3], ctx);
         return 0;
     }
 
@@ -136,17 +138,17 @@ int main(int argc, char** argv)
 
     char* path = Process_getPath(alloc);
 
-    Assert_true(path != NULL);
+    Assert_always(path != NULL);
     #ifdef Windows
-        Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */
-        Assert_true(strstr(path, ".exe"));
+        Assert_always(strstr(path, ":\\") == path + 1); /* C:\ */
+        Assert_always(strstr(path, ".exe"));
     #else
-        Assert_true(path[0] == '/');
+        Assert_always(path[0] == '/');
     #endif
 
-    char* args[] = { name, NULL };
+    char* args[] = { "Process_test", "child", name, NULL };
 
-    Assert_true(!Process_spawn(path, args, eb, alloc));
+    Assert_always(!Process_spawn(path, args, eb, alloc));
 
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 

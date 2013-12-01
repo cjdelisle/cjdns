@@ -17,8 +17,6 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 
-#ifdef Linux
-
 #include <unistd.h>
 #include <sys/sysctl.h>
 
@@ -43,13 +41,6 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return 0;
 }
-
-#else
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
-{
-    return -1;
-}
-#endif
 
 struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)
 {

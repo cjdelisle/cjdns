@@ -20,24 +20,25 @@
 #define Gcc_PRINTF( format_idx, arg_idx ) \
     __attribute__((__format__ (__printf__, format_idx, arg_idx)))
 #define Gcc_NORETURN \
-  __attribute__((__noreturn__))
+    __attribute__((__noreturn__))
+
+#define Gcc_NONNULL(num) \
+    __attribute__((__nonnull__(num)))
+
+#define Gcc_PURE \
+    __attribute__ ((__pure__))
+
 
 #else
 
 #define Gcc_PRINTF( format_idx, arg_idx )
 #define Gcc_NORETURN
+#define Gcc_NONNULL(num)
+#define Gcc_PURE
 
 #endif
 
-#ifdef HAS_JS_PREPROCESSOR
-#define Gcc_SHORT_FILE <?\
-js                                                                    \
-    return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"';   \
-?>
-#else
-    #define Gcc_SHORT_FILE __FILE__
-#endif
-
+#define Gcc_SHORT_FILE <?js return '"'+__FILE__.substring(__FILE__.lastIndexOf('/')+1)+'"'; ?>
 #define Gcc_LINE __LINE__
 
 Gcc_PRINTF(1,2)

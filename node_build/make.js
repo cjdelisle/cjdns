@@ -65,7 +65,8 @@ require('./builder').configure({
     buildDir: 'buildjs'
 }, function(builder, waitFor) {
 
-    builder.config.systemName = 'Linux';
+    // ['linux','darwin','sunos','win32','freebsd']
+    builder.config.systemName = 'linux';
     builder.config.tempDir = '/tmp';
     builder.config.useTempFiles = true;
     builder.config.cflags.push(
@@ -75,7 +76,7 @@ require('./builder').configure({
         '-Werror',
         '-Wno-pointer-sign',
         '-pedantic',
-        '-D','Linux=1',
+        '-D',builder.config.systemName + '=1',
         '-D','HAS_ETH_INTERFACE=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
@@ -93,6 +94,7 @@ require('./builder').configure({
         '-D','Log_DEBUG',
         '-D','CJDNS_MAX_PEERS=256',
         '-D','Identity_CHECK=1',
+        '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1',
         '-D','HAS_JS_PREPROCESSOR'
     );
@@ -154,13 +156,38 @@ require('./builder').configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.compile('admin/angel/cjdroute2.c', 'cjdroute');
-    builder.compile('publictoip6.c', 'publictoip6');
-    builder.compile('privatetopublic.c', 'privatetopublic');
-    builder.compile('testcjdroute.c', 'testcjdroute');
+    builder.compile('admin/angel/cjdroute2.c', './buildjs/cjdroute');
+    builder.compile('publictoip6.c', './buildjs/publictoip6');
+    builder.compile('privatetopublic.c', './buildjs/privatetopublic');
+    builder.compile('testcjdroute.c', './buildjs/testcjdroute');
 
     Codestyle.checkDir('.', true, waitFor(function (err) {
         if (err) { console.log("Codestyle error"); throw err; }
+    }));
+
+}).test(function (builder, waitFor) {
+
+    var out = '';
+    var test = Spawn('./buildjs/testcjdroute');
+    test.stdout.on('data', function(dat) { out += dat.toString(); });
+    test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+    test.on('close', waitFor(function (ret) {
+        if (ret !== 0) {
+            console.log(out);
+            console.log('\033[1;31mFailed to build cjdns.\033[0m');
+            waitFor.abort();
+        } else {
+            console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
+        }
+    }));
+
+}).pack(function (builder, waitFor) {
+
+    Fs.exists('./buildjs/cjdroute', waitFor(function (exists) {
+        if (!exists) { return; }
+        Fs.rename('./buildjs/cjdroute', './cjdroute', waitFor(function (err) {
+            if (err) { throw err; }
+        }));
     }));
 
 });

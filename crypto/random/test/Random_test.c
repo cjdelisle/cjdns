@@ -84,7 +84,7 @@ static void test179(struct Allocator* alloc, struct Log* logger)
     Random_bytes(rand, buff, 32);
     Random_bytes(rand2, buff, 32);
 
-    Assert_true(Bits_memcmp(buff, buff2, 32));
+    Assert_always(Bits_memcmp(buff, buff2, 32));
 }
 
 int main()

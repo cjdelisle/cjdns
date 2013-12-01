@@ -119,4 +119,15 @@ struct CryptoAuth_Wrapper
     Identity
 };
 
+
+uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Interface* interface);
+
+uint8_t CryptoAuth_encryptHandshake(struct Message* message,
+                                    struct CryptoAuth_Wrapper* wrapper,
+                                    int setupMessage);
+
+int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
+
+void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
+
 #endif

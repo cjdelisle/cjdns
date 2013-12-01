@@ -44,7 +44,7 @@ static int onFree(struct Allocator_OnFreeJob* job)
 
 int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) base);
+    struct EventBase_pvt* ctx = EventBase_privatize(base);
 
     int i;
     for (i = 0; args[i]; i++) ;

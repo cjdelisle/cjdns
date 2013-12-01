@@ -12,7 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#ifndef win32
+int main(int argc, char** argv)
+{
+    return 0;
+}
+#else
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
@@ -35,18 +40,18 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return 0;
     }
     // ethernet padding.
-    Message_shift(msg, -2);
+    Message_shift(msg, -2, NULL);
 
     uint8_t from[13];
     uint8_t to[13];
     Hex_encode(from, 13, msg->bytes, 6);
-    Message_shift(msg, -6);
+    Message_shift(msg, -6, NULL);
     Hex_encode(to, 13, msg->bytes, 6);
-    Message_shift(msg, -6);
+    Message_shift(msg, -6, NULL);
 
     uint8_t type[5];
     Hex_encode(type, 5, msg->bytes, 2);
-    Message_shift(msg, -2);
+    Message_shift(msg, -2, NULL);
 
     int subsubtype = -1;
     int subtype = -1;
@@ -96,7 +101,7 @@ printf("Test failed\n");
     Allocator_free(alloc);
 }
 
-int main()
+int main(int argc, char** argv)
 {
 printf("init test");
     struct Allocator* alloc = MallocAllocator_new(1<<20);
@@ -112,11 +117,13 @@ printf("init test");
     ndp->prefixLen = 8;
 
     struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse("fd00::1", &ss));
+    Assert_always(!Sockaddr_parse("fd00::1", &ss));
     NetDev_addAddress(ifName, &ss.addr, 8, logger, NULL);
 
     Timeout_setTimeout(fail, alloc, 10000, base, alloc);
 
     EventBase_beginLoop(base);
 printf("Test ended\n");
+    return 0;
 }
+#endif

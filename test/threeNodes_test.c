@@ -35,7 +35,7 @@
 #define TUNA 1
 static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node C [%s] [%d]\n", msg->bytes, msg->length);
     *((int*)iface->senderContext) = TUNC;
@@ -44,7 +44,7 @@ static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
 
 static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNB;
@@ -53,7 +53,7 @@ static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 
 static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     uint8_t buff[1024];
     Hex_encode(buff, 1024, msg->bytes, msg->length);

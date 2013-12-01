@@ -14,7 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "crypto/test/Exports.h"
+#include "crypto/CryptoAuth_pvt.h"
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"

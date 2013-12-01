@@ -12,22 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Exports_H
-#define Exports_H
+#ifndef RandomSeedProvider_H
+#define RandomSeedProvider_H
 
-#include <stdint.h>
+<?js file.RandomSeedProvider_providers = []; ?>
 
-#include "crypto/CryptoAuth.h"
-#include "wire/Message.h"
-#include "util/Linker.h"
-Linker_require("crypto/test/Exports.c")
+#define RandomSeedProvider_register(name) <?js file.RandomSeedProvider_providers.push(#name) ?>
 
-void Exports_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
-
-int Exports_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
-
-uint8_t Exports_encryptHandshake(struct Message* message, struct CryptoAuth_Wrapper* wrapper);
-
-void Exports_receiveMessage(struct Message* received, struct Interface* iface);
+#define RandomSeedProvider_list() <?js return file.RandomSeedProvider_providers.join(','); ?>
 
 #endif

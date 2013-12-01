@@ -229,7 +229,7 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
                                            struct Except* exHandler,
                                            struct Log* logger)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*)eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
 
     struct UDPAddrInterface_pvt* context =
         Allocator_clone(alloc, (&(struct UDPAddrInterface_pvt) {

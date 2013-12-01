@@ -34,7 +34,7 @@
 #define TUNA 1
 static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNB;
@@ -42,7 +42,7 @@ static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 }
 static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node A [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNA;

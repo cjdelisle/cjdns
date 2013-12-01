@@ -332,7 +332,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                                 struct Except* eh,
                                 struct Allocator* userAlloc)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
     #ifdef Windows
@@ -389,7 +389,7 @@ struct Pipe* Pipe_forFiles(int inFd,
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
     struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
 
     if (uv_pipe_open(&out->peer, inFd)) {
         Except_throw(eh, "uv_pipe_open(inFd) failed [%s]",
@@ -416,7 +416,7 @@ struct Pipe* Pipe_named(const char* name,
                         struct Allocator* userAlloc)
 {
     struct Pipe_pvt* out = newPipe(eb, name, eh, userAlloc);
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
 
     // Attempt to create pipe.
     if (!uv_pipe_bind(&out->server, out->pub.fullName)) {

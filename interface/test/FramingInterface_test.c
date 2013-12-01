@@ -53,7 +53,7 @@ int main()
     fi->receiverContext = &output;
 
     char* text = "Hello World!";
-    Assert_true(12 == strlen(text));
+    Assert_always(12 == strlen(text));
     union MessageLength ml = { .length_be = Endian_hostToBigEndian32(12) };
 
     struct Message* msg;

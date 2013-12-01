@@ -73,7 +73,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   struct EventBase* eventBase,
                                   struct Allocator* allocator)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     struct Timeout* timeout = Allocator_calloc(allocator, sizeof(struct Timeout), 1);
 
     timeout->callback = callback;

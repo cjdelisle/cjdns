@@ -16,10 +16,14 @@
 #define BsdKernArndSysctlRandomSeed_H
 
 #include "crypto/random/seed/RandomSeed.h"
+#include "crypto/random/seed/RandomSeedProvider.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("crypto/random/seed/BsdKernArndSysctlRandomSeed.c")
 
-struct RandomSeed* BsdKernArndSysctlRandomSeed_new(struct Allocator* alloc);
+#if defined(freebsd) || defined(openbsd)
+    Linker_require("crypto/random/seed/BsdKernArndSysctlRandomSeed.c")
+    struct RandomSeed* BsdKernArndSysctlRandomSeed_new(struct Allocator* alloc);
+    RandomSeedProvider_register(BsdKernArndSysctlRandomSeed_new)
+#endif
 
 #endif

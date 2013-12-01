@@ -35,6 +35,6 @@ struct AdminTestFramework
     struct Interface* angelInterface;
 };
 
-struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv);
+struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char* testName);
 void AdminTestFramework_tearDown(struct AdminTestFramework* framework);
 #endif
