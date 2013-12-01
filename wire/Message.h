@@ -44,7 +44,7 @@ struct Message
     uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
     name = &(struct Message){                                  \
         .length = messageLength,                               \
-        .bytes = UniqueName_get() + amountOfPadding,           \
+        .bytes = UniqueName_last() + amountOfPadding,          \
         .padding = amountOfPadding,                            \
         .capacity = messageLength                              \
     }

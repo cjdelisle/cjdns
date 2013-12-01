@@ -41,6 +41,6 @@ struct Allocator* BufferAllocator__new(void* buffer,
 // This relies on the fact that UniqueName is only unique on a per-line basis.
 #define BufferAllocator_STACK(name, length) \
     uint8_t UniqueName_get()[length]; \
-    name = BufferAllocator_new(UniqueName_get(), length);
+    name = BufferAllocator_new(UniqueName_last(), length);
 
 #endif
