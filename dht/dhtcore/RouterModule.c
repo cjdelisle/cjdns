@@ -678,20 +678,53 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     }
 }
 
-// For each path to a destination, if the path has not recently been pinged, then ping it
-static inline void refreshReach(struct Address* address, struct RouterModule* module)
+/**
+ * Calculates expected latency from reach, bound between gmrt and timeout
+ * Used to determine time between sending new pings when doing refreshReach
+ * Also used to set a different ping timeout per node when doing refreshReach
+ * This allows us to quickly notice when a route has dropped, instead of waiting
+ * for the normal ping timeout (which is quite long).
+ */
+static inline uint32_t getExpectedLatency(struct Node* node, struct RouterModule* module)
 {
+    uint32_t expectedLatency = (node->reach > 1)
+                             ? UINT32_MAX / node->reach
+                             : UINT32_MAX;
+
+    expectedLatency = ( expectedLatency
+                      < RouterModule_globalMeanResponseTime(module) )
+                    ? RouterModule_globalMeanResponseTime(module)
+                    : expectedLatency;
+
+    expectedLatency = ( expectedLatency
+                      < pingTimeoutMilliseconds(module) )
+                    ? expectedLatency
+                    : pingTimeoutMilliseconds(module);
+
+    return expectedLatency;
+}
+
+// For each path to a destination, if the path has not recently been pinged, then ping it
+void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                               struct RouterModule* module)
+{
+    struct Address address;
+    Bits_memcpyConst(address.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
     struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
-    struct NodeList* nodeList = NodeStore_getNodesByAddr(address, 8, nodeListAlloc,
+    struct NodeList* nodeList = NodeStore_getNodesByAddr(&address, 8, nodeListAlloc,
                                                          module->nodeStore);
     if (nodeList) {
         uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
         for (uint32_t i = 0 ; i < nodeList->size ; i++) {
             if ( now > nodeList->nodes[i]->timeOfNextPing ) {
+                uint32_t expectedLatency = getExpectedLatency(nodeList->nodes[i], module);
 
-                RouterModule_pingNode(nodeList->nodes[i], 0, module, module->allocator);
-                nodeList->nodes[i]->timeOfNextPing = now +
-                                                     RouterModule_globalMeanResponseTime(module);
+                RouterModule_pingNode( nodeList->nodes[i],
+                                       (2*expectedLatency)+10,
+                                       module,
+                                       module->allocator );
+
+                nodeList->nodes[i]->timeOfNextPing = now + expectedLatency;
             }
         }
     Allocator_free(nodeListAlloc);
@@ -703,7 +736,6 @@ struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
 {
     struct Address addr;
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-    refreshReach(&addr, module);
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }
