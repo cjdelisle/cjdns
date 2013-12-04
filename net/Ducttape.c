@@ -488,7 +488,21 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
-
+/**
+ * TODO: something sane
+ * Basically, we want to do two things here.
+ * 1: Run a search to look up a path to this address, since we're trying to talk to them anyway.
+ * 2: Refresh the reach of each already-known path.
+ * For now I just hardcoded the search interval to ~8 seconds, as using timeBetweenSearches
+ * was searching often enough to scare me. --Arc
+ */
+    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
+    if (context->timeOfLastSearch + 8192 < now) {
+        context->timeOfLastSearch = now;
+        SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
+    }
+    RouterModule_refreshReach(header->destinationAddr, context->routerModule);
+//End of TODO block
     struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {

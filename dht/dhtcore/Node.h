@@ -41,6 +41,13 @@ struct Node
      * In ms, as per Time_currentTimeMilliseconds.
      */
     uint64_t timeOfNextPing;
+
+    /**
+     * Used to count the number of consecutive missed pings when testing reach.
+     * Not allowing 1 or 2 before penalizing was causing us to switch paths too often,
+     * leading to latency spikes.
+     */
+    uint8_t missedPings;
 };
 
 struct Node_Link;

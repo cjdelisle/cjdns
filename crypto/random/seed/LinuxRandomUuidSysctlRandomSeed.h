@@ -20,7 +20,7 @@
 #include "memory/Allocator.h"
 #include "util/Linker.h"
 
-#ifdef linux
+#if defined(linux) && !defined(__ILP32__)
     Linker_require("crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.c")
     struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc);
     RandomSeedProvider_register(LinuxRandomUuidSysctlRandomSeed_new)
