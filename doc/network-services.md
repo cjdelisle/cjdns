@@ -54,6 +54,38 @@ Edit `/etc/samba/smb.conf`:
 ^ This will cause Samba to not bind to `tun0`
   (or whichever TUN device you are using).
 
+### Apache
+
+You will have to find the `Listen` directive in your Apache configuration, 
+which is located in different files depending on your distribution and platform. 
+Many distributions make Apache listen to all interfaces, IPv4 as well as IPv6:
+
+    Listen 80
+
+You can change this to:
+
+    Listen 192.168.1.1:80
+    
+For example, to force Apache onto IPv4 addresses only for all of its hosts. 
+If you wish to mix and match virtual hosts, exposing some via IPv6 and others 
+only via IPv4, you can configure each virtual host separately:
+
+    <VirtualHost [2001:db8::a00:20ff:fea7:ccea]:80>
+        # configuration goes here
+    </VirtualHost>
+
+Versus a virtual host in IPv4:
+
+    <VirtualHost 192.168.1.1:80>
+        # configuration goes here
+    </VirtualHost>
+
+If you keep listening on all IP versions, make sure your default `DocumentRoot` 
+points to something useful and not something sensitive, since Apache will fall 
+back to that `DocumentRoot` if none of your virtual hosts matches an incoming 
+request.
+
+
 ### Lighttpd
 
 Comment out the following line in `/etc/lighttpd/lighttpd.conf`:
