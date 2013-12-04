@@ -12,20 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/version/Version.h"
+#include "util/CString.h"
 
-const uint8_t* Version_gitVersion()
+#include <string.h>
+
+unsigned long CString_strlen(const char* str)
 {
-    return (uint8_t*) <?js
-        var done = this.async();
-        require('fs').readFile('.git/logs/HEAD', function (err, ret) {
-            if (err) { throw err; }
-            var lines = ret.toString('utf8').split('\n');
-            var hashes = lines[lines.length-2].split(' ');
-            var head = hashes[1];
-            if (!(/^[a-f0-9]{40}$/.test(head))) {
-                throw new Error(head + ' does not look like a git hash');
-            }
-            done('"'+head+'"');
-        }); ?> ;
+    return strlen(str);
+}
+
+int CString_strcmp(const char* a, const char* b)
+{
+    return strcmp(a,b);
+}
+
+char* CString_strchr(const char* a, int b)
+{
+    return strchr(a,b);
+}
+
+char* CString_strrchr(const char* a, int b)
+{
+    return strrchr(a,b);
 }

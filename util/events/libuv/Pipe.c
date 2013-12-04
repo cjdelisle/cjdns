@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define _GNU_SOURCE // libuv's fault
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/platform/libc/strlen.h"
@@ -23,7 +23,6 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include <uv.h>
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -291,7 +290,7 @@ static void listenCallback(uv_stream_t* server, int status)
 
     uv_close((uv_handle_t*) &pipe->server, onClose);
 
-    #ifndef Windows
+    #ifndef win32
         // get rid of the pipe after it has been connected.
         uv_fs_t req;
         uv_fs_unlink(pipe->peer.loop, &req, pipe->pub.fullName, NULL);
@@ -335,7 +334,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    #ifdef Windows
+    #ifdef win32
         #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
     #else
         #define PREFIX "/tmp/cjdns_pipe_"
@@ -362,7 +361,7 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
         Except_throw(eh, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
     }
 
-    #ifdef Windows
+    #ifdef win32
         out->pub.fd = &out->peer.handle;
     #else
         out->pub.fd = &out->peer.io_watcher.fd;

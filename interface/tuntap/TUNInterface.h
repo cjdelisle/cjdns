@@ -28,7 +28,7 @@ Linker_require("interface/tuntap/TUNInterface_" + state.systemName + ".c")
  * If this runs on a system where IFNAMSIZ is less then this, names larger
  * than that will also be rejected.
  */
-#ifdef Windows
+#ifdef win32
     #define TUNInterface_IFNAMSIZ 256
 #else
     #define TUNInterface_IFNAMSIZ 16

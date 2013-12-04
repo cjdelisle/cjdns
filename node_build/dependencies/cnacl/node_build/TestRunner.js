@@ -16,7 +16,7 @@ var getCompiler = function(cc) {
     args.push.apply(args, compileCall.args);
     args.push('-o', compileCall.outFile, compileCall.inFile);
     args.push(BUILD_DIR + '/libnacl.a');
-    cc(args, function(retCode, stderr) {
+    cc(args, function(retCode, stdout, stderr) {
       if (stderr !== '') { console.log(stderr); }
       if (retCode !== 0) { throw new Error('failed to compile'); }
       onComplete();

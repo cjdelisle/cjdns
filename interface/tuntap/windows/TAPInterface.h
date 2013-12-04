@@ -17,6 +17,7 @@
 
 #include "exception/Except.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "interface/Interface.h"
 #include "util/Linker.h"

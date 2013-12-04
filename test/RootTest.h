@@ -15,7 +15,7 @@
 #ifndef RootTest_H
 #define RootTest_H
 
-#include "benc/String.h"
+#include "util/CString.h"
 #include <stdio.h>
 
 #define RootTest_toStr(x) RootTest_toStr2(x)
@@ -31,7 +31,7 @@ int main(int argc, char** argv)
     int j = 0;
     for (int i = 0; i < argc; i++) {
         argv[j] = argv[i];
-        if (String_equals(String_CONST("+roottest"), String_CONST(argv[i]))) {
+        if (!CString_strcmp("+roottest", argv[i])) {
             j--;
             runIt = 1;
         }

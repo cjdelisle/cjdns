@@ -12,20 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define _GNU_SOURCE // libuv's fault
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
 
-#ifdef Windows
+#ifdef win32
     #include <sys/timeb.h>
     #include <time.h>
 #else
     #include <sys/time.h>
 #endif
-
-#include <uv.h>
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
@@ -46,7 +44,7 @@ static void calibrateTime(struct EventBase_pvt* base)
     uint64_t seconds;
     uint64_t milliseconds;
 
-    #ifdef Windows
+    #ifdef win32
         struct _timeb tb;
         _ftime(&tb);
         seconds = tb.time;

@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _WIN32_WINNT 0x0600
 #include "exception/WinFail.h"
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Bits.h"

@@ -12,20 +12,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/version/Version.h"
+#ifndef _GNU_SOURCE
+    #define _GNU_SOURCE // CHECKFILES_IGNORE libuv's fault
+#endif
+#ifdef win32
+    #define _WIN32_WINNT 0x0600 // CHECKFILES_IGNORE
 
-const uint8_t* Version_gitVersion()
-{
-    return (uint8_t*) <?js
-        var done = this.async();
-        require('fs').readFile('.git/logs/HEAD', function (err, ret) {
-            if (err) { throw err; }
-            var lines = ret.toString('utf8').split('\n');
-            var hashes = lines[lines.length-2].split(' ');
-            var head = hashes[1];
-            if (!(/^[a-f0-9]{40}$/.test(head))) {
-                throw new Error(head + ' does not look like a git hash');
-            }
-            done('"'+head+'"');
-        }); ?> ;
-}
+    // Remove compiler flags which blow up when running with windows.
+    <?js (state["cflags"+fileName] = state["cflags"+fileName] || []).push("!-pedantic"); ?>
+#endif
+
+#include <uv.h>

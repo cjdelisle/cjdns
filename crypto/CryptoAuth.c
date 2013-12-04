@@ -42,7 +42,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef Windows
+#ifdef win32
     #undef interface
 #endif
 

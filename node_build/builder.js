@@ -54,9 +54,9 @@ var error = function (message)
 };
 
 var sema = Semaphore.create(WORKERS);
-var compiler = function (args, callback, content) {
+var compiler = function (compilerPath, args, callback, content) {
     sema.take(function (returnAfter) {
-        var gcc = Spawn('gcc', args);
+        var gcc = Spawn(compilerPath, args);
         var err = '';
         var out = '';
         gcc.stdout.on('data', function(dat) { out += dat.toString() ; });
@@ -73,8 +73,8 @@ var compiler = function (args, callback, content) {
     });
 };
 
-var cc = function (args, callback, content) {
-    compiler(args, function (ret, out, err) {
+var cc = function (gcc, args, callback, content) {
+    compiler(gcc, args, function (ret, out, err) {
         if (ret) {
             callback(error("gcc " + args.join(' ') + "\n\n" + err));
         }
@@ -199,6 +199,22 @@ var getObjectFile = function (cFile) {
     return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o'
 };
 
+var getFlags = function (state, fileName) {
+    var flags = [];
+    flags.push.apply(flags, state.cflags);
+    flags.push.apply(flags, state['cflags'+fileName]);
+    for (var i = flags.length-1; i >= 0; i--) {
+        // might be undefined because splicing causes us to be off the end of the array
+        if (typeof(flags[i]) === 'string' && flags[i][0] === '!') {
+            var f = flags[i].substring(1);
+            flags.splice(i, 1);
+            var index;
+            while ((index = flags.indexOf(f)) > -1) { flags.splice(index, 1); }
+        }
+    }
+    return flags;
+};
+
 var currentlyCompiling = {};
 var compileFile = function (fileName, state, tempDir, callback)
 {
@@ -223,10 +239,9 @@ var compileFile = function (fileName, state, tempDir, callback)
         (function() {
             //debug("CPP -MM");
             var flags = ['-E', '-MM'];
-            flags.push.apply(flags, state.cflags);
-            flags.push.apply(flags, state['cflags'+fileName]);
+            flags.push.apply(flags, getFlags(state, fileName));
             flags.push(fileName);
-            cc(flags, waitFor(function (err, output) {
+            cc(state.gcc, flags, waitFor(function (err, output) {
                 if (err) { throw err; }
                 // replace the escapes and newlines
                 output = output.replace(/ \\|\n/g, '').split(' ');
@@ -239,10 +254,9 @@ var compileFile = function (fileName, state, tempDir, callback)
         (function() {
             //debug("CPP");
             var flags = ['-E'];
-            flags.push.apply(flags, state.cflags);
-            flags.push.apply(flags, state['cflags'+fileName]);
+            flags.push.apply(flags, getFlags(state, fileName));
             flags.push(fileName);
-            cc(flags, waitFor(function (err, output) {
+            cc(state.gcc, flags, waitFor(function (err, output) {
                 if (err) { throw err; }
                 fileContent = output;
             }));
@@ -284,14 +298,13 @@ var compileFile = function (fileName, state, tempDir, callback)
 
         //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile];
-        flags.push.apply(flags, state.cflags);
-        flags.push.apply(flags, state['cflags'+fileName]);
+        flags.push.apply(flags, getFlags(state, fileName));
         if (state.useTempFiles) {
             flags.push(preprocessed);
         } else {
             flags.push('-');
         }
-        cc(flags, waitFor(function (err) {
+        cc(state.gcc, flags, waitFor(function (err) {
             if (err) { throw err; }
             fileObj.obj = outFile;
         }), fileContent);
@@ -471,7 +484,7 @@ var compile = function (file, outputFile, state, callback) {
         ldArgs.push.apply(ldArgs, state.libs);
         debug('\033[1;31mLinking C executable ' + outputFile + '\033[0m');
 
-        cc(ldArgs, waitFor(function (err, ret) {
+        cc(state.gcc, ldArgs, waitFor(function (err, ret) {
             if (err) { throw err; }
         }));
 
@@ -575,7 +588,9 @@ module.exports.configure = function (params, configure) {
         state = getStatePrototype();
         configure({
             config: state,
-            compiler: compiler
+            compiler: function (args, callback, content) {
+                compiler(state.gcc, args, callback, content);
+            }
         }, waitFor);
 
     }).nThen(function(waitFor) {

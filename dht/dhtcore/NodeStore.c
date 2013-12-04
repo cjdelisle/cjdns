@@ -525,6 +525,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct EncodingScheme* scheme,
                                         int encodingFormNumber)
 {
+return NULL;
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
     verifyLinks(store);

@@ -726,7 +726,7 @@ unsigned long Allocator_bytesAllocated(struct Allocator* allocator)
     return bytesAllocated(context);
 }
 
-void Allocator_setCanary(struct Allocator* alloc, long value)
+void Allocator_setCanary(struct Allocator* alloc, unsigned long value)
 {
     #ifdef Allocator_USE_CANARIES
         struct Allocator_pvt* context = Identity_cast((struct Allocator_pvt*) alloc);

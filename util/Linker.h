@@ -15,11 +15,6 @@
 #ifndef Linker_H
 #define Linker_H
 
-#ifdef HAS_JS_PREPROCESSOR
-#define Linker_require(req) <\
-?js file.links.push(req); ?>
-#else
-#define Linker_require(req)
-#endif
+#define Linker_require(req) <?js file.links.push(req); ?>
 
 #endif

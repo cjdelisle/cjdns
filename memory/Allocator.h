@@ -300,7 +300,7 @@ void Allocator__adopt(struct Allocator* parentAlloc,
  * By default the canaries are statically set but this allows the value to be changed so that
  * the value of the canaries is unpredictable in order to foil targetted attacks.
  */
-void Allocator_setCanary(struct Allocator* alloc, long value);
+void Allocator_setCanary(struct Allocator* alloc, unsigned long value);
 
 /**
  * Get the number of bytes allocated by this allocator and all of it's children.

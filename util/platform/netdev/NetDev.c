@@ -63,7 +63,7 @@ void NetDev_setMTU(const char* interfaceName,
 
 void NetDev_flushAddresses(const char* deviceName, struct Except* eh)
 {
-    #ifdef Windows
+    #ifdef win32
         NetPlatform_flushAddresses(deviceName, eh);
     #endif
 }

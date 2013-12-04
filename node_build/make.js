@@ -66,7 +66,9 @@ require('./builder').configure({
 }, function(builder, waitFor) {
 
     // ['linux','darwin','sunos','win32','freebsd']
-    builder.config.systemName = 'linux';
+    var system = builder.config.systemName = 'win32';
+    builder.config.gcc = 'i586-mingw32msvc-gcc';
+
     builder.config.tempDir = '/tmp';
     builder.config.useTempFiles = true;
     builder.config.cflags.push(
@@ -77,7 +79,7 @@ require('./builder').configure({
         '-Wno-pointer-sign',
         '-pedantic',
         '-D',builder.config.systemName + '=1',
-        '-D','HAS_ETH_INTERFACE=1',
+        '-DHAS_ETH_INTERFACE=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
 
@@ -89,18 +91,32 @@ require('./builder').configure({
         '-Wstack-protector',
 
         '-D','HAS_BUILTIN_CONSTANT_P',
-        '-fPIE',
+
         '-g',
-        '-D','Log_DEBUG',
+
         '-D','CJDNS_MAX_PEERS=256',
+
+        // disable for speed, enable for safety
+        '-D','Log_DEBUG',
         '-D','Identity_CHECK=1',
         '-D','Allocator_USE_CANARIES=1',
-        '-D','PARANOIA=1',
-        '-D','HAS_JS_PREPROCESSOR'
+        '-D','PARANOIA=1'
     );
-    builder.config.ldflags.push(
-        '-pie',
-        '-Wl,-z,relro,-z,now,-z,noexecstack'
+    if (system === 'win32') {
+        builder.config.cflags.push(
+            '!-fPIE',
+            '-Wno-format',
+            '!-DHAS_ETH_INTERFACE=1'
+        );
+    } else {
+        builder.config.ldflags.push(
+            '-pie',
+            '-Wl,-z,relro,-z,now,-z,noexecstack'
+        );
+    }
+
+    builder.config.libs.push(
+        '-lssp'
     );
 
     // Build dependencies
@@ -124,7 +140,7 @@ require('./builder').configure({
             process.chdir('./buildjs/dependencies/cnacl/');
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
-                args.unshift('-fPIC', '-O2', '-fomit-frame-pointer');
+                args.unshift(/*'-fPIC', */'-O2', '-fomit-frame-pointer');
                 builder.compiler(args, callback);
             }, waitFor(function () {
                 process.chdir(cwd);
@@ -136,6 +152,13 @@ require('./builder').configure({
             'buildjs/dependencies/libuv/libuv.a',
             '-lpthread'
         );
+        if (builder.config.systemName === 'win32') {
+            builder.config.libs.push(
+                '-lws2_32',
+                '-lpsapi',   // GetProcessMemoryInfo()
+                '-liphlpapi' // GetAdapterAddresses()
+            );
+        }
         builder.config.includeDirs.push(
             'buildjs/dependencies/libuv/include/'
         );
@@ -144,7 +167,7 @@ require('./builder').configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir('./buildjs/dependencies/libuv/');
-            var make = Spawn('make', ['-j', WORKERS, 'CFLAGS=-fPIC']);
+            var make = Spawn('make', ['-j', WORKERS, 'CFLAGS=-fPIC', 'PLATFORM=mingw32', 'CC='+builder.config.gcc]);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
             make.on('close', waitFor(function () {

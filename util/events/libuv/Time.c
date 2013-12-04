@@ -12,12 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Time_H
-#define Time_H
-#define _GNU_SOURCE // libuv's fault
+#include "util/events/libuv/UvWrapper.h"
+#include "util/events/Time.h"
 #include "util/events/libuv/EventBase_pvt.h"
-
-#include <uv.h>
 
 uint64_t Time_hrtime()
 {
@@ -34,5 +31,3 @@ uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
 {
     return Time_currentTimeMilliseconds(eventBase) / 1024;
 }
-
-#endif

@@ -17,9 +17,9 @@
 
 #include "util/Gcc.h"
 
-//#define strlen(a) __builtin_strlen(a)
-Gcc_PURE
+#define strlen(a) __builtin_strlen(a)
+/*Gcc_PURE
 Gcc_NONNULL(1)
-unsigned long strlen(const char* str);
+unsigned long strlen(const char* str);*/
 
 #endif

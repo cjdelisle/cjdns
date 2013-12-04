@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define _GNU_SOURCE // libuv's fault
+#include "util/events/libuv/UvWrapper.h"
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/addressable/UDPAddrInterface.h"
@@ -23,8 +23,6 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
-
-#include <uv.h>
 
 struct UDPAddrInterface_pvt
 {

@@ -22,8 +22,8 @@
 #define Gcc_NORETURN \
     __attribute__((__noreturn__))
 
-#define Gcc_NONNULL(num) \
-    __attribute__((__nonnull__(num)))
+#define Gcc_NONNULL(...) \
+    __attribute__((__nonnull__(__VA_ARGS__)))
 
 #define Gcc_PURE \
     __attribute__ ((__pure__))

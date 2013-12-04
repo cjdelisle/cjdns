@@ -12,14 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strrchr
-#define string_strchr
-#define string_strlen
-#define _GNU_SOURCE // libuv
+#include "util/events/libuv/UvWrapper.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 
@@ -27,8 +24,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#include <uv.h>
 
 struct Sockaddr_pvt
 {
@@ -88,8 +83,8 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         out = &unusedOut;
     }
     Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
-    char* lastColon = strrchr(str, ':');
-    if (!lastColon || lastColon == strchr(str, ':')) {
+    char* lastColon = CString_strrchr(str, ':');
+    if (!lastColon || lastColon == CString_strchr(str, ':')) {
         // IPv4
         int port = 0;
         int addrLen;
@@ -100,7 +95,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
                 return -1;
             }
         } else {
-            addrLen = strlen(str);
+            addrLen = CString_strlen(str);
         }
         uint8_t addr[16] = {0};
         if (addrLen > 15 || addrLen < 7) {
@@ -121,7 +116,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         if (*str == '[') {
             str++;
             {
-                char* endBracket = strchr(str, ']');
+                char* endBracket = CString_strchr(str, ']');
                 if (!endBracket) {
                     return -1;
                 }
@@ -134,7 +129,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
                 }
             }
         } else {
-            addrLen = strlen(str);
+            addrLen = CString_strlen(str);
         }
         uint8_t addr[40] = {0};
         if (addrLen > 39 || addrLen < 2) {
@@ -196,14 +191,14 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
     }
 
     if (port) {
-        int totalLength = strlen(printedAddr) + strlen("[]:65535") + 1;
+        int totalLength = CString_strlen(printedAddr) + CString_strlen("[]:65535") + 1;
         char* out = Allocator_malloc(alloc, totalLength);
         const char* format = (addr->ss.ss_family == AF_INET6) ? "[%s]:%u" : "%s:%u";
         snprintf(out, totalLength, format, printedAddr, port);
         return out;
     }
 
-    int totalLength = strlen(printedAddr) + 1;
+    int totalLength = CString_strlen(printedAddr) + 1;
     char* out = Allocator_calloc(alloc, totalLength, 1);
     Bits_memcpy(out, printedAddr, totalLength);
     return out;

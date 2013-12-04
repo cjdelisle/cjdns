@@ -53,10 +53,10 @@ static int sendResponse(struct Message* msg,
     struct NDPHeader_RouterAdvert* adv = (struct NDPHeader_RouterAdvert*) msg->bytes;
     adv->checksum = Checksum_icmp6(ip6->sourceAddr, msg->bytes, msg->length);
 
-    Message_push(msg, ip6, sizeof(struct Headers_IP6Header));
+    Message_push(msg, ip6, sizeof(struct Headers_IP6Header), NULL);
 
     // Eth
-    Message_push(msg, eth, sizeof(struct Ethernet));
+    Message_push(msg, eth, sizeof(struct Ethernet), NULL);
     struct Ethernet* ethP = (struct Ethernet*) msg->bytes;
     Bits_memcpyConst(ethP->destAddr, eth->srcAddr, 6);
     Bits_memcpyConst(ethP->srcAddr, eth->destAddr, 6);
@@ -94,7 +94,7 @@ printf("wrong address for router solicitation\n");
     }
 
     // now we're committed.
-    Message_shift(msg, -msg->length);
+    Message_shift(msg, -msg->length, NULL);
 
     // Prefix option
     struct NDPHeader_RouterAdvert_PrefixOpt prefix = {
@@ -107,7 +107,7 @@ printf("wrong address for router solicitation\n");
     };
     Bits_memcpyConst(prefix.prefix, ns->pub.advertisePrefix, 16);
     prefix.prefixLen = ns->pub.prefixLen;
-    Message_push(msg, &prefix, sizeof(struct NDPHeader_RouterAdvert_PrefixOpt));
+    Message_push(msg, &prefix, sizeof(struct NDPHeader_RouterAdvert_PrefixOpt), NULL);
 
     // NDP message
     struct NDPHeader_RouterAdvert adv = {
@@ -120,7 +120,7 @@ printf("wrong address for router solicitation\n");
         .reachableTime_be = 0,
         .retransTime_be = 0
     };
-    Message_push(msg, &adv, sizeof(struct NDPHeader_RouterAdvert));
+    Message_push(msg, &adv, sizeof(struct NDPHeader_RouterAdvert), NULL);
 
     sendResponse(msg, eth, ip6, ns);
     return 1;
@@ -149,14 +149,14 @@ printf("wrong address for neighbor solicitation\n");
     }
 
     // now we're committed.
-    Message_shift(msg, -msg->length);
+    Message_shift(msg, -msg->length, NULL);
 
     struct NDPHeader_NeighborAdvert_MacOpt macOpt = {
         .two = 2,
         .one = 1
     };
     Bits_memcpyConst(macOpt.mac, eth->destAddr, 6);
-    Message_push(msg, &macOpt, sizeof(struct NDPHeader_NeighborAdvert_MacOpt));
+    Message_push(msg, &macOpt, sizeof(struct NDPHeader_NeighborAdvert_MacOpt), NULL);
 
     struct NDPHeader_NeighborAdvert na = {
         .oneThirtySix = 136,
@@ -167,7 +167,7 @@ printf("wrong address for neighbor solicitation\n");
             | NDPHeader_NeighborAdvert_bits_OVERRIDE
     };
     Bits_memcpyConst(na.targetAddr, UNICAST_ADDR, 16);
-    Message_push(msg, &na, sizeof(struct NDPHeader_NeighborAdvert));
+    Message_push(msg, &na, sizeof(struct NDPHeader_NeighborAdvert), NULL);
 
     sendResponse(msg, eth, ip6, ns);
     return 1;
@@ -190,16 +190,16 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     // store the eth and ip6 headers so they don't get clobbered
     struct Ethernet storedEth;
-    Message_pop(msg, &storedEth, sizeof(struct Ethernet));
+    Message_pop(msg, &storedEth, sizeof(struct Ethernet), NULL);
 
     struct Headers_IP6Header storedIp6;
-    Message_pop(msg, &storedIp6, sizeof(struct Headers_IP6Header));
+    Message_pop(msg, &storedIp6, sizeof(struct Headers_IP6Header), NULL);
 
     if (!tryNeighborSolicitation(msg, &storedEth, &storedIp6, ns)
         && !tryRouterSolicitation(msg, &storedEth, &storedIp6, ns))
     {
-        Message_push(msg, &storedIp6, sizeof(struct Headers_IP6Header));
-        Message_push(msg, &storedEth, sizeof(struct Ethernet));
+        Message_push(msg, &storedIp6, sizeof(struct Headers_IP6Header), NULL);
+        Message_push(msg, &storedEth, sizeof(struct Ethernet), NULL);
         return Interface_receiveMessage(&ns->pub.generic, msg);
     }
     // responding happens in sendResponse..

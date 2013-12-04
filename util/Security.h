@@ -18,7 +18,7 @@
 #include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-#ifdef Windows
+#ifdef win32
     Linker_require("util/Security_Windows.c")
 #else
     Linker_require("util/Security.c")

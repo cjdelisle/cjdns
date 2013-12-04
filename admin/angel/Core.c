@@ -309,45 +309,14 @@ static void angelResponse(Dict* resp, void* vNULL)
     // do nothing
 }
 
-/*
- * This process is started with 2 parameters, they must all be numeric in base 10.
- * toAngel the pipe which is used to send data back to the angel process.
- * fromAngel the pipe which is used to read incoming data from the angel.
- *
- * Upon initialization, this process will wait for an initial configuration to be sent to
- * it and then it will send an initial response.
- */
-int Core_main(int argc, char** argv)
+void Core_init(struct Allocator* alloc,
+               struct Log* logger,
+               struct EventBase* eventBase,
+               struct Interface* angelIface,
+               struct Random* rand,
+               struct Except* eh)
 {
-    struct Except* eh = NULL;
-
-    if (argc != 3) {
-        Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
-    }
-
-    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
-    struct Log* preLogger = FileWriterLog_new(stderr, alloc);
-    struct EventBase* eventBase = EventBase_new(alloc);
-
-    // -------------------- Setup the Pre-Logger ---------------------- //
-    struct Log* logger = IndirectLog_new(alloc);
-    IndirectLog_set(logger, preLogger);
-
-    // -------------------- Setup the PRNG ---------------------- //
-    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
-
-    // -------------------- Change Canary Value ---------------------- //
-    Allocator_setCanary(alloc, (long)Random_int64(rand));
     struct Allocator* tempAlloc = Allocator_child(alloc);
-
-
-    // The first read inside of getInitialConfig() will begin it waiting.
-    struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
-    angelPipe->logger = logger;
-    angelPipe->onClose = angelDied;
-
-    struct Interface* angelIface = FramingInterface_new(65535, &angelPipe->iface, alloc);
-
     Dict* config = getInitialConfig(angelIface, eventBase, tempAlloc, eh);
 
     struct Hermes* hermes = Hermes_new(angelIface, eventBase, logger, alloc);
@@ -517,7 +486,39 @@ int Core_main(int argc, char** argv)
     }));
     Admin_registerFunction("memory", adminMemory, ctx, false, NULL, admin);
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
+}
 
+
+int Core_main(int argc, char** argv)
+{
+    struct Except* eh = NULL;
+
+    if (argc != 3) {
+        Except_throw(eh, "This is internal to cjdns and shouldn't started manually.");
+    }
+
+    struct Allocator* alloc = MallocAllocator_new(ALLOCATOR_FAILSAFE);
+    struct Log* preLogger = FileWriterLog_new(stderr, alloc);
+    struct EventBase* eventBase = EventBase_new(alloc);
+
+    // -------------------- Setup the Pre-Logger ---------------------- //
+    struct Log* logger = IndirectLog_new(alloc);
+    IndirectLog_set(logger, preLogger);
+
+    // -------------------- Setup the PRNG ---------------------- //
+    struct Random* rand = LibuvEntropyProvider_newDefaultRandom(eventBase, logger, eh, alloc);
+
+    // -------------------- Change Canary Value ---------------------- //
+    Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
+
+    // The first read inside of getInitialConfig() will begin it waiting.
+    struct Pipe* angelPipe = Pipe_named(argv[2], eventBase, eh, alloc);
+    angelPipe->logger = logger;
+    angelPipe->onClose = angelDied;
+
+    struct Interface* angelIface = FramingInterface_new(65535, &angelPipe->iface, alloc);
+
+    Core_init(alloc, logger, eventBase, angelIface, rand, eh);
     EventBase_beginLoop(eventBase);
     return 0;
 }

@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strcmp
 #include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
@@ -23,7 +21,7 @@
 #include "util/events/Process.h"
 #include "util/log/Log.h"
 #include "util/log/FileWriterLog.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 #include "util/Assert.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
@@ -47,12 +45,12 @@ static void onConnectionParent(struct Pipe* p, int status)
     struct Context* c = p->iface.receiverContext;
 
     struct Allocator* alloc = Allocator_child(c->alloc);
-    uint8_t* bytes = Allocator_calloc(alloc, strlen(MESSAGE) + 1, 1);
-    Bits_memcpy(bytes, MESSAGE, strlen(MESSAGE));
+    uint8_t* bytes = Allocator_calloc(alloc, CString_strlen(MESSAGE) + 1, 1);
+    Bits_memcpy(bytes, MESSAGE, CString_strlen(MESSAGE));
     struct Message* m = Allocator_clone(alloc, (&(struct Message) {
-        .length = strlen(MESSAGE),
+        .length = CString_strlen(MESSAGE),
         .padding = 0,
-        .capacity = strlen(MESSAGE),
+        .capacity = CString_strlen(MESSAGE),
         .alloc = alloc,
         .bytes = bytes
     }));
@@ -64,8 +62,8 @@ static void onConnectionParent(struct Pipe* p, int status)
 static uint8_t receiveMessageParent(struct Message* msg, struct Interface* iface)
 {
     struct Context* c = iface->receiverContext;
-    Assert_always(msg->length == strlen(MESSAGEB));
-    Assert_always(!Bits_memcmp(msg->bytes, MESSAGEB, strlen(MESSAGEB)));
+    Assert_always(msg->length == (int)CString_strlen(MESSAGEB));
+    Assert_always(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)));
     Allocator_free(c->alloc);
     return Error_NONE;
 }
@@ -84,11 +82,11 @@ static void onConnectionChild(struct Pipe* p, int status)
 static uint8_t receiveMessageChild(struct Message* m, struct Interface* iface)
 {
     printf("Child received message\n");
-    Assert_always(m->length == strlen(MESSAGE));
-    Assert_always(!Bits_memcmp(m->bytes, MESSAGE, strlen(MESSAGE)));
+    Assert_always(m->length == (int)CString_strlen(MESSAGE));
+    Assert_always(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)));
 
-    Message_shift(m, -((int)strlen(MESSAGE)), NULL);
-    Message_push(m, MESSAGEB, strlen(MESSAGEB), NULL);
+    Message_shift(m, -((int)CString_strlen(MESSAGE)), NULL);
+    Message_push(m, MESSAGEB, CString_strlen(MESSAGEB), NULL);
 
     Interface_sendMessage(iface, m);
 
@@ -120,7 +118,7 @@ int main(int argc, char** argv)
     ctx->base = eb;
     ctx->log = log;
 
-    if (argc > 3 && !strcmp("Process_test", argv[1]) && !strcmp("child", argv[2])) {
+    if (argc > 3 && !CString_strcmp("Process_test", argv[1]) && !CString_strcmp("child", argv[2])) {
         child(argv[3], ctx);
         return 0;
     }
@@ -139,7 +137,7 @@ int main(int argc, char** argv)
     char* path = Process_getPath(alloc);
 
     Assert_always(path != NULL);
-    #ifdef Windows
+    #ifdef win32
         Assert_always(strstr(path, ":\\") == path + 1); /* C:\ */
         Assert_always(strstr(path, ".exe"));
     #else

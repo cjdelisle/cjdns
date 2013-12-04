@@ -12,14 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define _GNU_SOURCE // libuv's fault
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Process.h"
 #include "util/Bits.h"
 #include "util/Identity.h"
-
-#include <uv.h>
 
 struct Process_pvt
 {
