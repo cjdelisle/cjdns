@@ -53,12 +53,12 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
     if (nodeDistance < collector->thisNodeDistance) {
 
         // lowest distance distance wins,
-        // If both have same distance, smallest log base 2 of route wins.
-        // If both the same log base 2 of route, highest reach wins
+        // If both have same distance, highest reach wins.
+        // If both the same reach, smallest log base 2 of route wins
         // NOTE: in this implementation, the value field holds
         //       reach and inverse of log2 of path.
 
-        uint64_t reachAndPath = 0;
+        uint32_t reachAndPath = 0;
 
         uint32_t i;
         for (i = 0; i < collector->capacity; i++) {
@@ -67,7 +67,7 @@ static inline void DistanceNodeCollector_addNode(struct NodeHeader* header,
             }
             if (i == 0) {
                 reachAndPath =
-                    ((uint64_t)(64 - Bits_log2x64(body->address.path)) << 32) | (header->reach);
+                    (header->reach << 7) | (64 - Bits_log2x64(body->address.path));
             }
             if (nodeDistance < nodes[i].distance) {
                 // smaller distance.

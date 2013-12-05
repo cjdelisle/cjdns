@@ -119,8 +119,6 @@ static inline void replaceNode(struct Node* nodeToReplace,
     store->labelSum += Bits_log2x64(addr->path);
     Assert_true(store->labelSum > 0);
     Bits_memcpyConst(&nodeToReplace->address, addr, sizeof(struct Address));
-    nodeToReplace->timeOfNextPing  = 0;
-    nodeToReplace->missedPings     = 0;
 }
 
 #ifdef Log_DEBUG
