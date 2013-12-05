@@ -667,6 +667,7 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
 // For each path to a destination, if the path has not recently been pinged, then ping it
 static inline void refreshReach(struct Address* address, struct RouterModule* module)
 {
+return;
     struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
     struct NodeList* nodeList = NodeStore_getNodesByAddr(address, 8, nodeListAlloc,
                                                          module->nodeStore);
@@ -680,6 +681,7 @@ static inline void refreshReach(struct Address* address, struct RouterModule* mo
         }
     Allocator_free(nodeListAlloc);
     }
+    // allocator not freed, you are leaking memory
 }
 
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
