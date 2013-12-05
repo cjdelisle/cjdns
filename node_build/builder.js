@@ -93,8 +93,8 @@ var execJs = function (js, state, file, fileName, callback) {
     // # 74 "./wire/Message.h"
     js = js.replace(/\n#.*\n/g, '');
     var to = setTimeout(function () {
-        throw new Error("Inline JS did not return after 10 seconds [" + js + "]");
-    }, 10000);
+        throw new Error("Inline JS did not return after 20 seconds [" + js + "]");
+    }, 20000);
     nThen(function (waitFor) {
         try {
             var func = new Function('file','state','require','fileName',js);

@@ -66,8 +66,8 @@ require('./builder').configure({
 }, function(builder, waitFor) {
 
     // ['linux','darwin','sunos','win32','freebsd']
-    var system = builder.config.systemName = 'win32';
-    builder.config.gcc = 'i586-mingw32msvc-gcc';
+    var system = builder.config.systemName = 'linux';
+    builder.config.gcc = 'gcc';
 
     builder.config.tempDir = '/tmp';
     builder.config.useTempFiles = true;
@@ -93,6 +93,10 @@ require('./builder').configure({
         '-D','HAS_BUILTIN_CONSTANT_P',
 
         '-g',
+        '-fPIE',
+        '-pie',
+
+        '-flto',
 
         '-D','CJDNS_MAX_PEERS=256',
 
@@ -105,19 +109,18 @@ require('./builder').configure({
     if (system === 'win32') {
         builder.config.cflags.push(
             '!-fPIE',
+            '!-pie',
             '-Wno-format',
             '!-DHAS_ETH_INTERFACE=1'
         );
+        builder.config.libs.push(
+            '-lssp'
+        );
     } else {
         builder.config.ldflags.push(
-            '-pie',
             '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
     }
-
-    builder.config.libs.push(
-        '-lssp'
-    );
 
     // Build dependencies
     nThen(function (waitFor) {
@@ -140,7 +143,8 @@ require('./builder').configure({
             process.chdir('./buildjs/dependencies/cnacl/');
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
-                args.unshift(/*'-fPIC', */'-O2', '-fomit-frame-pointer');
+                if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
+                args.unshift('-O2', '-fomit-frame-pointer');
                 builder.compiler(args, callback);
             }, waitFor(function () {
                 process.chdir(cwd);
@@ -167,7 +171,9 @@ require('./builder').configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir('./buildjs/dependencies/libuv/');
-            var make = Spawn('make', ['-j', WORKERS, 'CFLAGS=-fPIC', 'PLATFORM=mingw32', 'CC='+builder.config.gcc]);
+            var args = ['-j', WORKERS, 'CFLAGS=-fPIC', 'CC='+builder.config.gcc]
+            if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
+            var make = Spawn('make', args);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
             make.on('close', waitFor(function () {
