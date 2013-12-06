@@ -119,15 +119,18 @@ static void responseCallback(struct RouterModule_Promise* promise,
         // calculate the ipv6
         Address_getPrefix(&addr);
 
-        if (!Bits_memcmp(ctx->myAddress, addr.ip6.bytes, 16)) {
-            // Any path which loops back through us is necessarily a dead route.
-            NodeStore_brokenPath(addr.path, ctx->nodeStore);
-            continue;
-        }
-
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
         addr.path = LabelSplicer_splice(addr.path, fromNode->address.path);
+
+        if (!Bits_memcmp(ctx->myAddress, addr.ip6.bytes, 16)) {
+            // Any path which loops back through us is necessarily a dead route.
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, &addr);
+            Log_debug(ctx->logger, "Loop route [%s]", printedAddr);
+            NodeStore_brokenPath(addr.path, ctx->nodeStore);
+            continue;
+        }
 
         #ifdef Log_DEBUG
             uint8_t printedAddr[60];
