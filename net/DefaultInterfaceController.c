@@ -193,7 +193,13 @@ static void pingCallback(void* vic)
     // scan for endpoints have not sent anything recently.
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
         struct IFCPeer* ep = ic->peerMap.values[i];
-        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+
+        // This is here because of a pathological state where the connection is in ESTABLISHED
+        // state but the *direct peer* has somehow been dropped from the routing table.
+        // TODO: understand the cause of this issue rather than checking for it once per second.
+        struct Node* peerNode = RouterModule_getNode(ep->switchLabel, ic->routerModule);
+
+        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds || !peerNode) {
             #ifdef Log_DEBUG
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
