@@ -96,7 +96,7 @@ require('./builder').configure({
         '-fPIE',
         '-pie',
 
-//        '-flto', not available on some machines
+//        '-flto', not available on some  machines
 
         '-D','CJDNS_MAX_PEERS=256',
 

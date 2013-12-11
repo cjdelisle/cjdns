@@ -97,13 +97,17 @@ var execJs = function (js, state, file, fileName, callback) {
     }, 120000);
     nThen(function (waitFor) {
         try {
-            var func = new Function('file','state','require','fileName',js);
+            var func = new Function('file','state','require','fileName','console','builder',js);
             func.async = function () {
                 return waitFor(function (result) {
                     res = result;
                 });
             };
-            x = func.call(func,file,state,require,fileName);
+            x = func.call(func,file,state,require,fileName,console, {
+                compile: function (cFile, outputFile, callback) {
+                    compile(cFile, outputFile, state, waitFor(callback))
+                }
+            });
         } catch (e) {
             err = e;
             err.message += "\nContent: [" + js + "]";
