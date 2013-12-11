@@ -29,6 +29,7 @@ struct Context
 {
     struct IpTunnel* ipTun;
     struct Admin* admin;
+    struct Allocator* alloc;
 };
 
 static void sendResponse(int conn, String* txid, struct Admin* admin)
@@ -123,8 +124,7 @@ static void removeConnection(Dict* args, void* vcontext, String* txid)
 static void listConnections(Dict* args, void* vcontext, String* txid)
 {
     struct Context* context = vcontext;
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    struct Allocator* alloc = Allocator_child(context->alloc);
     List* l = NULL;
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         l = List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
@@ -134,6 +134,7 @@ static void listConnections(Dict* args, void* vcontext, String* txid)
         String_CONST("error"), String_OBJ(String_CONST("none")), NULL
     ));
     Admin_sendMessage(&resp, txid, context->admin);
+    Allocator_free(alloc);
 }
 
 static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admin* admin)
@@ -185,7 +186,8 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
 {
     struct Context* context = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
-        .ipTun = ipTun
+        .ipTun = ipTun,
+        .alloc = alloc
     }));
 
     Admin_registerFunction("IpTunnel_allowConnection", allowConnection, context, true,
