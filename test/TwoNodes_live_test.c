@@ -16,6 +16,7 @@
 #include "benc/serialization/BencSerializer.h"
 #include "io/ArrayReader.h"
 #include "admin/angel/Core.h"
+#include "admin/AdminClient.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/log/FileWriterLog.h"
@@ -33,6 +34,7 @@ struct NodeContext {
     struct Allocator* alloc;
     struct EventBase* base;
     uint8_t privateKeyHex[64];
+    struct AdminClient* adminClient;
 
     Identity
 };
@@ -103,11 +105,19 @@ static struct NodeContext* startNode(char* privateKeyHex,
     // sendFirstMessageToCore causes the core to react causing messageToAngel which ends the loop
     EventBase_beginLoop(base);
 
+    ctx->adminClient = AdminClient_new(ctx->boundAddr, String_new("x", alloc), base, logger, alloc);
+
     return ctx;
 }
 
 static void linkNodes(struct NodeContext* client, struct NodeContext* server)
 {
+    /*AdminClient_rpcCall(String_CONST("AuthorizedPasswords_add"),
+                        args,
+                        server->adminClient,
+                                               Dict* args,
+                                               struct AdminClient* client,
+                                               struct Allocator* alloc) */
 }
 
 int main()
