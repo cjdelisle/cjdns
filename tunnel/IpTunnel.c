@@ -698,9 +698,10 @@ static void timeout(void* vcontext)
     if (!context->pub.connectionList.count) {
         return;
     }
-    int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
-    int32_t i = beginning;
+    uint32_t beginning = Random_uint32(context->rand) % context->pub.connectionList.count;
+    uint32_t i = beginning;
     do {
+        Assert_true(i < context->pub.connectionList.count);
         struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
         if (conn->isOutgoing
             && Bits_isZero(conn->connectionIp6, 16)
@@ -709,7 +710,8 @@ static void timeout(void* vcontext)
             requestAddresses(conn, context);
             break;
         }
-    } while ((++i % (int32_t)context->pub.connectionList.count) != beginning);
+        i = (i + 1) % context->pub.connectionList.count;
+    } while (i != beginning);
 }
 
 void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
