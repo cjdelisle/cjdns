@@ -439,10 +439,10 @@ static inline uint64_t findClosest(uint64_t path,
             nextLink = rbGetNext(nextLink);
         }
 
-        if (link == store->selfLink) {
+        /*if (link == store->selfLink) { 32 bit
             Log_debug(store->logger, "unspliced %08lx to %08lx nl=%08lx",
                       path, tmpl.cannonicalLabel, nextLink ? nextLink->cannonicalLabel : 0);
-        }
+        }*/
 
         if (!nextLink || nextLink == store->selfLink) {
             // node has no peers
