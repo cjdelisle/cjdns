@@ -16,6 +16,11 @@
 
 #include <string.h>
 
+#ifdef Illumos
+    #define _XPG4_2
+#endif
+#include <strings.h>
+
 unsigned long CString_strlen(const char* str)
 {
     return strlen(str);
@@ -34,4 +39,14 @@ char* CString_strchr(const char* a, int b)
 char* CString_strrchr(const char* a, int b)
 {
     return strrchr(a,b);
+}
+
+int CString_strcasecmp(const char *a, const char *b)
+{
+    return strcasecmp(a,b);
+}
+
+char* CString_strstr(const char* haystack, const char* needle)
+{
+    return strstr(haystack,needle);
 }

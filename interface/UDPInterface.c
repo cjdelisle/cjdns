@@ -29,16 +29,35 @@ int UDPInterface_beginConnection(const char* address,
                                  struct UDPInterface* udp)
 {
     struct UDPInterface_pvt* udpif = (struct UDPInterface_pvt*) udp;
-    struct Sockaddr_storage addr;
-    if (Sockaddr_parse(address, &addr)) {
+    struct Sockaddr_storage ss;
+    if (Sockaddr_parse(address, &ss)) {
         return UDPInterface_beginConnection_BAD_ADDRESS;
     }
-    if (Sockaddr_getFamily(&addr.addr) != Sockaddr_getFamily(udp->addr)) {
+    if (Sockaddr_getFamily(&ss.addr) != Sockaddr_getFamily(udp->addr)) {
         return UDPInterface_beginConnection_ADDRESS_MISMATCH;
     }
 
-    struct Interface* iface = MultiInterface_ifaceForKey(udpif->multiIface, &addr);
+    struct Sockaddr* addr = &ss.addr;
+
+    char* addrPtr = NULL;
+    int addrLen = Sockaddr_getAddress(&ss.addr, &addrPtr);
+    Assert_true(addrLen > 0);
+    struct Allocator* tempAlloc = Allocator_child(udpif->alloc);
+    if (Bits_isZero(addrPtr, addrLen)) {
+        // unspec'd address, convert to loopback
+        if (Sockaddr_getFamily(addr) == Sockaddr_AF_INET) {
+            addr = Sockaddr_clone(Sockaddr_LOOPBACK, tempAlloc);
+        } else if (Sockaddr_getFamily(addr) == Sockaddr_AF_INET6) {
+            addr = Sockaddr_clone(Sockaddr_LOOPBACK6, tempAlloc);
+        } else {
+            Assert_failure("Sockaddr which is not AF_INET nor AF_INET6");
+        }
+        Sockaddr_setPort(addr, Sockaddr_getPort(&ss.addr));
+    }
+
+    struct Interface* iface = MultiInterface_ifaceForKey(udpif->multiIface, addr);
     int ret = InterfaceController_registerPeer(udpif->ic, cryptoKey, password, false, false, iface);
+    Allocator_free(tempAlloc);
     if (ret) {
         Allocator_free(iface->allocator);
         switch(ret) {
@@ -72,7 +91,8 @@ struct UDPInterface* UDPInterface_new(struct EventBase* base,
         },
         .udpBase = udpBase,
         .logger = logger,
-        .ic = ic
+        .ic = ic,
+        .alloc = allocator
     }), sizeof(struct UDPInterface_pvt));
 
     context->multiIface = MultiInterface_new(context->pub.addr->addrLen, &udpBase->generic, ic);

@@ -35,4 +35,12 @@ Gcc_PURE
 Gcc_NONNULL(1)
 char* CString_strrchr(const char *a, int b);
 
+Gcc_PURE
+int CString_strcasecmp(const char *a, const char *b);
+
+/** strstr(haystack, needle); */
+Gcc_PURE
+Gcc_NONNULL(1,2)
+char* CString_strstr(const char* a, const char* b);
+
 #endif

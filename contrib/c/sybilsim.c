@@ -27,6 +27,10 @@
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "exception/Except.h"
 #include "util/events/Timeout.h"
+#include "crypto/Key.h"
+#include "util/log/Log_impl.h"
+
+#include "crypto_scalarmult_curve25519.h"
 
 struct NodeContext {
     struct Interface angelIface;
@@ -34,7 +38,17 @@ struct NodeContext {
     struct Allocator* alloc;
     struct EventBase* base;
     uint8_t privateKeyHex[64];
+    String* publicKey;
     struct AdminClient* adminClient;
+
+    char* nodeName;
+
+    /** UDPInterface */
+    int ifNum;
+    struct Sockaddr* udpAddr;
+
+    struct Log nodeLog;
+    struct Log* parentLogger;
 
     Identity
 };
@@ -80,7 +94,50 @@ static void sendFirstMessageToCore(void* vcontext)
     Allocator_free(alloc);
 }
 
-static struct NodeContext* startNode(char* privateKeyHex,
+static void bindUDP(struct NodeContext* node)
+{
+    struct Allocator* tempAlloc = Allocator_child(node->alloc);
+    Dict* args = Dict_new(tempAlloc);
+    struct AdminClient_Result* res =
+        AdminClient_rpcCall(String_CONST("UDPInterface_new"), args, node->adminClient, tempAlloc);
+    Assert_always(!res->err);
+
+    String* addr = Dict_getString(res->responseDict, String_CONST("bindAddress"));
+    int64_t* ifNum = Dict_getInt(res->responseDict, String_CONST("interfaceNumber"));
+    struct Sockaddr_storage ss;
+    Assert_always(!Sockaddr_parse(addr->bytes, &ss));
+    node->ifNum = *ifNum;
+    node->udpAddr = Sockaddr_clone(&ss.addr, node->alloc);
+
+    Allocator_free(tempAlloc);
+}
+
+static String* getPublicKey(char* privateKeyHex, struct Allocator* alloc)
+{
+    uint8_t privateKey[32];
+    uint8_t publicKey[32];
+    Hex_decode(privateKey, 32, privateKeyHex, 65);
+    crypto_scalarmult_curve25519_base(publicKey, privateKey);
+    return Key_stringify(publicKey, alloc);
+}
+
+static void printLog(struct Log* log,
+                     enum Log_Level logLevel,
+                     const char* file,
+                     int line,
+                     const char* format,
+                     va_list args)
+{
+    struct NodeContext* ctx =
+        Identity_cast((struct NodeContext*) (((char*)log) - offsetof(struct NodeContext, nodeLog)));
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    String* str = String_printf(alloc, "[%s] %s", ctx->nodeName, file);
+    ctx->parentLogger->print(ctx->parentLogger, logLevel, str->bytes, line, format, args);
+    Allocator_free(alloc);
+}
+
+static struct NodeContext* startNode(char* nodeName,
+                                     char* privateKeyHex,
                                      struct Allocator* alloc,
                                      struct Log* logger,
                                      struct EventBase* base,
@@ -92,7 +149,12 @@ static struct NodeContext* startNode(char* privateKeyHex,
             .sendMessage = messageToAngel
         },
         .alloc = alloc,
-        .base = base
+        .base = base,
+        .nodeLog = {
+            .print = printLog
+        },
+        .parentLogger = logger,
+        .nodeName = nodeName
     }));
     Identity_set(ctx);
 
@@ -100,24 +162,64 @@ static struct NodeContext* startNode(char* privateKeyHex,
 
     Timeout_setTimeout(sendFirstMessageToCore, ctx, 0, base, alloc);
 
-    Core_init(alloc, logger, base, &ctx->angelIface, rand, eh);
+    Core_init(alloc, &ctx->nodeLog, base, &ctx->angelIface, rand, eh);
 
     // sendFirstMessageToCore causes the core to react causing messageToAngel which ends the loop
     EventBase_beginLoop(base);
 
-    ctx->adminClient = AdminClient_new(ctx->boundAddr, String_new("x", alloc), base, logger, alloc);
+    ctx->adminClient =
+        AdminClient_new(ctx->boundAddr, String_new("x", alloc), base, &ctx->nodeLog, alloc);
+
+    bindUDP(ctx);
+    ctx->publicKey = getPublicKey(privateKeyHex, alloc);
 
     return ctx;
 }
 
 static void linkNodes(struct NodeContext* client, struct NodeContext* server)
 {
-    /*AdminClient_rpcCall(String_CONST("AuthorizedPasswords_add"),
-                        args,
+    // server
+    struct Allocator* tempAlloc = Allocator_child(server->alloc);
+    Dict* addPasswordArgs = Dict_new(tempAlloc);
+    String* clientStr = String_printf(tempAlloc, "%ld", (long) (uintptr_t) client);
+    Dict_putString(addPasswordArgs,
+                   String_new("password", tempAlloc),
+                   clientStr,
+                   tempAlloc);
+    Dict_putString(addPasswordArgs,
+                   String_new("user", tempAlloc),
+                   clientStr,
+                   tempAlloc);
+    AdminClient_rpcCall(String_CONST("AuthorizedPasswords_add"),
+                        addPasswordArgs,
                         server->adminClient,
-                                               Dict* args,
-                                               struct AdminClient* client,
-                                               struct Allocator* alloc) */
+                        tempAlloc);
+
+    // client
+    Dict* beginConnectionArgs = Dict_new(tempAlloc);
+    Dict_putInt(beginConnectionArgs,
+                String_new("interfaceNumber", tempAlloc),
+                client->ifNum,
+                tempAlloc);
+    Dict_putString(beginConnectionArgs,
+                   String_new("password", tempAlloc),
+                   clientStr,
+                   tempAlloc);
+    Dict_putString(beginConnectionArgs,
+                   String_new("publicKey", tempAlloc),
+                   server->publicKey,
+                   tempAlloc);
+    char* udpAddr = Sockaddr_print(server->udpAddr, tempAlloc);
+    Dict_putString(beginConnectionArgs,
+                   String_new("address", tempAlloc),
+                   String_CONST(udpAddr),
+                   tempAlloc);
+    AdminClient_rpcCall(String_CONST("UDPInterface_beginConnection"),
+                        beginConnectionArgs,
+                        client->adminClient,
+                        tempAlloc);
+
+    Allocator_free(tempAlloc);
 }
 
 int main()
@@ -130,14 +232,14 @@ int main()
     Allocator_setCanary(alloc, (unsigned long)Random_uint64(rand));
 
     char* privateKeyA = "5e2295679394e5e1db67c238abbc10292ad9b127904394c52cc5fff39383e920";
-    struct NodeContext* nodeA = startNode(privateKeyA, alloc, logger, base, rand, eh);
+    struct NodeContext* nodeA = startNode("alice", privateKeyA, alloc, logger, base, rand, eh);
 
     char* privateKeyB = "6569bf3f0d168faa6dfb2912f8ee5ee9b938319e97618fdf06caed73b1aad1cc";
-    struct NodeContext* nodeB = startNode(privateKeyB, alloc, logger, base, rand, eh);
+    struct NodeContext* nodeB = startNode("bob", privateKeyB, alloc, logger, base, rand, eh);
 
     linkNodes(nodeA, nodeB);
 
-    //EventBase_beginLoop(base);
+    EventBase_beginLoop(base);
 
     Allocator_free(alloc);
     return 0;

@@ -15,52 +15,19 @@
 var Fs = require('fs');
 var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
-var Semaphore = require('./Semaphore');
+var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var Os = require('os');
 
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
 
-var sema = Semaphore.create(512);
-var cp = function (src, dest, callback) {
-    Fs.stat(src, function (err, stat) {
-        if (err) { throw err; }
-        if (stat.isDirectory()) {
-            var subFiles;
-            nThen(function (waitFor) {
-                Fs.mkdir(dest, waitFor(function (err) {
-                    if (err) { throw err; }
-                }));
-                Fs.readdir(src, waitFor(function (err, list) {
-                    if (err) { throw err; }
-                    subFiles = list;
-                }));
-            }).nThen(function (waitFor) {
-                subFiles.forEach(function (file) {
-                    cp(src + '/' + file, dest + '/' + file, waitFor());
-                });
-            }).nThen(function (waitFor) {
-                callback();
-            });
-        } else {
-            sema.take(function (returnAfter) {
-                Fs.readFile(src, function (err, content) {
-                    if (err) { throw err; }
-                    Fs.writeFile(dest, content, returnAfter(function (err) {
-                        if (err) { throw err; }
-                        callback();
-                    }));
-                });
-            });
-        }
-    });
-};
-
 process.on('exit', function () {
     console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
 });
 
-require('./builder').configure({
+var Builder = require('./builder');
+
+Builder.configure({
     rebuildIfChanges: Fs.readFileSync(__filename).toString('utf8'),
     buildDir: 'buildjs'
 }, function(builder, waitFor) {
@@ -118,7 +85,8 @@ require('./builder').configure({
         );
     } else {
         builder.config.ldflags.push(
-            '-Wl,-z,relro,-z,now,-z,noexecstack'
+            '-Wl,-z,relro,-z,now,-z,noexecstack',
+            '-lrt'
         );
     }
 
@@ -127,7 +95,7 @@ require('./builder').configure({
         Fs.exists('buildjs/dependencies', waitFor(function (exists) {
             if (exists) { return; }
             console.log("Copy dependencies");
-            cp('./node_build/dependencies', './buildjs/dependencies', waitFor());
+            Cp('./node_build/dependencies', './buildjs/dependencies', waitFor());
         }));
     }).nThen(function (waitFor) {
         builder.config.libs.push(
@@ -145,7 +113,7 @@ require('./builder').configure({
             NaCl.build(function (args, callback) {
                 if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
                 args.unshift('-O2', '-fomit-frame-pointer');
-                builder.compiler(args, callback);
+                builder.cc(args, callback);
             }, waitFor(function () {
                 process.chdir(cwd);
             }));
@@ -185,30 +153,57 @@ require('./builder').configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.compile('admin/angel/cjdroute2.c', './buildjs/cjdroute');
-    builder.compile('publictoip6.c', './buildjs/publictoip6');
-    builder.compile('privatetopublic.c', './buildjs/privatetopublic');
-    builder.compile('testcjdroute.c', './buildjs/testcjdroute');
+    builder.buildExecutable('admin/angel/cjdroute2.c', './buildjs/cjdroute', waitFor());
+    builder.buildExecutable('test/testcjdroute.c', './buildjs/testcjdroute', waitFor());
 
-    Codestyle.checkDir('.', true, waitFor(function (err) {
-        if (err) { console.log("Codestyle error"); throw err; }
-    }));
+    if (process.argv.indexOf('--contrib') > -1) {
+        builder.buildExecutable('contrib/c/publictoip6.c', './publictoip6', waitFor());
+        builder.buildExecutable('contrib/c/privatetopublic.c', './privatetopublic', waitFor());
+        builder.buildExecutable('contrib/c/sybilsim.c', './sybilsim', waitFor());
+        builder.buildExecutable('contrib/c/benc2json.c', './benc2json', waitFor());
+        builder.buildExecutable('contrib/c/cleanconfig.c', './cleanconfig', waitFor());
+        builder.buildExecutable('contrib/c/dnsserv.c', './dnsserv', waitFor());
+    }
 
 }).test(function (builder, waitFor) {
 
-    var out = '';
-    var test = Spawn('./buildjs/testcjdroute');
-    test.stdout.on('data', function(dat) { out += dat.toString(); });
-    test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
-    test.on('close', waitFor(function (ret) {
-        if (ret !== 0) {
-            console.log(out);
-            console.log('\033[1;31mFailed to build cjdns.\033[0m');
-            waitFor.abort();
-        } else {
-            console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
-        }
-    }));
+    nThen(function (waitFor) {
+
+        var out = '';
+        var test = Spawn('./buildjs/testcjdroute');
+        test.stdout.on('data', function(dat) { out += dat.toString(); });
+        test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+        test.on('close', waitFor(function (ret) {
+            if (ret !== 0) {
+                console.log(out);
+                console.log('\033[1;31mFailed to build cjdns.\033[0m');
+                waitFor.abort();
+            } else {
+                console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
+            }
+        }));
+
+    }).nThen(function (waitFor) {
+
+        console.log("Checking codestyle");
+        var output = '';
+        nThen(function (waitFor) {
+            builder.rebuiltFiles.forEach(function (fileName) {
+                console.log("Checking " + fileName);
+                if (fileName.indexOf('/dependencies/') !== -1) { return; }
+                Codestyle.checkFile(fileName, waitFor(function (out) {
+                    output += out;
+                }));
+            });
+
+        }).nThen(function (waitFor) {
+            if (output !== '') {
+                throw new Error("Codestyle failure\n" + output);
+            }
+
+        }).nThen(waitFor());
+
+    }).nThen(waitFor());
 
 }).pack(function (builder, waitFor) {
 

@@ -15,13 +15,9 @@
 
 #include "util/log/Log.h"
 #include "util/log/Log_impl.h"
+#include "util/CString.h"
 
 #include <stdarg.h>
-
-#ifdef Illumos
-    #define _XPG4_2
-#endif
-#include <strings.h>
 
 void Log_print(struct Log* log,
                enum Log_Level logLevel,
@@ -72,7 +68,7 @@ char* Log_nameForLevel(enum Log_Level logLevel)
 enum Log_Level Log_levelForName(char* name)
 {
     for (enum Log_Level logLevel = Log_Level_KEYS; logLevel <= Log_Level_CRITICAL; logLevel++) {
-        if (!strcasecmp(name, Log_nameForLevel(logLevel))) {
+        if (!CString_strcasecmp(name, Log_nameForLevel(logLevel))) {
             return logLevel;
         }
     }

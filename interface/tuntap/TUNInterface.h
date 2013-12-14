@@ -21,7 +21,7 @@
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/TUNInterface_" + state.systemName + ".c")
+Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c")
 
 /**
  * This is the maximum size that will be accepted as an interface name.

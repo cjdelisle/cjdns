@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strlen
 #include "admin/testframework/AdminTestFramework.h"
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
@@ -28,7 +26,7 @@
 #include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 
 static int registerPeer(struct InterfaceController* ic,
                         uint8_t herPublicKey[32],
@@ -61,8 +59,9 @@ int main(int argc, char** argv)
                                                          fw->client,
                                                          fw->alloc);
     Assert_always(!res->err);
-    //printf("result content: >>%s<<", res->messageBytes);
-    Assert_always(!strcmp("d5:error4:none15:interfaceNumberi0ee", (char*) res->messageBytes));
+    printf("result content: >>%s<<", res->messageBytes);
+    // d11:bindAddress13:0.0.0.0:466615:error4:none15:interfaceNumberi0ee
+    Assert_always(CString_strstr(res->messageBytes, "error4:none15:interfaceNumberi0ee"));
 
     // bad key
     dict = Dict_new(fw->alloc);
@@ -70,7 +69,7 @@ int main(int argc, char** argv)
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!strcmp("d5:error30:key must be 52 characters longe",
+    Assert_always(!CString_strcmp("d5:error30:key must be 52 characters longe",
                           (char*) res->messageBytes));
 
     //printf("result content: >>%s<<", res->messageBytes);
@@ -83,7 +82,7 @@ int main(int argc, char** argv)
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
     res = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!strcmp("d5:error4:nonee", (char*) res->messageBytes));
+    Assert_always(!CString_strcmp("d5:error4:nonee", (char*) res->messageBytes));
 
 
     AdminTestFramework_tearDown(fw);

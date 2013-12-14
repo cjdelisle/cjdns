@@ -19,21 +19,15 @@
     console.log("Searching for clock_gettime()");
     var done = this.async();
 
-    var nThen = require("nthen");
-    var Fs = require("fs");
+    var HasFunction = require("./HasFunction");
 
-    var file = builder.tmpFile();
-
-    nThen(function (waitFor) {
-
-        Fs.writeFile(file, "int main() { clock_gettime(); }", waitFor(function (err, ret) {
-            if (err) { throw err; }
-        }));
-
-    }).nThen(function (waitFor) {
-
-        builder.compile(file);
-
+    HasFunction.check(builder, "clock_gettime", function (err, has) {
+        if (err) { throw err; }
+        if (has) {
+            console.log("Successfully found clock_gettime()");
+        } else {
+            console.log("Could not find clock_gettime()");
+        }
     });
 ?>
 #endif

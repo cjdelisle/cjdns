@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef UvWrapper_H
+#define UvWrapper_H
+
 #ifndef _GNU_SOURCE
     #define _GNU_SOURCE // CHECKFILES_IGNORE libuv's fault
 #endif
@@ -23,3 +26,5 @@
 #endif
 
 #include <uv.h>
+
+#endif

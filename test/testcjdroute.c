@@ -30,7 +30,8 @@
         var listContent = [];
         tests.forEach(function (test) {
             var main = /^.*\/([^\/]+)\.c$/.exec(test)[1] + '_main';
-            (state['cflags'+test] = state['cflags'+test] || []).push('-D', 'main='+main);
+            (builder.config['cflags'+test] =
+                builder.config['cflags'+test] || []).push('-D', 'main='+main);
             file.links.push(test);
             listContent.push('{ .func = '+main+', .name = "'+test.replace(/^.*\/|.c$/g, '')+'" },');
             prototypes.push('int '+main+'(int argc, char** argv);');

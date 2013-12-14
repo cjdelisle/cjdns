@@ -35,4 +35,4 @@ if [ -f buildjs/dependencies/node/bin/node ]; then
     CMAKE=`pwd`/buildjs/dependencies/node/bin/node
 fi
 
-$NODE ./node_build/make.js
+$NODE ./node_build/make.js $@

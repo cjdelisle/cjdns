@@ -17,7 +17,22 @@ var Fs = require('fs');
 var nThen = require('nthen');
 var Child = require('child_process');
 
-var headerLines;
+var headerLines = [
+    '/* vim: set expandtab ts=4 sw=4: */',
+    '/*',
+    ' * You may redistribute this program and/or modify it under the terms of',
+    ' * the GNU General Public License as published by the Free Software Foundation,',
+    ' * either version 3 of the License, or (at your option) any later version.',
+    ' *',
+    ' * This program is distributed in the hope that it will be useful,',
+    ' * but WITHOUT ANY WARRANTY; without even the implied warranty of',
+    ' * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the',
+    ' * GNU General Public License for more details.',
+    ' *',
+    ' * You should have received a copy of the GNU General Public License',
+    ' * along with this program.  If not, see <http://www.gnu.org/licenses/>.',
+    ' */'
+];
 
 var parseFile = function (fileName, fileContent) {
     var output = '';
@@ -45,11 +60,11 @@ var parseFile = function (fileName, fileContent) {
             if (line !== headerLines[lineNum]) {
                 error("missing header\n" + expectedLine + "\n" + line);
             }
-        } else if (/\.h$/.test(fileName) && lineNum < headerLines + 1) {
+        } else if (/\.h$/.test(fileName) && lineNum < headerLines.length + 1) {
             if (line !== '#ifndef ' + name + "_H") {
                 error("expected #ifndef " + name + "_H found " + line);
             }
-        } else if (/\.h$/.test(fileName) && lineNum < headerLines + 3) {
+        } else if (/\.h$/.test(fileName) && lineNum < headerLines.length + 2) {
             if (line !== '#define ' + name + "_H") {
                 error("expected #define " + name + "_H found " + line);
             }
@@ -155,10 +170,6 @@ var parseFile = function (fileName, fileContent) {
 };
 
 var checkFile = function (file, callback) {
-    if (!(/.*(\.c|\.h)$/.test(file))) {
-        callback('');
-        return;
-    }
     Fs.readFile(file, function (err, ret) {
         if (err) { throw err; }
         callback(parseFile(file, ret.toString()));
@@ -187,12 +198,6 @@ var main = function (dir, runInFork, callback) {
     var output = '';
     nThen(function (waitFor) {
 
-        Fs.readFile(__filename, waitFor(function (err, ret) {
-            if (err) { throw err; }
-            var lines = ret.toString('utf8').split('\n');
-            headerLines = lines.slice(0, lines.indexOf(' */') + 1);
-        }));
-
         Fs.readFile('.gitignore', waitFor(function (err, ret) {
             if (err) { throw err; }
             gitIgnoreLines = ret.toString('utf8').split('\n');
@@ -213,7 +218,7 @@ var main = function (dir, runInFork, callback) {
                         } else {
                             if (stat.isDirectory()) {
                                 addDir(dir + '/' + file);
-                            } else {
+                            } else if (/.*(\.c|\.h)$/.test(file)) {
                                 checkFile(dir + '/' + file, waitFor(function (ret) {
                                     output += ret;
                                 }));
