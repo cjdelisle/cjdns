@@ -11,7 +11,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-( ls && ls ./build ) 2>/dev/null | grep 'cjdroute.conf' >/dev/null &&
-    echo "Oh look, a file called cjdroute.conf! Don't worry, I'll leave that there."
+safeclean()
+{
+    echo "Oh look, a file called cjdroute.conf! I'll try not to touch it."
+    git clean -dxf -e cjdroute.conf ||
+        echo "Damn, your version of git won't let me do that,
+ please move cjdroute.conf to a safe place and try again"
+}
 
-git reset --hard && git clean -dxf -e cjdroute.conf
+git reset --hard
+
+( ls && ls ./build ) 2>/dev/null | grep 'cjdroute.conf' >/dev/null && safeclean && exit 0
+
+git clean -dxf
