@@ -77,6 +77,18 @@ struct AdminClient_Result
     Dict* responseDict;
 };
 
+struct AdminClient_Promise;
+
+typedef void (* AdminClient_ResultHandler)(struct AdminClient_Promise* p,
+                                           struct AdminClient_Result* res);
+
+struct AdminClient_Promise
+{
+    AdminClient_ResultHandler callback;
+    void* userData;
+    struct Allocator* alloc;
+};
+
 struct AdminClient
 {
     /** How long to wait for a response from the cjdns node. */
@@ -85,10 +97,10 @@ struct AdminClient
 
 char* AdminClient_errorString(enum AdminClient_Error err);
 
-struct AdminClient_Result* AdminClient_rpcCall(String* function,
-                                               Dict* args,
-                                               struct AdminClient* client,
-                                               struct Allocator* requestAlloc);
+struct AdminClient_Promise* AdminClient_rpcCall(String* function,
+                                                Dict* args,
+                                                struct AdminClient* client,
+                                                struct Allocator* requestAlloc);
 
 
 struct AdminClient* AdminClient_new(struct Sockaddr* addr,

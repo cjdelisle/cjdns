@@ -38,6 +38,32 @@ static int registerPeer(struct InterfaceController* ic,
     return 0;
 }
 
+static void ifNewCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct AdminTestFramework* fw = p->userData;
+    Assert_always(!res->err);
+    //printf("result content: >>%s<<", res->messageBytes);
+    // d11:bindAddress13:0.0.0.0:362615:error4:none15:interfaceNumberi0e4:txid8:01000000e
+    Assert_always(CString_strstr(res->messageBytes, "5:error4:none15:interfaceNumberi0e"));
+    EventBase_endLoop(fw->eventBase);
+}
+
+static void badKeyCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct AdminTestFramework* fw = p->userData;
+    Assert_always(CString_strstr(res->messageBytes, "5:error30:key must be 52 characters long"));
+    EventBase_endLoop(fw->eventBase);
+    //printf("result content: >>%s<<", res->messageBytes);
+}
+
+static void goodCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct AdminTestFramework* fw = p->userData;
+    Assert_always(CString_strstr(res->messageBytes, "5:error4:none"));
+    EventBase_endLoop(fw->eventBase);
+    //printf("result content: >>%s<<", res->messageBytes);
+}
+
 int main(int argc, char** argv)
 {
     struct AdminTestFramework* fw = AdminTestFramework_setUp(argc, argv, "UDPInterface_test");
@@ -54,25 +80,24 @@ int main(int argc, char** argv)
                                 &ifController);
 
     Dict* dict = Dict_new(fw->alloc);
-    struct AdminClient_Result* res = AdminClient_rpcCall(String_CONST("UDPInterface_new"),
-                                                         dict,
-                                                         fw->client,
-                                                         fw->alloc);
-    Assert_always(!res->err);
-    printf("result content: >>%s<<", res->messageBytes);
-    // d11:bindAddress13:0.0.0.0:466615:error4:none15:interfaceNumberi0ee
-    Assert_always(CString_strstr(res->messageBytes, "error4:none15:interfaceNumberi0ee"));
+    struct AdminClient_Promise* promise =
+        AdminClient_rpcCall(String_CONST("UDPInterface_new"), dict, fw->client, fw->alloc);
+    promise->callback = ifNewCallback;
+    promise->userData = fw;
+
+    EventBase_beginLoop(fw->eventBase);
 
     // bad key
     dict = Dict_new(fw->alloc);
     Dict_putString(dict, String_CONST("publicKey"), String_CONST("notAValidKey"), fw->alloc);
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
-    res = AdminClient_rpcCall(
+    promise = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!CString_strcmp("d5:error30:key must be 52 characters longe",
-                          (char*) res->messageBytes));
+    promise->callback = badKeyCallback;
+    promise->userData = fw;
 
-    //printf("result content: >>%s<<", res->messageBytes);
+    EventBase_beginLoop(fw->eventBase);
+
 
     dict = Dict_new(fw->alloc);
     Dict_putString(dict,
@@ -80,10 +105,12 @@ int main(int argc, char** argv)
                    String_CONST("c86pf0ngj3wlb569juqm10yzv29n9t4w5tmsyhx6xd3fbqjlcu50.k"),
                    fw->alloc);
     Dict_putString(dict, String_CONST("address"), String_CONST("127.0.0.1:12345"), fw->alloc);
-    res = AdminClient_rpcCall(
+    promise = AdminClient_rpcCall(
         String_CONST("UDPInterface_beginConnection"), dict, fw->client, fw->alloc);
-    Assert_always(!CString_strcmp("d5:error4:nonee", (char*) res->messageBytes));
+    promise->callback = goodCallback;
+    promise->userData = fw;
 
+    EventBase_beginLoop(fw->eventBase);
 
     AdminTestFramework_tearDown(fw);
     return 0;

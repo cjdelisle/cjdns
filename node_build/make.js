@@ -19,6 +19,11 @@ var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
 var Os = require('os');
 
+// ['linux','darwin','sunos','win32','freebsd']
+var SYSTEM = process.platform;
+var GCC = 'gcc';
+
+var BUILDDIR = 'build_'+SYSTEM;
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
 
 process.on('exit', function () {
@@ -29,12 +34,11 @@ var Builder = require('./builder');
 
 Builder.configure({
     rebuildIfChanges: Fs.readFileSync(__filename).toString('utf8'),
-    buildDir: 'buildjs'
+    buildDir: BUILDDIR
 }, function(builder, waitFor) {
 
-    // ['linux','darwin','sunos','win32','freebsd']
-    var system = builder.config.systemName = 'linux';
-    builder.config.gcc = 'gcc';
+    builder.config.systemName = SYSTEM;
+    builder.config.gcc = GCC;
 
     builder.config.tempDir = '/tmp';
     builder.config.useTempFiles = true;
@@ -73,7 +77,7 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
-    if (system === 'win32') {
+    if (SYSTEM === 'win32') {
         builder.config.cflags.push(
             '!-fPIE',
             '!-pie',
@@ -92,23 +96,23 @@ Builder.configure({
 
     // Build dependencies
     nThen(function (waitFor) {
-        Fs.exists('buildjs/dependencies', waitFor(function (exists) {
+        Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
             if (exists) { return; }
             console.log("Copy dependencies");
-            Cp('./node_build/dependencies', './buildjs/dependencies', waitFor());
+            Cp('./node_build/dependencies', BUILDDIR+'/dependencies', waitFor());
         }));
     }).nThen(function (waitFor) {
         builder.config.libs.push(
-            'buildjs/dependencies/cnacl/jsbuild/libnacl.a'
+            BUILDDIR+'/dependencies/cnacl/jsbuild/libnacl.a'
         );
         builder.config.includeDirs.push(
-            'buildjs/dependencies/cnacl/jsbuild/include/'
+            BUILDDIR+'/dependencies/cnacl/jsbuild/include/'
         );
-        Fs.exists('buildjs/dependencies/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
+        Fs.exists(BUILDDIR+'/dependencies/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
             if (exists) { return; }
             console.log("Build NaCl");
             var cwd = process.cwd();
-            process.chdir('./buildjs/dependencies/cnacl/');
+            process.chdir(BUILDDIR+'/dependencies/cnacl/');
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
                 if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
@@ -121,7 +125,7 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
         builder.config.libs.push(
-            'buildjs/dependencies/libuv/libuv.a',
+            BUILDDIR+'/dependencies/libuv/libuv.a',
             '-lpthread'
         );
         if (builder.config.systemName === 'win32') {
@@ -132,13 +136,13 @@ Builder.configure({
             );
         }
         builder.config.includeDirs.push(
-            'buildjs/dependencies/libuv/include/'
+            BUILDDIR+'/dependencies/libuv/include/'
         );
-        Fs.exists('buildjs/dependencies/libuv/libuv.a', waitFor(function (exists) {
+        Fs.exists(BUILDDIR+'/dependencies/libuv/libuv.a', waitFor(function (exists) {
             if (exists) { return; }
             console.log("Build Libuv");
             var cwd = process.cwd();
-            process.chdir('./buildjs/dependencies/libuv/');
+            process.chdir(BUILDDIR+'/dependencies/libuv/');
             var args = ['-j', WORKERS, 'CFLAGS=-fPIC', 'CC='+builder.config.gcc]
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
             var make = Spawn('make', args);
@@ -153,16 +157,17 @@ Builder.configure({
 
 }).build(function (builder, waitFor) {
 
-    builder.buildExecutable('admin/angel/cjdroute2.c', './buildjs/cjdroute', waitFor());
-    builder.buildExecutable('test/testcjdroute.c', './buildjs/testcjdroute', waitFor());
+    builder.buildExecutable('admin/angel/cjdroute2.c', BUILDDIR+'/cjdroute', waitFor());
+    builder.buildExecutable('test/testcjdroute.c',     BUILDDIR+'/testcjdroute', waitFor());
 
     if (process.argv.indexOf('--contrib') > -1) {
-        builder.buildExecutable('contrib/c/publictoip6.c', './publictoip6', waitFor());
+        builder.buildExecutable('contrib/c/publictoip6.c',     './publictoip6', waitFor());
         builder.buildExecutable('contrib/c/privatetopublic.c', './privatetopublic', waitFor());
-        builder.buildExecutable('contrib/c/sybilsim.c', './sybilsim', waitFor());
-        builder.buildExecutable('contrib/c/benc2json.c', './benc2json', waitFor());
-        builder.buildExecutable('contrib/c/cleanconfig.c', './cleanconfig', waitFor());
-        builder.buildExecutable('contrib/c/dnsserv.c', './dnsserv', waitFor());
+        builder.buildExecutable('contrib/c/sybilsim.c',        './sybilsim', waitFor());
+        builder.buildExecutable('contrib/c/benc2json.c',       './benc2json', waitFor());
+        builder.buildExecutable('contrib/c/cleanconfig.c',     './cleanconfig', waitFor());
+        builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
+        builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
     }
 
 }).test(function (builder, waitFor) {
@@ -170,7 +175,7 @@ Builder.configure({
     nThen(function (waitFor) {
 
         var out = '';
-        var test = Spawn('./buildjs/testcjdroute');
+        var test = Spawn(BUILDDIR+'/testcjdroute');
         test.stdout.on('data', function(dat) { out += dat.toString(); });
         test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
         test.on('close', waitFor(function (ret) {
@@ -207,9 +212,9 @@ Builder.configure({
 
 }).pack(function (builder, waitFor) {
 
-    Fs.exists('./buildjs/cjdroute', waitFor(function (exists) {
+    Fs.exists(BUILDDIR+'/cjdroute', waitFor(function (exists) {
         if (!exists) { return; }
-        Fs.rename('./buildjs/cjdroute', './cjdroute', waitFor(function (err) {
+        Fs.rename(BUILDDIR+'/cjdroute', './cjdroute', waitFor(function (err) {
             if (err) { throw err; }
         }));
     }));

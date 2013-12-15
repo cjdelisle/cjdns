@@ -35,7 +35,20 @@ struct Context
     struct Log* logger;
     struct Allocator* alloc;
     struct AdminClient* client;
+
+    struct Allocator* currentReqAlloc;
+    struct AdminClient_Result* currentResult;
+
+    struct EventBase* base;
 };
+
+static void rpcCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct Context* ctx = p->userData;
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->currentResult = res;
+    EventBase_endLoop(ctx->base);
+}
 
 static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allocator* alloc)
 {
@@ -45,10 +58,14 @@ static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allo
     #endif
 
     Dict d = NULL;
-    struct AdminClient_Result* exitRes =
+    struct AdminClient_Promise* exitPromise =
         AdminClient_rpcCall(String_CONST("Core_exit"), &d, ctx->client, alloc);
+    exitPromise->callback = rpcCallback;
+    exitPromise->userData = ctx;
 
-    if (exitRes->err) {
+    EventBase_beginLoop(ctx->base);
+
+    if (ctx->currentResult->err) {
         Log_critical(ctx->logger, "Failed to stop the core.");
     }
     Log_critical(ctx->logger, "Aborting.");
@@ -61,7 +78,17 @@ static int rpcCall0(String* function,
                     struct Allocator* alloc,
                     bool exitIfError)
 {
-    struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    ctx->currentReqAlloc = Allocator_child(alloc);
+    ctx->currentResult = NULL;
+    struct AdminClient_Promise* promise = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    promise->callback = rpcCallback;
+    promise->userData = ctx;
+
+    EventBase_beginLoop(ctx->base);
+
+    struct AdminClient_Result* res = ctx->currentResult;
+    Assert_always(res);
+
     if (res->err) {
         Log_critical(ctx->logger,
                       "Failed to make function call [%s], error: [%s]",
@@ -70,6 +97,7 @@ static int rpcCall0(String* function,
         die(res, ctx, alloc);
     }
     String* error = Dict_getString(res->responseDict, String_CONST("error"));
+    int ret = 0;
     if (error && !String_equals(error, String_CONST("none"))) {
         if (exitIfError) {
             Log_critical(ctx->logger,
@@ -80,9 +108,12 @@ static int rpcCall0(String* function,
         }
         Log_warn(ctx->logger, "Got error [%s] calling [%s], ignoring.",
                  error->bytes, function->bytes);
-        return 1;
+        ret = 1;
     }
-    return 0;
+
+    Allocator_free(ctx->currentReqAlloc);
+    ctx->currentReqAlloc = NULL;
+    return ret;
 }
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
@@ -393,7 +424,12 @@ void Configurator_config(Dict* config,
     struct AdminClient* client =
         AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
 
-    struct Context ctx = { .logger = logger, .alloc = tempAlloc, .client = client };
+    struct Context ctx = {
+        .logger = logger,
+        .alloc = tempAlloc,
+        .client = client,
+        .base = eventBase,
+    };
 
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {

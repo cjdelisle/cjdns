@@ -48,6 +48,8 @@ static void beginConnection(Dict* args,
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* error = NULL;
 
+    Log_debug(ctx->logger, "Peering with [%s]", publicKey->bytes);
+
     uint8_t pkBytes[32];
     int ret;
     if (ctx->ifCount == 0) {
@@ -101,6 +103,7 @@ static void newInterface2(struct Context* ctx,
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
         Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
+        return;
     }
 
     // sizeof(struct UDPInterface*) the size of a pointer.

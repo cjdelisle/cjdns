@@ -342,7 +342,7 @@ static void sendHotKeysRequest(void* vRainflyClient)
     struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)vRainflyClient);
 
     int time;
-    if (Bits_popCountx32(ctx->keyMap) < ctx->pub.minSignatures) {
+    if (Bits_popCountx32(ctx->keyMap) < ctx->pub.minSignatures && ctx->keyCount) {
         time = Random_uint32(ctx->rand) % 5000;
     } else {
         time = (Random_uint32(ctx->rand) % 600000) + 120000;

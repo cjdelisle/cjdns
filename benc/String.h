@@ -22,6 +22,7 @@
 Linker_require("benc/String.c")
 
 #include <stdbool.h>
+#include <stddef.h> // NULL
 
 /**
  * Create a new bencoded string from a C null terminated string.

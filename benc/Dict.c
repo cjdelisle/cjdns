@@ -28,7 +28,7 @@ int32_t Dict_size(const Dict* dictionary)
         }
         return i;
     }
-    return -1;
+    return 0;
 }
 
 static Object* lookupObject(const Dict* dictionary, const String* key)
@@ -130,7 +130,7 @@ static Object* putObject(Dict* dictionary,
         current = current->next;
     }
     struct Dict_Entry* entry = Allocator_malloc(allocator, sizeof(struct Dict_Entry));
-    entry->key = key;
+    entry->key = (String*) key; // need to drop the const :(
     entry->val = value;
     entry->next = current;
     *prev_p = entry;

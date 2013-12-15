@@ -36,19 +36,30 @@ static void adminFunc(Dict* input, void* vcontext, String* txid, struct Allocato
     Admin_sendMessage(&d, txid, ctx->framework->admin);
 }
 
+static void standardClientCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct Context* ctx = p->userData;
+    //printf("%d\n", res->err);
+    Assert_always(!res->err);
+    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
+    Assert_always(ctx->called);
+
+    EventBase_endLoop(ctx->framework->eventBase);
+}
+
 static void standardClient(struct Context* ctx)
 {
     ctx->called = false;
-    struct AdminClient_Result* res =
+    struct AdminClient_Promise* promise =
         AdminClient_rpcCall(String_CONST("adminFunc"),
                             NULL,
                             ctx->framework->client,
                             ctx->framework->alloc);
 
-    printf("%d\n", res->err);
-    Assert_always(!res->err);
-    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
-    Assert_always(ctx->called);
+    promise->callback = standardClientCallback;
+    promise->userData = ctx;
+
+    EventBase_beginLoop(ctx->framework->eventBase);
 }
 
 int main(int argc, char** argv)

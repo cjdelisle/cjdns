@@ -379,6 +379,23 @@ static int benchmark()
     return 0;
 }
 
+struct CheckRunningInstanceContext
+{
+    struct EventBase* base;
+    struct Allocator* alloc;
+    struct AdminClient_Result* res;
+};
+
+static void checkRunningInstanceCallback(struct AdminClient_Promise* p,
+                                         struct AdminClient_Result* res)
+{
+    struct CheckRunningInstanceContext* ctx = p->userData;
+    // Prevent this from freeing until after we drop out of the loop.
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->res = res;
+    EventBase_endLoop(ctx->base);
+}
+
 static void checkRunningInstance(struct Allocator* allocator,
                                  struct EventBase* base,
                                  String* addr,
@@ -400,12 +417,25 @@ static void checkRunningInstance(struct Allocator* allocator,
 
     Dict* pingArgs = Dict_new(alloc);
 
-    struct AdminClient_Result* pingResult =
+    struct AdminClient_Promise* pingPromise =
         AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
 
-    if (pingResult->err == AdminClient_Error_NONE) {
-        Except_throw(eh, "Startup failed: cjdroute is already running.");
+    struct CheckRunningInstanceContext* ctx =
+        Allocator_malloc(alloc, sizeof(struct CheckRunningInstanceContext));
+    ctx->base = base;
+    ctx->alloc = alloc;
+    ctx->res = NULL;
+
+    pingPromise->callback = checkRunningInstanceCallback;
+    pingPromise->userData = ctx;
+
+    EventBase_beginLoop(base);
+
+    Assert_always(ctx->res);
+    if (ctx->res->err != AdminClient_Error_TIMEOUT) {
+        Except_throw(eh, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
     }
+
     Allocator_free(alloc);
 }
 

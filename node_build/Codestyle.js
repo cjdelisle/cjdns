@@ -85,7 +85,8 @@ var parseFile = function (fileName, fileContent) {
         if ((/^\w+\s.*\(/).test(line)) {
             if (!(/^int main\(/.test(line)
                 || line.indexOf(' '+n) > -1
-                || /^[ ]?static /.test(line)))
+                || /^[ ]?static /.test(line)
+                || /^typedef /.test(line)))
             {
                 error("all globally visible functions must begin with the name of the file.");
             }
