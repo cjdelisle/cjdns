@@ -87,13 +87,6 @@ struct NodeStore_pvt
     Identity
 };
 
-/**
- * Compare two peers of a node for organization in the RBTree
- * The idea is to find the least significant bit which differs between a and b.
- * then if that bit is a0 b1 then return -1 and if it is a1 b0 then we return 1.
- *
- * Entries are placed in reverse order by label length
- */
 // My memory is really bad
 #define A_COMES_FIRST 1
 #define B_COMES_FIRST -1
@@ -105,18 +98,7 @@ static inline int comparePeers(const struct Node_Link* la, const struct Node_Lin
     if (a == b) {
         return 0;
     }
-/*
-    if (LabelSplicer_routesThrough(b, a)) {
-        return A_COMES_FIRST;
-    }
-    if (LabelSplicer_routesThrough(a, b)) {
-        return B_COMES_FIRST;
-    }
-    if (a < b) {
-        return B_COMES_FIRST;
-    }
-    return A_COMES_FIRST;
-*/
+
     int log2Diff = Bits_log2x64(b) - Bits_log2x64(a);
     if (log2Diff) {
         return log2Diff;
@@ -335,9 +317,19 @@ static inline void linkNodes(struct Node_Two* parent,
     verifyNode(parent);
     verifyLinks(store);
 
+    #ifdef Log_DEBUG
+        uint8_t parentIp[40];
+        uint8_t childIp[40];
+        AddrTools_printIp(parentIp, parent->address.ip6.bytes);
+        AddrTools_printIp(childIp, child->address.ip6.bytes);
+        uint8_t printedLabel[20];
+        AddrTools_printPath(printedLabel, cannonicalLabel);
+        Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]",
+                  parentIp, childIp, printedLabel);
+    #endif
+
     Assert_true((parent != child && cannonicalLabel != 1) || store->selfLink == NULL);
 
-    int differentLabel = 0;
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &parent->peerTree) {
         Identity_check(link);
@@ -345,7 +337,6 @@ static inline void linkNodes(struct Node_Two* parent,
             if (link->cannonicalLabel != cannonicalLabel) {
                 // multiple paths between A and B are ok because they
                 // will have divergent paths following the first director.
-                differentLabel = 1;
                 continue;
 
             } else if (link->encodingFormNumber != encodingFormNumber) {
@@ -367,18 +358,6 @@ static inline void linkNodes(struct Node_Two* parent,
     }
 
     link = getLink(store);
-
-    #ifdef Log_DEBUG
-        uint8_t parentIp[40];
-        uint8_t childIp[40];
-        AddrTools_printIp(parentIp, parent->address.ip6.bytes);
-        AddrTools_printIp(childIp, child->address.ip6.bytes);
-        uint8_t printedLabel[20];
-        AddrTools_printPath(printedLabel, cannonicalLabel);
-        Log_debug(store->logger, "Linking [%s] with [%s] with label fragment [%s]%s %0lx",
-                  parentIp, childIp, printedLabel, differentLabel ? " DIFFERENT LABEL" : "",
-                  (long)link);
-    #endif
 
     // Link it in
     link->cannonicalLabel = cannonicalLabel;
@@ -407,6 +386,7 @@ static inline void linkNodes(struct Node_Two* parent,
  * @param store
  * @return the label fragment linking outputNode with the given path.
  */
+#define findClosest_INVALID (~((uint64_t)0))
 static inline uint64_t findClosest(uint64_t path,
                                    struct Node_Link** output,
                                    struct NodeStore_pvt* store)
@@ -419,13 +399,43 @@ static inline uint64_t findClosest(uint64_t path,
     struct Node_Link* nextLink;
     struct Node_Link* link = store->selfLink;
     for (;;) {
+        uint64_t origLabel = tmpl.cannonicalLabel;
         // First we splice off the parent's Director leaving the child's Director.
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
+
+
+    Log_debug(store->logger, "unspliced %08lx to %08lx nl=%08lx",
+              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+        origLabel = tmpl.cannonicalLabel;
+
         // Then we cannoicalize the child's Director
-        tmpl.cannonicalLabel =
-            EncodingScheme_convertLabel(link->child->encodingScheme,
-                                        tmpl.cannonicalLabel,
-                                        EncodingScheme_convertLabel_convertTo_CANNONICAL);
+        if (link != store->selfLink) {
+
+            int formNum =
+                EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
+            // Check that they didn't send us an obviously invalid route.
+            if (formNum < link->encodingFormNumber) {
+                return findClosest_INVALID;
+            }
+
+            tmpl.cannonicalLabel =
+                EncodingScheme_convertLabel(link->child->encodingScheme,
+                                            tmpl.cannonicalLabel,
+                                            EncodingScheme_convertLabel_convertTo_CANNONICAL);
+
+            // Check that they didn't waste space by sending an oversize encoding form.
+            int cannonicalFormNum =
+                EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
+            if (formNum > link->encodingFormNumber && cannonicalFormNum != formNum) {
+Assert_true(0);
+                return findClosest_INVALID;
+            }
+        }
+
+    Log_debug(store->logger, "cannonicalized %08lx to %08lx nl=%08lx",
+              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+
+        origLabel = tmpl.cannonicalLabel;
 
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
@@ -439,34 +449,29 @@ static inline uint64_t findClosest(uint64_t path,
             nextLink = rbGetNext(nextLink);
         }
 
-        /*if (link == store->selfLink) { 32 bit
-            Log_debug(store->logger, "unspliced %08lx to %08lx nl=%08lx",
-                      path, tmpl.cannonicalLabel, nextLink ? nextLink->cannonicalLabel : 0);
-        }*/
-
         if (!nextLink || nextLink == store->selfLink) {
             // node has no peers
             break;
         }
 
-        struct Node_Link* previous = rbGetPrevious(nextLink);
+        /*struct Node_Link* previous = rbGetPrevious(nextLink);
         if (previous) {
             logLink(store, previous, "PREVIOUS LINK");
         } else {
             Log_debug(store->logger, "previous link is null");
-        }
+        }*/
 
         Identity_check(nextLink);
         Assert_true(nextLink->child->encodingScheme);
-        link = nextLink;
 
-        if (tmpl.cannonicalLabel == link->cannonicalLabel) {
-            // found a match
+        if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
+            logLink(store, nextLink, "Exact match");
             tmpl.cannonicalLabel = 1;
-            break;
+            *output = nextLink;
+            return 1;
         }
 
-        if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, link->cannonicalLabel)) {
+        if (!LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel)) {
             // child of next link is not in the path, we reached the end.
             break;
         }
@@ -481,16 +486,20 @@ static inline uint64_t findClosest(uint64_t path,
             Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
                       labelA, labelB, searchingFor);
         #endif
+
+        link = nextLink;
     }
 
     #ifdef Log_DEBUG
         uint8_t labelA[20];
         uint8_t labelB[20] = "NONE";
+        uint8_t labelC[20];
         AddrTools_printPath(labelA, tmpl.cannonicalLabel);
         if (nextLink) {
             AddrTools_printPath(labelB, nextLink->cannonicalLabel);
         }
-        Log_debug(store->logger, "[%s] is not behind [%s]", labelA, labelB);
+        AddrTools_printPath(labelC, link->cannonicalLabel);
+        Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
     #endif
 
     Assert_true(tmpl.cannonicalLabel);/// TODO remove this
@@ -525,7 +534,6 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct EncodingScheme* scheme,
                                         int encodingFormNumber)
 {
-return NULL;
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
     verifyLinks(store);
@@ -563,10 +571,16 @@ return NULL;
     struct Node_Link* closest = NULL;
     uint64_t path = findClosest(addr->path, &closest, store);
 
+    if (path == findClosest_INVALID) {
+        return NULL;
+    }
+
     if (closest->child == node) {
         // Link is already known.
         update(closest, 0, store);
         return node;
+    } else {
+        Assert_true(path > 1);
     }
 
     // Check whether the parent is already linked with a node which is "behind" the child.
@@ -620,6 +634,12 @@ return NULL;
     linkNodes(closest->child, node, path, 0, encodingFormNumber, addr->path, store);
 
     verifyLinks(store);
+
+    #ifdef PARANOIA
+        path = findClosest(addr->path, &closest, store);
+        Assert_true(path == 1);
+        Assert_true(closest->child == node);
+    #endif
 
     return node;
 }

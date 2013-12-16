@@ -43,8 +43,8 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)
 {
-    if (scheme->count == 1) {
-        // fixed width encoding, this is easy
+    if (scheme->count == 1 || (routeLabel & 0xf) == 1) {
+        // fixed width encoding or it's a self label, this is easy
         switch (convertTo) {
             case 0:
             case EncodingScheme_convertLabel_convertTo_CANNONICAL: return routeLabel;
@@ -63,11 +63,21 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     uint64_t director = routeLabel & MAX_BITS(currentForm->bitCount);
     routeLabel >>= currentForm->bitCount;
 
+    // There is some magic here!
+    if ((currentForm->prefix & MAX_BITS(currentForm->prefixLen)) == 1) {
+        // because 0 can never show up in the wild, we reuse it for 1.
+        Assert_true(director != 0);
+        director--;
+    }
+
     int minBits = Bits_log2x64(director) + 1;
     if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
         for (int i = 0; i < scheme->count; i++) {
             struct EncodingScheme_Form* form = &scheme->forms[i];
-            if (form->bitCount >= minBits) {
+            // Magic: If the result ends with 0001 then continue on to the next encoding.
+            if (form->bitCount >= minBits
+                && (0xf & (form->prefix | (director << form->prefixLen))) != 1)
+            {
                 convertTo = i;
                 break;
             }
@@ -80,6 +90,11 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     }
 
     struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
+
+    if ((nextForm->prefix & MAX_BITS(nextForm->prefixLen)) == 1) {
+        // because 0 can never show up in the wild, we reuse it for 1.
+        director++;
+    }
 
     if (minBits > nextForm->bitCount) {
         // won't fit in requested form
@@ -96,6 +111,12 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     routeLabel |= director;
     routeLabel <<= nextForm->prefixLen;
     routeLabel |= nextForm->prefix;
+
+    if ((routeLabel & 0xf) == 1) {
+        // looks like a self-route
+        return EncodingScheme_convertLabel_INVALID;
+    }
+
     return routeLabel;
 }
 

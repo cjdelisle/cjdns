@@ -19,21 +19,14 @@
 #include "util/Bits.h"
 #include <stdint.h>
 
-/* right now 3 implementations:
+/* right now 4 implementations:
  * - fixed 4 bits: 15 peers
  * - fixed 8 bits: 240 peers
  * - dynamically 4-10 bits: 256 peers
+ * - dynamically 5-9 bits: 256 peers
  */
 
-#ifndef CJDNS_MAX_PEERS
-    #error CJDNS_MAX_PEERS needs to be defined.
-#endif
-
-#if CJDNS_MAX_PEERS > 256
-    #error "Not more than 256 peers supported"
-#endif
-
-/* implementations - select one based on CJDNS_MAX_PEERS
+/* implementations
  *
  * they are all accesible with their internal names for unit testing
  */
@@ -41,31 +34,31 @@
 /**********************
  * Fixed 4 bit scheme: 15 peers + 1 router
  **********************/
-# define NumberCompress_4_INTERFACES 16
+# define NumberCompress_f4_INTERFACES 16
 
-static inline struct EncodingScheme* NumberCompress_4_defineScheme(struct Allocator* alloc)
+static inline struct EncodingScheme* NumberCompress_f4_defineScheme(struct Allocator* alloc)
 {
     return EncodingScheme_defineFixedWidthScheme(4, alloc);
 }
 
-static inline uint32_t NumberCompress_4_bitsUsedForLabel(const uint64_t label)
+static inline uint32_t NumberCompress_f4_bitsUsedForLabel(const uint64_t label)
 {
     return 4;
 }
 
-static inline uint32_t NumberCompress_4_bitsUsedForNumber(const uint32_t number)
+static inline uint32_t NumberCompress_f4_bitsUsedForNumber(const uint32_t number)
 {
     return 4;
 }
 
-static inline uint64_t NumberCompress_4_getCompressed(const uint32_t number,
-                                                      const uint32_t bitsUsed)
+static inline uint64_t NumberCompress_f4_getCompressed(const uint32_t number,
+                                                       const uint32_t bitsUsed)
 {
     return number;
 }
 
-static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label,
-                                                        const uint32_t bitsUsed)
+static inline uint32_t NumberCompress_f4_getDecompressed(const uint64_t label,
+                                                         const uint32_t bitsUsed)
 {
     return label & 0xf;
 }
@@ -77,14 +70,14 @@ static inline uint32_t NumberCompress_4_getDecompressed(const uint64_t label,
 // Basic idea: encode number XXXXYYYY as YYYY(XXXX)'; (XXXX)' is XXXX+1 if XXXX != 0, otherwise XXXX
 // that way XXXX is never 1
 // so map numbers 16-239 -> 32-255, and 240 <-> 1, then swap nibbles
-# define NumberCompress_8_INTERFACES 241
+# define NumberCompress_f8_INTERFACES 241
 
-static inline struct EncodingScheme* NumberCompress_8_defineScheme(struct Allocator* alloc)
+static inline struct EncodingScheme* NumberCompress_f8_defineScheme(struct Allocator* alloc)
 {
     return EncodingScheme_defineFixedWidthScheme(8, alloc);
 }
 
-static inline uint32_t NumberCompress_8_bitsUsedForLabel(const uint64_t label)
+static inline uint32_t NumberCompress_f8_bitsUsedForLabel(const uint64_t label)
 {
     if (1 == (label & 0xf)) {
         return 4;
@@ -92,7 +85,7 @@ static inline uint32_t NumberCompress_8_bitsUsedForLabel(const uint64_t label)
     return 8;
 }
 
-static inline uint32_t NumberCompress_8_bitsUsedForNumber(const uint32_t number)
+static inline uint32_t NumberCompress_f8_bitsUsedForNumber(const uint32_t number)
 {
     if (1 == number) {
         return 4;
@@ -100,8 +93,8 @@ static inline uint32_t NumberCompress_8_bitsUsedForNumber(const uint32_t number)
     return 8;
 }
 
-static inline uint64_t NumberCompress_8_getCompressed(const uint32_t number,
-                                                      const uint32_t bitsUsed)
+static inline uint64_t NumberCompress_f8_getCompressed(const uint32_t number,
+                                                       const uint32_t bitsUsed)
 {
     if (1 == number) {
         return 1;
@@ -118,8 +111,8 @@ static inline uint64_t NumberCompress_8_getCompressed(const uint32_t number,
     return (low << 4) + high;
 }
 
-static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label,
-                                                        const uint32_t bitsUsed)
+static inline uint32_t NumberCompress_f8_getDecompressed(const uint64_t label,
+                                                         const uint32_t bitsUsed)
 {
     uint32_t low = label & 0xf;
     if (1 == low) {
@@ -140,7 +133,7 @@ static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label,
 
 
 /*
- * Dynamic number compression scheme:
+ * 3/5/8 bit dynamic number compression scheme:
  *
  * scheme   data             suffix         range    bits used
  * route 0001                               1            4 (number 1 always encoded as 0001)
@@ -148,8 +141,8 @@ static inline uint32_t NumberCompress_8_getDecompressed(const uint64_t label,
  *   1   00000-11111            10          0-32         7 (skip the number 1)
  *   2   00000000-11111111      00          0-256        10 (skip the number 1)
  */
-# define NumberCompress_dyn_INTERFACES 257
-static inline struct EncodingScheme* NumberCompress_dyn_defineScheme(struct Allocator* alloc)
+# define NumberCompress_v3x5x8_INTERFACES 257
+static inline struct EncodingScheme* NumberCompress_v3x5x8_defineScheme(struct Allocator* alloc)
 {
     return EncodingScheme_defineDynWidthScheme(
         ((struct EncodingScheme_Form[3]) {
@@ -161,7 +154,7 @@ static inline struct EncodingScheme* NumberCompress_dyn_defineScheme(struct Allo
         alloc);
 }
 
-static inline uint32_t NumberCompress_dyn_bitsUsedForLabel(const uint64_t label)
+static inline uint32_t NumberCompress_v3x5x8_bitsUsedForLabel(const uint64_t label)
 {
     if (0 != (label & 0x1)) {
         return 4;
@@ -174,7 +167,7 @@ static inline uint32_t NumberCompress_dyn_bitsUsedForLabel(const uint64_t label)
     return 10;
 }
 
-static inline uint32_t NumberCompress_dyn_bitsUsedForNumber(const uint32_t number)
+static inline uint32_t NumberCompress_v3x5x8_bitsUsedForNumber(const uint32_t number)
 {
     if (number < 8) {
         return 4;
@@ -185,8 +178,8 @@ static inline uint32_t NumberCompress_dyn_bitsUsedForNumber(const uint32_t numbe
     }
 }
 
-static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number,
-                                                        const uint32_t bitsUsed)
+static inline uint64_t NumberCompress_v3x5x8_getCompressed(const uint32_t number,
+                                                          const uint32_t bitsUsed)
 {
     if (1 == number) {
         return 1;
@@ -214,8 +207,8 @@ static inline uint64_t NumberCompress_dyn_getCompressed(const uint32_t number,
     }
 }
 
-static inline uint32_t NumberCompress_dyn_getDecompressed(const uint64_t label,
-                                                          const uint32_t bitsUsed)
+static inline uint32_t NumberCompress_v3x5x8_getDecompressed(const uint64_t label,
+                                                            const uint32_t bitsUsed)
 {
     uint32_t number;
     switch (bitsUsed) {
@@ -244,17 +237,89 @@ static inline uint32_t NumberCompress_dyn_getDecompressed(const uint64_t label,
     }
 }
 
+
+/*
+ * 4/8 Dynamic number compression scheme:
+ *
+ * scheme   data             suffix         range    bits used
+ *   0   0000-1111               1          0-15         5 (00001 indicates loopback route)
+ *   1   00000000-11111111       0          0-255        9
+ */
+# define NumberCompress_v4x8_INTERFACES 257
+static inline struct EncodingScheme* NumberCompress_v4x8_defineScheme(struct Allocator* alloc)
+{
+    return EncodingScheme_defineDynWidthScheme(
+        ((struct EncodingScheme_Form[]) {
+            { .bitCount = 4, .prefixLen = 1, .prefix = 1, },
+            { .bitCount = 8, .prefixLen = 1, .prefix = 0, }
+        }),
+        2,
+        alloc);
+}
+
+static inline uint32_t NumberCompress_v4x8_getDecompressed(const uint64_t label,
+                                                         const uint32_t bitsUsed)
+{
+    if ((label & 0xf) == 1) { return 1; }
+    switch (bitsUsed) {
+        case 5: {
+            uint32_t number = (label >> 1) & 0xfu;
+            if (1 == number) { return 0; }
+            return number;
+        }
+
+        case 9: {
+            uint32_t number = (label >> 1) & 0xffu;
+            if (number) { number++; } // skip the number 1
+            return number;
+        }
+
+        default: Assert_ifTesting(0);
+    }
+    return 0;
+}
+
+
+static inline uint64_t NumberCompress_v4x8_getCompressed(uint32_t number,
+                                                         const uint32_t bitsUsed)
+{
+    if (1 == number) { return 1; }
+
+    switch (bitsUsed) {
+        case 5:
+            // 10001 is reserved
+            Assert_ifTesting(number < 16 && number != 8);
+            // 0 is encoded as 0011, 1 is handled seperately
+            if (number == 0) { number = 1; }
+            return (number << 1) | 1;
+        case 9:
+            Assert_ifTesting(number < 256);
+            // 2 is encoded as 1, 1 is encoded as 0 but never happens in the wild.
+            if (number) { number--; }
+            return number << 1;
+        default: Assert_ifTesting(0);
+    }
+    return 0;
+}
+
+static inline uint32_t NumberCompress_v4x8_bitsUsedForLabel(const uint64_t label)
+{
+    return (label & 1) ? ((label & 0xf) == 1) ? 4 : 5 : 9;
+}
+
+static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t number)
+{
+    Assert_ifTesting(number < 257);
+    switch (number) {
+        case 1: return 4;
+        case 8: return 9;
+        default: return (number < 15) ? 5 : 9;
+    }
+}
+
 #define NumberCompress_MKNAME(x) NumberCompress__MKNAME(NumberCompress_TYPE, x)
 #define NumberCompress__MKNAME(y, x) NumberCompress___MKNAME(y, x)
 #define NumberCompress___MKNAME(y, x) NumberCompress_ ## y ## _ ## x
-
-#if CJDNS_MAX_PEERS < 16
-    #define NumberCompress_TYPE 4
-#elif CJDNS_MAX_PEERS < 241
-    #define NumberCompress_TYPE 8
-#else
-    #define NumberCompress_TYPE dyn
-#endif
 
 #define NumberCompress_INTERFACES NumberCompress_MKNAME(INTERFACES)
 #define NumberCompress_defineScheme(a) NumberCompress_MKNAME(defineScheme)(a)

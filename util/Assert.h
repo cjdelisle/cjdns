@@ -49,4 +49,10 @@ void Assert_failure(const char* format, ...);
     #define Assert_true(expr)
 #endif
 
+#ifdef TESTING
+    #define Assert_ifTesting(expr) Assert_always(expr)
+#else
+    #define Assert_ifTesting(expr)
+#endif
+
 #endif

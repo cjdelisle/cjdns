@@ -69,7 +69,11 @@ Builder.configure({
 
 //        '-flto', not available on some  machines
 
-        '-D','CJDNS_MAX_PEERS=256',
+        // f4 = 16 peers max, fixed width 4 bit
+        // f8 = 241 peers max, fixed width 8 bit
+        // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
+        // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
+        '-D',' NumberCompress_TYPE=v4x8',
 
         // disable for speed, enable for safety
         '-D','Log_DEBUG',

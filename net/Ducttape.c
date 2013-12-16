@@ -378,7 +378,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
                                    struct SessionManager_Session* session,
                                    struct Ducttape_pvt* context)
 {
-    //uint64_t label = dtHeader->switchLabel;
+    uint64_t label = dtHeader->switchLabel;
 
     if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
         //debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
@@ -390,7 +390,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         #endif
         Message_push(message, &sendHandle_be, 4, NULL);
     } else {
-        //debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
+        debugHandlesAndLabel0(context->logger, session, label, "layer2 sending start message");
         #ifdef Version_2_COMPAT
         if (session->version < 3) {
             Message_push(message, &session->receiveHandle_be, 4, NULL);

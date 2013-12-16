@@ -120,9 +120,9 @@ static void responseCallback(struct RouterModule_Promise* promise,
             Address_print(printed, &search->best);
             Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
         #endif
-        RouteTracer_trace(search->best.path,
+        /*RouteTracer_trace(search->best.path,
                           search->janitor->routeTracer,
-                          search->janitor->allocator);
+                          search->janitor->allocator);*/
     }
     Allocator_free(search->alloc);
 }
