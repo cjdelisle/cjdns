@@ -469,15 +469,15 @@ static inline uint8_t incomingFromTun(struct Message* message,
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
     struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
-/**
- * TODO: something more sane
- * Basically, we want to do two things here.
- * 1: Search for the node if we do not already know a path directly to them.
- * 2: Refresh the reach of each already-known path.
- * Delay between searches taken from context->timeBetweenSearches
- * I'm going to trust that it's long enough to be at least kind-of sane.
- * If that's not the case, something should be done about it... --Arc
- */
+    /**
+     * TODO: something more sane
+     * Basically, we want to do two things here.
+     * 1: Search for the node if we do not already know a path directly to them.
+     * 2: Refresh the reach of each already-known path.
+     * Delay between searches taken from context->timeBetweenSearches
+     * I'm going to trust that it's long enough to be at least kind-of sane.
+     * If that's not the case, something should be done about it... --Arc
+     */
     if (!bestNext || Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
 
         uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
@@ -486,10 +486,9 @@ static inline uint8_t incomingFromTun(struct Message* message,
             SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
         }
     }
-    else {
-        RouterModule_refreshReach(header->destinationAddr, context->routerModule);
-    }
-//End of TODO block
+    RouterModule_refreshReach(header->destinationAddr, context->routerModule);
+
+    //End of TODO block
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
         nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
