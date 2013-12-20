@@ -472,13 +472,16 @@ static inline uint8_t incomingFromTun(struct Message* message,
     /**
      * TODO: something more sane
      * Basically, we want to do two things here.
-     * 1: Search for the node if we do not already know a path directly to them.
+     * 1: Search for the node if we do not already know a path directly to them,
+        or if the best path we do know is particularly bad (>~2 second expected latency)
      * 2: Refresh the reach of each already-known path.
      * Delay between searches taken from context->timeBetweenSearches
      * I'm going to trust that it's long enough to be at least kind-of sane.
      * If that's not the case, something should be done about it... --Arc
      */
-    if (!bestNext || Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
+    if (!bestNext ||
+        Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16) ||
+        (bestNext->reach < (UINT32_MAX / 2048))) {
 
         uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
         if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
