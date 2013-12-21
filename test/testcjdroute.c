@@ -73,19 +73,36 @@ static uint64_t runTest(Test test,
     return now;
 }
 
+void usage(char* appName)
+{
+    printf("%s <test>     run one test\n", appName);
+    printf("%s all        run every test\n\n", appName);
+    printf("Available Tests:\n");
+    for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
+        printf("%s\n", TESTS[i].name);
+    }
+}
+
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(4096);
     struct EventBase* base = EventBase_new(alloc);
     uint64_t now = Time_hrtime();
     uint64_t startTime = now;
-    if (argc > 1) {
+    if (argc < 2) {
+        Assert_always(argc > 0);
+        usage(argv[0]);
+        return 100;
+    }
+    if (strcmp("all", argv[1])) {
         for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
             if (!strcmp(TESTS[i].name, argv[1])) {
                 TESTS[i].func(argc, argv);
                 return 0;
             }
         }
+        usage(argv[0]);
+        return 100;
     }
     for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
         now = runTest(TESTS[i].func, TESTS[i].name, now, argc, argv, base);

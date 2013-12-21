@@ -65,6 +65,13 @@ static inline int Bits_log2x64(uint64_t number)
     return out;
 }
 
+/** Largest possible number whose log2 is bitCount. */
+static inline uint64_t Bits_maxLog2x64(uint32_t bitCount)
+{
+    Assert_true(bitCount <= 64);
+    return (~((uint64_t)0)) >> (64 - bitCount);
+}
+
 static inline int Bits_log2x32(uint32_t number)
 {
     int out = 0;

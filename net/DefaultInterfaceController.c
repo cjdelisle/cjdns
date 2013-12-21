@@ -17,6 +17,7 @@
 #include "net/DefaultInterfaceController.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
+#include "switch/NumberCompress.h"
 #include "util/Base32.h"
 #include "util/Bits.h"
 #include "util/events/Time.h"
@@ -25,6 +26,7 @@
 #include "util/version/Version.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
+#include "wire/HopLimited.h"
 
 #include <stddef.h> // offsetof
 
@@ -75,12 +77,19 @@ struct IFCPeer
     bool isIncomingConnection : 1;
 
     /**
+     * This is true if and only if we know the full switch label for reaching the other end.
+     * If we don't then we send a HopLimited message and hope for a response from which we
+     * can derive the full label.
+     */
+    bool knowFullLabel : 1;
+
+    /**
      * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
      * During transition from HANDSHAKE to ESTABLISHED, a check is done for a registeration of a
      * node which is already registered in a different switch slot, if there is one and the
      * handshake completes, it will be moved.
      */
-    int state : 31;
+    int state : 30;
 
     // traffic counters
     uint64_t bytesOut;
@@ -158,18 +167,39 @@ static void onPingResponse(enum SwitchPinger_Result result,
                            uint32_t version,
                            void* onResponseContext)
 {
-    if (SwitchPinger_Result_OK != result) {
-        return;
-    }
     struct IFCPeer* ep = Identity_cast((struct IFCPeer*) onResponseContext);
     struct Context* ic = ifcontrollerForPeer(ep);
+
+    if (SwitchPinger_Result_LABEL_MISMATCH == result) {
+        // This is ok, it means we just discovered the *real* label for reaching the node.
+        // previously we had send a hop-limited message to an unspecified address behind
+        // that node's switch and it is now replying to us.
+        #ifdef PARANOIA
+            uint32_t bits = NumberCompress_bitsUsedForLabel(ep->switchLabel);
+            Assert_true(NumberCompress_bitsUsedForLabel(label) == bits);
+            Assert_true(NumberCompress_getDecompressed(label, bits) ==
+                NumberCompress_getDecompressed(ep->switchLabel, bits));
+        #endif
+    } else if (SwitchPinger_Result_OK != result) {
+        if (SwitchPinger_Result_TIMEOUT != result) {
+            #ifdef Log_DEBUG
+                uint8_t path[20];
+                AddrTools_printPath(path, label);
+                uint8_t sl[20];
+                AddrTools_printPath(sl, ep->switchLabel);
+                Log_debug(ic->logger, "Received switch pong with error [%s] from [%s]  [%s]",
+                          SwitchPinger_resultString(result)->bytes, path, sl);
+            #endif
+        }
+        return;
+    }
 
     struct Address addr;
     Bits_memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
-    addr.path = ep->switchLabel;
+    addr.path = ep->switchLabel = label;
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
-    RouterModule_addNode(ic->routerModule, &addr, version);
+    RouterModule_addPeer(ic->routerModule, &addr, version);
 
     #ifdef Log_DEBUG
         // This will be false if it times out.
@@ -178,7 +208,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
         AddrTools_printPath(path, label);
         uint8_t sl[20];
         AddrTools_printPath(sl, ep->switchLabel);
-        Log_debug(ic->logger, "Received [%s] from lazy endpoint [%s]  [%s]",
+        Log_debug(ic->logger, "Received switch pong [%s] from [%s]  [%s]",
                   SwitchPinger_resultString(result)->bytes, path, sl);
     #endif
 }
@@ -232,8 +262,11 @@ static void pingCallback(void* vic)
                 lag = ((now - ep->timeOfLastMessage) / 1024);
             }
 
+            uint64_t oneHopLabel =
+                Bits_maxLog2x64(NumberCompress_bitsUsedForLabel(ep->switchLabel)) & ep->switchLabel;
+
             struct SwitchPinger_Ping* ping =
-                SwitchPinger_newPing(ep->switchLabel,
+                SwitchPinger_newPing(oneHopLabel,
                                      String_CONST(""),
                                      ic->timeoutMilliseconds,
                                      onPingResponse,
@@ -248,6 +281,9 @@ static void pingCallback(void* vic)
             }
 
             ping->onResponseContext = ep;
+            // we may not know the full path for our direct peer so
+            // hop limit it to 1 hop so it must stop at our direct peer.
+            ping->hopLimit = 1;
 
             SwitchPinger_sendPing(ping);
 
@@ -295,23 +331,39 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
-            if (msg->length < 8 || msg->bytes[7] != 1) {
-                Log_info(ic->logger, "Dropping message because CA is not established.");
-                return Error_NONE;
-            } else {
-                // When a "server" gets a new connection from a "client" the router doesn't
-                // know about that client so if the client sends a packet to the server, the
-                // server will be unable to handle it until the client has sent inter-router
-                // communication to the server. Here we will ping the client so when the
-                // server gets the ping response, it will insert the client into its table
-                // and know its version.
-
-                // prevent DoS by limiting the number of times this can be called per second
-                // limit it to 7, this will affect innocent packets but it doesn't matter much
-                // since this is mostly just an optimization and for keeping the tests happy.
-                if ((ic->pingCount + 1) % 7) {
-                    pingCallback(ic);
+            // Must be a hopLimited message and the hop count must be zero.
+            if (msg->length >= (HopLimited_SIZE + Headers_SwitchHeader_SIZE)
+                && Headers_getMessageType((struct Headers_SwitchHeader*)msg->bytes) ==
+                    Headers_SwitchHeader_TYPE_HOPLIMIT
+                && ((struct HopLimited*)&(((struct Headers_SwitchHeader*)msg->bytes)[1]))->hops ==
+                    0)
+            {
+                // Message is directed to this router via a hop-limited header with 0 hops.
+            } else if (msg->length >= Headers_SwitchHeader_SIZE) {
+                uint64_t label =
+                    Endian_bigEndianToHost64(((struct Headers_SwitchHeader*)msg->bytes)->label_be);
+                uint32_t bits = NumberCompress_bitsUsedForLabel(label);
+                uint32_t num = NumberCompress_getDecompressed(label, bits);
+                if (num == 0) {
+                    // Other party knows our self address
+                } else {
+                    // addressed to someone else
+                    Log_info(ic->logger, "Dropping message because CA is not established.");
+                    return Error_NONE;
                 }
+            }
+            // When a "server" gets a new connection from a "client" the router doesn't
+            // know about that client so if the client sends a packet to the server, the
+            // server will be unable to handle it until the client has sent inter-router
+            // communication to the server. Here we will ping the client so when the
+            // server gets the ping response, it will insert the client into its table
+            // and know its version.
+
+            // prevent DoS by limiting the number of times this can be called per second
+            // limit it to 7, this will affect innocent packets but it doesn't matter much
+            // since this is mostly just an optimization and for keeping the tests happy.
+            if ((ic->pingCount + 1) % 7) {
+                pingCallback(ic);
             }
         }
     } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE

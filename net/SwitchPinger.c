@@ -24,6 +24,7 @@
 #include "wire/Headers.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
+#include "wire/HopLimited.h"
 
 
 struct SwitchPinger
@@ -60,7 +61,7 @@ struct SwitchPinger
 
 struct Ping
 {
-    struct SwitchPinger_Ping public;
+    struct SwitchPinger_Ping pub;
     uint64_t label;
     String* data;
     struct SwitchPinger* context;
@@ -135,7 +136,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     }
 
     uint32_t version = p->context->incomingVersion;
-    p->onResponse(err, label, data, milliseconds, version, p->public.onResponseContext);
+    p->onResponse(err, label, data, milliseconds, version, p->pub.onResponseContext);
 }
 
 static void sendPing(String* data, void* sendPingContext)
@@ -163,10 +164,22 @@ static void sendPing(String* data, void* sendPingContext)
     ctrl->type_be = Control_PING_be;
     ctrl->checksum_be = Checksum_engine(msg.bytes, msg.length);
 
+    if (p->pub.hopLimit > -1) {
+        Assert_true(p->pub.hopLimit < 256);
+        Message_shift(&msg, HopLimited_SIZE, NULL);
+        struct HopLimited* lmt = (struct HopLimited*) msg.bytes;
+        lmt->reserved = 0;
+        lmt->hops = p->pub.hopLimit;
+        lmt->nextHeader = Headers_SwitchHeader_TYPE_CONTROL;
+    }
+
     Message_shift(&msg, Headers_SwitchHeader_SIZE, NULL);
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg.bytes;
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
-    Headers_setPriorityAndMessageType(switchHeader, 0, Headers_SwitchHeader_TYPE_CONTROL);
+    Headers_setPriorityAndMessageType(switchHeader, 0,
+        (p->pub.hopLimit > -1)
+            ? Headers_SwitchHeader_TYPE_HOPLIMIT
+            : Headers_SwitchHeader_TYPE_CONTROL);
 
     p->context->iface->sendMessage(&msg, p->context->iface);
 }
@@ -232,8 +245,9 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
 
     struct Ping* ping = Allocator_clone(pp->pingAlloc, (&(struct Ping) {
-        .public = {
-            .pingAlloc = pp->pingAlloc
+        .pub = {
+            .pingAlloc = pp->pingAlloc,
+            .hopLimit = -1
         },
         .label = label,
         .data = String_clone(data, pp->pingAlloc),
@@ -246,7 +260,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     pp->context = ping;
     ctx->outstandingPings++;
 
-    return &ping->public;
+    return &ping->pub;
 }
 
 void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping)

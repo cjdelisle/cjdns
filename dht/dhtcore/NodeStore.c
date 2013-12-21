@@ -403,9 +403,9 @@ static inline uint64_t findClosest(uint64_t path,
         // First we splice off the parent's Director leaving the child's Director.
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
 
-
-    Log_debug(store->logger, "unspliced %08lx to %08lx nl=%08lx",
+    Log_debug(store->logger, "unspliced %08lx to %08lx lcl=%08lx",
               origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+
         origLabel = tmpl.cannonicalLabel;
 
         // Then we cannoicalize the child's Director
@@ -415,6 +415,7 @@ static inline uint64_t findClosest(uint64_t path,
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
             // Check that they didn't send us an obviously invalid route.
             if (formNum < link->encodingFormNumber) {
+                Assert_ifTesting(!"invalid route");
                 return findClosest_INVALID;
             }
 
@@ -423,17 +424,18 @@ static inline uint64_t findClosest(uint64_t path,
                                             tmpl.cannonicalLabel,
                                             EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
+    Log_debug(store->logger, "cannonicalized %08lx to %08lx lcl=%08lx",
+              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+
             // Check that they didn't waste space by sending an oversize encoding form.
             int cannonicalFormNum =
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
             if (formNum > link->encodingFormNumber && cannonicalFormNum != formNum) {
+                Assert_ifTesting(!"wasting space");
 Assert_true(0);
                 return findClosest_INVALID;
             }
         }
-
-    Log_debug(store->logger, "cannonicalized %08lx to %08lx nl=%08lx",
-              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
 
         origLabel = tmpl.cannonicalLabel;
 

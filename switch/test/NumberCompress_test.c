@@ -74,11 +74,16 @@ static void numberCompressions_generic(
     struct EncodingScheme* scheme = defineScheme(alloc);
     for (uint32_t i = 0; i < nInterfaces; i++) {
         for (int j = 0; j < scheme->count; j++) {
-            int bits = scheme->forms[i].prefixLen + scheme->forms[i].bitCount;
+            int bits = scheme->forms[j].prefixLen + scheme->forms[j].bitCount;
             if ((int)bitsUsedForNumber(i) > bits) { continue; }
             uint64_t label = getCompressed(i, bits);
             for (int k = j; k < scheme->count; k++) {
                 uint64_t labelB = EncodingScheme_convertLabel(scheme, label, k);
+                if (1 == i && k != 0) {
+                    Assert_true(1 == label);
+                    Assert_true(EncodingScheme_convertLabel_INVALID == labelB);
+                    continue;
+                }
                 int bitsB = bitsUsedForLabel(labelB);
                 Assert_true(bitsB == scheme->forms[k].prefixLen + scheme->forms[k].bitCount
                     || (i == 1 && bitsB == 4));

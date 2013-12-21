@@ -164,22 +164,20 @@ Builder.configure({
     builder.buildExecutable('admin/angel/cjdroute2.c', BUILDDIR+'/cjdroute', waitFor());
     builder.buildExecutable('test/testcjdroute.c',     BUILDDIR+'/testcjdroute', waitFor());
 
-    if (process.argv.indexOf('--contrib') > -1) {
-        builder.buildExecutable('contrib/c/publictoip6.c',     './publictoip6', waitFor());
-        builder.buildExecutable('contrib/c/privatetopublic.c', './privatetopublic', waitFor());
-        builder.buildExecutable('contrib/c/sybilsim.c',        './sybilsim', waitFor());
-        builder.buildExecutable('contrib/c/benc2json.c',       './benc2json', waitFor());
-        builder.buildExecutable('contrib/c/cleanconfig.c',     './cleanconfig', waitFor());
-        builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
-        builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
-    }
+    builder.buildExecutable('contrib/c/publictoip6.c',     './publictoip6', waitFor());
+    builder.buildExecutable('contrib/c/privatetopublic.c', './privatetopublic', waitFor());
+    builder.buildExecutable('contrib/c/sybilsim.c',        './sybilsim', waitFor());
+    builder.buildExecutable('contrib/c/benc2json.c',       './benc2json', waitFor());
+    builder.buildExecutable('contrib/c/cleanconfig.c',     './cleanconfig', waitFor());
+    builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
+    builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
 
 }).test(function (builder, waitFor) {
 
     nThen(function (waitFor) {
 
         var out = '';
-        var test = Spawn(BUILDDIR+'/testcjdroute');
+        var test = Spawn(BUILDDIR+'/testcjdroute', ['all']);
         test.stdout.on('data', function(dat) { out += dat.toString(); });
         test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
         test.on('close', waitFor(function (ret) {

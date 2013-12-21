@@ -42,6 +42,7 @@
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
+#include "wire/HopLimited.h"
 
 #include <stdint.h>
 
@@ -58,6 +59,8 @@
  */
 #define HANDLE_FLAG_BIT (0x80000000)
 #define HANDLE_FLAG_BIT_be Endian_hostToBigEndian32(HANDLE_FLAG_BIT)
+
+#define END_OF_LABEL_be Endian_hostToBigEndian64(((uint64_t)1)<<63)
 
 /*--------------------Prototypes--------------------*/
 static int handleOutgoing(struct DHTMessage* message,
@@ -401,6 +404,16 @@ static inline uint8_t sendToSwitch(struct Message* message,
     Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
 
     Assert_true(message->bytes == (uint8_t*)dtHeader->switchHeader);
+    Assert_true(((struct Headers_SwitchHeader*)message->bytes)->label_be ==
+        Endian_hostToBigEndian64(label));
+
+    #ifdef Version_6_COMPAT
+        if (session->version >= 7) {
+    #endif
+    ((struct Headers_SwitchHeader*)message->bytes)->label_be |= END_OF_LABEL_be;
+    #ifdef Version_6_COMPAT
+        }
+    #endif
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
@@ -1002,6 +1015,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
         Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
         Log_info(context->logger, "got switch ping from [%s]", labelStr);
+        switchHeader->label_be |= END_OF_LABEL_be;
         switchIf->receiveMessage(message, switchIf);
     } else {
         Log_info(context->logger,
@@ -1062,7 +1076,41 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-    if (Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL) {
+    // End of label flag
+    #ifdef Version_6_COMPAT
+        if (!(switchHeader->label_be & END_OF_LABEL_be)) {
+            switchHeader->label_be |= END_OF_LABEL_be;
+        }
+    #endif
+    if (!(switchHeader->label_be & END_OF_LABEL_be)) {
+        Log_debug(context->logger, "Packet missing END_OF_LABEL flag");
+        return Error_MALFORMED_ADDRESS;
+    } else {
+        switchHeader->label_be &= ~END_OF_LABEL_be;
+    }
+
+    if (message->length < 4) {
+        Log_info(context->logger, "runt");
+        return Error_INVALID;
+    }
+
+    uint8_t messageType = Headers_getMessageType(switchHeader);
+
+    if (messageType == Headers_SwitchHeader_TYPE_HOPLIMIT) {
+        struct HopLimited* hl = (struct HopLimited*) message->bytes;
+        messageType = hl->nextHeader;
+        // Move the switch header up because it is used to form the reply packet
+        Bits_memmoveConst(&((char*)switchHeader)[HopLimited_SIZE],
+                          switchHeader,
+                          Headers_SwitchHeader_SIZE);
+        Message_shift(message, -HopLimited_SIZE, NULL);
+        switchHeader = (struct Headers_SwitchHeader*) &((char*)switchHeader)[HopLimited_SIZE];
+        Headers_setPriorityAndMessageType(switchHeader,
+                                          Headers_getPriority(switchHeader),
+                                          messageType);
+    }
+
+    if (messageType == Headers_SwitchHeader_TYPE_CONTROL) {
         return handleControlMessage(context, message, switchHeader, switchIf);
     }
 
@@ -1149,6 +1197,15 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 static uint8_t incomingFromPinger(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->senderContext);
+
+    #ifdef Version_6_COMPAT
+        if (session->version >= 7) {
+    #endif
+    ((struct Headers_SwitchHeader*)message->bytes)->label_be |= END_OF_LABEL_be;
+    #ifdef Version_6_COMPAT
+        }
+    #endif
+
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
