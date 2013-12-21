@@ -431,8 +431,12 @@ static int registerPeer(struct InterfaceController* ifController,
         ep->state = InterfaceController_PeerState_HANDSHAKE;
     }
 
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(externalInterface, herPublicKey, requireAuth, true, ic->ca);
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
+                                                herPublicKey,
+                                                requireAuth,
+                                                true,
+                                                "outer",
+                                                ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;

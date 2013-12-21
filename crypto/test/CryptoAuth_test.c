@@ -131,7 +131,7 @@ static int init(const uint8_t* privateKey,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     }));
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, "cif1", ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
@@ -145,7 +145,7 @@ static int init(const uint8_t* privateKey,
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     }));
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, "cif2", ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;

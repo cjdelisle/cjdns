@@ -359,11 +359,11 @@ static void getIp6(struct CryptoAuth_Wrapper* wrapper, uint8_t* addr)
 }
 
 #define cryptoAuthDebug(wrapper, format, ...) \
-    {                                                                        \
-        uint8_t addr[40] = "unknown";                                        \
-        getIp6(wrapper, addr);                                               \
-        Log_debug(wrapper->context->logger,                                  \
-                  "%p [%s]: " format, (void*)wrapper, addr, __VA_ARGS__);    \
+    {                                                                                            \
+        uint8_t addr[40] = "unknown";                                                            \
+        getIp6((wrapper), addr);                                                                 \
+        Log_debug((wrapper)->context->logger,                                                    \
+                  "%p %s [%s]: " format, (void*)(wrapper), (wrapper)->name, addr, __VA_ARGS__);  \
     }
 
 #define cryptoAuthDebug0(wrapper, format) \
@@ -1044,6 +1044,7 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
                                            const bool requireAuth,
                                            bool authenticatePackets,
+                                           char* name,
                                            struct CryptoAuth* ca)
 {
     struct CryptoAuth_pvt* context = Identity_cast((struct CryptoAuth_pvt*) ca);
@@ -1055,9 +1056,10 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
             .wrappedInterface = toWrap,
             .requireAuth = requireAuth,
             .authenticatePackets = authenticatePackets,
-            .timeOfLastPacket = Time_currentTimeSeconds(context->eventBase)
+            .name = name
         }));
 
+    wrapper->timeOfLastPacket = Time_currentTimeSeconds(context->eventBase);
     Identity_set(wrapper);
     toWrap->receiverContext = wrapper;
     toWrap->receiveMessage = receiveMessage;

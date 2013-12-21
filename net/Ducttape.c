@@ -1193,6 +1193,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                      context,
                                      eventBase,
                                      cryptoAuth,
+                                     rand,
                                      allocator);
     context->pub.sessionManager = context->sm;
 

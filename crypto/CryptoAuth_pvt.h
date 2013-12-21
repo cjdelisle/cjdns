@@ -116,6 +116,9 @@ struct CryptoAuth_Wrapper
     /** The interface which this wrapper provides. */
     struct Interface externalInterface;
 
+    /** A name for the wrapper which will appear in logs. */
+    char* name;
+
     Identity
 };
 
