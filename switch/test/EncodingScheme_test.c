@@ -114,7 +114,7 @@ static void fuzzTest(struct Allocator* parent, struct Random* rand)
 }
 
 /** Greatest possible number using x bits, all are set. */
-#define MAX_BITS(x) ((((uint64_t)1)<<(x))-1)
+#define Bits_maxBits64(x) ((((uint64_t)1)<<(x))-1)
 
 static void encoding(struct Allocator* parent)
 {
@@ -155,9 +155,11 @@ static void encoding(struct Allocator* parent)
     Allocator_free(alloc);
 }
 
-static bool convertLabel(struct EncodingScheme_Form* iform,
-                         struct EncodingScheme_Form* oform,
-                         uint64_t label)
+#define convertLabel_SELF_ROUTE 1
+#define convertLabel_TOO_BIG 2
+static int convertLabel(struct EncodingScheme_Form* iform,
+                        struct EncodingScheme_Form* oform,
+                        uint64_t label)
 {
     struct {
         struct EncodingScheme scheme;
@@ -176,43 +178,56 @@ static bool convertLabel(struct EncodingScheme_Form* iform,
 
     uint64_t label2 = EncodingScheme_convertLabel(scheme, label, oformNum);
 
-    if ((label & 0xf) == 1) {
+    if ((label & Bits_maxBits64(s.forms[0].prefixLen + s.forms[0].bitCount)) == 1) {
         Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
-        return false;
+        return convertLabel_SELF_ROUTE;
     }
 
     if (Bits_log2x64(label) + EncodingScheme_formSize(oform) -
         EncodingScheme_formSize(iform) > 59)
     {
         Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
-        return false;
+        return convertLabel_TOO_BIG;
     }
 
     uint64_t additional = label >> s.forms[0].prefixLen;
-    uint64_t director = additional & MAX_BITS(s.forms[0].bitCount);
+    uint64_t director = additional & Bits_maxBits64(s.forms[0].bitCount);
     additional = additional >> s.forms[0].bitCount;
-    if ((s.forms[0].prefix & MAX_BITS(s.forms[0].prefixLen)) == 1 && 1 == director) {
-        // if the prefix is equal to 1, the director cannot be 0 because it will appear to be
-        // a self-route so it is replaced with 1, we are un-doing this
-        director--;
-    }
-    if ((s.forms[1].prefix & MAX_BITS(s.forms[1].prefixLen)) == 1 && !director) {
-        // and re-applying it if necessary
+
+    // Conversions are necessary for two reasons.
+    // #1 ensure 0001 always references interface 1, the self interface.
+    // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
+    //    because interface 1 cannot be expressed as anything other than 0001
+    if ((s.forms[0].prefix & Bits_maxBits64(s.forms[0].prefixLen)) == 1) {
+        // Swap 0 and 1 because zero is represented as 1 and 1 is handled specially
+        if (director == 1) { director--; }
+    } else if (director) {
+        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other encodings.
         director++;
     }
+
+    if ((s.forms[1].prefix & Bits_maxBits64(s.forms[1].prefixLen)) == 1) {
+        // Swap 1 and 0 back if necessary.
+        if (director == 0) { director++; }
+    } else if (director) {
+        // Or move the numbers down by one.
+        director--;
+    }
+
     uint64_t converted = (additional << s.forms[1].bitCount) | director;
     converted = (converted << s.forms[1].prefixLen) | s.forms[1].prefix;
 
-    if ((converted & 0xf) == 1) {
-        // converts to a self-route
+    if ((converted & Bits_maxBits64(s.forms[1].prefixLen + s.forms[1].bitCount)) == 1) {
+        // looks like a self-route
         Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
-        return false;
+        return convertLabel_SELF_ROUTE;
     }
+
     Assert_always(label2 == converted);
 
     uint64_t label3 = EncodingScheme_convertLabel(scheme, label2, iformNum);
     Assert_always(label3 == label);
-    return true;
+    return 0;
 }
 
 static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
@@ -234,14 +249,25 @@ static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
 
             if (Bits_log2x64(label) > 59) {
                 // fall through
-            } else if (convertLabel(&scheme->forms[iformNum], &scheme->forms[oformNum], label)) {
-                break;
+            } else {
+                int ret = convertLabel(&scheme->forms[iformNum], &scheme->forms[oformNum], label);
+                if (ret == convertLabel_SELF_ROUTE) {
+                    i--;
+                    break;
+                } else if (ret == convertLabel_TOO_BIG) {
+                    // fall through
+                } else if (!ret) {
+                    // success
+                    break;
+                } else {
+                    Assert_always(0);
+                }
             }
             label >>= scheme->forms[iformNum].prefixLen + 1;
         }
     }
 }
-
+#include <stdio.h>
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000000);
@@ -264,7 +290,7 @@ int main()
         11331704259
     );*/
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < 10; i++) {
         struct Allocator* tempAlloc = Allocator_child(alloc);
         struct EncodingScheme* scheme = randomScheme(rand, tempAlloc);
         convertLabelRand(rand, scheme);

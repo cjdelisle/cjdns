@@ -19,9 +19,6 @@
 #include "util/Bits.h"
 #include "util/Hex.h"
 
-/** Greatest possible number using x bits, all are set. */
-#define MAX_BITS(x) ((((uint64_t)1)<<(x))-1)
-
 int EncodingScheme_getFormNum(struct EncodingScheme* scheme, uint64_t routeLabel)
 {
     if (scheme->count == 1) {
@@ -43,7 +40,16 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)
 {
-    if (scheme->count == 1 || (routeLabel & 0xf) == 1) {
+    int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
+    if (formNum == EncodingScheme_getFormNum_INVALID) {
+        return EncodingScheme_convertLabel_INVALID;
+    }
+
+    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
+
+    if (scheme->count == 1
+        || (routeLabel & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1)
+    {
         // fixed width encoding or it's a self label, this is easy
         switch (convertTo) {
             case 0:
@@ -52,32 +58,35 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
         }
     }
 
-    int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
-    if (formNum == EncodingScheme_getFormNum_INVALID) {
-        return EncodingScheme_convertLabel_INVALID;
-    }
-
-    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
-
     routeLabel >>= currentForm->prefixLen;
-    uint64_t director = routeLabel & MAX_BITS(currentForm->bitCount);
+    uint64_t director = routeLabel & Bits_maxBits64(currentForm->bitCount);
     routeLabel >>= currentForm->bitCount;
 
-    // There is some magic here!
-    if ((currentForm->prefix & MAX_BITS(currentForm->prefixLen)) == 1) {
+    // ACKTUNG: Magic afoot!
+    // Conversions are necessary for two reasons.
+    // #1 ensure 0001 always references interface 1, the self interface.
+    // #2 reuse interface the binary encoding for interface 1 in other EncodingForms
+    //    because interface 1 cannot be expressed as anything other than 0001
+    if ((currentForm->prefix & Bits_maxBits64(currentForm->prefixLen)) == 1) {
+        // Swap 0 and 1 if the prefix is 1, this makes 0001 alias to 1
         // because 0 can never show up in the wild, we reuse it for 1.
         Assert_true(director != 0);
-        director--;
+        if (director == 1) { director--; }
+    } else if (director) {
+        // Reuse the number 1 for 2 and 2 for 3 etc. to gain an extra slot in all other encodings.
+        director++;
     }
 
-    int minBits = Bits_log2x64(director) + 1;
     if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
+        // Take into account the fact that if the destination form does not have a 1 prefix,
+        // an extra number will be available.
+        int minBitsA = Bits_log2x64(director) + 1;
+        int minBitsB = Bits_log2x64(director-1) + 1;
         for (int i = 0; i < scheme->count; i++) {
             struct EncodingScheme_Form* form = &scheme->forms[i];
-            // Magic: If the result ends with 0001 then continue on to the next encoding.
-            if (form->bitCount >= minBits
-                && (0xf & (form->prefix | (director << form->prefixLen))) != 1)
-            {
+            int minBits = ((form->prefix & Bits_maxBits64(form->prefixLen)) == 1)
+                ? minBitsA : minBitsB;
+            if (form->bitCount >= minBits) {
                 convertTo = i;
                 break;
             }
@@ -91,19 +100,19 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 
     struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
 
-    if ((nextForm->prefix & MAX_BITS(nextForm->prefixLen)) == 1) {
-        // because 0 can never show up in the wild, we reuse it for 1.
-        director++;
+    if ((nextForm->prefix & Bits_maxBits64(nextForm->prefixLen)) == 1) {
+        // Swap 1 and 0 back if necessary.
+        if (director == 0) { director++; }
+    } else if (director) {
+        // Or move the numbers down by one.
+        director--;
     }
 
-    if (minBits > nextForm->bitCount) {
+    if ((Bits_log2x64(director) + 1) > nextForm->bitCount) {
         // won't fit in requested form
         return EncodingScheme_convertLabel_INVALID;
     }
-    if (EncodingScheme_formSize(nextForm) > EncodingScheme_formSize(currentForm)
-        && (Bits_log2x64(routeLabel) + nextForm->bitCount + nextForm->prefixLen) > 59)
-    {
-        // All labels need 3 high zero bits
+    if (Bits_log2x64(routeLabel) + EncodingScheme_formSize(nextForm) > 59) {
         return EncodingScheme_convertLabel_INVALID;
     }
 
@@ -112,7 +121,7 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     routeLabel <<= nextForm->prefixLen;
     routeLabel |= nextForm->prefix;
 
-    if ((routeLabel & 0xf) == 1) {
+    if ((routeLabel & Bits_maxBits64(nextForm->prefixLen + nextForm->bitCount)) == 1) {
         // looks like a self-route
         return EncodingScheme_convertLabel_INVALID;
     }
@@ -132,27 +141,27 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
  */
 static inline int decodeForm(struct EncodingScheme_Form* out, uint64_t d)
 {
-    out->prefixLen = d & MAX_BITS(5);
+    out->prefixLen = d & Bits_maxBits64(5);
     d >>= 5;
-    int bitCount = d & MAX_BITS(5);
+    int bitCount = d & Bits_maxBits64(5);
     if (bitCount < 1) {
         return 0;
     }
     out->bitCount = bitCount;
     d >>= 5;
-    out->prefix = d & MAX_BITS(out->prefixLen);
+    out->prefix = d & Bits_maxBits64(out->prefixLen);
     return 5 + 5 + out->prefixLen;
 }
 
 static inline int encodeForm(struct EncodingScheme_Form* in, uint64_t* data, int bits)
 {
-    *data |= ((uint64_t)in->prefixLen & MAX_BITS(5)) << bits;
+    *data |= ((uint64_t)in->prefixLen & Bits_maxBits64(5)) << bits;
     bits += 5;
 
-    *data |= ((uint64_t)in->bitCount & MAX_BITS(5)) << bits;
+    *data |= ((uint64_t)in->bitCount & Bits_maxBits64(5)) << bits;
     bits += 5;
 
-    *data |= ((uint64_t)in->prefix & MAX_BITS(in->prefixLen)) << bits;
+    *data |= ((uint64_t)in->prefix & Bits_maxBits64(in->prefixLen)) << bits;
 
     return 5 + 5 + in->prefixLen;
 }
@@ -207,7 +216,8 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
         }
         for (int j = 0; j < scheme->count; j++) {
             // Forms must be distinguishable by their prefixes.
-            if (j != i && (scheme->forms[j].prefix & MAX_BITS(form->prefixLen)) == form->prefix)
+            if (j != i
+                && (scheme->forms[j].prefix & Bits_maxBits64(form->prefixLen)) == form->prefix)
             {
                 return false;
             }
@@ -321,13 +331,7 @@ struct EncodingScheme* EncodingScheme_deserialize(String* data,
         }
         block >>= ret;
 
-        #ifdef PARANOIA
-            if (next.prefixLen == 0) {
-                Assert_true(next.prefix == 0);
-            } else {
-                Assert_true(next.prefix >> next.prefixLen == 0);
-            }
-        #endif
+        Assert_true((next.prefix >> next.prefixLen) == 0);
 
         outCount += 1;
         forms = Allocator_realloc(alloc, forms, outCount * sizeof(struct EncodingScheme_Form));

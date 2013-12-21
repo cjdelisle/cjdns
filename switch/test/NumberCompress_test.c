@@ -61,9 +61,9 @@ static void numberCompressions_generic(
     for (uint64_t label = 0; label < 0x10000u; ++label) {
         uint32_t bits = bitsUsedForLabel(label);
         Assert_always(1 == bitWidths[bits]);
-        if (1 == (label & 0xf)) {
-            Assert_always(4 == bits);
-            Assert_always(1 == getDecompressed(label, 4));
+        if (1 == (label & Bits_maxBits64(bits))) {
+            //Assert_always(4 == bits);
+            Assert_always(1 == getDecompressed(label, bits));
         } else {
             uint32_t i = getDecompressed(label, bits);
             Assert_always(i < nInterfaces);

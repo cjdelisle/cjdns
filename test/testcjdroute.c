@@ -44,7 +44,7 @@
 
 <?js return file.testcjdroute_prototypes; ?>
 
- typedef int (* Test)(int argc, char** argv);
+typedef int (* Test)(int argc, char** argv);
 
 static struct {
     Test func;
@@ -73,7 +73,7 @@ static uint64_t runTest(Test test,
     return now;
 }
 
-void usage(char* appName)
+static void usage(char* appName)
 {
     printf("%s <test>     run one test\n", appName);
     printf("%s all        run every test\n\n", appName);

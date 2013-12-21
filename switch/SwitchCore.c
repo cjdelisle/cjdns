@@ -179,7 +179,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
         }
-        Assert_true(bits == 4);
+        //Assert_true(bits == 4);
     }
 
     if (sourceBits > bits) {
