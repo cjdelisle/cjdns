@@ -77,9 +77,6 @@ struct SwitchPinger_Ping
      * when onResponse() is called, whatever this is, will be given to it.
      */
     void* onResponseContext;
-
-    /** If greater than -1, this ping will be hop-limited to the number of hops given. */
-    int hopLimit;
 };
 
 struct SwitchPinger;
