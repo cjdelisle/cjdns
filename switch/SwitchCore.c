@@ -24,7 +24,9 @@
 #include "wire/Error.h"
 #include "wire/Headers.h"
 #include "wire/Message.h"
-#include "wire/HopLimited.h"
+
+#include <inttypes.h>
+#include <stdbool.h>
 
 struct SwitchInterface
 {
@@ -61,6 +63,7 @@ struct SwitchCore
 {
     struct SwitchInterface interfaces[NumberCompress_INTERFACES];
     uint32_t interfaceCount;
+    bool routerAdded;
     struct Log* logger;
 
     struct Allocator* allocator;
@@ -70,8 +73,7 @@ struct SwitchCore* SwitchCore_new(struct Log* logger, struct Allocator* allocato
 {
     struct SwitchCore* core = Allocator_calloc(allocator, sizeof(struct SwitchCore), 1);
     core->allocator = allocator;
-    // We'll just set this to one since slot zero is always the self route
-    core->interfaceCount = 1;
+    core->interfaceCount = 0;
     core->logger = logger;
     return core;
 }
@@ -148,9 +150,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        // Needs recovery mechanism
-        //Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.");
-        //return Error_NONE;
+        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.");
+        return Error_NONE;
     }
 
     if (message->length < Headers_SwitchHeader_SIZE) {
@@ -160,38 +161,71 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     struct SwitchCore* core = sourceIf->core;
     struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
-    uint64_t label = Endian_bigEndianToHost64(header->label_be);
+    const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
-    uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
+    const uint32_t destIndex = NumberCompress_getDecompressed(label, bits);
     const uint32_t sourceBits = NumberCompress_bitsUsedForNumber(sourceIndex);
-
-    if (Headers_getMessageType(header) == Headers_SwitchHeader_TYPE_HOPLIMIT) {
-        if (message->length < (Headers_SwitchHeader_SIZE + HopLimited_SIZE)) {
-            Log_debug(sourceIf->core->logger, "runt");
-            return Error_NONE;
-        }
-        struct HopLimited* hl = (struct HopLimited*) (&header[1]);
-        if (hl->hops == 0) {
-            destIndex = 0;
-            bits = sourceBits;
-            // explicitly add the end-of-label flag since it's impossible for the other node
-            // to know where it ends.
-            label |= (1 << bits);
-            DEBUG_SRC_DST(sourceIf->core->logger, "Received a packet with hop limit ending here");
-        } else {
-            hl->hops--;
-        }
-    }
 
     Assert_true(destIndex < NumberCompress_INTERFACES);
     Assert_true(sourceIndex < NumberCompress_INTERFACES);
 
+    if (1 == destIndex) {
+        if (1 != (label & 0xf)) {
+            /* routing interface: must always be compressed as 0001 */
+            DEBUG_SRC_DST(sourceIf->core->logger,
+                            "Dropped packet for this router because the destination "
+                            "discriminator was wrong");
+            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+            return Error_NONE;
+        }
+        Assert_true(bits == 4);
+    }
+
     if (sourceBits > bits) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
-                                              "larger than destination address.");
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
-        return Error_NONE;
+        if (destIndex == 1) {
+            // If the destination index is this router, don't drop the packet since there no
+            // way for a node to know the size of the representation of its source label.
+            // - label ends in 0001; if there are enough zeroes at the end after removing the 1,
+            //   we can still fit in the source discriminator
+            // - the return path probably doesn't start with 3 zeroes, but it will still be working,
+            //   as the source discriminator is large enough to make space for 3 zeroes between
+            //   reverse return path and forward path (see below)
+            if (0 != ((label ^ 1) & (UINT64_MAX >> (64 - sourceBits)))) {
+                // This is a bug.
+                // https://github.com/cjdelisle/cjdns/issues/93
+                // The problem is that there is no way to splice a route and know for certain
+                // that you've not spliced one which will end up in this if statement.
+                // Unfortunately there seems no clean way around this issue at the moment.
+                // If this router and switch communicated using labels with "64 + four less
+                // than the number of bits in largest discriminator" bits wide, it could handle
+                // this situation, this solution is obviously non-trivial.
+                DEBUG_SRC_DST(sourceIf->core->logger,
+                              "Dropped packet for this router because there is no way to "
+                              "represent the return path.");
+                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+                return Error_NONE;
+            }
+            bits = sourceBits;
+        } else if (1 == sourceIndex) {
+            // - we need at least 3 zeroes between reverse return path and forward path:
+            //   right now the label only contains the forward path
+            // - sourceBits == 4, bits < 4  ->  bits + 64 - sourceBits < 64
+            // - the reverse source discriminator "1000" and the target discriminator "0001"
+            //   can overlap as "10001" (or "100001" or ...)
+            if (0 != label >> (bits + 64 - sourceBits)) {
+                // not enough zeroes
+                DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                                                      "larger than destination address.");
+                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+                return Error_NONE;
+            }
+        } else {
+            DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                                                  "larger than destination address.");
+            sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+            return Error_NONE;
+        }
     }
 
     if (core->interfaces[destIndex].iface == NULL) {
@@ -212,11 +246,11 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     header->label_be = Endian_hostToBigEndian64(targetLabel);
 
-    /* Too much noise. */
+    /* Too much noise.
     Log_debug(sourceIf->core->logger,
-              "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
-              sourceIndex, destIndex, label, targetLabel);
-
+               "Forwarding packet ([%u] to [%u]), labels [0x%016" PRIx64 "] -> [0x%016" PRIx64 "]",
+               sourceIndex, destIndex, label, targetLabel);
+    */
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
@@ -269,11 +303,17 @@ int SwitchCore_addInterface(struct Interface* iface,
                             uint64_t* labelOut,
                             struct SwitchCore* core)
 {
+    // This is some hackery to make sure the router interface is always index 1.
     uint32_t ifIndex = core->interfaceCount;
+    if (ifIndex > 0 && !core->routerAdded) {
+        ifIndex++;
+    } else if (ifIndex == 1) {
+        ifIndex--;
+    }
 
     // If there's a vacent spot where another iface was before it was removed, use that.
     for (uint32_t i = 0; i < ifIndex; i++) {
-        if (core->interfaces[i].iface == NULL) {
+        if (core->interfaces[i].iface == NULL && i != 1) {
             ifIndex = i;
             break;
         }
@@ -298,7 +338,8 @@ int SwitchCore_addInterface(struct Interface* iface,
     iface->receiverContext = &core->interfaces[ifIndex];
     iface->receiveMessage = receiveMessage;
 
-    *labelOut = NumberCompress_getCompressed(ifIndex, NumberCompress_bitsUsedForNumber(ifIndex));
+    uint32_t bits = NumberCompress_bitsUsedForNumber(ifIndex);
+    *labelOut = NumberCompress_getCompressed(ifIndex, bits) | (1 << bits);
 
     core->interfaceCount++;
 
@@ -307,7 +348,7 @@ int SwitchCore_addInterface(struct Interface* iface,
 
 int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* core)
 {
-    Bits_memcpyConst(&core->interfaces[0], (&(struct SwitchInterface) {
+    Bits_memcpyConst(&core->interfaces[1], (&(struct SwitchInterface) {
         .iface = iface,
         .core = core,
         .buffer = 0,
@@ -315,8 +356,10 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
         .congestion = 0
     }), sizeof(struct SwitchInterface));
 
-    iface->receiverContext = &core->interfaces[0];
+    iface->receiverContext = &core->interfaces[1];
     iface->receiveMessage = receiveMessage;
+    core->interfaceCount++;
+    core->routerAdded = true;
 
     return 0;
 }

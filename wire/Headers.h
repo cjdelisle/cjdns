@@ -35,7 +35,6 @@
  */
 #define Headers_SwitchHeader_TYPE_DATA 0
 #define Headers_SwitchHeader_TYPE_CONTROL 1
-#define Headers_SwitchHeader_TYPE_HOPLIMIT 2
 
 #pragma pack(push)
 #pragma pack(4)
@@ -46,6 +45,7 @@ struct Headers_SwitchHeader
 
     /**
      * Top 8 bits: messageType
+     * See: MessageType.h
      *
      * Bottom 24 bits: priority
      * Anti-flooding, this is a big endian uint32_t with the high 8 bits cut off.

@@ -43,7 +43,7 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
                                      uint64_t routeLabel,
                                      int convertTo)
 {
-    if (scheme->count == 1) {
+    if (scheme->count == 1 || (routeLabel & 0xf) == 1) {
         // fixed width encoding or it's a self label, this is easy
         switch (convertTo) {
             case 0:
@@ -62,6 +62,13 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     routeLabel >>= currentForm->prefixLen;
     uint64_t director = routeLabel & MAX_BITS(currentForm->bitCount);
     routeLabel >>= currentForm->bitCount;
+
+    // There is some magic here!
+    if ((currentForm->prefix & MAX_BITS(currentForm->prefixLen)) == 1) {
+        // because 0 can never show up in the wild, we reuse it for 1.
+        Assert_true(director != 0);
+        director--;
+    }
 
     int minBits = Bits_log2x64(director) + 1;
     if (convertTo == EncodingScheme_convertLabel_convertTo_CANNONICAL) {
@@ -84,11 +91,15 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
 
     struct EncodingScheme_Form* nextForm = &scheme->forms[convertTo];
 
+    if ((nextForm->prefix & MAX_BITS(nextForm->prefixLen)) == 1) {
+        // because 0 can never show up in the wild, we reuse it for 1.
+        director++;
+    }
+
     if (minBits > nextForm->bitCount) {
         // won't fit in requested form
         return EncodingScheme_convertLabel_INVALID;
     }
-
     if (EncodingScheme_formSize(nextForm) > EncodingScheme_formSize(currentForm)
         && (Bits_log2x64(routeLabel) + nextForm->bitCount + nextForm->prefixLen) > 59)
     {
@@ -100,6 +111,11 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     routeLabel |= director;
     routeLabel <<= nextForm->prefixLen;
     routeLabel |= nextForm->prefix;
+
+    if ((routeLabel & 0xf) == 1) {
+        // looks like a self-route
+        return EncodingScheme_convertLabel_INVALID;
+    }
 
     return routeLabel;
 }
