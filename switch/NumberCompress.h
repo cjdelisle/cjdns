@@ -324,5 +324,8 @@ static inline uint32_t NumberCompress_v4x8_bitsUsedForNumber(const uint32_t numb
 #define NumberCompress_getCompressed(a, b) NumberCompress_MKNAME(getCompressed)(a, b)
 #define NumberCompress_getDecompressed(a, b) NumberCompress_MKNAME(getDecompressed)(a, b)
 
+// conveinence macro
+#define NumberCompress_decompress(label) \
+    NumberCompress_getDecompressed(label, NumberCompress_bitsUsedForLabel(label))
 
 #endif

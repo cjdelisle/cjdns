@@ -296,8 +296,15 @@ static inline int sendNodes(struct NodeList* nodeList,
 
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
-    uint32_t i;
-    for (i = 0; i < nodeList->size; i++) {
+    uint32_t i = 0;
+    uint32_t j = 0;
+    for (; i < nodeList->size; i++) {
+
+        if (NumberCompress_decompress(nodeList->nodes[i]->address.path) ==
+            NumberCompress_decompress(query->address->path))
+        {
+            continue;
+        }
 
         // We have to modify the reply in case this node uses a longer label discriminator
         // in our switch than its target address, the target address *must* have the same
@@ -307,9 +314,10 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[i] = nodeList->nodes[i]->version;
+        versions->versions[j] = nodeList->nodes[i]->version;
+        j++;
     }
     if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);

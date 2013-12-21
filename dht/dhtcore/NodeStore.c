@@ -187,11 +187,6 @@ static void verifyLinks(struct NodeStore_pvt* store)
     }
 }
 
-static struct Node_Link* rbGetPrevious(struct Node_Link* link)
-{
-    return Identity_ncast(RB_PREV(PeerRBTree, NULL, link));
-}
-
 static struct Node_Link* rbGetNext(struct Node_Link* link)
 {
     return Identity_ncast(RB_NEXT(PeerRBTree, NULL, link));
@@ -577,6 +572,8 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         return NULL;
     }
 
+    logLink(store, closest, "Closest link");
+
     if (closest->child == node) {
         // Link is already known.
         update(closest, 0, store);
@@ -586,49 +583,62 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
     }
 
     // Check whether the parent is already linked with a node which is "behind" the child.
-    struct Node_Link* previous = rbGetPrevious(closest);
-    while (previous) {
-        // try next grandchild
-        if (!LabelSplicer_routesThrough(previous->cannonicalLabel, path)) {
-            previous = rbGetPrevious(previous);
+    // previous appears to be a "sibling link" to the closest->node link but in reality the
+    // previous link should be split and node should be inserted in the middle.
+    struct Node_Link* splitLink;
+    RB_FOREACH_REVERSE(splitLink, PeerRBTree, &closest->child->peerTree) {
+        if (splitLink->cannonicalLabel <= path) {
+            // Since they're in order, definitely not found.
+            Assert_true(splitLink->cannonicalLabel != path);
+            break;
+        }
+
+        if (!LabelSplicer_routesThrough(splitLink->cannonicalLabel, path)) {
             continue;
         }
-        struct Node_Two* grandChild = previous->child;
+
+        struct Node_Two* grandChild = splitLink->child;
         // unsplice and cannonicalize so we now have a path from child to grandchild
-        uint64_t childToGrandchild = LabelSplicer_unsplice(previous->cannonicalLabel, path);
+        uint64_t childToGrandchild = LabelSplicer_unsplice(splitLink->cannonicalLabel, path);
         childToGrandchild =
             EncodingScheme_convertLabel(scheme,
                                         childToGrandchild,
                                         EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
-        logLink(store, previous, "Unlinking");
+        // just so we're on the same page here
+        Assert_true(splitLink->parent == closest->child);
 
-        if (node != grandChild && previous->cannonicalLabel != path) {
-            // Link child to grandchild
-            linkNodes(node, grandChild, childToGrandchild,
-                      previous->linkState, previous->encodingFormNumber, addr->path, store);
+        #ifdef Log_DEBUG
+        {
+            uint8_t parent[40];
+            uint8_t child[40];
+            uint8_t pathStr[20];
 
-        } else if (node != grandChild) {
-            // 2 different nodes with the same switch slot?
-            // If this message travelled along a very long route then lets skip doing anything
-            // because it might be bad/stale/etc.
-            // If this message travelled a short distance then lets unlink the old entry and
-            // link in the new one.
-            if (previous->discoveredPath < addr->path) {
-                // TODO: we might be returning a node which has no links to the tree...
-                return node;
-            }
-        } else {
-            // 2 possibilities can lead here.
-            // #1 Redundant route, parent->child->grandChild->a->b->c->grandChild
-            // #2 non-cannonical route which once cannonicalized is equal to the original.
-            // in either case, we want to kill the link and install the new better one.
+            AddrTools_printIp(parent, splitLink->parent->address.ip6.bytes);
+            AddrTools_printIp(child, splitLink->child->address.ip6.bytes);
+            AddrTools_printPath(pathStr, splitLink->cannonicalLabel);
+            Log_debug(store->logger, "Splitting link [%s]->[%s] [%s]", parent, child, pathStr);
+
+            AddrTools_printIp(parent, splitLink->parent->address.ip6.bytes);
+            AddrTools_printIp(child, node->address.ip6.bytes);
+            AddrTools_printPath(pathStr, path);
+            Log_debug(store->logger, "New parent [%s]->[%s] [%s]", parent, child, pathStr);
+
+            AddrTools_printIp(parent, node->address.ip6.bytes);
+            AddrTools_printIp(child, splitLink->child->address.ip6.bytes);
+            AddrTools_printPath(pathStr, childToGrandchild);
+            Log_debug(store->logger, "New child [%s]->[%s] [%s]", parent, child, pathStr);
         }
+        #endif
 
-        // unlink parent from grandchild
-        struct Node_Link* unlink = previous;
-        previous = rbGetPrevious(previous);
-        unlinkNodes(unlink, store);
+        Assert_true(node != grandChild);
+        Assert_true(splitLink->cannonicalLabel != path);
+
+        linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
+                  splitLink->encodingFormNumber, addr->path, store);
+
+        unlinkNodes(splitLink, store);
+        break;
     }
 
     // link parent to child
