@@ -467,12 +467,12 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
-        Random_bytes(wrapper->context->rand, wrapper->secret, 32);
-        crypto_scalarmult_curve25519_base(header->handshake.encryptedTempKey,  wrapper->secret);
+        Random_bytes(wrapper->context->rand, wrapper->ourTempPrivKey, 32);
+        crypto_scalarmult_curve25519_base(wrapper->ourTempPubKey, wrapper->ourTempPrivKey);
 
         #ifdef Log_KEYS
             uint8_t tempPrivateKeyHex[65];
-            Hex_encode(tempPrivateKeyHex, 65, wrapper->secret, 32);
+            Hex_encode(tempPrivateKeyHex, 65, wrapper->ourTempPrivKey, 32);
             uint8_t tempPubKeyHex[65];
             Hex_encode(tempPubKeyHex, 65, header->handshake.encryptedTempKey, 32);
             Log_keys(wrapper->context->logger, "Generating temporary keypair\n"
@@ -480,26 +480,10 @@ static uint8_t encryptHandshake(struct Message* message,
                                                 "     myTempPublicKey=%s\n",
                       tempPrivateKeyHex, tempPubKeyHex);
         #endif
-        if (wrapper->nextNonce == 0) {
-            Bits_memcpyConst(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
-        }
-        #ifdef Log_DEBUG
-            Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
-            Assert_true(!Bits_isZero(wrapper->secret, 32));
-        #endif
-    } else if (wrapper->nextNonce == 3) {
-        // Dupe key
-        // If nextNonce is 1 then we have our pubkey stored in wrapper->tempKey,
-        // If nextNonce is 3 we need to recalculate it each time
-        // because tempKey the final secret.
-        crypto_scalarmult_curve25519_base(header->handshake.encryptedTempKey,
-                                          wrapper->secret);
-    } else {
-        // Dupe hello
-        // wrapper->nextNonce == 1
-        // Our public key is cached in wrapper->tempKey so lets copy it out.
-        Bits_memcpyConst(header->handshake.encryptedTempKey, wrapper->tempKey, 32);
     }
+
+    Bits_memcpyConst(header->handshake.encryptedTempKey, wrapper->ourTempPubKey, 32);
+
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
         Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
@@ -524,18 +508,19 @@ static uint8_t encryptHandshake(struct Message* message,
         wrapper->isInitiator = true;
         wrapper->nextNonce = 1;
     } else {
-        // Handshake2 wrapper->tempKey holds her public temp key.
-        // it was put there by receiveMessage()
+        // Handshake2
+        // herTempPubKey was set by receiveMessage()
+        Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
-                        wrapper->tempKey,
+                        wrapper->herTempPubKey,
                         passwordHash,
                         wrapper->context->logger);
         wrapper->nextNonce = 3;
 
         #ifdef Log_KEYS
             uint8_t tempKeyHex[65];
-            Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
+            Hex_encode(tempKeyHex, 65, wrapper->herTempPubKey, 32);
             Log_keys(wrapper->context->logger,
                       "Using their temp public key:\n"
                       "    %s\n",
@@ -562,9 +547,6 @@ static uint8_t encryptHandshake(struct Message* message,
                   "   cipher: %s\n",
                   nonceHex, sharedSecretHex, cipherHex);
     #endif
-    #ifdef Log_DEBUG
-        Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
-    #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
     Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16, NULL);
@@ -579,7 +561,7 @@ static inline uint8_t encryptMessage(struct Message* message,
 
     encrypt(wrapper->nextNonce,
             message,
-            wrapper->secret,
+            wrapper->sharedSecret,
             wrapper->isInitiator,
             wrapper->authenticatePackets);
 
@@ -619,13 +601,13 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
             return encryptHandshake(message, wrapper, 0);
         } else {
             cryptoAuthDebug0(wrapper, "Doing final step to send message. nonce=4");
-            uint8_t secret[32];
-            getSharedSecret(secret,
-                            wrapper->secret,
-                            wrapper->tempKey,
+            Assert_true(!Bits_isZero(wrapper->ourTempPrivKey, 32));
+            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
+            getSharedSecret(wrapper->sharedSecret,
+                            wrapper->ourTempPrivKey,
+                            wrapper->herTempPubKey,
                             NULL,
                             wrapper->context->logger);
-            Bits_memcpyConst(wrapper->secret, secret, 32);
         }
     }
 
@@ -689,6 +671,13 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // nextNonce 2: recieving first data packet or duplicate hello.
     // nextNonce 3: recieving first data packet.
     // nextNonce >3: handshake complete
+
+    if (knowHerKey(wrapper)
+        && Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32))
+    {
+        cryptoAuthDebug0(wrapper, "Dropping a packet which was meant for someone else");
+        return Error_AUTHENTICATION;
+    }
 
     if (wrapper->nextNonce < 2 && nonce == UINT32_MAX && !wrapper->requireAuth) {
         // Reset without knowing key is allowed until state reaches 2.
@@ -772,7 +761,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
-                        wrapper->secret,
+                        wrapper->ourTempPrivKey,
                         wrapper->herPerminentPubKey,
                         passwordHash,
                         wrapper->context->logger);
@@ -806,7 +795,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     }
 
     wrapper->user = user;
-    Bits_memcpyConst(wrapper->tempKey, header->handshake.encryptedTempKey, 32);
+    Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
 
     #ifdef Log_DEBUG
         Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
@@ -872,13 +861,20 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
 
-    if (wrapper->nextNonce < 5) {
-        if (nonce > 3 && nonce != UINT32_MAX && knowHerKey(wrapper)) {
+    if (!wrapper->established) {
+        if (nonce > 3 && nonce != UINT32_MAX) {
+            if (wrapper->nextNonce < 3) {
+                // This is impossible because we have not exchanged hello and key messages.
+                cryptoAuthDebug0(wrapper, "Received a run message to an un-setup session");
+                return Error_UNDELIVERABLE;
+            }
             cryptoAuthDebug(wrapper, "Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
+            Assert_true(!Bits_isZero(wrapper->ourTempPrivKey, 32));
+            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
             getSharedSecret(secret,
-                            wrapper->secret,
-                            wrapper->tempKey,
+                            wrapper->ourTempPrivKey,
+                            wrapper->herTempPubKey,
                             NULL,
                             wrapper->context->logger);
 
@@ -890,15 +886,26 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
             if (decryptMessage(wrapper, nonce, received, secret)) {
                 cryptoAuthDebug0(wrapper, "Final handshake step succeeded");
-                Bits_memcpyConst(wrapper->secret, secret, 32);
+                Bits_memcpyConst(wrapper->sharedSecret, secret, 32);
+
+                // Now we're in run mode, no more handshake packets will be accepted
+                Bits_memset(wrapper->ourTempPrivKey, 0, 32);
+                Bits_memset(wrapper->ourTempPubKey, 0, 32);
+                Bits_memset(wrapper->herTempPubKey, 0, 32);
+                wrapper->established = true;
+
                 return callReceivedMessage(wrapper, received);
             }
             CryptoAuth_reset(&wrapper->externalInterface);
             cryptoAuthDebug0(wrapper, "Final handshake step failed");
             return Error_UNDELIVERABLE;
         }
+        Message_shift(received, 4, NULL);
+        return decryptHandshake(wrapper, nonce, received, header);
+
     } else if (nonce > 4) {
-        if (decryptMessage(wrapper, nonce, received, wrapper->secret)) {
+        Assert_true(!Bits_isZero(wrapper->sharedSecret, 32));
+        if (decryptMessage(wrapper, nonce, received, wrapper->sharedSecret)) {
             return callReceivedMessage(wrapper, received);
         } else {
             cryptoAuthDebug0(wrapper, "Failed to decrypt message");
@@ -906,9 +913,10 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         }
     } else {
         cryptoAuthDebug0(wrapper, "Received handshake message during established connection");
+        // nope, not allowed
+        return Error_AUTHENTICATION;
     }
-    Message_shift(received, 4, NULL);
-    return decryptHandshake(wrapper, nonce, received, header);
+    Assert_always(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1101,6 +1109,13 @@ void CryptoAuth_reset(struct Interface* interface)
         Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
     wrapper->nextNonce = 0;
     wrapper->isInitiator = false;
+
+    Bits_memset(wrapper->ourTempPrivKey, 0, 32);
+    Bits_memset(wrapper->ourTempPubKey, 0, 32);
+    Bits_memset(wrapper->herTempPubKey, 0, 32);
+    Bits_memset(wrapper->sharedSecret, 0, 32);
+    wrapper->established = false;
+
     Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
 }
 
@@ -1136,7 +1151,7 @@ int CryptoAuth_getState(struct Interface* interface)
             return CryptoAuth_HANDSHAKE3;
         default:
             // Received data.
-            return CryptoAuth_ESTABLISHED;
+            return (wrapper->established) ? CryptoAuth_ESTABLISHED : CryptoAuth_HANDSHAKE3;
     }
 }
 

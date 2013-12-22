@@ -301,45 +301,6 @@ static int poly1305UnknownKeyAndPassword()
       | sendToIf1("goodbye");
 }
 
-static int reset()
-{
-    simpleInit();
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
-
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
-}
-
-static int authAndReset()
-{
-    printf("\n\nSetting up authAndReset()\n");
-    init(privateKey, publicKey, (uint8_t*)"password", false);
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
-
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
-}
-
 static void connectToMe()
 {
     simpleInit();
@@ -378,8 +339,6 @@ int main()
     poly1305UnknownKey();
     poly1305AndPassword();
     poly1305UnknownKeyAndPassword();
-    reset();
-    authAndReset();
     connectToMe();
     connectToMeDropMsg();
     return 0;
