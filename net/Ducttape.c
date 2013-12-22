@@ -287,7 +287,7 @@ static inline uint8_t incomingForMe(struct Message* message,
             uint8_t srcAddr[40];
             Address_printIp(srcAddr, &addr);
             Log_debug(context->logger,
-                       "Dropped packet because source address is not same as key.\n"
+                       "DROP packet because source address is not same as key.\n"
                        "    %s source addr\n"
                        "    %s hash of key\n",
                        srcAddr,
@@ -305,7 +305,7 @@ static inline uint8_t incomingForMe(struct Message* message,
                 uint8_t keyAddr[40];
                 Address_printIp(keyAddr, &addr);
                 Log_debug(context->logger,
-                          "Router packet with incorrect checksum, from [%s]", keyAddr);
+                          "DROP Router packet with incorrect checksum, from [%s]", keyAddr);
             #endif
             return Error_INVALID;
         }
@@ -318,8 +318,7 @@ static inline uint8_t incomingForMe(struct Message* message,
     }
 
     if (!context->userIf) {
-        Log_warn(context->logger,
-                 "Dropping message because there is no router interface configured.\n");
+        Log_warn(context->logger, "DROP packet because there is no router interface configured");
         return Error_UNDELIVERABLE;
     }
 
@@ -456,7 +455,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     if ((ethertype == Ethernet_TYPE_IP4 && version != 4)
         || (ethertype == Ethernet_TYPE_IP6 && version != 6))
     {
-        Log_warn(context->logger, "dropped packet because ip version [%d] "
+        Log_warn(context->logger, "DROP packet because ip version [%d] "
                  "doesn't match ethertype [%u].", version, Endian_bigEndianToHost16(ethertype));
         return Error_INVALID;
     }
@@ -472,7 +471,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
         uint8_t packetSource[40];
         AddrTools_printIp(packetSource, header->sourceAddr);
         Log_warn(context->logger,
-                 "dropped packet from [%s] because all messages must have source address [%s]",
+                 "DROP packet from [%s] because all messages must have source address [%s]",
                  (char*) packetSource, (char*) expectedSource);
         return Error_INVALID;
     }
@@ -535,7 +534,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
             AddrTools_printIp(thisAddr, context->myAddr.ip6.bytes);
             AddrTools_printIp(destAddr, header->destinationAddr);
             Log_warn(context->logger,
-                     "Dropped message from TUN because this node [%s] is closest to dest [%s]",
+                     "DROP message from TUN because this node [%s] is closest to dest [%s]",
                      thisAddr, destAddr);
         #endif
         return Error_UNDELIVERABLE;
@@ -621,7 +620,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     #ifdef Log_DEBUG
         uint8_t printedIp6[40];
         AddrTools_printIp(printedIp6, header->nodeIp6Addr);
-        Log_debug(context->logger, "Couldn't find node [%s] for sending to.", printedIp6);
+        Log_debug(context->logger, "DROP Couldn't find node [%s] for sending to.", printedIp6);
     #endif
 
     // Now lets trigger a search for this node.
@@ -689,7 +688,7 @@ static inline int core(struct Message* message,
     }
 
     if (ip6Header->hopLimit == 0) {
-        Log_debug(context->logger, "dropped message because hop limit has been exceeded.\n");
+        Log_debug(context->logger, "DROP message because hop limit has been exceeded.\n");
         // TODO: send back an error message in response.
         return Error_UNDELIVERABLE;
     }
@@ -735,7 +734,7 @@ static inline int core(struct Message* message,
         Bits_memcpyConst(destination.ip6.bytes, ip6Header->destinationAddr, 16);
         uint8_t ipAddr[40];
         Address_printIp(ipAddr, &destination);
-        Log_info(context->logger, "Dropped message because this node is the closest known "
+        Log_info(context->logger, "DROP message because this node is the closest known "
                                    "node to the destination %s.", ipAddr);
     #endif
     return Error_UNDELIVERABLE;
@@ -920,20 +919,20 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     uint64_t label = Endian_bigEndianToHost64(switchHeader->label_be);
     AddrTools_printPath(labelStr, label);
     if (message->length < Control_HEADER_SIZE) {
-        Log_info(context->logger, "dropped runt ctrl packet from [%s]", labelStr);
+        Log_info(context->logger, "DROP runt ctrl packet from [%s]", labelStr);
         return Error_NONE;
     }
     struct Control* ctrl = (struct Control*) message->bytes;
 
     if (Checksum_engine(message->bytes, message->length)) {
-        Log_info(context->logger, "ctrl packet from [%s] with invalid checksum.", labelStr);
+        Log_info(context->logger, "DROP ctrl packet from [%s] with invalid checksum.", labelStr);
         return Error_NONE;
     }
 
     bool pong = false;
     if (ctrl->type_be == Control_ERROR_be) {
         if (message->length < Control_Error_MIN_SIZE) {
-            Log_info(context->logger, "dropped runt error packet from [%s]", labelStr);
+            Log_info(context->logger, "DROP runt error packet from [%s]", labelStr);
             return Error_NONE;
         }
 
@@ -989,7 +988,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         Message_shift(message, -Control_HEADER_SIZE, NULL);
 
         if (message->length < Control_Ping_MIN_SIZE) {
-            Log_info(context->logger, "dropped runt ping");
+            Log_info(context->logger, "DROP runt ping");
             return Error_INVALID;
         }
         struct Control_Ping* ping = (struct Control_Ping*) message->bytes;
@@ -1088,7 +1087,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         if (session) {
             uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
             if (nonce == ~0u) {
-                Log_debug(context->logger, "Got connectToMe packet at switch layer");
+                Log_debug(context->logger, "DROP connectToMe packet at switch layer");
                 return 0;
             }
             /*
@@ -1122,7 +1121,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         #ifdef Log_INFO
             uint8_t path[20];
             AddrTools_printPath(path, Endian_bigEndianToHost64(switchHeader->label_be));
-            Log_info(context->logger, "Dropped traffic packet from unknown node. [%s]", path);
+            Log_info(context->logger, "DROP traffic packet from unknown node. [%s]", path);
         #endif
         return 0;
     }
@@ -1138,7 +1137,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
         debugHandlesAndLabel(context->logger, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
-                             "Failed decrypting message NoH[%d] state[%d]",
+                             "DROP Failed decrypting message NoH[%d] state[%d]",
                              nonceOrHandle, CryptoAuth_getState(&session->iface));
         return Error_AUTHENTICATION;
     }

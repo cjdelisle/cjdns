@@ -150,12 +150,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.");
+        Log_warn(sourceIf->core->logger, "DROP because node seems to be flooding.");
         return Error_NONE;
     }
 
     if (message->length < Headers_SwitchHeader_SIZE) {
-        Log_debug(sourceIf->core->logger, "Dropped runt packet.");
+        Log_debug(sourceIf->core->logger, "DROP runt packet.");
         return Error_NONE;
     }
 
@@ -174,7 +174,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         if (1 != (label & 0xf)) {
             /* routing interface: must always be compressed as 0001 */
             DEBUG_SRC_DST(sourceIf->core->logger,
-                            "Dropped packet for this router because the destination "
+                            "DROP packet for this router because the destination "
                             "discriminator was wrong");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
@@ -201,7 +201,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 // than the number of bits in largest discriminator" bits wide, it could handle
                 // this situation, this solution is obviously non-trivial.
                 DEBUG_SRC_DST(sourceIf->core->logger,
-                              "Dropped packet for this router because there is no way to "
+                              "DROP packet for this router because there is no way to "
                               "represent the return path.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
@@ -215,13 +215,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             //   can overlap as "10001" (or "100001" or ...)
             if (0 != label >> (bits + 64 - sourceBits)) {
                 // not enough zeroes
-                DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
                                                       "larger than destination address.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
             }
         } else {
-            DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+            DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
                                                   "larger than destination address.");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
@@ -229,14 +229,14 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (core->interfaces[destIndex].iface == NULL) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because there is no interface "
+        DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because there is no interface "
                                               "where the bits specify.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
 
     if (sourceIndex == destIndex) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
+        DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
