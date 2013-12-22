@@ -394,14 +394,13 @@ static inline uint64_t findClosest(uint64_t path,
     struct Node_Link* nextLink;
     struct Node_Link* link = store->selfLink;
     for (;;) {
-        uint64_t origLabel = tmpl.cannonicalLabel;
+        //uint64_t origLabel = tmpl.cannonicalLabel;
         // First we splice off the parent's Director leaving the child's Director.
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
 
-    Log_debug(store->logger, "unspliced %08lx to %08lx lcl=%08lx",
-              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
-
-        origLabel = tmpl.cannonicalLabel;
+        //Log_debug(store->logger, "unspliced %08lx to %08lx lcl=%08lx",
+        //          origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+        //origLabel = tmpl.cannonicalLabel;
 
         // Then we cannoicalize the child's Director
         if (link != store->selfLink) {
@@ -419,8 +418,8 @@ static inline uint64_t findClosest(uint64_t path,
                                             tmpl.cannonicalLabel,
                                             EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
-    Log_debug(store->logger, "cannonicalized %08lx to %08lx lcl=%08lx",
-              origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
+            //Log_debug(store->logger, "cannonicalized %08lx to %08lx lcl=%08lx",
+            //          origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
 
             // Check that they didn't waste space by sending an oversize encoding form.
             int cannonicalFormNum =
@@ -432,7 +431,7 @@ Assert_true(0);
             }
         }
 
-        origLabel = tmpl.cannonicalLabel;
+        //origLabel = tmpl.cannonicalLabel;
 
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
@@ -442,7 +441,7 @@ Assert_true(0);
         while (nextLink
             && !LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel))
         {
-            logLink(store, nextLink, "GETTING NEXT LINK");
+            //logLink(store, nextLink, "GETTING NEXT LINK");
             nextLink = rbGetNext(nextLink);
         }
 
@@ -450,13 +449,6 @@ Assert_true(0);
             // node has no peers
             break;
         }
-
-        /*struct Node_Link* previous = rbGetPrevious(nextLink);
-        if (previous) {
-            logLink(store, previous, "PREVIOUS LINK");
-        } else {
-            Log_debug(store->logger, "previous link is null");
-        }*/
 
         Identity_check(nextLink);
         Assert_true(nextLink->child->encodingScheme);
@@ -473,7 +465,7 @@ Assert_true(0);
             break;
         }
 
-        #ifdef Log_DEBUG
+        /*#ifdef Log_DEBUG
             uint8_t labelA[20];
             uint8_t labelB[20];
             uint8_t searchingFor[20];
@@ -482,12 +474,12 @@ Assert_true(0);
             AddrTools_printPath(labelB, link->cannonicalLabel);
             Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
                       labelA, labelB, searchingFor);
-        #endif
+        #endif*/
 
         link = nextLink;
     }
 
-    #ifdef Log_DEBUG
+    /*#ifdef Log_DEBUG
         uint8_t labelA[20];
         uint8_t labelB[20] = "NONE";
         uint8_t labelC[20];
@@ -497,7 +489,7 @@ Assert_true(0);
         }
         AddrTools_printPath(labelC, link->cannonicalLabel);
         Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
-    #endif
+    #endif*/
 
     Assert_true(tmpl.cannonicalLabel);/// TODO remove this
     *output = link;
@@ -631,11 +623,15 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         }
         #endif
 
-        Assert_true(node != grandChild);
-        Assert_true(splitLink->cannonicalLabel != path);
+        if (node == grandChild) {
+            Log_debug(store->logger, "Child link is a loop-route, skipping insertion");
 
-        linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
-                  splitLink->encodingFormNumber, addr->path, store);
+        } else {
+            Assert_true(splitLink->cannonicalLabel != path);
+
+            linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
+                      splitLink->encodingFormNumber, addr->path, store);
+        }
 
         unlinkNodes(splitLink, store);
         break;
@@ -941,9 +937,6 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
         Assert_true(false);
     }
 
-    // try inserting the node in the new RBTree...
-    //discoverNode(store, addr, reachDifference, version);
-
     // Keep track of the node with the longest label so if the store is full, it can be replaced.
     int worstNode = -1;
     uint64_t worstPath = 0;
@@ -951,7 +944,7 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     // becomes true when the direct peer behind this path is found.
     int foundPeer = LabelSplicer_isOneHop(addr->path);
 
-    for (int i = 0; i < store->pub.size; i++) {
+    for (int i = store->pub.size - 1; i >= 0; i--) {
 
         if (LabelSplicer_isOneHop(store->nodes[i].address.path)
             && LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path))
@@ -998,7 +991,6 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
                 // If we just change the path, we get duplicates.
                 removeNode(&store->nodes[i], store);
 
-                i--;
                 continue;
             } else if (!LabelSplicer_routesThrough(addr->path, store->nodes[i].address.path)) {
                 // Completely different routes, store seperately.
@@ -1011,6 +1003,8 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
             return nodeForIndex(store, i);
 
         } else if (store->nodes[i].address.path == addr->path) {
+            Assert_true(&store->nodes[i].address != addr);
+
             // same path different addr.
 
             // When a node restarts, it's switch renumbers meaning that the paths to other nodes
@@ -1026,8 +1020,8 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
             // experience of it's existance implies reachDifference > 0.
             if (reachDifference > 0) {
                 // Removing and adding back because of the creepy above comment about duplicates.
+                Log_debug(store->logger, "Same path different node");
                 removeNode(&store->nodes[i], store);
-                i--;
                 continue;
             } else {
                 // TODO:
@@ -1281,6 +1275,11 @@ struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* nod
 int NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    #ifdef Log_DEBUG
+        uint8_t pathStr[20];
+        AddrTools_printPath(pathStr, path);
+        Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
+    #endif
     int out = 0;
     for (int32_t i = (int32_t) store->pub.size - 1; i >= 0; i--) {
         if (LabelSplicer_routesThrough(store->nodes[i].address.path, path)) {
