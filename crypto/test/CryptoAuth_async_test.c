@@ -246,8 +246,6 @@ static void crossedOnTheWire(struct Allocator* alloc, struct Context* ctx)
     Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
     Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
 
-    //Assert_true(
-
     sendToBob("hello bob", tctx);
     sendToAlice("hi alice", tctx);
     sendToBob("and we're established", tctx);
@@ -255,6 +253,27 @@ static void crossedOnTheWire(struct Allocator* alloc, struct Context* ctx)
 
     Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
     Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
+}
+
+static void replayKeyPacket(struct Allocator* alloc, struct Context* ctx)
+{
+    struct TestContext* tctx = setUp(alloc, ctx, false);
+    sendToBob("hello bob", tctx);
+
+    sendMsg("Hi Alice!", tctx->bobInternalIf);
+    struct Message* toReplay = Message_clone(tctx->bobCryptMsg, alloc);
+    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+
+    sendMsg("Hi Bob!", tctx->aliceInternalIf);
+    struct Message* m1 = tctx->aliceCryptMsg;
+
+    // packet replay
+    Interface_receiveMessage(&tctx->aliceExternalIf, toReplay);
+
+    sendMsg("Hi Bob!", tctx->aliceInternalIf);
+    struct Message* m2 = tctx->aliceCryptMsg;
+
+    Assert_always(Bits_memcmp(m1->bytes, m2->bytes, 4));
 }
 
 int main()
@@ -270,6 +289,8 @@ int main()
         .logger = logger
     };
 
+    replayKeyPacket(alloc, &ctx);
+return 0;
     crossedOnTheWire(alloc, &ctx);
     twoKeyPackets(alloc, &ctx);
     reset(alloc, &ctx);
