@@ -412,6 +412,11 @@ static int registerPeer(struct InterfaceController* ifController,
         if (!AddressCalc_validAddress(ip6)) {
             return InterfaceController_registerPeer_BAD_KEY;
         }
+
+        if (!Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
+            // can't link with yourself, wiseguy
+            return InterfaceController_registerPeer_BAD_KEY;
+        }
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;
