@@ -369,6 +369,20 @@ static void getIp6(struct CryptoAuth_Wrapper* wrapper, uint8_t* addr)
 #define cryptoAuthDebug0(wrapper, format) \
     cryptoAuthDebug(wrapper, format "%s", "")
 
+static void reset(struct CryptoAuth_Wrapper* wrapper)
+{
+    wrapper->nextNonce = 0;
+    wrapper->isInitiator = false;
+
+    Bits_memset(wrapper->ourTempPrivKey, 0, 32);
+    Bits_memset(wrapper->ourTempPubKey, 0, 32);
+    Bits_memset(wrapper->herTempPubKey, 0, 32);
+    Bits_memset(wrapper->sharedSecret, 0, 32);
+    wrapper->established = false;
+
+    Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
+}
+
 /**
  * If we don't know her key, the handshake has to be done backwards.
  * Reverse handshake requests are signaled by sending a non-obfuscated zero nonce.
@@ -377,7 +391,7 @@ static uint8_t genReverseHandshake(struct Message* message,
                                    struct CryptoAuth_Wrapper* wrapper,
                                    union Headers_CryptoAuth* header)
 {
-    wrapper->nextNonce = 0;
+    reset(wrapper);
     Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
 
     // Buffer the packet so it can be sent ASAP
@@ -508,6 +522,8 @@ static uint8_t encryptHandshake(struct Message* message,
                         wrapper->context->logger);
 
         wrapper->isInitiator = true;
+
+        Assert_true(wrapper->nextNonce <= 1);
         wrapper->nextNonce = 1;
     } else {
         // Handshake2
@@ -518,6 +534,8 @@ static uint8_t encryptHandshake(struct Message* message,
                         wrapper->herTempPubKey,
                         passwordHash,
                         wrapper->context->logger);
+
+        Assert_true(wrapper->nextNonce <= 3);
         wrapper->nextNonce = 3;
 
         #ifdef Log_KEYS
@@ -586,6 +604,11 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     // this will reset the session if it has timed out.
     CryptoAuth_getState(interface);
 
+    // If the nonce wraps, start over.
+    if (wrapper->nextNonce >= 0xfffffff0) {
+        reset(wrapper);
+    }
+
     #ifdef Log_DEBUG
         Assert_true(!((uintptr_t)message->bytes % 4) || !"alignment fault");
     #endif
@@ -648,7 +671,7 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
         }
         ret = !ReplayProtector_checkNonce(nonce, &wrapper->replayProtector);
         if (ret) {
-            cryptoAuthDebug0(wrapper, "DROP nonce checking failed");
+            cryptoAuthDebug(wrapper, "DROP nonce checking failed nonce=[%u]", nonce);
             return false;
         }
     } else {
@@ -691,7 +714,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         }
         Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
         message->length = 0;
-        wrapper->nextNonce = 0;
+        reset(wrapper);
         wrapper->user = NULL;
         cryptoAuthDebug0(wrapper, "Got a connect-to-me message, sending a hello");
         // Send an empty response (to initiate the connection).
@@ -818,15 +841,30 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // each believing their hello packet is superior or they will livelock, each switching to the
     // other's session and never synchronizing.
     // In this event we compare temp keys.
-    if (nextNonce != 2
+    if (nextNonce == 4
         || !wrapper->isInitiator
         || Bits_memcmp(header->handshake.encryptedTempKey, wrapper->ourTempPubKey, 32) > 0)
     {
-        wrapper->user = user;
-        Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
-        wrapper->nextNonce = nextNonce;
-        if (nextNonce == 2) {
-            wrapper->isInitiator = false;
+        if (nextNonce == 4 && wrapper->nextNonce > 4) {
+            // We just got a (repeat or replay attack) key packet but we are already sending data
+            // so we must not revert our nonce back to 4 otherwise BAD THINGS
+            if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+                cryptoAuthDebug0(wrapper, "DROP key packet with different temp key");
+                return Error_AUTHENTICATION;
+            }
+        } else {
+            if (nextNonce == 2) {
+                // hello packet, reset the session
+                // this is done this way to avoid decreasing the nextNonce since that is bug-prone.
+                reset(wrapper);
+            }
+            wrapper->user = user;
+            Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+
+            Assert_always(wrapper->nextNonce <= nextNonce);
+            wrapper->nextNonce = nextNonce;
+
+            wrapper->isInitiator = (nextNonce == 4);
         }
     }
 
@@ -919,7 +957,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         Message_shift(received, 4, NULL);
         return decryptHandshake(wrapper, nonce, received, header);
 
-    } else if (nonce > 4) {
+    } else if (nonce > 3 && nonce != UINT32_MAX) {
         Assert_true(!Bits_isZero(wrapper->sharedSecret, 32));
         if (decryptMessage(wrapper, nonce, received, wrapper->sharedSecret)) {
             return callReceivedMessage(wrapper, received);
@@ -928,7 +966,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             return Error_UNDELIVERABLE;
         }
     } else {
-        cryptoAuthDebug0(wrapper, "DROP handshake message during established connection");
+        cryptoAuthDebug(wrapper, "DROP handshake message during established session nonce=[%d]",
+                        nonce);
         // nope, not allowed
         // lets not send an AUTHENTICATION error because the packet probably is completely valid.
         return Error_UNDELIVERABLE;
@@ -1124,16 +1163,7 @@ void CryptoAuth_reset(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
         Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
-    wrapper->nextNonce = 0;
-    wrapper->isInitiator = false;
-
-    Bits_memset(wrapper->ourTempPrivKey, 0, 32);
-    Bits_memset(wrapper->ourTempPubKey, 0, 32);
-    Bits_memset(wrapper->herTempPubKey, 0, 32);
-    Bits_memset(wrapper->sharedSecret, 0, 32);
-    wrapper->established = false;
-
-    Bits_memset(&wrapper->replayProtector, 0, sizeof(struct ReplayProtector));
+    reset(wrapper);
 }
 
 int CryptoAuth_getState(struct Interface* interface)
@@ -1147,7 +1177,7 @@ int CryptoAuth_getState(struct Interface* interface)
                   (int) (nowSecs - wrapper->timeOfLastPacket));
 
         wrapper->timeOfLastPacket = nowSecs;
-        CryptoAuth_reset(interface);
+        reset(wrapper);
     }
 
     switch (wrapper->nextNonce) {
