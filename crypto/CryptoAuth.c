@@ -382,7 +382,9 @@ static uint8_t genReverseHandshake(struct Message* message,
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage != NULL) {
-        cryptoAuthDebug0(wrapper, "Expelled a message because a session has not yet been setup");
+        // Not exactly a drop but a message is not going to reach the destination.
+        cryptoAuthDebug0(wrapper,
+            "DROP Expelled a message because a session has not yet been setup");
         Allocator_free(wrapper->bufferedMessage->alloc);
     }
 
@@ -641,12 +643,12 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
         // Decrypt with authentication and replay prevention.
         int ret = decrypt(nonce, content, secret, wrapper->isInitiator, true);
         if (ret) {
-            cryptoAuthDebug(wrapper, "Authenticated decryption failed returning %u", ret);
+            cryptoAuthDebug(wrapper, "DROP authenticated decryption failed returning %u", ret);
             return false;
         }
         ret = !ReplayProtector_checkNonce(nonce, &wrapper->replayProtector);
         if (ret) {
-            cryptoAuthDebug0(wrapper, "Nonce checking failed");
+            cryptoAuthDebug0(wrapper, "DROP nonce checking failed");
             return false;
         }
     } else {
@@ -661,7 +663,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                                 union Headers_CryptoAuth* header)
 {
     if (message->length < Headers_CryptoAuth_SIZE) {
-        cryptoAuthDebug0(wrapper, "Dropped runt packet");
+        cryptoAuthDebug0(wrapper, "DROP runt");
         return Error_UNDERSIZE_MESSAGE;
     }
 
@@ -675,7 +677,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (knowHerKey(wrapper)
         && Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32))
     {
-        cryptoAuthDebug0(wrapper, "Dropping a packet which was meant for someone else");
+        cryptoAuthDebug0(wrapper, "DROP a packet which was meant for someone else");
         return Error_AUTHENTICATION;
     }
 
@@ -701,12 +703,11 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     uint8_t passwordHashStore[32];
     uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
     if (wrapper->requireAuth && !user) {
-        cryptoAuthDebug0(wrapper, "Dropping message because auth was not given");
+        cryptoAuthDebug0(wrapper, "DROP message because auth was not given");
         return Error_AUTHENTICATION;
     }
     if (passwordHash == NULL && header->handshake.auth.challenge.type != 0) {
-        cryptoAuthDebug0(wrapper,
-            "Dropping message because it contans an authenticator which is unrecognized");
+        cryptoAuthDebug0(wrapper, "DROP message with unrecognized authenticator");
         return Error_AUTHENTICATION;
     }
 
@@ -736,7 +737,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         } else {
             herPermKey = wrapper->herPerminentPubKey;
             if (Bits_memcmp(header->handshake.publicKey, herPermKey, 32)) {
-                cryptoAuthDebug0(wrapper, "Packet contains different perminent key");
+                cryptoAuthDebug0(wrapper, "DROP packet contains different perminent key");
                 return Error_AUTHENTICATION;
             }
         }
@@ -756,11 +757,11 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug(wrapper, "Received a packet of unknown type! nonce=%u", nonce);
         }
         if (Bits_memcmp(header->handshake.publicKey, wrapper->herPerminentPubKey, 32)) {
-            cryptoAuthDebug0(wrapper, "Packet contains different perminent key");
+            cryptoAuthDebug0(wrapper, "DROP packet contains different perminent key");
             return Error_AUTHENTICATION;
         }
         if (!wrapper->isInitiator) {
-            cryptoAuthDebug0(wrapper, "Received a stray key packet");
+            cryptoAuthDebug0(wrapper, "DROP a stray key packet");
             return Error_AUTHENTICATION;
         }
         // We sent the hello, this is a key
@@ -794,7 +795,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
         Bits_memset(header, 0, Headers_CryptoAuth_SIZE);
-        cryptoAuthDebug(wrapper, "Dropped message with nonce [%d], decryption failed", nonce);
+        cryptoAuthDebug(wrapper, "DROP message with nonce [%d], decryption failed", nonce);
         return Error_AUTHENTICATION;
     }
 
@@ -865,7 +866,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
     if (received->length < (wrapper->authenticatePackets ? 20 : 4)) {
-        cryptoAuthDebug0(wrapper, "Dropped runt");
+        cryptoAuthDebug0(wrapper, "DROP runt");
         return Error_UNDERSIZE_MESSAGE;
     }
     Assert_true(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
@@ -880,7 +881,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         if (nonce > 3 && nonce != UINT32_MAX) {
             if (wrapper->nextNonce < 3) {
                 // This is impossible because we have not exchanged hello and key messages.
-                cryptoAuthDebug0(wrapper, "Received a run message to an un-setup session");
+                cryptoAuthDebug0(wrapper, "DROP Received a run message to an un-setup session");
                 return Error_UNDELIVERABLE;
             }
             cryptoAuthDebug(wrapper, "Trying final handshake step, nonce=%u\n", nonce);
@@ -912,7 +913,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
                 return callReceivedMessage(wrapper, received);
             }
             CryptoAuth_reset(&wrapper->externalInterface);
-            cryptoAuthDebug0(wrapper, "Final handshake step failed");
+            cryptoAuthDebug0(wrapper, "DROP Final handshake step failed");
             return Error_UNDELIVERABLE;
         }
         Message_shift(received, 4, NULL);
@@ -923,13 +924,14 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         if (decryptMessage(wrapper, nonce, received, wrapper->sharedSecret)) {
             return callReceivedMessage(wrapper, received);
         } else {
-            cryptoAuthDebug0(wrapper, "Failed to decrypt message");
+            cryptoAuthDebug0(wrapper, "DROP Failed to decrypt message");
             return Error_UNDELIVERABLE;
         }
     } else {
-        cryptoAuthDebug0(wrapper, "Received handshake message during established connection");
+        cryptoAuthDebug0(wrapper, "DROP handshake message during established connection");
         // nope, not allowed
-        return Error_AUTHENTICATION;
+        // lets not send an AUTHENTICATION error because the packet probably is completely valid.
+        return Error_UNDELIVERABLE;
     }
     Assert_always(0);
 }
