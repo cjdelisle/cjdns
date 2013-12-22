@@ -836,35 +836,58 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
     Message_shift(message, -32, NULL);
 
+    // Post-decryption checking
+    if (nonce == 0) {
+        // A new hello packet
+        if (!Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+            // possible replay attack or duped packet
+            cryptoAuthDebug0(wrapper, "DROP dupe hello packet with same temp key");
+            return Error_AUTHENTICATION;
+        }
+    } else if (nonce == 1 && wrapper->nextNonce == 4) {
+        // A repeat hello packet (skip test if it's the first key packet that made it to us)
+        if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+            cryptoAuthDebug0(wrapper, "DROP repeat hello packet with different temp key");
+            return Error_AUTHENTICATION;
+        }
+    } else if (nonce == 3) {
+        // Got a key packet, make sure the temp key is the same as the one we know.
+        if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+            cryptoAuthDebug0(wrapper, "DROP key packet with different temp key");
+            return Error_AUTHENTICATION;
+        }
+    }
+
     // If Alice sent a hello packet then Bob sent a hello packet and they crossed on the wire,
     // somebody has to yield and the other has to stand firm otherwise they will either deadlock
     // each believing their hello packet is superior or they will livelock, each switching to the
     // other's session and never synchronizing.
-    // In this event we compare temp keys.
+    // In this event whoever has the lower permanent public key wins.
     if (nextNonce == 4
         || !wrapper->isInitiator
-        || Bits_memcmp(header->handshake.encryptedTempKey, wrapper->ourTempPubKey, 32) > 0)
+        || Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0)
     {
-        if (nextNonce == 4 && wrapper->nextNonce > 4) {
-            // We just got a (repeat or replay attack) key packet but we are already sending data
-            // so we must not revert our nonce back to 4 otherwise BAD THINGS
-            if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-                cryptoAuthDebug0(wrapper, "DROP key packet with different temp key");
-                return Error_AUTHENTICATION;
+        if (nonce == 0) {
+            // It's a hello packet, this means either we just started up or hello packets crossed
+            // on the wire and theirs won.
+            if (wrapper->isInitiator) {
+                cryptoAuthDebug0(wrapper, "Incoming hello from node with lower key, resetting");
             }
-        } else {
-            if (nextNonce == 2) {
-                // hello packet, reset the session
-                // this is done this way to avoid decreasing the nextNonce since that is bug-prone.
-                reset(wrapper);
-            }
-            wrapper->user = user;
+            reset(wrapper);
             Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+            wrapper->isInitiator = false;
 
             Assert_always(wrapper->nextNonce <= nextNonce);
             wrapper->nextNonce = nextNonce;
+        }
 
-            wrapper->isInitiator = (nextNonce == 4);
+        if (nextNonce == 4 && wrapper->nextNonce <= 4) {
+            // It's a key (or repeat key) packet and we have not yet begin sending data
+            Assert_always(wrapper->nextNonce <= nextNonce);
+            wrapper->nextNonce = nextNonce;
+
+            wrapper->user = user;
+            Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
         }
     }
 
@@ -954,8 +977,17 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             cryptoAuthDebug0(wrapper, "DROP Final handshake step failed");
             return Error_UNDELIVERABLE;
         }
+
+        uint8_t* buff = received->bytes;
+        int length = received->length;
+
         Message_shift(received, 4, NULL);
-        return decryptHandshake(wrapper, nonce, received, header);
+        uint8_t ret = decryptHandshake(wrapper, nonce, received, header);
+
+        if (ret) {
+            Bits_memset(buff, 0, length);
+        }
+        return ret;
 
     } else if (nonce > 3 && nonce != UINT32_MAX) {
         Assert_true(!Bits_isZero(wrapper->sharedSecret, 32));
