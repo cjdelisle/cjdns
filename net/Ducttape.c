@@ -977,9 +977,9 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                       labelStr, causeType);
         } else {
             Log_info(context->logger,
-                      "error packet from [%s], error type [%u]",
+                      "error packet from [%s] [%s]",
                       labelStr,
-                      Endian_bigEndianToHost32(ctrl->content.error.errorType_be));
+                      Error_strerror(Endian_bigEndianToHost32(ctrl->content.error.errorType_be)));
         }
     } else if (ctrl->type_be == Control_PONG_be) {
         pong = true;

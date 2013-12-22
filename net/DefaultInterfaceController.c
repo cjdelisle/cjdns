@@ -296,7 +296,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
             if (msg->length < 8 || msg->bytes[7] != 1) {
-                Log_info(ic->logger, "Dropping message because CA is not established.");
+                Log_info(ic->logger, "DROP message because CA is not established.");
                 return Error_NONE;
             } else {
                 // When a "server" gets a new connection from a "client" the router doesn't

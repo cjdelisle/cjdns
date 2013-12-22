@@ -64,7 +64,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
     struct UDPAddrInterface_WriteRequest_pvt* req =
         Identity_cast((struct UDPAddrInterface_WriteRequest_pvt*) uvReq);
     if (error) {
-        Log_info(req->udp->logger, "Failed to write to UDPAddrInterface [%s]",
+        Log_info(req->udp->logger, "DROP Failed to write to UDPAddrInterface [%s]",
                  uv_err_name(uv_last_error(req->udp->uvHandle.loop)) );
     }
     Assert_true(req->msg->length == req->length);
@@ -79,7 +79,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) iface);
 
     if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
-        Log_warn(context->logger, "Maximum queue length reached, dropping packet");
+        Log_warn(context->logger, "DROP Maximum queue length reached");
         return Error_NONE;
         //return Error_UNDELIVERABLE;
     }
@@ -120,7 +120,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     }
 
     if (ret) {
-        Log_info(context->logger, "Failed writing to UDPAddrInterface [%s]",
+        Log_info(context->logger, "DROP Failed writing to UDPAddrInterface [%s]",
                  uv_err_name(uv_last_error(context->uvHandle.loop)) );
         Allocator_free(req->alloc);
         return Error_NONE;
@@ -150,7 +150,8 @@ static void incoming(uv_udp_t* handle,
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
 
     if (nread < 0) {
-        Log_warn(context->logger, "encountered error [%s]",
+        // probably causes a drop
+        Log_warn(context->logger, "DROP encountered error [%s]",
                  uv_err_name(uv_last_error(handle->loop)) );
 
     } else if (nread == 0) {
