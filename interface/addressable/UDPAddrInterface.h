@@ -26,7 +26,7 @@
 Linker_require("util/events/libuv/UDPAddrInterface.c")
 
 #define UDPAddrInterface_PADDING_AMOUNT 512
-#define UDPAddrInterface_BUFFER_CAP 3500
+#define UDPAddrInterface_BUFFER_CAP 3496
 
 /** Maximum number of bytes to hold in queue before dropping packets. */
 #define UDPAddrInterface_MAX_QUEUE 16384

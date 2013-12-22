@@ -332,14 +332,6 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
     ep->bytesOut += msg->length;
 
-    // This sucks but cryptoauth trashes the content when it encrypts
-    // and we need to be capable of sending back a coherent error message.
-    uint8_t top[255];
-    uint8_t* messageBytes = msg->bytes;
-    uint16_t padding = msg->padding;
-    uint16_t len = (msg->length < 255) ? msg->length : 255;
-    Bits_memcpy(top, msg->bytes, len);
-
     struct Context* ic = ifcontrollerForPeer(ep);
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
@@ -356,13 +348,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     }
 
     // If this node is unresponsive then return an error.
-    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
-    {
-        msg->bytes = messageBytes;
-        msg->padding = padding;
-        msg->length = len;
-        Bits_memcpy(msg->bytes, top, len);
-
+    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
         return ret ? ret : Error_UNDELIVERABLE;
     } else {
         /* Way way way too much noise
