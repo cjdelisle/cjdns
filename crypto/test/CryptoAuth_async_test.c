@@ -88,7 +88,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-static struct TestContext* setUp(struct Allocator* alloc, struct Context* ctx)
+static struct TestContext* setUp(struct Allocator* alloc, struct Context* ctx, bool authNeeded)
 {
     uint8_t* alicePrivateKey = (uint8_t*)
         "\x5e\x86\xcd\xdd\xfb\x57\xfd\x09\xbd\x38\x08\xb3\x09\x69\xbf\x6b"
@@ -119,7 +119,7 @@ static struct TestContext* setUp(struct Allocator* alloc, struct Context* ctx)
     out->aliceInternalIf =
         CryptoAuth_wrapInterface(&out->aliceExternalIf, bobPublicKey, 0, 1, "alice", out->alice);
     out->bobInternalIf =
-        CryptoAuth_wrapInterface(&out->bobExternalIf, NULL, 1, 1, "bob", out->bob);
+        CryptoAuth_wrapInterface(&out->bobExternalIf, NULL, authNeeded, 1, "bob", out->bob);
 
     out->aliceInternalIf->receiveMessage = receiveMessage;
     out->aliceInternalIf->receiverContext = &out->aliceMsg;
@@ -144,7 +144,7 @@ static void sendMsg(const char* x, struct Interface* iface)
 
 static void twoKeyPackets(struct Allocator* alloc, struct Context* ctx)
 {
-    struct TestContext* tctx = setUp(alloc, ctx);
+    struct TestContext* tctx = setUp(alloc, ctx, true);
     sendMsg("hello bob", tctx->aliceInternalIf);
     Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
 
@@ -190,11 +190,14 @@ static void sendToBob(char* msg, struct TestContext* tctx)
 
 static void reset(struct Allocator* alloc, struct Context* ctx)
 {
-    struct TestContext* tctx = setUp(alloc, ctx);
+    struct TestContext* tctx = setUp(alloc, ctx, true);
     sendToBob("hello bob", tctx);
     sendToAlice("hi alice", tctx);
     sendToBob("how goes it?", tctx);
     sendToAlice("going well, be right back", tctx);
+
+    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
 
     CryptoAuth_reset(tctx->bobInternalIf);
 
@@ -215,6 +218,43 @@ static void reset(struct Allocator* alloc, struct Context* ctx)
     sendToBob("the reset worked", tctx);
     sendToAlice("perfect", tctx);
     sendToBob("ok now I have to go", tctx);
+
+    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
+}
+
+/**
+ * Alice and Bob both decided they wanted to talk to eachother at precisely the same time.
+ * This means two Hello packets crossed on the wire. Both arrived at their destination but
+ * if each triggers a re-initialization of the CA session, nobody will be synchronized!
+ */
+static void crossedOnTheWire(struct Allocator* alloc, struct Context* ctx)
+{
+    struct TestContext* tctx = setUp(alloc, ctx, false);
+    sendToBob("hello bob", tctx);
+    sendToAlice("hi alice", tctx);
+    sendToBob("and we're established", tctx);
+    sendToAlice("ok shutdown", tctx);
+    CryptoAuth_reset(tctx->bobInternalIf);
+    CryptoAuth_reset(tctx->aliceInternalIf);
+
+    Log_debug(ctx->logger, "Test begins here");
+
+    sendMsg("Hi Bob!", tctx->aliceInternalIf);
+    sendMsg("Hi Alice!", tctx->bobInternalIf);
+
+    Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
+    Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
+
+    //Assert_true(
+
+    sendToBob("hello bob", tctx);
+    sendToAlice("hi alice", tctx);
+    sendToBob("and we're established", tctx);
+    sendToAlice("ok shutdown", tctx);
+
+    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
 }
 
 int main()
@@ -230,6 +270,7 @@ int main()
         .logger = logger
     };
 
+    crossedOnTheWire(alloc, &ctx);
     twoKeyPackets(alloc, &ctx);
     reset(alloc, &ctx);
 

@@ -759,6 +759,10 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "Packet contains different perminent key");
             return Error_AUTHENTICATION;
         }
+        if (!wrapper->isInitiator) {
+            cryptoAuthDebug0(wrapper, "Received a stray key packet");
+            return Error_AUTHENTICATION;
+        }
         // We sent the hello, this is a key
         getSharedSecret(sharedSecret,
                         wrapper->ourTempPrivKey,
@@ -794,9 +798,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         return Error_AUTHENTICATION;
     }
 
-    wrapper->user = user;
-    Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
-
     #ifdef Log_DEBUG
         Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
     #endif
@@ -810,10 +811,24 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     #endif
 
     Message_shift(message, -32, NULL);
-    wrapper->nextNonce = nextNonce;
-    if (nextNonce == 2) {
-        wrapper->isInitiator = false;
+
+    // If Alice sent a hello packet then Bob sent a hello packet and they crossed on the wire,
+    // somebody has to yield and the other has to stand firm otherwise they will either deadlock
+    // each believing their hello packet is superior or they will livelock, each switching to the
+    // other's session and never synchronizing.
+    // In this event we compare temp keys.
+    if (nextNonce != 2
+        || !wrapper->isInitiator
+        || Bits_memcmp(header->handshake.encryptedTempKey, wrapper->ourTempPubKey, 32) > 0)
+    {
+        wrapper->user = user;
+        Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+        wrapper->nextNonce = nextNonce;
+        if (nextNonce == 2) {
+            wrapper->isInitiator = false;
+        }
     }
+
     if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
         Bits_memcpyConst(wrapper->herPerminentPubKey, herPermKey, 32);
     }
