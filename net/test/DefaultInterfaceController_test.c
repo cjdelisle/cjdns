@@ -61,7 +61,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
 
     struct CryptoAuth* externalCa = CryptoAuth_new(alloc, NULL, eventBase, logger, rand);
-    struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, false, externalCa);
+    struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, false, "", externalCa);
     CryptoAuth_setAuth(String_CONST("passwd"), 1, wrapped);
 
     struct Interface icIface = {
@@ -79,10 +79,10 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         outgoing->length = 0;
         outgoing->padding = 512;
         outgoing->bytes = buffer + 512;
-        Message_shift(outgoing, 12);
+        Message_shift(outgoing, 12, NULL);
         Bits_memcpyConst(outgoing->bytes, "hello world", 12);
 
-        Message_shift(outgoing, Headers_SwitchHeader_SIZE);
+        Message_shift(outgoing, Headers_SwitchHeader_SIZE, NULL);
         Bits_memcpyConst(outgoing->bytes, (&(struct Headers_SwitchHeader) {
             .label_be = Endian_hostToBigEndian64(1),
             .lowBits_be = 0

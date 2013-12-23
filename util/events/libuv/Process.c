@@ -12,14 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Process.h"
 #include "util/Bits.h"
 #include "util/Identity.h"
-
-#include <uv.h>
 
 struct Process_pvt
 {
@@ -30,8 +28,7 @@ struct Process_pvt
 
 static void onFree2(uv_handle_t* process)
 {
-    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*) process->data);
-    j->complete(j);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) process->data);
 }
 
 static int onFree(struct Allocator_OnFreeJob* job)
@@ -45,7 +42,7 @@ static int onFree(struct Allocator_OnFreeJob* job)
 
 int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct Allocator* alloc)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) base);
+    struct EventBase_pvt* ctx = EventBase_privatize(base);
 
     int i;
     for (i = 0; args[i]; i++) ;

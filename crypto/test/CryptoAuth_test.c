@@ -17,9 +17,8 @@
 #define string_strlen
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "memory/MallocAllocator.h"
 #include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
@@ -113,9 +112,9 @@ static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface
 }
 
 static int init(const uint8_t* privateKey,
-         uint8_t* publicKey,
-         const uint8_t* password,
-         bool authenticatePackets)
+                uint8_t* publicKey,
+                const uint8_t* password,
+                bool authenticatePackets)
 {
     printf("\nSetting up:\n");
     struct Allocator* allocator = MallocAllocator_new(1048576);
@@ -132,7 +131,7 @@ static int init(const uint8_t* privateKey,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     }));
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, "cif1", ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
@@ -146,7 +145,7 @@ static int init(const uint8_t* privateKey,
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     }));
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, "cif2", ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;
@@ -191,7 +190,7 @@ static int sendToIf2(const char* x)
     return 0;
 }
 
-int normal()
+static int normal()
 {
     simpleInit();
     return
@@ -201,7 +200,7 @@ int normal()
       | sendToIf1("goodbye");
 }
 
-int repeatKey()
+static int repeatKey()
 {
     simpleInit();
     return
@@ -212,7 +211,7 @@ int repeatKey()
       | sendToIf1("goodbye");
 }
 
-int repeatHello()
+static int repeatHello()
 {
     init(privateKey, publicKey, NULL, false);
     return
@@ -223,7 +222,7 @@ int repeatHello()
       | sendToIf1("goodbye");
 }
 
-int chatter()
+static int chatter()
 {
     simpleInit();
     return
@@ -242,7 +241,7 @@ int chatter()
       | sendToIf1("goodbye");
 }
 
-int auth()
+static int auth()
 {
     init(privateKey, publicKey, (uint8_t*)"password", false);
     return
@@ -252,7 +251,7 @@ int auth()
       | sendToIf1("goodbye");
 }
 
-int authWithoutKey()
+static int authWithoutKey()
 {
     init(NULL, NULL, (uint8_t*)"password", false);
     return
@@ -262,7 +261,7 @@ int authWithoutKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305()
+static int poly1305()
 {
     init(privateKey, publicKey, NULL, true);
     return
@@ -272,7 +271,7 @@ int poly1305()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKey()
+static int poly1305UnknownKey()
 {
     init(NULL, NULL, NULL, true);
     return
@@ -282,7 +281,7 @@ int poly1305UnknownKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305AndPassword()
+static int poly1305AndPassword()
 {
     init(privateKey, publicKey, (uint8_t*)"aPassword", true);
     return
@@ -292,7 +291,7 @@ int poly1305AndPassword()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKeyAndPassword()
+static int poly1305UnknownKeyAndPassword()
 {
     init(NULL, NULL, (uint8_t*)"anotherPassword", true);
     return
@@ -302,46 +301,7 @@ int poly1305UnknownKeyAndPassword()
       | sendToIf1("goodbye");
 }
 
-int reset()
-{
-    simpleInit();
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
-
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
-}
-
-int authAndReset()
-{
-    printf("\n\nSetting up authAndReset()\n");
-    init(privateKey, publicKey, (uint8_t*)"password", false);
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
-
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
-}
-
-void connectToMe()
+static void connectToMe()
 {
     simpleInit();
     sendToIf1("hello world");
@@ -350,7 +310,7 @@ void connectToMe()
     sendToIf1("goodbye");
 }
 
-void connectToMeDropMsg()
+static void connectToMeDropMsg()
 {
     simpleInit();
     // send a message which is lost in the network.
@@ -379,8 +339,7 @@ int main()
     poly1305UnknownKey();
     poly1305AndPassword();
     poly1305UnknownKeyAndPassword();
-    reset();
-    authAndReset();
     connectToMe();
     connectToMeDropMsg();
+    return 0;
 }

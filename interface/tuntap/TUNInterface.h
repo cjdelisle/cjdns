@@ -20,13 +20,15 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".c")
 
 /**
  * This is the maximum size that will be accepted as an interface name.
  * If this runs on a system where IFNAMSIZ is less then this, names larger
  * than that will also be rejected.
  */
-#ifdef Windows
+#ifdef win32
     #define TUNInterface_IFNAMSIZ 256
 #else
     #define TUNInterface_IFNAMSIZ 16
@@ -48,9 +50,9 @@
  * @param allocator a means of getting memory.
  * @return a Interface.
  */
-#define TUNInterface_new_INTERNAL -3
-#define TUNInterface_new_BAD_TUNNEL -2
-#define TUNInterface_new_PERMISSION -1
+//#define TUNInterface_new_INTERNAL -3
+//#define TUNInterface_new_BAD_TUNNEL -2
+//#define TUNInterface_new_PERMISSION -1
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    struct EventBase* base,

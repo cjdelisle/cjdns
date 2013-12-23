@@ -35,7 +35,7 @@ static void sendError(char* errorMessage, String* txid, struct Admin* admin)
     Admin_sendMessage(&error, txid, admin);
 }
 
-static void setUser(Dict* args, void* vcontext, String* txid)
+static void setUser(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = (struct Context*) vcontext;
     struct Jmp jmp;
@@ -49,7 +49,7 @@ static void setUser(Dict* args, void* vcontext, String* txid)
     sendError("none", txid, ctx->admin);
 }
 
-static void noFiles(Dict* args, void* vcontext, String* txid)
+static void noFiles(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = (struct Context*) vcontext;
     struct Jmp jmp;

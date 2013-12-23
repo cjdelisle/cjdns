@@ -34,17 +34,18 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
+#include "test/RootTest.h"
 
 #include <unistd.h>
 #include <stdlib.h>
 
-#ifdef Windows
+#ifdef win32
     #include <windows.h>
     #define sleep(x) Sleep(1000*x)
 #endif
 
-const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
-const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
+static const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+static const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
 
 /*
  * Setup a UDPInterface and a TUNInterface, test sending traffic between them.
@@ -54,7 +55,7 @@ static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
-    uint16_t ethertype = TUNMessageType_pop(msg);
+    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP6) {
         printf("Spurious packet with ethertype [%04x]\n", Endian_bigEndianToHost16(ethertype));
         return 0;
@@ -74,7 +75,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
 
-    TUNMessageType_push(msg, ethertype);
+    TUNMessageType_push(msg, ethertype, NULL);
 
     return iface->sendMessage(msg, iface);
 }
@@ -92,7 +93,7 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_true(!"timeout");
+    Assert_always(!"timeout");
 }
 
 static struct AddrInterface* setupUDP(struct EventBase* base,
@@ -123,9 +124,9 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
+    Assert_always(!Sockaddr_parse("[fd00::1]", &addr));
 
-    #ifdef BSD
+    #ifdef freebsd
         // tun is not setup synchronously in bsd but it lets you bind to the tun's
         // address anyway.
         sleep(1);
@@ -139,17 +140,17 @@ int main(int argc, char** argv)
             break;
         }
     }
-    Assert_true(udp);
+    Assert_always(udp);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addrBytes;
-    Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
+    Assert_always(16 == Sockaddr_getAddress(dest, &addrBytes));
     Bits_memcpy(addrBytes, testAddrB, 16);
 
     struct Message* msg;
     Message_STACK(msg, 0, 64);
-    Message_push(msg, "Hello World", 12);
-    Message_push(msg, dest, dest->addrLen);
+    Message_push(msg, "Hello World", 12, NULL);
+    Message_push(msg, dest, dest->addrLen, NULL);
 
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;
@@ -160,4 +161,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(fail, NULL, 10000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

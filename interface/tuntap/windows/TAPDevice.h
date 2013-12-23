@@ -17,6 +17,8 @@
 
 #include "exception/Except.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/windows/TAPDevice.c")
 
 struct TAPDevice
 {

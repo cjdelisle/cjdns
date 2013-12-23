@@ -54,7 +54,7 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     Assert_always(msg->length <= 1280);
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
 
     Assert_always(!Bits_memcmp(sourceAddr, header->sourceAddr, 16));
     Assert_always(!Bits_memcmp(destAddr, header->destinationAddr, 16));
@@ -65,7 +65,7 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     Assert_always(header->hopLimit == 64);
 
     struct Headers_ICMP6Header* icmp = (struct Headers_ICMP6Header*) msg->bytes;
-    Message_shift(msg, -Headers_ICMP6Header_SIZE);
+    Message_shift(msg, -Headers_ICMP6Header_SIZE, NULL);
 
     Assert_always(icmp->type == 2); // packet too big.
     Assert_always(icmp->code == 0);
@@ -94,13 +94,13 @@ static uint8_t messageFromGenerator(struct Message* msg, struct Interface* iface
 
     int index = Headers_IP6Fragment_getOffset(frag);
 
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     Assert_always(Endian_bigEndianToHost16(ip6->payloadLength_be) == msg->length);
-    Message_shift(msg, -Headers_IP6Fragment_SIZE);
+    Message_shift(msg, -Headers_IP6Fragment_SIZE, NULL);
     Assert_always(msg->length > 0);
 
     Bits_memcpy(&reassemblyBuff[index], msg->bytes, msg->length);
-    Message_shift(msg, (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE));
+    Message_shift(msg, (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE), NULL);
 
     printf("Got message fragment with index [%d] length [%d] hasMoreFragments [%d]\n",
            index, msg->length, Headers_IP6Fragment_hasMoreFragments(frag));
@@ -160,4 +160,5 @@ int main()
     fragTest(alloc, rand, 1500, 100);
 
     Allocator_free(alloc);
+    return 0;
 }

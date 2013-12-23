@@ -21,7 +21,8 @@
 #include "util/events/EventBase.h"
 #include "util/Bits.h"
 #include "memory/Allocator.h"
-
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/SearchRunner.c")
 
 struct SearchRunner_SearchData
 {

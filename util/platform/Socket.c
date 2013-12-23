@@ -14,7 +14,7 @@
  */
 #include "util/platform/Socket.h"
 
-#ifdef Windows
+#ifdef win32
     #include <winsock2.h>
 #else
     #include <sys/socket.h>
@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef Windows
+#ifdef win32
     #define SIGNED_IF_WIN32_uint32_t int32_t
 #else
     #define SIGNED_IF_WIN32_uint32_t uint32_t
@@ -35,7 +35,7 @@ const int Socket_SOCK_STREAM = SOCK_STREAM;
 
 int Socket_makeNonBlocking(int sock)
 {
-    #ifdef Windows
+    #ifdef win32
         u_long one = 1;
         return ioctlsocket(sock, FIONBIO, &one);
     #else
@@ -49,7 +49,7 @@ int Socket_makeNonBlocking(int sock)
 
 int Socket_makeReusable(int sock)
 {
-    #ifndef Windows
+    #ifndef win32
         int one = 1;
         return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
     #else
@@ -59,7 +59,7 @@ int Socket_makeReusable(int sock)
 
 int Socket_close(int sock)
 {
-    #ifdef Windows
+    #ifdef win32
         return closesocket(sock);
     #else
         return close(sock);

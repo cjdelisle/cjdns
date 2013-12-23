@@ -43,6 +43,8 @@ struct UDPInterface_pvt
 
     struct MultiInterface* multiIface;
 
+    struct Allocator* alloc;
+
     uint8_t messageBuff[UDPInterface_PADDING + UDPInterface_MAX_PACKET_SIZE];
 
     Identity

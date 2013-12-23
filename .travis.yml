@@ -1,16 +1,14 @@
-language: C
+language: c
 
 branches:
   only:
+    - pathfinder
     - master
     - stable-0.4
     - pathfinder
 
-before_script:
-  - "sudo apt-get install cmake"
-  - "mkdir build && cd build"
-  - "cmake .."
-  - "make"
+compiler:
+  - gcc
 
 script:
-  - "sudo make test"
+  - "bash do"

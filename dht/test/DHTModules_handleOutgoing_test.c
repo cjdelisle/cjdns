@@ -37,7 +37,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext)
     return 0;
 }
 
-int testOutputHandler()
+static int testOutputHandler()
 {
     struct DHTMessage theMessage;
 

@@ -16,10 +16,9 @@
 #define MallocAllocator_H
 
 #include "memory/Allocator.h"
-
-#if !defined(MallocAllocator_USE_CANARIES) && defined(PARANOIA)
-    #define MallocAllocator_USE_CANARIES
-#endif
+#include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("memory/MallocAllocator.c")
 
 /**
  * Create a new Allocator which is a wrapper around malloc().
@@ -27,30 +26,8 @@
  * @param sizeLimit the number of bytes which are allowed to be allocated by
  *                  this allocator or any of its children before the program
  *                  will be halted with an error.
- * @param identFile the file where this allocator was created.
- * @param identLine the line where this was called from.
  */
-struct Allocator* MallocAllocator_newWithIdentity(unsigned long sizeLimit,
-                                                  const char* identFile,
-                                                  int identLine);
-#define MallocAllocator_new(sl) \
-    MallocAllocator_newWithIdentity((sl), __FILE__, __LINE__)
-
-/**
- * Get the number of bytes allocated so far by this allocator,
- * all of its parents, and all of its children.
- *
- * @param allocator this *must* be a MallocAllocator.
- * @return the number of bytes which have been allocated so far.
- */
-unsigned long MallocAllocator_bytesAllocated(struct Allocator* allocator);
-
-/**
- * Mix randomness into the canary value.
- *
- * @param allocator this *must* be a MallocAllocator.
- * @param value a random machine size word.
- */
-void MallocAllocator_setCanary(struct Allocator* alloc, long value);
+struct Allocator* MallocAllocator__new(unsigned long sizeLimit, const char* file, int line);
+#define MallocAllocator_new(sl) MallocAllocator__new((sl),Gcc_SHORT_FILE,Gcc_LINE)
 
 #endif

@@ -16,19 +16,14 @@
 #include "util/Identity.h"
 #include "util/Bits.h"
 
-#ifndef Windows
-    #include <unistd.h>
-    #include <errno.h>
-    #include <sys/types.h>
-    #if !defined Illumos && !defined __ILP32__
-        #include <sys/sysctl.h>
-    #endif
-#endif
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 /** Number of times to try each operation. */
 #define MAX_TRIES 10
 
-#ifdef KERN_ARND
 static int get(struct RandomSeed* randomSeed, uint64_t output[8])
 {
     int mib[] = { CTL_KERN, KERN_ARND };
@@ -56,12 +51,6 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return Bits_isZero(output, 64) ? -1 : 0;
 }
-#else
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
-{
-    return -1;
-}
-#endif
 
 struct RandomSeed* BsdKernArndSysctlRandomSeed_new(struct Allocator* alloc)
 {

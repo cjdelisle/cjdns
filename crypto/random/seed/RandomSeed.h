@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("crypto/random/seed/RandomSeed.c")
 
 #include <stdint.h>
 
@@ -41,6 +43,7 @@ struct RandomSeed
 };
 
 struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+                                  int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc);
 

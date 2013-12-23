@@ -16,6 +16,9 @@
 #define Allocator_H
 
 #include "util/Identity.h"
+#include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("memory/Allocator.c")
 
 /**
  * A handle which is provided in response to calls to Allocator_onFree().
@@ -23,19 +26,11 @@
  */
 struct Allocator_OnFreeJob;
 typedef int (* Allocator_OnFreeCallback)(struct Allocator_OnFreeJob* job);
-struct Allocator_OnFreeJob {
-    /** Set by allocator. */
-    const Allocator_OnFreeCallback cancel;
-
-    /** Complete the job, used only if the callback returns Allocator_ONFREE_ASYNC. */
-    const Allocator_OnFreeCallback complete;
-
+struct Allocator_OnFreeJob
+{
     /** Set by caller. */
     Allocator_OnFreeCallback callback;
     void* userData;
-
-    /** Set by allocator. */
-    Identity
 };
 
 /**
@@ -101,50 +96,44 @@ struct Allocator_OnFreeJob {
  *
  * The function pointers in the allocator structure are best called through the associated macros.
  */
-struct Allocator;
 struct Allocator
 {
-    void* (* const malloc)(unsigned long numberOfBytes,
-                           struct Allocator* thisAlloc,
-                           const char* identFile,
-                           int identLine);
+    /** The name of the file where this allocator was created. */
+    const char* fileName;
 
-    void* (* const calloc)(unsigned long numberOfBytes,
-                           unsigned long multiplier,
-                           struct Allocator* thisAlloc,
-                           const char* identFile,
-                           int identLine);
-    void* (* const realloc)(const void* originalAllocation,
-                            unsigned long numberOfBytes,
-                            struct Allocator* thisAllocator,
-                            const char* identFile,
-                            int identLine);
+    /** The number of the line where this allocator was created. */
+    int lineNum;
 
-    void* (* const clone)(unsigned long numberOfBytes,
-                          struct Allocator* thisAllocator,
-                          const void* toClone,
-                          const char* identFile,
-                          int identLine);
-
-
-    void (*  free)(struct Allocator* alloc, const char* identFile, int identLine);
-
-    struct Allocator_OnFreeJob* (* const onFree)(struct Allocator* alloc,
-                                                 const char* file,
-                                                 int line);
-
-
-    struct Allocator* (* const child)(struct Allocator* thisAlloc,
-                                      const char* identFile,
-                                      int identLine);
-
-    void (* const adopt)(struct Allocator* parentAlloc,
-                         struct Allocator* alloc,
-                         const char* identFile,
-                         int identLine);
+    /** Non-zero if allocator is currently freeing. */
+    int isFreeing;
 };
 
+struct Allocator_Allocation
+{
+    const char* fileName;
 
+    int lineNum;
+
+    unsigned long size;
+};
+
+/**
+ * Get a child of a given allocator.
+ *
+ * @param alloc the parent
+ * @param childNumber
+ * @return a child allocator or NULL if childNumber is out of range.
+ */
+struct Allocator* Allocator_getChild(struct Allocator* alloc, int childNumber);
+
+/**
+ * Get one of the allocations held by this allocator.
+ *
+ * @param alloc the allocator.
+ * @param allocNum the number of the allocation.
+ * @return an allocation or NULL if allocNum is out of range.
+ */
+struct Allocator_Allocation* Allocator_getAllocation(struct Allocator* alloc, int allocNum);
 
 /**
  * Allocate some memory from this memory allocator.
@@ -156,8 +145,11 @@ struct Allocator
  * @return a pointer to the newly allocated memory.
  * @see malloc()
  */
-#define Allocator_malloc(alloc, size) \
-    (alloc)->malloc((size), (alloc), __FILE__, __LINE__)
+void* Allocator__malloc(struct Allocator* allocator,
+                        unsigned long length,
+                        const char* fileName,
+                        int lineNum);
+#define Allocator_malloc(a, b) Allocator__malloc((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Allocate some memory from this memory allocator.
@@ -171,8 +163,12 @@ struct Allocator
  * @return a pointer to the newly allocated memory.
  * @see calloc()
  */
-#define Allocator_calloc(alloc, size, count) \
-    (alloc)->calloc((size), (count), (alloc), __FILE__, __LINE__)
+void* Allocator__calloc(struct Allocator* alloc,
+                        unsigned long length,
+                        unsigned long count,
+                        const char* fileName,
+                        int lineNum);
+#define Allocator_calloc(a, b, c) Allocator__calloc((a),(b),(c),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Re-allocate memory so that an allocation can be expanded.
@@ -188,8 +184,12 @@ struct Allocator
  *             without freeing the entire allocator.
  * @return a pointer to the newly allocated memory.
  */
-#define Allocator_realloc(alloc, orig, size) \
-    (alloc)->realloc((orig), (size), (alloc), __FILE__, __LINE__)
+void* Allocator__realloc(struct Allocator* allocator,
+                         const void* original,
+                         unsigned long size,
+                         const char* fileName,
+                         int lineNum);
+#define Allocator_realloc(a, b, c) Allocator__realloc((a),(b),(c),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Allocate some memory and copy something into that memory space.
@@ -202,50 +202,12 @@ struct Allocator
  *                the size of the new allocation will be sizeof(*content).
  * @return a pointer to the newly allocated memory.
  */
-#define Allocator_clone(alloc, content) \
-    (alloc)->clone(sizeof(*(content)), (alloc), (content), __FILE__, __LINE__)
-
-/**
- * Sever the link between an allocator and it's original parent.
- * If it has been adopted using Allocator_adopt() then the freeing of the allocator will be deferred
- * until the allocator returned by Allocator_adopt() has also been freed.
- * Any allocator which has no surviving parent allocator will be implicitly freed.
- *
- * @param alloc the allocator to disconnect from it's parent.
- */
-#define Allocator_free(alloc) \
-    (alloc)->free((alloc), __FILE__, __LINE__)
-
-/**
- * Add a function to be called when the allocator is freed.
- *
- * @param alloc the memory allocator.
- * @param callback the function to call.
- * @return an Allocator_OnFreeJob which can be cancelled with Allocator_cancelOnFree().
- */
-#define Allocator_onFree(alloc, callback, context) \
-    Allocator__onFree((alloc), (callback), (context), __FILE__, __LINE__)
-
-static inline struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
-                                                            Allocator_OnFreeCallback callback,
-                                                            void* context,
-                                                            const char* file,
-                                                            int line)
-{
-    struct Allocator_OnFreeJob* j = alloc->onFree(alloc, file, line);
-    j->callback = callback;
-    j->userData = context;
-    return j;
-}
-
-/**
- * Remove a function which was registered with Allocator_onFree().
- *
- * @param job the return value from calling Allocator_onFree().
- * @return 0 if the job was found and removed, -1 otherwise.
- */
-#define Allocator_cancelOnFree(job) \
-    (job)->cancel(job)
+void* Allocator__clone(struct Allocator* allocator,
+                       const void* toClone,
+                       unsigned long length,
+                       const char* fileName,
+                       int lineNum);
+#define Allocator_clone(a, b) Allocator__clone((a),(b),sizeof(*(b)),Gcc_SHORT_FILE,Gcc_LINE)
 
 /**
  * Spawn a new child of this allocator.
@@ -255,8 +217,48 @@ static inline struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* al
  * @param alloc the memory allocator.
  * @return a child allocator.
  */
-#define Allocator_child(alloc) \
-    (alloc)->child((alloc), __FILE__, __LINE__)
+struct Allocator* Allocator__child(struct Allocator* alloc, const char* fileName, int lineNum);
+#define Allocator_child(a) Allocator__child((a),Gcc_SHORT_FILE,Gcc_LINE)
+
+/**
+ * Sever the link between an allocator and it's original parent.
+ * If it has been adopted using Allocator_adopt() then the freeing of the allocator will be deferred
+ * until the allocator returned by Allocator_adopt() has also been freed.
+ * Any allocator which has no surviving parent allocator will be implicitly freed.
+ *
+ * @param alloc the allocator to disconnect from it's parent.
+ */
+void Allocator__free(struct Allocator* alloc, const char* file, int line);
+#define Allocator_free(a) Allocator__free((a),Gcc_SHORT_FILE,Gcc_LINE)
+
+/**
+ * Add a function to be called when the allocator is freed.
+ *
+ * @param alloc the memory allocator.
+ * @param callback the function to call.
+ * @return an Allocator_OnFreeJob which can be cancelled with Allocator_cancelOnFree().
+ */
+struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* alloc,
+                                              Allocator_OnFreeCallback callback,
+                                              void* context,
+                                              const char* file,
+                                              int line);
+#define Allocator_onFree(a, b, c) Allocator__onFree((a), (b), (c), Gcc_SHORT_FILE, Gcc_LINE)
+
+/**
+ * Remove a function which was registered with Allocator_onFree().
+ *
+ * @param job the return value from calling Allocator_onFree().
+ * @return 0 if the job was found and removed, -1 otherwise.
+ */
+int Allocator_cancelOnFree(struct Allocator_OnFreeJob* toRemove);
+
+/**
+ * Tell the allocator that an asynchronous onFree() job has completed.
+ *
+ * @param job the return value from calling Allocator_onFree().
+ */
+void Allocator_onFreeComplete(struct Allocator_OnFreeJob* onFreeJob);
 
 /**
  * Adopt an allocator.
@@ -284,7 +286,61 @@ static inline struct Allocator_OnFreeJob* Allocator__onFree(struct Allocator* al
  * @param toAdopt the allocator which should be adopted by the returned child allocator.
  * @return a new allocator which is an adopted parent of toAdopt.
  */
-#define Allocator_adopt(parentAlloc, toAdopt) \
-    (parentAlloc)->adopt((parentAlloc), (toAdopt), __FILE__, __LINE__)
+void Allocator__adopt(struct Allocator* parentAlloc,
+                      struct Allocator* alloc,
+                      const char* fileName,
+                      int lineNum);
+#define Allocator_adopt(a, b) Allocator__adopt((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
+
+/**
+ * Set the heap protection canary for the next child allocator.
+ * If heap protection canaries are enabled, they will be added at the beginning and end
+ * of each memory allocation and checked during free and other operations. If one is corrupted
+ * the program will be aborted to protect against security attacks and other faults.
+ * By default the canaries are statically set but this allows the value to be changed so that
+ * the value of the canaries is unpredictable in order to foil targetted attacks.
+ */
+void Allocator_setCanary(struct Allocator* alloc, unsigned long value);
+
+/**
+ * Get the number of bytes allocated by this allocator and all of it's children.
+ */
+unsigned long Allocator_bytesAllocated(struct Allocator* allocator);
+
+
+/**
+ * The underlying memory provider function which backs the allocator.
+ * This function is roughly equivilant to realloc() API in that it is used for allocation,
+ * reallocation and freeing but it also contains a context field which allows the provider
+ * to store it's state in a non-global way and a group pointer.
+ *
+ * The group pointer is used to add memory to an allocation group. If the group pointer is set to
+ * NULL, the provider is requested to begin a new group, if the group pointer is not null, it will
+ * be set to an allocation which had previously been returned by the provider, in this case the
+ * provider should internally group this allocation with the other as they will likely be freed
+ * at the same time.
+ *
+ * @param ctx the context which was passed to Allocator_new() along with the provider.
+ * @param original if this is NULL then the allocator is to provide a new allocation, otherwise it
+ *                 should resize or free an existing allocation.
+ * @param size if this is 0 then the allocator should free original and return NULL, if it is not
+ *             zero then original should be resized or created.
+ * @param group if this is not NULL then the provider is being informed that the current allocation
+ *              and the allocation in group are likely to have the same life span and should be
+ *              colocated if it is logical to do so.
+ */
+#ifndef Allocator_Provider_CONTEXT_TYPE
+    #define Allocator_Provider_CONTEXT_TYPE void
+#endif
+typedef void* (* Allocator_Provider)(Allocator_Provider_CONTEXT_TYPE* ctx,
+                                     struct Allocator_Allocation* original,
+                                     unsigned long size,
+                                     struct Allocator* group);
+
+struct Allocator* Allocator_new(unsigned long sizeLimit,
+                                Allocator_Provider provider,
+                                Allocator_Provider_CONTEXT_TYPE* providerContext,
+                                const char* fileName,
+                                int lineNum);
 
 #endif

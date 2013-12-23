@@ -19,6 +19,8 @@
 #include "util/log/Log.h"
 #include "interface/Interface.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/angel/Angel.c")
 
 void Angel_start(struct Interface* coreIface,
                  struct EventBase* eventBase,

@@ -20,6 +20,7 @@
 #include "util/platform/libc/string.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
+#include "benc/List.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
 #include "util/Bits.h"
@@ -34,7 +35,20 @@ struct Context
     struct Log* logger;
     struct Allocator* alloc;
     struct AdminClient* client;
+
+    struct Allocator* currentReqAlloc;
+    struct AdminClient_Result* currentResult;
+
+    struct EventBase* base;
 };
+
+static void rpcCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct Context* ctx = p->userData;
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->currentResult = res;
+    EventBase_endLoop(ctx->base);
+}
 
 static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allocator* alloc)
 {
@@ -44,10 +58,14 @@ static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allo
     #endif
 
     Dict d = NULL;
-    struct AdminClient_Result* exitRes =
+    struct AdminClient_Promise* exitPromise =
         AdminClient_rpcCall(String_CONST("Core_exit"), &d, ctx->client, alloc);
+    exitPromise->callback = rpcCallback;
+    exitPromise->userData = ctx;
 
-    if (exitRes->err) {
+    EventBase_beginLoop(ctx->base);
+
+    if (ctx->currentResult->err) {
         Log_critical(ctx->logger, "Failed to stop the core.");
     }
     Log_critical(ctx->logger, "Aborting.");
@@ -60,7 +78,17 @@ static int rpcCall0(String* function,
                     struct Allocator* alloc,
                     bool exitIfError)
 {
-    struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    ctx->currentReqAlloc = Allocator_child(alloc);
+    ctx->currentResult = NULL;
+    struct AdminClient_Promise* promise = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    promise->callback = rpcCallback;
+    promise->userData = ctx;
+
+    EventBase_beginLoop(ctx->base);
+
+    struct AdminClient_Result* res = ctx->currentResult;
+    Assert_always(res);
+
     if (res->err) {
         Log_critical(ctx->logger,
                       "Failed to make function call [%s], error: [%s]",
@@ -69,6 +97,7 @@ static int rpcCall0(String* function,
         die(res, ctx, alloc);
     }
     String* error = Dict_getString(res->responseDict, String_CONST("error"));
+    int ret = 0;
     if (error && !String_equals(error, String_CONST("none"))) {
         if (exitIfError) {
             Log_critical(ctx->logger,
@@ -79,9 +108,12 @@ static int rpcCall0(String* function,
         }
         Log_warn(ctx->logger, "Got error [%s] calling [%s], ignoring.",
                  error->bytes, function->bytes);
-        return 1;
+        ret = 1;
     }
-    return 0;
+
+    Allocator_free(ctx->currentReqAlloc);
+    ctx->currentReqAlloc = NULL;
+    return ret;
 }
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
@@ -127,6 +159,40 @@ static void authorizedPasswords(List* list, struct Context* ctx)
     }
 }
 
+static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
+{
+    List* servers = Dict_getList(dns, String_CONST("servers"));
+    int count = List_size(servers);
+    for (int i = 0; i < count; i++) {
+        String* server = List_getString(servers, i);
+        if (!server) {
+            Except_throw(eh, "dns.servers[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addServer"), d, ctx, ctx->alloc);
+    }
+
+    List* keys = Dict_getList(dns, String_CONST("keys"));
+    count = List_size(keys);
+    for (int i = 0; i < count; i++) {
+        String* key = List_getString(keys, i);
+        if (!key) {
+            Except_throw(eh, "dns.keys[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addKey"), d, ctx, ctx->alloc);
+    }
+
+    int64_t* minSigs = Dict_getInt(dns, String_CONST("minSignatures"));
+    if (minSigs) {
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putInt(d, String_CONST("count"), *minSigs, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_minSignatures"), d, ctx, ctx->alloc);
+    }
+}
+
 static void udpInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
@@ -165,7 +231,11 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
                 key = String_clone(key, perCallAlloc);
                 char* lastColon = strrchr(key->bytes, ':');
-                if (lastColon) {
+
+                if (!Sockaddr_parse(key->bytes, NULL)) {
+                    // it's a sockaddr, fall through
+                } else if (lastColon) {
+                    // try it as a hostname.
                     int port = atoi(lastColon+1);
                     if (!port) {
                         Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);
@@ -349,11 +419,17 @@ void Configurator_config(Dict* config,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
+    struct Except* eh = NULL;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
         AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
 
-    struct Context ctx = { .logger = logger, .alloc = tempAlloc, .client = client };
+    struct Context ctx = {
+        .logger = logger,
+        .alloc = tempAlloc,
+        .client = client,
+        .base = eventBase,
+    };
 
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
@@ -372,6 +448,9 @@ void Configurator_config(Dict* config,
 
     List* securityList = Dict_getList(config, String_CONST("security"));
     security(securityList, tempAlloc, &ctx);
+
+    Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
+    dns(dnsConf, &ctx, eh);
 
     Allocator_free(tempAlloc);
 }

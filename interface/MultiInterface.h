@@ -17,6 +17,8 @@
 
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
+#include "util/Linker.h"
+Linker_require("interface/MultiInterface.c")
 
 /*
  * An Interface such as Ethernet or UDP which may connect to multiple peers

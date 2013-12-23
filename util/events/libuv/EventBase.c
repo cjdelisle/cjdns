@@ -12,19 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
 
-#ifdef Windows
+#ifdef win32
     #include <sys/timeb.h>
     #include <time.h>
 #else
     #include <sys/time.h>
 #endif
-
-#include <uv.h>
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
@@ -45,7 +44,7 @@ static void calibrateTime(struct EventBase_pvt* base)
     uint64_t seconds;
     uint64_t milliseconds;
 
-    #ifdef Windows
+    #ifdef win32
         struct _timeb tb;
         _ftime(&tb);
         seconds = tb.time;
@@ -87,7 +86,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
 
     if (ctx->onFree) {
         uv_loop_delete(ctx->loop);
-        ctx->onFree->complete(ctx->onFree);
+        Allocator_onFreeComplete(ctx->onFree);
         return;
     }
 }
@@ -112,4 +111,9 @@ int EventBase_eventCount(struct EventBase* eventBase)
     struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
     uv_walk(ctx->loop, countCallback, &eventCount);
     return eventCount;
+}
+
+struct EventBase_pvt* EventBase_privatize(struct EventBase* base)
+{
+    return Identity_cast((struct EventBase_pvt*) base);
 }

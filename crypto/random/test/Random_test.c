@@ -22,7 +22,7 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 
-void checkBytes(struct Random* rand, int alignment, int length)
+static void checkBytes(struct Random* rand, int alignment, int length)
 {
     Assert_always(length < 128 && alignment < 8);
 
@@ -73,7 +73,7 @@ void checkBytes(struct Random* rand, int alignment, int length)
 }
 
 /** https://github.com/cjdelisle/cjdns/issues/179 */
-void test179(struct Allocator* alloc, struct Log* logger)
+static void test179(struct Allocator* alloc, struct Log* logger)
 {
     uint8_t buff[32] = {0};
     uint8_t buff2[32] = {0};
@@ -84,7 +84,7 @@ void test179(struct Allocator* alloc, struct Log* logger)
     Random_bytes(rand, buff, 32);
     Random_bytes(rand2, buff, 32);
 
-    Assert_true(Bits_memcmp(buff, buff2, 32));
+    Assert_always(Bits_memcmp(buff, buff2, 32));
 }
 
 int main()
@@ -132,4 +132,5 @@ int main()
     }*/
 
     Allocator_free(alloc);
+    return 0;
 }

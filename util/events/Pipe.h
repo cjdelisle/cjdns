@@ -19,6 +19,8 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Pipe.c")
 
 struct Pipe;
 typedef void (* Pipe_callback)(struct Pipe* p, int status);

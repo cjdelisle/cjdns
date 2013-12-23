@@ -28,12 +28,10 @@ struct Context {
     Identity
 };
 
-static void showActiveSearch(Dict* args, void* vctx, String* txid)
+static void showActiveSearch(Dict* args, void* vctx, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vctx);
     int number = *(Dict_getInt(args, String_CONST("number")));
-
-    struct Allocator* alloc = Allocator_child(ctx->allocator);
 
     struct SearchRunner_SearchData* search =
         SearchRunner_showActiveSearch(ctx->runner, number, alloc);
@@ -60,8 +58,6 @@ static void showActiveSearch(Dict* args, void* vctx, String* txid)
     Dict_putInt(dict, String_new("activeSearches", alloc), search->activeSearches, alloc);
 
     Admin_sendMessage(dict, txid, ctx->admin);
-
-    Allocator_free(alloc);
 }
 
 void SearchRunner_admin_register(struct SearchRunner* runner,

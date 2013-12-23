@@ -17,8 +17,11 @@
 
 #include "exception/Except.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "interface/Interface.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/windows/TAPInterface.c")
 
 struct Interface* TAPInterface_new(const char* preferredName,
                                    char** assignedName,

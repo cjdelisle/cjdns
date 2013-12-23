@@ -17,6 +17,8 @@
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/FramingInterface.c")
 
 struct Interface* FramingInterface_new(uint32_t maxMessageSize,
                                        struct Interface* wrappedIface,

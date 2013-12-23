@@ -15,6 +15,9 @@
 #ifndef AddressCalc_H
 #define AddressCalc_H
 
+#include "util/Linker.h"
+Linker_require("crypto/AddressCalc.c")
+
 #include <stdint.h>
 #include <stdbool.h>
 

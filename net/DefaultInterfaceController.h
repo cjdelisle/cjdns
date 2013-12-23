@@ -23,6 +23,8 @@
 #include "net/SwitchPinger.h"
 #include "interface/InterfaceController.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("net/DefaultInterfaceController.c")
 
 
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,

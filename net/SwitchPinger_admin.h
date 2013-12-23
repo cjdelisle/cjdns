@@ -22,6 +22,8 @@
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "util/Endian.h"
+#include "util/Linker.h"
+Linker_require("net/SwitchPinger_admin.c")
 
 void SwitchPinger_admin_register(struct SwitchPinger* sp,
                                  struct Admin* admin,

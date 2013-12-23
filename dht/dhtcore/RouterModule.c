@@ -286,7 +286,8 @@ static inline void responseFromNode(struct Node* node,
 
 static inline int sendNodes(struct NodeList* nodeList,
                             struct DHTMessage* message,
-                            struct RouterModule* module)
+                            struct RouterModule* module,
+                            uint32_t askerVersion)
 {
     struct DHTMessage* query = message->replyTo;
     String* nodes = Allocator_malloc(message->allocator, sizeof(String));
@@ -295,8 +296,15 @@ static inline int sendNodes(struct NodeList* nodeList,
 
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
-    uint32_t i;
-    for (i = 0; i < nodeList->size; i++) {
+    uint32_t i = 0;
+    uint32_t j = 0;
+    for (; i < nodeList->size; i++) {
+
+        if (NumberCompress_decompress(nodeList->nodes[i]->address.path) ==
+            NumberCompress_decompress(query->address->path))
+        {
+            continue;
+        }
 
         // We have to modify the reply in case this node uses a longer label discriminator
         // in our switch than its target address, the target address *must* have the same
@@ -306,9 +314,10 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[i] = nodeList->nodes[i]->version;
+        versions->versions[j] = nodeList->nodes[i]->version;
+        j++;
     }
     if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
@@ -384,25 +393,7 @@ static inline int handleQuery(struct DHTMessage* message,
                        message->allocator);
     }
 
-    // Always send our encoding scheme definition
-    struct EncodingScheme* scheme = NumberCompress_defineScheme(message->allocator);
-    String* flattenedScheme = EncodingScheme_serialize(scheme, message->allocator);
-    Dict_putString(message->asDict, CJDHTConstants_ENC_SCHEME, flattenedScheme, message->allocator);
-
-    // And tell the asker which encoding form their interface uses:
-    int totalBits = NumberCompress_bitsUsedForLabel(query->address->path);
-    int schemeNum = -1;
-    for (int i =  0; i < scheme->count; i++) {
-        if (totalBits == (scheme->forms[i].prefixLen + scheme->forms[i].bitCount)) {
-            schemeNum = i;
-            break;
-        }
-    }
-    Assert_true(schemeNum > -1);
-    Dict_putInt(message->asDict, CJDHTConstants_ENC_INDEX, schemeNum, message->allocator);
-
-
-    return (nodeList) ? sendNodes(nodeList, message, module) : 0;
+    return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
 }
 
 /**

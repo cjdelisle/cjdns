@@ -20,6 +20,9 @@
 #include "dht/dhtcore/Node.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
+#include "switch/EncodingScheme.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/NodeStore.c")
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -45,6 +48,57 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
                                 struct Log* logger,
                                 struct Random* rand);
+
+/**
+ * Discover a new node (or rediscover an existing one).
+ *
+ * @param nodeStore the store
+ * @param addr the address of the new node
+ * @param reachDiff the amount to credit this node
+ * @param version the protocol version
+ * @param scheme the encoding scheme used by this node.
+ * @param encodingFormNumber the number of the smallest possible encoding form for to encoding
+ *                           the interface number through which this message came.
+ */
+struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                        struct Address* addr,
+                                        int64_t reachDiff,
+                                        uint32_t version,
+                                        struct EncodingScheme* scheme,
+                                        int encodingFormNumber);
+
+struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16]);
+struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
+                                    uint8_t parent[16],
+                                    uint32_t linkNum);
+uint32_t NodeStore_linkCount(struct Node_Two* node);
+
+/**
+ * Get a route label for a given path through the network.
+ *
+ * @param nodeStore the store
+ * @param pathToParent a label for getting to a node.
+ * @param childAddress an ipv6 address of a child linked to that node.
+ * @return a path if all goes well, otherwise:
+ *         NodeStore_getRouteLabel_PARENT_NOT_FOUND if the path to the parent node does not
+ *         lead to a known node, or:
+ *         NodeStore_getRouteLabel_CHILD_NOT_FOUND if the childAddress is not in the store or:
+ *         NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD if the parent node is not a peer
+ *         of the child node.
+ */
+#define NodeStore_getRouteLabel_PARENT_NOT_FOUND           ((~((uint64_t)0))-1)
+#define NodeStore_getRouteLabel_CHILD_NOT_FOUND            ((~((uint64_t)0))-2)
+#define NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD ((~((uint64_t)0))-3)
+uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
+                                 uint64_t pathToParent,
+                                 uint8_t childAddress[16]);
+
+/**
+ * @return a human readable version of the error response from getRouteLabel or return NULL if
+ *         getRouteLabel succeeded.
+ */
+char* NodeStore_getRouteLabel_strerror(uint64_t returnVal);
+
 
 /**
  * Put a node into the store.

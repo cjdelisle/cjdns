@@ -64,6 +64,9 @@ struct Ducttape_pvt
     /** The interface which is used by the operator of the node to communicate in the network. */
     struct Interface* userIf;
 
+    /** An interface which receives messages that are sent to fc00::1 from the TUN. */
+    struct Interface magicInterface;
+
     struct Address myAddr;
 
     struct SessionManager* sm;

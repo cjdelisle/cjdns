@@ -27,7 +27,7 @@
 
 /*
  *  TAP-Win32 -- A kernel driver to provide virtual tap device functionality
- *               on Windows.  Originally derived from the CIPE-Win32
+ *               on win32.  Originally derived from the CIPE-Win32
  *               project by Damion K. Wilson, with extensive modifications by
  *               James Yonan.
  *
