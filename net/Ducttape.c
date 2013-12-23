@@ -28,7 +28,6 @@
 #include "interface/SessionManager.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "net/Ducttape_pvt.h"
 #include "switch/SwitchCore.h"
 #include "switch/LabelSplicer.h"

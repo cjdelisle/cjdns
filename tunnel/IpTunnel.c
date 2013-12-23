@@ -24,7 +24,6 @@
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "interface/tuntap/TUNMessageType.h"
-#include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"

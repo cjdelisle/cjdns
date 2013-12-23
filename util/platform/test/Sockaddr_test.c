@@ -14,7 +14,7 @@
  */
 #define string_strlen
 #define string_strcmp
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
 #include "util/platform/libc/string.h"
@@ -29,12 +29,12 @@ static void expectConvert(char* address, char* expectedOutput)
 {
     struct Sockaddr_storage ss;
     Assert_always(!Sockaddr_parse(address, &ss));
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    struct Allocator* alloc = MallocAllocator_new(20000);
     char* outAddr = Sockaddr_print(&ss.addr, alloc);
     Assert_always(outAddr);
     Assert_always(strlen(outAddr) == strlen(expectedOutput));
     Assert_always(!strcmp(outAddr, expectedOutput));
+    Allocator_free(alloc);
 }
 
 static void expectSuccess(char* address)
@@ -73,11 +73,11 @@ static void parse()
 
 static void fromName()
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 4096);
+    struct Allocator* alloc = MallocAllocator_new(20000);
     Sockaddr_fromName("localhost", alloc);
     // This will fail in some cases (eg dns hijacking)
     //Assert_always(!Sockaddr_fromName("hasjklgyolgbvlbiogi", alloc));
+    Allocator_free(alloc);
 }
 
 

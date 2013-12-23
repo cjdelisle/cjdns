@@ -37,5 +37,7 @@ int main()
         Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
     Assert_always(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
     Assert_always(Bits_bitReverse64(0) == 0);
+
+    Allocator_free(alloc);
     return 0;
 }

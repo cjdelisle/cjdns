@@ -16,7 +16,7 @@
 #define string_strstr
 #define string_strcmp
 #include "crypto/random/Random.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 #include "util/platform/libc/string.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
@@ -26,8 +26,7 @@
 
 int main()
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 2048);
+    struct Allocator* alloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t bytes[32];
@@ -43,5 +42,7 @@ int main()
     Assert_always(Hex_decode(bytes2, 32, hex, 64) == 32);
 
     Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
+
+    Allocator_free(alloc);
     return 0;
 }

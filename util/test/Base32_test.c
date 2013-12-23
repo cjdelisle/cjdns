@@ -39,5 +39,7 @@ int main()
     Assert_always(Base32_decode(bytes2, 32, base32, 52) == 32);
 
     Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
+
+    Allocator_free(alloc);
     return 0;
 }
