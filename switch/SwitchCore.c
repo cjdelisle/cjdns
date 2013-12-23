@@ -251,7 +251,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
         message->length : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
-    Bits_memcpy(messageClone, message->bytes, length);
+    Bits_memcpy(messageClone, message->bytes, cloneLength);
 
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
