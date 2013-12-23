@@ -33,7 +33,7 @@ process.on('exit', function () {
 var Builder = require('./builder');
 
 Builder.configure({
-    rebuildIfChanges: Fs.readFileSync(__filename).toString('utf8'),
+    rebuildIfChanges: Fs.readFileSync(__filename).toString('utf8') + JSON.stringify(process.env),
     buildDir: BUILDDIR
 }, function(builder, waitFor) {
 
@@ -82,6 +82,7 @@ Builder.configure({
         '-D','PARANOIA=1'
     );
     if (process.env['EXPERIMENTAL_PATHFINDER']) {
+        console.log("Building with experimental pathfinder");
         builder.config.cflags.push(
             '-D','EXPERIMENTAL_PATHFINDER=1'
         );
@@ -204,7 +205,7 @@ Builder.configure({
         var output = '';
         nThen(function (waitFor) {
             builder.rebuiltFiles.forEach(function (fileName) {
-                console.log("Checking " + fileName);
+                //console.log("Checking " + fileName);
                 if (fileName.indexOf('/dependencies/') !== -1) { return; }
                 Codestyle.checkFile(fileName, waitFor(function (out) {
                     output += out;
