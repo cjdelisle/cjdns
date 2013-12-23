@@ -21,7 +21,7 @@ var Os = require('os');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
-var GCC = 'gcc';
+var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = 'build_'+SYSTEM;
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
