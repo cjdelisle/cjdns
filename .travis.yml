@@ -4,6 +4,7 @@ branches:
   only:
     - master
     - stable-0.4
+    - pathfinder
 
 before_script:
   - "sudo apt-get install cmake"
