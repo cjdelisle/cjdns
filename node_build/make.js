@@ -81,6 +81,11 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
+    if (process.env['EXPERIMENTAL_PATHFINDER']) {
+        builder.config.cflags.push(
+            '-D','EXPERIMENTAL_PATHFINDER=1'
+        );
+    }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(
             '!-fPIE',
@@ -182,7 +187,7 @@ Builder.configure({
         var out = '';
         var test = Spawn(BUILDDIR+'/testcjdroute', ['all']);
         test.stdout.on('data', function(dat) { out += dat.toString(); });
-        test.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+        test.stderr.on('data', function(dat) { out += dat.toString(); });
         test.on('close', waitFor(function (ret) {
             if (ret !== 0) {
                 console.log(out);

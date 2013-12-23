@@ -710,8 +710,7 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
     }
     logLink(store, linkToParent, "NodeStore_getRouteLabel() PARENT");
     struct Node_Link* linkToChild = NULL;
-    // reverse so that short labels are preferred
-    RB_FOREACH_REVERSE(linkToChild, PeerRBTree, &linkToParent->child->peerTree) {
+    RB_FOREACH(linkToChild, PeerRBTree, &linkToParent->child->peerTree) {
         if (!Bits_memcmp(childAddress, linkToChild->child->address.ip6.bytes, 16)) {
             if (linkToParent == store->selfLink) {
                 return linkToChild->cannonicalLabel;
