@@ -94,6 +94,8 @@ Builder.configure({
     } else {
         builder.config.ldflags.push(
             '-Wl,-z,relro,-z,now,-z,noexecstack',
+        );
+        builder.config.libs.push(
             '-lrt'
         );
     }
