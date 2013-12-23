@@ -8,7 +8,6 @@ branches:
 
 compiler:
   - gcc
-  - clang
 
 script:
   - "bash do"
