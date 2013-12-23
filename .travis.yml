@@ -2,10 +2,9 @@ language: c
 
 branches:
   only:
-    - pathfinder
     - master
     - stable-0.4
-    - pathfinder
+    - stable-0.5
 
 compiler:
   - gcc

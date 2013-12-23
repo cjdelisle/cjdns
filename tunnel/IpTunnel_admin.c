@@ -29,7 +29,6 @@ struct Context
 {
     struct IpTunnel* ipTun;
     struct Admin* admin;
-    struct Allocator* alloc;
 };
 
 static void sendResponse(int conn, String* txid, struct Admin* admin)
@@ -142,7 +141,6 @@ static void listConnections(Dict* args,
         String_CONST("error"), String_OBJ(String_CONST("none")), NULL
     ));
     Admin_sendMessage(&resp, txid, context->admin);
-    Allocator_free(alloc);
 }
 
 static void showConn(struct IpTunnel_Connection* conn,
@@ -195,8 +193,7 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
 {
     struct Context* context = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
-        .ipTun = ipTun,
-        .alloc = alloc
+        .ipTun = ipTun
     }));
 
     Admin_registerFunction("IpTunnel_allowConnection", allowConnection, context, true,
