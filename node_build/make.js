@@ -186,15 +186,18 @@ Builder.configure({
     nThen(function (waitFor) {
 
         var out = '';
+        var err = '';
         var test = Spawn(BUILDDIR+'/testcjdroute', ['all']);
         test.stdout.on('data', function(dat) { out += dat.toString(); });
-        test.stderr.on('data', function(dat) { out += dat.toString(); });
+        test.stderr.on('data', function(dat) { err += dat.toString(); });
         test.on('close', waitFor(function (ret) {
             if (ret !== 0) {
                 console.log(out);
+                console.log(err);
                 console.log('\033[1;31mFailed to build cjdns.\033[0m');
                 waitFor.abort();
             } else {
+                console.log(err);
                 console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
             }
         }));

@@ -183,12 +183,12 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
 
     if (scheme->count == 1) {
         // Fixed width encoding, prefix is not allowed and bitcount must be non-zero
-        if (scheme->forms[0].prefixLen != 0) {
+        if (scheme->forms[0].prefixLen != 0 || scheme->forms[0].prefix != 0) {
             // prefixLen must be 0
             return false;
         }
-        if (scheme->forms[0].bitCount == 0) {
-            // bitcount must be non-zero
+        if (scheme->forms[0].bitCount == 0 || scheme->forms[0].bitCount > 31) {
+            // bitcount must be non-zero and can't overflow the number
             return false;
         }
         return true;
@@ -198,11 +198,11 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
     for (int i = 0; i < scheme->count; i++) {
         struct EncodingScheme_Form* form = &scheme->forms[i];
 
-        if (form->prefixLen == 0) {
+        if (form->prefixLen == 0 || form->prefixLen > 31) {
             // Prefix must exist in order to distinguish between forms
             return false;
         }
-        if (form->bitCount == 0) {
+        if (form->bitCount == 0 || form->bitCount > 31) {
             // Bitcount must be non-zero
             return false;
         }
@@ -353,15 +353,17 @@ struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struc
         struct EncodingScheme scheme;
         struct EncodingScheme_Form form;
     };
-    struct NumberCompress_FixedWidthScheme scheme = {
-        .scheme = { .count = 1, .forms = &scheme.form },
-        .form = { .bitCount = bitCount, .prefixLen = 0, .prefix = 0, },
-    };
 
     struct NumberCompress_FixedWidthScheme* out =
         Allocator_malloc(alloc, sizeof(struct NumberCompress_FixedWidthScheme));
 
+    struct NumberCompress_FixedWidthScheme scheme = {
+        .scheme = { .count = 1, .forms = &out->form },
+        .form = { .bitCount = bitCount, .prefixLen = 0, .prefix = 0, },
+    };
     Bits_memcpyConst(out, &scheme, sizeof(struct NumberCompress_FixedWidthScheme));
+
+    Assert_always(EncodingScheme_isSane(&out->scheme));
 
     return &out->scheme;
 }
@@ -375,10 +377,13 @@ struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme
         Allocator_malloc(alloc, sizeof(struct EncodingScheme_Form) * formCount);
     Bits_memcpy(formsCopy, forms, sizeof(struct EncodingScheme_Form) * formCount);
 
-    return Allocator_clone(alloc, (&(struct EncodingScheme) {
+    struct EncodingScheme* scheme = Allocator_clone(alloc, (&(struct EncodingScheme) {
         .count = formCount,
         .forms = formsCopy
     }));
+
+    Assert_true(EncodingScheme_isSane(scheme));
+    return scheme;
 }
 
 int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)

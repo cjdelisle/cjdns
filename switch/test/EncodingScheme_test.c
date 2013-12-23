@@ -267,7 +267,7 @@ static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
         }
     }
 }
-#include <stdio.h>
+
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(20000000);
