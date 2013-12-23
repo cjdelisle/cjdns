@@ -104,7 +104,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
             .allocator = ifAllocator
         }));
         struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, true, "inner", sm->cryptoAuth);
+            CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, "inner", sm->cryptoAuth);
         insideIf->receiveMessage = sm->decryptedIncoming;
         insideIf->receiverContext = sm->interfaceContext;
 

@@ -61,7 +61,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         &(struct Message) { .length = 0, .padding = 512, .bytes = buffer + 512 };
 
     struct CryptoAuth* externalCa = CryptoAuth_new(alloc, NULL, eventBase, logger, rand);
-    struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, false, "", externalCa);
+    struct Interface* wrapped = CryptoAuth_wrapInterface(&iface, pk, false, "", externalCa);
     CryptoAuth_setAuth(String_CONST("passwd"), 1, wrapped);
 
     struct Interface icIface = {

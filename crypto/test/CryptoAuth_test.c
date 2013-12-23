@@ -113,8 +113,7 @@ static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface
 
 static int init(const uint8_t* privateKey,
                 uint8_t* publicKey,
-                const uint8_t* password,
-                bool authenticatePackets)
+                const uint8_t* password)
 {
     printf("\nSetting up:\n");
     struct Allocator* allocator = MallocAllocator_new(1048576);
@@ -131,7 +130,7 @@ static int init(const uint8_t* privateKey,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     }));
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, "cif1", ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, "cif1", ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
@@ -145,7 +144,7 @@ static int init(const uint8_t* privateKey,
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     }));
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, "cif2", ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, "cif2", ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;
@@ -153,7 +152,7 @@ static int init(const uint8_t* privateKey,
 
 static int simpleInit()
 {
-    return init(NULL, NULL, NULL, false);
+    return init(NULL, NULL, NULL);
 }
 
 static int sendToIf1(const char* x)
@@ -213,7 +212,7 @@ static int repeatKey()
 
 static int repeatHello()
 {
-    init(privateKey, publicKey, NULL, false);
+    init(privateKey, publicKey, NULL);
     return
         sendToIf2("hello world")
       | sendToIf2("r u thar?")
@@ -243,7 +242,7 @@ static int chatter()
 
 static int auth()
 {
-    init(privateKey, publicKey, (uint8_t*)"password", false);
+    init(privateKey, publicKey, (uint8_t*)"password");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -253,7 +252,7 @@ static int auth()
 
 static int authWithoutKey()
 {
-    init(NULL, NULL, (uint8_t*)"password", false);
+    init(NULL, NULL, (uint8_t*)"password");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -263,7 +262,7 @@ static int authWithoutKey()
 
 static int poly1305()
 {
-    init(privateKey, publicKey, NULL, true);
+    init(privateKey, publicKey, NULL);
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -273,7 +272,7 @@ static int poly1305()
 
 static int poly1305UnknownKey()
 {
-    init(NULL, NULL, NULL, true);
+    init(NULL, NULL, NULL);
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -283,7 +282,7 @@ static int poly1305UnknownKey()
 
 static int poly1305AndPassword()
 {
-    init(privateKey, publicKey, (uint8_t*)"aPassword", true);
+    init(privateKey, publicKey, (uint8_t*)"aPassword");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -293,7 +292,7 @@ static int poly1305AndPassword()
 
 static int poly1305UnknownKeyAndPassword()
 {
-    init(NULL, NULL, (uint8_t*)"anotherPassword", true);
+    init(NULL, NULL, (uint8_t*)"anotherPassword");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")

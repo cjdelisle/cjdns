@@ -50,6 +50,7 @@
 static const uint8_t keyHashSigma[16] = "expand 32-byte k";
 static const uint8_t keyHashNonce[16] = {0};
 
+#ifdef Log_KEYS
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
 {
     if (key) {
@@ -69,6 +70,7 @@ static inline void printHexPubKey(uint8_t output[65], uint8_t privateKey[32])
         printHexKey(output, NULL);
     }
 }
+#endif
 
 /**
  * Get a shared secret.
@@ -201,7 +203,6 @@ static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
         }
         return hashOutput;
     }
-    wrapper->authenticatePackets |= Headers_isPacketAuthRequired(&cauth->handshake.auth);
 
     return NULL;
 }
@@ -263,35 +264,17 @@ static inline void encryptRndNonce(uint8_t nonce[24],
 }
 
 /**
- * Encipher the content without any authentication.
- * Encryption is the same function as decryption.
- *
- * @param nonce a number which is used only once.
- * @param msg a message to encipher.
- * @param secret a shared secret.
- */
-static inline int cipher(uint8_t nonce[8],
-                          struct Message* msg,
-                          uint8_t secret[20])
-{
-    return crypto_stream_salsa20_xor(msg->bytes, msg->bytes, msg->length, nonce, secret);
-}
-
-/**
  * Decrypt a packet.
  *
  * @param nonce a counter.
  * @param msg the message to decrypt, decrypted in place.
  * @param secret the shared secret.
  * @param isInitiator true if we started the connection.
- * @param authenticate if true then the packet will be authenticated as well at a 16 byte cost.
- *                     The packet must have been encrypted using authenticate.
  */
 static inline int decrypt(uint32_t nonce,
                           struct Message* msg,
                           uint8_t secret[32],
-                          bool isInitiator,
-                          bool authenticate)
+                          bool isInitiator)
 {
     union {
         uint32_t ints[2];
@@ -299,11 +282,7 @@ static inline int decrypt(uint32_t nonce,
     } nonceAs = { .ints = {0, 0} };
     nonceAs.ints[!isInitiator] = Endian_hostToLittleEndian32(nonce);
 
-    if (authenticate) {
-        return decryptRndNonce(nonceAs.bytes, msg, secret);
-    } else {
-        return cipher(nonceAs.bytes, msg, secret);
-    }
+    return decryptRndNonce(nonceAs.bytes, msg, secret);
 }
 
 /**
@@ -313,14 +292,11 @@ static inline int decrypt(uint32_t nonce,
  * @param msg the message to decrypt, decrypted in place.
  * @param secret the shared secret.
  * @param isInitiator true if we started the connection.
- * @param authenticate if true then the packet will be authenticated as well at a 16 byte cost.
- *                     The packet must have been encrypted using authenticate.
  */
 static inline void encrypt(uint32_t nonce,
                            struct Message* msg,
                            uint8_t secret[32],
-                           bool isInitiator,
-                           bool authenticate)
+                           bool isInitiator)
 {
     union {
         uint32_t ints[2];
@@ -328,11 +304,7 @@ static inline void encrypt(uint32_t nonce,
     } nonceAs = { .ints = {0, 0} };
     nonceAs.ints[isInitiator] = Endian_hostToLittleEndian32(nonce);
 
-    if (authenticate) {
-        encryptRndNonce(nonceAs.bytes, msg, secret);
-    } else {
-        cipher(nonceAs.bytes, msg, secret);
-    }
+    encryptRndNonce(nonceAs.bytes, msg, secret);
 }
 
 static inline void setRequiredPadding(struct CryptoAuth_Wrapper* wrapper)
@@ -472,7 +444,8 @@ static uint8_t encryptHandshake(struct Message* message,
     }
     header->handshake.auth.challenge.type = wrapper->authType;
 
-    Headers_setPacketAuthRequired(&header->handshake.auth, wrapper->authenticatePackets);
+    // Packet authentication option is deprecated, it must always be enabled.
+    Headers_setPacketAuthRequired(&header->handshake.auth, 1);
 
     // This is a special packet which the user should never see.
     Headers_setSetupPacket(&header->handshake.auth, setupMessage);
@@ -583,8 +556,7 @@ static inline uint8_t encryptMessage(struct Message* message,
     encrypt(wrapper->nextNonce,
             message,
             wrapper->sharedSecret,
-            wrapper->isInitiator,
-            wrapper->authenticatePackets);
+            wrapper->isInitiator);
 
     Message_shift(message, 4, NULL);
 
@@ -646,9 +618,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 static inline uint8_t callReceivedMessage(struct CryptoAuth_Wrapper* wrapper,
                                           struct Message* message)
 {
-    if (wrapper->authenticatePackets) {
-        wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
-    }
+    wrapper->timeOfLastPacket = Time_currentTimeSeconds(wrapper->context->eventBase);
 
     uint8_t ret = 0;
     if (wrapper->externalInterface.receiveMessage != NULL) {
@@ -663,20 +633,14 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
                                   struct Message* content,
                                   uint8_t secret[32])
 {
-    if (wrapper->authenticatePackets) {
-        // Decrypt with authentication and replay prevention.
-        int ret = decrypt(nonce, content, secret, wrapper->isInitiator, true);
-        if (ret) {
-            cryptoAuthDebug(wrapper, "DROP authenticated decryption failed returning %u", ret);
-            return false;
-        }
-        ret = !ReplayProtector_checkNonce(nonce, &wrapper->replayProtector);
-        if (ret) {
-            cryptoAuthDebug(wrapper, "DROP nonce checking failed nonce=[%u]", nonce);
-            return false;
-        }
-    } else {
-        decrypt(nonce, content, secret, wrapper->isInitiator, false);
+    // Decrypt with authentication and replay prevention.
+    if (decrypt(nonce, content, secret, wrapper->isInitiator)) {
+        cryptoAuthDebug0(wrapper, "DROP authenticated decryption failed");
+        return false;
+    }
+    if (!ReplayProtector_checkNonce(nonce, &wrapper->replayProtector)) {
+        cryptoAuthDebug(wrapper, "DROP nonce checking failed nonce=[%u]", nonce);
+        return false;
     }
     return true;
 }
@@ -927,7 +891,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
-    if (received->length < (wrapper->authenticatePackets ? 20 : 4)) {
+    if (received->length < 20) {
         cryptoAuthDebug0(wrapper, "DROP runt");
         return Error_UNDERSIZE_MESSAGE;
     }
@@ -1132,7 +1096,6 @@ String* CryptoAuth_getUser(struct Interface* interface)
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
                                            const bool requireAuth,
-                                           bool authenticatePackets,
                                            char* name,
                                            struct CryptoAuth* ca)
 {
@@ -1144,7 +1107,6 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
             .context = context,
             .wrappedInterface = toWrap,
             .requireAuth = requireAuth,
-            .authenticatePackets = authenticatePackets,
             .name = name
         }));
 

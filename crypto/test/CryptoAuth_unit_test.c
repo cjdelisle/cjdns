@@ -170,7 +170,7 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
 static void helloNoAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "00000000007691d3802a9d047c403525497a185dabda71739c1f35465fac3448"
+        "00000000007691d3802a9d04fc403525497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b4188f374afd90ccc97bb61873b5d8a3b4a6071b60b26a8c7"
         "2d6484634df315c4d3ad63de42fe3e4ebfd83bcdab2e1f5f40dc5a08eda4e6c6"
@@ -182,7 +182,7 @@ static void helloNoAuth()
 static void helloWithAuth()
 {
     uint8_t* expected = (uint8_t*)
-        "0000000001641c99f7719f5700003eb1497a185dabda71739c1f35465fac3448"
+        "0000000001641c99f7719f5780003eb1497a185dabda71739c1f35465fac3448"
         "b92a0c36ebff1cf7050383c91e7d56ec2336c09739fa8e91d8dc5bec63e8fad0"
         "74bee22a90642a6b022e089e0550ca84b86884af6a0263fa5fff9ba07583aea4"
         "acb000dbe4115623cf335c63981b9645b6c89fbdc3ad757744879751de0f215d"

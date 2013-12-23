@@ -96,9 +96,6 @@ struct CryptoAuth_Wrapper
     /** True if this node began the conversation. */
     bool isInitiator : 1;
 
-    /** If true then the packets sent through this interface must be authenticated. */
-    bool authenticatePackets : 1;
-
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
     bool requireAuth : 1;
 
