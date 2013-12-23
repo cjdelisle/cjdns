@@ -426,7 +426,7 @@ static inline uint64_t findClosest(uint64_t path,
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
             if (formNum > link->encodingFormNumber && cannonicalFormNum != formNum) {
                 Assert_ifTesting(!"wasting space");
-Assert_true(0);
+//Assert_true(0);
                 return findClosest_INVALID;
             }
         }
