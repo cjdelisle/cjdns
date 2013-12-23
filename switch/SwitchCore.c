@@ -90,11 +90,7 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
         Headers_setPriorityAndMessageType(switchHeader, 0, messageType);
     }
 
-    uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
-    if (err) {
-        return err;
-    }
-    return Error_NONE;
+    return Interface_sendMessage(switchIf->iface, toSend);
 }
 
 struct ErrorPacket {
@@ -252,7 +248,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                sourceIndex, destIndex, label, targetLabel);
     */
 
-    int length = (message->length < Control_Error_MAX_SIZE) ?
+    int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
         message->length : Control_Error_MAX_SIZE;
     uint8_t messageClone[Control_Error_MAX_SIZE];
     Bits_memcpy(messageClone, message->bytes, length);
@@ -267,8 +263,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         message->length = message->capacity;
         Message_shift(message, -message->length, NULL);
         Message_shift(message, Control_Error_MAX_SIZE, NULL);
-        Bits_memcpy(message->bytes, messageClone, length);
-        message->length = length;
+        Bits_memcpy(message->bytes, messageClone, cloneLength);
+        message->length = cloneLength;
         header = (struct Headers_SwitchHeader*) message->bytes;
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);

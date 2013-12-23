@@ -445,7 +445,7 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (wrapper->bufferedMessage) {
         // We wanted to send a message but we didn't know the peer's key so we buffered it
-        // and sent a connectToMe, this or it's reply was lost in the network.
+        // and sent a connectToMe.
         // Now we just discovered their key and we're sending a hello packet.
         // Lets send 2 hello packets instead and on one will attach our buffered message.
 
@@ -483,6 +483,7 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (wrapper->nextNonce == 0 || wrapper->nextNonce == 2) {
         // If we're sending a hello or a key
+        // Here we make up a temp keypair
         Random_bytes(wrapper->context->rand, wrapper->ourTempPrivKey, 32);
         crypto_scalarmult_curve25519_base(wrapper->ourTempPubKey, wrapper->ourTempPrivKey);
 
@@ -978,16 +979,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             return Error_UNDELIVERABLE;
         }
 
-        uint8_t* buff = received->bytes;
-        int length = received->length;
-
         Message_shift(received, 4, NULL);
-        uint8_t ret = decryptHandshake(wrapper, nonce, received, header);
-
-        if (ret) {
-            Bits_memset(buff, 0, length);
-        }
-        return ret;
+        return decryptHandshake(wrapper, nonce, received, header);
 
     } else if (nonce > 3 && nonce != UINT32_MAX) {
         Assert_true(!Bits_isZero(wrapper->sharedSecret, 32));
