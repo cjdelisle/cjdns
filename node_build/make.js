@@ -95,9 +95,6 @@ Builder.configure({
         builder.config.ldflags.push(
             '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
-        builder.config.libs.push(
-            '-lrt'
-        );
     }
 
     // Build dependencies
@@ -139,6 +136,10 @@ Builder.configure({
                 '-lws2_32',
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
+            );
+        } else if (builder.config.systemName === 'linux') {
+            builder.config.libs.push(
+                '-lrt' // clock_gettime()
             );
         }
         builder.config.includeDirs.push(
