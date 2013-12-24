@@ -198,7 +198,6 @@ Builder.configure({
                 waitFor.abort();
             } else {
                 console.log(err);
-                console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
             }
         }));
 
@@ -208,7 +207,7 @@ Builder.configure({
         var output = '';
         nThen(function (waitFor) {
             builder.rebuiltFiles.forEach(function (fileName) {
-                //console.log("Checking " + fileName);
+                console.log("Checking " + fileName);
                 if (fileName.indexOf('/dependencies/') !== -1) { return; }
                 Codestyle.checkFile(fileName, waitFor(function (out) {
                     output += out;
@@ -232,5 +231,7 @@ Builder.configure({
             if (err) { throw err; }
         }));
     }));
+
+    console.log('\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m');
 
 });
