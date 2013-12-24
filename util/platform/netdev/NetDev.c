@@ -29,7 +29,7 @@ void NetDev_addAddress(const char* ifName,
     int addrFam = Sockaddr_getFamily(sa);
 
     struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    BufferAllocator_STACK(alloc, 4096);
     char* printedAddr = Sockaddr_print(sa, alloc);
     if (addrFam != Sockaddr_AF_INET && addrFam != Sockaddr_AF_INET6) {
         Except_throw(eh, "Unknown address type for address [%s]", printedAddr);
