@@ -276,7 +276,8 @@ var compileFile = function (fileName, builder, tempDir, callback)
                 // first 2 entries are crap
                 output.splice(0,2);
                 for (var i = output.length-1; i >= 0; i--) {
-                    console.log('Removing empty dependency');
+                    console.log('Removing empty dependency [' +
+                        state.gcc + ' ' + flags.join(' ') + ']');
                     if (output[i] === '') {
                         output.splice(i,1);
                     }

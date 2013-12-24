@@ -109,7 +109,8 @@ Builder.configure({
     if (/.*clang.*/.test(GCC) || SYSTEM === 'darwin') {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
-            '-Wno-invalid-pp-token'
+            '-Wno-invalid-pp-token',
+            '-Wdollar-in-identifier-extension'
         );
     }
 
