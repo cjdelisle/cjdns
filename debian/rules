@@ -13,10 +13,7 @@
 	dh $@ 
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DNO_CODESTYLE=Yes
+	./do
 
 override_dh_install:
-	mkdir -p debian/tmp/
-	cp obj*/admin/angel/cjdns debian/tmp/cjdns
-	cp obj*/admin/angel/cjdroute2 debian/tmp/cjdroute
 	dh_install --fail-missing
