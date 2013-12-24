@@ -27,7 +27,6 @@
 #include "io/FileWriter.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "exception/Jmp.h"
 #include "exception/Except.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
