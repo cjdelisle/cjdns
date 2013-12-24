@@ -96,14 +96,17 @@ Builder.configure({
         builder.config.libs.push(
             '-lssp'
         );
-    } else {
+    } else if (SYSTEM === 'linux') {
         builder.config.ldflags.push(
-            '-Wl,-z,relro,-z,now,-z,noexecstack',
-            '-pie'
+            '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
     }
 
-    if (/.*clang.*/.test(GCC)) {
+    builder.config.ldflags.push(
+        '-pie'
+    );
+
+    if (/.*clang.*/.test(GCC) || SYSTEM === 'darwin') {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token'
