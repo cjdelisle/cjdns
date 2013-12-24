@@ -534,7 +534,14 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
 {
     uint8_t* source = (sourceAndDestIp6) ? sourceAndDestIp6 : sourceAndDestIp4;
     uint32_t length = (sourceAndDestIp6) ? 16 : 4;
-    #define DESTINATION source + length
+    uint8_t* destination = source + length;
+
+    if (sourceAndDestIp6) {
+        // never allowed
+        if (source[0] == 0xfc || destination[0] == 0xfc) {
+            return NULL;
+        }
+    }
 
     struct IpTunnel_Connection* lastConnection =
         &context->pub.connectionList.connections[context->pub.connectionList.count];
@@ -549,8 +556,8 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
         // connections are first on the list.
         //
         uint8_t* compareAddr = (isFromTun)
-            ? ((conn->isOutgoing) ? source : DESTINATION)
-            : ((conn->isOutgoing) ? DESTINATION : source);
+            ? ((conn->isOutgoing) ? source : destination)
+            : ((conn->isOutgoing) ? destination : source);
 
         uint8_t* connectionAddr = (sourceAndDestIp6) ? conn->connectionIp6 : conn->connectionIp4;
         if (!Bits_memcmp(compareAddr, connectionAddr, length)) {

@@ -14,6 +14,7 @@
  */
 #include "interface/SessionManager.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/AddressCalc.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
@@ -83,6 +84,16 @@ static void cleanup(void* vsm)
     }
 }
 
+static void check(struct SessionManager* sm, int mapIndex)
+{
+    uint8_t* herPubKey = CryptoAuth_getHerPublicKey(&sm->ifaceMap.values[mapIndex].iface);
+    if (!Bits_isZero(herPubKey, 32)) {
+        uint8_t ip6[16];
+        AddressCalc_addressForPublicKey(ip6, herPubKey);
+        Assert_always(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
+    }
+}
+
 struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
                                                          uint8_t cryptoKey[32],
                                                          struct SessionManager* sm)
@@ -132,6 +143,8 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
         }
     }
 
+    check(sm, ifaceIndex);
+
     return &sm->ifaceMap.values[ifaceIndex];
 }
 
@@ -139,7 +152,11 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm)
 {
     int index = Map_OfSessionsByIp6_indexForHandle(handle - FIRST_HANDLE, &sm->ifaceMap);
-    return (index == -1) ? NULL : &sm->ifaceMap.values[index];
+    if (index < 0) {
+        return NULL;
+    }
+    check(sm, index);
+    return &sm->ifaceMap.values[index];
 }
 
 struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
