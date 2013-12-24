@@ -225,22 +225,17 @@ Builder.configure({
     }).nThen(function (waitFor) {
 
         console.log("Checking codestyle");
-        var output = '';
-        nThen(function (waitFor) {
-            builder.rebuiltFiles.forEach(function (fileName) {
-                console.log("Checking " + fileName);
-                if (fileName.indexOf('/dependencies/') !== -1) { return; }
-                Codestyle.checkFile(fileName, waitFor(function (out) {
-                    output += out;
-                }));
-            });
-
-        }).nThen(function (waitFor) {
+        var files = [];
+        builder.rebuiltFiles.forEach(function (fileName) {
+            if (fileName.indexOf('/dependencies/') !== -1) { return; }
+            console.log("Checking " + fileName);
+            files.push(fileName);
+        });
+        Codestyle.checkFiles(files, waitFor(function (output) {
             if (output !== '') {
                 throw new Error("Codestyle failure\n" + output);
             }
-
-        }).nThen(waitFor());
+        }));
 
     }).nThen(waitFor());
 

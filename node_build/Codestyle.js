@@ -15,6 +15,7 @@
 
 var Fs = require('fs');
 var nThen = require('nthen');
+var Semaphore = require('./Semaphore');
 var Child = require('child_process');
 
 var headerLines = [
@@ -170,14 +171,32 @@ var parseFile = function (fileName, fileContent) {
     return output;
 };
 
-var checkFile = function (file, callback) {
+var checkFile = module.exports.checkFile = function (file, callback) {
     Fs.readFile(file, function (err, ret) {
         if (err) { throw err; }
         callback(parseFile(file, ret.toString()));
     });
 };
 
-var main = function (dir, runInFork, callback) {
+var checkFiles = module.exports.checkFiles = function (files, callback) {
+    var sema = Semaphore.create(64);
+    var errors = '';
+    nThen(function (waitFor) {
+        files.forEach(function (file) {
+            sema.take(waitFor(function (returnAfter) {
+                checkFile(file, waitFor(returnAfter(function (err) {
+                    if (err) {
+                        errors += file + '\n' + err + '\n';
+                    }
+                })));
+            }));
+        });
+    }).nThen(function (waitFor) {
+        callback(errors);
+    });
+};
+
+var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
 
     var gitIgnoreLines;
 
@@ -238,11 +257,8 @@ var main = function (dir, runInFork, callback) {
     });
 };
 
-if (module.parent !== null) {
-    module.exports.checkDir = main;
-    module.exports.checkFile = checkFile;
-} else {
-    main('.', false, function(output) {
+if (module.parent === null) {
+    checkDir('.', false, function(output) {
         if (output !== '') {
             console.log(output);
             process.exit(1);
