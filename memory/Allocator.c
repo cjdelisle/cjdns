@@ -678,7 +678,7 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
     sizeLimit += getRealSize(sizeof(struct Allocator_FirstCtx));
 
     struct Allocator_FirstCtx stackContext = {
-        .spaceAvailable = (sizeLimit == 0) ? SIZE_MAX : sizeLimit,
+        .spaceAvailable = (sizeLimit == 0) ? INT64_MAX : sizeLimit,
         .provider = provider,
         .providerContext = providerContext,
         .context = {
