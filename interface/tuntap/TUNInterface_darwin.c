@@ -55,10 +55,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         int parsedUnit = 0;
 
         if (sscanf(interfaceName, "utun%i", &parsedUnit) != 1 || parsedUnit < 0) {
-            Except_raise(eh,
-                         TUNInterface_new_BAD_TUNNEL,
-                         "Invalid utun device %s",
-                         interfaceName);
+            Except_throw(eh, "Invalid utun device %s", interfaceName);
         }
 
         tunUnit = parsedUnit + 1; /* device number used is unit - 1*/
@@ -70,9 +67,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
 
     int tunFd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
     if (tunFd < 0) {
-        Except_raise(eh, TUNInterface_new_INTERNAL,
-                     "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]",
-                     strerror(errno));
+        Except_throw(eh, "socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL) [%s]", strerror(errno));
     }
 
     /* get the utun control id */
@@ -83,10 +78,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     if (ioctl(tunFd, CTLIOCGINFO, &info) < 0) {
         int err = errno;
         close(tunFd);
-        Except_raise(eh,
-                     TUNInterface_new_INTERNAL,
-                     "getting utun device id [%s]",
-                     strerror(err));
+        Except_throw(eh, "getting utun device id [%s]", strerror(err));
     }
 
     /* connect the utun device */
@@ -101,10 +93,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     if (connect(tunFd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         int err = errno;
         close(tunFd);
-        Except_raise(eh,
-                     TUNInterface_new_INTERNAL,
-                     "connecting to utun device [%s]",
-                     strerror(err));
+        Except_throw(eh, "connecting to utun device [%s]", strerror(err));
     }
 
     /* retrieve the assigned utun interface name */
@@ -114,10 +103,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     } else {
         int err = errno;
         close(tunFd);
-        Except_raise(eh,
-                     TUNInterface_new_INTERNAL,
-                     "getting utun interface name [%s]",
-                     strerror(err));
+        Except_throw(eh, "getting utun interface name [%s]", strerror(err));
     }
 
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
