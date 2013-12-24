@@ -674,11 +674,14 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
                                 const char* fileName,
                                 int lineNum)
 {
+    if (sizeLimit == 0) {
+        sizeLimit = INT64_MAX - getRealSize(sizeof(struct Allocator_FirstCtx));
+    }
     // Add in the size of the allocator so that a very small sizeLimit is sane.
     sizeLimit += getRealSize(sizeof(struct Allocator_FirstCtx));
 
     struct Allocator_FirstCtx stackContext = {
-        .spaceAvailable = (sizeLimit == 0) ? INT64_MAX : sizeLimit,
+        .spaceAvailable = sizeLimit,
         .provider = provider,
         .providerContext = providerContext,
         .context = {
