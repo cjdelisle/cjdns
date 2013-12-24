@@ -510,15 +510,6 @@ static uint8_t handleDotH(struct Message* msg,
     return Error_NONE;
 }
 
-static void legacyResponse(struct Message* msg,
-                           struct DNSServer_Message* dmesg,
-                           struct DNSServer_Question* q,
-                           String* domain,
-                           struct Sockaddr* sourceAddr,
-                           struct DNSServer_pvt* ctx)
-{
-}
-
 static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx, struct Except* eh)
 {
     struct Sockaddr* sourceAddr = Allocator_malloc(msg->alloc, ctx->addr->addrLen);
@@ -566,15 +557,6 @@ static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx, struct Exce
         }
         handleDotK(msg, dmesg, q, sourceAddr, ctx);
         return;
-
-    } else if (dmesg->answers) {
-        // response from a legacy server
-        legacyResponse(msg, dmesg, q, domain, sourceAddr, ctx);
-        return;
-
-//    } else if (ctx->serverCount > 0) {
-//
-  //      return;
 
     } else {
         // not authoritative for zone
