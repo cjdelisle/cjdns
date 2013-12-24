@@ -111,7 +111,11 @@ Builder.configure({
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
             '-Wno-dollar-in-identifier-extension',
-            '-Wno-newline-eof'
+            '-Wno-newline-eof',
+
+            // lots of places where depending on preprocessor conditions, a statement might be
+            // a case of if (1 == 1)
+            '-Wno-tautological-compare'
         );
     }
 
