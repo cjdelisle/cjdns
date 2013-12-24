@@ -110,7 +110,7 @@ Builder.configure({
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
-            '-Wdollar-in-identifier-extension'
+            '-Wno-dollar-in-identifier-extension'
         );
     }
 
