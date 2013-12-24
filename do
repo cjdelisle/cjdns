@@ -55,7 +55,7 @@ getNode()
             NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
         else
             NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
-            NODE_SHA=""
+            NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
         fi
     else
         echo "No nodejs executable available for ${PLATFORM}"
