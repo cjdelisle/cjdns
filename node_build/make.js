@@ -65,7 +65,6 @@ Builder.configure({
 
         '-g',
         '-fPIE',
-        '-pie',
 
 //        '-flto', not available on some  machines
 
@@ -99,7 +98,8 @@ Builder.configure({
         );
     } else {
         builder.config.ldflags.push(
-            '-Wl,-z,relro,-z,now,-z,noexecstack'
+            '-Wl,-z,relro,-z,now,-z,noexecstack',
+            '-pie'
         );
     }
 
