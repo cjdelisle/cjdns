@@ -226,10 +226,17 @@ var getObjectFile = function (cFile) {
     return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o'
 };
 
-var getFlags = function (state, fileName) {
+var getFlags = function (state, fileName, includeDirs) {
     var flags = [];
     flags.push.apply(flags, state.cflags);
     flags.push.apply(flags, state['cflags'+fileName]);
+    if (includeDirs) {
+        for (var i = 0; i < state.includeDirs.length; i++) {
+            if (flags[flags.indexOf(state.includeDirs[i])-1] === '-I') { continue; }
+            flags.push('-I');
+            flags.push(state.includeDirs[i]);
+        }
+    }
     for (var i = flags.length-1; i >= 0; i--) {
         // might be undefined because splicing causes us to be off the end of the array
         if (typeof(flags[i]) === 'string' && flags[i][0] === '!') {
@@ -267,7 +274,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
         (function() {
             //debug("CPP -MM");
             var flags = ['-E', '-MM'];
-            flags.push.apply(flags, getFlags(state, fileName));
+            flags.push.apply(flags, getFlags(state, fileName, true));
             flags.push(fileName);
             cc(state.gcc, flags, waitFor(function (err, output) {
                 if (err) { throw err; }
@@ -276,8 +283,8 @@ var compileFile = function (fileName, builder, tempDir, callback)
                 // first 2 entries are crap
                 output.splice(0,2);
                 for (var i = output.length-1; i >= 0; i--) {
-                    console.log('Removing empty dependency [' +
-                        state.gcc + ' ' + flags.join(' ') + ']');
+                    //console.log('Removing empty dependency [' +
+                    //    state.gcc + ' ' + flags.join(' ') + ']');
                     if (output[i] === '') {
                         output.splice(i,1);
                     }
@@ -289,7 +296,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
         (function() {
             //debug("CPP");
             var flags = ['-E'];
-            flags.push.apply(flags, getFlags(state, fileName));
+            flags.push.apply(flags, getFlags(state, fileName, true));
             flags.push(fileName);
             cc(state.gcc, flags, waitFor(function (err, output) {
                 if (err) { throw err; }
@@ -333,7 +340,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
 
         //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile];
-        flags.push.apply(flags, getFlags(state, fileName));
+        flags.push.apply(flags, getFlags(state, fileName, false));
         if (state.useTempFiles) {
             flags.push(preprocessed);
         } else {
@@ -633,12 +640,6 @@ module.exports.configure = function (params, configure) {
     }).nThen(function(waitFor) {
 
         state.buildDir = params.buildDir;
-        for (var i = 0; i < state.includeDirs.length; i++) {
-            if (state.cflags[state.cflags.indexOf(state.includeDirs[i])-1] == '-I') { continue; }
-            state.cflags.push('-I');
-            state.cflags.push(state.includeDirs[i]);
-        }
-        
 
         debug("Configure " + time() + "ms");
 
