@@ -28,7 +28,7 @@ var Semaphore = require('./Semaphore');
  * "fixing" this build process so it doesn't need such a silly thing. A 500 line script is certainly
  * not unapproachable, right?
  * The reason why I am speaking to you now is because I care about you. I want you to be happy
- * and live a care free life, and because you are standing on the precipus of a cavern so dark and
+ * and live a carefree life, and because you are standing on the precipice of a cavern so dark and
  * deep that while you may well make it out alive, your personal pride and innocence almost
  * certainly will not. Imagine yourself after months of sleepless nights wallowing in the quicksand,
  * forever trying to slay the dragon which is always so close yet and so far away. Imagine the deep
