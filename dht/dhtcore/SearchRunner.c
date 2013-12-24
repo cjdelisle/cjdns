@@ -212,13 +212,6 @@ static void searchCallback(struct RouterModule_Promise* promise,
         // calculate the ipv6
         Address_getPrefix(&addr);
 
-        if (!Bits_memcmp(search->runner->myAddress, addr.ip6.bytes, 16)) {
-            // Any path which loops back through us is necessarily a dead route.
-            Log_debug(search->runner->logger, "Detected a loop-route");
-            NodeStore_brokenPath(addr.path, search->runner->nodeStore);
-            continue;
-        }
-
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.
         addr.path = LabelSplicer_splice(addr.path, fromNode->address.path);
@@ -231,6 +224,19 @@ static void searchCallback(struct RouterModule_Promise* promise,
 
         if (addr.path == UINT64_MAX) {
             Log_debug(search->runner->logger, "Dropping node because route could not be spliced");
+            continue;
+        }
+
+        /*#ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, &addr);
+            Log_debug(ctx->logger, "discovered node [%s]", printedAddr);
+        #endif*/
+
+        if (!Bits_memcmp(search->runner->myAddress, addr.ip6.bytes, 16)) {
+            // Any path which loops back through us is necessarily a dead route.
+            Log_debug(search->runner->logger, "Detected a loop-route");
+            NodeStore_brokenPath(addr.path, search->runner->nodeStore);
             continue;
         }
 
