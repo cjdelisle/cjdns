@@ -251,9 +251,24 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                sourceIndex, destIndex, label, targetLabel);
     */
 
-    const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
-    if (err) {
+    int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
+        message->length : Control_Error_MAX_SIZE;
+    uint8_t messageClone[Control_Error_MAX_SIZE];
+    Bits_memcpy(messageClone, message->bytes, cloneLength);
+
+     const uint16_t err =
+         sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
+     if (err) {
         Log_debug(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
+
+        // be careful, the message could have decrypted content in it
+        // and we don't want to spill it out over the wire.
+        message->length = message->capacity;
+        Message_shift(message, -message->length);
+        Message_shift(message, Control_Error_MAX_SIZE);
+        Bits_memcpy(message->bytes, messageClone, cloneLength);
+        message->length = cloneLength;
+        header = (struct Headers_SwitchHeader*) message->bytes;
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;

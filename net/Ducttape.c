@@ -281,8 +281,10 @@ static inline uint8_t incomingForMe(struct Message* message,
                                     uint8_t herPublicKey[32])
 {
     struct Address addr;
-    Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
-    //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
+    //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
+    Bits_memcpyConst(addr.key, herPublicKey, 32);
+    AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
+    Assert_always(!Bits_memcmp(session->ip6, addr.ip6.bytes, 16));
 
     if (Bits_memcmp(addr.ip6.bytes, dtHeader->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
@@ -600,12 +602,21 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 /**
  * Send an arbitrary message to the tun device.
  *
- * @param message to be sent, must be prefixed with IpTunnel_PacketInfoHeader.
+ * @param message to be sent.
  * @param iface an interface for which receiverContext is the ducttape.
  */
 static uint8_t sendToTun(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
+    uint16_t msgType = TUNMessageType_pop(message);
+    if (msgType == Ethernet_TYPE_IP6) {
+        Assert_always(message->length >= Headers_IP6Header_SIZE);
+        struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
+        if (header->sourceAddr[0] == 0xfc || header->destinationAddr[0] == 0xfc) {
+            Assert_failure("you can't do that");
+        }
+    }
+    TUNMessageType_push(message, msgType);
     if (context->userIf) {
         return context->userIf->sendMessage(message, context->userIf);
     }
