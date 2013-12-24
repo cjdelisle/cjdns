@@ -117,9 +117,9 @@ static struct TestContext* setUp(struct Allocator* alloc, struct Context* ctx, b
     out->alice = CryptoAuth_new(alloc, alicePrivateKey, ctx->base, ctx->logger, ctx->rand);
     out->bob = CryptoAuth_new(alloc, bobPrivateKey, ctx->base, ctx->logger, ctx->rand);
     out->aliceInternalIf =
-        CryptoAuth_wrapInterface(&out->aliceExternalIf, bobPublicKey, 0, "alice", out->alice);
+        CryptoAuth_wrapInterface(&out->aliceExternalIf, bobPublicKey, NULL, 0, "alice", out->alice);
     out->bobInternalIf =
-        CryptoAuth_wrapInterface(&out->bobExternalIf, NULL, authNeeded, "bob", out->bob);
+        CryptoAuth_wrapInterface(&out->bobExternalIf, NULL, NULL, authNeeded, "bob", out->bob);
 
     out->aliceInternalIf->receiveMessage = receiveMessage;
     out->aliceInternalIf->receiverContext = &out->aliceMsg;

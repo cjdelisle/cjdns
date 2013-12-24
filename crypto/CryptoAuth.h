@@ -125,6 +125,7 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
+ * @param herIp6 the ipv6 address of the other party
  * @param requireAuth if the remote end of this interface begins the connection, require
  *                    them to present valid authentication credentials to connect.
  *                    If this end begins the connection, this parameter has no effect.
@@ -133,9 +134,10 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
+                                           const uint8_t herIp6[16],
                                            const bool requireAuth,
                                            char* name,
-                                           struct CryptoAuth* context);
+                                           struct CryptoAuth* ca);
 
 /**
  * Choose the authentication credentials to use.

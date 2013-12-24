@@ -57,8 +57,14 @@ struct CryptoAuth_pvt
 
 struct CryptoAuth_Wrapper
 {
-    /** The public key of the other node. */
+    /** The public key of the other node, all zeros is taken to mean "don't know" */
     uint8_t herPerminentPubKey[32];
+
+    /**
+     * Bind this CryptoAuth session to the other node's ip6 address,
+     * any packet avertizing a key which doesn't hash to this will be dropped.
+     */
+    uint8_t herIp6[16];
 
     /**
      * If an object was associated with a password and the remote host authed

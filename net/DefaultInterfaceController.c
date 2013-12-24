@@ -403,6 +403,8 @@ static int registerPeer(struct InterfaceController* ifController,
             // can't link with yourself, wiseguy
             return InterfaceController_registerPeer_BAD_KEY;
         }
+    } else {
+        Assert_always(requireAuth);
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;
@@ -422,8 +424,12 @@ static int registerPeer(struct InterfaceController* ifController,
         ep->state = InterfaceController_PeerState_HANDSHAKE;
     }
 
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(externalInterface, herPublicKey, requireAuth, "outer", ic->ca);
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
+                                                herPublicKey,
+                                                NULL,
+                                                requireAuth,
+                                                "outer",
+                                                ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;

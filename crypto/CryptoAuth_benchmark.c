@@ -78,8 +78,8 @@ static inline void sendMessages(struct Context* ctx,
 {
     printf("Test sending %d %d byte\t%s packets\n", count, size, type);
 
-    ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, false, "cif2", ctx->ca2);
-    ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, false, "cif1", ctx->ca1);
+    ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, NULL, false, "cif2", ctx->ca2);
+    ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, NULL, false, "cif1", ctx->ca1);
     uint64_t startTime = Time_hrtime();
     if (type != HELLO) {
         setupMessage(ctx, size);

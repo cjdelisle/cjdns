@@ -413,6 +413,13 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (!knowHerKey(wrapper)) {
         return genReverseHandshake(message, wrapper, header);
+    } else if (!Bits_isZero(wrapper->herIp6, 16)) {
+        // If someone starts a CA session and then discovers the key later and memcpy's it into the
+        // result of getHerPublicKey() then we want to make sure they didn't memcpy in an invalid
+        // key.
+        uint8_t calculatedIp6[16];
+        AddressCalc_addressForPublicKey(calculatedIp6, wrapper->herPerminentPubKey);
+        Assert_always(!Bits_memcmp(wrapper->herIp6, calculatedIp6, 16));
     }
 
     if (wrapper->bufferedMessage) {
@@ -662,11 +669,18 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // nextNonce 3: recieving first data packet.
     // nextNonce >3: handshake complete
 
-    if (knowHerKey(wrapper)
-        && Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32))
-    {
-        cryptoAuthDebug0(wrapper, "DROP a packet which was meant for someone else");
-        return Error_AUTHENTICATION;
+    if (knowHerKey(wrapper)) {
+        if (Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32)) {
+            cryptoAuthDebug0(wrapper, "DROP a packet with different public key than this session");
+            return Error_AUTHENTICATION;
+        }
+    } else if (!Bits_isZero(wrapper->herIp6, 16)) {
+        uint8_t calculatedIp6[16];
+        AddressCalc_addressForPublicKey(calculatedIp6, header->handshake.publicKey);
+        if (Bits_memcmp(wrapper->herIp6, calculatedIp6, 16)) {
+            cryptoAuthDebug0(wrapper, "DROP packet with public key not matching ip6 for session");
+            return Error_AUTHENTICATION;
+        }
     }
 
     if (wrapper->nextNonce < 2 && nonce == UINT32_MAX && !wrapper->requireAuth) {
@@ -1095,6 +1109,7 @@ String* CryptoAuth_getUser(struct Interface* interface)
 
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
+                                           const uint8_t herIp6[16],
                                            const bool requireAuth,
                                            char* name,
                                            struct CryptoAuth* ca)
@@ -1124,6 +1139,14 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
 
     if (herPublicKey != NULL) {
         Bits_memcpyConst(wrapper->herPerminentPubKey, herPublicKey, 32);
+        uint8_t calculatedIp6[16];
+        AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
+        Bits_memcpyConst(wrapper->herIp6, calculatedIp6, 16);
+        if (herIp6 != NULL) {
+            Assert_always(!Bits_memcmp(calculatedIp6, herIp6, 16));
+        }
+    } else if (herIp6) {
+        Bits_memcpyConst(wrapper->herIp6, herIp6, 16);
     }
 
     return &wrapper->externalInterface;
