@@ -49,12 +49,12 @@ static void setUser(Dict* args, void* vcontext, String* txid, struct Allocator* 
     sendError("none", txid, ctx->admin);
 }
 
-static void noFiles(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void dropPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = (struct Context*) vcontext;
+    struct Context* const ctx = (struct Context*) vctx;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        Security_noFiles(&jmp.handler);
+        Security_dropPermissions(&jmp.handler);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;
@@ -72,5 +72,5 @@ void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct
         { .name = "user", .required = 1, .type = "String" }
     };
     Admin_registerFunction("Security_setUser", setUser, ctx, true, setUserArgs, admin);
-    Admin_registerFunction("Security_noFiles", noFiles, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_dropPermissions", dropPermissions, ctx, true, NULL, admin);
 }

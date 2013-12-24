@@ -72,6 +72,7 @@
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/Security_admin.h"
+#include "util/Security.h"
 #include "util/platform/netdev/NetDev.h"
 #include "interface/SessionManager_admin.h"
 

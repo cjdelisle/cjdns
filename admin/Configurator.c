@@ -392,24 +392,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
 static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    bool noFiles = false;
-    for (int i = 0; i < List_size(securityConf); i++) {
-        if (String_equals(String_CONST("nofiles"), List_getString(securityConf, i))) {
-            noFiles = true;
-        } else {
-            Dict* userDict = List_getDict(securityConf, i);
-            String* userName = Dict_getString(userDict, String_CONST("setuser"));
-            if (userName) {
-                Dict d = Dict_CONST(String_CONST("user"), String_OBJ(userName), NULL);
-                // If this call returns an error, it is ok.
-                rpcCall0(String_CONST("Security_setUser"), &d, ctx, tempAlloc, false);
-            }
-        }
-    }
-    if (noFiles) {
-        Dict d = NULL;
-        rpcCall(String_CONST("Security_noFiles"), &d, ctx, tempAlloc);
-    }
+    Dict d = NULL;
+    rpcCall(String_CONST("Security_dropPermissions"), &d, ctx, tempAlloc);
 }
 
 void Configurator_config(Dict* config,

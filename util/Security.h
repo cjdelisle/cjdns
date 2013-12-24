@@ -28,8 +28,6 @@
 #define Security_setUser_PERMISSION -1
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
-void Security_noFiles(struct Except* eh);
-
-void Security_maxMemory(unsigned long maxMemory, struct Except* eh);
+void Security_dropPermissions(struct Except* eh);
 
 #endif
