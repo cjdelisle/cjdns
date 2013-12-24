@@ -163,6 +163,10 @@ Builder.configure({
             builder.config.libs.push(
                 '-lrt' // clock_gettime()
             );
+        } else if (builder.config.systemName === 'darwin') {
+            builder.config.libs.push(
+                '-lCoreServices'
+            );
         }
         builder.config.includeDirs.push(
             BUILDDIR+'/dependencies/libuv/include/'
