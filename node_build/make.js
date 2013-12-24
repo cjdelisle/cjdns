@@ -50,7 +50,6 @@ Builder.configure({
         '-Wno-pointer-sign',
         '-pedantic',
         '-D',builder.config.systemName + '=1',
-        '-DHAS_ETH_INTERFACE=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
 
@@ -90,8 +89,7 @@ Builder.configure({
         builder.config.cflags.push(
             '!-fPIE',
             '!-pie',
-            '-Wno-format',
-            '!-DHAS_ETH_INTERFACE=1'
+            '-Wno-format'
         );
         builder.config.libs.push(
             '-lssp'
@@ -99,6 +97,9 @@ Builder.configure({
     } else if (SYSTEM === 'linux') {
         builder.config.ldflags.push(
             '-Wl,-z,relro,-z,now,-z,noexecstack'
+        );
+        builder.config.cflags.push(
+            '-DHAS_ETH_INTERFACE=1',
         );
     }
 
