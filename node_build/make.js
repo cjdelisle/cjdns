@@ -103,6 +103,13 @@ Builder.configure({
         );
     }
 
+    if (/.*clang.*/.test(GCC)) {
+        // blows up when preprocessing before js preprocessor
+        builder.config.cflags.push(
+            '-Wno-invalid-pp-token'
+        );
+    }
+
     // Build dependencies
     nThen(function (waitFor) {
         Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
