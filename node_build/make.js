@@ -165,7 +165,7 @@ Builder.configure({
             );
         } else if (builder.config.systemName === 'darwin') {
             builder.config.libs.push(
-                '-lCoreServices'
+                '-framework', 'CoreServices'
             );
         }
         builder.config.includeDirs.push(
