@@ -63,22 +63,20 @@ getNode()
     fi
 
     origDir=`pwd`
-    while true; do
-        [ -d "${BUILDDIR}/nodejs" ] && rm -r "${BUILDDIR}/nodejs"
-        mkdir -p "${BUILDDIR}/nodejs"
-        cd "${BUILDDIR}/nodejs"
+    [ -d "${BUILDDIR}/nodejs" ] && rm -r "${BUILDDIR}/nodejs"
+    mkdir -p "${BUILDDIR}/nodejs"
+    cd "${BUILDDIR}/nodejs"
 
-        APP=`which wget || which curl || echo 'none'`
-        [ "$APP" = 'none' ] && echo 'Need wget curl' && exit 1;
-        [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
-        [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+    APP=`which wget || which curl || echo 'none'`
+    [ "$APP" = 'none' ] && echo 'Need wget or curl' && exit 1;
+    [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
+    [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
 
-        ${SHA256SUM} ./*.tar.gz | grep ${NODE_SHA} || exit 1
-        tar -xzf *.tar.gz
-        find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
-        cd $origDir
-        hasOkNode && return 0;
-    done
+    ${SHA256SUM} ./*.tar.gz | grep ${NODE_SHA} || exit 1
+    tar -xzf *.tar.gz
+    find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
+    cd $origDir
+    hasOkNode && return 0;
     return 1;
 }
 

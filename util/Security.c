@@ -81,6 +81,7 @@ static void noForks(struct Except* eh)
     if (pid > 0) {
         Except_throw(eh, "Still able to fork after calling noForks!");
     }
+*/
 }
 
 static void maxMemory(unsigned long max, struct Except* eh)
