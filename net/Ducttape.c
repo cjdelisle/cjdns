@@ -256,8 +256,10 @@ static inline uint8_t incomingForMe(struct Message* message,
     }
 
     struct Address addr;
-    Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
-    //AddressCalc_addressForPublicKey(addr.ip6.bytes, herPubKey);
+    //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
+    Bits_memcpyConst(addr.key, herPublicKey, 32);
+    AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
+    Assert_always(!Bits_memcmp(session->ip6, addr.ip6.bytes, 16));
 
     if (Bits_memcmp(addr.ip6.bytes, context->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
