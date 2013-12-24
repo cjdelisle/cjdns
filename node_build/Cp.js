@@ -2,7 +2,7 @@ var Fs = require("fs");
 var Semaphore = require('./Semaphore');
 var nThen = require('nthen');
 
-var sema = Semaphore.create(512);
+var sema = Semaphore.create(64);
 var cp = module.exports = function (src, dest, callback) {
     Fs.stat(src, function (err, stat) {
         if (err) { throw err; }
