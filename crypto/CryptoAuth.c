@@ -846,9 +846,9 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         || !wrapper->isInitiator
         || Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0)
     {
-        if (nonce == 0) {
-            // It's a hello packet, this means either we just started up or hello packets crossed
-            // on the wire and theirs won.
+        if (nonce < 2) {
+            // It's a hello or repeat hello packet, this means either we just started up or hello
+            // packets crossed on the wire and theirs won.
             if (wrapper->isInitiator) {
                 cryptoAuthDebug0(wrapper, "Incoming hello from node with lower key, resetting");
             }
