@@ -16,3 +16,17 @@ Description: Encrypted networking for regular people
  for address allocation and a distributed hash table for routing.
  This provides near zero-configuration networking without many of the security
  and robustness issues that regular IPv4 and IPv6 networks have.
+
+Package: cjdns-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: cjdns (= ${binary:Version}), ${misc:Depends}
+Enhances: cjdns
+Description: Encrypted networking for regular people (debugging symbols)
+ Cjdns implements an encrypted IPv6 network using public key cryptography
+ for address allocation and a distributed hash table for routing.
+ This provides near zero-configuration networking without many of the security
+ and robustness issues that regular IPv4 and IPv6 networks have.
+ .
+ This package contains debugging symbols for cjdns.
