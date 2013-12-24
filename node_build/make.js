@@ -99,7 +99,7 @@ Builder.configure({
             '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
         builder.config.cflags.push(
-            '-DHAS_ETH_INTERFACE=1',
+            '-DHAS_ETH_INTERFACE=1'
         );
     }
 
