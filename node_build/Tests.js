@@ -17,9 +17,22 @@ var nThen = require("nthen");
 
 var Tests = module.exports;
 
+var Fs_stat = function (file, callback) {
+    Fs.stat(file, function (err, ret) {
+        if (err === 'ENOENT') {
+            console.log("Magical ENOENT on a file which definitely does exist, good job Linus");
+            setTimeout(function () {
+                Fs_stat(file, callback);
+            }, 1000);
+        } else {
+            callback(err, ret);
+        }
+    });
+};
+
 var getTests = function (file, tests, callback) {
-    if (/\/(.git|buildjs|node_build|contrib)\//.test(file)) { callback(); return; }
-    Fs.stat(file, function (err, stat) {
+    if (/\/(.git|build_.*|node_build|contrib)\//.test(file)) { callback(); return; }
+    Fs_stat(file, function (err, stat) {
         if (err) { throw err; }
         if (stat.isDirectory()) {
             nThen(function (waitFor) {
