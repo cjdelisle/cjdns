@@ -224,11 +224,13 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         Dict_putString(message, TXID, &userTxid, alloc);
     }
 
-    return sendBenc(message, &addr.addr, alloc, admin);
+    int ret = sendBenc(message, &addr.addr, alloc, admin);
 
     if (!admin->currentRequest) {
         Allocator_free(alloc);
     }
+
+    return ret;
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin* admin)
