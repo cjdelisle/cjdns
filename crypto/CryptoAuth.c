@@ -823,16 +823,27 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "DROP dupe hello packet with same temp key");
             return Error_AUTHENTICATION;
         }
-    } else if (nonce == 1 && wrapper->nextNonce == 4) {
+    } else if (nonce == 1 && wrapper->nextNonce >= 4 && !wrapper->established) {
         // A repeat hello packet (skip test if it's the first key packet that made it to us)
         if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
             cryptoAuthDebug0(wrapper, "DROP repeat hello packet with different temp key");
             return Error_AUTHENTICATION;
         }
-    } else if (nonce == 3) {
-        // Got a key packet, make sure the temp key is the same as the one we know.
+    } else if (nonce == 2 && wrapper->nextNonce >= 4) {
+        // we accept a new key packet and let it change the session since the other end might have
+        // killed off the session while it was in the midst of setting up.
+        if (!Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
+            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
+            cryptoAuthDebug0(wrapper, "DROP dupe key packet with same temp key");
+            return Error_AUTHENTICATION;
+        }
+
+    } else if (nonce == 3 && wrapper->nextNonce >= 4) {
+        // Got a repeat key packet, make sure the temp key is the same as the one we know.
         if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-            cryptoAuthDebug0(wrapper, "DROP key packet with different temp key");
+            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
+            cryptoAuthDebug0(wrapper, "DROP repeat key packet with different temp key");
             return Error_AUTHENTICATION;
         }
     }
@@ -842,32 +853,76 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // each believing their hello packet is superior or they will livelock, each switching to the
     // other's session and never synchronizing.
     // In this event whoever has the lower permanent public key wins.
-    if (nextNonce == 4
-        || !wrapper->isInitiator
-        || Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0)
-    {
-        if (nonce < 2) {
-            // It's a hello or repeat hello packet, this means either we just started up or hello
-            // packets crossed on the wire and theirs won.
-            if (wrapper->isInitiator) {
-                cryptoAuthDebug0(wrapper, "Incoming hello from node with lower key, resetting");
-            }
-            reset(wrapper);
-            Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
-            wrapper->isInitiator = false;
 
-            Assert_always(wrapper->nextNonce <= nextNonce);
-            wrapper->nextNonce = nextNonce;
-        }
-
-        if (nextNonce == 4 && wrapper->nextNonce <= 4) {
-            // It's a key (or repeat key) packet and we have not yet begin sending data
+    // If we receive a (possibly repeat) key packet
+    if (nextNonce == 4) {
+        if (wrapper->nextNonce <= 4) {
+            // and have not yet begun sending "run" data
             Assert_always(wrapper->nextNonce <= nextNonce);
             wrapper->nextNonce = nextNonce;
 
             wrapper->user = user;
             Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+        } else if (nonce == 2) {
+            // It's a non-repeat key packet and we have begun sending run data.
+            // We will change the shared secret to the one specified in the new key packet but
+            // intentionally avoid de-incrementing the nonce just in case
+            getSharedSecret(wrapper->sharedSecret,
+                            wrapper->ourTempPrivKey,
+                            header->handshake.encryptedTempKey,
+                            NULL,
+                            wrapper->context->logger);
+        } else {
+            // Theoretically this will not pose any problem because we sent a hello which they
+            // must have received, any key packet which we receive now must be based on that hello
+            // and apparently we already received a key packet which is why we are in run state.
+            #ifdef PARANOIA
+                uint8_t sharedSecret[32];
+                getSharedSecret(sharedSecret,
+                                wrapper->ourTempPrivKey,
+                                header->handshake.encryptedTempKey,
+                                NULL,
+                                wrapper->context->logger);
+                // This assertion should not be remotely triggerable because of this check:
+                // "DROP key packet with different temp key"
+                Assert_true(!Bits_memcmp(sharedSecret, wrapper->sharedSecret, 32));
+            #endif
+            cryptoAuthDebug0(wrapper, "Incoming key packet but we are already sending data");
         }
+
+    } else if (nextNonce == 2 && !wrapper->isInitiator) {
+        if (wrapper->established) {
+            reset(wrapper);
+        }
+        // We got a (possibly repeat) hello packet and we have not sent any hello packet,
+        // new session.
+        if (wrapper->nextNonce == 3 && nextNonce == 2) {
+            // We sent a key packet so the next packet is a repeat key but we got another hello
+            // We'll just keep steaming along sending repeat key packets
+            nextNonce = 3;
+        }
+
+        Assert_always(wrapper->nextNonce <= nextNonce);
+        wrapper->nextNonce = nextNonce;
+        wrapper->user = user;
+        Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+
+    } else if (nextNonce == 2
+        && Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0)
+    {
+        // It's a hello and we are the initiator but their permant public key is numerically lower
+        // than ours, this is so that in the event of two hello packets crossing on the wire, the
+        // nodes will agree on who is the initiator.
+        cryptoAuthDebug0(wrapper, "Incoming hello from node with lower key, resetting");
+        reset(wrapper);
+
+        Assert_always(wrapper->nextNonce <= nextNonce);
+        wrapper->nextNonce = nextNonce;
+        wrapper->user = user;
+        Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
+
+    } else {
+        cryptoAuthDebug0(wrapper, "Incoming hello from node with higher key, not resetting");
     }
 
     if (herPermKey && herPermKey != wrapper->herPerminentPubKey) {
@@ -968,11 +1023,13 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             cryptoAuthDebug0(wrapper, "DROP Failed to decrypt message");
             return Error_UNDELIVERABLE;
         }
+    } else if (nonce < 2) {
+        cryptoAuthDebug(wrapper, "hello packet during established session nonce=[%d]", nonce);
+        Message_shift(received, 4, NULL);
+        return decryptHandshake(wrapper, nonce, received, header);
     } else {
-        cryptoAuthDebug(wrapper, "DROP handshake message during established session nonce=[%d]",
-                        nonce);
-        // nope, not allowed
-        // lets not send an AUTHENTICATION error because the packet probably is completely valid.
+        // setup keys are already zeroed, not much we can do here.
+        cryptoAuthDebug(wrapper, "DROP key packet during established session nonce=[%d]", nonce);
         return Error_UNDELIVERABLE;
     }
     Assert_always(0);
