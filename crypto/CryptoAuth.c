@@ -863,8 +863,8 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
             wrapper->user = user;
             Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
-        } else if (nonce == 2) {
-            // It's a non-repeat key packet and we have begun sending run data.
+        } else {
+            // It's a (possibly repeat) key packet and we have begun sending run data.
             // We will change the shared secret to the one specified in the new key packet but
             // intentionally avoid de-incrementing the nonce just in case
             getSharedSecret(wrapper->sharedSecret,
@@ -872,22 +872,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                             header->handshake.encryptedTempKey,
                             NULL,
                             wrapper->context->logger);
-        } else {
-            // Theoretically this will not pose any problem because we sent a hello which they
-            // must have received, any key packet which we receive now must be based on that hello
-            // and apparently we already received a key packet which is why we are in run state.
-            #ifdef PARANOIA
-                uint8_t sharedSecret[32];
-                getSharedSecret(sharedSecret,
-                                wrapper->ourTempPrivKey,
-                                header->handshake.encryptedTempKey,
-                                NULL,
-                                wrapper->context->logger);
-                // This assertion should not be remotely triggerable because of this check:
-                // "DROP key packet with different temp key"
-                Assert_true(!Bits_memcmp(sharedSecret, wrapper->sharedSecret, 32));
-            #endif
-            cryptoAuthDebug0(wrapper, "Incoming key packet but we are already sending data");
+            cryptoAuthDebug0(wrapper, "New key packet but we are already sending data");
         }
 
     } else if (nextNonce == 2 && !wrapper->isInitiator) {
