@@ -19,6 +19,8 @@
 #include "exception/Except.h"
 #include "util/log/Log.h"
 #include "crypto/random/seed/RandomSeed.h"
+#include "util/Linker.h"
+Linker_require("crypto/random/Random.c")
 
 #include <stdint.h>
 

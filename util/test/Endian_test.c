@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include "util/Assert.h"
 
-void printInfo()
+static void printInfo()
 {
     printf("According to testing this machine is %s\n",
            Endian_isBigEndian() ? "big endian" : "little endian");
@@ -71,4 +71,5 @@ int main()
     Assert_always(b == Endian_byteSwap64(sb));
     Assert_always(a == Endian_byteSwap32(sa));
     Assert_always(c == Endian_byteSwap16(sc));
+    return 0;
 }

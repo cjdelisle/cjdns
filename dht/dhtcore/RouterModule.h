@@ -23,6 +23,8 @@
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/RouterModule.c")
 
 #include <stdint.h>
 #include <stdbool.h>

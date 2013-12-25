@@ -31,7 +31,7 @@ struct Context
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 64
-static void getHandles(Dict* args, void* vcontext, String* txid)
+static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);
@@ -93,7 +93,7 @@ static void sessionStats2(Dict* args,
     return;
 }
 
-static void sessionStats(Dict* args, void* vcontext, String* txid)
+static void sessionStats(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);

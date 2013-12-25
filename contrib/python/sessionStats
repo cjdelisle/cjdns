@@ -28,7 +28,7 @@ while True:
 
 for h in handles:
     r = cjdns.SessionManager_sessionStats(h);
-    print(PublicToIp6_convert(r['publicKey']) +
+    print(PublicToIp6_convert(r['publicKey']) + '  ' + r['publicKey'] +
         ' v' + str(r['version']) +
         ' dup ' + str(r['duplicates']) +
         ' los ' + str(r['lostPackets']) +

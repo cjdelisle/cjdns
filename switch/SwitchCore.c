@@ -90,11 +90,7 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
         Headers_setPriorityAndMessageType(switchHeader, 0, messageType);
     }
 
-    uint16_t err = switchIf->iface->sendMessage(toSend, switchIf->iface);
-    if (err) {
-        return err;
-    }
-    return Error_NONE;
+    return Interface_sendMessage(switchIf->iface, toSend);
 }
 
 struct ErrorPacket {
@@ -124,7 +120,8 @@ static inline void sendError(struct SwitchInterface* iface,
 
     // Shift back so we can add another header.
     Message_shift(cause,
-                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE);
+                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  NULL);
     struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
@@ -149,12 +146,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
     if (sourceIf->buffer > sourceIf->bufferMax) {
-        Log_warn(sourceIf->core->logger, "Packet dropped because node seems to be flooding.");
+        Log_warn(sourceIf->core->logger, "DROP because node seems to be flooding.");
         return Error_NONE;
     }
 
     if (message->length < Headers_SwitchHeader_SIZE) {
-        Log_debug(sourceIf->core->logger, "Dropped runt packet.");
+        Log_debug(sourceIf->core->logger, "DROP runt packet.");
         return Error_NONE;
     }
 
@@ -173,12 +170,12 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         if (1 != (label & 0xf)) {
             /* routing interface: must always be compressed as 0001 */
             DEBUG_SRC_DST(sourceIf->core->logger,
-                            "Dropped packet for this router because the destination "
+                            "DROP packet for this router because the destination "
                             "discriminator was wrong");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
         }
-        Assert_true(bits == 4);
+        //Assert_true(bits == 4);
     }
 
     if (sourceBits > bits) {
@@ -200,7 +197,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 // than the number of bits in largest discriminator" bits wide, it could handle
                 // this situation, this solution is obviously non-trivial.
                 DEBUG_SRC_DST(sourceIf->core->logger,
-                              "Dropped packet for this router because there is no way to "
+                              "DROP packet for this router because there is no way to "
                               "represent the return path.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
@@ -214,13 +211,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             //   can overlap as "10001" (or "100001" or ...)
             if (0 != label >> (bits + 64 - sourceBits)) {
                 // not enough zeroes
-                DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+                DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
                                                       "larger than destination address.");
                 sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
                 return Error_NONE;
             }
         } else {
-            DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because source address is "
+            DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
                                                   "larger than destination address.");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
             return Error_NONE;
@@ -228,14 +225,14 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (core->interfaces[destIndex].iface == NULL) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Dropped packet because there is no interface "
+        DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because there is no interface "
                                               "where the bits specify.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
 
     if (sourceIndex == destIndex) {
-        DEBUG_SRC_DST(sourceIf->core->logger, "Packet with redundant route.");
+        DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
@@ -251,9 +248,24 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                sourceIndex, destIndex, label, targetLabel);
     */
 
+    int cloneLength = (message->length < Control_Error_MAX_SIZE) ?
+        message->length : Control_Error_MAX_SIZE;
+    uint8_t messageClone[Control_Error_MAX_SIZE];
+    Bits_memcpy(messageClone, message->bytes, cloneLength);
+
     const uint16_t err = sendMessage(&core->interfaces[destIndex], message, sourceIf->core->logger);
     if (err) {
-        Log_debug(sourceIf->core->logger, "Sending packet caused an error. err=%u", err);
+        Log_debug(sourceIf->core->logger, "Sending packet caused an error [%s]",
+                  Error_strerror(err));
+
+        // be careful, the message could have decrypted content in it
+        // and we don't want to spill it out over the wire.
+        message->length = message->capacity;
+        Message_shift(message, -message->length, NULL);
+        Message_shift(message, Control_Error_MAX_SIZE, NULL);
+        Bits_memcpy(message->bytes, messageClone, cloneLength);
+        message->length = cloneLength;
+        header = (struct Headers_SwitchHeader*) message->bytes;
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;

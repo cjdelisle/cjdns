@@ -1432,3 +1432,70 @@ VCEI exceptions		: not available
 
 user@debian-mips:~/cjdns$ 
 
+
+
+
+
+
+
+
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ ./cjdroute --bench ; cat /proc/cpuinfo 
+3711 INFO RandomSeed.c:67 Attempting to seed random number generator
+3711 INFO RandomSeed.c:81 Trying random seed [RtlGenRandom() (Windows)] Failed
+3711 INFO RandomSeed.c:81 Trying random seed [sysctl(KERN_ARND) (BSD)] Failed
+3711 INFO RandomSeed.c:75 Trying random seed [/dev/urandom] Success
+3711 INFO RandomSeed.c:75 Trying random seed [sysctl(RANDOM_UUID) (Linux)] Success
+3711 INFO RandomSeed.c:75 Trying random seed [/proc/sys/kernel/random/uuid (Linux)] Success
+3711 INFO RandomSeed.c:89 Seeding random number generator succeeded with [3] sources
+These metrics are speed of encryption and decryption similar to the usage pattern
+when decrypting a packet, switching it, and re-encrypting it with another key.
+Test sending 1000 64 byte	hello packets.	packet auth enabled.	Finished in 1273ms. 402 Kb/s
+
+Test sending 1000 1500 byte	hello packets.	packet auth enabled.	Finished in 1306ms. 9187 Kb/s
+
+Test sending 1000 64 byte	key packets.	packet auth enabled.	Finished in 1843ms. 277 Kb/s
+
+Test sending 1000 1500 byte	key packets.	packet auth enabled.	Finished in 1876ms. 6396 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth disabled.	Finished in 275ms. 186181 Kb/s
+
+Test sending 100000 1500 byte	data packets.	packet auth disabled.	Finished in 2816ms. 426136 Kb/s
+
+Test sending 100000 64 byte	data packets.	packet auth enabled.	Finished in 1349ms. 37954 Kb/s
+
+This is the switch configuration so this indicates expected switch throughput:
+Test sending 100000 1500 byte	data packets.	packet auth enabled.	Finished in 4589ms. 261494 Kb/s
+
+Processor	: ARMv7 Processor rev 10 (v7l)
+processor	: 0
+BogoMIPS	: 1988.28
+
+processor	: 1
+BogoMIPS	: 1988.28
+
+processor	: 2
+BogoMIPS	: 1988.28
+
+processor	: 3
+BogoMIPS	: 1988.28
+
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x2
+CPU part	: 0xc09
+CPU revision	: 10
+
+Hardware	: Freescale i.MX 6Quad Sabre-Lite Board
+Revision	: 63000
+Serial		: 0000000000000000
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ uname -a
+Linux linaro-ubuntu-desktop 3.0.35-troosh #17 SMP PREEMPT Tue May 7 20:29:00 MSK 2013 armv7l armv7l armv7l GNU/Linux
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$ gcc --version
+gcc (Ubuntu/Linaro 4.6.1-9ubuntu3) 4.6.1
+Copyright (C) 2011 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+linaro@linaro-ubuntu-desktop:~/cjdns/cjdns-master$$ git log | head -1
+commit 9a3db93cd3ea5b3583ecc3b741518dd0e6ec8764

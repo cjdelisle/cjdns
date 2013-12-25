@@ -18,6 +18,8 @@
 #include "admin/Admin.h"
 #include "interface/SessionManager.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/SessionManager_admin.c")
 
 void SessionManager_admin_register(struct SessionManager* sm,
                                    struct Admin* admin,

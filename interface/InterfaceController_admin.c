@@ -31,7 +31,7 @@ struct Context
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 6
-static void adminPeerStats(Dict* args, void* vcontext, String* txid)
+static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);
@@ -99,10 +99,12 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     Allocator_free(alloc);
 }
 
-static void adminDisconnectPeer(Dict* args, void* vcontext, String* txid)
+static void adminDisconnectPeer(Dict* args,
+                                void* vcontext,
+                                String* txid,
+                                struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
-    struct Allocator* alloc = Allocator_child(context->alloc);
     String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
 
     // parse the key
@@ -122,15 +124,13 @@ static void adminDisconnectPeer(Dict* args, void* vcontext, String* txid)
       }
     }
 
-    Dict* response = Dict_new(alloc);
-    Dict_putInt(response, String_CONST("sucess"), error ? 0 : 1, alloc);
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putInt(response, String_CONST("sucess"), error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), alloc);
+        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
-
-    Allocator_free(alloc);
 }
 
 void InterfaceController_admin_register(struct InterfaceController* ic,

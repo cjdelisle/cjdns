@@ -24,7 +24,6 @@
 #include "io/ArrayWriter.h"
 #include "io/Writer.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
@@ -90,7 +89,7 @@ static inline int Map_LastMessageTimeByAddr_compare(struct Sockaddr** keyA, stru
 struct Function
 {
     String* name;
-    Admin_FUNCTION(call);
+    Admin_Function call;
     void* context;
     bool needsAuth;
     Dict* args;
@@ -112,8 +111,8 @@ struct Admin
 
     struct Map_LastMessageTimeByAddr map;
 
-    /** non-zero if we are currently in an admin request. */
-    int inRequest;
+    /** non-null if we are currently in an admin request. */
+    struct Message* currentRequest;
 
     /** non-zero if this session able to receive asynchronous messages. */
     int asyncEnabled;
@@ -128,21 +127,21 @@ static uint8_t sendMessage(struct Message* message, struct Sockaddr* dest, struc
 {
     // stack overflow when used with admin logger.
     //Log_keys(admin->logger, "sending message to angel [%s]", message->bytes);
-    Message_push(message, dest, dest->addrLen);
+    Message_push(message, dest, dest->addrLen, NULL);
     return admin->iface->generic.sendMessage(message, &admin->iface->generic);
 }
 
-static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
+static int sendBenc(Dict* message,
+                    struct Sockaddr* dest,
+                    struct Allocator* alloc,
+                    struct Admin* admin)
 {
-    struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 256);
-
     #define SEND_MESSAGE_PADDING 32
     uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
 
     struct Writer* w = ArrayWriter_new(buff + SEND_MESSAGE_PADDING,
                                        Admin_MAX_RESPONSE_SIZE,
-                                       allocator);
+                                       alloc);
     StandardBencSerializer_get()->serializeDictionary(w, message);
 
     struct Message m = {
@@ -150,10 +149,8 @@ static int sendBenc(Dict* message, struct Sockaddr* dest, struct Admin* admin)
         .length = w->bytesWritten,
         .padding = SEND_MESSAGE_PADDING
     };
-    struct Allocator* alloc = Allocator_child(admin->allocator);
     struct Message* msg = Message_clone(&m, alloc);
     int out = sendMessage(msg, dest, admin);
-    Allocator_free(alloc);
     return out;
 }
 
@@ -205,17 +202,18 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
     // if this is an async call, check if we've got any input from that client.
     // if the client is nresponsive then fail the call so logs don't get sent
     // out forever after a disconnection.
-    if (!admin->inRequest) {
+    struct Allocator* alloc;
+    if (!admin->currentRequest) {
         struct Sockaddr* addrPtr = (struct Sockaddr*) &addr.addr;
         int index = Map_LastMessageTimeByAddr_indexForKey(&addrPtr, &admin->map);
         uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
         if (index < 0 || checkAddress(admin, index, now)) {
             return -1;
         }
+        alloc = Allocator_child(admin->allocator);
+    } else {
+        alloc = admin->currentRequest->alloc;
     }
-
-    struct Allocator* allocator;
-    BufferAllocator_STACK(allocator, 256);
 
     // Bounce back the user-supplied txid.
     String userTxid = {
@@ -223,10 +221,16 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         .len = txid->len - admin->addrLen
     };
     if (txid->len > admin->addrLen) {
-        Dict_putString(message, TXID, &userTxid, allocator);
+        Dict_putString(message, TXID, &userTxid, alloc);
     }
 
-    return sendBenc(message, &addr.addr, admin);
+    int ret = sendBenc(message, &addr.addr, alloc, admin);
+
+    if (!admin->currentRequest) {
+        Allocator_free(alloc);
+    }
+
+    return ret;
 }
 
 static inline bool authValid(Dict* message, struct Message* messageBytes, struct Admin* admin)
@@ -260,12 +264,14 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     return Bits_memcmp(hashPtr, submittedHash->bytes, 64) == 0;
 }
 
-static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Admin* admin)
+static bool checkArgs(Dict* args,
+                      struct Function* func,
+                      String* txid,
+                      struct Allocator* requestAlloc,
+                      struct Admin* admin)
 {
     struct Dict_Entry* entry = *func->args;
     String* error = NULL;
-    uint8_t buffer[1024];
-    struct Allocator* alloc = BufferAllocator_new(buffer, 1024);
     while (entry != NULL) {
         String* key = (String*) entry->key;
         Assert_true(entry->val->type == Object_DICT);
@@ -280,7 +286,7 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
             || (type == INTEGER && !Dict_getInt(args, key))
             || (type == LIST && !Dict_getList(args, key)))
         {
-            error = String_printf(alloc,
+            error = String_printf(requestAlloc,
                                   "Entry [%s] is required and must be of type [%s]",
                                   key->bytes,
                                   type->bytes);
@@ -294,7 +300,7 @@ static bool checkArgs(Dict* args, struct Function* func, String* txid, struct Ad
     return !error;
 }
 
-static void asyncEnabled(Dict* args, void* vAdmin, String* txid)
+static void asyncEnabled(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
 {
     struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
     int64_t enabled = admin->asyncEnabled;
@@ -303,12 +309,11 @@ static void asyncEnabled(Dict* args, void* vAdmin, String* txid)
 }
 
 #define ENTRIES_PER_PAGE 8
-static void availableFunctions(Dict* args, void* vAdmin, String* txid)
+static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Allocator* tempAlloc)
 {
     struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    struct Allocator* tempAlloc = Allocator_child(admin->allocator);
 
     Dict* d = Dict_new(tempAlloc);
     Dict* functions = Dict_new(tempAlloc);
@@ -323,8 +328,6 @@ static void availableFunctions(Dict* args, void* vAdmin, String* txid)
     Dict_putDict(d, String_CONST("availableFunctions"), functions, tempAlloc);
 
     Admin_sendMessage(d, txid, admin);
-    Allocator_free(tempAlloc);
-    return;
 }
 
 static void handleRequest(Dict* messageDict,
@@ -399,8 +402,8 @@ static void handleRequest(Dict* messageDict,
         if (String_equals(query, admin->functions[i].name)
             && (authed || !admin->functions[i].needsAuth))
         {
-            if (checkArgs(args, &admin->functions[i], txid, admin)) {
-                admin->functions[i].call(args, admin->functions[i].context, txid);
+            if (checkArgs(args, &admin->functions[i], txid, message->alloc, admin)) {
+                admin->functions[i].call(args, admin->functions[i].context, txid, message->alloc);
             }
             noFunctionsCalled = false;
         }
@@ -468,20 +471,20 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     Assert_true(message->length >= (int)admin->addrLen);
     struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };
-    Message_pop(message, &addrStore, admin->addrLen);
+    Message_pop(message, &addrStore, admin->addrLen, NULL);
 
     struct Allocator* alloc = Allocator_child(admin->allocator);
-    admin->inRequest = 1;
+    admin->currentRequest = message;
 
     handleMessage(message, &addrStore.addr, alloc, admin);
 
-    admin->inRequest = 0;
+    admin->currentRequest = NULL;
     Allocator_free(alloc);
     return 0;
 }
 
 void Admin_registerFunctionWithArgCount(char* name,
-                                        Admin_FUNCTION(callback),
+                                        Admin_Function callback,
                                         void* callbackContext,
                                         bool needsAuth,
                                         struct Admin_FunctionArg* arguments,

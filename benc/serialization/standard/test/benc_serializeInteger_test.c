@@ -26,7 +26,7 @@
 
 #include <stdio.h>
 
-int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
+static int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
 {
     char buffer[32];
     Writer_write(writer, "\0", 1);
@@ -38,7 +38,7 @@ int expect(char* str, struct Writer* writer, struct Reader* reader, int ret)
     return ret;
 }
 
-int testSerialize(struct Writer* writer, struct Reader* reader)
+static int testSerialize(struct Writer* writer, struct Reader* reader)
 {
     int ret = 0;
 

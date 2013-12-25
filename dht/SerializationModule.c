@@ -17,7 +17,6 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
 #include "io/Writer.h"

@@ -209,7 +209,7 @@ static void doLog(struct Log* genericLog,
     }
 }
 
-static void subscribe(Dict* args, void* vcontext, String* txid)
+static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* levelName = Dict_getString(args, String_CONST("level"));
@@ -264,7 +264,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&response, txid, log->admin);
 }
 
-static void unsubscribe(Dict* args, void* vcontext, String* txid)
+static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* streamIdHex = Dict_getString(args, String_CONST("streamId"));

@@ -16,6 +16,8 @@
 #define TestFramework_H
 
 #include "net/Ducttape.h"
+#include "util/Linker.h"
+Linker_require("test/TestFramework.c")
 
 struct TestFramework
 {

@@ -36,7 +36,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     return 0;
 }
 
-int testInputHandler()
+static int testInputHandler()
 {
     struct DHTMessage theMessage;
 

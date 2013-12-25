@@ -45,7 +45,10 @@ static int isValidIfNum(struct Context* ctx, int64_t* interfaceNumber, char** er
     return false;
 }
 
-static void beginConnection(Dict* args, void* vcontext, String* txid)
+static void beginConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
 
@@ -93,7 +96,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
-static void newInterface(Dict* args, void* vcontext, String* txid)
+static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = vcontext;
     String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
@@ -127,7 +130,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
     ctx->ifCount++;
 }
 
-static void beacon(Dict* args, void* vcontext, String* txid)
+static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     int64_t* stateP = Dict_getInt(args, String_CONST("state"));
     int64_t* ifNumP = Dict_getInt(args, String_CONST("interfaceNumber"));

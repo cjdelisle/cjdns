@@ -16,9 +16,9 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "crypto/Key.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
 #include "util/platform/Sockaddr.h"
@@ -29,7 +29,6 @@ struct Context
 {
     struct IpTunnel* ipTun;
     struct Admin* admin;
-    struct Allocator* alloc;
 };
 
 static void sendResponse(int conn, String* txid, struct Admin* admin)
@@ -49,7 +48,10 @@ static void sendError(char* error, String* txid, struct Admin* admin)
     Admin_sendMessage(&resp, txid, admin);
 }
 
-static void allowConnection(Dict* args, void* vcontext, String* txid)
+static void allowConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
     String* publicKeyOfAuthorizedNode =
@@ -91,7 +93,7 @@ static void allowConnection(Dict* args, void* vcontext, String* txid)
 }
 
 
-static void connectTo(Dict* args, void* vcontext, String* txid)
+static void connectTo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     String* publicKeyOfNodeToConnectTo =
@@ -108,7 +110,10 @@ static void connectTo(Dict* args, void* vcontext, String* txid)
     sendResponse(conn, txid, context->admin);
 }
 
-static void removeConnection(Dict* args, void* vcontext, String* txid)
+static void removeConnection(Dict* args,
+                             void* vcontext,
+                             String* txid,
+                             struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
 /*
@@ -121,10 +126,12 @@ static void removeConnection(Dict* args, void* vcontext, String* txid)
     sendError("not implemented", txid, context->admin);
 }
 
-static void listConnections(Dict* args, void* vcontext, String* txid)
+static void listConnections(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* alloc)
 {
     struct Context* context = vcontext;
-    struct Allocator* alloc = Allocator_child(context->alloc);
     List* l = NULL;
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         l = List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
@@ -134,19 +141,19 @@ static void listConnections(Dict* args, void* vcontext, String* txid)
         String_CONST("error"), String_OBJ(String_CONST("none")), NULL
     ));
     Admin_sendMessage(&resp, txid, context->admin);
-    Allocator_free(alloc);
 }
 
-static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admin* admin)
+static void showConn(struct IpTunnel_Connection* conn,
+                     String* txid,
+                     struct Admin* admin,
+                     struct Allocator* alloc)
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
     Dict* d = Dict_new(alloc);
 
     if (!Bits_isZero(conn->connectionIp6, 16)) {
         struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
         uint8_t* address;
-        Assert_true(16 == Sockaddr_getAddress(addr, &address));
+        Assert_always(16 == Sockaddr_getAddress(addr, &address));
         Bits_memcpyConst(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
@@ -155,7 +162,7 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     if (!Bits_isZero(conn->connectionIp4, 4)) {
         struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
         uint8_t* address;
-        Assert_true(4 == Sockaddr_getAddress(addr, &address));
+        Assert_always(4 == Sockaddr_getAddress(addr, &address));
         Bits_memcpyConst(address, conn->connectionIp4, 4);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);
@@ -168,14 +175,14 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     Admin_sendMessage(d, txid, admin);
 }
 
-static void showConnection(Dict* args, void* vcontext, String* txid)
+static void showConnection(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = vcontext;
     int connNum = (int) *(Dict_getInt(args, String_CONST("connection")));
 
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         if (connNum == context->ipTun->connectionList.connections[i].number) {
-            showConn(&context->ipTun->connectionList.connections[i], txid, context->admin);
+            showConn(&context->ipTun->connectionList.connections[i], txid, context->admin, alloc);
             return;
         }
     }
@@ -186,8 +193,7 @@ void IpTunnel_admin_register(struct IpTunnel* ipTun, struct Admin* admin, struct
 {
     struct Context* context = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
-        .ipTun = ipTun,
-        .alloc = alloc
+        .ipTun = ipTun
     }));
 
     Admin_registerFunction("IpTunnel_allowConnection", allowConnection, context, true,

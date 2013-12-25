@@ -15,7 +15,7 @@
 #ifndef Message_H
 #define Message_H
 
-#include "util/Assert.h"
+#include "exception/Except.h"
 #include <stdint.h>
 
 #include "memory/Allocator.h"
@@ -44,10 +44,23 @@ struct Message
     uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
     name = &(struct Message){                                  \
         .length = messageLength,                               \
-        .bytes = UniqueName_get() + amountOfPadding,           \
+        .bytes = UniqueName_last() + amountOfPadding,          \
         .padding = amountOfPadding,                            \
         .capacity = messageLength                              \
     }
+
+static inline struct Message* Message_new(uint32_t messageLength,
+                                          uint32_t amountOfPadding,
+                                          struct Allocator* alloc)
+{
+    uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
+    struct Message* out = Allocator_malloc(alloc, sizeof(struct Message));
+    out->bytes = &buff[amountOfPadding];
+    out->length = out->capacity = messageLength;
+    out->padding = amountOfPadding;
+    out->alloc = alloc;
+    return out;
+}
 
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
@@ -87,12 +100,12 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline int Message_shift(struct Message* toShift, int32_t amount)
+static inline int Message_shift(struct Message* toShift, int32_t amount, struct Except* eh)
 {
-    if (amount > 0) {
-        Assert_true(toShift->padding >= amount);
-    } else {
-        Assert_true(toShift->length >= (-amount));
+    if (amount > 0 && toShift->padding < amount) {
+        Except_throw(eh, "buffer overflow");
+    } else if (toShift->length < (-amount)) {
+        Except_throw(eh, "buffer underflow");
     }
 
     toShift->length += amount;
@@ -105,18 +118,47 @@ static inline int Message_shift(struct Message* toShift, int32_t amount)
 
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
-                                size_t size)
+                                size_t size,
+                                struct Except* eh)
 {
-    Message_shift(msg, (int)size);
+    Message_shift(msg, (int)size, eh);
     Bits_memcpy(msg->bytes, object, size);
 }
 
 static inline void Message_pop(struct Message* restrict msg,
                                void* restrict object,
-                               size_t size)
+                               size_t size,
+                               struct Except* eh)
 {
-    Bits_memcpy(object, msg->bytes, size);
-    Message_shift(msg, -((int)size));
+    Message_shift(msg, -((int)size), eh);
+    Bits_memcpy(object, &msg->bytes[-((int)size)], size);
 }
+
+#define Message_popGeneric(size) \
+    static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
+    {                                                                                             \
+        uint ## size ## _t out;                                                                   \
+        Message_pop(msg, &out, (size)/8, eh);                                                     \
+        return Endian_bigEndianToHost ## size (out);                                              \
+    }
+
+Message_popGeneric(8)
+Message_popGeneric(16)
+Message_popGeneric(32)
+Message_popGeneric(64)
+
+
+#define Message_pushGeneric(size) \
+    static inline void Message_push ## size                                               \
+        (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
+    {                                                                                     \
+        uint ## size ## _t x = Endian_hostToBigEndian ## size (dat);                      \
+        Message_push(msg, &x, (size)/8, eh);                                              \
+    }
+
+Message_pushGeneric(8)
+Message_pushGeneric(16)
+Message_pushGeneric(32)
+Message_pushGeneric(64)
 
 #endif

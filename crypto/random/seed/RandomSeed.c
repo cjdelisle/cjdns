@@ -19,31 +19,6 @@
 
 #include <crypto_hash_sha512.h>
 
-#include "crypto/random/seed/RtlGenRandomSeed.h"
-#include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
-#include "crypto/random/seed/DevUrandomRandomSeed.h"
-#include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
-#include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
-
-static RandomSeed_Provider PROVIDERS[] = {
-    /** windows */
-    RtlGenRandomSeed_new,
-
-    /** bsd syscall(KERN_ARND) */
-    BsdKernArndSysctlRandomSeed_new,
-
-    /** /dev/urandom */
-    DevUrandomRandomSeed_new,
-
-    /** linux syscall(RANDOM_UUID) */
-    LinuxRandomUuidSysctlRandomSeed_new,
-
-    /** linux /proc/sys/kernel/random/uuid */
-    ProcSysKernelRandomUuidRandomSeed_new
-};
-#define PROVIDERS_COUNT 5
-Assert_compileTime(PROVIDERS_COUNT == (sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)));
-
 struct RandomSeed_pvt
 {
     struct RandomSeed pub;
@@ -100,32 +75,20 @@ int RandomSeed_get(struct RandomSeed* rs, uint64_t buffer[8])
 }
 
 struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+                                  int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc)
 {
-    int providerCount = PROVIDERS_COUNT;
-    if (providers) {
-        for (int i = 0; providers[i]; i++) {
-            providerCount++;
-        }
-    }
-
     struct RandomSeed** rsList = Allocator_calloc(alloc, sizeof(struct RandomSeed), providerCount);
     int i = 0;
-    if (providers) {
-        for (int j = 0; providers[j]; j++) {
-            struct RandomSeed* rs = providers[j](alloc);
-            if (rs) {
-                rsList[i++] = rs;
-            }
-        }
-    }
-    for (int j = 0; j < PROVIDERS_COUNT; j++) {
-        struct RandomSeed* rs = PROVIDERS[j](alloc);
+    for (int j = 0; j < providerCount; j++) {
+        struct RandomSeed* rs = providers[j](alloc);
         if (rs) {
             rsList[i++] = rs;
         }
     }
+
+    Assert_true(i > 0);
 
     struct RandomSeed_pvt* out = Allocator_malloc(alloc, sizeof(struct RandomSeed_pvt));
 

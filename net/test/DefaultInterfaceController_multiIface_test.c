@@ -19,7 +19,7 @@
 #include "test/TestFramework.h"
 
 static int allocatorsFreed;
-int allocatorFreed(struct Allocator_OnFreeJob* job)
+static int allocatorFreed(struct Allocator_OnFreeJob* job)
 {
     allocatorsFreed++;
     return 0;
@@ -43,11 +43,12 @@ int main()
 
     struct Message* msg;
     Message_STACK(msg, 0, 128);
-    Message_push(msg, "invalid poop", 12);
-    Message_push(msg, "The Key ", 8);
+    Message_push(msg, "invalid poop", 12, NULL);
+    Message_push(msg, "The Key ", 8, NULL);
     iface.receiveMessage(msg, &iface);
 
-    Assert_true(allocatorsFreed == 1);
+    Assert_always(allocatorsFreed == 1);
 
     Allocator_free(alloc);
+    return 0;
 }

@@ -20,8 +20,12 @@
 #include "interface/Interface.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("net/SwitchPinger.c")
 
 #include <stdint.h>
+
+#define SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS 50
 
 enum SwitchPinger_Result
 {

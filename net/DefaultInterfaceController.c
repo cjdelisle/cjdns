@@ -296,7 +296,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
             if (msg->length < 8 || msg->bytes[7] != 1) {
-                Log_info(ic->logger, "Dropping message because CA is not established.");
+                Log_info(ic->logger, "DROP message because CA is not established.");
                 return Error_NONE;
             } else {
                 // When a "server" gets a new connection from a "client" the router doesn't
@@ -332,14 +332,6 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
     ep->bytesOut += msg->length;
 
-    // This sucks but cryptoauth trashes the content when it encrypts
-    // and we need to be capable of sending back a coherent error message.
-    uint8_t top[255];
-    uint8_t* messageBytes = msg->bytes;
-    uint16_t padding = msg->padding;
-    uint16_t len = (msg->length < 255) ? msg->length : 255;
-    Bits_memcpy(top, msg->bytes, len);
-
     struct Context* ic = ifcontrollerForPeer(ep);
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
@@ -356,13 +348,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     }
 
     // If this node is unresponsive then return an error.
-    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
-    {
-        msg->bytes = messageBytes;
-        msg->padding = padding;
-        msg->length = len;
-        Bits_memcpy(msg->bytes, top, len);
-
+    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
         return ret ? ret : Error_UNDELIVERABLE;
     } else {
         /* Way way way too much noise
@@ -412,6 +398,13 @@ static int registerPeer(struct InterfaceController* ifController,
         if (!AddressCalc_validAddress(ip6)) {
             return InterfaceController_registerPeer_BAD_KEY;
         }
+
+        if (!Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
+            // can't link with yourself, wiseguy
+            return InterfaceController_registerPeer_BAD_KEY;
+        }
+    } else {
+        Assert_always(requireAuth);
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;
@@ -431,8 +424,12 @@ static int registerPeer(struct InterfaceController* ifController,
         ep->state = InterfaceController_PeerState_HANDSHAKE;
     }
 
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(externalInterface, herPublicKey, requireAuth, true, ic->ca);
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
+                                                herPublicKey,
+                                                NULL,
+                                                requireAuth,
+                                                "outer",
+                                                ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;

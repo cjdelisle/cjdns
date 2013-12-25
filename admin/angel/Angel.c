@@ -37,7 +37,7 @@ struct AngelContext
     Identity
 };
 
-static void adminExit(Dict* args, void* vcontext, String* txid)
+static void adminExit(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AngelContext* ctx = Identity_cast((struct AngelContext*) vcontext);
     Log_info(ctx->logger, "Got request to exit");
@@ -70,7 +70,7 @@ static void adminAddIp2(char* interfaceName,
     Admin_sendMessage(&d, txid, ctx->admin);
 }
 
-static void adminAddIp(Dict* args, void* vcontext, String* txid)
+static void adminAddIp(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AngelContext* ctx = Identity_cast((struct AngelContext*) vcontext);
     String* interfaceName = Dict_getString(args, String_CONST("interfaceName"));

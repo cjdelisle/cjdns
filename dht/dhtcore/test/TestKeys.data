@@ -1,3 +1,18 @@
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 "\xa4\x51\x05\x67\x26\x63\x9a\xe9\x81\x42\x81\xd6\x65\x5e\x2c\xd4"
 "\xa4\xcb\x23\xb3\xf8\x57\x88\x4a\x28\x4d\x70\xb9\x5b\xe9\x4f\x24",
 "\x39\x67\x8a\xc8\x26\xca\x1d\x2e\x18\x7c\xd7\x7f\xbf\xb8\xb5\xc8"

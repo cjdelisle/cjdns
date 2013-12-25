@@ -14,6 +14,7 @@
  */
 #include "interface/SessionManager.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/AddressCalc.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
@@ -33,7 +34,9 @@
 #define CLEANUP_CYCLE_SECONDS 20
 
 /** Handle numbers 0-3 are reserved for CryptoAuth nonces. */
-#define FIRST_HANDLE 4
+#define MIN_FIRST_HANDLE 4
+
+#define MAX_FIRST_HANDLE 100000
 
 
 struct Ip6
@@ -67,6 +70,9 @@ struct SessionManager
     struct Timeout* cleanupInterval;
 
     struct CryptoAuth* cryptoAuth;
+
+    /** The first handle number to start with, randomized at startup to reduce collisions. */
+    uint32_t first;
 };
 
 static void cleanup(void* vsm)
@@ -80,6 +86,16 @@ static void cleanup(void* vsm)
             Map_OfSessionsByIp6_remove(i, &sm->ifaceMap);
             i--;
         }
+    }
+}
+
+static void check(struct SessionManager* sm, int mapIndex)
+{
+    uint8_t* herPubKey = CryptoAuth_getHerPublicKey(&sm->ifaceMap.values[mapIndex].iface);
+    if (!Bits_isZero(herPubKey, 32)) {
+        uint8_t ip6[16];
+        AddressCalc_addressForPublicKey(ip6, herPubKey);
+        Assert_always(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
     }
 }
 
@@ -98,8 +114,12 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
             .senderContext = sm->interfaceContext,
             .allocator = ifAllocator
         }));
-        struct Interface* insideIf =
-            CryptoAuth_wrapInterface(outsideIf, cryptoKey, false, true, sm->cryptoAuth);
+        struct Interface* insideIf = CryptoAuth_wrapInterface(outsideIf,
+                                                              cryptoKey,
+                                                              lookupKey,
+                                                              false,
+                                                              "inner",
+                                                              sm->cryptoAuth);
         insideIf->receiveMessage = sm->decryptedIncoming;
         insideIf->receiverContext = sm->interfaceContext;
 
@@ -120,7 +140,7 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
 
         int index = Map_OfSessionsByIp6_put((struct Ip6*)lookupKey, &s, &sm->ifaceMap);
         struct SessionManager_Session* sp = &sm->ifaceMap.values[index];
-        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index] + FIRST_HANDLE);
+        sp->receiveHandle_be = Endian_hostToBigEndian32(sm->ifaceMap.handles[index] + sm->first);
         Bits_memcpyConst(sp->ip6, lookupKey, 16);
         return sp;
     } else {
@@ -132,14 +152,18 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
         }
     }
 
+    check(sm, ifaceIndex);
+
     return &sm->ifaceMap.values[ifaceIndex];
 }
 
 struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm)
 {
-    int index = Map_OfSessionsByIp6_indexForHandle(handle - FIRST_HANDLE, &sm->ifaceMap);
-    return (index == -1) ? NULL : &sm->ifaceMap.values[index];
+    int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
+    if (index < 0) { return NULL; }
+    check(sm, index);
+    return &sm->ifaceMap.values[index];
 }
 
 struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,
@@ -152,7 +176,7 @@ struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionMan
     out->handles = buff;
     out->count = sm->ifaceMap.count;
     for (int i = 0; i < (int)out->count; i++) {
-        buff[i] += FIRST_HANDLE;
+        buff[i] += sm->first;
     }
     return out;
 }
@@ -162,6 +186,7 @@ struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           void* interfaceContext,
                                           struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,
+                                          struct Random* rand,
                                           struct Allocator* allocator)
 {
     struct SessionManager* sm = Allocator_malloc(allocator, sizeof(struct SessionManager));
@@ -175,6 +200,7 @@ struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
         },
         .cryptoAuth = cryptoAuth,
         .allocator = allocator,
+        .first = (Random_uint32(rand) % (MAX_FIRST_HANDLE - MIN_FIRST_HANDLE)) + MIN_FIRST_HANDLE,
         .cleanupInterval =
             Timeout_setInterval(cleanup, sm, 1000 * CLEANUP_CYCLE_SECONDS, eventBase, allocator)
     }), sizeof(struct SessionManager));

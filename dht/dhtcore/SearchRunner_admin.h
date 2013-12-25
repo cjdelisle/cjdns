@@ -18,6 +18,8 @@
 #include "admin/Admin.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/SearchRunner_admin.c")
 
 void SearchRunner_admin_register(struct SearchRunner* runner,
                                  struct Admin* admin,

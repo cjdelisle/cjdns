@@ -17,10 +17,35 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
-#include "util/log/Log.h"
+#include "util/Gcc.h"
 
 #include <stdint.h>
 #include <stddef.h>
+
+/**
+ * Find first set bit in a 64 bit integer.
+ */
+static inline int Bits_ffs64(uint64_t number)
+{
+    if (!number) {
+        return 0;
+    }
+    int out = 1;
+    while (!(number & 1)) {
+        number >>= 1;
+        out++;
+    }
+    return out;
+}
+
+static inline int Bits_popCountx64(uint64_t number)
+{
+    int out = 0;
+    for (int i = 0; i < 64; i++) {
+        out += ((number >> i) & 1);
+    }
+    return out;
+}
 
 static inline int Bits_popCountx32(uint32_t number)
 {
@@ -32,6 +57,22 @@ static inline int Bits_popCountx32(uint32_t number)
 }
 
 static inline int Bits_log2x64(uint64_t number)
+{
+    int out = 0;
+    while (number >>= 1) {
+        out++;
+    }
+    return out;
+}
+
+/** Largest possible number whose log2 is bitCount. */
+static inline uint64_t Bits_maxBits64(uint32_t bitCount)
+{
+    Assert_true(bitCount < 64);
+    return (((uint64_t)1) << bitCount) - 1;
+}
+
+static inline int Bits_log2x32(uint32_t number)
 {
     int out = 0;
     while (number >>= 1) {
@@ -147,8 +188,8 @@ static inline void* Bits_memcpyDebug(void* out,
  * @param in the buffer to read from.
  * @param length the number of bytes to copy.
  */
-#ifdef Log_DEBUG
-    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
+#ifdef PARANOIA
+    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, Gcc_SHORT_FILE, Gcc_LINE)
 #else
     #define Bits_memcpy(a,b,c) Bits_memcpyNoDebug(a,b,c)
 #endif

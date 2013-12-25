@@ -15,6 +15,9 @@
 #ifndef AngelInit_H
 #define AngelInit_H
 
+#include "util/Linker.h"
+Linker_require("admin/angel/AngelInit.c")
+
 /**
  * Input:
  * {

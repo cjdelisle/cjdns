@@ -17,7 +17,16 @@
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/windows/NDPServer.c")
 
-struct Interface* NDPServer_new(struct Interface* external, struct Allocator* alloc);
+struct NDPServer
+{
+    struct Interface generic;
+    uint8_t advertisePrefix[16];
+    uint8_t prefixLen;
+};
+
+struct NDPServer* NDPServer_new(struct Interface* external, struct Allocator* alloc);
 
 #endif

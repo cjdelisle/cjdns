@@ -16,6 +16,8 @@
 #define ReplyModule_H
 
 #include "dht/DHTModuleRegistry.h"
+#include "util/Linker.h"
+Linker_require("dht/ReplyModule.c")
 
 /**
  * The reply module replies to all incoming queries.

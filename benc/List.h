@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
+#include "util/Linker.h"
+Linker_require("benc/List.c")
 
 struct List_Item;
 struct List_Item {

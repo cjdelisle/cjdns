@@ -12,18 +12,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#ifndef win32
+int main(int argc, char** argv)
+{
+    return 0;
+}
+#else
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
 #include "util/Assert.h"
+#include "test/RootTest.h"
 
 #include <stdio.h>
 
-int main()
+int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct TAPDevice* dev = TAPDevice_find(NULL, NULL, alloc);
     Assert_always(dev && dev->name && dev->path);
     printf("name [%s] path [%s]\n", dev->name, dev->path);
+    return 0;
 }
+
+#endif

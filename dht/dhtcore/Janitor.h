@@ -24,6 +24,8 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/Janitor.c")
 
 #include <stdint.h>
 
