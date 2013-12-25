@@ -634,12 +634,21 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 /**
  * Send an arbitrary message to the tun device.
  *
- * @param message to be sent, must be prefixed with IpTunnel_PacketInfoHeader.
+ * @param message to be sent.
  * @param iface an interface for which receiverContext is the ducttape.
  */
 static uint8_t sendToTun(struct Message* message, struct Interface* iface)
 {
     struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
+    uint16_t msgType = TUNMessageType_pop(message, NULL);
+    if (msgType == Ethernet_TYPE_IP6) {
+        Assert_always(message->length >= Headers_IP6Header_SIZE);
+        struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
+        if (header->sourceAddr[0] == 0xfc || header->destinationAddr[0] == 0xfc) {
+            Assert_failure("you can't do that");
+        }
+    }
+    TUNMessageType_push(message, msgType, NULL);
     if (context->userIf) {
         return context->userIf->sendMessage(message, context->userIf);
     }

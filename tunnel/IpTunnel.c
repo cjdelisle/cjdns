@@ -538,6 +538,13 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
     uint32_t length = (sourceAndDestIp6) ? 16 : 4;
     #define DESTINATION source + length
 
+    if (sourceAndDestIp6) {
+        // never allowed
+        if (source[0] == 0xfc || DESTINATION[0] == 0xfc) {
+            return NULL;
+        }
+    }
+
     struct IpTunnel_Connection* lastConnection =
         &context->pub.connectionList.connections[context->pub.connectionList.count];
 
