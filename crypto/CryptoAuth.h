@@ -159,7 +159,6 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 void CryptoAuth_reset(struct Interface* iface);
 
-
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0
 
@@ -174,6 +173,18 @@ void CryptoAuth_reset(struct Interface* iface);
 
 /** The CryptoAuth session has successfully done a handshake and received at least one message. */
 #define CryptoAuth_ESTABLISHED 4
+
+static inline char* CryptoAuth_stateString(int state)
+{
+    switch (state) {
+        case CryptoAuth_NEW:         return "CryptoAuth_NEW";
+        case CryptoAuth_HANDSHAKE1:  return "CryptoAuth_HANDSHAKE1";
+        case CryptoAuth_HANDSHAKE2:  return "CryptoAuth_HANDSHAKE2";
+        case CryptoAuth_HANDSHAKE3:  return "CryptoAuth_HANDSHAKE3";
+        case CryptoAuth_ESTABLISHED: return "CryptoAuth_ESTABLISHED";
+        default: return "INVALID";
+    }
+}
 
 /**
  * Get the state of the CryptoAuth session.
