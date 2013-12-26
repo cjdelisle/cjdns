@@ -11,6 +11,23 @@ scalability issues that plague existing networks.
 
 [![Build Status](https://travis-ci.org/cjdelisle/cjdns.png?branch=master)](https://travis-ci.org/cjdelisle/cjdns)
 
+## **ALERT**
+
+Versions from prior to Dec 26 2013 have a serious security issue allowing an
+attacker inside of the network to impersonate somebody else. If you are using
+an old version, please update. If the new version does not build or work for you
+please use `stable-0.5` and report the issue on github or in IRC. Note that
+`stable-0.5` will receive only critical security patches and not be updated as
+the protocol changes so using it is not a long term solution.
+
+### **UBUNTU USERS**
+
+The PPA at `https://code.launchpad.net/~calebdelisle/cjdns-apt` is no-longer
+maintained, because of limitations in the launchpad system, it can neither be
+updated to `stable-0.5` nor to the master branch and
+THE LAST SUCCESSFUL BUILD WAS BEFORE THE SECURITY PATCH.
+Please remove the PPA installation.
+
 
 ## With built-in security and auto-configuration, everybody can own part of the network
 
@@ -100,6 +117,9 @@ close to the target address.
     00:36 < tester> man sites take so long to load on i2p
     00:36 < tester> i value speed over anonymity any day
 
+    <DuoNoxSol> it's notably more reliable than the normal internet
+    <DuoNoxSol> even though it really really shouldn't be
+    <DuoNoxSol> seeing as the connections are largely over the normal internet
 
 
 ## How close is it to complete?

@@ -205,7 +205,7 @@ void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework*
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16])
 {
-    Message_shift(msg, Headers_IP6Header_SIZE);
+    Message_shift(msg, Headers_IP6Header_SIZE, NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->bytes;
 
     ip->versionClassAndFlowLabel = 0;

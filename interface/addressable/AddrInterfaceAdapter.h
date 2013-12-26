@@ -18,6 +18,8 @@
 #include "interface/Interface.h"
 #include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("interface/addressable/AddrInterfaceAdapter.c")
 
 struct AddrInterface* AddrInterfaceAdapter_new(struct Interface* toWrap, struct Allocator* alloc);
 

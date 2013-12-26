@@ -21,34 +21,24 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+// TODO: Move this into util/events
+Linker_require("util/events/libuv/UDPAddrInterface.c")
 
 #define UDPAddrInterface_PADDING_AMOUNT 512
-#define UDPAddrInterface_BUFFER_CAP 3500
+#define UDPAddrInterface_BUFFER_CAP 3496
 
 /** Maximum number of bytes to hold in queue before dropping packets. */
-#define UDPAddrInterface_MAX_QUEUE 100000
+#define UDPAddrInterface_MAX_QUEUE 16384
 
 /**
  * @param base the event loop context.
  * @param bindAddr the address/port to bind to.
  * @param allocator the memory allocator for this message.
  * @param exHandler the handler to deal with whatever exception arises.
- *    Exceptions:
- *        UDPAddrInterface_new_PARSE_ADDRESS_FAILED Couldn't parse bindAddr as an ip and port
- *        UDPAddrInterface_new_FAILED_CREATING_EVENT Failed creating the event or registering it
- *                                                   with the event loop (shouldn't happen).
- *        UDPAddrInterface_new_SOCKET_FAILED Failed calling socket(), check Errno_get().
- *        UDPAddrInterface_new_PROTOCOL_NOT_SUPPORTED Protocol not supported.
- *        UDPAddrInterface_new_BIND_FAILED Failed calling bind(), check Errno_get().
- *
  * @param logger
  * @return a new UDPInterfaceBase.
  */
-#define UDPAddrInterface_new_PARSE_ADDRESS_FAILED -1
-#define UDPAddrInterface_new_FAILED_CREATING_EVENT -2
-#define UDPAddrInterface_new_SOCKET_FAILED -3
-#define UDPAddrInterface_new_PROTOCOL_NOT_SUPPORTED -4
-#define UDPAddrInterface_new_BIND_FAILED -5
 struct AddrInterface* UDPAddrInterface_new(struct EventBase* base,
                                            struct Sockaddr* bindAddr,
                                            struct Allocator* allocator,

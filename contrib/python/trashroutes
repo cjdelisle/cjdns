@@ -91,7 +91,9 @@ for route in allRoutes:
         if penalize: penalty += 1;
         penalty <<= 1;
 
-    print(str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r));
+    output = str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r);
+    if (r[-1] == -1): output += ' INVALID';
+    print(output);
     penaltySum += penalty;
     lengthSum += len(r);
 

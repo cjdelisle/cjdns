@@ -33,7 +33,7 @@ struct DHTModule {
     /**
      * The module's state.
      */
-    void* const context;
+    void* context;
 
     /**
      * @param the message which came in from a peer.

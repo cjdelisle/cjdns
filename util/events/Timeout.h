@@ -16,6 +16,8 @@
 #define Timeout_H
 
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Timeout.c")
 #include <stdint.h>
 
 /** An event which will happen after a given number of milliseconds. */

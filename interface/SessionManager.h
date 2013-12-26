@@ -16,11 +16,14 @@
 #define SessionManager_H
 
 #include "crypto/CryptoAuth.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("interface/SessionManager.c")
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
 
 struct SessionManager;
 
@@ -65,11 +68,13 @@ struct SessionManager_HandleList
  * @param allocator means of getting memory.
  * @return a session manager.
  */
+
 struct SessionManager* SessionManager_new(Interface_CALLBACK(decryptedIncoming),
                                           Interface_CALLBACK(encryptedOutgoing),
                                           void* interfaceContext,
                                           struct EventBase* eventBase,
                                           struct CryptoAuth* cryptoAuth,
+                                          struct Random* rand,
                                           struct Allocator* allocator);
 
 /**
@@ -93,6 +98,15 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
  */
 struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm);
+
+/**
+ * Get the IPv6 address for a session.
+ *
+ * @param handle the handle for the session
+ * @param sm the session manager
+ * @return a binary ipv6 address or NULL.
+ */
+uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm);
 
 /**
  * Get the list of all handles.

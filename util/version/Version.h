@@ -16,6 +16,8 @@
 #define Version_H
 
 #include <stdint.h>
+#include "util/Linker.h"
+Linker_require("util/version/Version.c")
 
 /**
  * Cjdns Protocol Versions
@@ -192,6 +194,16 @@
  * 8 byte long benc string. It returns a list of peers exactly the same as a search but they
  * must all be direct peers and they are the peers whose labels have smallest XOR distance
  * from "tar".
+ *
+ * ----------------------------------
+ *
+ * Version 6:
+ * December 14, 2013
+ */
+#define Version_isCompat6(x, y) \
+    ((x == 5) ? (y > 4) : Version_isCompat5(x, y))
+/*
+ * Drop support for versions older than 5
  */
 
 
@@ -204,20 +216,17 @@
  * numbered isCompat macro.
  */
 #define Version_isCompatConst(x, y) \
-    ((x > y) ? Version_isCompat5(x, y) : Version_isCompat5(y, x))
+    ((x > y) ? Version_isCompat6(x, y) : Version_isCompat6(y, x))
 
 
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 5
-#define Version_1_COMPAT
-#define Version_2_COMPAT
-#define Version_3_COMPAT
-#define Version_4_COMPAT
+#define Version_CURRENT_PROTOCOL 6
+#define Version_5_COMPAT
 
-#define Version_MINIMUM_COMPATIBLE 1
-#define Version_DEFAULT_ASSUMPTION 1
+#define Version_MINIMUM_COMPATIBLE 5
+#define Version_DEFAULT_ASSUMPTION 5
 
 
 /**
@@ -244,15 +253,17 @@ static inline int Version_isCompatible(uint32_t version1, uint32_t version2)
         Version_isCompatConst(col,2), \
         Version_isCompatConst(col,3), \
         Version_isCompatConst(col,4), \
-        Version_isCompatConst(col,5)  \
+        Version_isCompatConst(col,5), \
+        Version_isCompatConst(col,6)  \
     }
-    static const uint8_t table[6][6] = {
+    static const uint8_t table[7][7] = {
         Version_TABLE_ROW(0),
         Version_TABLE_ROW(1),
         Version_TABLE_ROW(2),
         Version_TABLE_ROW(3),
         Version_TABLE_ROW(4),
-        Version_TABLE_ROW(5)
+        Version_TABLE_ROW(5),
+        Version_TABLE_ROW(6)
     };
 
     #define Version_TABLE_HEIGHT (sizeof(table) / sizeof(table[0]))

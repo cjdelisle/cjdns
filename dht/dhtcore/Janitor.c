@@ -23,8 +23,6 @@
 #include "dht/dhtcore/RouteTracer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
-#include "memory/MallocAllocator.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
 #include "util/events/EventBase.h"
@@ -75,7 +73,17 @@ struct Janitor
 struct Janitor_Search
 {
     struct Janitor* janitor;
+
     struct Address best;
+
+    uint8_t target[16];
+
+    #define Janitor_Search_searchType_COMPLETE 1
+    #define Janitor_Search_searchType_PARTIAL 2
+    int searchType;
+
+    struct Allocator* alloc;
+
     Identity
 };
 
@@ -87,34 +95,50 @@ static void responseCallback(struct RouterModule_Promise* promise,
     struct Janitor_Search* search = Identity_cast((struct Janitor_Search*)promise->userData);
     if (fromNode) {
         Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
-        return;
+
+        if (search->searchType == Janitor_Search_searchType_COMPLETE) {
+            return;
+        }
+        struct Node* n = RouterModule_lookup(search->target, search->janitor->routerModule);
+        if (!n || n->reach == 0) {
+            return;
+        } else {
+            Log_debug(search->janitor->logger, "Found a nearby target, aborting search");
+        }
     }
+
     search->janitor->searches--;
+
     if (!search->best.path) {
         Log_debug(search->janitor->logger, "Search completed with no nodes found");
-        return;
-    }
-    // end of the line, now lets trace
 
-    #ifdef Log_DEBUG
-        uint8_t printed[60];
-        Address_print(printed, &search->best);
-        Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
-    #endif
-    RouteTracer_trace(search->best.path,
-                      search->janitor->routeTracer,
-                      search->janitor->allocator);
+    } else {
+        // end of the line, now lets trace
+
+        #ifdef Log_DEBUG
+            uint8_t printed[60];
+            Address_print(printed, &search->best);
+            Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
+        #endif
+        RouteTracer_trace(search->best.path,
+                          search->janitor->routeTracer,
+                          search->janitor->allocator);
+    }
+    Allocator_free(search->alloc);
 }
 
-static void search(uint8_t target[16], struct Janitor* janitor)
+#define search_searchType_COMPLETE Janitor_Search_searchType_COMPLETE
+#define search_searchType_PARTIAL Janitor_Search_searchType_PARTIAL
+static void search(uint8_t target[16], struct Janitor* janitor, int searchType)
 {
     if (janitor->searches >= 20) {
         Log_debug(janitor->logger, "Skipping search because 20 are in progress");
         return;
     }
 
+    struct Allocator* searchAlloc = Allocator_child(janitor->allocator);
     struct RouterModule_Promise* rp =
-        SearchRunner_search(target, janitor->searchRunner, janitor->allocator);
+        SearchRunner_search(target, janitor->searchRunner, searchAlloc);
 
     if (!rp) {
         Log_debug(janitor->logger, "RouterModule_search() returned NULL, probably full.");
@@ -124,9 +148,12 @@ static void search(uint8_t target[16], struct Janitor* janitor)
     janitor->searches++;
 
     struct Janitor_Search* search = Allocator_clone(rp->alloc, (&(struct Janitor_Search) {
-        .janitor = janitor
+        .janitor = janitor,
+        .searchType = searchType,
+        .alloc = searchAlloc,
     }));
     Identity_set(search);
+    Bits_memcpyConst(search->target, target, 16);
 
     rp->callback = responseCallback;
     rp->userData = search;
@@ -156,9 +183,12 @@ static void maintanenceCycle(void* vcontext)
     }
 
     // If the node's reach is zero, run a search for it, otherwise run a random search.
+    int searchType;
     if (randomNode && randomNode->reach == 0) {
+        searchType = search_searchType_COMPLETE;
         Bits_memcpyConst(&targetAddr, &randomNode->address, Address_SIZE);
     } else {
+        searchType = search_searchType_PARTIAL;
         Random_bytes(janitor->rand, targetAddr.ip6.bytes, Address_SEARCH_TARGET_SIZE);
     }
 
@@ -175,7 +205,7 @@ static void maintanenceCycle(void* vcontext)
                        (unsigned int) NodeStore_size(janitor->nodeStore));
         #endif
 
-        search(targetAddr.ip6.bytes, janitor);
+        search(targetAddr.ip6.bytes, janitor, searchType);
         return;
     }
 
@@ -187,17 +217,10 @@ static void maintanenceCycle(void* vcontext)
                   nonZeroNodes,
                   janitor->nodeStore->size - nonZeroNodes,
                   janitor->nodeStore->size);
-
-        /* Accessible via admin interface.
-        size_t bytes = MallocAllocator_bytesAllocated(janitor->allocator);
-        Log_debug(janitor->logger,
-                   "Using %u bytes of memory.\n",
-                   (unsigned int) bytes);
-        */
     #endif
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        search(targetAddr.ip6.bytes, janitor);
+        search(targetAddr.ip6.bytes, janitor, search_searchType_COMPLETE);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }

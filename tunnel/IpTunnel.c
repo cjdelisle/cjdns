@@ -24,7 +24,6 @@
 #include "io/ArrayWriter.h"
 #include "io/ArrayReader.h"
 #include "interface/tuntap/TUNMessageType.h"
-#include "memory/BufferAllocator.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"
@@ -158,7 +157,7 @@ static uint8_t sendToNode(struct Message* message,
                           struct IpTunnel_Connection* connection,
                           struct IpTunnel_pvt* context)
 {
-    Message_push(message, &connection->header, IpTunnel_PacketInfoHeader_SIZE);
+    Message_push(message, &connection->header, IpTunnel_PacketInfoHeader_SIZE, NULL);
     if (context->pub.nodeInterface.receiveMessage) {
         return context->pub.nodeInterface.receiveMessage(message, &context->pub.nodeInterface);
     }
@@ -168,15 +167,12 @@ static uint8_t sendToNode(struct Message* message,
 
 static uint8_t sendControlMessage(Dict* dict,
                                   struct IpTunnel_Connection* connection,
+                                  struct Allocator* requestAlloc,
                                   struct IpTunnel_pvt* context)
 {
-    struct Message* message;
-    Message_STACK(message, 512, 512);
+    struct Message* message = Message_new(512, 512, requestAlloc);
 
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 256);
-
-    struct Writer* w = ArrayWriter_new(message->bytes, message->length, alloc);
+    struct Writer* w = ArrayWriter_new(message->bytes, message->length, requestAlloc);
     StandardBencSerializer_get()->serializeDictionary(w, dict);
     message->length = w->bytesWritten;
 
@@ -188,15 +184,16 @@ static uint8_t sendControlMessage(Dict* dict,
     #endif
 
     // do UDP header.
-    Message_shift(message, Headers_UDPHeader_SIZE);
+    Message_shift(message, Headers_UDPHeader_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-    uh->sourceAndDestPorts = 0;
+    uh->srcPort_be = 0;
+    uh->destPort_be = 0;
     uh->length_be = Endian_hostToBigEndian16(w->bytesWritten);
     uh->checksum_be = 0;
 
     uint16_t payloadLength = message->length;
 
-    Message_shift(message, Headers_IP6Header_SIZE);
+    Message_shift(message, Headers_IP6Header_SIZE, NULL);
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
     header->versionClassAndFlowLabel = 0;
     header->flowLabelLow_be = 0;
@@ -231,7 +228,10 @@ static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
         String_CONST("txid"), String_OBJ((&(String){ .len = 4, .bytes = (char*)&number })),
         NULL
     ));
-    return sendControlMessage(&d, conn, context);
+    struct Allocator* msgAlloc = Allocator_child(context->allocator);
+    uint8_t ret = sendControlMessage(&d, conn, msgAlloc, context);
+    Allocator_free(msgAlloc);
+    return ret;
 }
 
 /**
@@ -282,7 +282,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
         return Error_INVALID;
     }
 
-    Message_shift(message, -Headers_IP6Header_SIZE);
+    Message_shift(message, -Headers_IP6Header_SIZE, NULL);
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) message->bytes;
 
     if (Checksum_udpIp6(header->sourceAddr, message->bytes, length)) {
@@ -291,12 +291,15 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
     }
 
     length -= Headers_UDPHeader_SIZE;
-    if (Endian_bigEndianToHost16(udp->length_be) != length || udp->sourceAndDestPorts != 0) {
+    if (Endian_bigEndianToHost16(udp->length_be) != length
+        || udp->srcPort_be != 0
+        || udp->destPort_be != 0)
+    {
         Log_warn(context->logger, "Invalid UDP packet (length mismatch or wrong ports)");
         return Error_INVALID;
     }
 
-    Message_shift(message, -Headers_UDPHeader_SIZE);
+    Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
 
     message->length = length;
     return 0;
@@ -304,7 +307,7 @@ static uint8_t isControlMessageInvalid(struct Message* message, struct IpTunnel_
 
 static uint8_t requestForAddresses(Dict* request,
                                    struct IpTunnel_Connection* conn,
-                                   struct Allocator* alloc,
+                                   struct Allocator* requestAlloc,
                                    struct IpTunnel_pvt* context)
 {
     #ifdef Log_DEBUG
@@ -317,20 +320,20 @@ static uint8_t requestForAddresses(Dict* request,
         Log_warn(context->logger, "got request for addresses from outgoing connection");
         return Error_INVALID;
     }
-    Dict* addresses = Dict_new(alloc);
+    Dict* addresses = Dict_new(requestAlloc);
     bool noAddresses = true;
     if (!Bits_isZero(conn->connectionIp6, 16)) {
         Dict_putString(addresses,
                        String_CONST("ip6"),
-                       String_newBinary((char*)conn->connectionIp6, 16, alloc),
-                       alloc);
+                       String_newBinary((char*)conn->connectionIp6, 16, requestAlloc),
+                       requestAlloc);
         noAddresses = false;
     }
     if (!Bits_isZero(conn->connectionIp4, 4)) {
         Dict_putString(addresses,
                        String_CONST("ip4"),
-                       String_newBinary((char*)conn->connectionIp4, 4, alloc),
-                       alloc);
+                       String_newBinary((char*)conn->connectionIp4, 4, requestAlloc),
+                       requestAlloc);
         noAddresses = false;
     }
     if (noAddresses) {
@@ -338,15 +341,15 @@ static uint8_t requestForAddresses(Dict* request,
         return 0;
     }
 
-    Dict* msg = Dict_new(alloc);
-    Dict_putDict(msg, String_CONST("addresses"), addresses, alloc);
+    Dict* msg = Dict_new(requestAlloc);
+    Dict_putDict(msg, String_CONST("addresses"), addresses, requestAlloc);
 
     String* txid = Dict_getString(request, String_CONST("txid"));
     if (txid) {
-        Dict_putString(msg, String_CONST("txid"), txid, alloc);
+        Dict_putString(msg, String_CONST("txid"), txid, requestAlloc);
     }
 
-    return sendControlMessage(msg, conn, context);
+    return sendControlMessage(msg, conn, requestAlloc, context);
 }
 
 static void addAddressCallback(Dict* responseMessage, void* vcontext)
@@ -488,8 +491,7 @@ static uint8_t incomingControlMessage(struct Message* message,
         message->bytes[message->length - 1] = lastChar;
     #endif
 
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
+    struct Allocator* alloc = Allocator_child(message->alloc);
 
     struct Reader* r = ArrayReader_new(message->bytes, message->length, alloc);
     Dict dStore;
@@ -534,7 +536,14 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
 {
     uint8_t* source = (sourceAndDestIp6) ? sourceAndDestIp6 : sourceAndDestIp4;
     uint32_t length = (sourceAndDestIp6) ? 16 : 4;
-    #define DESTINATION source + length
+    uint8_t* destination = source + length;
+
+    if (sourceAndDestIp6) {
+        // never allowed
+        if (source[0] == 0xfc || destination[0] == 0xfc) {
+            return NULL;
+        }
+    }
 
     struct IpTunnel_Connection* lastConnection =
         &context->pub.connectionList.connections[context->pub.connectionList.count];
@@ -549,8 +558,8 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
         // connections are first on the list.
         //
         uint8_t* compareAddr = (isFromTun)
-            ? ((conn->isOutgoing) ? source : DESTINATION)
-            : ((conn->isOutgoing) ? DESTINATION : source);
+            ? ((conn->isOutgoing) ? source : destination)
+            : ((conn->isOutgoing) ? destination : source);
 
         uint8_t* connectionAddr = (sourceAndDestIp6) ? conn->connectionIp6 : conn->connectionIp4;
         if (!Bits_memcmp(compareAddr, connectionAddr, length)) {
@@ -617,7 +626,7 @@ static uint8_t ip6FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNMessageType_push(message, Ethernet_TYPE_IP6);
+    TUNMessageType_push(message, Ethernet_TYPE_IP6, NULL);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -640,7 +649,7 @@ static uint8_t ip4FromNode(struct Message* message,
         return Error_INVALID;
     }
 
-    TUNMessageType_push(message, Ethernet_TYPE_IP4);
+    TUNMessageType_push(message, Ethernet_TYPE_IP4, NULL);
 
     struct Interface* tunIf = &context->pub.tunInterface;
     if (tunIf->receiveMessage) {
@@ -655,7 +664,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
         (struct IpTunnel_pvt*)(((char*)nodeIf) - offsetof(struct IpTunnel, nodeInterface));
     Identity_check(context);
 
-    Log_debug(context->logger, "Got incoming message");
+    //Log_debug(context->logger, "Got incoming message");
 
     Assert_true(message->length >= IpTunnel_PacketInfoHeader_SIZE);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
@@ -669,7 +678,7 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
         return 0;
     }
 
-    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
+    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
 
     if (message->length > 40 && Headers_getIpVersion(message->bytes) == 6) {
         return ip6FromNode(message, conn, context);
@@ -698,9 +707,10 @@ static void timeout(void* vcontext)
     if (!context->pub.connectionList.count) {
         return;
     }
-    int32_t beginning = Random_int32(context->rand) % context->pub.connectionList.count;
-    int32_t i = beginning;
+    uint32_t beginning = Random_uint32(context->rand) % context->pub.connectionList.count;
+    uint32_t i = beginning;
     do {
+        Assert_true(i < context->pub.connectionList.count);
         struct IpTunnel_Connection* conn = &context->pub.connectionList.connections[i];
         if (conn->isOutgoing
             && Bits_isZero(conn->connectionIp6, 16)
@@ -709,7 +719,8 @@ static void timeout(void* vcontext)
             requestAddresses(conn, context);
             break;
         }
-    } while ((++i % (int32_t)context->pub.connectionList.count) != beginning);
+        i = (i + 1) % context->pub.connectionList.count;
+    } while (i != beginning);
 }
 
 void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)

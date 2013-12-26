@@ -18,6 +18,8 @@
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "wire/Message.h"
+#include "util/Linker.h"
+Linker_require("switch/SwitchCore.c")
 
 #include <stdint.h>
 

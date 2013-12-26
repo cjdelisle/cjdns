@@ -286,12 +286,6 @@ static int genconf(struct Random* rand)
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
-           "        // Set number of open files to zero, in Linux, this will succeed even if\n"
-           "        // files are already open and will not allow any files to be opened for the\n"
-           "        // duration of the program's operation.\n"
-           "        // Most security exploits require the use of files.\n"
-           "        \"nofiles\",\n"
-           "\n"
            "        // Change the user id to this user after starting up and getting resources.\n"
            "        {\n"
            "            \"setuser\": \"nobody\",\n"
@@ -315,7 +309,31 @@ static int genconf(struct Random* rand)
            "\n"
            "    // If set to non-zero, cjdns will not fork to the background.\n"
            "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
-           "    \"noBackground\":0\n"
+           "    \"noBackground\":0,\n"
+           "\n");
+    printf("    // DNS, this server will be available at address fc00::1\n"
+           "    \"dns\":\n"
+           "    {\n"
+           "        // Who to trust\n"
+           "        \"keys\": [\n"
+           "            \"7kuc3jcyql3cm8lx5zdj8vc0tkz8679kyx83utbm1ub5bxpf4mf1.mittens.h\",\n"
+           "            \"tvlxu5rbcj76rfdmsw9xd3kjn79fhv6kpvl2hzv98637j4rdj1b1.tom.h\",\n"
+           "            \"kkxfwnm3upf0jv35jq4lx0dn0z3m9bh71gv84cdjlcp68w1qckt1.maru.h\",\n"
+           "            \"02wmqfu7v0kdq17fwv68hk646bdvhcr8ybk2ycy7ddzv21n5nb60.scruffy.h\"\n"
+           "        ],\n"
+           "\n"
+           "        // Who to ask, if a request fails the next one will be tried\n"
+           "        \"servers\": [\n"
+           "            \"[fc71:ec46:57a0:2bbc:537d:b680:3630:93e4]:9001\",\n"
+           "            \"[fc8e:9a1c:27c3:281b:29b1:1a04:3701:c125]:9001\",\n"
+           "            \"[fcad:0450:4a40:9778:14e2:e442:6678:3161]:9001\",\n"
+           "            \"[fc2f:baa8:4a89:2db5:6789:aa75:07e6:4cb2]:9001\"\n"
+           "        ],\n"
+           "\n"
+           "        // At least this many of \"keys\" must agree or else the request will fail.\n"
+           "        \"minSignatures\":2\n"
+           "    }\n"
+           "\n"
            "}\n");
 
     return 0;
@@ -355,6 +373,23 @@ static int benchmark()
     return 0;
 }
 
+struct CheckRunningInstanceContext
+{
+    struct EventBase* base;
+    struct Allocator* alloc;
+    struct AdminClient_Result* res;
+};
+
+static void checkRunningInstanceCallback(struct AdminClient_Promise* p,
+                                         struct AdminClient_Result* res)
+{
+    struct CheckRunningInstanceContext* ctx = p->userData;
+    // Prevent this from freeing until after we drop out of the loop.
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->res = res;
+    EventBase_endLoop(ctx->base);
+}
+
 static void checkRunningInstance(struct Allocator* allocator,
                                  struct EventBase* base,
                                  String* addr,
@@ -365,7 +400,7 @@ static void checkRunningInstance(struct Allocator* allocator,
     struct Allocator* alloc = Allocator_child(allocator);
     struct Sockaddr_storage pingAddrStorage;
     if (Sockaddr_parse(addr->bytes, &pingAddrStorage)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      addr->bytes);
     }
     struct AdminClient* adminClient =
@@ -376,12 +411,25 @@ static void checkRunningInstance(struct Allocator* allocator,
 
     Dict* pingArgs = Dict_new(alloc);
 
-    struct AdminClient_Result* pingResult =
+    struct AdminClient_Promise* pingPromise =
         AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
 
-    if (pingResult->err == AdminClient_Error_NONE) {
-        Except_raise(eh, -1, "Startup failed: cjdroute is already running.");
+    struct CheckRunningInstanceContext* ctx =
+        Allocator_malloc(alloc, sizeof(struct CheckRunningInstanceContext));
+    ctx->base = base;
+    ctx->alloc = alloc;
+    ctx->res = NULL;
+
+    pingPromise->callback = checkRunningInstanceCallback;
+    pingPromise->userData = ctx;
+
+    EventBase_beginLoop(base);
+
+    Assert_always(ctx->res);
+    if (ctx->res->err != AdminClient_Error_TIMEOUT) {
+        Except_throw(eh, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
     }
+
     Allocator_free(alloc);
 }
 
@@ -480,7 +528,7 @@ int main(int argc, char** argv)
         adminPass->len = strlen(adminPass->bytes);
     }
     if (!adminBind) {
-        Except_raise(eh, -1, "You must specify admin.bind in the cjdroute.conf file.");
+        Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
     }
 
     // --------------------- Check for running instance  --------------------- //
@@ -504,12 +552,12 @@ int main(int argc, char** argv)
     char* corePath = Process_getPath(allocator);
 
     if (!corePath) {
-        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
-                             "make sure it is in the same directory as cjdroute");
+        Except_throw(eh, "Can't find a usable cjdns core executable, "
+                         "make sure it is in the same directory as cjdroute");
     }
 
     if (!privateKey) {
-        Except_raise(eh, -1, "Need to specify privateKey.");
+        Except_throw(eh, "Need to specify privateKey.");
     }
     Log_info(logger, "Forking angel to background.");
     Process_spawn(corePath, args, eventBase, allocator);
@@ -548,7 +596,7 @@ int main(int argc, char** argv)
     uint8_t buff[CONFIG_BUFF_SIZE] = {0};
     struct Writer* toAngelWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, allocator);
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
-        Except_raise(eh, -1, "Failed to serialize pre-configuration");
+        Except_throw(eh, "Failed to serialize pre-configuration");
     }
     struct Message* toAngelMsg = &(struct Message) {
         .bytes = buff,
@@ -570,7 +618,7 @@ int main(int argc, char** argv)
                                                       allocator,
                                                       &responseFromAngel))
     {
-        Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
+        Except_throw(eh, "Failed to parse pre-configuration response [%s]", buff);
     }
 
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
@@ -578,11 +626,11 @@ int main(int argc, char** argv)
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
 
     if (!adminBind) {
-        Except_raise(eh, -1, "didn't get address and port back from angel");
+        Except_throw(eh, "didn't get address and port back from angel");
     }
     struct Sockaddr_storage adminAddr;
     if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
 

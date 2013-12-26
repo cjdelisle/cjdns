@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
@@ -20,7 +21,6 @@
 #include "util/Identity.h"
 #include "util/log/Log.h"
 
-#include <uv.h>
 #include <inttypes.h>
 
 /**

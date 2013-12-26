@@ -16,6 +16,8 @@
 #define Log_H
 
 #include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("util/log/Log.c")
 
 enum Log_Level
 {
@@ -67,10 +69,10 @@ void Log_print(struct Log* log,
                ...);
 
 #define Log_printf(log, level, ...) \
-    do {                                                                \
-        if (log) {                                                      \
-            Log_print(log, level, __FILE__, __LINE__, __VA_ARGS__);     \
-        }                                                               \
+    do {                                                                   \
+        if (log) {                                                         \
+            Log_print(log, level, Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__);  \
+        }                                                                  \
     } while (0)
 // CHECKFILES_IGNORE missing ;
 

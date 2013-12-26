@@ -19,7 +19,8 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
-
+#include "util/Linker.h"
+Linker_require("admin/angel/Core.c")
 
 void Core_initTunnel(String* desiredDeviceName,
                      struct Sockaddr* addr,
@@ -30,6 +31,13 @@ void Core_initTunnel(String* desiredDeviceName,
                      struct EventBase* eventBase,
                      struct Allocator* alloc,
                      struct Except* eh);
+
+void Core_init(struct Allocator* alloc,
+               struct Log* logger,
+               struct EventBase* eventBase,
+               struct Interface* angelIface,
+               struct Random* rand,
+               struct Except* eh);
 
 int Core_main(int argc, char** argv);
 

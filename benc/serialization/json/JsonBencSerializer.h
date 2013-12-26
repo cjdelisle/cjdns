@@ -14,6 +14,10 @@
  */
 #ifndef JsonBencSerializer_H
 #define JsonBencSerializer_H
-static const struct BencSerializer JsonBencSerializer;
+
+#include "benc/serialization/BencSerializer.h"
+#include "util/Linker.h"
+Linker_require("benc/serialization/json/JsonBencSerializer.c")
+
 const struct BencSerializer* JsonBencSerializer_get();
 #endif

@@ -123,23 +123,23 @@ static void responseCallback(struct RouterModule_Promise* promise,
         // address of the node which gave it to us.
         addr.path = LabelSplicer_splice(addr.path, fromNode->address.path);
 
+        if (addr.path == UINT64_MAX) {
+            log(ctx->logger, trace, "dropping node because route could not be spliced");
+            continue;
+        }
+
+        /*#ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, &addr);
+            Log_debug(ctx->logger, "discovered node [%s]", printedAddr);
+        #endif*/
+
         if (!Bits_memcmp(ctx->myAddress, addr.ip6.bytes, 16)) {
             // Any path which loops back through us is necessarily a dead route.
             uint8_t printedAddr[60];
             Address_print(printedAddr, &addr);
             Log_debug(ctx->logger, "Loop route [%s]", printedAddr);
             NodeStore_brokenPath(addr.path, ctx->nodeStore);
-            continue;
-        }
-
-        #ifdef Log_DEBUG
-            uint8_t printedAddr[60];
-            Address_print(printedAddr, &addr);
-            Log_debug(ctx->logger, "discovered node [%s]", printedAddr);
-        #endif
-
-        if (addr.path == UINT64_MAX) {
-            log(ctx->logger, trace, "dropping node because route could not be spliced");
             continue;
         }
 

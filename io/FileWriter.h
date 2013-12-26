@@ -15,8 +15,10 @@
 #ifndef FileWriter_H
 #define FileWriter_H
 
-#include "Writer.h"
+#include "io/Writer.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/FileWriter.c")
 #include <stdio.h>
 
 /**

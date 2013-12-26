@@ -16,8 +16,6 @@
 #include "util/Identity.h"
 #include "util/Bits.h"
 
-#ifndef Windows
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -59,13 +57,6 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return -1;
 }
-
-#else
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
-{
-    return -1;
-}
-#endif
 
 struct RandomSeed* DevUrandomRandomSeed_new(struct Allocator* alloc)
 {

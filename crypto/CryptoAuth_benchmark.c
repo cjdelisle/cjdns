@@ -14,7 +14,6 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
 #include "benc/Object.h"
 #include "memory/MallocAllocator.h"
@@ -75,14 +74,12 @@ static const char* TRAFFIC = "data";
 static inline void sendMessages(struct Context* ctx,
                                 int count,
                                 int size,
-                                const char* type,
-                                bool authPackets)
+                                const char* type)
 {
-    printf("Test sending %d %d byte\t%s packets.\tpacket auth %s",
-           count, size, type, ((authPackets) ? "enabled." : "disabled."));
+    printf("Test sending %d %d byte\t%s packets\n", count, size, type);
 
-    ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, false, authPackets, ctx->ca2);
-    ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, false, authPackets, ctx->ca1);
+    ctx->cif2 = CryptoAuth_wrapInterface(&ctx->if2, NULL, NULL, false, "cif2", ctx->ca2);
+    ctx->cif1 = CryptoAuth_wrapInterface(&ctx->if1, publicKey, NULL, false, "cif1", ctx->ca1);
     uint64_t startTime = Time_hrtime();
     if (type != HELLO) {
         setupMessage(ctx, size);
@@ -133,17 +130,14 @@ void CryptoAuth_benchmark(struct EventBase* base,
     printf("These metrics are speed of encryption and decryption similar to the usage pattern\n"
            "when decrypting a packet, switching it, and re-encrypting it with another key.\n");
 
-    sendMessages(&ctx, 1000, 64, HELLO, true);
-    sendMessages(&ctx, 1000, 1500, HELLO, true);
+    sendMessages(&ctx, 1000, 64, HELLO);
+    sendMessages(&ctx, 1000, 1500, HELLO);
 
-    sendMessages(&ctx, 1000, 64, KEY, true);
-    sendMessages(&ctx, 1000, 1500, KEY, true);
+    sendMessages(&ctx, 1000, 64, KEY);
+    sendMessages(&ctx, 1000, 1500, KEY);
 
-    sendMessages(&ctx, 100000, 64, TRAFFIC, false);
-    sendMessages(&ctx, 100000, 1500, TRAFFIC, false);
-
-    sendMessages(&ctx, 100000, 64, TRAFFIC, true);
+    sendMessages(&ctx, 100000, 64, TRAFFIC);
 
     printf("This is the switch configuration so this indicates expected switch throughput:\n");
-    sendMessages(&ctx, 100000, 1500, TRAFFIC, true);
+    sendMessages(&ctx, 100000, 1500, TRAFFIC);
 }

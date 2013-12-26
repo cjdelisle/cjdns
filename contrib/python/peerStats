@@ -34,5 +34,5 @@ for peer in allPeers:
          '\tdup ' + str(peer['duplicates']) +
          ' los ' + str(peer['lostPackets']) +
          ' oor ' + str(peer['receivedOutOfRange']));
-    if peer['isIncoming'] == 1: p += '"' + peer['user'] + '"';
+    if 'user' in peer: p += '"' + peer['user'] + '"';
     print p;

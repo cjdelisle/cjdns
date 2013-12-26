@@ -29,7 +29,7 @@ struct Context {
     Identity
 };
 
-static void lookup(Dict* args, void* vcontext, String* txid)
+static void lookup(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
     String* addrStr = Dict_getString(args, String_CONST("address"));
@@ -111,7 +111,7 @@ static void pingResponse(struct RouterModule_Promise* promise,
     Admin_sendMessage(&response, ping->txid, ping->ctx->admin);
 }
 
-static void pingNode(Dict* args, void* vctx, String* txid)
+static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vctx);
     String* pathStr = Dict_getString(args, String_CONST("path"));

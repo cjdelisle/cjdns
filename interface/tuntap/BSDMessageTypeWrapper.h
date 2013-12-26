@@ -17,6 +17,8 @@
 
 #include "interface/Interface.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/BSDMessageTypeWrapper.c")
 
 struct Interface* BSDMessageTypeWrapper_new(struct Interface* wrapped, struct Log* logger);
 

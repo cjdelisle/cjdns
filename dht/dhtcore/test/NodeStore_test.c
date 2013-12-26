@@ -55,12 +55,25 @@ static void missingKey()
            "'s/^created new key: \\[\\(.\\{32\\}\\)\\(.\\{32\\}\\)\\]$/\"\\1\"\\n\"\\2\",/p' "
            "| sed 's/\\([0-9a-f]\\{2\\}\\)/\\\\x\\1/g' > TestKeys.data && "
            "mv ./TestKeys.data ./dht/dhtcore/test/\n");
-    Assert_true(false);
+    Assert_always(false);
 }
 
-
-static struct Address* createAddress(int mostSignificantAddressSpaceByte, uint64_t path)
+static uint64_t getPath(int* hops)
 {
+    int i;
+    uint64_t out = 0;
+    for (i = 0; hops[i] != 1; i++) ;
+    for (; i >= 0; i--) {
+        int bits = NumberCompress_bitsUsedForNumber(hops[i]);
+        out <<= bits;
+        out |= NumberCompress_getCompressed(hops[i], bits);
+    }
+    return out;
+}
+
+static struct Address* createAddress(int mostSignificantAddressSpaceByte, int* hops)
+{
+    uint64_t path = getPath(hops);
     struct Address address = { .path = 0 };
 
     if (!genKeys) {
@@ -110,15 +123,15 @@ static struct Address* createAddress(int mostSignificantAddressSpaceByte, uint64
     }
 }
 
-static struct Address* randomIp(uint64_t path)
+static struct Address* randomIp(int* hops)
 {
-   return createAddress(-1, path);
+    return createAddress(-1, hops);
 }
 
 // This creates a random address which is a peer
 static struct Address* randomAddress()
 {
-    return randomIp(0x13);
+    return randomIp((int[]){0,1}/*0x13*/);
 }
 
 static void test_addNode()
@@ -129,17 +142,24 @@ static void test_addNode()
     Assert_always(NodeStore_addNode(store, myAddr, 1, Version_CURRENT_PROTOCOL) == NULL);
 
     // adding a random node with no peer should be null
-    Assert_always(NodeStore_addNode(store, randomIp(0x155), 1, Version_CURRENT_PROTOCOL) == NULL);
+    Assert_always(
+        !NodeStore_addNode(store, randomIp((int[]){2,2,1}/*0x155*/), 1, Version_CURRENT_PROTOCOL)
+    );
 
     // adding a peer should be non-null
-    Assert_always(NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL) != NULL);
+    Assert_always(
+        NodeStore_addNode(store, randomIp((int[]){2,1}/*0x15*/), 1, Version_CURRENT_PROTOCOL)
+    );
 
     // adding a node behind our peer should also be non-null
-    Assert_always(NodeStore_addNode(store, randomIp(0x155), 1, Version_CURRENT_PROTOCOL) != NULL);
+    Assert_always(
+        NodeStore_addNode(store, randomIp((int[]){2,2,1}/*0x155*/), 1, Version_CURRENT_PROTOCOL)
+    );
 
     // test at capacity and verify worst path is replaced
-    NodeStore_addNode(store, randomIp(0x157), 1, Version_CURRENT_PROTOCOL);
-    struct Node* node = NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){3,2,1}/*0x157*/), 1, Version_CURRENT_PROTOCOL);
+    struct Node* node =
+        NodeStore_addNode(store, randomIp((int[]){0,1}/*0x13*/), 1, Version_CURRENT_PROTOCOL);
     Assert_always( Address_isSameIp(&node->address, &NodeStore_dumpTable(store,1)->address) );
 }
 
@@ -147,7 +167,7 @@ static void test_getNodesByAddr()
 {
     struct Address* myAddr = randomAddress();
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* otherAddr = randomIp(0x13);
+    struct Address* otherAddr = randomIp((int[]){0,1}/*0x13*/);
 
     // make sure we can add an addr and get it back
     NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
@@ -156,7 +176,7 @@ static void test_getNodesByAddr()
     Assert_always(Address_isSameIp(&list->nodes[0]->address, otherAddr));
 
     // try for two
-    otherAddr->path = 0x15;
+    otherAddr->path = getPath((int[]){2,1}) /*0x15*/;
     NodeStore_addNode(store, otherAddr, 1, Version_CURRENT_PROTOCOL);
     list = NodeStore_getNodesByAddr(otherAddr, 2, alloc, store);
     Assert_always(list->size == 2);
@@ -172,20 +192,22 @@ static void test_getPeers()
 {
     // mucking around with switch labels...
     // see switch/NumberCompress.h
-    struct Address* myAddr = createAddress(0x99,0x01);   // 0001
+    struct Address* myAddr = createAddress(0x99, (int[]){1}/*0x01*/);   // 0001
     struct NodeStore* store = setUp(myAddr, 8);
-    uint64_t target = 0x1f;                              // 00011111      iface #7,#1
-    struct Address* oneHop1 = createAddress(0x02, 0x17); // 00010111      iface #3,#1
-    struct Address* oneHop2 = createAddress(0x01, 0x15); // 00010101      iface #2,#1
-    struct Address* oneHop3 = createAddress(0x04, 0x1d); // 00011101      iface #6,#1
-    struct Address* twoHop = createAddress(0x03, 0x155); // 000101010101  iface #2,#2,#1
+    uint64_t target = getPath((int[]){7,1})/*0x1f*/;
+    struct Address* oneHop1 = createAddress(0x02, (int[]){3,1}/*0x17*/);
+    struct Address* oneHop2 = createAddress(0x01, (int[]){2,1}/*0x15*/);
+    struct Address* oneHop3 = createAddress(0x04, (int[]){6,1}/*0x1d*/);
+    struct Address* twoHop = createAddress(0x03, (int[]){2,2,1}/*0x155*/);
 
     // using variable scheme, 4 bits (suffix 1).
-    Assert_always(NumberCompress_bitsUsedForLabel(target) == 4);
-    Assert_always(NumberCompress_bitsUsedForLabel(oneHop1->path) == 4);
-    Assert_always(NumberCompress_bitsUsedForLabel(oneHop2->path) == 4);
-    Assert_always(NumberCompress_bitsUsedForLabel(oneHop3->path) == 4);
-    Assert_always(NumberCompress_bitsUsedForLabel(twoHop->path) == 4);
+    /* specific to v3x5x8
+        Assert_always(NumberCompress_bitsUsedForLabel(target) == 4);
+        Assert_always(NumberCompress_bitsUsedForLabel(oneHop1->path) == 4);
+        Assert_always(NumberCompress_bitsUsedForLabel(oneHop2->path) == 4);
+        Assert_always(NumberCompress_bitsUsedForLabel(oneHop3->path) == 4);
+        Assert_always(NumberCompress_bitsUsedForLabel(twoHop->path) == 4);
+    */
 
     // verify we setup our test data correctly.
     Assert_always(LabelSplicer_isOneHop(oneHop1->path));
@@ -218,11 +240,11 @@ static void test_getPeers()
 
 static void test_getBest()
 {
-    struct Address* myAddr = createAddress(0x99,0x1);
+    struct Address* myAddr = createAddress(0x99, (int[]){1}/*0x1*/);
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* target = createAddress(0x01, 0x15);
-    struct Address* a = createAddress(0x05, 0x17);  // 1 hop
-    struct Address* b = createAddress(0xff, 0x177); // 2 hops (behind 0x17)
+    struct Address* target = createAddress(0x01, (int[]){2,1}/*0x15*/);
+    struct Address* a = createAddress(0x05, (int[]){3,1}/*0x17*/);  // 1 hop
+    struct Address* b = createAddress(0xff, (int[]){3,3,1}/*0x177*/); // 2 hops (behind 0x17)
     struct Node* best = NULL;
 
     // exact address match should be best
@@ -241,17 +263,19 @@ static void test_getBest()
 static void test_getClosestNodes()
 {
     // gets nodes that are "close" as in log2(path) aka # hops away
-    struct Address* myAddr = createAddress(0x99,0x1);
+    struct Address* myAddr = createAddress(0x99, (int[]){1} /*0x1*/);
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* target = createAddress(0x06, 0x13);
-    struct Address* oneHop = createAddress(0x05, 0x15);
-    struct Address* twoHop = createAddress(0x08, 0x155);
+    struct Address* target = createAddress(0x06, (int[]){0,1}/*0x13*/);
+    struct Address* oneHop = createAddress(0x05, (int[]){2,1}/*0x15*/);
+    struct Address* twoHop = createAddress(0x08, (int[]){2,2,1}/*0x155*/);
     struct NodeList* closest = NULL;
 
     NodeStore_addNode(store, oneHop, 1, Version_CURRENT_PROTOCOL);
     NodeStore_addNode(store, twoHop, 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x17777), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x157575), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(
+        store, randomIp((int[]){3,3,3,3,1}/*0x17777*/), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(
+        store, randomIp((int[]){2,3,2,3,2,1}/*0x157575*/), 1, Version_CURRENT_PROTOCOL);
 
     // check basic case returns in reverse order (of hops)
     closest = NodeStore_getClosestNodes(store, target, NULL, 2,
@@ -265,9 +289,9 @@ static void test_getClosestNodes()
 static void test_updateReach()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
-    struct Address* a = randomIp(0x17);  // 00010111      iface #3,#1
-    struct Address* b = randomIp(0x15);  // 00010101      iface #2,#1
-    struct Address* c = randomIp(0x155); // 000111011101  iface #2,#2,#1
+    struct Address* a = randomIp((int[]){3,1} /*0x17*/);  // 00010111      iface #3,#1
+    struct Address* b = randomIp((int[]){2,1} /*0x15*/);  // 00010101      iface #2,#1
+    struct Address* c = randomIp((int[]){2,2,1} /*0x155*/); // 000111011101  iface #2,#2,#1
 
     // verify c routes through b
     Assert_always(LabelSplicer_routesThrough(c->path, b->path));
@@ -285,10 +309,11 @@ static void test_updateReach()
 static void test_nonZeroNodes()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
-    struct Node* node = NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x17), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x19), 1, Version_CURRENT_PROTOCOL);
+    struct Node* node =
+       NodeStore_addNode(store, randomIp((int[]){0,1}), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){2,1}), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){3,1}), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){4,1}), 1, Version_CURRENT_PROTOCOL);
     Assert_always(store->size == 4);
     Assert_always(NodeStore_nonZeroNodes(store)==4);
 
@@ -310,21 +335,24 @@ static void test_getNodeByNetworkAddr()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
     // empty case should be null
-    Assert_always(NodeStore_getNodeByNetworkAddr(0x15,store)==NULL);
+    Assert_always(NodeStore_getNodeByNetworkAddr(getPath((int[]){2,1}),store)==NULL);
 
     // happy case
-    NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
-    Assert_always(NodeStore_getNodeByNetworkAddr(0x15,store)->address.path == 0x15);
+    NodeStore_addNode(store, randomIp((int[]){0,1}), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){3,1}), 1, Version_CURRENT_PROTOCOL);
+    Assert_always(
+        NodeStore_getNodeByNetworkAddr(getPath((int[]){3,1}),store)->address.path ==
+            getPath((int[]){3,1})
+    );
 }
 
 static void test_brokenPath()
 {
-    struct Address* myAddr = randomIp(0x01);
+    struct Address* myAddr = randomIp((int[]){1});
     struct NodeStore* store = setUp(myAddr, 8);
-    struct Address* a = randomIp(0x17);  // 00010111      iface #3,#1
-    struct Address* b = randomIp(0x15);  // 00010101      iface #2,#1
-    struct Address* c = randomIp(0x155); // 000111011101  iface #2,#2,#1
+    struct Address* a = randomIp((int[]){3,1});
+    struct Address* b = randomIp((int[]){2,1});
+    struct Address* c = randomIp((int[]){2,2,1});
 
     // verify c routes through b
     Assert_always(LabelSplicer_routesThrough(c->path, b->path));
@@ -344,9 +372,10 @@ static void test_brokenPath()
 static void test_dumpTable()
 {
     struct NodeStore* store = setUp(randomAddress(), 8);
-    NodeStore_addNode(store, randomIp(0x13), 1, Version_CURRENT_PROTOCOL);
-    struct Node* orig = NodeStore_addNode(store, randomIp(0x17), 1, Version_CURRENT_PROTOCOL);
-    NodeStore_addNode(store, randomIp(0x15), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){0,1}), 1, Version_CURRENT_PROTOCOL);
+    struct Node* orig =
+        NodeStore_addNode(store, randomIp((int[]){5,1}), 1, Version_CURRENT_PROTOCOL);
+    NodeStore_addNode(store, randomIp((int[]){3,1}), 1, Version_CURRENT_PROTOCOL);
     // verify happy case
     struct Node* test = NodeStore_dumpTable(store, 1);
     Assert_always(Address_isSameIp(&orig->address, &test->address));
@@ -379,4 +408,5 @@ int main(int argc, char** argv)
     test_dumpTable();
 
     Allocator_free(alloc);
+    return 0;
 }

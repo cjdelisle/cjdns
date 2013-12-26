@@ -17,11 +17,13 @@
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
+#include "util/Linker.h"
+Linker_require("benc/Dict.c")
 
 struct Dict_Entry;
 struct Dict_Entry {
     struct Dict_Entry* next;
-    const String* key;
+    String* key;
     Object* val;
 };
 
@@ -43,6 +45,13 @@ int32_t Dict_remove(Dict* dictionary, const String* key);
  * @return the number of entries in the dictionary or -1 if the dictionary argument is NULL.
  */
 int32_t Dict_size(const Dict* dictionary);
+
+
+/*----------------------- Walk the Dictionary -----------------------*/
+
+#define Dict_forEach(_dict, _key) \
+    for (struct Dict_Entry* e = *_dict; e && (_key = e->key); e = e->next)
+// CHECKFILES_IGNORE
 
 
 /*----------------------- Dictionary Lookup Functions -----------------------*/

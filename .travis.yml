@@ -1,15 +1,13 @@
-language: C
+language: c
 
 branches:
   only:
     - master
     - stable-0.4
+    - stable-0.5
 
-before_script:
-  - "sudo apt-get install cmake"
-  - "mkdir build && cd build"
-  - "cmake .."
-  - "make"
+compiler:
+  - gcc
 
 script:
-  - "sudo make test"
+  - "bash do"

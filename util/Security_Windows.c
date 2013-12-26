@@ -18,14 +18,11 @@
 
 // lol windows security
 
-void Security_setUser(char* userName, struct Log* logger, struct Except* eh)
+int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
+    return 0;
 }
 
-void Security_noFiles(struct Except* eh)
-{
-}
-
-void Security_maxMemory(unsigned long max, struct Except* eh)
+void Security_dropPermissions(struct Except* eh)
 {
 }

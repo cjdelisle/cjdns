@@ -54,19 +54,17 @@ struct CryptoAuth_pvt
     Identity
 };
 
-/**
- * What the "secret" and "tempKey" fields hold during different stages of the handshake.
- * |  secret  | tempKey |     message     |  secret  | tempKey | encryptedWith
- * |+tmpPvtA  |+tmpPubA | ---- hello ---->|    0     |+tmpPubA | prmPvtA-prmPubB-passA
- * | tmpPvtA  | tmpPubA | --dupe hello -->|    0     | tmpPubA | prmPvtA-prmPubB-passA
- * | tmpPvtA  | tmpPubA | <---- key ----- | +tmpPvtB | tmpPubA | prmPvtB-tmpPubA-passB
- * | tmpPvtA  | tmpPubA | <--dupe key---- |  tmpPvtB | tmpPubA | prmPvtB-tmpPubA-passB
- * | finalSec |    0    | ---- data ----->|+finalSec |    0    | tmpPvtA-tmpPubB
- */
+
 struct CryptoAuth_Wrapper
 {
-    /** The public key of the other node. */
+    /** The public key of the other node, all zeros is taken to mean "don't know" */
     uint8_t herPerminentPubKey[32];
+
+    /**
+     * Bind this CryptoAuth session to the other node's ip6 address,
+     * any packet avertizing a key which doesn't hash to this will be dropped.
+     */
+    uint8_t herIp6[16];
 
     /**
      * If an object was associated with a password and the remote host authed
@@ -75,10 +73,13 @@ struct CryptoAuth_Wrapper
     String* user;
 
     /** The shared secret. */
-    uint8_t secret[32];
+    uint8_t sharedSecret[32];
 
-    /** Used during handshake to hold her public key and my private key at different times. */
-    uint8_t tempKey[32];
+    uint8_t herTempPubKey[32];
+
+    uint8_t ourTempPrivKey[32];
+
+    uint8_t ourTempPubKey[32];
 
     /** An outgoing message which is buffered in the event that a reverse handshake is required. */
     struct Message* bufferedMessage;
@@ -101,11 +102,10 @@ struct CryptoAuth_Wrapper
     /** True if this node began the conversation. */
     bool isInitiator : 1;
 
-    /** If true then the packets sent through this interface must be authenticated. */
-    bool authenticatePackets : 1;
-
     /** If true and the other end is connecting, do not respond until a valid password is sent. */
     bool requireAuth : 1;
+
+    bool established : 1;
 
     /** A pointer back to the main cryptoauth context. */
     struct CryptoAuth_pvt* const context;
@@ -116,7 +116,21 @@ struct CryptoAuth_Wrapper
     /** The interface which this wrapper provides. */
     struct Interface externalInterface;
 
+    /** A name for the wrapper which will appear in logs. */
+    char* name;
+
     Identity
 };
+
+
+uint8_t CryptoAuth_receiveMessage(struct Message* received, struct Interface* interface);
+
+uint8_t CryptoAuth_encryptHandshake(struct Message* message,
+                                    struct CryptoAuth_Wrapper* wrapper,
+                                    int setupMessage);
+
+int CryptoAuth_decryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
+
+void CryptoAuth_encryptRndNonce(uint8_t nonce[24], struct Message* msg, uint8_t secret[32]);
 
 #endif

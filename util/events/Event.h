@@ -18,14 +18,14 @@
 #include "exception/Except.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
-#include "util/platform/Socket.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Event.c")
 
 struct Event
 {
     int unused;
 };
 
-#define Event_socketRead_INTERNAL -1
 struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
                                void* const callbackContext,
                                int s,

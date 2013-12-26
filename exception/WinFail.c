@@ -18,7 +18,7 @@
 #include <windows.h>
 #include <ntstatus.h>
 
-static char* statusString(LONG status)
+char* WinFail_strerror(long status)
 {
     switch (status) {
         case ERROR_SUCCESS:
@@ -3056,5 +3056,10 @@ static char* statusString(LONG status)
 
 void WinFail_fail(struct Except* eh, const char* msg, LONG status)
 {
-    Except_raise(eh, -1, "%s [%s]", msg, statusString(status));
+    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(status));
+}
+
+void WinFail_failWithLastError(struct Except* eh, const char* msg)
+{
+    Except_throw(eh, "%s [%s]", msg, WinFail_strerror(GetLastError()));
 }

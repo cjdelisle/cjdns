@@ -17,6 +17,8 @@
 
 #include "interface/Interface.h"
 #include "wire/Message.h"
+#include "util/Linker.h"
+Linker_require("interface/ICMP6Generator.c")
 
 #include <stdint.h>
 

@@ -36,12 +36,13 @@
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
+#include "test/RootTest.h"
 
 #include <stdlib.h>
 
 // On loan from the DoD, thanks guys.
-const uint8_t testAddrA[4] = {11, 0, 0, 1};
-const uint8_t testAddrB[4] = {11, 0, 0, 2};
+static const uint8_t testAddrA[4] = {11, 0, 0, 1};
+static const uint8_t testAddrB[4] = {11, 0, 0, 2};
 
 /*
  * Setup a UDPAddrInterface and a TUNInterface, test sending traffic between them.
@@ -52,7 +53,7 @@ static int receivedMessageTUNCount = 0;
 static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
 {
     receivedMessageTUNCount++;
-    uint16_t ethertype = TUNMessageType_pop(msg);
+    uint16_t ethertype = TUNMessageType_pop(msg, NULL);
     if (ethertype != Ethernet_TYPE_IP4) {
         printf("Spurious packet with ethertype [%u]\n", Endian_bigEndianToHost16(ethertype));
         return 0;
@@ -68,7 +69,7 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
     Bits_memcpyConst(header->destAddr, testAddrA, 4);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 4);
 
-    TUNMessageType_push(msg, ethertype);
+    TUNMessageType_push(msg, ethertype, NULL);
 
     return iface->sendMessage(msg, iface);
 }
@@ -88,13 +89,13 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_true(!"timeout");
+    Assert_always(!"timeout");
 }
 
 int main(int argc, char** argv)
 {
     // TODO: fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
-    #if defined(Illumos) || defined(Darwin) || defined(FreeBSD) || defined(OpenBSD)
+    #if defined(sunos) || defined(darwin) || defined(freebsd)
         return 0;
     #endif
 
@@ -110,18 +111,18 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 30, logger, NULL);
 
     struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse("0.0.0.0", &ss));
+    Assert_always(!Sockaddr_parse("0.0.0.0", &ss));
     struct AddrInterface* udp = UDPAddrInterface_new(base, &ss.addr, alloc, NULL, logger);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addr;
-    Assert_true(4 == Sockaddr_getAddress(dest, &addr));
+    Assert_always(4 == Sockaddr_getAddress(dest, &addr));
     Bits_memcpy(addr, testAddrB, 4);
 
     struct Message* msg;
     Message_STACK(msg, 0, 64);
-    Message_push(msg, "Hello World", 12);
-    Message_push(msg, dest, dest->addrLen);
+    Message_push(msg, "Hello World", 12, NULL);
+    Message_push(msg, dest, dest->addrLen, NULL);
 
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;
@@ -132,4 +133,5 @@ int main(int argc, char** argv)
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

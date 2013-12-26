@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ArrayWriter.h"
+#include "io/ArrayWriter.h"
 #include "util/Bits.h"
 #include "util/Identity.h"
 

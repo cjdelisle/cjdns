@@ -44,4 +44,6 @@ struct EventBase_pvt
     Identity
 };
 
+struct EventBase_pvt* EventBase_privatize(struct EventBase* base);
+
 #endif

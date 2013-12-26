@@ -22,6 +22,8 @@
 #include "util/Endian.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("crypto/CryptoAuth.c")
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -123,18 +125,19 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
  *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
+ * @param herIp6 the ipv6 address of the other party
  * @param requireAuth if the remote end of this interface begins the connection, require
  *                    them to present valid authentication credentials to connect.
  *                    If this end begins the connection, this parameter has no effect.
- * @param authenticatePackets if true, all packets will be protected against forgery and replay
- *                            attacks, this is a seperate system from password and authType.
+ * @param name a name for this CA which will appear in logs.
  * @param context the CryptoAuth context.
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
+                                           const uint8_t herIp6[16],
                                            const bool requireAuth,
-                                           bool authenticatePackets,
-                                           struct CryptoAuth* context);
+                                           char* name,
+                                           struct CryptoAuth* ca);
 
 /**
  * Choose the authentication credentials to use.
@@ -156,7 +159,6 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 void CryptoAuth_reset(struct Interface* iface);
 
-
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0
 
@@ -171,6 +173,18 @@ void CryptoAuth_reset(struct Interface* iface);
 
 /** The CryptoAuth session has successfully done a handshake and received at least one message. */
 #define CryptoAuth_ESTABLISHED 4
+
+static inline char* CryptoAuth_stateString(int state)
+{
+    switch (state) {
+        case CryptoAuth_NEW:         return "CryptoAuth_NEW";
+        case CryptoAuth_HANDSHAKE1:  return "CryptoAuth_HANDSHAKE1";
+        case CryptoAuth_HANDSHAKE2:  return "CryptoAuth_HANDSHAKE2";
+        case CryptoAuth_HANDSHAKE3:  return "CryptoAuth_HANDSHAKE3";
+        case CryptoAuth_ESTABLISHED: return "CryptoAuth_ESTABLISHED";
+        default: return "INVALID";
+    }
+}
 
 /**
  * Get the state of the CryptoAuth session.

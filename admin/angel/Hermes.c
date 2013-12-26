@@ -14,6 +14,7 @@
  */
 #include "admin/angel/Hermes.h"
 #include "benc/Dict.h"
+#include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "memory/Allocator.h"
@@ -161,7 +162,7 @@ void Hermes_callAngel(Dict* message,
 
     struct Writer* writer = ArrayWriter_new(buff.message, BUFF_SIZE, reqAlloc);
     if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-        Except_raise(eh, Hermes_callAngel_ESERIALIZE, "Failed to serialize message");
+        Except_throw(eh, "Failed to serialize message");
     }
 
     // Remove the txid string so there is not a dangling pointer in the message.
@@ -174,7 +175,7 @@ void Hermes_callAngel(Dict* message,
         .padding = 0
     };
     m->capacity = m->length;
-    Message_shift(m, -PADDING);
+    Message_shift(m, -PADDING, NULL);
 
     Log_debug(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
 
@@ -182,7 +183,7 @@ void Hermes_callAngel(Dict* message,
 
     int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {
-        Except_raise(eh, Hermes_callAngel_ESEND, "Failed to send message to angel [%d]", ret);
+        Except_throw(eh, "Failed to send message to angel [%d]", ret);
     }
 
     // Use interval as defensive programming
