@@ -81,7 +81,7 @@ Builder.configure({
         '-D','PARANOIA=1'
     );
     if (process.env['NO_PIE'] == undefined) {
-        process.config.cflags.push('-fPIE')
+        builder.config.cflags.push('-fPIE')
     }
     if (process.env['EXPERIMENTAL_PATHFINDER']) {
         console.log("Building with experimental pathfinder");
