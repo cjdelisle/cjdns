@@ -100,6 +100,15 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
                                                                struct SessionManager* sm);
 
 /**
+ * Get the IPv6 address for a session.
+ *
+ * @param handle the handle for the session
+ * @param sm the session manager
+ * @return a binary ipv6 address or NULL.
+ */
+uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm);
+
+/**
  * Get the list of all handles.
  */
 struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,

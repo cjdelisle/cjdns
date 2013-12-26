@@ -91,6 +91,7 @@ static void cleanup(void* vsm)
 
 static void check(struct SessionManager* sm, int mapIndex)
 {
+    Assert_always(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
     uint8_t* herPubKey = CryptoAuth_getHerPublicKey(&sm->ifaceMap.values[mapIndex].iface);
     if (!Bits_isZero(herPubKey, 32)) {
         uint8_t ip6[16];
@@ -164,6 +165,14 @@ struct SessionManager_Session* SessionManager_sessionForHandle(uint32_t handle,
     if (index < 0) { return NULL; }
     check(sm, index);
     return &sm->ifaceMap.values[index];
+}
+
+uint8_t* SessionManager_getIp6(uint32_t handle, struct SessionManager* sm)
+{
+    int index = Map_OfSessionsByIp6_indexForHandle(handle - sm->first, &sm->ifaceMap);
+    if (index < 0) { return NULL; }
+    check(sm, index);
+    return sm->ifaceMap.keys[index].bytes;
 }
 
 struct SessionManager_HandleList* SessionManager_getHandleList(struct SessionManager* sm,

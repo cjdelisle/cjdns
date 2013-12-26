@@ -59,15 +59,17 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     Allocator_free(alloc);
 }
 
-static void sessionStats2(Dict* args,
-                          struct Context* context,
-                          struct Allocator* alloc,
-                          String* txid)
+static void sessionStats(Dict* args,
+                         void* vcontext,
+                         String* txid,
+                         struct Allocator* alloc)
 {
+    struct Context* context = vcontext;
     int64_t* handleP = Dict_getInt(args, String_CONST("handle"));
     uint32_t handle = *handleP;
 
     struct SessionManager_Session* session = SessionManager_sessionForHandle(handle, context->sm);
+    uint8_t* ip6 = SessionManager_getIp6(handle, context->sm);
 
     Dict* r = Dict_new(alloc);
     if (!session) {
@@ -75,6 +77,18 @@ static void sessionStats2(Dict* args,
         Admin_sendMessage(r, txid, context->admin);
         return;
     }
+    // both or neither
+    Assert_always(ip6);
+
+    uint8_t printedAddr[40];
+    AddrTools_printIp(printedAddr, ip6);
+    Dict_putString(r, String_CONST("ip6"), String_new(printedAddr, alloc), alloc);
+
+    int state = CryptoAuth_getState(&session->iface);
+    Dict_putString(r,
+                   String_CONST("state"),
+                   String_new(CryptoAuth_stateString(state), alloc),
+                   alloc);
 
     struct ReplayProtector* rp = CryptoAuth_getReplayProtector(&session->iface);
     Dict_putInt(r, String_CONST("duplicates"), rp->duplicates, alloc);
@@ -91,14 +105,6 @@ static void sessionStats2(Dict* args,
                 Endian_bigEndianToHost32(session->sendHandle_be), alloc);
     Admin_sendMessage(r, txid, context->admin);
     return;
-}
-
-static void sessionStats(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* context = vcontext;
-    struct Allocator* alloc = Allocator_child(context->alloc);
-    sessionStats2(args, context, alloc, txid);
-    Allocator_free(alloc);
 }
 
 void SessionManager_admin_register(struct SessionManager* sm,
