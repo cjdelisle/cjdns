@@ -177,8 +177,9 @@ Builder.configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(BUILDDIR+'/dependencies/libuv/');
-            var args = ['-j', WORKERS, 'CFLAGS=-fPIC', 'CC='+builder.config.gcc]
+            var args = ['-j', WORKERS, 'CC='+builder.config.gcc]
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
+            if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
             var make = Spawn('make', args);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
