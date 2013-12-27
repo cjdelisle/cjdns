@@ -1123,7 +1123,7 @@ struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
         if (collector->nodes[i].node != NULL
             && !Bits_memcmp(collector->nodes[i].body->address.ip6.bytes, address->ip6.bytes, 16))
         {
-            out->nodes[outIndex] = collector->nodes[i].body;
+            out->nodes[outIndex] = Allocator_clone(allocator, collector->nodes[i].body);
             Assert_true(out->nodes[outIndex]->address.path != 0);
             outIndex++;
         }
