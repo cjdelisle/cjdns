@@ -12,6 +12,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
+MARCH=`echo $(uname -m) | sed "s/i./x/g"`
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
@@ -32,34 +33,29 @@ getNode()
 {
     echo "Installing node.js"
     echo "You can bypass this step by manually installing node.js ${NODE_MIN_VER} or newer"
-    `uname -a | grep 'x86_64' >/dev/null 2>/dev/null` && IS_64=1 || IS_64=0
-    if [ "${PLATFORM}" = "linux" ]; then
-        if [ ${IS_64} = 1 ]; then
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x64.tar.gz"
-            NODE_SHA="6ef93f4a5b53cdd4471786dfc488ba9977cb3944285ed233f70c508b50f0cb5f"
-        else
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
-            NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
-        fi
-    elif [ "${PLATFORM}" = "darwin" ]; then
-        if [ ${IS_64} = 1 ]; then
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x64.tar.gz"
-            NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
-        else
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x86.tar.gz"
-            NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
-        fi
-    elif [ "${PLATFORM}" = "sunos" ]; then
-        if [ ${IS_64} = 1 ]; then
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x64.tar.gz"
-            NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
-        else
-            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
-            NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
-        fi
+    if [ "${PLATFORM}-${MARCH}" = "linux-x86_64" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x64.tar.gz"
+        NODE_SHA="6ef93f4a5b53cdd4471786dfc488ba9977cb3944285ed233f70c508b50f0cb5f"
+    elif [ "${PLATFORM}-${MARCH}" = "linux-x86" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
+        NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
+    elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x64.tar.gz"
+        NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
+    elif [ "${PLATFORM}-${MARCH}" = "darwin-x86" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x86.tar.gz"
+        NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
+    elif [ "${PLATFORM}-${MARCH}" = "sunos-x86_64" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x64.tar.gz"
+        NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
+    elif [ "${PLATFORM}-${MARCH}" = "sunos-x86" ]; then
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
+        NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
     else
-        echo "No nodejs executable available for ${PLATFORM}"
-        exit 1;
+        echo "No nodejs executable available for ${PLATFORM}-${MARCH}"
+        echo -n "Please install nodejs (>= ${NODE_MIN_VER}) from "
+        echo "your distribution package repository or from source."
+        exit 1
     fi
 
     origDir=`pwd`
