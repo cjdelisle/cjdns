@@ -219,8 +219,14 @@ static void handleEvent(void* vcontext)
 {
     struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
 
-    struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
+    struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
+    struct Message message = {
+        .bytes = context->messageBuff + PADDING,
+        .padding = PADDING,
+        .length = MAX_PACKET_SIZE,
+        .capacity = MAX_PACKET_SIZE,
+        .alloc = messageAlloc
+    };
 
     struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);
@@ -265,6 +271,8 @@ static void handleEvent(void* vcontext)
     */
 
     context->generic.receiveMessage(&message, &context->generic);
+
+    Allocator_free(messageAlloc);
 }
 
 int ETHInterface_beginConnection(const char* macAddress,
