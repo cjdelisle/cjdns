@@ -219,19 +219,19 @@ static void handleEvent(void* vcontext)
 {
     struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
 
-    struct Message message =
-        { .bytes = context->messageBuff + PADDING, .padding = PADDING, .length = MAX_PACKET_SIZE };
+    struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
+    struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
 
     struct sockaddr_ll addr;
     uint32_t addrLen = sizeof(struct sockaddr_ll);
 
     // Knock it out of alignment by 2 bytes so that it will be
     // aligned when the idAndPadding is shifted off.
-    Message_shift(&message, 2, NULL);
+    Message_shift(msg, 2, NULL);
 
     int rc = recvfrom(context->socket,
-                      message.bytes,
-                      message.length,
+                      msg->bytes,
+                      msg->length,
                       0,
                       (struct sockaddr*) &addr,
                       &addrLen);
@@ -245,16 +245,16 @@ static void handleEvent(void* vcontext)
 
     // Pop the first 2 bytes of the message containing the node id and amount of padding.
     uint16_t idAndPadding_be;
-    Message_pop(&message, &idAndPadding_be, 2, NULL);
+    Message_pop(msg, &idAndPadding_be, 2, NULL);
 
     const uint16_t idAndPadding = Endian_bigEndianToHost16(idAndPadding_be);
-    message.length = rc - 2 - ((idAndPadding & 7) * 8);
+    msg->length = rc - 2 - ((idAndPadding & 7) * 8);
     const uint16_t id = idAndPadding >> 3;
-    Message_push(&message, &id, 2, NULL);
-    Message_push(&message, addr.sll_addr, 6, NULL);
+    Message_push(msg, &id, 2, NULL);
+    Message_push(msg, addr.sll_addr, 6, NULL);
 
     if (addr.sll_pkttype == PACKET_BROADCAST) {
-        handleBeacon(&message, context);
+        handleBeacon(msg, context);
         return;
     }
 
@@ -264,7 +264,9 @@ static void handleEvent(void* vcontext)
     Log_debug(context->logger, "Got ethernet frame from [%s]", buff);
     */
 
-    context->generic.receiveMessage(&message, &context->generic);
+    Interface_receiveMessage(&context->generic, msg);
+
+    Allocator_free(messageAlloc);
 }
 
 int ETHInterface_beginConnection(const char* macAddress,
