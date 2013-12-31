@@ -27,7 +27,7 @@ union MessageLength
     uint8_t bytes[4];
 };
 
-uint8_t messageOut(struct Message* msg, struct Interface* iface)
+static uint8_t messageOut(struct Message* msg, struct Interface* iface)
 {
     struct Message** msgPtr = iface->receiverContext;
     Allocator_adopt((*msgPtr)->alloc, msg->alloc);
@@ -35,7 +35,7 @@ uint8_t messageOut(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
+static void send(struct Interface* sendTo, struct Message* toSend, struct Allocator* cloneWith)
 {
     struct Allocator* child = Allocator_child(cloneWith);
     toSend = Message_clone(toSend, child);
@@ -53,7 +53,7 @@ int main()
     fi->receiverContext = &output;
 
     char* text = "Hello World!";
-    Assert_true(12 == strlen(text));
+    Assert_always(12 == strlen(text));
     union MessageLength ml = { .length_be = Endian_hostToBigEndian32(12) };
 
     struct Message* msg;
@@ -61,15 +61,15 @@ int main()
     {
         // first 2 bytes of length
         Message_STACK(msg, 0, 2);
-        Message_push(msg, ml.bytes, 2);
+        Message_push(msg, ml.bytes, 2, NULL);
         send(&dummy, msg, alloc);
     }
 
     {
         // last 2 bytes of length and first 5 bytes of message "Hello"
         Message_STACK(msg, 0, 7);
-        Message_push(msg, text, 5);
-        Message_push(msg, &ml.bytes[2], 2);
+        Message_push(msg, text, 5, NULL);
+        Message_push(msg, &ml.bytes[2], 2, NULL);
         send(&dummy, msg, alloc);
     }
 
@@ -80,8 +80,8 @@ int main()
     {
         // last 7 bytes of message " World!" and first byte of length of second message.
         Message_STACK(msg, 0, 8);
-        Message_push(msg, ml.bytes, 1);
-        Message_push(msg, &text[5], 7);
+        Message_push(msg, ml.bytes, 1, NULL);
+        Message_push(msg, &text[5], 7, NULL);
         send(&dummy, msg, alloc);
     }
 
@@ -95,8 +95,8 @@ int main()
     {
         // Send last 3 bytes of length and entire message.
         Message_STACK(msg, 0, 15);
-        Message_push(msg, text, 12);
-        Message_push(msg, &ml.bytes[1], 3);
+        Message_push(msg, text, 12, NULL);
+        Message_push(msg, &ml.bytes[1], 3, NULL);
         send(&dummy, msg, alloc);
     }
 

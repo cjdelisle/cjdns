@@ -20,8 +20,9 @@
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
 #include "util/platform/Sockaddr.h"
-
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/testframework/AdminTestFramework.c")
 
 struct AdminTestFramework
 {
@@ -34,6 +35,6 @@ struct AdminTestFramework
     struct Interface* angelInterface;
 };
 
-struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv);
+struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char* testName);
 void AdminTestFramework_tearDown(struct AdminTestFramework* framework);
 #endif

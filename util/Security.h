@@ -17,15 +17,17 @@
 
 #include "exception/Except.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+#ifdef win32
+    Linker_require("util/Security_Windows.c")
+#else
+    Linker_require("util/Security.c")
+#endif
 
-#define Security_setUser_NO_SUCH_USER -1
-#define Security_setUser_PERMISSION -2
-#define Security_setUser_INTERNAL -3
+/** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
+#define Security_setUser_PERMISSION -1
+int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
-void Security_setUser(char* userName, struct Log* logger, struct Except* eh);
-
-void Security_noFiles(struct Except* eh);
-
-void Security_maxMemory(unsigned long maxMemory, struct Except* eh);
+void Security_dropPermissions(struct Except* eh);
 
 #endif

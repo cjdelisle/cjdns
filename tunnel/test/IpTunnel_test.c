@@ -36,13 +36,13 @@ static uint8_t nodeCjdnsIp6[16];
 static uint8_t* fakeIp6ToGive = (uint8_t*) "\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1";
 static int called = 0;
 
-uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
+static uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
 {
     struct IpTunnel_PacketInfoHeader* pi = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Assert_always(!Bits_memcmp(nodeCjdnsIp6, pi->nodeIp6Addr, 16));
     Assert_always(!Bits_memcmp(fakePubKey, pi->nodeKey, 32));
 
-    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE);
+    Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
     Assert_always(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
@@ -50,14 +50,15 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
     Assert_always(ip->nextHeader == 17);
     Assert_always(Bits_isZero(ip->sourceAddr, 32));
 
-    Message_shift(message, -Headers_IP6Header_SIZE);
+    Message_shift(message, -Headers_IP6Header_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
     Assert_always(!Checksum_udpIp6(ip->sourceAddr, message->bytes, length));
 
-    Assert_always(uh->sourceAndDestPorts == 0);
+    Assert_always(uh->srcPort_be == 0);
+    Assert_always(uh->destPort_be == 0);
     Assert_always(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
 
-    Message_shift(message, -Headers_UDPHeader_SIZE);
+    Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
     char* expectedResponse =
         "d"
           "9:addresses" "d"
@@ -71,9 +72,9 @@ uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
     return 0;
 }
 
-uint8_t messageToTun(struct Message* message, struct Interface* iface)
+static uint8_t messageToTun(struct Message* message, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(message) == Ethernet_TYPE_IP6);
+    Assert_always(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
     Assert_always(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
@@ -100,6 +101,7 @@ int main()
 
     struct Message* message;
     Message_STACK(message, 64, 512);
+    message->alloc = alloc;
 
     const char* requestForAddresses =
         "d"
@@ -109,16 +111,17 @@ int main()
     strcpy((char*)message->bytes, requestForAddresses);
     message->length = strlen(requestForAddresses);
 
-    Message_shift(message, Headers_UDPHeader_SIZE);
+    Message_shift(message, Headers_UDPHeader_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
 
-    uh->sourceAndDestPorts = 0;
+    uh->srcPort_be = 0;
+    uh->destPort_be = 0;
     uh->length_be = Endian_hostToBigEndian16(message->length - Headers_UDPHeader_SIZE);
     uint16_t* checksum = &uh->checksum_be;
     *checksum = 0;
     uint32_t length = message->length;
 
-    Message_shift(message, Headers_IP6Header_SIZE);
+    Message_shift(message, Headers_IP6Header_SIZE, NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
 
     ip->versionClassAndFlowLabel = 0;
@@ -129,7 +132,7 @@ int main()
     Bits_memset(ip->sourceAddr, 0, 32);
     Headers_setIpVersion(ip);
 
-    Message_shift(message, IpTunnel_PacketInfoHeader_SIZE);
+    Message_shift(message, IpTunnel_PacketInfoHeader_SIZE, NULL);
     struct IpTunnel_PacketInfoHeader* pi = (struct IpTunnel_PacketInfoHeader*) message->bytes;
 
     Bits_memcpyConst(pi->nodeIp6Addr, nodeCjdnsIp6, 16);
@@ -146,14 +149,16 @@ int main()
     Message_shift(message,
         Headers_UDPHeader_SIZE
         + Headers_IP6Header_SIZE
-        + IpTunnel_PacketInfoHeader_SIZE);
+        + IpTunnel_PacketInfoHeader_SIZE,
+        NULL);
     Bits_memcpyConst(ip->sourceAddr, fakeIp6ToGive, 16);
     // This can't be zero.
     Bits_memset(ip->destinationAddr, 1, 16);
 
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_true(called);
+    Assert_always(called);
 
     Allocator_free(alloc);
+    return 0;
 }

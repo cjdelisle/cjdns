@@ -12,7 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#ifndef win32
+int main(int argc, char** argv)
+{
+    return 0;
+}
+#else
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/windows/NDPServer.h"
 #include "exception/Except.h"
@@ -27,7 +32,7 @@
 #include "util/platform/Sockaddr.h"
 #include "util/platform/netdev/NetDev.h"
 
-uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
+static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct Allocator* alloc = iface->receiverContext;
     if (msg->length < 20) {
@@ -35,18 +40,18 @@ uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return 0;
     }
     // ethernet padding.
-    Message_shift(msg, -2);
+    Message_shift(msg, -2, NULL);
 
     uint8_t from[13];
     uint8_t to[13];
     Hex_encode(from, 13, msg->bytes, 6);
-    Message_shift(msg, -6);
+    Message_shift(msg, -6, NULL);
     Hex_encode(to, 13, msg->bytes, 6);
-    Message_shift(msg, -6);
+    Message_shift(msg, -6, NULL);
 
     uint8_t type[5];
     Hex_encode(type, 5, msg->bytes, 2);
-    Message_shift(msg, -2);
+    Message_shift(msg, -2, NULL);
 
     int subsubtype = -1;
     int subtype = -1;
@@ -59,9 +64,12 @@ uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
           subsubtype = msg->bytes[40];
         }
     } else if (!Bits_memcmp(type, "0800", 4)) {
+return 0;
         Bits_memcpyConst(type, "ipv4", 5);
         subtype = msg->bytes[9];
 //        typeCode = 4;
+    } else {
+return 0;
     }
 //       6000000000183aff0000000000000000000000000000000fff0200000000000000000001ff000018 870
 //6000000000201101fd000000000000000000000000000001ff020000000000000000000000010003 eee914...
@@ -86,14 +94,14 @@ uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
-void fail(void* vAlloc)
+static void fail(void* vAlloc)
 {
 printf("Test failed\n");
     struct Allocator* alloc = vAlloc;
     Allocator_free(alloc);
 }
 
-int main()
+int main(int argc, char** argv)
 {
 printf("init test");
     struct Allocator* alloc = MallocAllocator_new(1<<20);
@@ -102,16 +110,20 @@ printf("init test");
 
     char* ifName;
     struct Interface* iface = TAPInterface_new(NULL, &ifName, NULL, logger, base, alloc);
-    iface = NDPServer_new(iface, alloc);
-    iface->receiveMessage = receiveMessage;
-    iface->receiverContext = alloc;
+    struct NDPServer* ndp = NDPServer_new(iface, alloc);
+    ndp->generic.receiveMessage = receiveMessage;
+    ndp->generic.receiverContext = alloc;
+    ndp->advertisePrefix[0] = 0xfd;
+    ndp->prefixLen = 8;
 
     struct Sockaddr_storage ss;
-    Assert_true(!Sockaddr_parse("fd00::1", &ss));
+    Assert_always(!Sockaddr_parse("fd00::1", &ss));
     NetDev_addAddress(ifName, &ss.addr, 8, logger, NULL);
 
     Timeout_setTimeout(fail, alloc, 10000, base, alloc);
 
     EventBase_beginLoop(base);
 printf("Test ended\n");
+    return 0;
 }
+#endif

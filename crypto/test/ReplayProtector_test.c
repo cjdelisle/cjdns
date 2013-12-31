@@ -14,22 +14,19 @@
  */
 #include "crypto/ReplayProtector.h"
 #include "crypto/random/Random.h"
-#include "memory/BufferAllocator.h"
+#include "memory/MallocAllocator.h"
 
 #include "util/Assert.h"
 #include <stdint.h>
 #include <stddef.h>
 
-int main()
+#define CYCLES 1
+
+static void testDuplicates(struct Random* rand)
 {
     uint16_t randomShorts[8192];
     uint16_t out[8192];
-    struct ReplayProtector rp = {0,0};
-
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
-
-    struct Random* rand = Random_new(alloc, NULL, NULL);
+    struct ReplayProtector rp = {.bitfield = 0};
 
     Random_bytes(rand, (uint8_t*)randomShorts, sizeof(randomShorts));
 
@@ -46,6 +43,14 @@ int main()
             Assert_always(out[i] != out[j]);
         }
     }
+}
 
+int main()
+{
+    struct Allocator* alloc = MallocAllocator_new(4096);
+    struct Random* rand = Random_new(alloc, NULL, NULL);
+    for (int i = 0; i < CYCLES; i++) {
+        testDuplicates(rand);
+    }
     return 0;
 }

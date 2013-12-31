@@ -45,7 +45,7 @@ enum Ducttape_SessionLayer {
 struct Ducttape_pvt
 {
     /** the public fields. */
-    struct Ducttape public;
+    struct Ducttape pub;
 
     /** The network module for the DHT. */
     struct DHTModule module;
@@ -56,11 +56,16 @@ struct Ducttape_pvt
     /** The DHT router module. */
     struct RouterModule* routerModule;
 
+    struct SearchRunner* searchRunner;
+
     /** The interface which interacts with the switch core. */
     struct Interface switchInterface;
 
     /** The interface which is used by the operator of the node to communicate in the network. */
     struct Interface* userIf;
+
+    /** An interface which receives messages that are sent to fc00::1 from the TUN. */
+    struct Interface magicInterface;
 
     struct Address myAddr;
 

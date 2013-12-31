@@ -72,7 +72,7 @@ static void adminPingOnResponse(enum SwitchPinger_Result result,
     Admin_sendMessage(&response, ping->txid, ping->context->admin);
 }
 
-static void adminPing(Dict* args, void* vcontext, String* txid)
+static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     String* pathStr = Dict_getString(args, String_CONST("path"));

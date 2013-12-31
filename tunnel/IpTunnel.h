@@ -22,6 +22,8 @@
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/platform/Sockaddr.h"
+#include "util/Linker.h"
+Linker_require("tunnel/IpTunnel.c")
 
 #include <stdint.h>
 

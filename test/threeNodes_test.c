@@ -33,26 +33,28 @@
 #define TUNC 3
 #define TUNB 2
 #define TUNA 1
-uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
+static uint8_t incomingTunC(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node C [%s] [%d]\n", msg->bytes, msg->length);
     *((int*)iface->senderContext) = TUNC;
     return 0;
 }
-uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
+
+static uint8_t incomingTunB(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     printf("Message from TUN in node B [%s]\n", msg->bytes);
     *((int*)iface->senderContext) = TUNB;
     return 0;
 }
-uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
+
+static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
 {
-    Assert_true(TUNMessageType_pop(msg) == Ethernet_TYPE_IP6);
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Assert_always(TUNMessageType_pop(msg, NULL) == Ethernet_TYPE_IP6);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
     uint8_t buff[1024];
     Hex_encode(buff, 1024, msg->bytes, msg->length);
     printf("Message from TUN in node A [%s] [%d] [%s]\n", msg->bytes, msg->length, buff);
@@ -139,10 +141,10 @@ static struct ThreeNodes* setUp(struct Allocator* alloc)
     return out;
 }
 
-void sendMessage(struct ThreeNodes* tn,
-                 char* message,
-                 struct TestFramework* from,
-                 struct TestFramework* to)
+static void sendMessage(struct ThreeNodes* tn,
+                        char* message,
+                        struct TestFramework* from,
+                        struct TestFramework* to)
 {
     struct Message* msg;
     Message_STACK(msg, 64, 512);
@@ -166,7 +168,7 @@ void sendMessage(struct ThreeNodes* tn,
         Assert_always(false);
     }
 
-    TUNMessageType_push(msg, Ethernet_TYPE_IP6);
+    TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
     fromIf->receiveMessage(msg, fromIf);
 
     if (to == tn->nodeA) {
@@ -208,4 +210,5 @@ int main()
     sendMessage(tn, "establish", tn->nodeA, tn->nodeC);
 
     Allocator_free(alloc);
+    return 0;
 }

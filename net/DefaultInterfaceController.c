@@ -193,7 +193,13 @@ static void pingCallback(void* vic)
     // scan for endpoints have not sent anything recently.
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
         struct IFCPeer* ep = ic->peerMap.values[i];
-        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+
+        // This is here because of a pathological state where the connection is in ESTABLISHED
+        // state but the *direct peer* has somehow been dropped from the routing table.
+        // TODO: understand the cause of this issue rather than checking for it once per second.
+        struct Node* peerNode = RouterModule_getNode(ep->switchLabel, ic->routerModule);
+
+        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds || !peerNode) {
             #ifdef Log_DEBUG
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
@@ -212,10 +218,14 @@ static void pingCallback(void* vic)
             bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
             uint32_t lag = ~0u;
             if (unresponsive) {
+                // flush the peer from the table...
+                RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+
                 // Lets skip 87% of pings when they're really down.
                 if (ic->pingCount % 8) {
                     continue;
                 }
+
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
                 lag = ((now - ep->timeOfLastMessage) / 1024);
             } else {
@@ -286,7 +296,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
             if (msg->length < 8 || msg->bytes[7] != 1) {
-                Log_info(ic->logger, "Dropping message because CA is not established.");
+                Log_info(ic->logger, "DROP message because CA is not established.");
                 return Error_NONE;
             } else {
                 // When a "server" gets a new connection from a "client" the router doesn't
@@ -322,14 +332,6 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
     ep->bytesOut += msg->length;
 
-    // This sucks but cryptoauth trashes the content when it encrypts
-    // and we need to be capable of sending back a coherent error message.
-    uint8_t top[255];
-    uint8_t* messageBytes = msg->bytes;
-    uint16_t padding = msg->padding;
-    uint16_t len = (msg->length < 255) ? msg->length : 255;
-    Bits_memcpy(top, msg->bytes, len);
-
     struct Context* ic = ifcontrollerForPeer(ep);
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
@@ -346,13 +348,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     }
 
     // If this node is unresponsive then return an error.
-    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds)
-    {
-        msg->bytes = messageBytes;
-        msg->padding = padding;
-        msg->length = len;
-        Bits_memcpy(msg->bytes, top, len);
-
+    if (ret || now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
         return ret ? ret : Error_UNDELIVERABLE;
     } else {
         /* Way way way too much noise
@@ -369,6 +365,9 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) job->userData);
 
     struct Context* ic = ifcontrollerForPeer(toClose);
+
+    // flush the peer from the table...
+    RouterModule_brokenPath(toClose->switchLabel, ic->routerModule);
 
     int index = Map_OfIFCPeerByExernalIf_indexForHandle(toClose->handle, &ic->peerMap);
     Assert_true(index >= 0);
@@ -399,6 +398,13 @@ static int registerPeer(struct InterfaceController* ifController,
         if (!AddressCalc_validAddress(ip6)) {
             return InterfaceController_registerPeer_BAD_KEY;
         }
+
+        if (!Bits_memcmp(ic->ca->publicKey, herPublicKey, 32)) {
+            // can't link with yourself, wiseguy
+            return InterfaceController_registerPeer_BAD_KEY;
+        }
+    } else {
+        Assert_always(requireAuth);
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;
@@ -418,8 +424,12 @@ static int registerPeer(struct InterfaceController* ifController,
         ep->state = InterfaceController_PeerState_HANDSHAKE;
     }
 
-    ep->cryptoAuthIf =
-        CryptoAuth_wrapInterface(externalInterface, herPublicKey, requireAuth, true, ic->ca);
+    ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
+                                                herPublicKey,
+                                                NULL,
+                                                requireAuth,
+                                                "outer",
+                                                ic->ca);
 
     ep->cryptoAuthIf->receiveMessage = receivedAfterCryptoAuth;
     ep->cryptoAuthIf->receiverContext = ep;
@@ -484,8 +494,8 @@ static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beaco
 }
 
 static int getPeerStats(struct InterfaceController* ifController,
-                 struct Allocator* alloc,
-                 struct InterfaceController_peerStats** statsOut)
+                        struct Allocator* alloc,
+                        struct InterfaceController_peerStats** statsOut)
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
     int count = ic->peerMap.count;
@@ -506,6 +516,10 @@ static int getPeerStats(struct InterfaceController* ifController,
         if (s->isIncomingConnection) {
             s->user = CryptoAuth_getUser(peer->cryptoAuthIf);
         }
+        struct ReplayProtector* rp = CryptoAuth_getReplayProtector(peer->cryptoAuthIf);
+        s->duplicates = rp->duplicates;
+        s->lostPackets = rp->lostPackets;
+        s->receivedOutOfRange = rp->receivedOutOfRange;
     }
 
     *statsOut = stats;

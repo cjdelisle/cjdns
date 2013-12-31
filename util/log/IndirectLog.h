@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("util/log/IndirectLog.c")
 
 struct Log* IndirectLog_new(struct Allocator* alloc);
 

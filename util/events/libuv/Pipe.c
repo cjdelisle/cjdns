@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "util/platform/libc/strlen.h"
@@ -22,7 +23,6 @@
 #include "wire/Message.h"
 #include "wire/Error.h"
 
-#include <uv.h>
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -158,16 +158,14 @@ static void onClose(uv_handle_t* handle)
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
     if (pipe->closeHandlesOnFree && !pipe->server.data && !pipe->peer.data) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
     }
 }
 
 #if Pipe_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
+#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
@@ -177,7 +175,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
     pipe->isInCallback = 1;
 
-    Assert_true(!alloc || alloc->free == pipe->alloc->free);
+    Assert_true(!alloc || alloc->fileName == pipe->alloc->fileName);
 
     if (nread < 0) {
         if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
@@ -210,9 +208,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 
     pipe->isInCallback = 0;
     if (pipe->blockFreeInsideCallback) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->blockFreeInsideCallback);
     }
 }
 
@@ -294,7 +290,7 @@ static void listenCallback(uv_stream_t* server, int status)
 
     uv_close((uv_handle_t*) &pipe->server, onClose);
 
-    #ifndef Windows
+    #ifndef win32
         // get rid of the pipe after it has been connected.
         uv_fs_t req;
         uv_fs_unlink(pipe->peer.loop, &req, pipe->pub.fullName, NULL);
@@ -335,10 +331,10 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
                                 struct Except* eh,
                                 struct Allocator* userAlloc)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
     struct Allocator* alloc = Allocator_child(userAlloc);
 
-    #ifdef Windows
+    #ifdef win32
         #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
     #else
         #define PREFIX "/tmp/cjdns_pipe_"
@@ -362,10 +358,10 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
     }));
 
     if (uv_pipe_init(ctx->loop, &out->peer, 0) || uv_pipe_init(ctx->loop, &out->server, 0)) {
-        Except_raise(eh, -1, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
     }
 
-    #ifdef Windows
+    #ifdef win32
         out->pub.fd = &out->peer.handle;
     #else
         out->pub.fd = &out->peer.io_watcher.fd;
@@ -392,17 +388,17 @@ struct Pipe* Pipe_forFiles(int inFd,
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
     struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
 
     if (uv_pipe_open(&out->peer, inFd)) {
-        Except_raise(eh, -1, "uv_pipe_open(inFd) failed [%s]",
+        Except_throw(eh, "uv_pipe_open(inFd) failed [%s]",
                      uv_err_name(uv_last_error(ctx->loop)));
     }
 
     if (inFd != outFd) {
         out->out = &out->server;
         if (uv_pipe_open(out->out, outFd)) {
-            Except_raise(eh, -1, "uv_pipe_open(outFd) failed [%s]",
+            Except_throw(eh, "uv_pipe_open(outFd) failed [%s]",
                          uv_err_name(uv_last_error(ctx->loop)));
         }
     }
@@ -419,12 +415,12 @@ struct Pipe* Pipe_named(const char* name,
                         struct Allocator* userAlloc)
 {
     struct Pipe_pvt* out = newPipe(eb, name, eh, userAlloc);
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eb);
+    struct EventBase_pvt* ctx = EventBase_privatize(eb);
 
     // Attempt to create pipe.
     if (!uv_pipe_bind(&out->server, out->pub.fullName)) {
         if (uv_listen((uv_stream_t*) &out->server, 1, listenCallback)) {
-            Except_raise(eh, -1, "uv_listen() failed [%s] for pipe [%s]",
+            Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
                          uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
         }
         return &out->pub;
@@ -438,7 +434,7 @@ struct Pipe* Pipe_named(const char* name,
         return &out->pub;
     }
 
-    Except_raise(eh, -1, "uv_pipe_bind() failed [%s] for pipe [%s]",
+    Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
                  uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
 
     return &out->pub;

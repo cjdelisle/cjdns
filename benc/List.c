@@ -14,6 +14,8 @@
  */
 #include "memory/Allocator.h"
 #include "benc/List.h"
+#include "benc/Dict.h"
+#include "benc/String.h"
 
 #include <stddef.h>
 

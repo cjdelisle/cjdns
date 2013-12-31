@@ -61,6 +61,11 @@ struct InterfaceController_peerStats
     uint64_t switchLabel;
     bool isIncomingConnection;
     String* user;
+
+    /** Packet loss/duplication statistics. see: ReplayProtector */
+    uint32_t duplicates;
+    uint32_t lostPackets;
+    uint32_t receivedOutOfRange;
 };
 
 struct InterfaceController

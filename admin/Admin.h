@@ -22,10 +22,13 @@
 #include "util/log/Log.h"
 #include "util/UniqueName.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/Admin.c")
 
 #include <stdbool.h>
 
-#define Admin_FUNCTION(name) void (* name)(Dict* input, void* context, String* txid)
+typedef void (* Admin_Function)
+    (Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc);
 
 struct Admin;
 
@@ -52,7 +55,7 @@ struct Admin_FunctionArg
  *                }), admin);
  */
 void Admin_registerFunctionWithArgCount(char* name,
-                                        Admin_FUNCTION(callback),
+                                        Admin_Function callback,
                                         void* callbackContext,
                                         bool needsAuth,
                                         struct Admin_FunctionArg* arguments,

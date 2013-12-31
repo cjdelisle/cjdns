@@ -11,62 +11,99 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-CMAKE_DOWNLOAD=http://www.cmake.org/files/v2.8/cmake-2.8.11.2.tar.gz
-CMAKE_SHA256=b32acb483afdd14339941c6e4ec25f633d916a7a472653a0b00838771a6c0562
+PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
+BUILDDIR="build_${PLATFORM}"
+NODE_MIN_VER="v0.8.15"
 
-[ `dirname $0` ] && cd `dirname $0`
+hasOkNode()
+{
+    NODE=`which node`
+    if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
+        NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
+    fi
+    [[ "${NODE}" == "" ]] && return 1;
+    [ `${NODE} -v | sed 's/[^[0-9]/0000/g'` -ge \
+      `echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'` ] && return 0
+    echo "You have a version of node but it is too old";
+    return 1
+}
+
+getNode()
+{
+    echo "Installing node.js"
+    echo "You can bypass this step by manually installing node.js ${NODE_MIN_VER} or newer"
+    `uname -a | grep 'x86_64' >/dev/null 2>/dev/null` && IS_64=1 || IS_64=0
+    if [ "${PLATFORM}" = "linux" ]; then
+        if [ ${IS_64} = 1 ]; then
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x64.tar.gz"
+            NODE_SHA="6ef93f4a5b53cdd4471786dfc488ba9977cb3944285ed233f70c508b50f0cb5f"
+        else
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
+            NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
+        fi
+    elif [ "${PLATFORM}" = "darwin" ]; then
+        if [ ${IS_64} = 1 ]; then
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x64.tar.gz"
+            NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
+        else
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x86.tar.gz"
+            NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
+        fi
+    elif [ "${PLATFORM}" = "sunos" ]; then
+        if [ ${IS_64} = 1 ]; then
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x64.tar.gz"
+            NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
+        else
+            NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
+            NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
+        fi
+    else
+        echo "No nodejs executable available for ${PLATFORM}"
+        exit 1;
+    fi
+
+    origDir=`pwd`
+    [ -d "${BUILDDIR}/nodejs" ] && rm -r "${BUILDDIR}/nodejs"
+    mkdir -p "${BUILDDIR}/nodejs"
+    cd "${BUILDDIR}/nodejs"
+
+    APP=`which wget || which curl || echo 'none'`
+    [ "$APP" = 'none' ] && echo 'Need wget or curl' && exit 1;
+    [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
+    [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+
+    ${SHA256SUM} ./*.tar.gz | grep ${NODE_SHA} || exit 1
+    tar -xzf *.tar.gz
+    find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
+    cd $origDir
+    hasOkNode && return 0;
+    return 1;
+}
+
+die() {
+    echo "ERROR: $1"
+    exit 1
+}
 
 # get a sha256sum implementation.
 getsha256sum() {
-    expected=4ee73c05d5158b0fdfec9f5e52cab3fa85b98d6992a221bbff28fdbd935e8afc
+    expected="4ee73c05d5158b0fdfec9f5e52cab3fa85b98d6992a221bbff28fdbd935e8afc"
     testFile=test/$expected
     for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
     do
         #echo "trying ${hasher} ${testFile}"
-        ${hasher} ${testFile} 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && break
+        ${hasher} ${testFile} 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && return 0
     done
-    [ ! "${SHA256SUM}" ] && echo "couldn't find working sha256 hasher." && exit 1
+    return 1
 }
 
-getsha256sum
+main() {
+    [ `dirname $0` ] && cd `dirname $0` || die "failed to set directory"
+    [ -d ${BUILDDIR} ] || mkdir ${BUILDDIR} || die "failed to create build dir ${BUILDDIR}"
+    getsha256sum || die "couldn't find working sha256 hasher";
+    hasOkNode || getNode || die "could not get working nodejs impl";
 
-if [ ! -d build ]; then
-    mkdir build;
-fi
-cd build
+    $NODE ./node_build/make.js $@ || return 1
+}
 
-CMAKE=`which cmake`
-if [ -f cmake-build/bin/cmake ]; then
-    CMAKE=`pwd`/cmake-build/bin/cmake
-fi
-
-[ ${CMAKE} ] && ${CMAKE} --version | grep '2.8.\([2-9]\|1[0-9]\)' ||
-while true; do
-    [ -d cmake-build ] && rm -r cmake-build
-    mkdir cmake-build
-    cd cmake-build
-
-    APP=`which wget || which curl || echo 'none'`
-    [ "$APP" = 'none' ] && echo 'Need wget curl' && exit 1;
-    [ "x$APP" = x`which wget` ] && $APP ${CMAKE_DOWNLOAD}
-    [ "x$APP" = x`which curl` ] && $APP ${CMAKE_DOWNLOAD} > cmake.tar.gz
-
-    ${SHA256SUM} ./*.tar.gz | grep ${CMAKE_SHA256} || exit 1
-    tar -xzf *.tar.gz
-    find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} build \;
-    ./build/configure && make || exit 1
-    CMAKE=`pwd`/bin/cmake
-    cd ..
-    break
-done
-
-(
-    ${CMAKE} .. && make || exit 1;
-    make test || [ "${FORCE}" != "" ] || exit 1;
-    [ -f admin/angel/cjdroute2 ] && [ -f admin/angel/cjdns ] || exit 1;
-    [ ! -f ../cjdroute ] || rm ../cjdroute || exit 1;
-    [ ! -f ../cjdns ] || rm ../cjdns || exit 1;
-    cp admin/angel/cjdroute2 ../cjdroute || exit 1;
-    cp admin/angel/cjdns ../ || exit 1;
-    echo -e "\033[1;32mBuild completed successfully, type ./cjdroute to begin setup.\033[0m"
-) || echo -e "\033[1;31mFailed to build cjdns.\033[0m"
+main

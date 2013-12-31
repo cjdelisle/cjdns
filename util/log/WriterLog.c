@@ -47,8 +47,8 @@ static void print(struct Log* genericLog,
     Writer_write(log->writer, timeAndLevelBuff, strlen(timeAndLevelBuff));
 
     // Strip the path to make log lines shorter.
-    char* lastSlash = strrchr(file, '/');
-    Writer_write(log->writer, lastSlash + 1, strlen(lastSlash + 1));
+    //char* lastSlash = strrchr(file, '/');
+    Writer_write(log->writer, file, strlen(file));
 
     #define Log_BUFFER_SZ 1024
     char buff[Log_BUFFER_SZ];

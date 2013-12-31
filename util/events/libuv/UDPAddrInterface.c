@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/addressable/UDPAddrInterface.h"
@@ -22,8 +23,6 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
-
-#include <uv.h>
 
 struct UDPAddrInterface_pvt
 {
@@ -65,7 +64,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
     struct UDPAddrInterface_WriteRequest_pvt* req =
         Identity_cast((struct UDPAddrInterface_WriteRequest_pvt*) uvReq);
     if (error) {
-        Log_info(req->udp->logger, "Failed to write to UDPAddrInterface [%s]",
+        Log_info(req->udp->logger, "DROP Failed to write to UDPAddrInterface [%s]",
                  uv_err_name(uv_last_error(req->udp->uvHandle.loop)) );
     }
     Assert_true(req->msg->length == req->length);
@@ -80,8 +79,9 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) iface);
 
     if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
-        Log_warn(context->logger, "Maximum queue length reached, dropping packet");
-        return Error_UNDELIVERABLE;
+        Log_warn(context->logger, "DROP Maximum queue length reached");
+        return Error_NONE;
+        //return Error_UNDELIVERABLE;
     }
 
     // This allocator will hold the message allocator in existance after it is freed.
@@ -101,7 +101,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     Identity_set(req);
 
     struct Sockaddr_storage ss;
-    Message_pop(m, &ss, context->pub.addr->addrLen);
+    Message_pop(m, &ss, context->pub.addr->addrLen, NULL);
     Assert_true(ss.addr.addrLen == context->pub.addr->addrLen);
 
     req->length = m->length;
@@ -120,10 +120,11 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     }
 
     if (ret) {
-        Log_info(context->logger, "Failed writing to UDPAddrInterface [%s]",
+        Log_info(context->logger, "DROP Failed writing to UDPAddrInterface [%s]",
                  uv_err_name(uv_last_error(context->uvHandle.loop)) );
         Allocator_free(req->alloc);
-        return Error_UNDELIVERABLE;
+        return Error_NONE;
+        //return Error_UNDELIVERABLE;
     }
     context->queueLen += m->length;
 
@@ -133,7 +134,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 #if UDPAddrInterface_PADDING_AMOUNT < 8
     #error
 #endif
-#define ALLOC(buff) (((struct Allocator**) &(buff[-8]))[0])
+#define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,
@@ -149,7 +150,8 @@ static void incoming(uv_udp_t* handle,
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
 
     if (nread < 0) {
-        Log_warn(context->logger, "encountered error [%s]",
+        // probably causes a drop
+        Log_warn(context->logger, "DROP encountered error [%s]",
                  uv_err_name(uv_last_error(handle->loop)) );
 
     } else if (nread == 0) {
@@ -164,8 +166,8 @@ static void incoming(uv_udp_t* handle,
         m->bytes = (uint8_t*)buf.base;
         m->alloc = alloc;
         Sockaddr_normalizeNative(addr);
-        Message_push(m, addr, context->pub.addr->addrLen - 8);
-        Message_push(m, &context->pub.addr->addrLen, 8);
+        Message_push(m, addr, context->pub.addr->addrLen - 8, NULL);
+        Message_push(m, &context->pub.addr->addrLen, 8, NULL);
         Interface_receiveMessage(&context->pub.generic, m);
     }
 
@@ -173,9 +175,7 @@ static void incoming(uv_udp_t* handle,
 
     context->inCallback = 0;
     if (context->blockFreeInsideCallback) {
-        struct Allocator_OnFreeJob* job =
-            Identity_cast((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
-        job->complete(job);
+        Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->blockFreeInsideCallback);
     }
 }
 
@@ -199,9 +199,7 @@ static void onClosed(uv_handle_t* wasClosed)
 {
     struct UDPAddrInterface_pvt* context =
         Identity_cast((struct UDPAddrInterface_pvt*) wasClosed->data);
-    struct Allocator_OnFreeJob* job =
-        Identity_cast((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
-    job->complete(job);
+    Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
 }
 
 static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
@@ -230,7 +228,7 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
                                            struct Except* exHandler,
                                            struct Log* logger)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*)eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
 
     struct UDPAddrInterface_pvt* context =
         Allocator_clone(alloc, (&(struct UDPAddrInterface_pvt) {
@@ -266,16 +264,14 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     }
 
     if (ret) {
-        Except_raise(exHandler,
-                     UDPAddrInterface_new_BIND_FAILED,
-                     "call to uv_udp_bind() failed [%s]",
+        Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
                      uv_err_name(uv_last_error(base->loop)));
     }
 
     if (uv_udp_recv_start(&context->uvHandle, allocate, incoming)) {
         const char* err = uv_err_name(uv_last_error(base->loop));
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_raise(exHandler, -1, "uv_udp_recv_start() failed [%s]", err);
+        Except_throw(exHandler, "uv_udp_recv_start() failed [%s]", err);
     }
 
     int nameLen = sizeof(struct Sockaddr_storage);
@@ -283,12 +279,12 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
     if (uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen)) {
         const char* err = uv_err_name(uv_last_error(base->loop));
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
-        Except_raise(exHandler, -1, "uv_udp_getsockname() failed [%s]", err);
+        Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
     }
-    ss.addr.addrLen = nameLen+8;
+    ss.addr.addrLen = nameLen + 8;
 
     context->pub.addr = Sockaddr_clone(&ss.addr, alloc);
-    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(&ss.addr, alloc));
+    Log_debug(logger, "Bound to address [%s]", Sockaddr_print(context->pub.addr, alloc));
 
     Allocator_onFree(alloc, closeHandleOnFree, context);
     Allocator_onFree(alloc, blockFreeInsideCallback, context);

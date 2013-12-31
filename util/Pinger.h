@@ -20,6 +20,8 @@
 #include "util/log/Log.h"
 #include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("util/Pinger.c")
 
 /**
  * On pong received callback.

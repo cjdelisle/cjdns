@@ -19,6 +19,8 @@
 #include "dht/dhtcore/NodeStore.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/RouteTracer.c")
 
 struct RouteTracer
 {

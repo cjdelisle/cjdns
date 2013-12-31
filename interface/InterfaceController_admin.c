@@ -31,7 +31,7 @@ struct Context
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 6
-static void adminPeerStats(Dict* args, void* vcontext, String* txid)
+static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     struct Allocator* alloc = Allocator_child(context->alloc);
@@ -51,6 +51,10 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     String* isIncoming = String_CONST("isIncoming");
     String* user = String_CONST("user");
 
+    String* duplicates = String_CONST("duplicates");
+    String* lostPackets = String_CONST("lostPackets");
+    String* receivedOutOfRange = String_CONST("receivedOutOfRange");
+
     List* list = NULL;
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
         Dict* d = Dict_new(alloc);
@@ -68,6 +72,9 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
         Dict_putString(d, switchLabel, String_new((char*)labelStack, alloc), alloc);
 
         Dict_putInt(d, isIncoming, stats[i].isIncomingConnection, alloc);
+        Dict_putInt(d, duplicates, stats[i].duplicates, alloc);
+        Dict_putInt(d, lostPackets, stats[i].lostPackets, alloc);
+        Dict_putInt(d, receivedOutOfRange, stats[i].receivedOutOfRange, alloc);
 
         if (stats[i].isIncomingConnection) {
             Dict_putString(d, user, stats[i].user, alloc);
@@ -92,10 +99,12 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid)
     Allocator_free(alloc);
 }
 
-static void adminDisconnectPeer(Dict* args, void* vcontext, String* txid)
+static void adminDisconnectPeer(Dict* args,
+                                void* vcontext,
+                                String* txid,
+                                struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
-    struct Allocator* alloc = Allocator_child(context->alloc);
     String* pubkeyString = Dict_getString(args, String_CONST("pubkey"));
 
     // parse the key
@@ -115,15 +124,13 @@ static void adminDisconnectPeer(Dict* args, void* vcontext, String* txid)
       }
     }
 
-    Dict* response = Dict_new(alloc);
-    Dict_putInt(response, String_CONST("sucess"), error ? 0 : 1, alloc);
+    Dict* response = Dict_new(requestAlloc);
+    Dict_putInt(response, String_CONST("sucess"), error ? 0 : 1, requestAlloc);
     if (error) {
-        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), alloc);
+        Dict_putString(response, String_CONST("error"), String_CONST(errorMsg), requestAlloc);
     }
 
     Admin_sendMessage(response, txid, context->admin);
-
-    Allocator_free(alloc);
 }
 
 void InterfaceController_admin_register(struct InterfaceController* ic,

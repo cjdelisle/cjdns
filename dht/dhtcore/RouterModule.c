@@ -12,18 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-
-#include "benc/Int.h"
-#include "crypto/AddressCalc.h"
+#include "benc/String.h"
 #include "dht/Address.h"
-#include "dht/dhtcore/Janitor.h"
+#include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_pvt.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeList.h"
 #include "dht/dhtcore/NodeStore.h"
-#include "dht/dhtcore/SearchRunner.h"
-#include "dht/dhtcore/RouteTracer.h"
 #include "dht/dhtcore/VersionList.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTMessage.h"
@@ -31,8 +26,8 @@
 #include "dht/DHTModuleRegistry.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "switch/LabelSplicer.h"
+#include "switch/NumberCompress.h"
 #include "util/events/EventBase.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
@@ -41,10 +36,6 @@
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 #include "util/version/Version.h"
-#include "util/platform/libc/string.h"
-
-#include <stdint.h>
-#include <stdbool.h>
 
 /*
  * The router module is the central part of the DHT engine.
@@ -191,6 +182,15 @@
 /** Never allow a search to be timed out in less than this number of milliseconds. */
 #define MIN_TIMEOUT 10
 
+/**
+ * Used to keep reach a weighted rolling average of recent ping times.
+ * The smaller this value, the more significant recent pings are to reach.
+ */
+#define REACH_WINDOW 8
+
+/** Allow this many missed pings before we start zeroing reach, reduces lag spikes. */
+#define PING_GRACE_COUNT 2
+
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
@@ -204,6 +204,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  * @param myAddress the address for this DHT node.
+ * @param nodeStore the place to put the nodes
  * @return the RouterModule.
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
@@ -211,8 +212,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct EventBase* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin,
-                                           struct Random* rand)
+                                           struct Random* rand,
+                                           struct NodeStore* nodeStore)
 {
     struct RouterModule* const out = Allocator_calloc(allocator, sizeof(struct RouterModule), 1);
 
@@ -232,27 +233,13 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
     AverageRoller_update(out->gmrtRoller, GMRT_INITAL_MILLISECONDS);
-    out->nodeStore = NodeStore_new(&out->address, NODE_STORE_SIZE, allocator, logger, rand, admin);
+    out->nodeStore = nodeStore;
     out->registry = registry;
     out->eventBase = eventBase;
     out->logger = logger;
     out->allocator = allocator;
-    out->admin = admin;
     out->rand = rand;
     out->pinger = Pinger_new(eventBase, rand, logger, allocator);
-    out->janitor = Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                               GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
-                               out,
-                               out->nodeStore,
-                               logger,
-                               allocator,
-                               eventBase,
-                               rand);
-    out->searchRunner =
-        SearchRunner_new(out->nodeStore, logger, eventBase, out, out->address.ip6.bytes, allocator);
-
-    out->routeTracer =
-        RouteTracer_new(out->nodeStore, out, myAddress, eventBase, logger, allocator);
 
     Identity_set(out);
     return out;
@@ -272,14 +259,14 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
 }
 
+static uint32_t reachAfterDecay(const uint32_t oldReach)
+{
+    return (oldReach - (oldReach / REACH_WINDOW));
+}
+
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    switch (oldReach) {
-        case 2: return 1;
-        case 1:
-        case 0: return 0;
-        default: return oldReach / 2 + 2;
-    }
+    return (oldReach / 2);
 }
 
 static inline void responseFromNode(struct Node* node,
@@ -287,17 +274,20 @@ static inline void responseFromNode(struct Node* node,
                                     struct RouterModule* module)
 {
     if (node) {
-        uint64_t worst = RouterModule_searchTimeoutMilliseconds(module);
-        if (worst > millisecondsSinceRequest) {
-            node->reach = (worst - millisecondsSinceRequest)  * LINK_STATE_MULTIPLIER;
-            NodeStore_updateReach(node, module->nodeStore);
+        if (millisecondsSinceRequest == 0) {
+            millisecondsSinceRequest = 1;
         }
+        node->missedPings = 0;
+        node->reach = reachAfterDecay(node->reach) +
+            ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
+        NodeStore_updateReach(node, module->nodeStore);
     }
 }
 
 static inline int sendNodes(struct NodeList* nodeList,
                             struct DHTMessage* message,
-                            struct RouterModule* module)
+                            struct RouterModule* module,
+                            uint32_t askerVersion)
 {
     struct DHTMessage* query = message->replyTo;
     String* nodes = Allocator_malloc(message->allocator, sizeof(String));
@@ -306,8 +296,15 @@ static inline int sendNodes(struct NodeList* nodeList,
 
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
-    uint32_t i;
-    for (i = 0; i < nodeList->size; i++) {
+    uint32_t i = 0;
+    uint32_t j = 0;
+    for (; i < nodeList->size; i++) {
+
+        if (NumberCompress_decompress(nodeList->nodes[i]->address.path) ==
+            NumberCompress_decompress(query->address->path))
+        {
+            continue;
+        }
 
         // We have to modify the reply in case this node uses a longer label discriminator
         // in our switch than its target address, the target address *must* have the same
@@ -317,9 +314,10 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize((uint8_t*) &nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[i] = nodeList->nodes[i]->version;
+        versions->versions[j] = nodeList->nodes[i]->version;
+        j++;
     }
     if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
@@ -371,7 +369,6 @@ static inline int handleQuery(struct DHTMessage* message,
                                              &targetAddr,
                                              query->address,
                                              RouterModule_K + 5,
-                                             false,
                                              version,
                                              message->allocator);
 
@@ -396,7 +393,7 @@ static inline int handleQuery(struct DHTMessage* message,
                        message->allocator);
     }
 
-    return (nodeList) ? sendNodes(nodeList, message, module) : 0;
+    return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
 }
 
 /**
@@ -465,7 +462,17 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
     // Ping timeout -> decrease reach
     if (n) {
 
-        uint32_t newReach = reachAfterTimeout(n->reach);
+        uint32_t newReach;
+
+        if (n->missedPings < 255) {
+            n->missedPings++;
+        }
+        if (n->missedPings > PING_GRACE_COUNT) {
+            newReach = reachAfterTimeout(n->reach);
+        }
+        else {
+            newReach = reachAfterDecay(n->reach);
+        }
 
         #ifdef Log_DEBUG
             uint8_t addr[60];
@@ -652,21 +659,6 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
 }
 
 /** See: RouterModule.h */
-struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
-                                                 struct RouterModule* module,
-                                                 struct Allocator* alloc)
-{
-    return SearchRunner_search(searchTarget, module->searchRunner, alloc);
-}
-
-struct RouterModule_Promise* RouterModule_trace(uint64_t route,
-                                                struct RouterModule* module,
-                                                struct Allocator* alloc)
-{
-    return RouteTracer_trace(route, module->routeTracer, alloc);
-}
-
-/** See: RouterModule.h */
 void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {
     Address_getPrefix(address);
@@ -675,6 +667,61 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
     if (best && best->address.path != address->path) {
         RouterModule_pingNode(best, 0, module, module->allocator);
     }
+}
+
+/**
+ * Calculates expected latency from reach, bound between gmrt and timeout
+ * Used to determine time between sending new pings when doing refreshReach
+ * Also used to set a different ping timeout per node when doing refreshReach
+ * This allows us to quickly notice when a route has dropped, instead of waiting
+ * for the normal ping timeout (which is quite long).
+ */
+static inline uint32_t getExpectedLatency(struct Node* node, struct RouterModule* module)
+{
+    uint32_t expectedLatency = (node->reach > 1)
+                             ? UINT32_MAX / node->reach
+                             : UINT32_MAX;
+
+    expectedLatency = ( expectedLatency
+                      < RouterModule_globalMeanResponseTime(module) )
+                    ? RouterModule_globalMeanResponseTime(module)
+                    : expectedLatency;
+
+    expectedLatency = ( expectedLatency
+                      < pingTimeoutMilliseconds(module) )
+                    ? expectedLatency
+                    : pingTimeoutMilliseconds(module);
+
+    return expectedLatency;
+}
+
+// For each path to a destination, if the path has not recently been pinged, then ping it
+void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                               struct RouterModule* module)
+{
+    struct Address address;
+    Bits_memcpyConst(address.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
+    struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
+    struct NodeList* nodeList = NodeStore_getNodesByAddr(&address, 8, nodeListAlloc,
+                                                         module->nodeStore);
+    if (nodeList) {
+        uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
+        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
+            Assert_true(nodeList->nodes[i]->address.path != 0);
+            if ( now > nodeList->nodes[i]->timeOfNextPing ) {
+                uint32_t expectedLatency = getExpectedLatency(nodeList->nodes[i], module);
+
+                RouterModule_pingNode( nodeList->nodes[i],
+                                       (2*expectedLatency)+10,
+                                       module,
+                                       module->allocator );
+
+                nodeList->nodes[i]->timeOfNextPing = now
+                                                   + RouterModule_globalMeanResponseTime(module);
+            }
+        }
+    }
+    Allocator_free(nodeListAlloc);
 }
 
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
@@ -695,4 +742,14 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
 int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
     return NodeStore_brokenPath(path, module->nodeStore);
+}
+
+void RouterModule_updateReach(struct Node* node, struct RouterModule* module)
+{
+    NodeStore_updateReach(node, module->nodeStore);
+}
+
+uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module)
+{
+    return (uint32_t) AverageRoller_getAverage(module->gmrtRoller);
 }

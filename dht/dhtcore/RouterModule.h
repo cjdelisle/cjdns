@@ -15,14 +15,16 @@
 #ifndef RouterModule_H
 #define RouterModule_H
 
-#include "admin/Admin.h"
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/DHTModuleRegistry.h"
 #include "dht/dhtcore/Node.h"
+#include "dht/dhtcore/NodeStore.h"
 #include "benc/Object.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/RouterModule.c")
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -49,9 +51,6 @@ struct RouterModule_Promise
 /** The number of nodes to return in a search query. */
 #define RouterModule_K 8
 
-/** Maximum number of pings which can be in flight at once. */
-#define RouterModule_MAX_CONCURRENT_PINGS 128
-
 /**
  * Register a new RouterModule.
  *
@@ -60,16 +59,16 @@ struct RouterModule_Promise
  * @param myAddress the public key for this node.
  * @param eventBase the libevent base.
  * @param logger the means of writing logs.
- * @param admin tool for administrating a running router.
  * @param rand a source of random numbers
+ * @param nodeStore
  */
 struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
                                            struct Allocator* allocator,
                                            const uint8_t myAddress[Address_KEY_SIZE],
                                            struct EventBase* eventBase,
                                            struct Log* logger,
-                                           struct Admin* admin,
-                                           struct Random* rand);
+                                           struct Random* rand,
+                                           struct NodeStore* nodeStore);
 
 /**
  * The amount of time to wait before skipping over the first node and trying another in a search.
@@ -111,17 +110,10 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
                                                      uint32_t timeoutMilliseconds,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc);
+
 void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request);
 
 int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
-
-struct RouterModule_Promise* RouterModule_search(uint8_t searchTarget[16],
-                                                 struct RouterModule* module,
-                                                 struct Allocator* alloc);
-
-struct RouterModule_Promise* RouterModule_trace(uint64_t route,
-                                                struct RouterModule* module,
-                                                struct Allocator* alloc);
 
 /**
  * Get a node from the NodeStore, see: NodeStore_getNodeByNetworkAddr() of which this is a clone.
@@ -130,5 +122,17 @@ struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
 
 struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module);
+
+void RouterModule_updateReach(struct Node* node, struct RouterModule* module);
+
+uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
+
+/**
+ * Look up several (currently 8) paths to the destination address.
+ * For each path, if it has not been pinged recently, ping it.
+ * This keep our knowledge of which links are up and low latency from going stale.
+ */
+void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                               struct RouterModule* module);
 
 #endif

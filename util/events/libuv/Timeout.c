@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
-
-#include <uv.h>
 
 struct Timeout
 {
@@ -41,8 +40,7 @@ static void handleEvent(uv_timer_t* handle, int status)
 
 static void onFree2(uv_handle_t* timer)
 {
-    struct Allocator_OnFreeJob* j = Identity_cast((struct Allocator_OnFreeJob*)timer->data);
-    j->complete(j);
+    Allocator_onFreeComplete(timer->data);
 }
 
 static int onFree(struct Allocator_OnFreeJob* job)
@@ -73,7 +71,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   struct EventBase* eventBase,
                                   struct Allocator* allocator)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     struct Timeout* timeout = Allocator_calloc(allocator, sizeof(struct Timeout), 1);
 
     timeout->callback = callback;
