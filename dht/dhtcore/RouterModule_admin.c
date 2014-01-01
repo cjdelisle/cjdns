@@ -161,6 +161,8 @@ void RouterModule_admin_register(struct RouterModule* module,
                                  struct Admin* admin,
                                  struct Allocator* alloc)
 {
+    // for improved reporting
+    alloc = Allocator_child(alloc);
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .admin = admin,
         .allocator = alloc,
