@@ -79,6 +79,7 @@ static void dumpTable_addEntries(struct Context* ctx,
 
         Address_printIp(ip, ctx->store->selfAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
+        version->as.number = Version_CURRENT_PROTOCOL;
         dumpTable_send(ctx, &next, (j >= ENTRIES_PER_PAGE), txid);
         return;
     }
