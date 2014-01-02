@@ -222,7 +222,7 @@ static struct NodeContext* startNode(char* nodeName,
     if (!node->bind) {
         node->bind = String_new("127.0.0.1:0", ctx->alloc);
     }
-    node->pass = Dict_getString(admin, String_CONST("pass"));
+    node->pass = Dict_getString(admin, String_CONST("password"));
     if (!node->pass) {
         node->pass = String_new("x", ctx->alloc);
     }
