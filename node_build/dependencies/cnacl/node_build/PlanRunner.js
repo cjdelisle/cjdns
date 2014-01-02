@@ -171,7 +171,7 @@ var getCompiler = function(cc) {
     var args = [];
     args.push.apply(args, compileCall.args);
     args.push('-o', compileCall.outFile, '-c', compileCall.inFile);
-    cc(args, function(retCode, stderr) {
+    cc(args, function(retCode, stdout, stderr) {
       if (stderr !== '') { console.log(stderr); }
       if (retCode !== 0) { throw new Error('failed to compile'); }
       onComplete();
