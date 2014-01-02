@@ -21,6 +21,7 @@ var Os = require('os');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
+var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = process.env['BUILDDIR'];
@@ -150,6 +151,13 @@ Builder.configure({
             NaCl.build(function (args, callback) {
                 if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
                 args.unshift('-O2', '-fomit-frame-pointer');
+                cflags = process.env['CFLAGS'];
+                if (cflags) {
+                    flags = cflags.split(' ');
+                    flags.forEach(function(flag) {
+                        args.push(flag);
+                    });
+                }
                 builder.cc(args, callback);
             }, waitFor(function () {
                 process.chdir(cwd);
@@ -214,6 +222,7 @@ Builder.configure({
 
     nThen(function (waitFor) {
 
+        if (CROSS) { console.log("Cross compiling.  Test disabled."); return; }
         var out = '';
         var err = '';
         var test = Spawn(BUILDDIR+'/testcjdroute', ['all']);

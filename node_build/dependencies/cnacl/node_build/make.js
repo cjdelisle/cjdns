@@ -8,29 +8,54 @@ var RandomBytes = require('./RandomBytes');
 var Common = require('./Common');
 
 var WORKERS = Os.cpus().length;
+var GCC = process.env['CC'] || 'gcc';
+var AR = process.env['AR'] || 'ar';
+var RANLIB = process.env['RANLIB'] || 'ranlib';
 
 var cc = function(args, onComplete, noArg) {
   if (noArg) { throw new Error(); }
-  var gcc = Spawn('gcc', args);
+  cflags = process.env['CFLAGS'];
+  if (cflags) {
+    flags = cflags.split(' ');
+    flags.forEach(function(flag) {
+      args.push(flag);
+    });
+  }
+  var gcc = Spawn(GCC, args);
   var err = '';
   gcc.stderr.on('data', function(dat) { err += dat.toString() ; });
+  gcc.on('error', function(err) {
+    // handle the error safely
+    console.log(args);
+    console.log(err);
+  });
   gcc.on('close', function(ret) { onComplete(ret, err); });
 };
 
 var ar = function(args, onComplete) {
-  var ar = Spawn('ar', args);
+  var ar = Spawn(AR, args);
   var out = '';
   ar.stderr.on('data', function(dat) { out += dat.toString(); });
   ar.stdout.on('data', function(dat) { out += dat.toString(); });
+  ar.on('error', function(err) {
+    // handle the error safely
+    console.log(args);
+    console.log(err);
+  });
   ar.on('close', function(ret) {
     onComplete(ret, out);
   });
 };
 
 var ranlib = function(args, onComplete) {
-  var rl = Spawn('ranlib', args);
+  var rl = Spawn(RANLIB, args);
   var out = '';
   rl.stderr.on('data', function(dat) { out += dat.toString(); });
+  rl.on('error', function(err) {
+    // handle the error safely
+    console.log(args);
+    console.log(err);
+  });
   rl.on('close', function(ret) {
     onComplete(ret, out);
   });

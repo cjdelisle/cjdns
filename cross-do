@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+cross_log=cross_build_$$.log
+enabled_log=${LOG}
+
+export CROSS=${CROSS_COMPILE}
+export CC=${CROSS}gcc
+export AR=${CROSS}ar
+export RANLIB=${CROSS}ranlib
+export CFLAGS=${CROSS_CFLAGS}
+gcc_version=$(${CC} --version)
+log_filename="${cross_log%.*}"
+echo Using $gcc_version
+rm -rf build_*
+if [ "x$enabled_log" == "x1" ]; then
+  echo Compiler CC: $CC > $cross_log
+  echo Compiler CFLAGS: $CFLAGS >> $cross_log
+  time ./do &>> $cross_log
+  mv cjdroute ${log_filename}_cjdroute
+else
+  echo Compiler CC: $CC
+  echo Compiler CFLAGS: $CFLAGS
+  time ./do
+fi
