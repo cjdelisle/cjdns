@@ -33,6 +33,8 @@ struct NodeStore
     int size;
 
     struct Address* selfAddress;
+
+    struct Node_Two* selfNode;
 };
 
 /**

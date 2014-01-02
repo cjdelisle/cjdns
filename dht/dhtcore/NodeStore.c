@@ -784,6 +784,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
     linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     out->selfLink = selfNode->reversePeers;
+    out->pub.selfNode = selfNode;
 
     out->pub.selfAddress = &out->selfLink->child->address;
 
