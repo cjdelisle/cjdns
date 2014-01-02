@@ -31,6 +31,7 @@
 #include "crypto/Key.h"
 #include "util/log/Log_impl.h"
 #include "io/FileReader.h"
+#include "io/ArrayWriter.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -46,6 +47,12 @@ struct NodeContext {
     struct AdminClient* adminClient;
 
     char* nodeName;
+
+    /** Admin socket to bind */
+    String* bind;
+
+    /** Admin password */
+    String* pass;
 
     /** UDPInterface */
     int ifNum;
@@ -80,20 +87,28 @@ static void sendFirstMessageToCore(void* vcontext)
     struct NodeContext* ctx = Identity_cast((struct NodeContext*) vcontext);
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct Message* msg = Message_new(0, 512, alloc);
-    String* messageStr = String_new(
-        "d"
-            "10:privateKey" "64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-             "5:admin" "d"
-                 "4:pass" "1:x"
-                 "4:bind" "11:127.0.0.1:0"
-             "e"
-             "7:logging" "d"
-                 "5:logTo" "6:stdout"
-             "e"
-        "e", alloc);
-    char* privateKeyHex = Bits_memmem(messageStr->bytes, "xxxx", messageStr->len, 4);
-    Bits_memcpyConst(privateKeyHex, ctx->privateKeyHex, 64);
-    Message_push(msg, messageStr->bytes, messageStr->len, NULL);
+
+    Dict* d = Dict_new(alloc);
+    Dict_putString(d, String_CONST("privateKey"), String_new(ctx->privateKeyHex, alloc), alloc);
+
+    Dict* logging = Dict_new(alloc);
+    {
+        Dict_putString(logging, String_CONST("logTo"), String_CONST("stdout"), alloc);
+    }
+    Dict_putDict(d, String_CONST("logging"), logging, alloc);
+
+    Dict* admin = Dict_new(alloc);
+    {
+        Dict_putString(admin, String_CONST("bind"), ctx->bind, alloc);
+        Dict_putString(admin, String_CONST("pass"), ctx->pass, alloc);
+    }
+    Dict_putDict(d, String_CONST("admin"), admin, alloc);
+
+    uint8_t buff[512];
+    struct Writer* writer = ArrayWriter_new(buff, 512, alloc);
+    Assert_always(!StandardBencSerializer_get()->serializeDictionary(writer, d));
+    Message_push(msg, buff, Writer_bytesWritten(writer), NULL);
+
     Interface_receiveMessage(&ctx->angelIface, msg);
     Allocator_free(alloc);
 }
@@ -185,6 +200,7 @@ static void bindUDP(struct Context* ctx, struct NodeContext* node)
 
 static struct NodeContext* startNode(char* nodeName,
                                      char* privateKeyHex,
+                                     Dict* admin,
                                      struct Context* ctx,
                                      struct Except* eh)
 {
@@ -202,6 +218,15 @@ static struct NodeContext* startNode(char* nodeName,
     }));
     Identity_set(node);
 
+    node->bind = Dict_getString(admin, String_CONST("bind"));
+    if (!node->bind) {
+        node->bind = String_new("127.0.0.1:0", ctx->alloc);
+    }
+    node->pass = Dict_getString(admin, String_CONST("pass"));
+    if (!node->pass) {
+        node->pass = String_new("x", ctx->alloc);
+    }
+
     Bits_memcpyConst(node->privateKeyHex, privateKeyHex, 64);
 
     Timeout_setTimeout(sendFirstMessageToCore, node, 0, ctx->base, node->alloc);
@@ -212,7 +237,7 @@ static struct NodeContext* startNode(char* nodeName,
     EventBase_beginLoop(ctx->base);
 
     node->adminClient = AdminClient_new(node->boundAddr,
-                                        String_new("x", node->alloc),
+                                        node->pass,
                                         ctx->base,
                                         &node->nodeLog,
                                         node->alloc);
@@ -372,8 +397,9 @@ static void letErRip(Dict* config, struct Allocator* alloc)
     Dict_forEach(ctx->confNodes, key) {
         Dict* val = Dict_getDict(ctx->confNodes, key);
         String* privateKeyHex = Dict_getString(val, String_CONST("privateKey"));
+        Dict* admin = Dict_getDict(val, String_CONST("admin"));
         ctx->names[i] = key;
-        ctx->nodes[i] = startNode(key->bytes, privateKeyHex->bytes, ctx, eh);
+        ctx->nodes[i] = startNode(key->bytes, privateKeyHex->bytes, admin, ctx, eh);
         i++;
     }
 
