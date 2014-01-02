@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -33,10 +33,12 @@ unresponsive = dict()
 def addNode(host,port,password,key):
     nodes[key] = Node(host, port, password, key)
 
+# This is just an example... should use a configuration file for this probably.
 addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
         "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
 
-nowait = os.environ.get('nowait',False)
+addNode("google.com",13245,"googlesuxmunkeybalz",
+        "thisisakey.k")
 
 def lookup(node):
     for info in socket.getaddrinfo(node.host,node.port,
@@ -53,60 +55,38 @@ def lookup(node):
         except KeyError: pass
         break
 
-isUnresponsive = re.compile("Pinging unresponsive neighbor \\[(.*\\.k)\\]\\.")
+isUnresponsive = re.compile("Pinging unresponsive peer \\[(.*\\.k)\\]\\.")
 
-assert(isUnresponsive.match("Pinging unresponsive neighbor [lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3.k]."))
+assert(isUnresponsive.match("Pinging unresponsive peer [lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3.k]."))
 
 def doLog(message):
+    print(message)
     if message[0]!='P': return;
     p = isUnresponsive.match(message)
     if not p: return
     downKey = p.group(1)
     node = nodes.get(downKey,None)
     if not node:
-        #print("Unknown neighbor {}".format(node))
+        print("Unknown neighbor {} is down".format(node))
         return
     unresponsive[downKey] = node
     lookup(node)
 
-def recieve(sock):
-    allData = '';
-    error = 0;
+def recieve(cjdns,txid):
     while True:
-        data = sock.recv(8192);
-        if not data:
-            if data == "":
-                time.sleep(1)
-                select.select([sock],[],[],1)
-                print("heartb8")
-            continue
-        allData = allData + data;
-        try:
-            output, index = bdecode_stream(allData);
-        except (IndexError):
-            print("bad dater '{}'".format(allData))
-            continue;
-        except (KeyError, ValueError) as er:
-            print(er)
-            if (error > 5):
-                allData = "";
-                error = 0;
-            else:
-                error = error + 1;
+        doLog(cjdns.getMessage(txid))
 
-            continue;
+cjdns = connectWithAdminInfo()
 
-        if 'message' in output:
-            doLog(output['message']);
-        allData = allData[index:];
+sub = cjdns.AdminLog_subscribe(206, 'DefaultInterfaceController.c', 'DEBUG')
 
-cjdns = connectWithAdminInfo();
-
-sub = cjdns.AdminLog_subscribe('', 'DefaultInterfaceController.c', 'DEBUG');
 if (sub['error'] == 'none'):
     for node in nodes.values():
         lookup(node)
-    if nowait: raise SystemExit
-    recieve(cjdns.socket);
+    print("Peers added!")
+    # This is not not not the wrong way to do things.
+    if os.environ.get('nowait',False): raise SystemExit
+    print("Watching for unresponsive peers")
+    recieve(cjdns, sub['txid'])
 else:
-    print(sub);
+    print(sub)
