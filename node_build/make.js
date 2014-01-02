@@ -24,8 +24,9 @@ var SYSTEM = process.platform;
 var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = process.env['BUILDDIR'];
-if (BUILDDIR == undefined) 
+if (BUILDDIR == undefined) {
     BUILDDIR = 'build_'+SYSTEM;
+}
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
 
 process.on('exit', function () {
