@@ -263,6 +263,9 @@ struct RouterModule_Promise* RouteTracer_trace(uint64_t route,
         n = NULL;
     }
 
+    // Sanity check
+    Assert_always(!n || n->address.path != 0);
+
     traceStep(trace, n);
 
     return &trace->pub;

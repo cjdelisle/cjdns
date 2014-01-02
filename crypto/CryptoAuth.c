@@ -875,7 +875,14 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "New key packet but we are already sending data");
         }
 
-    } else if (nextNonce == 2 && !wrapper->isInitiator) {
+    } else if (nextNonce == 2 && (!wrapper->isInitiator || wrapper->established)) {
+        // This is a hello packet and we are either in ESTABLISHED state or we are
+        // not the initiator of the connection.
+        // If the case is that we are in ESTABLISHED state, the other side tore down the session
+        // and we have not so lets tear it down.
+        // If we are not in ESTABLISHED state then we don't allow resetting of the session unless
+        // they are the sender of the hello packet or their permanent public key is lower.
+        // this is a tie-breaker in case hello packets cross on the wire.
         if (wrapper->established) {
             reset(wrapper);
         }

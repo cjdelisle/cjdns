@@ -573,8 +573,20 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         // Link is already known.
         update(closest, 0, store);
         return node;
-    } else {
-        Assert_true(path > 1);
+    } else if (path == 0) {
+        logLink(store, closest, "Node at end of path appears to have changed");
+//Assert_true(0);
+        if (closest->discoveredPath < addr->path) {
+            // Minor defense against being lied to, trust the shortest path.
+            // TODO: send a ping to check if it's still correct?
+            Log_info(store->logger, "Not replacing link because discovery path is longer");
+            return NULL;
+        }
+        unlinkNodes(closest, store);
+        path = findClosest(addr->path, &closest, store);
+        Assert_always(path != findClosest_INVALID);
+        Assert_always(closest->child != node);
+        logLink(store, closest, "New closest link");
     }
 
     // Check whether the parent is already linked with a node which is "behind" the child.
@@ -772,6 +784,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
     linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     out->selfLink = selfNode->reversePeers;
+    out->pub.selfNode = selfNode;
 
     out->pub.selfAddress = &out->selfLink->child->address;
 
@@ -1141,7 +1154,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
     // truncate the label to the part which this node uses...
-    label &= (((uint64_t)1) << NumberCompress_bitsUsedForLabel(label)) - 1;
+    label &= Bits_maxBits64(NumberCompress_bitsUsedForLabel(label));
 
     struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
     out->nodes = Allocator_calloc(allocator, sizeof(char*), max);
@@ -1170,6 +1183,12 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
             break;
         }
     }
+
+    for (int i = 0; i < (int)out->size; i++) {
+        Assert_true(out->nodes[i]->address.path);
+        out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
+    }
+
     return out;
 }
 

@@ -79,6 +79,7 @@ static void dumpTable_addEntries(struct Context* ctx,
 
         Address_printIp(ip, ctx->store->selfAddress);
         strcpy((char*)path, "0000.0000.0000.0001");
+        version->as.number = Version_CURRENT_PROTOCOL;
         dumpTable_send(ctx, &next, (j >= ENTRIES_PER_PAGE), txid);
         return;
     }
@@ -152,29 +153,39 @@ static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* 
     Dict_putDict(ret, String_new("result", alloc), result, alloc);
     Dict_putString(ret, String_new("error", alloc), String_new("none", alloc), alloc);
 
-    struct Node_Two* node;
+    // no ipStr specified --> return self-node
+    struct Node_Two* node = ctx->store->selfNode;
 
     String* ipStr = Dict_getString(args, String_new("ip", alloc));
     uint8_t ip[16];
-    if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
-        Dict_remove(ret, String_CONST("result"));
-        Dict_putString(ret,
-                       String_new("error", alloc),
-                       String_new("Could not parse ip", alloc),
-                       alloc);
+    while (ipStr) {
+        if (ipStr->len != 39 || AddrTools_parseIp(ip, ipStr->bytes)) {
+            Dict_remove(ret, String_CONST("result"));
+            Dict_putString(ret,
+                           String_new("error", alloc),
+                           String_new("Could not parse ip", alloc),
+                           alloc);
 
-    } else if ((node = NodeStore_getNode2(ctx->store, ip))) {
-        Dict_putInt(result, String_new("protocolVersion", alloc), node->version, alloc);
+        } else if (!(node = NodeStore_getNode2(ctx->store, ip))) {
+            // not found
+        } else {
+            break;
+        }
 
-        String* key = Key_stringify(node->address.key, alloc);
-        Dict_putString(result, String_new("key", alloc), key, alloc);
-
-        uint32_t linkCount = NodeStore_linkCount(node);
-        Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
-
-        List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
-        Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
+        Admin_sendMessage(ret, txid, ctx->admin);
+        return;
     }
+
+    Dict_putInt(result, String_new("protocolVersion", alloc), node->version, alloc);
+
+    String* key = Key_stringify(node->address.key, alloc);
+    Dict_putString(result, String_new("key", alloc), key, alloc);
+
+    uint32_t linkCount = NodeStore_linkCount(node);
+    Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
+
+    List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
+    Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
 
     Admin_sendMessage(ret, txid, ctx->admin);
 }
@@ -248,7 +259,7 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
         }), admin);
     Admin_registerFunction("NodeStore_getNode", getNode, ctx, true,
         ((struct Admin_FunctionArg[]) {
-            { .name = "ip", .required = 1, .type = "String" },
+            { .name = "ip", .required = 0, .type = "String" },
         }), admin);
     Admin_registerFunction("NodeStore_getRouteLabel", getRouteLabel, ctx, true,
         ((struct Admin_FunctionArg[]) {

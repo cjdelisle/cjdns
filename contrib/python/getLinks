@@ -22,9 +22,11 @@ def getLink(node, num, nodes, spaces, parentPath):
 
 def getNode(next, path, nodes, spaces, parentPath):
     if (next['child'] in nodes): return;
-    nodes = list(nodes);
+    #nodes = list(nodes);
     nodes.append(next['child']);
     resp = cjdns.NodeStore_getNode(next['child']);
+    #print 'cjdns.NodeStore_getNode(' + next['child'] + '); --> ' + str(resp);
+    #next['child'] = PublicToIp6_convert(resp['result']['key']);
     path = '';
     if (parentPath != 'ffff.ffff.ffff.ffff' and len(parentPath) == 19):
         path = cjdns.NodeStore_getRouteLabel(parentPath, next['child']);
@@ -38,4 +40,7 @@ def getNode(next, path, nodes, spaces, parentPath):
     for i in range(0, int(resp['result']['linkCount'])):
         getLink(next['child'], i, nodes, spaces, path);
 
-getNode({"child":"fc38:4c2c:1a8f:3981:f2e7:c2b9:6870:6e84","cannonicalLabel":""}, '', [], '', '0000.0000.0000.0001');
+
+resp = cjdns.NodeStore_getNode(0);
+myIp6 = PublicToIp6_convert(resp['result']['key']);
+getNode({"child":myIp6,"cannonicalLabel":""}, '', [], '', '0000.0000.0000.0001');

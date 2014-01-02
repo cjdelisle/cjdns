@@ -23,7 +23,10 @@ var Os = require('os');
 var SYSTEM = process.platform;
 var GCC = process.env['CC'] || 'gcc';
 
-var BUILDDIR = 'build_'+SYSTEM;
+var BUILDDIR = process.env['BUILDDIR'];
+if (BUILDDIR == undefined) {
+    BUILDDIR = 'build_'+SYSTEM;
+}
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
 
 process.on('exit', function () {
@@ -63,7 +66,6 @@ Builder.configure({
         '-D','HAS_BUILTIN_CONSTANT_P',
 
         '-g',
-        '-fPIE',
 
 //        '-flto', not available on some  machines
 
@@ -79,6 +81,9 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
+    if (process.env['NO_PIE'] == undefined) {
+        builder.config.cflags.push('-fPIE')
+    }
     if (process.env['EXPERIMENTAL_PATHFINDER']) {
         console.log("Building with experimental pathfinder");
         builder.config.cflags.push(
@@ -103,9 +108,11 @@ Builder.configure({
         );
     }
 
-    builder.config.ldflags.push(
-        '-pie'
-    );
+    if (process.env['NO_PIE'] == undefined) {
+        builder.config.ldflags.push(
+            '-pie'
+        );
+    }
 
     if (/.*clang.*/.test(GCC) || SYSTEM === 'darwin') {
         // blows up when preprocessing before js preprocessor
