@@ -717,7 +717,8 @@ void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                        module->allocator );
 
                 nodeList->nodes[i]->timeOfNextPing = now
-                                                   + RouterModule_globalMeanResponseTime(module);
+                                                   + 2*expectedLatency
+                                                   + 1024/REACH_WINDOW;
             }
         }
     }
