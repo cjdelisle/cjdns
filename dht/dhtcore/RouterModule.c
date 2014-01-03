@@ -699,6 +699,7 @@ static inline uint32_t getExpectedLatency(struct Node* node, struct RouterModule
 void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                struct RouterModule* module)
 {
+return;
     struct Address address;
     Bits_memcpyConst(address.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
     struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
