@@ -669,6 +669,10 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // nextNonce 3: recieving first data packet.
     // nextNonce >3: handshake complete
 
+    if (nonce <= 3 && wrapper->established) {
+        reset(wrapper);
+    }
+
     if (knowHerKey(wrapper)) {
         if (Bits_memcmp(wrapper->herPerminentPubKey, header->handshake.publicKey, 32)) {
             cryptoAuthDebug0(wrapper, "DROP a packet with different public key than this session");
