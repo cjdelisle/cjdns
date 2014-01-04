@@ -324,6 +324,13 @@ static inline void linkNodes(struct Node_Two* parent,
     #endif
 
     Assert_true((parent != child && cannonicalLabel != 1) || store->selfLink == NULL);
+    #ifdef PARANOIA
+        uint64_t definitelyCannonical =
+            EncodingScheme_convertLabel(parent->encodingScheme,
+                                        cannonicalLabel,
+                                        EncodingScheme_convertLabel_convertTo_CANNONICAL);
+        Assert_true(definitelyCannonical == cannonicalLabel);
+    #endif
 
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &parent->peerTree) {
@@ -573,7 +580,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         // Link is already known.
         update(closest, 0, store);
         return node;
-    } else if (path == 0) {
+    } else if (path == 1) {
         logLink(store, closest, "Node at end of path appears to have changed");
 //Assert_true(0);
         if (closest->discoveredPath < addr->path) {
