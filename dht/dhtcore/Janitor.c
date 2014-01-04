@@ -114,15 +114,15 @@ static void responseCallback(struct RouterModule_Promise* promise,
 
     } else {
         // end of the line, now lets trace
-
-        #ifdef Log_DEBUG
+        // In the simulator this has been shown to cause incredible CPU usage!  ++cjd
+        /*#ifdef Log_DEBUG
             uint8_t printed[60];
             Address_print(printed, &search->best);
             Log_debug(search->janitor->logger, "Tracing path to [%s]", printed);
         #endif
         RouteTracer_trace(search->best.path,
                           search->janitor->routeTracer,
-                          search->janitor->allocator);
+                          search->janitor->allocator);*/
     }
     Allocator_free(search->alloc);
 }
