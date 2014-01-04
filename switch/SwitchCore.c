@@ -231,7 +231,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    if (sourceIndex == destIndex) {
+    if (sourceIndex == destIndex && sourceIndex != 1) {
         DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
