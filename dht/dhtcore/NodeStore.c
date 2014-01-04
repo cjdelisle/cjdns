@@ -779,6 +779,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
     Bits_memcpyConst(&selfNode->address, myAddress, sizeof(struct Address));
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
+    selfNode->version = Version_CURRENT_PROTOCOL;
     selfNode->alloc = alloc;
     Identity_set(selfNode);
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
