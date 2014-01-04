@@ -124,8 +124,8 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
     } else if ((link = NodeStore_getLink(ctx->store, ip, *linkNum))) {
         Dict_putInt(result,
-                    String_new("encodingFormNumber", alloc),
-                    link->encodingFormNumber,
+                    String_new("inverseLinkEncodingFormNumber", alloc),
+                    link->inverseLinkEncodingFormNumber,
                     alloc);
         Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
 

@@ -121,7 +121,7 @@ struct Node_Link
      * The Encoding Form number which is used to represent the first director in the path from
      * child to parent.
      */
-    int encodingFormNumber;
+    int inverseLinkEncodingFormNumber;
 
     /**
      * The quality of the link between parent and child,

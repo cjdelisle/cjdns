@@ -304,7 +304,7 @@ static inline void linkNodes(struct Node_Two* parent,
                              struct Node_Two* child,
                              uint64_t cannonicalLabel,
                              int64_t linkStateDiff,
-                             int encodingFormNumber,
+                             int inverseLinkEncodingFormNumber,
                              uint64_t discoveredPath,
                              struct NodeStore_pvt* store)
 {
@@ -334,11 +334,11 @@ static inline void linkNodes(struct Node_Two* parent,
                 // will have divergent paths following the first director.
                 continue;
 
-            } else if (link->encodingFormNumber != encodingFormNumber) {
+            } else if (link->inverseLinkEncodingFormNumber != inverseLinkEncodingFormNumber) {
                 logLink(store, link, "Relinking nodes with different encoding form");
                 // This can happen when C renumbers but B->C is the same because B did
                 // not renumber, EG: if C restarts.
-                link->encodingFormNumber = encodingFormNumber;
+                link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
             }
             update(link, linkStateDiff, store);
             return;
@@ -356,7 +356,7 @@ static inline void linkNodes(struct Node_Two* parent,
 
     // Link it in
     link->cannonicalLabel = cannonicalLabel;
-    link->encodingFormNumber = encodingFormNumber;
+    link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
     link->child = child;
     link->parent = parent;
     link->linkAddr = (uintptr_t)link;
@@ -408,7 +408,7 @@ static inline uint64_t findClosest(uint64_t path,
             int formNum =
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
             // Check that they didn't send us an obviously invalid route.
-            if (formNum < link->encodingFormNumber) {
+            if (formNum < link->inverseLinkEncodingFormNumber) {
                 Assert_ifTesting(!"invalid route");
                 return findClosest_INVALID;
             }
@@ -424,7 +424,7 @@ static inline uint64_t findClosest(uint64_t path,
             // Check that they didn't waste space by sending an oversize encoding form.
             int cannonicalFormNum =
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
-            if (formNum > link->encodingFormNumber && cannonicalFormNum != formNum) {
+            if (formNum > link->inverseLinkEncodingFormNumber && cannonicalFormNum != formNum) {
                 Assert_ifTesting(!"wasting space");
 //Assert_true(0);
                 return findClosest_INVALID;
@@ -521,7 +521,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         int64_t reachDiff,
                                         uint32_t version,
                                         struct EncodingScheme* scheme,
-                                        int encodingFormNumber)
+                                        int inverseLinkEncodingFormNumber)
 {
     #ifndef EXPERIMENTAL_PATHFINDER
         return NULL;
@@ -645,7 +645,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
             Assert_true(splitLink->cannonicalLabel != path);
 
             linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
-                      splitLink->encodingFormNumber, addr->path, store);
+                      splitLink->inverseLinkEncodingFormNumber, addr->path, store);
         }
 
         unlinkNodes(splitLink, store);
@@ -654,7 +654,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     // link parent to child
     // TODO: linking every node with 0 link state, this can't be right.
-    linkNodes(closest->child, node, path, 0, encodingFormNumber, addr->path, store);
+    linkNodes(closest->child, node, path, 0, inverseLinkEncodingFormNumber, addr->path, store);
 
     verifyLinks(store);
 
@@ -729,7 +729,9 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
             if (linkToParent == store->selfLink) {
                 return linkToChild->cannonicalLabel;
             }
-            return extendRoute(pathToParent, linkToChild, linkToParent->encodingFormNumber);
+            return extendRoute(pathToParent,
+                               linkToChild,
+                               linkToParent->inverseLinkEncodingFormNumber);
         }
     }
 
