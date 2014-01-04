@@ -101,6 +101,14 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
+static bool isOneHop(struct Node_Link* link)
+{
+    struct EncodingScheme* ps = link->parent->encodingScheme;
+    int num = EncodingScheme_getFormNum(ps, link->cannonicalLabel);
+    Assert_always(num > -1 && num < ps->count);
+    return EncodingScheme_formSize(&ps->forms[num]) == Bits_log2x64(link->cannonicalLabel);
+}
+
 static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
@@ -128,6 +136,8 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
                     link->inverseLinkEncodingFormNumber,
                     alloc);
         Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
+
+        Dict_putInt(result, String_new("isOneHop", alloc), isOneHop(link), alloc);
 
         String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
         AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
