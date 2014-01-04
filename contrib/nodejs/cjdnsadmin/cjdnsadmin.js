@@ -18,6 +18,7 @@ var Bencode = require('./bencode');
 var Crypto = require('crypto');
 var Fs = require('fs');
 var nThen = require('./nthen');
+var Semaphore = require('../../../node_build/Semaphore.js');
 
 var TIMEOUT_MILLISECONDS = 10000;
 
@@ -127,7 +128,9 @@ var makeFunction = function (sock, addr, port, pass, funcName, func) {
             throw new Error("callback is unspecified");
         }
 
-        callFunc(sock, addr, port, pass, funcName, argsOut, callback);
+        sock.semaphore.take(function (returnAfter) {
+            callFunc(sock, addr, port, pass, funcName, argsOut, returnAfter(callback));
+        });
     };
 };
 
@@ -156,16 +159,16 @@ var getFunctions = function (sock, addr, port, pass, callback) {
             cjdns[name] = makeFunction(sock, addr, port, pass, name, funcs[name]);
             funcDescriptions.push(makeFunctionDescription(name, funcs[name]));
         });
-        var funcDescriptionsStr = funcDescriptions.join('\n');
-        cjdns['functions'] = function () { return funcDescriptionsStr; };
+        cjdns.functions = function (cb) { cb(undefined, funcDescriptions); };
         callback(cjdns);
     });
 };
 
 var connect = module.exports.connect = function (addr, port, pass, callback) {
     var sock = UDP.createSocket((addr.indexOf(':') !== -1) ? 'udp6' : 'udp4');
+    sock.semaphore = Semaphore.create(4);
     sock.handlers = {};
-    sock.counter = 0;
+    sock.counter = Math.floor(Math.random() * 4000000000);
     sock.on('message', function (msg) {
         var response = Bencode.decode(msg.toString('utf8'));
         if (!response.txid) {
