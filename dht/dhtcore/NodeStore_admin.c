@@ -101,14 +101,6 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
-static bool isOneHop(struct Node_Link* link)
-{
-    struct EncodingScheme* ps = link->parent->encodingScheme;
-    int num = EncodingScheme_getFormNum(ps, link->cannonicalLabel);
-    Assert_always(num > -1 && num < ps->count);
-    return EncodingScheme_formSize(&ps->forms[num]) == Bits_log2x64(link->cannonicalLabel);
-}
-
 static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
@@ -118,7 +110,8 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
     Dict_putDict(ret, String_new("result", alloc), result, alloc);
     Dict_putString(ret, String_new("error", alloc), String_new("none", alloc), alloc);
 
-    struct Node_Link* link;
+    struct Node_Link* link = NULL;
+    struct Node_Two* node = NULL;
 
     String* ipStr = Dict_getString(args, String_new("parent", alloc));
     int64_t* linkNum = Dict_getInt(args, String_new("linkNum", alloc));
@@ -130,14 +123,20 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
                        String_new("Could not parse ip", alloc),
                        alloc);
 
-    } else if ((link = NodeStore_getLink(ctx->store, ip, *linkNum))) {
+    } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
+        Dict_putString(ret,
+                       String_new("error", alloc),
+                       String_new("node not found", alloc),
+                       alloc);
+
+    } else if ((link = NodeStore_getLink(node, *linkNum))) {
         Dict_putInt(result,
                     String_new("inverseLinkEncodingFormNumber", alloc),
                     link->inverseLinkEncodingFormNumber,
                     alloc);
         Dict_putInt(result, String_new("linkState", alloc), link->linkState, alloc);
 
-        Dict_putInt(result, String_new("isOneHop", alloc), isOneHop(link), alloc);
+        Dict_putInt(result, String_new("isOneHop", alloc), Node_isOneHopLink(link), alloc);
 
         String* cannonicalLabel = String_newBinary(NULL, 19, alloc);
         AddrTools_printPath(cannonicalLabel->bytes, link->cannonicalLabel);
@@ -154,7 +153,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 
     Admin_sendMessage(ret, txid, ctx->admin);
 }
-static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
+static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_cast((struct Context*) vcontext);
 
@@ -176,7 +175,7 @@ static void getNode(Dict* args, void* vcontext, String* txid, struct Allocator* 
                            String_new("Could not parse ip", alloc),
                            alloc);
 
-        } else if (!(node = NodeStore_getNode2(ctx->store, ip))) {
+        } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
             // not found
         } else {
             break;
@@ -214,17 +213,17 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
         err = "Failed to parse pathToParent";
     }
 
-    String* childAddressS = Dict_getString(args, String_CONST("childAddress"));
-    uint8_t childAddress[16];
-    if (childAddressS->len != 39) {
-        err = "childAddress of incorrect length, must be a 39 character full ipv6 address";
-    } else if (AddrTools_parseIp(childAddress, childAddressS->bytes)) {
-        err = "Failed to parse childAddress";
+    String* pathParentToChildS = Dict_getString(args, String_CONST("pathParentToChild"));
+    uint64_t pathParentToChild;
+    if (pathParentToChildS->len != 19) {
+        err = "pathParentToChild of incorrect length";
+    } else if (AddrTools_parsePath(&pathParentToChild, pathParentToChildS->bytes)) {
+        err = "Failed to parse pathParentToChild";
     }
 
     uint64_t label = UINT64_MAX;
     if (!err) {
-        label = NodeStore_getRouteLabel(ctx->store, pathToParent, childAddress);
+        label = NodeStore_getRouteLabel(ctx->store, pathToParent, pathParentToChild);
         err = NodeStore_getRouteLabel_strerror(label);
     }
     Dict* response = Dict_new(requestAlloc);
@@ -267,13 +266,13 @@ void NodeStore_admin_register(struct NodeStore* nodeStore,
             { .name = "parent", .required = 1, .type = "String" },
             { .name = "linkNum", .required = 1, .type = "Int" },
         }), admin);
-    Admin_registerFunction("NodeStore_getNode", getNode, ctx, true,
+    Admin_registerFunction("NodeStore_nodeForAddr", nodeForAddr, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "ip", .required = 0, .type = "String" },
         }), admin);
     Admin_registerFunction("NodeStore_getRouteLabel", getRouteLabel, ctx, true,
         ((struct Admin_FunctionArg[]) {
             { .name = "pathToParent", .required = 1, .type = "String" },
-            { .name = "childAddress", .required = 1, .type = "String" }
+            { .name = "pathParentToChild", .required = 1, .type = "String" }
         }), admin);
 }

@@ -47,7 +47,8 @@ struct SwitchPinger
     /** The version of the node which sent the message. */
     uint32_t incomingVersion;
 
-    bool isError;
+    /** The error code if an error has been returned (see Error.h) */
+    int error;
 
     /** Pings which are currently waiting for responses. */
     int outstandingPings;
@@ -82,7 +83,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->type_be == Control_PONG_be) {
         Message_shift(msg, -Control_HEADER_SIZE, NULL);
-        ctx->isError = false;
+        ctx->error = Error_NONE;
         struct Control_Ping* pongHeader = (struct Control_Ping*) msg->bytes;
         if (msg->length >= Control_Pong_MIN_SIZE) {
             ctx->incomingVersion = Endian_bigEndianToHost32(pongHeader->version_be);
@@ -97,15 +98,17 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         }
 
     } else if (ctrl->type_be == Control_ERROR_be) {
-        Log_debug(ctx->logger, "error was caused by our ping.");
+        Message_shift(msg, -Control_HEADER_SIZE, NULL);
+        Assert_true((uint8_t*)&ctrl->content.error.errorType_be == msg->bytes);
+        ctx->error = Message_pop32(msg, NULL);
+        Log_debug(ctx->logger, "error was caused by our ping [%s]", Error_strerror(ctx->error));
+        Message_push32(msg, 0, NULL);
         Message_shift(msg, -(
-            Control_HEADER_SIZE
-          + Control_Error_HEADER_SIZE
+            Control_Error_HEADER_SIZE
           + Headers_SwitchHeader_SIZE
           + Control_HEADER_SIZE
           + Control_Ping_HEADER_SIZE
         ), NULL);
-        ctx->isError = true;
 
     } else {
         // If it gets here then Ducttape.c is failing.
@@ -127,7 +130,9 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
             err = SwitchPinger_Result_LABEL_MISMATCH;
         } else if ((p->data || data->len > 0) && !String_equals(data, p->data)) {
             err = SwitchPinger_Result_WRONG_DATA;
-        } else if (p->context->isError) {
+        } else if (p->context->error == Error_LOOP_ROUTE) {
+            err = SwitchPinger_Result_LOOP_ROUTE;
+        } else if (p->context->error) {
             err = SwitchPinger_Result_ERROR_RESPONSE;
         }
     } else {
@@ -171,13 +176,13 @@ static void sendPing(String* data, void* sendPingContext)
     p->context->iface->sendMessage(&msg, p->context->iface);
 }
 
-#define BSTR_SIZEOF(x) &(String) { .bytes = x, .len = sizeof(x) - 1 }
-static String* RESULT_STRING_OK =             BSTR_SIZEOF("pong");
-static String* RESULT_STRING_LABEL_MISMATCH = BSTR_SIZEOF("pong has different label");
-static String* RESULT_STRING_WRONG_DATA =     BSTR_SIZEOF("data is different");
-static String* RESULT_STRING_ERROR_RESPONSE = BSTR_SIZEOF("ping message caused switch error");
-static String* RESULT_STRING_TIMEOUT =        BSTR_SIZEOF("timeout");
-static String* RESULT_STRING_UNKNOWN =        BSTR_SIZEOF("unknown error");
+static String* RESULT_STRING_OK =             String_CONST_SO("pong");
+static String* RESULT_STRING_LABEL_MISMATCH = String_CONST_SO("diff_label");
+static String* RESULT_STRING_WRONG_DATA =     String_CONST_SO("diff_data");
+static String* RESULT_STRING_ERROR_RESPONSE = String_CONST_SO("err_switch");
+static String* RESULT_STRING_TIMEOUT =        String_CONST_SO("timeout");
+static String* RESULT_STRING_UNKNOWN =        String_CONST_SO("err_unknown");
+static String* RESULT_STRING_LOOP =           String_CONST_SO("err_loop");
 
 String* SwitchPinger_resultString(enum SwitchPinger_Result result)
 {
@@ -196,6 +201,9 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
 
         case SwitchPinger_Result_TIMEOUT:
             return RESULT_STRING_TIMEOUT;
+
+        case SwitchPinger_Result_LOOP_ROUTE:
+            return RESULT_STRING_LOOP;
 
         default:
             return RESULT_STRING_UNKNOWN;

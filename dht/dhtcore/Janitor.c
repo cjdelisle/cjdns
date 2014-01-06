@@ -159,6 +159,30 @@ static void search(uint8_t target[16], struct Janitor* janitor, int searchType)
     rp->userData = search;
 }
 
+static void checkPeers(struct Janitor* janitor, struct Node* n)
+{
+    // Lets check for non-one-hop links at each node along the path between us and this node.
+    uint32_t i = 0;
+    for (;;i++) {
+        struct Node_Link* link =
+            NodeStore_getLinkOnPath(janitor->nodeStore, n->address.path, i);
+        if (!link) { return; }
+        int count = NodeStore_linkCount(link->child);
+        for (int j = 0; j < count; j++) {
+            struct Node_Link* l = NodeStore_getLink(link->child, j);
+            if (!Node_isOneHopLink(l)) {
+                RouterModule_getPeers(link->child,
+                                      l->cannonicalLabel,
+                                      0,
+                                      janitor->routerModule,
+                                      janitor->allocator);
+                // Only send max 1 getPeers req per second.
+                return;
+            }
+        }
+    }
+}
+
 static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = (struct Janitor*) vcontext;
@@ -207,6 +231,11 @@ static void maintanenceCycle(void* vcontext)
 
         search(targetAddr.ip6.bytes, janitor, searchType);
         return;
+
+    } else {
+        #ifdef EXPERIMENTAL_PATHFINDER
+            checkPeers(janitor, n);
+        #endif
     }
 
     #ifdef Log_DEBUG

@@ -20,6 +20,8 @@
 #include "memory/Allocator.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/Node.c")
 
 /** A network address for reaching a peer, in the format which is sent over the wire. */
 struct Node
@@ -87,6 +89,12 @@ struct Node_Two
 
     /** Used for freeing the links associated with this node. */
     struct Node_Link* reversePeers;
+
+    /** The best link for getting to this node. */
+    struct Node_Link* bestParent;
+
+    /** The best known way to get to this node. */
+    uint64_t bestPath;
 
     struct Allocator* alloc;
 
@@ -157,5 +165,8 @@ struct Node_Link
 
     Identity
 };
+
+
+bool Node_isOneHopLink(struct Node_Link* link);
 
 #endif

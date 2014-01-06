@@ -16,9 +16,12 @@ var Fs = require('fs');
 
 var makeNodes = function (keys) {
     var out = {};
+    var ips = [];
     for (var i = 0; i < keys.length; i++) {
-        out['node'+i] = {
-            privateKey: keys[i],
+        var kip = keys[i].split(' ');
+        ips.push(kip[1]);
+        out[kip[1]] = {
+            privateKey: kip[0],
             peers: []
         };
     }
@@ -36,7 +39,7 @@ var makeNodes = function (keys) {
             unlinked = x;
 
         }
-        out['node'+unlinked].peers.push('node'+linked);
+        out[ips[unlinked]].peers.push(ips[linked]);
     }
     console.log(JSON.stringify({nodes: out}, null, '  '));
 };
@@ -51,7 +54,7 @@ Fs.readFile(process.argv[process.argv.length-1], function (err, ret) {
     if (err) { throw err; }
     var keys = ret.toString('utf8').split('\n');
     for (var i = keys.length-1; i >= 0; i--) {
-        if (!(/^[a-f0-9]{64}$/.test(keys[i]))) {
+        if (!(/^[a-f0-9]{64} [a-f0-9:]{39}$/.test(keys[i]))) {
             keys.splice(i, 1);
         }
     }

@@ -658,6 +658,25 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
     return promise;
 }
 
+struct RouterModule_Promise* RouterModule_getPeers(struct Node_Two* node,
+                                                   uint64_t nearbyLabel,
+                                                   uint32_t timeoutMilliseconds,
+                                                   struct RouterModule* module,
+                                                   struct Allocator* alloc)
+{
+    struct RouterModule_Promise* promise =
+        RouterModule_newMessage((struct Node*)node, timeoutMilliseconds, module, alloc);
+    Dict* d = Dict_new(promise->alloc);
+    Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_GP, promise->alloc);
+
+    uint64_t nearbyLabel_be = Endian_hostToBigEndian64(nearbyLabel);
+    String* target = String_newBinary((char*)&nearbyLabel_be, 8, promise->alloc);
+    Dict_putString(d, CJDHTConstants_TARGET, target, promise->alloc);
+
+    RouterModule_sendMessage(promise, d);
+    return promise;
+}
+
 /** See: RouterModule.h */
 void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {

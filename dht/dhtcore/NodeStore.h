@@ -69,10 +69,14 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct EncodingScheme* scheme,
                                         int encodingFormNumber);
 
-struct Node_Two* NodeStore_getNode2(struct NodeStore* store, uint8_t addr[16]);
-struct Node_Link* NodeStore_getLink(struct NodeStore* nodeStore,
-                                    uint8_t parent[16],
-                                    uint32_t linkNum);
+struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
+
+struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
+
+struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
+                                          uint64_t routeLabel,
+                                          uint32_t hopNum);
+
 uint32_t NodeStore_linkCount(struct Node_Two* node);
 
 /**
@@ -80,20 +84,18 @@ uint32_t NodeStore_linkCount(struct Node_Two* node);
  *
  * @param nodeStore the store
  * @param pathToParent a label for getting to a node.
- * @param childAddress an ipv6 address of a child linked to that node.
+ * @param pathParentToChild the cannonicalized label for getting from the parent node to the child.
  * @return a path if all goes well, otherwise:
  *         NodeStore_getRouteLabel_PARENT_NOT_FOUND if the path to the parent node does not
  *         lead to a known node, or:
- *         NodeStore_getRouteLabel_CHILD_NOT_FOUND if the childAddress is not in the store or:
- *         NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD if the parent node is not a peer
- *         of the child node.
+ *         NodeStore_getRouteLabel_CHILD_NOT_FOUND if no peer could be found which links from that
+ *                                                 path from the parent.
  */
 #define NodeStore_getRouteLabel_PARENT_NOT_FOUND           ((~((uint64_t)0))-1)
 #define NodeStore_getRouteLabel_CHILD_NOT_FOUND            ((~((uint64_t)0))-2)
-#define NodeStore_getRouteLabel_PARENT_NOT_LINKED_TO_CHILD ((~((uint64_t)0))-3)
 uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
                                  uint64_t pathToParent,
-                                 uint8_t childAddress[16]);
+                                 uint64_t pathParentToChild);
 
 /**
  * @return a human readable version of the error response from getRouteLabel or return NULL if

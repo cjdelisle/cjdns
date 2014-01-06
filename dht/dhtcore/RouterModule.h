@@ -135,4 +135,10 @@ uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
 void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                struct RouterModule* module);
 
+struct RouterModule_Promise* RouterModule_getPeers(struct Node_Two* node,
+                                                   uint64_t nearbyLabel,
+                                                   uint32_t timeoutMilliseconds,
+                                                   struct RouterModule* module,
+                                                   struct Allocator* alloc);
+
 #endif
