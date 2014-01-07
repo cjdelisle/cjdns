@@ -11,8 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cjdnsadmin.adminTools as at
+import cjdnsadmin.analysisTools as at
+import networkx as nx
+import matplotlib.pyplot as plt
 
-cjdns=at.connect()
-
-at.dumpTable(cjdns,verbose=True);
+G=at.makeGraph()
+p=nx.spring_layout(G,iterations=200)
+nx.draw(G,pos=p,node_size=1200)
+plt.show()
