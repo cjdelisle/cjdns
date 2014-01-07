@@ -93,9 +93,6 @@ struct Node_Two
     /** The best link for getting to this node. */
     struct Node_Link* bestParent;
 
-    /** The best known way to get to this node. */
-    uint64_t bestPath;
-
     struct Allocator* alloc;
 
     Identity

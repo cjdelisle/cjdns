@@ -263,74 +263,100 @@ static inline void logLink(struct NodeStore_pvt* store,
     #endif
 }
 
-static void updateBestPath(struct Node_Two* node, struct NodeStore_pvt* store)
+static int updateBestPathCycle(struct Node_Two* node,
+                               int cycle,
+                               int limit,
+                               struct NodeStore_pvt* store)
 {
-#ifndef EXPERIMENTAL_PATHFINDER2
+#ifndef EXPERIMENTAL_PATHFINDER
     return;
 #endif
-    struct Node_Link* newBestLink = node->bestParent;
-    struct Node_Two* newBest = newBestLink->parent;
-    uint64_t bestPath = extendRoute(newBest->bestPath,
-                                    newBestLink,
-                                    newBest->bestParent->inverseLinkEncodingFormNumber);
-    Assert_true(bestPath < UINT64_MAX); // TODO: handle this
-
-    if (node->bestPath != bestPath) {
-        logLink(store, newBestLink, "New best link for reaching child");
+    Assert_always(cycle < 1000);
+    if (cycle < limit) {
+        int total = 0;
+        struct Node_Link* next = NULL;
+        RB_FOREACH(next, PeerRBTree, &node->peerTree) {
+            if (next->child->bestParent == next && next->child != node) {
+                total += updateBestPathCycle(next->child, cycle+1, limit, store);
+            }
+        }
+        return total;
     }
 
-    node->bestPath = bestPath;
+    struct Node_Link* newBestLink = node->bestParent;
+    struct Node_Two* newBest = newBestLink->parent;
+    uint64_t bestPath = extendRoute(newBest->address.path,
+                                    newBestLink,
+                                    newBest->bestParent->inverseLinkEncodingFormNumber);
+
+    Assert_always(bestPath < UINT64_MAX); // TODO: handle this
+
+    if (node->address.path != bestPath) {
+        uint8_t pathStr[20];
+        AddrTools_printPath(pathStr, bestPath);
+        uint8_t addrStr[40];
+        AddrTools_printIp(addrStr, node->address.ip6.bytes);
+        Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
+    }
+
+    node->address.path = bestPath;
     if (node->reach > newBest->reach) {
         node->reach = newBest->reach;
     }
+    return 1;
+}
 
-    struct Node_Link* next = NULL;
-    RB_FOREACH(next, PeerRBTree, &node->peerTree) {
-        if (next->child->bestParent == next && next->child != node) {
-            updateBestPath(next->child, store);
-        }
+static void updateBestPath(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    for (int i = 0; i < 10000; i++) {
+        if (!updateBestPathCycle(node, 0, i, store)) { return; }
     }
 }
 
-/**
- * The new reach is lower than the old reach, if the child of the link is best reached
- * via this link, we will check if there is any other link which is better at reaching him
- * than the current one, if so we swap him over to the other link.
- * Otherwise we will have to decrease his reach.
- */
-static inline int handleBadNewsCycle(struct Node_Link* link,
-                                     uint32_t newReach,
-                                     int count,
-                                     int limit,
-                                     struct NodeStore_pvt* store)
-{
-    Assert_always(count < 1000);
-    if (!link) { return 0; }
-    if (link->child->bestParent != link) { return 0; }
+struct LinkList;
+struct LinkList {
+    struct Node_Link* elem;
+    struct LinkList* next;
+};
 
-    // Shallow first and move out in a wave to prevent endless recomputation
-    // as each node discovers that actually all of their neighbors also depended
-    // on the same upstream.
-    if (count < limit) {
-        int altered = 0;
-        struct Node_Link* next = NULL;
-        RB_FOREACH(next, PeerRBTree, &link->child->peerTree) {
-            if (next->child->bestParent == next && next != link) {
-                altered += handleBadNewsCycle(next, newReach, count+1, limit, store);
-            }
+static void assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store)
+{
+    Log_debug(store->logger, "Beginning check for loops");
+    struct Node_Link* parent = node->bestParent;
+    for (int i = 0; i < 1000; i++) {
+        if (store->pub.selfNode == parent->parent) { return; }
+        logLink(store, parent, "Checking for loops");
+        Assert_always(node != parent->parent);
+        parent = parent->parent->bestParent;
+    }
+    Assert_always(0);
+}
+
+/**
+ * The news has hit (in handleBadNewsOne) and now all of the nodes in the affected zone have
+ * been knocked down. Now lets see if there's a better path for any of them.
+ */
+static inline void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store)
+{
+    if (!link) { return; }
+    if (link->child->bestParent != link) { return; }
+
+    struct Node_Link* next = NULL;
+    RB_FOREACH(next, PeerRBTree, &link->child->peerTree) {
+        if (next->child->bestParent == next && next != link) {
+            handleBadNewsTwo(next, store);
         }
-        return altered;
     }
 
-    if (link->child->reach < newReach) { return 1; }
+//    if (link->child->reach < newReach) { return 1; }
 
     struct Node_Link* rp = link->child->reversePeers;
     struct Node_Link* best = rp;
     while (rp) {
         if (rp->parent->reach >= best->parent->reach) {
-            best = rp;
-        } else if (rp->parent->reach == best->parent->reach) {
-            if (rp->parent->bestPath < best->parent->bestPath) {
+            if (rp->parent->reach > best->parent->reach
+                || rp->parent->address.path < best->parent->address.path)
+            {
                 best = rp;
             }
         }
@@ -338,42 +364,45 @@ static inline int handleBadNewsCycle(struct Node_Link* link,
     }
 
     struct Node_Two* node = link->child;
-    if (best == node->bestParent) {
-        if (node->reach == newReach) { return 0; }
-        node->reach = newReach;
-Log_debug(store->logger, "here");
-    } else {
-Log_debug(store->logger, "no here");
-        struct Node_Two* bestNode = best->parent;
-        uint64_t bestPath = extendRoute(bestNode->bestPath,
-                                        best,
-                                        bestNode->bestParent->inverseLinkEncodingFormNumber);
-        Assert_true(bestPath < UINT64_MAX); // TODO: handle this
-
+    if (best->parent->reach > node->bestParent->parent->reach
+        || best->parent->address.path < node->bestParent->parent->address.path)
+    {
         node->bestParent = best;
-        logLink(store, best, "handleBadNews() New best link");
-        if (node->bestPath != bestPath) {
-            node->bestPath = bestPath;
-        }
+        assertNoLoop(node, store);
+        updateBestPath(node, store);
+    }
+}
 
-        if (node->reach > bestNode->reach) {
-            node->reach = bestNode->reach;
+/**
+ * First thing we do is knock down everybody's reach.
+ * This way they don't all cling to eachother for safety making
+ * endless routing loops and stupid processing.
+ */
+static inline void handleBadNewsOne(struct Node_Link* link,
+                                    uint32_t newReach,
+                                    struct NodeStore_pvt* store)
+{
+    struct Node_Link* next = NULL;
+    RB_FOREACH(next, PeerRBTree, &link->child->peerTree) {
+        if (next->child->bestParent == next && next != store->selfLink) {
+            handleBadNewsOne(next, ((newReach == 0) ? 0 : newReach - 1), store);
         }
     }
-
-    return 1;
+    if (link->child->reach > newReach) {
+        // I got bad news for you!
+        link->child->reach = newReach;
+    }
 }
 
 static inline void handleBadNews(struct Node_Link* link,
                                  uint32_t newReach,
                                  struct NodeStore_pvt* store)
 {
-#ifndef EXPERIMENTAL_PATHFINDER2
+#ifndef EXPERIMENTAL_PATHFINDER
     return;
 #endif
-    for (int i = 0;; i++) {
-        if (!handleBadNewsCycle(link, newReach, 0, i, store)) { return; }
-    }
+    handleBadNewsOne(link, newReach, store);
+    handleBadNewsTwo(link, store);
 }
 
 static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
@@ -397,17 +426,19 @@ static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* sto
     }
     Assert_true(current);
 
+#ifdef EXPERIMENTAL_PATHFINDER
     // Change the best parent and path if necessary
-    // save and replace the cannonicalLabel because it is used by the RB tree.
-    uint64_t cl = link->cannonicalLabel;
-    link->cannonicalLabel = UINT64_MAX;
-    handleBadNews(link, 0, store);
-    link->cannonicalLabel = cl;
-
+    // Set the best path to horrific so that if the reach was already zero it will still switch.
+    uint64_t bp = parent->address.path;
+    uint32_t reach = parent->reach;
+    parent->address.path = UINT64_MAX;
+    parent->reach = 0;
+    handleBadNewsTwo(link, store);
     // Should be ok because we only unlink when we've already found a better link.
     // In the future this will not be true and we will have to be able to remove nodes.
-#ifdef EXPERIMENTAL_PATHFINDER2
-    Assert_true(child->bestParent != link);
+    Assert_always(child->bestParent != link);
+    parent->address.path = bp;
+    parent->reach = reach;
 #endif
 
     // Remove the RBTree entry
@@ -520,6 +551,7 @@ static inline void linkNodes(struct Node_Two* parent,
 
     if (!child->bestParent) {
         child->bestParent = link;
+        assertNoLoop(child, store);
         updateBestPath(child, store);
     }
 
@@ -617,7 +649,7 @@ static inline uint64_t findClosest(uint64_t path,
         Assert_true(nextLink->child->encodingScheme);
 
         if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
-            logLink(store, nextLink, "Exact match");
+            //logLink(store, nextLink, "Exact match");
             tmpl.cannonicalLabel = 1;
             *output = nextLink;
             if (hops) { *hops = actualHops; }
@@ -716,7 +748,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         return NULL;
     }
 
-    logLink(store, closest, "Closest link");
+    //logLink(store, closest, "Closest link");
 
     if (closest->child == node) {
         // Link is already known.
@@ -944,14 +976,15 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     // Create the self node
     struct Node_Two* selfNode = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
     Bits_memcpyConst(&selfNode->address, myAddress, sizeof(struct Address));
+    selfNode->address.path = 1;
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->version = Version_CURRENT_PROTOCOL;
     selfNode->alloc = alloc;
     Identity_set(selfNode);
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
+    out->pub.selfNode = selfNode;
     linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     out->selfLink = selfNode->reversePeers;
-    out->pub.selfNode = selfNode;
 
     out->pub.selfAddress = &out->selfLink->child->address;
 
@@ -1027,11 +1060,6 @@ static struct Node* nodeForHeader(struct NodeHeader* header, struct NodeStore_pv
     return nodeForIndex(store, header - store->headers);
 }
 
-struct LinkList;
-struct LinkList {
-    struct Node_Link* elem;
-    struct LinkList* next;
-};
 struct LinkList* NodeStore_linksForPath(struct NodeStore* nodeStore,
                                         uint64_t path,
                                         struct Allocator* alloc)
@@ -1067,6 +1095,7 @@ static inline void adjustReachB(uint64_t path,
             lastLink->child->reach = newReach;
             if (lastLink->child->bestParent->parent->reach < newReach) {
                 lastLink->child->bestParent = lastLink;
+                assertNoLoop(lastLink->child, store);
                 lastLink->child->bestParent->parent->reach = newReach;
                 updateBestPath(lastLink->child, store);
             }
@@ -1282,6 +1311,38 @@ struct Node* NodeStore_addNode(struct NodeStore* nodeStore,
     return nodeForIndex(store, insertionIndex);
 }
 
+static inline struct Node_Two* getBest(struct Node_Two* node,
+                                       struct Address* target,
+                                       struct NodeStore_pvt* store)
+{
+    uint32_t targetPfx = Address_getPrefix(target);
+    uint32_t ourDistance = Address_getPrefix(store->pub.selfAddress) ^ targetPfx;
+    struct Node_Link* next = NULL;
+    RB_FOREACH(next, PeerRBTree, &node->peerTree) {
+        if (next->child->bestParent != next || next == store->selfLink) { continue; }
+        if ((Address_getPrefix(&next->child->address) ^ targetPfx) >= ourDistance) { continue; }
+        return next->child;
+    }
+    RB_FOREACH(next, PeerRBTree, &node->peerTree) {
+        if (next->child->bestParent != next || next == store->selfLink) { continue; }
+        struct Node_Two* n = getBest(next->child, target, store);
+        if (n) { return n; }
+    }
+    return NULL;
+}
+
+struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* nodeStore)
+{
+    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress->ip6.bytes);
+    if (n) {
+        return (struct Node*) n;
+    }
+
+    return (struct Node*) getBest(store->selfLink->child, targetAddress, store);
+}
+
+/*
 struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
@@ -1310,6 +1371,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 
     return element.node ? nodeForHeader(element.node, store) : NULL;
 }
+*/
 
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
