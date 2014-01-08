@@ -85,7 +85,7 @@
 #define ALLOCATOR_FAILSAFE (1<<22)
 
 /** The number of nodes which we will keep track of. */
-#define NODE_STORE_SIZE 8192
+#define NODE_STORE_SIZE 256
 
 /** The number of milliseconds between attempting local maintenance searches. */
 #define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000

@@ -196,6 +196,17 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
     Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
 
+    Dict* bestParent = Dict_new(alloc);
+    String* parentIp = String_newBinary(NULL, 39, alloc);
+    AddrTools_printIp(parentIp->bytes, node->bestParent->parent->address.ip6.bytes);
+    Dict_putString(bestParent, String_CONST("ip"), parentIp, alloc);
+
+    String* parentChildLabel = String_newBinary(NULL, 19, alloc);
+    AddrTools_printPath(parentChildLabel->bytes, node->bestParent->cannonicalLabel);
+    Dict_putString(bestParent, String_CONST("parentChildLabel"), parentChildLabel, alloc);
+
+    Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
+
     Admin_sendMessage(ret, txid, ctx->admin);
 }
 

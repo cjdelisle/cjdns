@@ -233,9 +233,7 @@ static void maintanenceCycle(void* vcontext)
         return;
 
     } else {
-        #ifdef EXPERIMENTAL_PATHFINDER
-            checkPeers(janitor, n);
-        #endif
+        checkPeers(janitor, n);
     }
 
     #ifdef Log_DEBUG

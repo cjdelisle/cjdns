@@ -15,6 +15,7 @@
  */
 
 var Cjdns = require('../cjdnsadmin/cjdnsadmin');
+var nThen = require('../cjdnsadmin/nthen');
 
 var getAddresses = function (cjdns, callback) {
     var addresses = [];
@@ -36,12 +37,65 @@ var getAddresses = function (cjdns, callback) {
     again(0);
 };
 
+var buildTreeCycle = function (current, nodes) {
+    current.peers = [];
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].bestParent && nodes[i].bestParent.ip == current.ip) {
+            current.peers.push(nodes[i]);
+            nodes.splice(i, 1);
+        }
+    }
+    for (var i = 0; i < current.peers.length; i++) {
+        buildTreeCycle(current.peers[i], nodes);
+    }
+    return current;
+};
+
+var buildTree = function (origNodes) {
+    var nodes = [];
+    nodes.push.apply(nodes, origNodes);
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].bestParent && nodes[i].ip === nodes[i].bestParent.ip) {
+            var current = nodes[i];
+            nodes.splice(i, 1);
+            return buildTreeCycle(current, nodes);
+        }
+    }
+    throw new Error();
+};
+
+var printTree = function (tree, spaces) {
+    console.log(spaces + tree.ip + ' ' + tree.bestParent.parentChildLabel);
+    for (var i = 0; i < tree.peers.length; i++) {
+        printTree(tree.peers[i], spaces + '  ');
+    }
+};
+
 Cjdns.connectWithAdminInfo(function (cjdns) {
 
-    getAddresses(cjdns, function (addresses) {
-        console.log(JSON.stringify(addresses, null, '  '));
-
-        
+    var addrs;
+    var nodes = [];
+    nThen(function (waitFor) {
+        getAddresses(cjdns, waitFor(function (addrs) { addresses = addrs; }));
+    }).nThen(function (waitFor) {
+        var nt = nThen;
+        addresses.forEach(function (addr) {
+            nt = nt(function (waitFor) {
+                cjdns.NodeStore_nodeForAddr(addr, waitFor(function (err, ret) {
+                    if (err) { throw err; }
+                    if (ret.error !== 'none') { throw new Error(ret.error); }
+                    ret.result.ip = addr;
+                    nodes.push(ret.result);
+                }));
+            }).nThen;
+        });
+        nt(waitFor());
+    }).nThen(function (waitFor) {
+console.log(JSON.stringify(nodes, null, '  '));
+        var tree = buildTree(nodes);
+        //console.log(JSON.stringify(tree, null, '  '));
+        printTree(tree, '');
+        cjdns.disconnect();
     });
 
 });

@@ -268,9 +268,6 @@ static int updateBestPathCycle(struct Node_Two* node,
                                int limit,
                                struct NodeStore_pvt* store)
 {
-#ifndef EXPERIMENTAL_PATHFINDER
-    return;
-#endif
     Assert_always(cycle < 1000);
     if (cycle < limit) {
         int total = 0;
@@ -289,8 +286,6 @@ static int updateBestPathCycle(struct Node_Two* node,
                                     newBestLink,
                                     newBest->bestParent->inverseLinkEncodingFormNumber);
 
-    Assert_always(bestPath < UINT64_MAX); // TODO: handle this
-
     if (node->address.path != bestPath) {
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, bestPath);
@@ -298,6 +293,8 @@ static int updateBestPathCycle(struct Node_Two* node,
         AddrTools_printIp(addrStr, node->address.ip6.bytes);
         Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
     }
+
+    Assert_always(bestPath < UINT64_MAX); // TODO: handle this
 
     node->address.path = bestPath;
     if (node->reach > newBest->reach) {
@@ -368,6 +365,9 @@ static inline void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt
         || best->parent->address.path < node->bestParent->parent->address.path)
     {
         node->bestParent = best;
+        if (best->parent->reach >> 1 > node->reach) {
+            node->reach = best->parent->reach >> 1;
+        }
         assertNoLoop(node, store);
         updateBestPath(node, store);
     }
@@ -398,9 +398,6 @@ static inline void handleBadNews(struct Node_Link* link,
                                  uint32_t newReach,
                                  struct NodeStore_pvt* store)
 {
-#ifndef EXPERIMENTAL_PATHFINDER
-    return;
-#endif
     handleBadNewsOne(link, newReach, store);
     handleBadNewsTwo(link, store);
 }
@@ -426,20 +423,14 @@ static inline void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* sto
     }
     Assert_true(current);
 
-#ifdef EXPERIMENTAL_PATHFINDER
     // Change the best parent and path if necessary
-    // Set the best path to horrific so that if the reach was already zero it will still switch.
-    uint64_t bp = parent->address.path;
     uint32_t reach = parent->reach;
-    parent->address.path = UINT64_MAX;
     parent->reach = 0;
     handleBadNewsTwo(link, store);
     // Should be ok because we only unlink when we've already found a better link.
     // In the future this will not be true and we will have to be able to remove nodes.
     Assert_always(child->bestParent != link);
-    parent->address.path = bp;
     parent->reach = reach;
-#endif
 
     // Remove the RBTree entry
     rbRemove(parent, link, store);
@@ -477,13 +468,13 @@ static inline void update(struct Node_Link* link,
  * @param linkStateDiff how much to change the link state for this link.
  * @param store
  */
-static inline void linkNodes(struct Node_Two* parent,
-                             struct Node_Two* child,
-                             uint64_t cannonicalLabel,
-                             int64_t linkStateDiff,
-                             int inverseLinkEncodingFormNumber,
-                             uint64_t discoveredPath,
-                             struct NodeStore_pvt* store)
+static inline struct Node_Link* linkNodes(struct Node_Two* parent,
+                                          struct Node_Two* child,
+                                          uint64_t cannonicalLabel,
+                                          int64_t linkStateDiff,
+                                          int inverseLinkEncodingFormNumber,
+                                          uint64_t discoveredPath,
+                                          struct NodeStore_pvt* store)
 {
     verifyNode(child);
     verifyNode(parent);
@@ -525,7 +516,7 @@ static inline void linkNodes(struct Node_Two* parent,
                 link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
             }
             update(link, linkStateDiff, store);
-            return;
+            return link;
         }
     }
 
@@ -533,7 +524,7 @@ static inline void linkNodes(struct Node_Two* parent,
     link = rbFind(parent, &dummy);
     if (link) {
         logLink(store, link, "Attempted to create alternate link with same label!");
-        return;
+        return link;
     }
 
     link = getLink(store);
@@ -561,6 +552,8 @@ static inline void linkNodes(struct Node_Two* parent,
     verifyNode(child);
     verifyNode(parent);
     verifyLinks(store);
+
+    return link;
 }
 
 /**
@@ -700,9 +693,6 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct EncodingScheme* scheme,
                                         int inverseLinkEncodingFormNumber)
 {
-    #ifndef EXPERIMENTAL_PATHFINDER
-        return NULL;
-    #endif
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
 
     verifyLinks(store);
@@ -725,7 +715,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         node->encodingScheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
     } else {
-        node = store->nodeMap.values[index];
+        node = Identity_cast(store->nodeMap.values[index]);
     }
 
     if (node == store->selfLink->child) {
@@ -733,7 +723,14 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         return node;
     }
 
-    node->reach = (node->reach < -reachDiff) ? 0 : node->reach - reachDiff;
+    reachDiff += node->reach;
+    if (reachDiff < 0) {
+        reachDiff = 0;
+    } else if (reachDiff > UINT32_MAX) {
+        reachDiff = UINT32_MAX;
+    }
+    node->reach = reachDiff;
+
     node->version = (version) ? version : node->version;
     Assert_true(node->version);
     Assert_true(EncodingScheme_equals(scheme, node->encodingScheme));//TODO
@@ -838,8 +835,15 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         } else {
             Assert_true(splitLink->cannonicalLabel != path);
 
-            linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
-                      splitLink->inverseLinkEncodingFormNumber, addr->path, store);
+            struct Node_Link* lcg =
+                linkNodes(node, grandChild, childToGrandchild, splitLink->linkState,
+                          splitLink->inverseLinkEncodingFormNumber, addr->path, store);
+
+            if (grandChild->bestParent == splitLink) {
+                grandChild->bestParent = lcg;
+                assertNoLoop(grandChild, store);
+                updateBestPath(grandChild, store);
+            }
         }
 
         struct Node_Link* unlinkMe = splitLink;
@@ -866,7 +870,7 @@ struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)addr, &store->nodeMap);
     if (index == -1) { return NULL; }
-    return store->nodeMap.values[index];
+    return Identity_cast(store->nodeMap.values[index]);
 }
 
 struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path)
@@ -875,7 +879,7 @@ struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t pat
     struct Node_Link* out = NULL;
     uint64_t pathParentChild = findClosest(path, &out, NULL, store);
     if (pathParentChild != 1) { return NULL; }
-    return out->child;
+    return Identity_cast(out->child);
 }
 
 struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
@@ -1341,37 +1345,6 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 
     return (struct Node*) getBest(store->selfLink->child, targetAddress, store);
 }
-
-/*
-struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* nodeStore)
-{
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    struct NodeCollector_Element element = {
-        .value = 0,
-        .distance = UINT32_MAX,
-        .node = NULL
-    };
-
-    struct NodeCollector collector = {
-        .capacity = 1,
-        .targetPrefix = Address_getPrefix(targetAddress),
-        .targetAddress = targetAddress,
-        .nodes = &element,
-        .logger = store->logger
-    };
-
-    collector.thisNodeDistance =
-        Address_getPrefix(store->pub.selfAddress) ^ collector.targetPrefix;
-
-    for (int i = 0; i < store->pub.size; i++) {
-        if (store->headers[i].reach != 0) {
-            LinkStateNodeCollector_addNode(store->headers + i, store->nodes + i, &collector);
-        }
-    }
-
-    return element.node ? nodeForHeader(element.node, store) : NULL;
-}
-*/
 
 struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
                                           const uint32_t max,
