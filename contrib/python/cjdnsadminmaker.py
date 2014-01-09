@@ -96,6 +96,7 @@ while not done:
         cjdnsadmin["addr"] = addr
         cjdnsadmin["port"] = int(port)
         cjdnsadmin["password"] = cjdrouteconf['admin']['password']
+        cjdnsadmin["config"] = conf
         adminfile = open(os.getenv("HOME") + "/.cjdnsadmin", "w+")
         adminfile.write(json.dumps(cjdnsadmin, indent=4))
         adminfile.close()
