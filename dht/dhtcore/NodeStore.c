@@ -1359,6 +1359,7 @@ static inline struct Node_Two* getBest(struct Node_Two* node,
     struct Node_Link* next = NULL;
     RB_FOREACH(next, PeerRBTree, &node->peerTree) {
         if (next->child->bestParent != next || next == store->selfLink) { continue; }
+        if (next->child->address.path == UINT64_MAX) { continue; }
         if ((Address_getPrefix(&next->child->address) ^ targetPfx) >= ourDistance) { continue; }
         return next->child;
     }
