@@ -149,6 +149,36 @@ static inline struct Node_Link* getLink(struct NodeStore_pvt* store)
     return link;
 }
 
+static inline void logLink(struct NodeStore_pvt* store,
+                           struct Node_Link* link,
+                           char* message)
+{
+    #ifndef Log_DEBUG
+        return;
+    #endif
+    uint8_t parent[40];
+    uint8_t child[40];
+    AddrTools_printIp(parent, link->parent->address.ip6.bytes);
+    AddrTools_printIp(child, link->child->address.ip6.bytes);
+    uint8_t path[20];
+    AddrTools_printPath(path, link->cannonicalLabel);
+    Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
+}
+
+static void assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store)
+{
+    //Log_debug(store->logger, "Beginning check for loops");
+    struct Node_Link* parent = node->bestParent;
+    for (int i = 0; i < 1000; i++) {
+        if (store->pub.selfNode == parent->parent) { return; }
+        //logLink(store, parent, "Checking for loops");
+        Assert_always(node != parent->parent);
+        parent = parent->parent->bestParent;
+    }
+    // loop higher up the chain...
+    assertNoLoop(parent->child, store);
+}
+
 static inline void verifyNode(struct Node_Two* node)
 {
 #ifdef PARANOIA
@@ -174,7 +204,23 @@ static inline void verifyNode(struct Node_Two* node)
         Assert_true(rlink);
         lastLink = link;
     }
+
+    Assert_true(node->bestParent->parent->reach >= node->reach);
 #endif
+}
+
+static int isAncestorOf(struct Node_Two* isAncestor,
+                        struct Node_Two* ofNode,
+                        struct NodeStore_pvt* store)
+{
+    for (int i = 0; i < 1000; i++) {
+        if (store->pub.selfNode == ofNode) { return 0; }
+        if (ofNode == isAncestor) { return 1; }
+        ofNode = ofNode->bestParent->parent;
+    }
+    // loop higher up the chain...
+    assertNoLoop(ofNode, store);
+    Assert_always(0);
 }
 
 static void verifyLinks(struct NodeStore_pvt* store)
@@ -184,6 +230,7 @@ static void verifyLinks(struct NodeStore_pvt* store)
         Assert_true(link->linkAddr == (uintptr_t)link);
         Assert_true(link->cannonicalLabel != 1 || link == store->selfLink || !store->selfLink);
         verifyNode(link->child);
+        assertNoLoop(link->child, store);
     }
 }
 
@@ -248,21 +295,6 @@ static uint64_t extendRoute(uint64_t routeLabel, struct Node_Link* link, int pre
     return LabelSplicer_splice(next, routeLabel);
 }
 
-static inline void logLink(struct NodeStore_pvt* store,
-                           struct Node_Link* link,
-                           char* message)
-{
-    #ifdef Log_DEBUG
-        uint8_t parent[40];
-        uint8_t child[40];
-        AddrTools_printIp(parent, link->parent->address.ip6.bytes);
-        AddrTools_printIp(child, link->child->address.ip6.bytes);
-        uint8_t path[20];
-        AddrTools_printPath(path, link->cannonicalLabel);
-        Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
-    #endif
-}
-
 static int updateBestPathCycle(struct Node_Two* node,
                                int cycle,
                                int limit,
@@ -294,7 +326,10 @@ static int updateBestPathCycle(struct Node_Two* node,
         Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
     }
 
-    Assert_always(bestPath < UINT64_MAX); // TODO: handle this
+    if (bestPath == UINT64_MAX) {
+        // node is unreachable
+        node->reach = 0;
+    }
 
     node->address.path = bestPath;
     if (node->reach > newBest->reach) {
@@ -316,19 +351,6 @@ struct LinkList {
     struct LinkList* next;
 };
 
-static void assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store)
-{
-    Log_debug(store->logger, "Beginning check for loops");
-    struct Node_Link* parent = node->bestParent;
-    for (int i = 0; i < 1000; i++) {
-        if (store->pub.selfNode == parent->parent) { return; }
-        logLink(store, parent, "Checking for loops");
-        Assert_always(node != parent->parent);
-        parent = parent->parent->bestParent;
-    }
-    Assert_always(0);
-}
-
 /**
  * The news has hit (in handleBadNewsOne) and now all of the nodes in the affected zone have
  * been knocked down. Now lets see if there's a better path for any of them.
@@ -347,8 +369,9 @@ static inline void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt
 
 //    if (link->child->reach < newReach) { return 1; }
 
+    struct Node_Two* node = link->child;
     struct Node_Link* rp = link->child->reversePeers;
-    struct Node_Link* best = rp;
+    struct Node_Link* best = node->bestParent;
     while (rp) {
         if (rp->parent->reach >= best->parent->reach) {
             if (rp->parent->reach > best->parent->reach
@@ -360,13 +383,11 @@ static inline void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt
         rp = rp->nextPeer;
     }
 
-    struct Node_Two* node = link->child;
-    if (best->parent->reach > node->bestParent->parent->reach
-        || best->parent->address.path < node->bestParent->parent->address.path)
-    {
+    if (best != node->bestParent) {
         node->bestParent = best;
-        if (best->parent->reach >> 1 > node->reach) {
-            node->reach = best->parent->reach >> 1;
+        struct Node_Two* bestNode = best->parent;
+        if (bestNode->reach >> 1 > node->reach) {
+            node->reach = bestNode->reach >> 1;
         }
         assertNoLoop(node, store);
         updateBestPath(node, store);
@@ -390,6 +411,7 @@ static inline void handleBadNewsOne(struct Node_Link* link,
     }
     if (link->child->reach > newReach) {
         // I got bad news for you!
+        Assert_true(link->child != store->pub.selfNode);
         link->child->reach = newReach;
     }
 }
@@ -476,8 +498,8 @@ static inline struct Node_Link* linkNodes(struct Node_Two* parent,
                                           uint64_t discoveredPath,
                                           struct NodeStore_pvt* store)
 {
-    verifyNode(child);
-    verifyNode(parent);
+    //verifyNode(child);
+    //verifyNode(parent);
     verifyLinks(store);
 
     #ifdef Log_DEBUG
@@ -688,7 +710,6 @@ static inline uint64_t findClosest(uint64_t path,
 
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct Address* addr,
-                                        int64_t reachDiff,
                                         uint32_t version,
                                         struct EncodingScheme* scheme,
                                         int inverseLinkEncodingFormNumber)
@@ -722,14 +743,6 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Log_debug(store->logger, "Got introduced to ourselves");
         return node;
     }
-
-    reachDiff += node->reach;
-    if (reachDiff < 0) {
-        reachDiff = 0;
-    } else if (reachDiff > UINT32_MAX) {
-        reachDiff = UINT32_MAX;
-    }
-    node->reach = reachDiff;
 
     node->version = (version) ? version : node->version;
     Assert_true(node->version);
@@ -772,7 +785,8 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     // link parent to child
     // TODO: linking every node with 0 link state, this can't be right.
-    linkNodes(closest->child, node, path, 0, inverseLinkEncodingFormNumber, addr->path, store);
+    struct Node_Link* parentLink =
+        linkNodes(closest->child, node, path, 0, inverseLinkEncodingFormNumber, addr->path, store);
 
     // Check whether the parent is already linked with a node which is "behind" the child.
     // previous appears to be a "sibling link" to the closest->node link but in reality the
@@ -840,6 +854,16 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                           splitLink->inverseLinkEncodingFormNumber, addr->path, store);
 
             if (grandChild->bestParent == splitLink) {
+                // There's a possible loop case here, if the node's best (current) parent is the
+                // node given by grandChild, there is a loop but we don't know it because the
+                // graph has not been filled in. Here we will discover the loop and if we do not
+                // resolve it, we will get a assertion failure.
+                if (isAncestorOf(grandChild, node, store)) {
+                    node->bestParent = parentLink;
+                    assertNoLoop(node, store);
+                    Log_debug(store->logger, "Detected loop, unravelling...");
+                }
+                assertNoLoop(grandChild, store);
                 grandChild->bestParent = lcg;
                 assertNoLoop(grandChild, store);
                 updateBestPath(grandChild, store);
@@ -984,6 +1008,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->version = Version_CURRENT_PROTOCOL;
     selfNode->alloc = alloc;
+    selfNode->reach = UINT32_MAX;
     Identity_set(selfNode);
     Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
     out->pub.selfNode = selfNode;
@@ -1085,7 +1110,8 @@ static inline void adjustReachB(uint64_t path,
                                 struct NodeStore_pvt* store,
                                 struct Allocator* tempAlloc)
 {
-    struct Node_Link* lastLink = NULL;
+    verifyLinks(store);
+    struct Node_Link* lastLink = store->selfLink;
     struct LinkList* links = NodeStore_linksForPath(&store->pub, path, tempAlloc);
     for (struct LinkList* link = links; link; link = link->next) {
         for (struct LinkList* linkB = link->next; linkB; linkB = linkB->next) {
@@ -1094,18 +1120,26 @@ static inline void adjustReachB(uint64_t path,
                 link->next = linkB->next;
             }
         }
+        Assert_true(link->elem->parent == lastLink->child);
+        Assert_true(lastLink->parent->reach >= newReach);
         lastLink = link->elem;
+
         if (lastLink->child->reach < newReach) {
             lastLink->child->reach = newReach;
             if (lastLink->child->bestParent->parent->reach < newReach) {
                 lastLink->child->bestParent = lastLink;
                 assertNoLoop(lastLink->child, store);
-                lastLink->child->bestParent->parent->reach = newReach;
+                Assert_true(lastLink->parent->reach >= newReach);
                 updateBestPath(lastLink->child, store);
             }
         }
+        Assert_true(lastLink->parent->reach >= newReach);
     }
-    handleBadNews(lastLink, newReach, store);
+    verifyLinks(store);
+    if (path == lastLink->child->address.path) {
+        handleBadNews(lastLink, newReach, store);
+        verifyLinks(store);
+    }
 }
 
 static inline void adjustReach(struct NodeHeader* header,
@@ -1339,7 +1373,7 @@ struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* 
 {
     struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress->ip6.bytes);
-    if (n) {
+    if (n && n->address.path != UINT64_MAX) {
         return (struct Node*) n;
     }
 

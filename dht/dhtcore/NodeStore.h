@@ -64,7 +64,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  */
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct Address* addr,
-                                        int64_t reachDiff,
                                         uint32_t version,
                                         struct EncodingScheme* scheme,
                                         int encodingFormNumber);
