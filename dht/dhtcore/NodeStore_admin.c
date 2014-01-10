@@ -207,6 +207,10 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
 
     Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
 
+    String* bestLabel = String_newBinary(NULL, 19, alloc);
+    AddrTools_printPath(bestLabel->bytes, node->address.path);
+    Dict_putString(result, String_CONST("routeLabel"), bestLabel, alloc);
+
     Admin_sendMessage(ret, txid, ctx->admin);
 }
 

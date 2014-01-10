@@ -50,18 +50,29 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             }
         });
 
+        var nt = nThen;
         uniques.forEach(function (node) {
-            cjdns.RouterModule_pingNode(node.path, waitFor(function (err, ret) {
-                if (err) { throw err; }
-                if (ret.result === 'pong') {
-                    console.log(ret.from + '  ' + ret.ms + 'ms  linkq:' + node.link);
-                    lags.push(Number(ret.ms));
-                } else {
-                    console.log(ret.from + '  ' + ret.error);
-                    lags.push(3000);
-                }
-            }));
+            nt = nt(function (waitFor) {
+                cjdns.NodeStore_nodeForAddr(node.ip, waitFor(function (err, ret) {
+                    if (err) { throw err; }
+                    process.stdout.write(node.ip + '@' + ret.result.routeLabel);
+                }));
+            }).nThen(function (waitFor) {
+                cjdns.RouterModule_pingNode(node.ip, waitFor(function (err, ret) {
+                    if (err) { throw err; }
+                    if (ret.result === 'pong') {
+                        process.stdout.write('  ' + ret.ms + 'ms  linkq:' + node.link);
+                        lags.push(Number(ret.ms));
+                    } else {
+                        process.stdout.write('  ' + JSON.stringify(ret));
+                        lags.push(3000);
+                    }
+                    process.stdout.write('\n');
+                }));
+            }).nThen;
         });
+
+        nt(waitFor());
 
     }).nThen(function (waitFor) {
         var totalLag = 0;

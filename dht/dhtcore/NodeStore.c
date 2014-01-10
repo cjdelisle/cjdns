@@ -290,8 +290,10 @@ static uint64_t extendRoute(uint64_t routeLabel, struct Node_Link* link, int pre
     uint64_t next = link->cannonicalLabel;
     int nextLinkEncoding = EncodingScheme_getFormNum(link->parent->encodingScheme, next);
     if (previousLinkEncoding > nextLinkEncoding) {
-        EncodingScheme_convertLabel(link->parent->encodingScheme, next, previousLinkEncoding);
+        next =
+            EncodingScheme_convertLabel(link->parent->encodingScheme, next, previousLinkEncoding);
     }
+    Assert_true(next != EncodingScheme_convertLabel_INVALID);
     return LabelSplicer_splice(next, routeLabel);
 }
 
@@ -923,9 +925,8 @@ struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum)
 {
     struct Node_Link* link = NULL;
-    uint32_t i = 0;
-    RB_FOREACH(link, PeerRBTree, &parent->peerTree) {
-        if (i++ == linkNum) {
+    RB_FOREACH_REVERSE(link, PeerRBTree, &parent->peerTree) {
+        if (!linkNum--) {
             return link;
         }
     }
