@@ -14,6 +14,8 @@
  */
 var Fs = require('fs');
 
+var LINKEYNESS = 0.001;
+
 var makeNodes = function (keys) {
     var out = {};
     var ips = [];
@@ -32,7 +34,11 @@ var makeNodes = function (keys) {
         var linked = ((Math.random() * 1e9) | 0) % Object.keys(linkedNodes).length;
         var unlinked = ((Math.random() * 1e9) | 0) % keys.length;
         links++;
-        if (linkedNodes.indexOf(unlinked) === -1) { linkedNodes.push(unlinked); }
+        if (linkedNodes.indexOf(unlinked) === -1) {
+            linkedNodes.push(unlinked);
+        } else if (Math.random() > LINKEYNESS) {
+            continue;
+        }
         if (Math.random() > 0.5) {
             var x = linked;
             linked = unlinked;

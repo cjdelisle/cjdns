@@ -33,6 +33,12 @@
 
 struct Address
 {
+    /** The protocol version of the node. */
+    uint32_t protocolVersion;
+
+    /** unused */
+    uint32_t padding;
+
     union {
         struct {
             // tricksy: this is effectively a 64 bit rotate of the following bytes array
@@ -42,6 +48,11 @@ struct Address
             uint32_t two;
         } ints;
 
+        struct {
+            uint64_t two;
+            uint64_t one;
+        } longs;
+
         uint8_t bytes[Address_SEARCH_TARGET_SIZE];
     } ip6;
 
@@ -49,7 +60,7 @@ struct Address
 
     uint64_t path;
 };
-#define Address_SIZE (Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
+#define Address_SIZE (8 + Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
 Assert_compileTime(sizeof(struct Address) == Address_SIZE);
 
 static inline uint32_t Address_getPrefix(struct Address* addr)
@@ -126,6 +137,55 @@ static inline void Address_print(uint8_t output[60], struct Address* addr)
     Address_printIp(output, addr);
     output[39] = '@';
     AddrTools_printPath(output + 40, addr->path);
+}
+
+static inline int Address_xorcmp(uint32_t target,
+                                 uint32_t negativeIfCloser,
+                                 uint32_t positiveIfCloser)
+{
+    if (negativeIfCloser == positiveIfCloser) {
+        return 0;
+    }
+    uint32_t ref = Endian_bigEndianToHost32(target);
+    return ((Endian_bigEndianToHost32(negativeIfCloser) ^ ref)
+               < (Endian_bigEndianToHost32(positiveIfCloser) ^ ref)) ? -1 : 1;
+}
+
+/**
+ * Return which node is closer to the target.
+ *
+ * @param target the address to test distance against.
+ * @param negativeIfCloser one address to check distance.
+ * @param positiveIfCloser another address to check distance.
+ * @return -1 if negativeIfCloser is closer to target, 1 if positiveIfCloser is closer
+ *         0 if they are both the same distance.
+ */
+static inline int Address_closest(struct Address* target,
+                                  struct Address* negativeIfCloser,
+                                  struct Address* positiveIfCloser)
+{
+    Address_getPrefix(target);
+    Address_getPrefix(negativeIfCloser);
+    Address_getPrefix(positiveIfCloser);
+
+    int ret = 0;
+
+    #define Address_COMPARE(part) \
+        if ((ret = Address_xorcmp(target->ip6.ints.part,               \
+                                  negativeIfCloser->ip6.ints.part,     \
+                                  positiveIfCloser->ip6.ints.part)))   \
+        {                                                              \
+            return ret;                                                \
+        }
+
+    Address_COMPARE(one)
+    Address_COMPARE(two)
+    Address_COMPARE(three)
+    Address_COMPARE(four)
+
+    return 0;
+
+    #undef Address_COMPARE
 }
 
 #endif

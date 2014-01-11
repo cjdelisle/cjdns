@@ -58,11 +58,13 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                     process.stdout.write(node.ip + '@' + ret.result.routeLabel);
                 }));
             }).nThen(function (waitFor) {
-                cjdns.RouterModule_pingNode(node.ip, waitFor(function (err, ret) {
+                cjdns.RouterModule_pingNode(node.ip, 1000, waitFor(function (err, ret) {
                     if (err) { throw err; }
                     if (ret.result === 'pong') {
                         process.stdout.write('  ' + ret.ms + 'ms  linkq:' + node.link);
                         lags.push(Number(ret.ms));
+                    } else if (ret.error === 'not_found') {
+                        process.stdout.write('  not_found');
                     } else {
                         process.stdout.write('  ' + JSON.stringify(ret));
                         lags.push(3000);

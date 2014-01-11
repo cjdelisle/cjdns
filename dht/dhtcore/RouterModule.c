@@ -269,19 +269,17 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
     return (oldReach / 2);
 }
 
-static inline void responseFromNode(struct Node* node,
+static inline void responseFromNode(struct Node_Two* node,
                                     uint32_t millisecondsSinceRequest,
                                     struct RouterModule* module)
 {
-    if (node) {
-        if (millisecondsSinceRequest == 0) {
-            millisecondsSinceRequest = 1;
-        }
-        node->missedPings = 0;
-        node->reach = reachAfterDecay(node->reach) +
-            ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
-        NodeStore_updateReach(node, module->nodeStore);
+    if (millisecondsSinceRequest == 0) {
+        millisecondsSinceRequest = 1;
     }
+    node->missedPings = 0;
+    int64_t newReach = reachAfterDecay(node->pathQuality) +
+        ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
+    NodeStore_updateReach(module->nodeStore, node, newReach - node->pathQuality);
 }
 
 static inline int sendNodes(struct NodeList* nodeList,
@@ -316,7 +314,7 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[j] = nodeList->nodes[i]->version;
+        versions->versions[j] = nodeList->nodes[i]->address.protocolVersion;
         j++;
     }
     if (i > 0) {
@@ -348,9 +346,6 @@ static inline int handleQuery(struct DHTMessage* message,
     int64_t* versionPtr = Dict_getInt(query->asDict, CJDHTConstants_PROTOCOL);
     uint32_t version = (versionPtr && *versionPtr <= UINT32_MAX) ? *versionPtr : 0;
 
-    // We got a query, the reach should be set to 1 in the new node.
-    NodeStore_addNode(module->nodeStore, query->address, 1, version);
-
     struct NodeList* nodeList = NULL;
 
     String* queryType = Dict_getString(query->asDict, CJDHTConstants_QUERY);
@@ -361,7 +356,7 @@ static inline int handleQuery(struct DHTMessage* message,
             return 0;
         }
 
-        struct Address targetAddr;
+        struct Address targetAddr = { .path = 0 };
         Bits_memcpyConst(targetAddr.ip6.bytes, target->bytes, Address_SEARCH_TARGET_SIZE);
 
         // send the closest nodes
@@ -457,21 +452,21 @@ static void sendMsg(String* txid, void* vpingContext)
 
 static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 {
-    struct Node* n = NodeStore_getNodeByNetworkAddr(pctx->address.path, pctx->router->nodeStore);
+    struct Node_Two* n = NodeStore_nodeForPath(pctx->router->nodeStore, pctx->address.path);
 
     // Ping timeout -> decrease reach
     if (n) {
 
-        uint32_t newReach;
+        int64_t newReach;
 
         if (n->missedPings < 255) {
             n->missedPings++;
         }
         if (n->missedPings > PING_GRACE_COUNT) {
-            newReach = reachAfterTimeout(n->reach);
+            newReach = reachAfterTimeout(n->pathQuality);
         }
         else {
-            newReach = reachAfterDecay(n->reach);
+            newReach = reachAfterDecay(n->pathQuality);
         }
 
         #ifdef Log_DEBUG
@@ -481,20 +476,11 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
                        "Ping timeout for %s, after %lums. changing reach from %u to %u\n",
                        addr,
                        (unsigned long)milliseconds,
-                       n->reach,
-                       newReach);
+                       n->pathQuality,
+                       (unsigned int)newReach);
         #endif
 
-        n->reach = newReach;
-
-        if (newReach == 0 && LabelSplicer_isOneHop(n->address.path)) {
-            // If the node is directly connected, don't allow the reach to be zeroed
-            // because because the node is being periodically pinged at the switch level
-            // if the link is broken, the node will be zeroed anyway.
-            n->reach++;
-        }
-
-        NodeStore_updateReach(n, pctx->router->nodeStore);
+        NodeStore_updateReach(pctx->router->nodeStore, n, newReach - n->pathQuality);
     }
 
     if (pctx->pub.callback) {
@@ -570,20 +556,8 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
                milliseconds,
                AverageRoller_getAverage(pctx->router->gmrtRoller));
 
-    // If we get a reply from a node which is not in our table
-    // it probably means that we just flushed them from the table because
-    // a node further up the tree has become unresponsive.
-    // ignore their message because it would add orphaned entries to the node tree.
-    struct Node* node = NodeStore_getNodeByNetworkAddr(message->address->path, module->nodeStore);
-    if (!node || Bits_memcmp(node->address.key, message->address->key, 32)) {
-        return;
-    }
-
-    int64_t* versionPtr = Dict_getInt(message->asDict, CJDHTConstants_PROTOCOL);
-    uint32_t version = ((versionPtr) ? *versionPtr : 0);
-
     // this implementation only pings to get the address of a node, so lets add the node.
-    node = NodeStore_addNode(module->nodeStore, message->address, 2, version);
+    struct Node_Two* node = NodeStore_nodeForPath(module->nodeStore, message->address->path);
 
     Assert_true(node);
     responseFromNode(node, milliseconds, module);
@@ -606,7 +580,7 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     }
 }
 
-struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
+struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                                      uint32_t timeoutMilliseconds,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc)
@@ -630,7 +604,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
         .pp = pp
     }));
     Identity_set(pctx);
-    Bits_memcpyConst(&pctx->address, &node->address, sizeof(struct Address));
+    Bits_memcpyConst(&pctx->address, addr, sizeof(struct Address));
 
     pp->context = pctx;
 
@@ -645,27 +619,37 @@ void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* reques
     Pinger_sendPing(pctx->pp);
 }
 
-struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
+struct RouterModule_Promise* RouterModule_pingNode(struct Address* addr,
                                                    uint32_t timeoutMilliseconds,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc)
 {
     struct RouterModule_Promise* promise =
-        RouterModule_newMessage(node, timeoutMilliseconds, module, alloc);
+        RouterModule_newMessage(addr, timeoutMilliseconds, module, alloc);
     Dict* d = Dict_new(promise->alloc);
     Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_PING, promise->alloc);
     RouterModule_sendMessage(promise, d);
+
+    #ifdef Log_DEBUG
+        uint8_t buff[60];
+        Address_print(buff, addr);
+        Log_debug(module->logger, "Sending ping [%u] to [%s]",
+                  ((struct PingContext*)promise)->pp->handle, buff);
+    #endif
+
+    Assert_true(addr->path != 0);
+
     return promise;
 }
 
-struct RouterModule_Promise* RouterModule_getPeers(struct Node_Two* node,
+struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
                                                    uint32_t timeoutMilliseconds,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc)
 {
     struct RouterModule_Promise* promise =
-        RouterModule_newMessage((struct Node*)node, timeoutMilliseconds, module, alloc);
+        RouterModule_newMessage(addr, timeoutMilliseconds, module, alloc);
     Dict* d = Dict_new(promise->alloc);
     Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_GP, promise->alloc);
 
@@ -678,15 +662,15 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Node_Two* node,
 }
 
 /** See: RouterModule.h */
-void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
+/*void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
 {
     Address_getPrefix(address);
-    NodeStore_addNode(module->nodeStore, address, 1, version);
+    NodeStore_addNode(module->nodeStore, address, 0, version);
     struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
     if (best && best->address.path != address->path) {
-        RouterModule_pingNode(best, 0, module, module->allocator);
+        RouterModule_pingNode(&best->address, 0, module, module->allocator);
     }
-}
+}*/
 
 /**
  * Calculates expected latency from reach, bound between gmrt and timeout
@@ -694,11 +678,13 @@ void RouterModule_addNode(struct RouterModule* module, struct Address* address, 
  * Also used to set a different ping timeout per node when doing refreshReach
  * This allows us to quickly notice when a route has dropped, instead of waiting
  * for the normal ping timeout (which is quite long).
- */
-static inline uint32_t getExpectedLatency(struct Node* node, struct RouterModule* module)
+ *
+
+unused...
+static uint32_t getExpectedLatency(struct Node_Two* node, struct RouterModule* module)
 {
-    uint32_t expectedLatency = (node->reach > 1)
-                             ? UINT32_MAX / node->reach
+    uint32_t expectedLatency = (node->pathQuality > 1)
+                             ? UINT32_MAX / node->pathQuality
                              : UINT32_MAX;
 
     expectedLatency = ( expectedLatency
@@ -713,12 +699,13 @@ static inline uint32_t getExpectedLatency(struct Node* node, struct RouterModule
 
     return expectedLatency;
 }
-
+*/
 // For each path to a destination, if the path has not recently been pinged, then ping it
 void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                struct RouterModule* module)
 {
 return;
+/*
     struct Address address;
     Bits_memcpyConst(address.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
     struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
@@ -731,7 +718,7 @@ return;
             if ( now > nodeList->nodes[i]->timeOfNextPing ) {
                 uint32_t expectedLatency = getExpectedLatency(nodeList->nodes[i], module);
 
-                RouterModule_pingNode( nodeList->nodes[i],
+                RouterModule_pingNode( &nodeList->nodes[i]->address,
                                        (2*expectedLatency)+10,
                                        module,
                                        module->allocator );
@@ -747,31 +734,26 @@ return;
         }
     }
     Allocator_free(nodeListAlloc);
+*/
 }
 
-struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module)
 {
-    struct Address addr;
+    struct Address addr = { .path = 0 };
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
 
     return NodeStore_getBest(&addr, module->nodeStore);
 }
 
-/** see RouterModule.h */
-struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module)
+struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_getNodeByNetworkAddr(path, module->nodeStore);
+    return NodeStore_nodeForPath(module->nodeStore, path);
 }
 
-int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
+void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_brokenPath(path, module->nodeStore);
-}
-
-void RouterModule_updateReach(struct Node* node, struct RouterModule* module)
-{
-    NodeStore_updateReach(node, module->nodeStore);
+    NodeStore_brokenPath(path, module->nodeStore);
 }
 
 uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module)

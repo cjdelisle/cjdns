@@ -15,6 +15,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "net/DefaultInterfaceController.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
 #include "util/Base32.h"
@@ -113,6 +114,8 @@ struct Context
     /** Router needed to inject newly added nodes to bootstrap the system. */
     struct RouterModule* const routerModule;
 
+    struct RumorMill* const rumorMill;
+
     struct Log* const logger;
 
     struct EventBase* const eventBase;
@@ -169,7 +172,11 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
-    RouterModule_addNode(ic->routerModule, &addr, version);
+    addr.protocolVersion = version;
+
+    if (!RouterModule_nodeForPath(label, ic->routerModule)) {
+        RumorMill_addNode(ic->rumorMill, &addr);
+    }
 
     #ifdef Log_DEBUG
         // This will be false if it times out.
@@ -197,7 +204,7 @@ static void pingCallback(void* vic)
         // This is here because of a pathological state where the connection is in ESTABLISHED
         // state but the *direct peer* has somehow been dropped from the routing table.
         // TODO: understand the cause of this issue rather than checking for it once per second.
-        struct Node* peerNode = RouterModule_getNode(ep->switchLabel, ic->routerModule);
+        struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
 
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds || !peerNode) {
             #ifdef Log_DEBUG
@@ -543,6 +550,7 @@ static int disconnectPeer(struct InterfaceController* ifController, uint8_t herP
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
+                                                           struct RumorMill* rumorMill,
                                                            struct Log* logger,
                                                            struct EventBase* eventBase,
                                                            struct SwitchPinger* switchPinger,
@@ -565,6 +573,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .ca = ca,
         .switchCore = switchCore,
         .routerModule = routerModule,
+        .rumorMill = rumorMill,
         .logger = logger,
         .eventBase = eventBase,
         .switchPinger = switchPinger,

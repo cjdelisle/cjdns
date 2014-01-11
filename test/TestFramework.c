@@ -105,13 +105,20 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, 128, allocator, logger, rand);
+    struct NodeStore* nodeStore = NodeStore_new(myAddress, 128, allocator, logger);
 
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);
 
-    struct SearchRunner* searchRunner =
-        SearchRunner_new(nodeStore, logger, base, routerModule, myAddress->ip6.bytes, allocator);
+    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
+
+    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
+                                                         logger,
+                                                         base,
+                                                         routerModule,
+                                                         myAddress->ip6.bytes,
+                                                         rumorMill,
+                                                         allocator);
 
     SerializationModule_register(registry, logger, allocator);
 
@@ -128,6 +135,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         DefaultInterfaceController_new(ca,
                                        switchCore,
                                        routerModule,
+                                       rumorMill,
                                        logger,
                                        base,
                                        sp,

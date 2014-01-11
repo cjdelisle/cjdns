@@ -43,8 +43,8 @@ static void dumpTable_send(struct Context* ctx,
     if (isMore) {
         table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
     } else {
-        // the self route is synthetic so add 1 to the count.
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(ctx->store->size + 1), table);
+        int count = NodeStore_size(ctx->store);
+        table = Dict_CONST(String_CONST("count"), Int_OBJ(count), table);
     }
     Admin_sendMessage(&table, txid, ctx->admin);
 }
@@ -71,22 +71,14 @@ static void dumpTable_addEntries(struct Context* ctx,
 
     struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
 
-    if (i >= ctx->store->size || j >= ENTRIES_PER_PAGE) {
-        if (i > j) {
-            dumpTable_send(ctx, last, (j >= ENTRIES_PER_PAGE), txid);
-            return;
-        }
-
-        Address_printIp(ip, ctx->store->selfAddress);
-        strcpy((char*)path, "0000.0000.0000.0001");
-        version->as.number = Version_CURRENT_PROTOCOL;
-        dumpTable_send(ctx, &next, (j >= ENTRIES_PER_PAGE), txid);
+    if (i >= NodeStore_size(ctx->store) || j >= ENTRIES_PER_PAGE) {
+        dumpTable_send(ctx, last, (j >= ENTRIES_PER_PAGE), txid);
         return;
     }
 
-    struct Node* n = NodeStore_dumpTable(ctx->store, i);
-    link->as.number = n->reach;
-    version->as.number = n->version;
+    struct Node_Two* n = NodeStore_dumpTable(ctx->store, i);
+    link->as.number = n->pathQuality;
+    version->as.number = n->address.protocolVersion;
     Address_printIp(ip, &n->address);
     AddrTools_printPath(path, n->address.path);
 
@@ -120,13 +112,13 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
         Dict_remove(ret, String_CONST("result"));
         Dict_putString(ret,
                        String_new("error", alloc),
-                       String_new("Could not parse ip", alloc),
+                       String_new("parse_parent", alloc),
                        alloc);
 
     } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
         Dict_putString(ret,
                        String_new("error", alloc),
-                       String_new("node not found", alloc),
+                       String_new("not_found", alloc),
                        alloc);
 
     } else if ((link = NodeStore_getLink(node, *linkNum))) {
@@ -172,7 +164,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
             Dict_remove(ret, String_CONST("result"));
             Dict_putString(ret,
                            String_new("error", alloc),
-                           String_new("Could not parse ip", alloc),
+                           String_new("parse_ip", alloc),
                            alloc);
 
         } else if (!(node = NodeStore_nodeForAddr(ctx->store, ip))) {
@@ -185,7 +177,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
         return;
     }
 
-    Dict_putInt(result, String_new("protocolVersion", alloc), node->version, alloc);
+    Dict_putInt(result, String_new("protocolVersion", alloc), node->address.protocolVersion, alloc);
 
     String* key = Key_stringify(node->address.key, alloc);
     Dict_putString(result, String_new("key", alloc), key, alloc);
@@ -222,18 +214,16 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
 
     String* pathToParentS = Dict_getString(args, String_CONST("pathToParent"));
     uint64_t pathToParent;
-    if (pathToParentS->len != 19) {
-        err = "pathToParent incorrect length";
-    } else if (AddrTools_parsePath(&pathToParent, pathToParentS->bytes)) {
-        err = "Failed to parse pathToParent";
+    if (pathToParentS->len != 19 || AddrTools_parsePath(&pathToParent, pathToParentS->bytes)) {
+        err = "parse_pathToParent";
     }
 
     String* pathParentToChildS = Dict_getString(args, String_CONST("pathParentToChild"));
     uint64_t pathParentToChild;
-    if (pathParentToChildS->len != 19) {
-        err = "pathParentToChild of incorrect length";
-    } else if (AddrTools_parsePath(&pathParentToChild, pathParentToChildS->bytes)) {
-        err = "Failed to parse pathParentToChild";
+    if (pathParentToChildS->len != 19
+        || AddrTools_parsePath(&pathParentToChild, pathParentToChildS->bytes))
+    {
+        err = "parse_pathParentToChild";
     }
 
     uint64_t label = UINT64_MAX;

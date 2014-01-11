@@ -57,6 +57,9 @@ struct Pinger_Ping
      */
     struct Allocator* pingAlloc;
 
+    /** How the ping will be identified on the wire. */
+    uint32_t handle;
+
     /**
      * This is NULL by default and is set by the caller of Pinger_ping(),
      * when sendPing() and onResponse() are called, whatever this is, will be passed to them.

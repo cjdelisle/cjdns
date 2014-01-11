@@ -42,7 +42,7 @@ static void lookup(Dict* args, void* vcontext, String* txid, struct Allocator* r
     } else if (AddrTools_parseIp(addr, (uint8_t*) addrStr->bytes)) {
         err = "failed to parse address";
     } else {
-        struct Node* n = RouterModule_lookup(addr, ctx->router);
+        struct Node_Two* n = RouterModule_lookup(addr, ctx->router);
         if (!n) {
             result = "not found";
         } else if (Bits_memcmp(addr, n->address.ip6.bytes, 16)) {
@@ -68,7 +68,7 @@ struct Ping
 
 static void pingResponse(struct RouterModule_Promise* promise,
                          uint32_t lag,
-                         struct Node* node,
+                         struct Node_Two* node,
                          Dict* responseDict)
 {
     struct Ping* ping = Identity_cast((struct Ping*)promise->userData);
@@ -121,34 +121,35 @@ static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* req
     char* err = NULL;
 
     struct Address addr = {.path=0};
-    struct Node* n = NULL;
 
     if (pathStr->len == 19 && !AddrTools_parsePath(&addr.path, (uint8_t*) pathStr->bytes)) {
-        n = RouterModule_getNode(addr.path, ctx->router);
+        struct Node_Two* n = RouterModule_nodeForPath(addr.path, ctx->router);
+        if (!n) {
+            err = "not_found";
+        } else {
+            Bits_memcpyConst(&addr, &n->address, sizeof(struct Address));
+        }
     } else if (!AddrTools_parseIp(addr.ip6.bytes, (uint8_t*) pathStr->bytes)) {
-        n = RouterModule_lookup(addr.ip6.bytes, ctx->router);
-        if (n && Bits_memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
-            n = NULL;
+        struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, ctx->router);
+        if (!n || Bits_memcmp(addr.ip6.bytes, n->address.ip6.bytes, 16)) {
+            err = "not_found";
+        } else {
+            Bits_memcpyConst(&addr, &n->address, sizeof(struct Address));
         }
     } else {
-        err = "Unexpected address, must be either an ipv6 address "
-              "eg: 'fc4f:d:e499:8f5b:c49f:6e6b:1ae:3120', 19 char path eg: '0123.4567.89ab.cdef'";
+        err = "parse_address";
     }
 
     if (!err) {
-        if (!n) {
-            err = "could not find node to ping";
-        } else {
-            struct RouterModule_Promise* rp =
-                RouterModule_pingNode(n, timeout, ctx->router, ctx->allocator);
-            struct Ping* ping = Allocator_calloc(rp->alloc, sizeof(struct Ping), 1);
-            Identity_set(ping);
-            ping->txid = String_clone(txid, rp->alloc);
-            ping->rp = rp;
-            ping->ctx = ctx;
-            rp->userData = ping;
-            rp->callback = pingResponse;
-        }
+        struct RouterModule_Promise* rp =
+            RouterModule_pingNode(&addr, timeout, ctx->router, ctx->allocator);
+        struct Ping* ping = Allocator_calloc(rp->alloc, sizeof(struct Ping), 1);
+        Identity_set(ping);
+        ping->txid = String_clone(txid, rp->alloc);
+        ping->rp = rp;
+        ping->ctx = ctx;
+        rp->userData = ping;
+        rp->callback = pingResponse;
     }
 
     if (err) {

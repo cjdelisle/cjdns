@@ -1,0 +1,94 @@
+/* vim: set expandtab ts=4 sw=4: */
+/*
+ * You may redistribute this program and/or modify it under the terms of
+ * the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "dht/dhtcore/RumorMill.h"
+#include "dht/Address.h"
+#include "memory/Allocator.h"
+#include "util/Identity.h"
+#include "util/Assert.h"
+
+/**
+ * The rumor mill is for new nodes which have been discovered by search and getPeers requests
+ * but we have never actually communicated with them so we are not sure if they exist.
+ *
+ * More importantly, we *cannot* link them into the nodeStore tree because we are not sure of
+ * their encoding scheme.
+ */
+struct RumorMill_pvt
+{
+    struct RumorMill pub;
+
+    struct Address* selfAddr;
+
+    struct Address* addresses;
+    int count;
+    int capacity;
+
+    Identity
+};
+
+static int getBadness(struct Address* badAddr, struct Address* selfAddr)
+{
+    return (Bits_log2x64(badAddr->ip6.longs.one ^ selfAddr->ip6.longs.one)
+        + Bits_log2x64(badAddr->path));
+}
+
+static struct Address* getWorst(struct RumorMill_pvt* rm)
+{
+    struct Address* worst = NULL;
+    int howBadIsTheWorst = 0;
+    for (int i = 0; i < rm->pub.count; i++) {
+        int howBad = getBadness(&rm->addresses[i], rm->selfAddr);
+        if (howBad > howBadIsTheWorst) {
+            howBadIsTheWorst = howBad;
+            worst = &rm->addresses[i];
+        }
+    }
+    Assert_true(worst);
+    return worst;
+}
+
+void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
+{
+    struct RumorMill_pvt* rm = Identity_cast((struct RumorMill_pvt*) mill);
+    Address_getPrefix(addr);
+    struct Address* replace;
+    if (rm->pub.count < rm->capacity) {
+        replace = &rm->addresses[rm->pub.count++];
+    } else {
+        replace = getWorst(rm);
+    }
+    Bits_memcpyConst(replace, addr, sizeof(struct Address));
+}
+
+bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
+{
+    struct RumorMill_pvt* rm = Identity_cast((struct RumorMill_pvt*) mill);
+    if (!rm->pub.count) { return false; }
+    Bits_memcpyConst(output, &rm->addresses[--rm->pub.count], sizeof(struct Address));
+    return true;
+}
+
+struct RumorMill* RumorMill_new(struct Allocator* alloc, struct Address* selfAddr, int capacity)
+{
+    Address_getPrefix(selfAddr);
+
+    struct RumorMill_pvt* rm = Allocator_calloc(alloc, sizeof(struct RumorMill_pvt), 1);
+    rm->addresses = Allocator_calloc(alloc, sizeof(struct Address), capacity);
+    rm->capacity = capacity;
+    rm->selfAddr = selfAddr;
+    Identity_set(rm);
+
+    return &rm->pub;
+}

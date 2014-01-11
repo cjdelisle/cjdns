@@ -15,6 +15,7 @@
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/SearchStore.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeList.h"
@@ -41,6 +42,7 @@ struct SearchRunner_pvt
     struct Log* logger;
     struct EventBase* eventBase;
     struct RouterModule* router;
+    struct RumorMill* rumorMill;
     uint8_t myAddress[16];
 
     /** Number of concurrent searches in operation. */
@@ -100,53 +102,6 @@ struct SearchRunner_Search
     Identity
 };
 
-static inline int xorcmp(uint32_t target, uint32_t negativeIfCloser, uint32_t positiveIfCloser)
-{
-    if (negativeIfCloser == positiveIfCloser) {
-        return 0;
-    }
-    uint32_t ref = Endian_bigEndianToHost32(target);
-    return ((Endian_bigEndianToHost32(negativeIfCloser) ^ ref)
-               < (Endian_bigEndianToHost32(positiveIfCloser) ^ ref)) ? -1 : 1;
-}
-
-/**
- * Return which node is closer to the target.
- *
- * @param target the address to test distance against.
- * @param negativeIfCloser one address to check distance.
- * @param positiveIfCloser another address to check distance.
- * @return -1 if negativeIfCloser is closer to target, 1 if positiveIfCloser is closer
- *         0 if they are both the same distance.
- */
-static inline int xorCompare(struct Address* target,
-                             struct Address* negativeIfCloser,
-                             struct Address* positiveIfCloser)
-{
-    Address_getPrefix(target);
-    Address_getPrefix(negativeIfCloser);
-    Address_getPrefix(positiveIfCloser);
-
-    int ret = 0;
-
-    #define COMPARE(part) \
-        if ((ret = xorcmp(target->ip6.ints.part,               \
-                          negativeIfCloser->ip6.ints.part,     \
-                          positiveIfCloser->ip6.ints.part)))   \
-        {                                                      \
-            return ret;                                        \
-        }
-
-    COMPARE(one)
-    COMPARE(two)
-    COMPARE(three)
-    COMPARE(four)
-
-    return 0;
-
-    #undef COMPARE
-}
-
 /**
  * Spot a duplicate entry in a node list.
  * If a router sends a response containing duplicate entries,
@@ -171,13 +126,14 @@ static inline bool isDuplicateEntry(String* nodes, uint32_t index)
 
 static void searchStep(struct SearchRunner_Search* search);
 
-static void searchCallback(struct RouterModule_Promise* promise,
-                           uint32_t lagMilliseconds,
-                           struct Node* fromNode,
-                           Dict* result)
+static void searchReplyCallback(struct RouterModule_Promise* promise,
+                                uint32_t lagMilliseconds,
+                                struct Node_Two* fromNode,
+                                Dict* result)
 {
     struct SearchRunner_Search* search =
         Identity_cast((struct SearchRunner_Search*)promise->userData);
+
     String* nodes = Dict_getString(result, CJDHTConstants_NODES);
 
     if (nodes && (nodes->len == 0 || nodes->len % Address_SERIALIZED_SIZE != 0)) {
@@ -198,16 +154,18 @@ static void searchCallback(struct RouterModule_Promise* promise,
             }
         #endif
     }
-
-    const uint32_t targetPrefix = Address_getPrefix(&search->target);
-    const uint32_t parentDistance = Address_getPrefix(&fromNode->address) ^ targetPrefix;
+    if (!versions || versions->length != (nodes->len / Address_SERIALIZED_SIZE)) {
+        Log_debug(search->runner->logger, "Reply with missing or invalid versions");
+        return;
+    }
 
     for (uint32_t i = 0; nodes && i < nodes->len; i += Address_SERIALIZED_SIZE) {
         if (isDuplicateEntry(nodes, i)) {
             continue;
         }
-        struct Address addr;
+        struct Address addr = { .path = 0 };
         Address_parse(&addr, (uint8_t*) &nodes->bytes[i]);
+        addr.protocolVersion = versions->versions[i / Address_SERIALIZED_SIZE];
 
         // calculate the ipv6
         Address_getPrefix(&addr);
@@ -227,11 +185,11 @@ static void searchCallback(struct RouterModule_Promise* promise,
             continue;
         }
 
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t printedAddr[60];
             Address_print(printedAddr, &addr);
-            Log_debug(ctx->logger, "discovered node [%s]", printedAddr);
-        #endif*/
+            Log_debug(search->runner->logger, "discovered node [%s]", printedAddr);
+        #endif
 
         if (!Bits_memcmp(search->runner->myAddress, addr.ip6.bytes, 16)) {
             // Any path which loops back through us is necessarily a dead route.
@@ -240,7 +198,7 @@ static void searchCallback(struct RouterModule_Promise* promise,
             continue;
         }
 
-        uint32_t newNodePrefix = Address_getPrefix(&addr);
+        Address_getPrefix(&addr);
         if (!AddressCalc_validAddress(addr.ip6.bytes)) {
             Log_debug(search->runner->logger, "Was told garbage.\n");
             // This should never happen, badnode.
@@ -248,12 +206,12 @@ static void searchCallback(struct RouterModule_Promise* promise,
         }
 
         // Nodes we are told about are inserted with 0 reach and assumed version 1.
-        uint32_t version = (versions) ? versions->versions[i / Address_SERIALIZED_SIZE] : 1;
-        NodeStore_addNode(search->runner->nodeStore, &addr, 0, version);
+        struct Node_Two* nn = NodeStore_nodeForPath(search->runner->nodeStore, addr.path);
+        if (!nn || Bits_memcmp(nn->address.key, addr.key, 32)) {
+            RumorMill_addNode(search->runner->rumorMill, &addr);
+        }
 
-        if ((newNodePrefix ^ targetPrefix) >= parentDistance
-            && xorCompare(&search->target, &addr, &fromNode->address) >= 0)
-        {
+        if (Address_closest(&search->target, &addr, &fromNode->address) >= 0) {
             // Too much noise.
             //Log_debug(search->runner->logger, "Answer was further from the target than us.\n");
             continue;
@@ -263,13 +221,26 @@ static void searchCallback(struct RouterModule_Promise* promise,
             continue;
         }
 
-        struct Node* n = NodeStore_getBest(&addr, search->runner->nodeStore);
+        struct Node_Two* n = NodeStore_getBest(&addr, search->runner->nodeStore);
         SearchStore_addNodeToSearch((n) ? &n->address : &addr, search->search);
     }
 
     if (search->lastNodeAsked.path != fromNode->address.path) {
         //Log_debug(search->runner->logger, "Late answer in search");
         return;
+    }
+}
+
+static void searchCallback(struct RouterModule_Promise* promise,
+                           uint32_t lagMilliseconds,
+                           struct Node_Two* fromNode,
+                           Dict* result)
+{
+    struct SearchRunner_Search* search =
+        Identity_cast((struct SearchRunner_Search*)promise->userData);
+
+    if (fromNode) {
+        searchReplyCallback(promise, lagMilliseconds, fromNode, result);
     }
 
     if (search->pub.callback) {
@@ -286,7 +257,7 @@ static void searchStep(struct SearchRunner_Search* search)
 {
     struct SearchRunner_pvt* ctx = Identity_cast((struct SearchRunner_pvt*)search->runner);
 
-    struct Node* node;
+    struct Node_Two* node;
     struct SearchStore_Node* nextSearchNode;
     do {
         nextSearchNode = SearchStore_getNextNode(search->search);
@@ -307,7 +278,7 @@ static void searchStep(struct SearchRunner_Search* search)
     Bits_memcpyConst(&search->lastNodeAsked, &node->address, sizeof(struct Address));
 
     struct RouterModule_Promise* rp =
-        RouterModule_newMessage(node, 0, ctx->router, search->pub.alloc);
+        RouterModule_newMessage(&node->address, 0, ctx->router, search->pub.alloc);
 
     Dict* message = Dict_new(rp->alloc);
     Dict_putString(message, CJDHTConstants_QUERY, CJDHTConstants_QUERY_FN, rp->alloc);
@@ -386,7 +357,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     struct Allocator* alloc = Allocator_child(allocator);
     struct SearchStore_Search* sss = SearchStore_newSearch(target, runner->searchStore, alloc);
 
-    struct Address targetAddr;
+    struct Address targetAddr = { .path = 0 };
     Bits_memcpyConst(targetAddr.ip6.bytes, target, Address_SEARCH_TARGET_SIZE);
 
     struct NodeList* nodes =
@@ -396,6 +367,12 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
                                   RouterModule_K,
                                   Version_CURRENT_PROTOCOL,
                                   alloc);
+
+    if (nodes->size == 0) {
+        Log_debug(runner->logger, "No nodes available for beginning search");
+        return NULL;
+    }
+    Log_debug(runner->logger, "Beginning search");
 
     for (int i = 0; i < (int)nodes->size; i++) {
         SearchStore_addNodeToSearch(&nodes->nodes[i]->address, sss);
@@ -434,6 +411,7 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct EventBase* base,
                                       struct RouterModule* module,
                                       uint8_t myAddress[16],
+                                      struct RumorMill* rumorMill,
                                       struct Allocator* alloc)
 {
     struct SearchRunner_pvt* out = Allocator_clone(alloc, (&(struct SearchRunner_pvt) {
@@ -441,6 +419,7 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
         .logger = logger,
         .eventBase = base,
         .router = module,
+        .rumorMill = rumorMill,
         .maxConcurrentSearches = SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES
     }));
     out->searchStore = SearchStore_new(alloc, logger);

@@ -207,10 +207,12 @@ static int handleOutgoing(struct DHTMessage* dmessage,
         session->version = (verPtr) ? *verPtr : Version_DEFAULT_ASSUMPTION;
     }
     if (session->version == Version_DEFAULT_ASSUMPTION) {
-        struct Node* n = RouterModule_getNode(dmessage->address->path, context->routerModule);
+        struct Node_Two* n = RouterModule_nodeForPath(dmessage->address->path,
+                                                      context->routerModule);
         if (n) {
-            n->version = session->version =
-                (n->version > session->version) ? n->version : session->version;
+            n->address.protocolVersion = session->version =
+                (n->address.protocolVersion > session->version) ?
+                    n->address.protocolVersion : session->version;
         }
     }
 
@@ -272,7 +274,7 @@ static inline uint8_t incomingForMe(struct Message* message,
                                     struct Ducttape_pvt* context,
                                     uint8_t herPublicKey[32])
 {
-    struct Address addr;
+    struct Address addr = { .protocolVersion = session->version };
     //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
     Bits_memcpyConst(addr.key, herPublicKey, 32);
     AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
@@ -501,15 +503,16 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
     RouterModule_refreshReach(header->destinationAddr, context->routerModule);
 //End of TODO block
-    struct Node* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
+    struct Node_Two* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
         nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
                                                    bestNext->address.key,
                                                    context->sm);
 
-        bestNext->version = nextHopSession->version = (bestNext->version > nextHopSession->version)
-            ? bestNext->version : nextHopSession->version;
+        bestNext->address.protocolVersion = nextHopSession->version =
+            (bestNext->address.protocolVersion > nextHopSession->version)
+                ? bestNext->address.protocolVersion : nextHopSession->version;
 
         dtHeader->switchLabel = bestNext->address.path;
         dtHeader->nextHopReceiveHandle = Endian_bigEndianToHost32(nextHopSession->receiveHandle_be);
@@ -594,7 +597,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
-    struct Node* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
+    struct Node_Two* n = RouterModule_lookup(header->nodeIp6Addr, context->routerModule);
     if (n) {
         if (!Bits_memcmp(header->nodeKey, n->address.key, 32)) {
             // Found the node.
@@ -608,8 +611,9 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
             struct SessionManager_Session* session =
                 SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
 
-            n->version = session->version = (n->version > session->version)
-                ? n->version : session->version;
+            n->address.protocolVersion = session->version =
+                (n->address.protocolVersion > session->version)
+                    ? n->address.protocolVersion : session->version;
 
             dtHeader->switchLabel = n->address.path;
             return sendToRouter(message, dtHeader, session, context);
@@ -704,7 +708,7 @@ static inline int core(struct Message* message,
 
     struct SessionManager_Session* nextHopSession = NULL;
     if (!dtHeader->nextHopReceiveHandle || !dtHeader->switchLabel) {
-        struct Node* n = RouterModule_lookup(ip6Header->destinationAddr, context->routerModule);
+        struct Node_Two* n = RouterModule_lookup(ip6Header->destinationAddr, context->routerModule);
         if (n) {
             nextHopSession =
                 SessionManager_getSession(n->address.ip6.bytes, n->address.key, context->sm);
@@ -815,18 +819,7 @@ static inline int incomingFromRouter(struct Message* message,
     Bits_memcpyConst(srcAddr.key, pubKey, 32);
 
     //Log_debug(context->logger, "Got message from router.\n");
-    int ret = core(message, dtHeader, session, context);
-
-    struct Node* n = RouterModule_getNode(srcAddr.path, context->routerModule);
-    if (!n) {
-        Address_getPrefix(&srcAddr);
-        RouterModule_addNode(context->routerModule, &srcAddr, session->version);
-    } else {
-        n->reach += 1;
-        RouterModule_updateReach(n, context->routerModule);
-    }
-
-    return ret;
+    return core(message, dtHeader, session, context);
 }
 
 

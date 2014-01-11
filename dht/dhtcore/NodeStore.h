@@ -15,7 +15,6 @@
 #ifndef NodeStore_H
 #define NodeStore_H
 
-#include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "util/log/Log.h"
@@ -29,9 +28,6 @@ Linker_require("dht/dhtcore/NodeStore.c")
 
 struct NodeStore
 {
-    /** The number of nodes in the list. */
-    int size;
-
     struct Address* selfAddress;
 
     struct Node_Two* selfNode;
@@ -48,8 +44,7 @@ struct NodeStore
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 const uint32_t capacity,
                                 struct Allocator* allocator,
-                                struct Log* logger,
-                                struct Random* rand);
+                                struct Log* logger);
 
 /**
  * Discover a new node (or rediscover an existing one).
@@ -70,6 +65,8 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 
+struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path);
+
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
 
 struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
@@ -77,6 +74,9 @@ struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
                                           uint32_t hopNum);
 
 uint32_t NodeStore_linkCount(struct Node_Two* node);
+
+#define NodeStore_optimizePath_INVALID (~((uint64_t)0))
+uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path);
 
 /**
  * Get a route label for a given path through the network.
@@ -104,25 +104,6 @@ char* NodeStore_getRouteLabel_strerror(uint64_t returnVal);
 
 
 /**
- * Put a node into the store.
- *
- * @param store a node store to insert into.
- * @param addr the address of the new node.
- * @param reachDiff how much to adjust the reach in a new node, if the node already exists,
- *                  this will alter the reach by this amount, if changing the reach by this
- *                  amount causes the reach to become negative or nolonger fit in a uint32
- *                  type, it will be set to 0 or UINT32_MAX, respectively.
- *                  Undefined behavior will result if this input exceeds UINT32_MAX.
- * @param version the protocol version of the node to add.
- * @return the node in the node store which was added or NULL if the node is "us".
- *         NOTE: The reach in this node will be *wrong* because it is not synced with the header.
- */
-struct Node* NodeStore_addNode(struct NodeStore* store,
-                               struct Address* addr,
-                               int64_t reachDiff,
-                               uint32_t version);
-
-/**
  * Find the one best node using LinkStateNodeCollector. LinkStateNodeCollector prefers a
  * keyspace match (same address). It breaks ties by choosing the highest version node
  * (versions above it's own are considered the same as it's version). It breaks ties of the
@@ -132,21 +113,7 @@ struct Node* NodeStore_addNode(struct NodeStore* store,
  * @param store the NodeStore
  * @return the node w/ address closest to targetAddress or NULL if myAddress is closest
  */
-struct Node* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
-
-/**
- * Find nodes that have the specified address.  These nodes will have different paths.
- *
- * @param address the Address to find Nodes with
- * @param max the maximum number to return
- * @param allocator the Allocator used to construct the NodeList
- * @param store the NodeStore to check
- * @return a NodeList* of up to size max nodes
- */
-struct NodeList* NodeStore_getNodesByAddr(struct Address* address,
-                                          const uint32_t max,
-                                          struct Allocator* allocator,
-                                          struct NodeStore* store);
+struct Node_Two* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* store);
 
 /**
  * Get direct peers of this node.
@@ -182,47 +149,23 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
-/**
- * Change the reach of a node in the NodeStore.
- * Just changing the reach number will have no effect unless it is "committed"
- * by calling NodeStore_updateReach().
- *
- * @param node the node to update.
- * @param store the store where that node is contained.
- */
-void NodeStore_updateReach(const struct Node* const node,
-                           const struct NodeStore* const store);
-
+void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, int64_t reachDiff);
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore);
 
-static inline uint32_t NodeStore_size(const struct NodeStore* const nodeStore)
-{
-    return nodeStore->size;
-}
-
-/**
- * Get a node by its path.
- *
- * @param path the path to the node to get in host order. If zero, a random node will be returned.
- * @param store the node store.
- * @return NULL if the store is empty, a randomly chosen node if path is 0, otherwise a node with
- *         that path or NULL if no such node exists.
- */
-struct Node* NodeStore_getNodeByNetworkAddr(uint64_t path, struct NodeStore* store);
+int NodeStore_size(struct NodeStore* nodeStore);
 
 /**
  * Remove all nodes who are reachable by this path.
  *
  * @param path the label part in host order.
  * @param store the node store.
- * @return the number of nodes which were removed.
  */
-int NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
+void NodeStore_brokenPath(uint64_t path, struct NodeStore* store);
 
 /**
  * Dump the table, one node at a time.
  */
-struct Node* NodeStore_dumpTable(struct NodeStore* store, uint32_t index);
+struct Node_Two* NodeStore_dumpTable(struct NodeStore* store, uint32_t index);
 
 #endif
