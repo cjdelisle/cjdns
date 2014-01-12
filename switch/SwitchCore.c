@@ -233,8 +233,8 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
     if (sourceIndex == destIndex && sourceIndex != 1) {
         DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
-        sendError(sourceIf, message, Error_LOOP_ROUTE, sourceIf->core->logger);
-        return Error_NONE;
+        //sendError(sourceIf, message, Error_LOOP_ROUTE, sourceIf->core->logger);
+        //return Error_NONE;
     }
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
