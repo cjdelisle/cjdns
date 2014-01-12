@@ -288,15 +288,14 @@ static inline int sendNodes(struct NodeList* nodeList,
                             uint32_t askerVersion)
 {
     struct DHTMessage* query = message->replyTo;
-    String* nodes = Allocator_malloc(message->allocator, sizeof(String));
-    nodes->len = nodeList->size * Address_SERIALIZED_SIZE;
-    nodes->bytes = Allocator_malloc(message->allocator, nodeList->size * Address_SERIALIZED_SIZE);
+    String* nodes =
+        String_newBinary(NULL, nodeList->size * Address_SERIALIZED_SIZE, message->allocator);
 
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
-    uint32_t i = 0;
-    uint32_t j = 0;
-    for (; i < nodeList->size; i++) {
+    int i = 0;
+    int j = 0;
+    for (; i < (int)nodeList->size; i++) {
 
         if (NumberCompress_decompress(nodeList->nodes[i]->address.path) ==
             NumberCompress_decompress(query->address->path))
@@ -315,9 +314,14 @@ static inline int sendNodes(struct NodeList* nodeList,
         Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
 
         versions->versions[j] = nodeList->nodes[i]->address.protocolVersion;
+
+        Assert_true(!Bits_isZero(&nodes->bytes[j * Address_SERIALIZED_SIZE],
+                                 Address_SERIALIZED_SIZE));
         j++;
     }
-    if (i > 0) {
+    nodes->len = j * Address_SERIALIZED_SIZE;
+    versions->length = j;
+    if (j > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
         String* versionsStr = VersionList_stringify(versions, message->allocator);
         Dict_putString(message->asDict,
@@ -400,7 +404,7 @@ static inline int handleQuery(struct DHTMessage* message,
  */
 static int handleOutgoing(struct DHTMessage* message, void* vcontext)
 {
-    struct RouterModule* module = Identity_cast((struct RouterModule*) vcontext);
+    struct RouterModule* module = Identity_check((struct RouterModule*) vcontext);
 
     Dict_putInt(message->asDict,
                 CJDHTConstants_PROTOCOL,
@@ -436,7 +440,7 @@ struct PingContext
 
 static void sendMsg(String* txid, void* vpingContext)
 {
-    struct PingContext* pc = Identity_cast((struct PingContext*) vpingContext);
+    struct PingContext* pc = Identity_check((struct PingContext*) vpingContext);
 
     // "t":"1234"
     Dict_putString(pc->messageDict, CJDHTConstants_TXID, txid, pc->pp->pingAlloc);
@@ -506,7 +510,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return 0;
     }
 
-    struct RouterModule* module = Identity_cast((struct RouterModule*) vcontext);
+    struct RouterModule* module = Identity_check((struct RouterModule*) vcontext);
 
     // This is retreived below by onResponseOrTimeout()
     module->currentMessage = message;
@@ -519,7 +523,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 // ping or search response came in
 static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping)
 {
-    struct PingContext* pctx = Identity_cast((struct PingContext*) vping);
+    struct PingContext* pctx = Identity_check((struct PingContext*) vping);
 
     if (data == NULL) {
         // This is how Pinger signals a timeout.
@@ -551,11 +555,12 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
 
     // update the GMRT
     AverageRoller_update(pctx->router->gmrtRoller, milliseconds);
+    /*
     Log_debug(pctx->router->logger,
                "Received response in %u milliseconds, gmrt now %u\n",
                milliseconds,
                AverageRoller_getAverage(pctx->router->gmrtRoller));
-
+    */
     // this implementation only pings to get the address of a node, so lets add the node.
     struct Node_Two* node = NodeStore_nodeForPath(module->nodeStore, message->address->path);
 
@@ -585,6 +590,9 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc)
 {
+    // sending yourself a ping?
+    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
+
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);
     }
@@ -613,7 +621,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
 
 void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request)
 {
-    struct PingContext* pctx = Identity_cast((struct PingContext*)promise);
+    struct PingContext* pctx = Identity_check((struct PingContext*)promise);
     pctx->messageDict = request;
     // comes out at sendMsg()
     Pinger_sendPing(pctx->pp);

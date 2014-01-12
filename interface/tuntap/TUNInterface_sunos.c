@@ -57,7 +57,7 @@ static uint16_t ethertypeForPacketType(uint8_t highByte)
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct TUNInterface_Illumos_pvt* ctx =
-        Identity_cast((struct TUNInterface_Illumos_pvt*)iface->receiverContext);
+        Identity_check((struct TUNInterface_Illumos_pvt*)iface->receiverContext);
 
     if (message->length < 4) {
         return Error_NONE;
@@ -72,7 +72,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
-    struct TUNInterface_Illumos_pvt* ctx = Identity_cast((struct TUNInterface_Illumos_pvt*)iface);
+    struct TUNInterface_Illumos_pvt* ctx = Identity_check((struct TUNInterface_Illumos_pvt*)iface);
 
     Message_shift(message, -4);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];

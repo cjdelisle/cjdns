@@ -151,7 +151,7 @@ struct Context
 
 static inline struct Context* ifcontrollerForPeer(struct IFCPeer* ep)
 {
-    return Identity_cast((struct Context*) ep->switchIf.senderContext);
+    return Identity_check((struct Context*) ep->switchIf.senderContext);
 }
 
 static void onPingResponse(enum SwitchPinger_Result result,
@@ -164,7 +164,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     if (SwitchPinger_Result_OK != result) {
         return;
     }
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) onResponseContext);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) onResponseContext);
     struct Context* ic = ifcontrollerForPeer(ep);
 
     struct Address addr;
@@ -193,7 +193,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
 // Called from the pingInteral timeout.
 static void pingCallback(void* vic)
 {
-    struct Context* ic = Identity_cast((struct Context*) vic);
+    struct Context* ic = Identity_check((struct Context*) vic);
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     ic->pingCount++;
 
@@ -288,7 +288,7 @@ static void moveEndpointIfNeeded(struct IFCPeer* ep, struct Context* ic)
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
     struct Context* ic = ifcontrollerForPeer(ep);
 
     ep->bytesIn += msg->length;
@@ -335,7 +335,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 // This is directly called from SwitchCore, message is not encrypted.
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) switchIf);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) switchIf);
 
     ep->bytesOut += msg->length;
 
@@ -369,7 +369,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) job->userData);
+    struct IFCPeer* toClose = Identity_check((struct IFCPeer*) job->userData);
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
@@ -389,7 +389,7 @@ static int registerPeer(struct InterfaceController* ifController,
                         bool isIncomingConnection,
                         struct Interface* externalInterface)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
 
     Log_debug(ic->logger, "registerPeer [%p] total [%u]",
               (void*)externalInterface, ic->peerMap.count);
@@ -488,13 +488,13 @@ static int registerPeer(struct InterfaceController* ifController,
 static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
 {
     struct Interface* cryptoAuthIf = CryptoAuth_getConnectedInterface(iface);
-    struct IFCPeer* p = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
+    struct IFCPeer* p = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
     return p->state;
 }
 
 static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beacon* beacon)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifc);
+    struct Context* ic = Identity_check((struct Context*) ifc);
     beacon->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
     Bits_memcpyConst(beacon->password, ic->beaconPassword, Headers_Beacon_PASSWORD_LEN);
     Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
@@ -504,7 +504,7 @@ static int getPeerStats(struct InterfaceController* ifController,
                         struct Allocator* alloc,
                         struct InterfaceController_peerStats** statsOut)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
     int count = ic->peerMap.count;
     struct InterfaceController_peerStats* stats =
         Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
@@ -535,7 +535,7 @@ static int getPeerStats(struct InterfaceController* ifController,
 
 static int disconnectPeer(struct InterfaceController* ifController, uint8_t herPublicKey[32])
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
 
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
         struct IFCPeer* peer = ic->peerMap.values[i];

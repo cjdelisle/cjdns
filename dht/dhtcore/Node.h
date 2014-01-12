@@ -69,6 +69,14 @@ struct Node_Two
     /** The best link for getting to this node. */
     struct Node_Link* bestParent;
 
+    /** Used by nodeStore's RBTree of nodes by address. */
+    struct {
+        struct Node_Two* rbe_left;
+        struct Node_Two* rbe_right;
+        struct Node_Two* rbe_parent;
+        int rbe_color;
+    } nodeTree;
+
     struct Allocator* alloc;
 
     Identity

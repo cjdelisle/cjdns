@@ -34,7 +34,7 @@ struct Event_pvt
 static void handleEvent(uv_poll_t* handle, int status, int events)
 {
     struct Event_pvt* event =
-        Identity_cast((struct Event_pvt*) (((char*)handle) - offsetof(struct Event_pvt, handler)));
+        Identity_check((struct Event_pvt*) (((char*)handle) - offsetof(struct Event_pvt, handler)));
 
     if ((status == 0) && (events & UV_READABLE)) {
         event->callback(event->callbackContext);
@@ -48,7 +48,7 @@ static void freeEvent2(uv_handle_t* handle)
 
 static int freeEvent(struct Allocator_OnFreeJob* job)
 {
-    struct Event_pvt* event = Identity_cast((struct Event_pvt*) job->userData);
+    struct Event_pvt* event = Identity_check((struct Event_pvt*) job->userData);
     event->handler.data = job;
     uv_close((uv_handle_t*) &event->handler, freeEvent2);
     return Allocator_ONFREE_ASYNC;

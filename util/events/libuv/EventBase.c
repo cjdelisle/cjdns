@@ -27,7 +27,7 @@
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) job->userData);
+    struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) job->userData);
     if (ctx->running) {
         // The job will be completed in EventLoop_beginLoop()
         ctx->onFree = job;
@@ -74,7 +74,7 @@ struct EventBase* EventBase_new(struct Allocator* allocator)
 
 void EventBase_beginLoop(struct EventBase* eventBase)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) eventBase);
 
     Assert_always(!ctx->running); // double begin
     ctx->running = 1;
@@ -93,7 +93,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
 
 void EventBase_endLoop(struct EventBase* eventBase)
 {
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) eventBase);
     uv_stop(ctx->loop);
 }
 
@@ -108,12 +108,12 @@ static void countCallback(uv_handle_t* event, void* vEventCount)
 int EventBase_eventCount(struct EventBase* eventBase)
 {
     int eventCount = 0;
-    struct EventBase_pvt* ctx = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) eventBase);
     uv_walk(ctx->loop, countCallback, &eventCount);
     return eventCount;
 }
 
 struct EventBase_pvt* EventBase_privatize(struct EventBase* base)
 {
-    return Identity_cast((struct EventBase_pvt*) base);
+    return Identity_check((struct EventBase_pvt*) base);
 }

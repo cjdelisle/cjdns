@@ -159,7 +159,7 @@ static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
 static uint8_t incoming(struct Message* msg, struct Interface* iface)
 {
     struct ICMP6Generator_pvt* ctx =
-        Identity_cast((struct ICMP6Generator_pvt*)
+        Identity_check((struct ICMP6Generator_pvt*)
             (((uint8_t*)iface) - offsetof(struct ICMP6Generator, external)));
 
     // TODO calculate this on a per-node basis.
@@ -194,7 +194,7 @@ static uint8_t incoming(struct Message* msg, struct Interface* iface)
 static uint8_t outgoing(struct Message* msg, struct Interface* iface)
 {
     struct ICMP6Generator_pvt* ctx =
-        Identity_cast((struct ICMP6Generator_pvt*)
+        Identity_check((struct ICMP6Generator_pvt*)
             (((uint8_t*)iface) - offsetof(struct ICMP6Generator, internal)));
 
     return Interface_receiveMessage(&ctx->pub.external, msg);

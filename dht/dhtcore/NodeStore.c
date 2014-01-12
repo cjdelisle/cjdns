@@ -28,27 +28,22 @@
 #include <inttypes.h>
 #include <uv-private/tree.h>
 
-struct Ip6 { uint8_t bytes[16]; };
-#define Map_NAME OfNodesByAddress
-#define Map_KEY_TYPE struct Ip6
-#define Map_VALUE_TYPE struct Node_Two*
-#include "util/Map.h"
-
 /** A list of DHT nodes. */
 struct NodeStore_pvt
 {
     struct NodeStore pub;
 
-// new rbtree stuff
-
     /** A fake link where we are both the parent and child. */
     struct Node_Link* selfLink;
 
-    struct Map_OfNodesByAddress nodeMap;
+    /** A tree containing all nodes ordered by ipv6 */
+    struct NodeRBTree {
+        struct Node_Two* rbh_root;
+    } nodeTree;
 
     struct Allocator* alloc;
 
-    /** The maximum number of nodes which can be allocated. */
+    /** The maximum number of nodes which can be allocated. TODO: make use of */
     int capacity;
 
     /** The means for this node store to log. */
@@ -81,13 +76,21 @@ static int comparePeers(const struct Node_Link* la, const struct Node_Link* lb)
 
 RB_GENERATE_STATIC(PeerRBTree, Node_Link, peerTree, comparePeers)
 
-static void insertReversePeer(struct Node_Two* child,
-                              struct Node_Link* peer)
+static int compareNodes(const struct Node_Two* na, const struct Node_Two* nb)
 {
-    Assert_true(!peer->nextPeer);
-    peer->nextPeer = child->reversePeers;
-    child->reversePeers = peer;
+    Identity_check(nb);
+    int ret;
+    ret = Address_xorcmp(0, na->address.ip6.ints.one_be, nb->address.ip6.ints.one_be);
+    if (ret) { return ret; }
+    ret = Address_xorcmp(0, na->address.ip6.ints.two_be, nb->address.ip6.ints.two_be);
+    if (ret) { return ret; }
+    ret = Address_xorcmp(0, na->address.ip6.ints.three_be, nb->address.ip6.ints.three_be);
+    if (ret) { return ret; }
+    ret = Address_xorcmp(0, na->address.ip6.ints.four_be, nb->address.ip6.ints.four_be);
+    return ret;
 }
+
+RB_GENERATE_STATIC(NodeRBTree, Node_Two, nodeTree, compareNodes)
 
 static void freeLink(struct Node_Link* link, struct NodeStore_pvt* store)
 {
@@ -163,64 +166,10 @@ static void verifyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 
 static void check(struct NodeStore_pvt* store)
 {
-    for (int i = 0; i < (int)store->nodeMap.count; i++) {
-        verifyNode(store->nodeMap.values[i], store);
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        verifyNode(nn, store);
     }
-}
-
-static int isAncestorOf(struct Node_Two* isAncestor,
-                        struct Node_Two* ofNode,
-                        struct NodeStore_pvt* store)
-{
-    for (int i = 0; i < 1000; i++) {
-        if (store->pub.selfNode == ofNode) { return 0; }
-        if (ofNode == isAncestor) { return 1; }
-        ofNode = ofNode->bestParent->parent;
-    }
-    // loop higher up the chain...
-    assertNoLoop(ofNode, store);
-    Assert_always(0);
-}
-
-static struct Node_Link* rbGetNext(struct Node_Link* link)
-{
-    return Identity_ncast(RB_NEXT(PeerRBTree, NULL, link));
-}
-
-static struct Node_Link* rbFind(struct Node_Two* node, struct Node_Link* target)
-{
-    return Identity_ncast(RB_FIND(PeerRBTree, &node->peerTree, target));
-}
-
-static struct Node_Link* rbFindOrNext(struct Node_Two* node, struct Node_Link* target)
-{
-    return Identity_ncast(RB_NFIND(PeerRBTree, &node->peerTree, target));
-}
-
-static void rbRemove(struct Node_Two* tree, struct Node_Link* toRemove, struct NodeStore_pvt* store)
-{
-    #ifdef PARANOIA
-        struct Node_Link* preRemove = rbFind(tree, toRemove);
-        Assert_true(preRemove == toRemove);
-    #endif
-    RB_REMOVE(PeerRBTree, &tree->peerTree, toRemove);
-    #ifdef PARANOIA
-        struct Node_Link* postRemove = rbFind(tree, toRemove);
-        Assert_true(!postRemove);
-    #endif
-}
-
-static void rbInsert(struct Node_Two* tree, struct Node_Link* toInsert)
-{
-    #ifdef PARANOIA
-        struct Node_Link* preInsert = rbFind(tree, toInsert);
-        Assert_true(!preInsert);
-    #endif
-    Assert_true(!RB_INSERT(PeerRBTree, &tree->peerTree, toInsert));
-    #ifdef PARANOIA
-        struct Node_Link* postInsert = rbFind(tree, toInsert);
-        Assert_true(postInsert == toInsert);
-    #endif
 }
 
 /**
@@ -276,15 +225,8 @@ static int updateBestPathCycle(struct Node_Two* node,
         Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
     }
 
-    if (bestPath == UINT64_MAX) {
-        // node is unreachable
-        node->pathQuality = 0;
-    }
-
     node->address.path = bestPath;
-    if (node->pathQuality > newBest->pathQuality) {
-        node->pathQuality = newBest->pathQuality;
-    }
+    Assert_true(node->pathQuality <= newBest->pathQuality);
     return 1;
 }
 
@@ -376,8 +318,8 @@ static void handleBadNews(struct Node_Two* node,
 
 static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
 {
-    struct Node_Two* child = Identity_cast(link->child);
-    struct Node_Two* parent = Identity_cast(link->parent);
+    struct Node_Two* child = Identity_check(link->child);
+    struct Node_Two* parent = Identity_check(link->parent);
     check(store);
 
     // Remove the entry from the reversePeers
@@ -403,7 +345,8 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     parent->pathQuality = reach;
 
     // Remove the RBTree entry
-    rbRemove(parent, link, store);
+    Assert_ifParanoid(link == RB_FIND(PeerRBTree, &parent->peerTree, link));
+    RB_REMOVE(PeerRBTree, &parent->peerTree, link);
 
     freeLink(link, store);
 
@@ -489,7 +432,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     }
 
     struct Node_Link dummy = { .cannonicalLabel = cannonicalLabel };
-    link = rbFind(parent, &dummy);
+    link = Identity_ncheck(RB_FIND(PeerRBTree, &parent->peerTree, &dummy));
     if (link) {
         logLink(store, link, "Attempted to create alternate link with same label!");
         return link;
@@ -497,7 +440,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
     link = getLink(store);
 
-    // Link it in
+    // set it up
     link->cannonicalLabel = cannonicalLabel;
     link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
     link->child = child;
@@ -505,8 +448,14 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->linkAddr = (uintptr_t)link;
     link->discoveredPath = discoveredPath;
     Identity_set(link);
-    insertReversePeer(child, link);
-    rbInsert(parent, link);
+
+    // reverse link
+    link->nextPeer = child->reversePeers;
+    child->reversePeers = link;
+
+    // forward link
+    Assert_ifParanoid(!RB_FIND(PeerRBTree, &parent->peerTree, link));
+    RB_INSERT(PeerRBTree, &parent->peerTree, link);
 
     if (!child->bestParent) {
         child->bestParent = link;
@@ -589,13 +538,13 @@ static uint64_t findClosest(uint64_t path,
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
         // Then we search for the next peer in the path
-        nextLink = rbFindOrNext(link->child, &tmpl);
+        nextLink = Identity_ncheck(RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl));
 
         while (nextLink
             && !LabelSplicer_routesThrough(tmpl.cannonicalLabel, nextLink->cannonicalLabel))
         {
             //logLink(store, nextLink, "GETTING NEXT LINK");
-            nextLink = rbGetNext(nextLink);
+            nextLink = Identity_ncheck(RB_NEXT(PeerRBTree, NULL, nextLink));
         }
 
         if (!nextLink || nextLink == store->selfLink) {
@@ -651,26 +600,29 @@ static uint64_t findClosest(uint64_t path,
     return tmpl.cannonicalLabel;
 }
 
+static struct Node_Two* nodeForIp(struct NodeStore_pvt* store, uint8_t ip[16])
+{
+    struct Node_Two fakeNode;
+    Identity_set(&fakeNode);
+    Bits_memcpyConst(fakeNode.address.ip6.bytes, ip, 16);
+    return Identity_ncheck(RB_FIND(NodeRBTree, &store->nodeTree, &fakeNode));
+}
+
 struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                         struct Address* addr,
                                         uint32_t version,
                                         struct EncodingScheme* scheme,
                                         int inverseLinkEncodingFormNumber)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     check(store);
 
-    #ifdef Log_DEBUG
-        uint8_t printedAddr[60];
-        Address_print(printedAddr, addr);
-        Log_debug(store->logger, "Discover node [%s]", printedAddr);
-    #endif
+    struct Node_Two* node = nodeForIp(store, addr->ip6.bytes);
+    bool exists = true;
 
-    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)&addr->ip6, &store->nodeMap);
-    struct Node_Two* node = NULL;
     struct Allocator* alloc = NULL;
-    if (index < 0) {
+    if (!node) {
+        exists = false;
         alloc = Allocator_child(store->alloc);
         node = Allocator_calloc(alloc, sizeof(struct Node_Two), 1);
         node->alloc = alloc;
@@ -678,14 +630,15 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         node->encodingScheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
 
-    } else {
-        node = Identity_cast(store->nodeMap.values[index]);
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, addr);
+            Log_debug(store->logger, "Discover node [%s]", printedAddr);
+        #endif
     }
 
     if (node == store->selfLink->child) {
-        Log_debug(store->logger, "Got introduced to ourselves");
-        check(store);
-        return node;
+        Assert_failure("You just sent a message to yourself you dingbat");
     }
 
     node->address.protocolVersion = (version) ? version : node->address.protocolVersion;
@@ -727,12 +680,17 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Assert_always(path != findClosest_INVALID);
         Assert_always(closest->child != node);
         logLink(store, closest, "New closest link");
+        check(store);
     }
 
     // link parent to child
     // TODO: linking every node with 0 link state, this can't be right.
     struct Node_Link* parentLink =
         linkNodes(closest->child, node, path, 0, inverseLinkEncodingFormNumber, addr->path, store);
+
+    if (!exists) {
+        RB_INSERT(NodeRBTree, &store->nodeTree, node);
+    }
 
     // Check whether the parent is already linked with a node which is "behind" the child.
     // previous appears to be a "sibling link" to the closest->node link but in reality the
@@ -800,19 +758,28 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                           splitLink->inverseLinkEncodingFormNumber, addr->path, store);
 
             if (grandChild->bestParent == splitLink) {
+
                 // There's a possible loop case here, if the node's best (current) parent is the
                 // node given by grandChild, there is a loop but we don't know it because the
                 // graph has not been filled in. Here we will discover the loop and if we do not
                 // resolve it, we will get a assertion failure.
-                if (isAncestorOf(grandChild, node, store)) {
+                if (node->pathQuality <= grandChild->pathQuality) {
+                    check(store);
                     node->bestParent = parentLink;
-                    assertNoLoop(node, store);
-                    Log_debug(store->logger, "Detected loop, unravelling...");
+                    updateBestPath(node, store);
+                    node->pathQuality = grandChild->pathQuality;
+                    Assert_true(node->bestParent->parent->pathQuality >= grandChild->pathQuality);
+                    Log_debug(store->logger, "Detected possible loop, unravelling...");
+                    check(store);
                 }
-                assertNoLoop(grandChild, store);
+
+                Assert_true(grandChild->bestParent->parent->pathQuality >= grandChild->pathQuality);
+
+                check(store);
                 grandChild->bestParent = lcg;
-                assertNoLoop(grandChild, store);
+                check(store);
                 updateBestPath(grandChild, store);
+                check(store);
             }
         }
 
@@ -827,38 +794,32 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Assert_true(closest->child == node);
     #endif
 
-    if (index < 0) {
-        Map_OfNodesByAddress_put((struct Ip6*)&addr->ip6, &node, &store->nodeMap);
-    }
-
     check(store);
     return node;
 }
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16])
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    int index = Map_OfNodesByAddress_indexForKey((struct Ip6*)addr, &store->nodeMap);
-    if (index == -1) { return NULL; }
-    struct Node_Two* n = Identity_cast(store->nodeMap.values[index]);
-    if (n->address.path == UINT64_MAX) { return NULL; }
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Two* n = nodeForIp(store, addr);
+    if (n && n->address.path == UINT64_MAX) { return NULL; }
     return n;
 }
 
 struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* out = NULL;
     uint64_t pathParentChild = findClosest(path, &out, NULL, store);
     if (pathParentChild != 1) { return NULL; }
-    return Identity_cast(out->child);
+    return Identity_check(out->child);
 }
 
 struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
                                           uint64_t routeLabel,
                                           uint32_t hopNum)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* link = NULL;
     uint32_t num = hopNum;
     uint64_t path = findClosest(routeLabel, &link, &num, store);
@@ -894,7 +855,7 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
                                  uint64_t pathToParent,
                                  uint64_t pathParentToChild)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* linkToParent;
     if (findClosest(pathToParent, &linkToParent, NULL, store) != 1) {
         return NodeStore_getRouteLabel_PARENT_NOT_FOUND;
@@ -917,14 +878,16 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
 
 uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* linkToParent = NULL;
     uint64_t next = findClosest(path, &linkToParent, NULL, store);
     if (next == findClosest_INVALID) {
-Assert_true(0);
         return NodeStore_optimizePath_INVALID;
     }
-    if (linkToParent == store->selfLink) { return path; }
+    if (linkToParent == store->selfLink) {
+        if (next == 1) { return 1; }
+        return path;
+    }
 
     if (next == 1) { return linkToParent->child->address.path; }
 
@@ -962,9 +925,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     struct Allocator* oldAlloc = Allocator_child(alloc);
 
     struct NodeStore_pvt* out = Allocator_clone(oldAlloc, (&(struct NodeStore_pvt) {
-        .nodeMap = {
-            .allocator = alloc
-        },
         .capacity = capacity,
         .logger = logger,
         .alloc = alloc
@@ -982,7 +942,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.selfNode = selfNode;
     linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     out->selfLink = selfNode->reversePeers;
-    Map_OfNodesByAddress_put((struct Ip6*)&myAddress->ip6, &selfNode, &out->nodeMap);
+    RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
     out->pub.selfAddress = &out->selfLink->child->address;
 
@@ -998,19 +958,16 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 /**
  * Dump the table, one node at a time.
  */
-struct Node_Two* NodeStore_dumpTable(struct NodeStore* store, uint32_t index)
+struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index)
 {
-    struct NodeStore_pvt* s = Identity_cast((struct NodeStore_pvt*)store);
-    if (index >= s->nodeMap.count) {
-        return NULL;
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    // TODO: Schlameil the painter
+    uint32_t i = 0;
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        if (i++ == index) { return nn; }
     }
-    return s->nodeMap.values[index];
-}
-
-static int getSwitchIndex(struct Address* addr)
-{
-    uint32_t bits = NumberCompress_bitsUsedForLabel(addr->path);
-    return NumberCompress_getDecompressed(addr->path, bits);
+    return NULL;
 }
 
 struct LinkList* NodeStore_linksForPath(struct NodeStore* nodeStore,
@@ -1035,22 +992,23 @@ static void handleGoodNews(struct Node_Two* node,
 {
     if (newReach <= node->pathQuality) { return; }
     node->pathQuality = newReach;
+    handleGoodNews(node->bestParent->parent,
+                   ((newReach < UINT32_MAX) ? newReach+1 : newReach),
+                   store);
     bool hasOneHopLinks = false;
     struct Node_Link* link = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         // Links are ordered by path so this works.
-        if (hasOneHopLinks && !Node_isOneHopLink(link)) { return; }
+        if (hasOneHopLinks && !Node_isOneHopLink(link)) { break; }
         hasOneHopLinks = true;
-        if (link->child->bestParent->parent->pathQuality < newReach) {
-            link->child->bestParent = link;
-            Assert_true(link->child->pathQuality <= newReach);
-            assertNoLoop(link->child, store);
-            updateBestPath(link->child, store);
+        struct Node_Two* child = link->child;
+        if (child->bestParent->parent->pathQuality < newReach) {
+            assertNoLoop(child, store);
+            child->bestParent = link;
+            assertNoLoop(child, store);
+            updateBestPath(child, store);
         }
     }
-    handleGoodNews(node->bestParent->parent,
-                   ((newReach < UINT32_MAX) ? newReach+1 : newReach),
-                   store);
 }
 
 static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStore_pvt* store)
@@ -1073,38 +1031,57 @@ static uint32_t getNewReach(uint32_t currentReach, int64_t reachDiff)
     return newReach;
 }
 
-static struct Node_Two* getBest(struct Node_Two* node,
-                                struct Address* target,
-                                struct Node_Link* continueFrom,
-                                struct NodeStore_pvt* store)
+static struct Node_Two* getBestCycleB(struct Node_Two* node,
+                                      struct Address* target,
+                                      struct NodeStore_pvt* store)
 {
     uint32_t targetPfx = Address_getPrefix(target);
     uint32_t ourDistance = Address_getPrefix(store->pub.selfAddress) ^ targetPfx;
     struct Node_Link* next = NULL;
-    if (continueFrom) {
-        RB_FOREACH_REVERSE_FROM(next, PeerRBTree, continueFrom) {
-            if (next->child->bestParent != next || next == store->selfLink) { continue; }
-            if (next->child->address.path == UINT64_MAX) { continue; }
-            if ((Address_getPrefix(&next->child->address) ^ targetPfx) >= ourDistance) { continue; }
-            return next->child;
-        }
-    }
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (next->child->bestParent != next || next == store->selfLink) { continue; }
-        struct Node_Link* contFrom = RB_MAX(PeerRBTree, &next->child->peerTree);
-        struct Node_Two* n = getBest(next->child, target, contFrom, store);
-        if (n) { return n; }
+        if (next->child->address.path == UINT64_MAX) { continue; }
+        if ((Address_getPrefix(&next->child->address) ^ targetPfx) >= ourDistance) { continue; }
+        return next->child;
     }
+
     return NULL;
+}
+
+static int getBestCycle(struct Node_Two* node,
+                        struct Address* target,
+                        struct Node_Two** output,
+                        int limit,
+                        int cycle,
+                        struct NodeStore_pvt* store)
+{
+    Assert_always(cycle < 1000);
+    if (cycle < limit) {
+        int total = 0;
+        struct Node_Link* next = NULL;
+        RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
+            if (*output) { return total; }
+            if (next->child->bestParent != next || next == store->selfLink) { continue; }
+            total += getBestCycle(next->child, target, output, limit, cycle+1, store);
+        }
+        return total;
+    }
+
+    *output = getBestCycleB(node, target, store);
+    return 1;
 }
 
 struct Node_Two* NodeStore_getBest(struct Address* targetAddress, struct NodeStore* nodeStore)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress->ip6.bytes);
     if (n) { return n; }
-    struct Node_Link* contFrom = RB_MAX(PeerRBTree, &store->pub.selfNode->peerTree);
-    return getBest(store->pub.selfNode, targetAddress, contFrom, store);
+
+    for (int i = 0; i < 10000; i++) {
+        int ret = getBestCycle(store->pub.selfNode, targetAddress, &n, i, 0, store);
+        if (n || !ret) { return n; }
+    }
+    return NULL;
 }
 
 struct NodeList* NodeStore_getPeers(uint64_t label,
@@ -1112,7 +1089,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
                                     struct Allocator* allocator,
                                     struct NodeStore* nodeStore)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
 
     // truncate the label to the part which this node uses...
     label &= Bits_maxBits64(NumberCompress_bitsUsedForLabel(label));
@@ -1146,26 +1123,27 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     }
 
     for (int i = 0; i < (int)out->size; i++) {
+        Identity_check(out->nodes[i]);
         Assert_true(out->nodes[i]->address.path);
+        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
         out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
 
     return out;
 }
 
-static int isOkReply(struct Node_Two* node,
-                     uint32_t versionOfRequestingNode,
-                     int requestorSwitchIndex)
+static bool isOkAnswer(struct Node_Two* node,
+                       uint32_t compatVer,
+                       struct NodeStore_pvt* store)
 {
     if (node->address.path == UINT64_MAX) {
+        // (very) unreachable
         return false;
     }
-    if (requestorSwitchIndex == getSwitchIndex(&node->address)) {
-        // Nodes which are down the same interface as the node who asked.
+    if (!Version_isCompatible(compatVer, node->address.protocolVersion)) {
         return false;
     }
-    if (!Version_isCompatible(node->address.protocolVersion, versionOfRequestingNode)) {
-        // Known not to be compatable.
+    if (node == store->pub.selfNode) {
         return false;
     }
     return true;
@@ -1176,64 +1154,85 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
                                            struct Address* targetAddress,
                                            struct Address* requestorsAddress,
                                            const uint32_t count,
-                                           uint32_t versionOfRequestingNode,
+                                           uint32_t compatVer,
                                            struct Allocator* allocator)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
 
     struct NodeList* out = Allocator_malloc(allocator, sizeof(struct NodeList));
-    out->nodes = Allocator_malloc(allocator, count * sizeof(char*));
+    out->nodes = Allocator_calloc(allocator, count, sizeof(char*));
     out->size = count;
 
-    // populate a nodeList from end to beginning with best entry at the very end.
-    int i = count-1;
+    struct Node_Two fakeNode = { .pathQuality = 0 };
+    Bits_memcpyConst(&fakeNode.address, targetAddress, sizeof(struct Address));
 
-    // Don't send nodes which route back to the node which asked us.
-    int switchIndex = (requestorsAddress) ? getSwitchIndex(requestorsAddress) : -1;
-
-    // If there's an exact match, add it.
-    struct Node_Two* n = NodeStore_nodeForAddr(nodeStore, targetAddress->ip6.bytes);
-    if (n && isOkReply(n, versionOfRequestingNode, switchIndex)) { out->nodes[i--] = n; }
-
-    struct Node_Link* contFrom = RB_MAX(PeerRBTree, &store->pub.selfNode->peerTree);
-    n = getBest(store->pub.selfNode, targetAddress, contFrom, store);
-    while (n && i > -1) {
-        if (isOkReply(n, versionOfRequestingNode, switchIndex)) { out->nodes[i--] = n; }
-        struct Node_Link* contFrom = PeerRBTree_RB_PREV(n->bestParent);
-        n = getBest(n->bestParent->parent, targetAddress, contFrom, store);
+    struct Node_Two* next = Identity_ncheck(RB_NFIND(NodeRBTree, &store->nodeTree, &fakeNode));
+    if (!next) {
+        out->size = 0;
+        return out;
     }
 
-    out->nodes = &out->nodes[i+1];
-    out->size -= i+1;
+    struct Node_Two* prev = Identity_ncheck(NodeRBTree_RB_PREV(next));
+    int idx = out->size-1;
+
+    while (idx > -1) {
+        if (prev && (!next || Address_closest(targetAddress, &next->address, &prev->address) > 0)) {
+            if (isOkAnswer(prev, compatVer, store)) { out->nodes[idx--] = prev; }
+            prev = Identity_ncheck(NodeRBTree_RB_PREV(prev));
+            continue;
+        }
+        if (next && (!prev || Address_closest(targetAddress, &next->address, &prev->address) < 0)) {
+            if (isOkAnswer(next, compatVer, store)) { out->nodes[idx--] = next; }
+            next = Identity_ncheck(NodeRBTree_RB_NEXT(next));
+            continue;
+        }
+        break;
+    }
+
+    out->nodes = &out->nodes[idx+1];
+    out->size -= idx+1;
+
+    for (int i = 0; i < (int)out->size; i++) {
+        Identity_check(out->nodes[i]);
+        Assert_true(out->nodes[i]->address.path);
+        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
+        out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
+    }
 
     return out;
 }
 
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, int64_t reachDiff)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     handleNews(node, getNewReach(node->pathQuality, reachDiff), store);
 }
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     int nonZeroNodes = 0;
-    for (int i = 0; i < (int)store->nodeMap.count; i++) {
-        nonZeroNodes += (store->nodeMap.values[i]->pathQuality > 0);
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        nonZeroNodes += (nn->pathQuality > 0);
     }
     return nonZeroNodes;
 }
 
 int NodeStore_size(struct NodeStore* nodeStore)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
-    return store->nodeMap.count;
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    int size = 0;
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        size++;
+    }
+    return size;
 }
 
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
-    struct NodeStore_pvt* store = Identity_cast((struct NodeStore_pvt*)nodeStore);
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     #ifdef Log_DEBUG
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);

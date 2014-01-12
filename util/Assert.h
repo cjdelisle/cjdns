@@ -45,8 +45,10 @@ void Assert_failure(const char* format, ...);
 
 #ifdef PARANOIA
     #define Assert_true(expr) Assert_always(expr)
+    #define Assert_ifParanoid(expr) Assert_always(expr)
 #else
     #define Assert_true(expr)
+    #define Assert_ifParanoid(expr)
 #endif
 
 #ifdef TESTING

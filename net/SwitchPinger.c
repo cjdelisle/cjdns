@@ -74,7 +74,7 @@ struct Ping
 // incoming message from network, pointing to the beginning of the switch header.
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct SwitchPinger* ctx = Identity_cast((struct SwitchPinger*) iface->receiverContext);
+    struct SwitchPinger* ctx = Identity_check((struct SwitchPinger*) iface->receiverContext);
     struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
     ctx->incomingVersion = 0;
@@ -122,7 +122,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) vping);
+    struct Ping* p = Identity_check((struct Ping*) vping);
     enum SwitchPinger_Result err = SwitchPinger_Result_OK;
     uint64_t label = p->context->incomingLabel;
     if (data) {
@@ -145,7 +145,7 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
 
 static void sendPing(String* data, void* sendPingContext)
 {
-    struct Ping* p = Identity_cast((struct Ping*) sendPingContext);
+    struct Ping* p = Identity_check((struct Ping*) sendPingContext);
     #define BUFFER_SZ 4096
     uint8_t buffer[BUFFER_SZ];
     struct Message msg = {
@@ -212,8 +212,8 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result)
 
 static int onPingFree(struct Allocator_OnFreeJob* job)
 {
-    struct Ping* ping = Identity_cast((struct Ping*)job->userData);
-    struct SwitchPinger* ctx = Identity_cast(ping->context);
+    struct Ping* ping = Identity_check((struct Ping*)job->userData);
+    struct SwitchPinger* ctx = Identity_check(ping->context);
     ctx->outstandingPings--;
     Assert_true(ctx->outstandingPings >= 0);
     return 0;
@@ -259,7 +259,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
 
 void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) ping);
+    struct Ping* p = Identity_check((struct Ping*) ping);
     Pinger_sendPing(p->pingerPing);
 }
 

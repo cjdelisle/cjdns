@@ -71,7 +71,7 @@ static void pingResponse(struct RouterModule_Promise* promise,
                          struct Node_Two* node,
                          Dict* responseDict)
 {
-    struct Ping* ping = Identity_cast((struct Ping*)promise->userData);
+    struct Ping* ping = Identity_check((struct Ping*)promise->userData);
 
     uint8_t versionStr[40] = "old";
     String* version = String_CONST((char*)versionStr);
@@ -113,7 +113,7 @@ static void pingResponse(struct RouterModule_Promise* promise,
 
 static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vctx);
+    struct Context* ctx = Identity_check((struct Context*) vctx);
     String* pathStr = Dict_getString(args, String_CONST("path"));
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;

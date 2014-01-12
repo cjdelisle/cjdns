@@ -20,6 +20,7 @@
 #include "dht/dhtcore/RumorMill.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/ReplySerializer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
 #include "util/AverageRoller.h"
@@ -69,6 +70,8 @@ struct Janitor
 
     /** Number of concurrent searches taking place. */
     int searches;
+
+    Identity
 };
 
 struct Janitor_Search
@@ -89,16 +92,10 @@ static void responseCallback(struct RouterModule_Promise* promise,
                              struct Node_Two* fromNode,
                              Dict* result)
 {
-    struct Janitor_Search* search = Identity_cast((struct Janitor_Search*)promise->userData);
+    struct Janitor_Search* search = Identity_check((struct Janitor_Search*)promise->userData);
     if (fromNode) {
         Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
-
-        struct Node_Two* n = RouterModule_lookup(search->target, search->janitor->routerModule);
-        if (!n || n->pathQuality == 0) {
-            return;
-        } else {
-            Log_debug(search->janitor->logger, "Found a nearby target, aborting search");
-        }
+        return;
     }
 
     search->janitor->searches--;
@@ -144,6 +141,24 @@ static void search(uint8_t target[16], struct Janitor* janitor)
     rp->userData = search;
 }
 
+static void peersResponseCallback(struct RouterModule_Promise* promise,
+                                  uint32_t lagMilliseconds,
+                                  struct Node_Two* fromNode,
+                                  Dict* result)
+{
+    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
+    if (!fromNode) { return; }
+    struct Address_List* addresses =
+        ReplySerializer_parse(&fromNode->address, result, janitor->logger, promise->alloc);
+
+    for (int i = 0; addresses && i < addresses->length; i++) {
+        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nn) {
+            RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
+        }
+    }
+}
+
 static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 {
     // Lets check for non-one-hop links at each node along the path between us and this node.
@@ -157,11 +172,11 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
         for (int j = 0; j < count; j++) {
             struct Node_Link* l = NodeStore_getLink(link->child, j);
             if (!Node_isOneHopLink(l) || link->parent->pathQuality == 0) {
-                RouterModule_getPeers(&link->parent->address,
-                                      l->cannonicalLabel,
-                                      0,
-                                      janitor->routerModule,
-                                      janitor->allocator);
+                struct RouterModule_Promise* rp =
+                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
+                                          janitor->routerModule, janitor->allocator);
+                rp->callback = peersResponseCallback;
+                rp->userData = janitor;
                 // Only send max 1 getPeers req per second.
                 return;
             }
@@ -171,7 +186,7 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 
 static void maintanenceCycle(void* vcontext)
 {
-    struct Janitor* const janitor = (struct Janitor*) vcontext;
+    struct Janitor* const janitor = Identity_check((struct Janitor*) vcontext);
 
     uint64_t now = Time_currentTimeMilliseconds(janitor->eventBase);
 
@@ -197,16 +212,25 @@ static void maintanenceCycle(void* vcontext)
     // ping a node from the ping queue
     if (RumorMill_getNode(janitor->rumorMill, &addr)) {
         addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
-        RouterModule_pingNode(&addr, 0, janitor->routerModule, janitor->allocator);
+        if (NodeStore_optimizePath_INVALID != addr.path) {
+            struct RouterModule_Promise* rp =
+                RouterModule_getPeers(&addr,
+                                      Random_uint32(janitor->rand),
+                                      0,
+                                      janitor->routerModule,
+                                      janitor->allocator);
+            rp->callback = peersResponseCallback;
+            rp->userData = janitor;
 
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
-        #endif
+            #ifdef Log_DEBUG
+                uint8_t addrStr[60];
+                Address_print(addrStr, &addr);
+                Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
+            #endif
+        }
     }
 
-    // Nobody in the rumor mill, lets trigger a random search...
+    // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
 
     struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
@@ -261,6 +285,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .allocator = alloc,
         .rand = rand
     }));
+    Identity_set(janitor);
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 

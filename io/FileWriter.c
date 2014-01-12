@@ -25,7 +25,7 @@ struct FileWriter_context {
 /** @see Writer->write() */
 static int write(struct Writer* writer, const void* toWrite, unsigned long length)
 {
-    struct FileWriter_context* context = Identity_cast((struct FileWriter_context*) writer);
+    struct FileWriter_context* context = Identity_check((struct FileWriter_context*) writer);
 
     size_t written = fwrite(toWrite, 1, length, context->writeTo);
 

@@ -44,7 +44,7 @@ struct TestFramework_Link
 static uint8_t sendTo(struct Message* msg, struct Interface* iface)
 {
     struct TestFramework_Link* link =
-        Identity_cast((struct TestFramework_Link*)iface->senderContext);
+        Identity_check((struct TestFramework_Link*)iface->senderContext);
 
     struct Interface* dest;
     struct TestFramework* srcTf;

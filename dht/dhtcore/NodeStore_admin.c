@@ -87,7 +87,7 @@ static void dumpTable_addEntries(struct Context* ctx,
 
 static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
@@ -95,7 +95,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
 
 static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     Dict* ret = Dict_new(alloc);
     Dict* result = Dict_new(alloc);
@@ -147,7 +147,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
 }
 static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     Dict* ret = Dict_new(alloc);
     Dict* result = Dict_new(alloc);
@@ -208,7 +208,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
 
 static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vcontext);
+    struct Context* ctx = Identity_check((struct Context*) vcontext);
 
     char* err = NULL;
 

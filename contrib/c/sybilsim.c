@@ -66,7 +66,7 @@ struct NodeContext {
 
 static uint8_t messageToAngel(struct Message* msg, struct Interface* iface)
 {
-    struct NodeContext* ctx = Identity_cast((struct NodeContext*) iface);
+    struct NodeContext* ctx = Identity_check((struct NodeContext*) iface);
     if (ctx->boundAddr) { return 0; }
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, alloc);
@@ -84,7 +84,7 @@ static uint8_t messageToAngel(struct Message* msg, struct Interface* iface)
 
 static void sendFirstMessageToCore(void* vcontext)
 {
-    struct NodeContext* ctx = Identity_cast((struct NodeContext*) vcontext);
+    struct NodeContext* ctx = Identity_check((struct NodeContext*) vcontext);
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct Message* msg = Message_new(0, 512, alloc);
 
@@ -160,8 +160,9 @@ static void printLog(struct Log* log,
                      const char* format,
                      va_list args)
 {
-    struct NodeContext* ctx =
-        Identity_cast((struct NodeContext*) (((char*)log) - offsetof(struct NodeContext, nodeLog)));
+    struct NodeContext* ctx = Identity_check(
+        (struct NodeContext*) (((char*)log) - offsetof(struct NodeContext, nodeLog))
+    );
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     String* str = String_printf(alloc, "[%s] %s", ctx->nodeName, file);
     ctx->parentLogger->print(ctx->parentLogger, logLevel, str->bytes, line, format, args);

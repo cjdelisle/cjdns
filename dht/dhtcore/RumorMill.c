@@ -40,8 +40,8 @@ struct RumorMill_pvt
 
 static int getBadness(struct Address* badAddr, struct Address* selfAddr)
 {
-    return (Bits_log2x64(badAddr->ip6.longs.one ^ selfAddr->ip6.longs.one)
-        + Bits_log2x64(badAddr->path));
+    uint64_t xor = Endian_bigEndianToHost64(badAddr->ip6.longs.one_be ^ selfAddr->ip6.longs.one_be);
+    return Bits_log2x64(xor) + Bits_log2x64(badAddr->path);
 }
 
 static struct Address* getWorst(struct RumorMill_pvt* rm)
@@ -61,7 +61,8 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
 
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
 {
-    struct RumorMill_pvt* rm = Identity_cast((struct RumorMill_pvt*) mill);
+    struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
+    if (!Bits_memcmp(addr->key, rm->selfAddr->key, 32)) { return; }
     Address_getPrefix(addr);
     struct Address* replace;
     if (rm->pub.count < rm->capacity) {
@@ -74,7 +75,7 @@ void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
 
 bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
 {
-    struct RumorMill_pvt* rm = Identity_cast((struct RumorMill_pvt*) mill);
+    struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!rm->pub.count) { return false; }
     Bits_memcpyConst(output, &rm->addresses[--rm->pub.count], sizeof(struct Address));
     return true;
@@ -87,7 +88,7 @@ struct RumorMill* RumorMill_new(struct Allocator* alloc, struct Address* selfAdd
     struct RumorMill_pvt* rm = Allocator_calloc(alloc, sizeof(struct RumorMill_pvt), 1);
     rm->addresses = Allocator_calloc(alloc, sizeof(struct Address), capacity);
     rm->capacity = capacity;
-    rm->selfAddr = selfAddr;
+    rm->selfAddr = Allocator_clone(alloc, selfAddr);
     Identity_set(rm);
 
     return &rm->pub;

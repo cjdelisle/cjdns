@@ -34,7 +34,7 @@ struct AddrInterfaceAdapter_pvt
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct AddrInterfaceAdapter_pvt* context =
-        Identity_cast((struct AddrInterfaceAdapter_pvt*) iface);
+        Identity_check((struct AddrInterfaceAdapter_pvt*) iface);
 
     Message_shift(message, -(context->pub.addr->addrLen), NULL);
     return Interface_sendMessage(context->wrapped, message);
@@ -43,7 +43,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct AddrInterfaceAdapter_pvt* context =
-        Identity_cast((struct AddrInterfaceAdapter_pvt*) iface->receiverContext);
+        Identity_check((struct AddrInterfaceAdapter_pvt*) iface->receiverContext);
 
     Message_push(message, context->pub.addr, context->pub.addr->addrLen, NULL);
     return Interface_receiveMessage(&context->pub.generic, message);

@@ -62,16 +62,16 @@ static void callback(String* data, struct Ping* ping)
 
 static void timeoutCallback(void* vping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) vping);
-    uint64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
+    struct Ping* p = Identity_check((struct Ping*) vping);
+    int64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
     Log_debug(p->pinger->logger, "Ping timeout for [%u] in [%lld] ms",
-        p->pub.handle, ((long long) now) - p->timeSent);
+        p->pub.handle, ((long long) now) - ((long long)p->timeSent));
     callback(NULL, p);
 }
 
 static int freePing(struct Allocator_OnFreeJob* job)
 {
-    struct Ping* p = Identity_cast((struct Ping*) job->userData);
+    struct Ping* p = Identity_check((struct Ping*) job->userData);
 
     if (p->timeSent) {
         Log_debug(p->pinger->logger, "Ping cancelled [%u]", p->pub.handle);
@@ -86,8 +86,8 @@ static int freePing(struct Allocator_OnFreeJob* job)
 
 void Pinger_sendPing(struct Pinger_Ping* ping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) ping);
-    Log_debug(p->pinger->logger, "Sending ping [%u]", p->pub.handle);
+    struct Ping* p = Identity_check((struct Ping*) ping);
+    //Log_debug(p->pinger->logger, "Sending ping [%u]", p->pub.handle);
     p->sendPing(p->data, ping->context);
 }
 
@@ -150,7 +150,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         data->bytes += 4;
         uint64_t cookie;
         Bits_memcpyConst(&cookie, data->bytes, 8);
-        struct Ping* p = Identity_cast((struct Ping*) pinger->outstandingPings.values[index]);
+        struct Ping* p = Identity_check((struct Ping*) pinger->outstandingPings.values[index]);
         if (cookie != p->cookie) {
             Log_debug(pinger->logger, "Ping response with invalid cookie");
             return;

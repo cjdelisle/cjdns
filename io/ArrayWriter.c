@@ -28,7 +28,7 @@ struct ArrayWriter_context {
 /** @see Writer->write() */
 static int write(struct Writer* writer, const void* toWrite, unsigned long length)
 {
-    struct ArrayWriter_context* context = Identity_cast((struct ArrayWriter_context*) writer);
+    struct ArrayWriter_context* context = Identity_check((struct ArrayWriter_context*) writer);
 
     /* If there was a previous failure then don't allow any more writing. */
     if (context->returnCode != 0) {

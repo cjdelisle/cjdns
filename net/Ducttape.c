@@ -153,7 +153,7 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
 static int handleOutgoing(struct DHTMessage* dmessage,
                           void* vcontext)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) vcontext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) vcontext);
 
     struct Message message = {
         .length = dmessage->length,
@@ -350,7 +350,7 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
                                      struct Ducttape* dt,
                                      uint8_t herPublicKey[32])
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)dt);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)dt);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct Headers_SwitchHeader sh;
     Bits_memcpyConst(&sh, message->bytes, Headers_SwitchHeader_SIZE);
@@ -423,7 +423,7 @@ static inline bool isForMe(struct Message* message, struct Ducttape_pvt* context
 static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* iface)
 {
     struct Ducttape_pvt* ctx =
-        Identity_cast((struct Ducttape_pvt*)
+        Identity_check((struct Ducttape_pvt*)
             &((uint8_t*)iface)[-offsetof(struct Ducttape, magicInterface)]);
 
     #ifdef PARANOIA
@@ -446,7 +446,7 @@ static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* 
 static inline uint8_t incomingFromTun(struct Message* message,
                                       struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->receiverContext);
 
     uint16_t ethertype = TUNMessageType_pop(message, NULL);
 
@@ -593,7 +593,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
  */
 static uint8_t sendToNode(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->receiverContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
     struct IpTunnel_PacketInfoHeader* header = (struct IpTunnel_PacketInfoHeader*) message->bytes;
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
@@ -643,7 +643,7 @@ static uint8_t sendToNode(struct Message* message, struct Interface* iface)
  */
 static uint8_t sendToTun(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->receiverContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->receiverContext);
     uint16_t msgType = TUNMessageType_pop(message, NULL);
     if (msgType == Ethernet_TYPE_IP6) {
         Assert_always(message->length >= Headers_IP6Header_SIZE);
@@ -825,7 +825,7 @@ static inline int incomingFromRouter(struct Message* message,
 
 static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->receiverContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->receiverContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
     enum Ducttape_SessionLayer layer = dtHeader->layer;
     dtHeader->layer = Ducttape_SessionLayer_INVALID;
@@ -878,7 +878,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
 
 static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) iface->senderContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) iface->senderContext);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, false);
     struct SessionManager_Session* session =
         SessionManager_sessionForHandle(dtHeader->receiveHandle, context->sm);
@@ -1051,7 +1051,7 @@ static inline void translateVersion2(struct Message* message,
  */
 static uint8_t incomingFromSwitch(struct Message* message, struct Interface* switchIf)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)switchIf->senderContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)switchIf->senderContext);
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
@@ -1148,7 +1148,7 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
 static uint8_t incomingFromPinger(struct Message* message, struct Interface* iface)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*)iface->senderContext);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->senderContext);
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
 
@@ -1226,7 +1226,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
 
 void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf)
 {
-    struct Ducttape_pvt* context = Identity_cast((struct Ducttape_pvt*) dt);
+    struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) dt);
     context->userIf = userIf;
     userIf->receiveMessage = incomingFromTun;
     userIf->receiverContext = context;

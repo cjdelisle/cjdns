@@ -42,15 +42,15 @@ struct Address
     union {
         struct {
             // tricksy: this is effectively a 64 bit rotate of the following bytes array
-            uint32_t three;
-            uint32_t four;
-            uint32_t one;
-            uint32_t two;
+            uint32_t three_be;
+            uint32_t four_be;
+            uint32_t one_be;
+            uint32_t two_be;
         } ints;
 
         struct {
-            uint64_t two;
-            uint64_t one;
+            uint64_t two_be;
+            uint64_t one_be;
         } longs;
 
         uint8_t bytes[Address_SEARCH_TARGET_SIZE];
@@ -63,16 +63,30 @@ struct Address
 #define Address_SIZE (8 + Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
 Assert_compileTime(sizeof(struct Address) == Address_SIZE);
 
+struct Address_List
+{
+    int length;
+    struct Address* elems;
+};
+
+static inline struct Address_List* Address_List_new(uint32_t length, struct Allocator* alloc)
+{
+    struct Address_List* out = Allocator_malloc(alloc, sizeof(struct Address_List));
+    out->length = length;
+    out->elems = Allocator_calloc(alloc, Address_SIZE, length);
+    return out;
+}
+
 static inline uint32_t Address_getPrefix(struct Address* addr)
 {
-    if (addr->ip6.ints.one == 0
-        && addr->ip6.ints.two == 0
-        && addr->ip6.ints.three == 0
-        && addr->ip6.ints.four == 0)
+    if (addr->ip6.ints.one_be == 0
+        && addr->ip6.ints.two_be == 0
+        && addr->ip6.ints.three_be == 0
+        && addr->ip6.ints.four_be == 0)
     {
         AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
     }
-    return Endian_bigEndianToHost32(addr->ip6.ints.one);
+    return Endian_bigEndianToHost32(addr->ip6.ints.one_be);
 }
 
 static inline uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16])
@@ -178,10 +192,10 @@ static inline int Address_closest(struct Address* target,
             return ret;                                                \
         }
 
-    Address_COMPARE(one)
-    Address_COMPARE(two)
-    Address_COMPARE(three)
-    Address_COMPARE(four)
+    Address_COMPARE(one_be)
+    Address_COMPARE(two_be)
+    Address_COMPARE(three_be)
+    Address_COMPARE(four_be)
 
     return 0;
 
