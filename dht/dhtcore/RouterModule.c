@@ -294,14 +294,7 @@ static inline int sendNodes(struct NodeList* nodeList,
     struct VersionList* versions = VersionList_new(nodeList->size, message->allocator);
 
     int i = 0;
-    int j = 0;
     for (; i < (int)nodeList->size; i++) {
-
-        if (NumberCompress_decompress(nodeList->nodes[i]->address.path) ==
-            NumberCompress_decompress(query->address->path))
-        {
-            continue;
-        }
 
         // We have to modify the reply in case this node uses a longer label discriminator
         // in our switch than its target address, the target address *must* have the same
@@ -311,17 +304,16 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
 
-        Address_serialize(&nodes->bytes[j * Address_SERIALIZED_SIZE], &addr);
+        Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
 
-        versions->versions[j] = nodeList->nodes[i]->address.protocolVersion;
+        versions->versions[i] = nodeList->nodes[i]->address.protocolVersion;
 
-        Assert_true(!Bits_isZero(&nodes->bytes[j * Address_SERIALIZED_SIZE],
+        Assert_true(!Bits_isZero(&nodes->bytes[i * Address_SERIALIZED_SIZE],
                                  Address_SERIALIZED_SIZE));
-        j++;
     }
-    nodes->len = j * Address_SERIALIZED_SIZE;
-    versions->length = j;
-    if (j > 0) {
+    nodes->len = i * Address_SERIALIZED_SIZE;
+    versions->length = i;
+    if (i > 0) {
         Dict_putString(message->asDict, CJDHTConstants_NODES, nodes, message->allocator);
         String* versionsStr = VersionList_stringify(versions, message->allocator);
         Dict_putString(message->asDict,
@@ -366,8 +358,7 @@ static inline int handleQuery(struct DHTMessage* message,
         // send the closest nodes
         nodeList = NodeStore_getClosestNodes(module->nodeStore,
                                              &targetAddr,
-                                             query->address,
-                                             RouterModule_K + 5,
+                                             RouterModule_K,
                                              version,
                                              message->allocator);
 
@@ -456,10 +447,10 @@ static void sendMsg(String* txid, void* vpingContext)
 
 static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 {
-    struct Node_Two* n = NodeStore_nodeForPath(pctx->router->nodeStore, pctx->address.path);
+    struct Node_Two* n = NodeStore_closestNode(pctx->router->nodeStore, pctx->address.path);
 
     // Ping timeout -> decrease reach
-    if (n) {
+    if (n && !Bits_memcmp(pctx->address.key, n->address.key, 32)) {
 
         int64_t newReach;
 
@@ -562,9 +553,11 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
                AverageRoller_getAverage(pctx->router->gmrtRoller));
     */
     // this implementation only pings to get the address of a node, so lets add the node.
-    struct Node_Two* node = NodeStore_nodeForPath(module->nodeStore, message->address->path);
+    struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
 
-    Assert_true(node);
+    // EncodingSchemeModule should have added this node to the store, check it.
+    Assert_true(node && !Bits_memcmp(node->address.key, message->address->key, 32));
+
     responseFromNode(node, milliseconds, module);
 
     #ifdef Log_DEBUG

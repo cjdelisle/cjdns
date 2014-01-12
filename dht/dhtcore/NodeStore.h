@@ -65,6 +65,8 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 
+struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t path);
+
 struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
@@ -135,8 +137,6 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
  *
  * @param store the store to get the nodes from.
  * @param targetAddress the address to get closest nodes for.
- * @param requestorsAddress if not NULL no responses will be returned which are
- *                          closer to this node in physical space.
  * @param count the number of nodes to return.
  * @param versionOfRequestingNode the version of the node who asked for the list, no nodes will
  *                                be returned which are known to be incompatible with this version.
@@ -144,7 +144,6 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
  */
 struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Address* targetAddress,
-                                           struct Address* requestorsAddress,
                                            const uint32_t count,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);

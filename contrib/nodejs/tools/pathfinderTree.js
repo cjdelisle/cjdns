@@ -39,7 +39,7 @@ var getAddresses = function (cjdns, callback) {
 
 var buildTreeCycle = function (current, nodes) {
     current.peers = [];
-    for (var i = 0; i < nodes.length; i++) {
+    for (var i = nodes.length - 1; i >= 0; i--) {
         if (nodes[i].bestParent && nodes[i].bestParent.ip == current.ip) {
             current.peers.push(nodes[i]);
             nodes.splice(i, 1);
@@ -58,7 +58,9 @@ var buildTree = function (origNodes) {
         if (nodes[i].bestParent && nodes[i].ip === nodes[i].bestParent.ip) {
             var current = nodes[i];
             nodes.splice(i, 1);
-            return buildTreeCycle(current, nodes);
+            var out = buildTreeCycle(current, nodes);
+            if (nodes.length > 0) { throw new Error(); }
+            return out;
         }
     }
     throw new Error();
@@ -91,9 +93,8 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
         });
         nt(waitFor());
     }).nThen(function (waitFor) {
-console.log(JSON.stringify(nodes, null, '  '));
+        //console.log(JSON.stringify(nodes, null, '  '));
         var tree = buildTree(nodes);
-        //console.log(JSON.stringify(tree, null, '  '));
         printTree(tree, '');
         cjdns.disconnect();
     });
