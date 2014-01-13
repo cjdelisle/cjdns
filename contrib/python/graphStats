@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import cjdnsadmin.adminTools as at
+import cjdnsadmin.analysisTools as ant
+import networkx as nx
+import numpy as np
+
+cjdns=at.connect()
+
+root=at.whoami(cjdns)
+
+G=ant.makeGraph()
+numNodes=len(G.nodes())
+path=nx.single_source_dijkstra(G,root[-4:])
+h=np.array([path[0][key] for key in path[0].keys()])
+mean=h.mean()
+std=h.std()
+print '==================Graph Stats=================='
+print 'Number of Nodes: ',numNodes
+print 'Average Shortest Path: ',mean, u'\u00B1',std

@@ -52,8 +52,7 @@ def makeGraph():
     from publicToIp6 import PublicToIp6_convert
 
     cjdns=admin.connect()
-    root=cjdns.NodeStore_getNode(0)
-    root=PublicToIp6_convert(root['result']['key'])
+    root=admin.whoami(cjdns)
     pstats=admin.peerStats(cjdns,up=True)
     peers=[PublicToIp6_convert(x['publicKey']) for x in pstats]
     G=nx.Graph()
