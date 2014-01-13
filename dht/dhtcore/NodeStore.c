@@ -123,6 +123,7 @@ static void assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store)
     //Log_debug(store->logger, "Beginning check for loops");
     struct Node_Link* parent = node->bestParent;
     for (int i = 0; i < 1000; i++) {
+        if (!node->bestParent) { return; }
         if (store->pub.selfNode == parent->parent) { return; }
         //logLink(store, parent, "Checking for loops");
         Assert_always(node != parent->parent);
@@ -158,9 +159,13 @@ static void verifyNode(struct Node_Two* node, struct NodeStore_pvt* store)
         lastLink = link;
     }
 
-    Assert_true(node->bestParent->parent->pathQuality >= node->pathQuality);
-    if (node->bestParent->parent->pathQuality == node->pathQuality) {
-        assertNoLoop(node, store);
+    if (node->bestParent) {
+        Assert_true(node->bestParent->parent->pathQuality >= node->pathQuality);
+        if (node->bestParent->parent->pathQuality == node->pathQuality) {
+            assertNoLoop(node, store);
+        }
+    } else {
+        Assert_true(node->address.path == UINT64_MAX);
     }
 }
 
@@ -212,6 +217,18 @@ static int updateBestPathCycle(struct Node_Two* node,
     }
 
     struct Node_Link* newBestLink = node->bestParent;
+
+    if (!newBestLink || newBestLink->parent->address.path == UINT64_MAX) {
+        #ifdef Log_DEBUG
+            uint8_t addrStr[40];
+            AddrTools_printIp(addrStr, node->address.ip6.bytes);
+            Log_debug(store->logger, "Node [%s] unreachable", addrStr);
+        #endif
+        node->pathQuality = 0;
+        node->address.path = UINT64_MAX;
+        return 1;
+    }
+
     struct Node_Two* newBest = newBestLink->parent;
     uint64_t bestPath = extendRoute(newBest->address.path,
                                     newBestLink,
@@ -312,8 +329,19 @@ static void handleBadNews(struct Node_Two* node,
                           uint32_t newReach,
                           struct NodeStore_pvt* store)
 {
+    if (!node->bestParent) {
+        // it can't get much worse
+        return;
+    }
     handleBadNewsOne(node->bestParent, newReach, store);
     handleBadNewsTwo(node->bestParent, store);
+}
+
+static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    handleBadNews(node, 0, store);
+    node->bestParent = NULL;
+    updateBestPath(node, store);
 }
 
 static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
@@ -341,7 +369,9 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     handleBadNewsTwo(link, store);
     // Should be ok because we only unlink when we've already found a better link.
     // In the future this will not be true and we will have to be able to remove nodes.
-    Assert_always(child->bestParent != link);
+    if (child->bestParent == link) {
+        unreachable(child, store);
+    }
     parent->pathQuality = reach;
 
     // Remove the RBTree entry
@@ -435,6 +465,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link = Identity_ncheck(RB_FIND(PeerRBTree, &parent->peerTree, &dummy));
     if (link) {
         logLink(store, link, "Attempted to create alternate link with same label!");
+        Assert_true(0);
         return link;
     }
 
@@ -568,7 +599,7 @@ static uint64_t findClosest(uint64_t path,
             break;
         }
 
-        /*#ifdef Log_DEBUG
+        #ifdef Log_DEBUG
             uint8_t labelA[20];
             uint8_t labelB[20];
             uint8_t searchingFor[20];
@@ -577,12 +608,12 @@ static uint64_t findClosest(uint64_t path,
             AddrTools_printPath(labelB, link->cannonicalLabel);
             Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
                       labelA, labelB, searchingFor);
-        #endif*/
+        #endif
 
         link = nextLink;
     }
 
-    /*#ifdef Log_DEBUG
+    #ifdef Log_DEBUG
         uint8_t labelA[20];
         uint8_t labelB[20] = "NONE";
         uint8_t labelC[20];
@@ -592,7 +623,7 @@ static uint64_t findClosest(uint64_t path,
         }
         AddrTools_printPath(labelC, link->cannonicalLabel);
         Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
-    #endif*/
+    #endif
 
     Assert_true(tmpl.cannonicalLabel);/// TODO remove this
     *output = link;
@@ -675,8 +706,10 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
             }
         } else if (path == 1) {
             logLink(store, closest, "Node at end of path appears to have changed");
-    //Assert_true(0);
-            if (closest->discoveredPath < addr->path) {
+
+            // This is disabled because RouterModule really wants this node to exist before talking
+            // to it.
+            /*if (closest->discoveredPath < addr->path) {
                 // Minor defense against being lied to, trust the shortest path.
                 // TODO: send a ping to check if it's still correct?
                 Log_info(store->logger, "Not replacing link because discovery path is longer");
@@ -686,7 +719,8 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
                 check(store);
                 Log_debug(store->logger, "Better path already known");
                 return NULL;
-            }
+            }*/
+
             unlinkNodes(closest, store);
             path = findClosest(addr->path, &closest, NULL, store);
             Assert_always(path != findClosest_INVALID);

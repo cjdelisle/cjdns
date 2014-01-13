@@ -552,11 +552,32 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
                milliseconds,
                AverageRoller_getAverage(pctx->router->gmrtRoller));
     */
+
     // this implementation only pings to get the address of a node, so lets add the node.
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
 
     // EncodingSchemeModule should have added this node to the store, check it.
-    Assert_true(node && !Bits_memcmp(node->address.key, message->address->key, 32));
+    if (!node) {
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, message->address);
+            Log_debug(module->logger, "Got message from nonexistant node! [%s]\n", printedAddr);
+        #endif
+        return;
+    }
+
+    if (Bits_memcmp(node->address.key, message->address->key, 32)) {
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, message->address);
+            uint8_t expected[60];
+            Address_print(printedAddr, &node->address);
+            Log_debug(module->logger, "Got message from node at path to other node! [%s] "
+                                      "expected [%s]",
+                      printedAddr, expected);
+        #endif
+        return;
+    }
 
     responseFromNode(node, milliseconds, module);
 
