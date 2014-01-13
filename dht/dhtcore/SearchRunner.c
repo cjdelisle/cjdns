@@ -30,7 +30,7 @@
 
 
 /** The maximum number of requests to make before calling a search failed. */
-#define MAX_REQUESTS_PER_SEARCH 8
+#define MAX_REQUESTS_PER_SEARCH 100
 
 
 struct SearchRunner_pvt

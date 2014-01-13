@@ -571,7 +571,7 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
             uint8_t printedAddr[60];
             Address_print(printedAddr, message->address);
             uint8_t expected[60];
-            Address_print(printedAddr, &node->address);
+            Address_print(expected, &node->address);
             Log_debug(module->logger, "Got message from node at path to other node! [%s] "
                                       "expected [%s]",
                       printedAddr, expected);
