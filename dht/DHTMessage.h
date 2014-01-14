@@ -35,13 +35,7 @@ struct DHTMessage
 {
     struct Address* address;
 
-    char padding[512];
-
-    /** The message in binary format. */
-    char bytes[DHTMessage_MAX_SIZE];
-
-    /** The length of the binary message. */
-    unsigned short length;
+    struct Message* binMessage;
 
     /** The message as a bencoded dictionary. */
     Dict* asDict;

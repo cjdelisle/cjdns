@@ -63,7 +63,8 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
         .replyTo = message,
         .address = message->address,
-        .allocator = message->allocator
+        .allocator = message->allocator,
+        .binMessage = message->binMessage
     }));
 
     DHTModuleRegistry_handleOutgoing(reply, registry);

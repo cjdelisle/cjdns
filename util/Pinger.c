@@ -85,11 +85,11 @@ static int freePing(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-void Pinger_sendPing(struct Pinger_Ping* ping)
+static void asyncSendPing(void* vping)
 {
-    struct Ping* p = Identity_check((struct Ping*) ping);
+    struct Ping* p = Identity_check((struct Ping*) vping);
     //Log_debug(p->pinger->logger, "Sending ping [%u]", p->pub.handle);
-    p->sendPing(p->data, ping->context);
+    p->sendPing(p->data, p->pub.context);
 }
 
 struct Pinger_Ping* Pinger_newPing(String* data,
@@ -130,6 +130,8 @@ struct Pinger_Ping* Pinger_newPing(String* data,
 
     ping->timeout =
         Timeout_setTimeout(timeoutCallback, ping, timeoutMilliseconds, pinger->eventBase, alloc);
+
+    Timeout_setTimeout(asyncSendPing, ping, 0, pinger->eventBase, alloc);
 
     return &ping->pub;
 }

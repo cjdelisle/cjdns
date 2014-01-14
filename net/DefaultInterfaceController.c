@@ -257,8 +257,6 @@ static void pingCallback(void* vic)
 
             ping->onResponseContext = ep;
 
-            SwitchPinger_sendPing(ping);
-
             Log_debug(ic->logger,
                       "Pinging %s peer [%s.k] lag [%u]",
                       (unresponsive ? "unresponsive" : "lazy"), key, lag);

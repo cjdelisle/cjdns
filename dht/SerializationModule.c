@@ -25,6 +25,7 @@
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
+#include "wire/Message.h"
 
 #include "util/platform/libc/string.h"
 
@@ -72,11 +73,14 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    struct Writer* writer =
-        ArrayWriter_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
-
+    uint8_t buff[DHTMessage_MAX_SIZE];
+    struct Writer* writer = ArrayWriter_new(buff, DHTMessage_MAX_SIZE, message->allocator);
     SERIALIZER->serializeDictionary(writer, message->asDict);
-    message->length = writer->bytesWritten;
+    while ((writer->bytesWritten + message->binMessage->length) % 8) {
+        Message_push8(message->binMessage, 0, NULL);
+    }
+    message->binMessage->length = 0;
+    Message_push(message->binMessage, buff, writer->bytesWritten, NULL);
 
     return 0;
 }
@@ -89,10 +93,11 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    message->asDict = Allocator_malloc(message->allocator, sizeof(Dict));
+    message->asDict = Dict_new(message->allocator);
 
-    struct Reader* reader =
-        ArrayReader_new(message->bytes, DHTMessage_MAX_SIZE, message->allocator);
+    struct Reader* reader = ArrayReader_new(message->binMessage->bytes,
+                                            message->binMessage->length,
+                                            message->allocator);
 
     int ret = SERIALIZER->parseDictionary(reader, message->allocator, message->asDict);
     if (ret != 0) {
@@ -102,6 +107,14 @@ static int handleIncoming(struct DHTMessage* message,
         #endif
         return -2;
     }
+    if (message->binMessage->length != (int)reader->bytesRead) {
+        #ifdef Log_INFO
+            struct SerializationModule_context* context = vcontext;
+            Log_info(context->logger, "Message contains [%d] bytes of crap at the end",
+                     (int)(message->binMessage->length - (int)reader->bytesRead));
+        #endif
+    }
+    Message_reset(message->binMessage);
 
     return 0;
 }
