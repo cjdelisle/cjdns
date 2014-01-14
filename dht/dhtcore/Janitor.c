@@ -103,7 +103,6 @@ static void responseCallback(struct RouterModule_Promise* promise,
 
     if (!search->best.path) {
         Log_debug(search->janitor->logger, "Search completed with no nodes found");
-
     }
     Allocator_free(search->alloc);
 }
@@ -270,10 +269,11 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct SearchRunner* searchRunner,
                             struct RumorMill* rumorMill,
                             struct Log* logger,
-                            struct Allocator* alloc,
+                            struct Allocator* allocator,
                             struct EventBase* eventBase,
                             struct Random* rand)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct Janitor* janitor = Allocator_clone(alloc, (&(struct Janitor) {
         .eventBase = eventBase,
         .routerModule = routerModule,
