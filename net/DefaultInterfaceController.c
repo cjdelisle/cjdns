@@ -24,6 +24,7 @@
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "util/version/Version.h"
+#include "util/AddrTools.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 

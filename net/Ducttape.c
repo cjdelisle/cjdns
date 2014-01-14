@@ -30,6 +30,7 @@
 #include "net/Ducttape_pvt.h"
 #include "switch/SwitchCore.h"
 #include "switch/LabelSplicer.h"
+#include "util/AddrTools.h"
 #include "util/Bits.h"
 #include "util/Checksum.h"
 #include "util/version/Version.h"

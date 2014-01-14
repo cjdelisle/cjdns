@@ -17,6 +17,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeStore.h"
 #include "dht/dhtcore/NodeList.h"
+#include "util/AddrTools.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -171,6 +172,7 @@ static void verifyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 
 static void check(struct NodeStore_pvt* store)
 {
+    Assert_true(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         verifyNode(nn, store);
@@ -333,6 +335,7 @@ static void handleBadNews(struct Node_Two* node,
         // it can't get much worse
         return;
     }
+    Assert_true(node->bestParent != store->selfLink);
     handleBadNewsOne(node->bestParent, newReach, store);
     handleBadNewsTwo(node->bestParent, store);
 }
@@ -432,7 +435,12 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
                   parentIp, childIp, printedLabel);
     #endif
 
-    Assert_true((parent != child && cannonicalLabel != 1) || store->selfLink == NULL);
+    // It's ok to link a node with itself via some loopey route.
+    // in practice it should never actually be used and it might yield some interesting
+    // information when the link is split, self-routes are not allowed unless the self
+    // link is being set up :)
+    Assert_true(cannonicalLabel != 1 || store->selfLink == NULL);
+
     #ifdef PARANOIA
         uint64_t definitelyCannonical =
             EncodingScheme_convertLabel(parent->encodingScheme,
@@ -503,6 +511,8 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
 /**
  * Find the closest node to the given path.
+ * Pay especially close attention to the comments in this function, they're critical to
+ * understanting what it actually does.
  *
  * @param path the path to the node which we want the closest node to.
  * @param output a pointer to be set to the link to the closest node.
@@ -527,13 +537,9 @@ static uint64_t findClosest(uint64_t path,
     struct Node_Link* link = store->selfLink;
     uint32_t actualHops = 0;
     for (; !hops || actualHops <= *hops; actualHops++) {
-        //uint64_t origLabel = tmpl.cannonicalLabel;
+
         // First we splice off the parent's Director leaving the child's Director.
         tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
-
-        //Log_debug(store->logger, "unspliced %08lx to %08lx lcl=%08lx",
-        //          origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
-        //origLabel = tmpl.cannonicalLabel;
 
         // Then we cannoicalize the child's Director
         if (link != store->selfLink) {
@@ -551,20 +557,14 @@ static uint64_t findClosest(uint64_t path,
                                             tmpl.cannonicalLabel,
                                             EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
-            //Log_debug(store->logger, "cannonicalized %08lx to %08lx lcl=%08lx",
-            //          origLabel, tmpl.cannonicalLabel, link ? link->cannonicalLabel : 0);
-
             // Check that they didn't waste space by sending an oversize encoding form.
             int cannonicalFormNum =
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
             if (formNum > link->inverseLinkEncodingFormNumber && cannonicalFormNum != formNum) {
                 Assert_ifTesting(!"wasting space");
-//Assert_true(0);
                 return findClosest_INVALID;
             }
         }
-
-        //origLabel = tmpl.cannonicalLabel;
 
         Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
@@ -579,7 +579,7 @@ static uint64_t findClosest(uint64_t path,
         }
 
         if (!nextLink || nextLink == store->selfLink) {
-            // node has no peers
+            // ignore the comments, they're mostly wrong anyway
             break;
         }
 
@@ -599,7 +599,7 @@ static uint64_t findClosest(uint64_t path,
             break;
         }
 
-        #ifdef Log_DEBUG
+        /*#ifdef Log_DEBUG
             uint8_t labelA[20];
             uint8_t labelB[20];
             uint8_t searchingFor[20];
@@ -608,12 +608,12 @@ static uint64_t findClosest(uint64_t path,
             AddrTools_printPath(labelB, link->cannonicalLabel);
             Log_debug(store->logger, "[%s] is behind [%s] searching for [%s]",
                       labelA, labelB, searchingFor);
-        #endif
+        #endif*/
 
         link = nextLink;
     }
 
-    #ifdef Log_DEBUG
+    /*#ifdef Log_DEBUG
         uint8_t labelA[20];
         uint8_t labelB[20] = "NONE";
         uint8_t labelC[20];
@@ -623,7 +623,7 @@ static uint64_t findClosest(uint64_t path,
         }
         AddrTools_printPath(labelC, link->cannonicalLabel);
         Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
-    #endif
+    #endif*/
 
     Assert_true(tmpl.cannonicalLabel);/// TODO remove this
     *output = link;
@@ -648,12 +648,6 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     check(store);
 
-    #ifdef Log_DEBUG
-        uint8_t printedAddr[60];
-        Address_print(printedAddr, addr);
-        Log_debug(store->logger, "Discover node [%s]", printedAddr);
-    #endif
-
     struct Node_Two* node = nodeForIp(store, addr->ip6.bytes);
     bool exists = true;
 
@@ -666,10 +660,12 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Bits_memcpyConst(&node->address, addr, sizeof(struct Address));
         node->encodingScheme = EncodingScheme_clone(scheme, node->alloc);
         Identity_set(node);
-    }
 
-    if (node == store->selfLink->child) {
-        Assert_failure("You just sent a message to yourself you dingbat");
+        #ifdef Log_DEBUG
+            uint8_t printedAddr[60];
+            Address_print(printedAddr, addr);
+            Log_debug(store->logger, "Discover node [%s]", printedAddr);
+        #endif
     }
 
     node->address.protocolVersion = (version) ? version : node->address.protocolVersion;
@@ -697,11 +693,13 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
             if (path == 1) {
                 // Link is already known.
                 update(closest, 0, store);
-                Log_debug(store->logger, "Already known");
+                //Log_debug(store->logger, "Already known");
                 return node;
             } else {
-                // Child is linked to the parent twice..
-                parent = closest->parent;
+                logLink(store, closest, "Loopey route");
+                // parent->child->somenode->child
+                // we'll link them and then hope the link is never used, when it's split
+                // we'll find a nice link to somenode.
                 break;
             }
         } else if (path == 1) {
@@ -816,6 +814,7 @@ struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
             if (node->pathQuality <= grandChild->pathQuality) {
                 check(store);
                 node->bestParent = parentLink;
+                check(store);
                 updateBestPath(node, store);
                 node->pathQuality = grandChild->pathQuality;
                 Assert_true(node->bestParent->parent->pathQuality >= grandChild->pathQuality);
@@ -986,10 +985,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 {
     struct Allocator* alloc = Allocator_child(allocator);
 
-    // The allocator for the old NodeStore, seperated to improve debugging
-    struct Allocator* oldAlloc = Allocator_child(alloc);
-
-    struct NodeStore_pvt* out = Allocator_clone(oldAlloc, (&(struct NodeStore_pvt) {
+    struct NodeStore_pvt* out = Allocator_clone(alloc, (&(struct NodeStore_pvt) {
         .capacity = capacity,
         .logger = logger,
         .alloc = alloc
@@ -1269,7 +1265,9 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, int64_t reachDiff)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    check(store);
     handleNews(node, getNewReach(node->pathQuality, reachDiff), store);
+    check(store);
 }
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)

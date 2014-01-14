@@ -24,6 +24,7 @@
 #include "dht/dhtcore/NodeStore_admin.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
+#include "util/AddrTools.h"
 #include "util/version/Version.h"
 #include "util/platform/libc/string.h"
 

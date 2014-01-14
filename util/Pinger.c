@@ -25,7 +25,7 @@ struct Ping
     struct Pinger* pinger;
     struct Timeout* timeout;
     String* data;
-    uint32_t timeSent;
+    int64_t timeSent;
     uint64_t cookie;
     Pinger_SEND_PING(sendPing);
     Pinger_ON_RESPONSE(onResponse);
@@ -64,8 +64,9 @@ static void timeoutCallback(void* vping)
 {
     struct Ping* p = Identity_check((struct Ping*) vping);
     int64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
-    Log_debug(p->pinger->logger, "Ping timeout for [%u] in [%lld] ms",
-        p->pub.handle, ((long long) now) - ((long long)p->timeSent));
+    long long diff = ((long long) now) - ((long long)p->timeSent);
+    Assert_true(diff < 1000000000);
+    Log_debug(p->pinger->logger, "Ping timeout for [%u] in [%lld] ms", p->pub.handle, diff);
     callback(NULL, p);
 }
 

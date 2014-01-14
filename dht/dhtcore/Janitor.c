@@ -23,6 +23,7 @@
 #include "dht/dhtcore/ReplySerializer.h"
 #include "benc/Object.h"
 #include "memory/Allocator.h"
+#include "util/AddrTools.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
 #include "util/events/EventBase.h"

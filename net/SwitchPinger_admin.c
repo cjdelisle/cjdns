@@ -19,6 +19,7 @@
 #include "dht/Address.h"
 #include "net/SwitchPinger.h"
 #include "util/Endian.h"
+#include "util/AddrTools.h"
 
 #define DEFAULT_TIMEOUT 2000
 

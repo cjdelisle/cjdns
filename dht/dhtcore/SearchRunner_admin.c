@@ -20,6 +20,7 @@
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
+#include "util/AddrTools.h"
 
 struct Context {
     struct Admin* admin;

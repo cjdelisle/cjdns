@@ -14,6 +14,7 @@
  */
 #include "benc/Dict.h"
 #include "benc/String.h"
+#include "crypto/AddressCalc.h"
 #include "dht/CJDHTConstants.h"
 #include "dht/dhtcore/ReplySerializer.h"
 #include "dht/dhtcore/VersionList.h"

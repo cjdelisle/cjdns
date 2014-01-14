@@ -350,8 +350,9 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct RouterModule* module,
                                       uint8_t myAddress[16],
                                       struct RumorMill* rumorMill,
-                                      struct Allocator* alloc)
+                                      struct Allocator* allocator)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     struct SearchRunner_pvt* out = Allocator_clone(alloc, (&(struct SearchRunner_pvt) {
         .nodeStore = nodeStore,
         .logger = logger,

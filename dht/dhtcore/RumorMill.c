@@ -17,6 +17,7 @@
 #include "memory/Allocator.h"
 #include "util/Identity.h"
 #include "util/Assert.h"
+#include "util/Bits.h"
 
 /**
  * The rumor mill is for new nodes which have been discovered by search and getPeers requests
@@ -81,8 +82,9 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
     return true;
 }
 
-struct RumorMill* RumorMill_new(struct Allocator* alloc, struct Address* selfAddr, int capacity)
+struct RumorMill* RumorMill_new(struct Allocator* allocator, struct Address* selfAddr, int capacity)
 {
+    struct Allocator* alloc = Allocator_child(allocator);
     Address_getPrefix(selfAddr);
 
     struct RumorMill_pvt* rm = Allocator_calloc(alloc, sizeof(struct RumorMill_pvt), 1);

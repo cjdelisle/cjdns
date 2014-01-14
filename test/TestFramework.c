@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/AddressCalc.h"
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"

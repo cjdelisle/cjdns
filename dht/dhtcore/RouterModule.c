@@ -31,6 +31,7 @@
 #include "util/events/EventBase.h"
 #include "util/AverageRoller.h"
 #include "util/Bits.h"
+#include "util/Hex.h"
 #include "util/Endian.h"
 #include "util/Pinger.h"
 #include "util/events/Time.h"
@@ -579,7 +580,10 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
         return;
     }
 
-    responseFromNode(node, milliseconds, module);
+    // TODO: This is throwing away a lot of data
+    if (node->address.path == message->address->path) {
+        responseFromNode(node, milliseconds, module);
+    }
 
     #ifdef Log_DEBUG
         String* versionBin = Dict_getString(message->asDict, CJDHTConstants_VERSION);
@@ -605,7 +609,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                                      struct Allocator* alloc)
 {
     // sending yourself a ping?
-    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
+//    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
 
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);

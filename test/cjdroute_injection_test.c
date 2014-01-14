@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strncpy
-#define string_strlen
+#include "crypto/AddressCalc.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 
 #include "test/TestFramework.h"
 
@@ -78,7 +77,7 @@ int main()
 
     // This has to be limited because we are checking for an OOM issue.
     struct Allocator* allocator = MallocAllocator_new(85000);
-    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
+    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + CString_strlen(evilBenc);
     uint8_t* buff = Allocator_calloc(allocator, buffLen + PADDING, 1);
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
@@ -90,9 +89,9 @@ int main()
     ip6->nextHeader = 17;
     udp->srcPort_be = 0;
     udp->destPort_be = 0;
-    udp->length_be = Endian_hostToBigEndian16(strlen(evilBenc));
+    udp->length_be = Endian_hostToBigEndian16(CString_strlen(evilBenc));
 
-    strncpy((char*)(udp + 1), evilBenc, strlen(evilBenc));
+    CString_strncpy((char*)(udp + 1), evilBenc, CString_strlen(evilBenc));
 
     struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
 

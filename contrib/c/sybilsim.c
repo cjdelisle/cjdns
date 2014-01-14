@@ -32,6 +32,7 @@
 #include "util/log/Log_impl.h"
 #include "io/FileReader.h"
 #include "io/ArrayWriter.h"
+#include "util/Hex.h"
 
 #include "crypto_scalarmult_curve25519.h"
 

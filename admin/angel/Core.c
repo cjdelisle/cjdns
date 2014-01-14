@@ -69,6 +69,7 @@
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
+#include "util/Hex.h"
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
 #include "util/platform/netdev/NetDev.h"
