@@ -489,22 +489,29 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
-/**
- * TODO: something sane
- * Basically, we want to do two things here.
- * 1: Run a search to look up a path to this address, since we're trying to talk to them anyway.
- * 2: Refresh the reach of each already-known path.
- * For now I just hardcoded the search interval to ~8 seconds, as using timeBetweenSearches
- * was searching often enough to scare me. --Arc
- */
-    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
-    if (context->timeOfLastSearch + 8192 < now) {
-        context->timeOfLastSearch = now;
-        SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
-    }
-    RouterModule_refreshReach(header->destinationAddr, context->routerModule);
-//End of TODO block
+
     struct Node_Two* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
+
+    // If bestNext doesn't lead to the destination, trigger a search
+    // TODO: use something like RumorMill instead of sending searches ourselves
+    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
+    if (!bestNext || Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
+         if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
+             context->timeOfLastSearch = now;
+             SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
+         }
+     }
+
+    // Refresh reach.
+    // TODO: use something like RumorMill instead of sending pings ourselves
+    if (bestNext && bestNext->timeOfNextPing < now) {
+        RouterModule_refreshReach(header->destinationAddr, context->routerModule);
+         if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
+             context->timeOfLastSearch = now;
+             SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
+         }
+    }
+
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
         nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
