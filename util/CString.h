@@ -19,6 +19,8 @@
 #include "util/Linker.h"
 Linker_require("util/CString.c")
 
+#include <stddef.h> // size_t
+
 Gcc_PURE
 Gcc_NONNULL(1)
 unsigned long CString_strlen(const char* str);
@@ -42,5 +44,8 @@ int CString_strcasecmp(const char *a, const char *b);
 Gcc_PURE
 Gcc_NONNULL(1,2)
 char* CString_strstr(const char* a, const char* b);
+
+Gcc_NONNULL(1,2)
+char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n);
 
 #endif

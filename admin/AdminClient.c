@@ -126,7 +126,7 @@ static void timeout(void* vreq)
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct Context* ctx = Identity_cast((struct Context*) iface->receiverContext);
+    struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
 
     struct Sockaddr_storage source;
     Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
@@ -171,7 +171,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static int requestOnFree(struct Allocator_OnFreeJob* job)
 {
-    struct Request* req = Identity_cast((struct Request*) job->userData);
+    struct Request* req = Identity_check((struct Request*) job->userData);
     int idx = Map_OfRequestByHandle_indexForHandle(req->handle, &req->ctx->outstandingRequests);
     if (idx > -1) {
         Map_OfRequestByHandle_remove(idx, &req->ctx->outstandingRequests);
@@ -283,7 +283,7 @@ struct AdminClient_Promise* AdminClient_rpcCall(String* function,
                                                 struct AdminClient* client,
                                                 struct Allocator* alloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) client);
+    struct Context* ctx = Identity_check((struct Context*) client);
     Dict a = (args) ? *args : NULL;
     Dict message = Dict_CONST(
         String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(

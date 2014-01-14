@@ -30,7 +30,7 @@ struct FileReader {
 /** @see Reader->read() */
 static int read(struct Reader* reader, void* readInto, unsigned long length)
 {
-    struct FileReader* context = Identity_cast((struct FileReader*) reader);
+    struct FileReader* context = Identity_check((struct FileReader*) reader);
 
     int peek = 0;
     if (length == 0) {
@@ -55,7 +55,7 @@ static int read(struct Reader* reader, void* readInto, unsigned long length)
 /** @see Reader->skip() */
 static void skip(struct Reader* reader, unsigned long length)
 {
-    struct FileReader* context = Identity_cast((struct FileReader*) reader);
+    struct FileReader* context = Identity_check((struct FileReader*) reader);
 
     #define BUFF_SZ 256
     uint8_t buff[BUFF_SZ];

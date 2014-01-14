@@ -30,7 +30,7 @@
 #include "dht/SerializationModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/RouterModule_admin.h"
-#include "dht/dhtcore/RouteTracer.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/SearchRunner_admin.h"
 #include "dht/dhtcore/NodeStore_admin.h"
@@ -69,11 +69,13 @@
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Timeout.h"
+#include "util/Hex.h"
 #include "util/log/FileWriterLog.h"
 #include "util/log/IndirectLog.h"
+#include "util/platform/netdev/NetDev.h"
 #include "util/Security_admin.h"
 #include "util/Security.h"
-#include "util/platform/netdev/NetDev.h"
+#include "util/version/Version.h"
 #include "interface/SessionManager_admin.h"
 
 #include <crypto_scalarmult_curve25519.h>
@@ -85,7 +87,7 @@
 #define ALLOCATOR_FAILSAFE (1<<22)
 
 /** The number of nodes which we will keep track of. */
-#define NODE_STORE_SIZE 8192
+#define NODE_STORE_SIZE 256
 
 /** The number of milliseconds between attempting local maintenance searches. */
 #define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
@@ -95,6 +97,8 @@
  * These are searches for random targets which are used to discover new nodes.
  */
 #define GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS 30000
+
+#define RUMORMILL_CAPACITY 64
 
 /**
  * The worst possible packet overhead.
@@ -379,7 +383,7 @@ void Core_init(struct Allocator* alloc,
     }
 
     // CryptoAuth
-    struct Address addr;
+    struct Address addr = { .protocolVersion = Version_CURRENT_PROTOCOL };
     parsePrivateKey(privateKey, &addr, eh);
     struct CryptoAuth* cryptoAuth = CryptoAuth_new(alloc, privateKey, eventBase, logger, rand);
 
@@ -390,7 +394,7 @@ void Core_init(struct Allocator* alloc,
     ReplyModule_register(registry, alloc);
 
 
-    struct NodeStore* nodeStore = NodeStore_new(&addr, NODE_STORE_SIZE, alloc, logger, rand);
+    struct NodeStore* nodeStore = NodeStore_new(&addr, NODE_STORE_SIZE, alloc, logger);
 
     struct RouterModule* routerModule = RouterModule_register(registry,
                                                               alloc,
@@ -399,18 +403,23 @@ void Core_init(struct Allocator* alloc,
                                                               logger,
                                                               rand,
                                                               nodeStore);
-    struct RouteTracer* routeTracer =
-        RouteTracer_new(nodeStore, routerModule, addr.ip6.bytes, eventBase, logger, alloc);
 
-    struct SearchRunner* searchRunner =
-        SearchRunner_new(nodeStore, logger, eventBase, routerModule, addr.ip6.bytes, alloc);
+    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
+
+    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
+                                                         logger,
+                                                         eventBase,
+                                                         routerModule,
+                                                         addr.ip6.bytes,
+                                                         rumorMill,
+                                                         alloc);
 
     Janitor_new(LOCAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 GLOBAL_MAINTENANCE_SEARCH_MILLISECONDS,
                 routerModule,
                 nodeStore,
                 searchRunner,
-                routeTracer,
+                rumorMill,
                 logger,
                 alloc,
                 eventBase,
@@ -441,6 +450,7 @@ void Core_init(struct Allocator* alloc,
         DefaultInterfaceController_new(cryptoAuth,
                                        switchCore,
                                        routerModule,
+                                       rumorMill,
                                        logger,
                                        eventBase,
                                        sp,

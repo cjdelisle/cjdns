@@ -33,7 +33,7 @@ static void onFree2(uv_handle_t* process)
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct Process_pvt* p = Identity_cast((struct Process_pvt*) job->userData);
+    struct Process_pvt* p = Identity_check((struct Process_pvt*) job->userData);
     uv_process_kill(&p->proc, SIGTERM);
     p->proc.data = job;
     uv_close((uv_handle_t*)&p->proc, onFree2);

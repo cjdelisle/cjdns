@@ -26,7 +26,7 @@ struct ArrayReader_context {
 /** @see Reader->read() */
 static int read(struct Reader* reader, void* readInto, unsigned long length)
 {
-    struct ArrayReader_context* context = Identity_cast((struct ArrayReader_context*) reader);
+    struct ArrayReader_context* context = Identity_check((struct ArrayReader_context*) reader);
 
     // Prove that it doesn't run off the end of the buffer or roll over.
     if (context->pointer + length > context->endPointer
@@ -51,7 +51,7 @@ static int read(struct Reader* reader, void* readInto, unsigned long length)
 /** @see Reader->skip() */
 static void skip(struct Reader* reader, unsigned long byteCount)
 {
-    struct ArrayReader_context* context = Identity_cast((struct ArrayReader_context*) reader);
+    struct ArrayReader_context* context = Identity_check((struct ArrayReader_context*) reader);
     context->pointer += byteCount;
     reader->bytesRead += byteCount;
 }

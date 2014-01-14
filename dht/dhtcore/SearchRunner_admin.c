@@ -20,6 +20,7 @@
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
+#include "util/AddrTools.h"
 
 struct Context {
     struct Admin* admin;
@@ -30,7 +31,7 @@ struct Context {
 
 static void showActiveSearch(Dict* args, void* vctx, String* txid, struct Allocator* alloc)
 {
-    struct Context* ctx = Identity_cast((struct Context*) vctx);
+    struct Context* ctx = Identity_check((struct Context*) vctx);
     int number = *(Dict_getInt(args, String_CONST("number")));
 
     struct SearchRunner_SearchData* search =

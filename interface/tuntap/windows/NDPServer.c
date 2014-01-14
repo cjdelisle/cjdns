@@ -175,7 +175,7 @@ printf("wrong address for neighbor solicitation\n");
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct NDPServer_pvt* ns = Identity_cast((struct NDPServer_pvt*)iface->receiverContext);
+    struct NDPServer_pvt* ns = Identity_check((struct NDPServer_pvt*)iface->receiverContext);
 
     if (msg->length < Ethernet_SIZE + Headers_IP6Header_SIZE) {
         return Interface_receiveMessage(&ns->pub.generic, msg);
@@ -208,7 +208,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 {
-    struct NDPServer_pvt* ns = Identity_cast((struct NDPServer_pvt*)iface);
+    struct NDPServer_pvt* ns = Identity_check((struct NDPServer_pvt*)iface);
     return Interface_sendMessage(ns->wrapped, msg);
 }
 

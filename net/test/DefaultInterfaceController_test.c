@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strlen
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "dht/ReplyModule.h"
@@ -25,7 +23,8 @@
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
+#include "util/Hex.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "switch/NumberCompress.h"
@@ -122,7 +121,7 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
     }
 
     // check everything except the label
-    Assert_always(!strcmp((char*)hexBuffer+16, "0000000068656c6c6f20776f726c6400"));
+    Assert_always(!CString_strcmp((char*)hexBuffer+16, "0000000068656c6c6f20776f726c6400"));
     // check label: make sure the interface has been switched back into position 0.
     uint64_t label_be;
     Hex_decode((uint8_t*) &label_be, 8, hexBuffer, 16);

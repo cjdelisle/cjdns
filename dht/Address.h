@@ -15,13 +15,10 @@
 #ifndef Address_H
 #define Address_H
 
-#include "crypto/AddressCalc.h"
-#include "util/AddrTools.h"
-#include "util/Assert.h"
-#include "util/Bits.h"
-#include "util/Endian.h"
-#include "util/Hex.h"
-#include "util/platform/libc/strlen.h"
+#include "benc/String.h"
+#include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("dht/Address.c")
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -33,14 +30,25 @@
 
 struct Address
 {
+    /** The protocol version of the node. */
+    uint32_t protocolVersion;
+
+    /** unused */
+    uint32_t padding;
+
     union {
         struct {
             // tricksy: this is effectively a 64 bit rotate of the following bytes array
-            uint32_t three;
-            uint32_t four;
-            uint32_t one;
-            uint32_t two;
+            uint32_t three_be;
+            uint32_t four_be;
+            uint32_t one_be;
+            uint32_t two_be;
         } ints;
+
+        struct {
+            uint64_t two_be;
+            uint64_t one_be;
+        } longs;
 
         uint8_t bytes[Address_SEARCH_TARGET_SIZE];
     } ip6;
@@ -49,83 +57,59 @@ struct Address
 
     uint64_t path;
 };
-#define Address_SIZE (Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
+#define Address_SIZE (8 + Address_SEARCH_TARGET_SIZE + Address_KEY_SIZE + Address_NETWORK_ADDR_SIZE)
 Assert_compileTime(sizeof(struct Address) == Address_SIZE);
 
-static inline uint32_t Address_getPrefix(struct Address* addr)
+struct Address_List
 {
-    if (addr->ip6.ints.one == 0
-        && addr->ip6.ints.two == 0
-        && addr->ip6.ints.three == 0
-        && addr->ip6.ints.four == 0)
-    {
-        AddressCalc_addressForPublicKey(addr->ip6.bytes, addr->key);
-    }
-    return Endian_bigEndianToHost32(addr->ip6.ints.one);
-}
+    int length;
+    struct Address* elems;
+};
 
-static inline uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16])
-{
-    uint32_t prefix_be;
-    Bits_memcpyConst(&prefix_be, &searchTarget[8], 4);
-    return Endian_bigEndianToHost32(prefix_be);
-}
+struct Address_List* Address_List_new(uint32_t length, struct Allocator* alloc);
 
-static inline void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE],
-                                     const struct Address* addr)
-{
-    Bits_memcpyConst(output, addr->key, Address_SERIALIZED_SIZE);
-    if (!Endian_isBigEndian()) {
-        uint64_t path_be = Endian_hostToBigEndian64(addr->path);
-        Bits_memcpyConst(output + Address_KEY_SIZE, &path_be, Address_NETWORK_ADDR_SIZE);
-    }
-}
+uint32_t Address_getPrefix(struct Address* addr);
 
-static inline void Address_parse(struct Address* addr,
-                                 const uint8_t input[Address_SERIALIZED_SIZE])
-{
-    Bits_memset(addr->ip6.bytes, 0, 16);
-    Bits_memcpyConst(addr->key, input, Address_SERIALIZED_SIZE);
-    addr->path = Endian_bigEndianToHost64(addr->path);
-}
+uint32_t Address_prefixForSearchTarget(const uint8_t searchTarget[16]);
 
-static inline bool Address_isSame(const struct Address* addr,
-                                  const struct Address* addr2)
-{
-    return Bits_memcmp(addr->key, addr2->key, Address_SERIALIZED_SIZE) == 0;
-}
+void Address_serialize(uint8_t output[Address_SERIALIZED_SIZE], const struct Address* addr);
 
-static inline bool Address_isSameIp(const struct Address* addr,
-                                    const struct Address* addr2)
-{
-    return Bits_memcmp(addr->ip6.bytes, addr2->ip6.bytes, 16) == 0;
-}
+void Address_parse(struct Address* addr, const uint8_t input[Address_SERIALIZED_SIZE]);
 
-static inline bool Address_equalsSearchTarget(
-    struct Address* addr,
-    const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE])
-{
-    Address_getPrefix(addr);
-    return Bits_memcmp(addr->ip6.bytes, searchTarget, Address_SEARCH_TARGET_SIZE);
-}
+bool Address_isSame(const struct Address* addr,
+                    const struct Address* addr2);
 
-static inline void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE])
-{
-    Bits_memcpyConst(out->key, key, Address_KEY_SIZE);
-    AddressCalc_addressForPublicKey(out->ip6.bytes, key);
-}
+bool Address_isSameIp(const struct Address* addr,
+                      const struct Address* addr2);
 
-static inline void Address_printIp(uint8_t output[40], struct Address* addr)
-{
-    Address_getPrefix(addr);
-    AddrTools_printIp(output, addr->ip6.bytes);
-}
+bool Address_equalsSearchTarget(struct Address* addr,
+                                const uint8_t searchTarget[Address_SEARCH_TARGET_SIZE]);
 
-static inline void Address_print(uint8_t output[60], struct Address* addr)
-{
-    Address_printIp(output, addr);
-    output[39] = '@';
-    AddrTools_printPath(output + 40, addr->path);
-}
+void Address_forKey(struct Address* out, const uint8_t key[Address_KEY_SIZE]);
+
+void Address_printIp(uint8_t output[40], struct Address* addr);
+
+void Address_print(uint8_t output[60], struct Address* addr);
+
+String* Address_toString(struct Address* addr, struct Allocator* alloc);
+
+struct Address* Address_fromString(String* str, struct Allocator* alloc);
+
+int Address_xorcmp(uint32_t target,
+                   uint32_t negativeIfCloser,
+                   uint32_t positiveIfCloser);
+
+/**
+ * Return which node is closer to the target.
+ *
+ * @param target the address to test distance against.
+ * @param negativeIfCloser one address to check distance.
+ * @param positiveIfCloser another address to check distance.
+ * @return -1 if negativeIfCloser is closer to target, 1 if positiveIfCloser is closer
+ *         0 if they are both the same distance.
+ */
+int Address_closest(struct Address* target,
+                    struct Address* negativeIfCloser,
+                    struct Address* positiveIfCloser);
 
 #endif

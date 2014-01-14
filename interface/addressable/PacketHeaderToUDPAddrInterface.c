@@ -33,7 +33,7 @@ struct PacketHeaderToUDPAddrInterface_pvt
 static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_cast((struct PacketHeaderToUDPAddrInterface_pvt*) iface);
+        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*) iface);
 
     struct Sockaddr_storage ss;
     Message_pop(message, &ss, context->pub.addr->addrLen, NULL);
@@ -69,7 +69,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct PacketHeaderToUDPAddrInterface_pvt* context =
-        Identity_cast((struct PacketHeaderToUDPAddrInterface_pvt*) iface->receiverContext);
+        Identity_check((struct PacketHeaderToUDPAddrInterface_pvt*) iface->receiverContext);
 
     if (message->length < Headers_IP6Header_SIZE + Headers_UDPHeader_SIZE) {
         // runt

@@ -73,7 +73,7 @@ struct Pipe_WriteRequest_pvt {
 
 static void sendMessageCallback(uv_write_t* uvReq, int error)
 {
-    struct Pipe_WriteRequest_pvt* req = Identity_cast((struct Pipe_WriteRequest_pvt*) uvReq);
+    struct Pipe_WriteRequest_pvt* req = Identity_check((struct Pipe_WriteRequest_pvt*) uvReq);
     if (error) {
         Log_info(req->pipe->pub.logger, "Failed to write to pipe [%s] [%s]",
                  req->pipe->pub.fullName, uv_err_name(uv_last_error(req->pipe->out->loop)) );
@@ -105,7 +105,7 @@ static uint8_t sendMessage2(struct Pipe_WriteRequest_pvt* req)
 
 static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) iface);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) iface);
 
     if (pipe->queueLen > 50000) {
         return Error_LINK_LIMIT_EXCEEDED;
@@ -155,7 +155,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 /** Asynchronous allocator freeing. */
 static void onClose(uv_handle_t* handle)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)handle->data);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)handle->data);
     handle->data = NULL;
     if (pipe->closeHandlesOnFree && !pipe->server.data && !pipe->peer.data) {
         Allocator_onFreeComplete((struct Allocator_OnFreeJob*) pipe->closeHandlesOnFree);
@@ -169,7 +169,7 @@ static void onClose(uv_handle_t* handle)
 
 static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) stream->data);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) stream->data);
 
     // Grab out the allocator which was placed there by allocate()
     struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
@@ -214,7 +214,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
 
 static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) handle->data);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) handle->data);
     size = Pipe_BUFFER_CAP;
     size_t fullSize = size + Pipe_PADDING_AMOUNT;
 
@@ -230,7 +230,7 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 static void connected(uv_connect_t* req, int status)
 {
     uv_stream_t* link = req->handle;
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) link->data);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) link->data);
     Log_debug(pipe->pub.logger, "Pipe [%s] established connection", pipe->pub.fullName);
 
     if (status) {
@@ -261,7 +261,7 @@ static void connected(uv_connect_t* req, int status)
 
 static void listenCallback(uv_stream_t* server, int status)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) server->data);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*) server->data);
     if (pipe->isActive) {
         // first connection wins.
         return;
@@ -299,7 +299,7 @@ static void listenCallback(uv_stream_t* server, int status)
 
 static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)job->userData);
     if (!pipe->isInCallback) {
         return 0;
     }
@@ -309,7 +309,7 @@ static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
 
 static int closeHandlesOnFree(struct Allocator_OnFreeJob* job)
 {
-    struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*)job->userData);
+    struct Pipe_pvt* pipe = Identity_check((struct Pipe_pvt*)job->userData);
     pipe->closeHandlesOnFree = job;
     int skip = 2;
     if (pipe->server.data) {

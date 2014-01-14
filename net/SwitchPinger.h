@@ -41,6 +41,9 @@ enum SwitchPinger_Result
     /** Instead of a normal response, got an error control packet. */
     SwitchPinger_Result_ERROR_RESPONSE,
 
+    /** A sub-set of ERROR_RESPONSE where the route contains a loop. */
+    SwitchPinger_Result_LOOP_ROUTE,
+
     /** Ping timeout. */
     SwitchPinger_Result_TIMEOUT
 };

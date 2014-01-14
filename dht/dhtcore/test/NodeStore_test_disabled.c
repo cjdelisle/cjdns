@@ -51,9 +51,10 @@ static struct NodeStore* setUp(struct Address* myAddress, uint32_t capacity)
 static void missingKey()
 {
     printf("mismatching key, run this:\n"
-           "./build/dht/dhtcore/test/NodeStore_test --genkeys | sed -ne "
+           "head ./dht/dhtcore/NodeStore.c -n 14 > ./TestKeys.data && "
+           "./build_linux/testcjdroute NodeStore_test --genkeys | sed -ne "
            "'s/^created new key: \\[\\(.\\{32\\}\\)\\(.\\{32\\}\\)\\]$/\"\\1\"\\n\"\\2\",/p' "
-           "| sed 's/\\([0-9a-f]\\{2\\}\\)/\\\\x\\1/g' > TestKeys.data && "
+           "| sed 's/\\([0-9a-f]\\{2\\}\\)/\\\\x\\1/g' >> TestKeys.data && "
            "mv ./TestKeys.data ./dht/dhtcore/test/\n");
     Assert_always(false);
 }
@@ -77,7 +78,7 @@ static struct Address* createAddress(int mostSignificantAddressSpaceByte, int* h
     struct Address address = { .path = 0 };
 
     if (!genKeys) {
-        if ((int)(sizeof(KEYS) * sizeof(char*)) < (nextKey + 1)) {
+        if ((int)(sizeof(KEYS) / sizeof(*KEYS)) < (nextKey + 1)) {
             missingKey();
         }
         Bits_memcpyConst(address.key, KEYS[nextKey], 32);
@@ -384,6 +385,50 @@ static void test_dumpTable()
     Assert_always(NodeStore_dumpTable(store, 3) == NULL);
 }
 
+static void test_pathfinderTwo_splitLink()
+{
+    #ifndef EXPERIMENTAL_PATHFINDER
+        return;
+    #endif
+    struct NodeStore* store = setUp(randomAddress(), 8);
+    struct EncodingScheme* scheme = NumberCompress_defineScheme(alloc);
+
+    // always linked to self
+    Assert_always(NodeStore_linkCount(store->selfNode) == 1);
+
+    // fcfe:15a1:15f1:ba25:ec32:4507:8d78:efef  0000.0000.0000.0031 --> 0000.0000.0000.0031
+    NodeStore_discoverNode(store, randomIp((int[]){8,1}), 0,
+                           Version_CURRENT_PROTOCOL, scheme, 0);
+
+    // should be just efef in the table.
+    Assert_always(NodeStore_linkCount(store->selfNode) == 2);
+
+    // fc98:0c83:e1be:0bdc:e177:49c6:2f96:39ee  0000.0000.0000.a629 --> 0000.0000.0014.c531
+    NodeStore_discoverNode(store, randomIp((int[]){8,4,8,4,1}), 0,
+                           Version_CURRENT_PROTOCOL, scheme, 0);
+
+    // Now should be efef->39ee
+    Assert_always(NodeStore_linkCount(store->selfNode) == 2);
+    struct Node_Link* linkSelfEfef = NodeStore_getLink(store->selfNode, 0);
+    Assert_always(NodeStore_linkCount(linkSelfEfef->child) == 1);
+    struct Node_Link* linkEfEf39ee = NodeStore_getLink(linkSelfEfef->child, 0);
+    struct Node_Two* node39ee = linkEfEf39ee->child;
+    Assert_always(NodeStore_linkCount(linkEfEf39ee->child) == 0);
+
+    // fc1e:7c83:c316:11e3:2b3b:0b25:e667:2765  0000.0000.0000.0029 --> 0000.0000.0000.0531
+    NodeStore_discoverNode(store, randomIp((int[]){8,4,1}), 0,
+                           Version_CURRENT_PROTOCOL, scheme, 0);
+
+    // This split efef->39ee resulting in:  efef->2765->39ee
+    Assert_always(NodeStore_linkCount(linkSelfEfef->child) == 1);
+    struct Node_Link* linkEfef2765 = NodeStore_getLink(linkSelfEfef->child, 0);
+    Assert_always(linkEfef2765->child != node39ee);
+    Assert_always(NodeStore_linkCount(linkEfef2765->child) == 1);
+    struct Node_Link* link276539ee = NodeStore_getLink(linkEfef2765->child, 0);
+    Assert_always(link276539ee->child == node39ee);
+    Assert_always(NodeStore_linkCount(node39ee) == 0);
+}
+
 int main(int argc, char** argv)
 {
     if (argc > 1 && !strcmp(argv[argc-1], "--genkeys")) {
@@ -406,6 +451,7 @@ int main(int argc, char** argv)
     test_getNodeByNetworkAddr();
     test_brokenPath();
     test_dumpTable();
+    test_pathfinderTwo_splitLink();
 
     Allocator_free(alloc);
     return 0;
