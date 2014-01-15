@@ -257,12 +257,6 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     return &ping->public;
 }
 
-void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping)
-{
-    struct Ping* p = Identity_check((struct Ping*) ping);
-    Pinger_sendPing(p->pingerPing);
-}
-
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
                                       struct Random* rand,

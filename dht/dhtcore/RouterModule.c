@@ -37,6 +37,7 @@
 #include "util/events/Time.h"
 #include "util/events/Timeout.h"
 #include "util/version/Version.h"
+#include "wire/Message.h"
 
 /*
  * The router module is the central part of the DHT engine.
@@ -437,13 +438,15 @@ static void sendMsg(String* txid, void* vpingContext)
     // "t":"1234"
     Dict_putString(pc->messageDict, CJDHTConstants_TXID, txid, pc->pp->pingAlloc);
 
-    struct DHTMessage message = {
-        .address = &pc->address,
-        .asDict = pc->messageDict,
-        .allocator = pc->pp->pingAlloc
-    };
+    struct Allocator* temp = Allocator_child(pc->pp->pingAlloc);
+    struct Message* msg = Message_new(0, DHTMessage_MAX_SIZE + 512, temp);
+    struct DHTMessage* dmesg = Allocator_calloc(temp, sizeof(struct DHTMessage), 1);
+    dmesg->binMessage = msg;
+    dmesg->address = &pc->address;
+    dmesg->asDict = pc->messageDict;
+    dmesg->allocator = temp;
 
-    DHTModuleRegistry_handleOutgoing(&message, pc->router->registry);
+    DHTModuleRegistry_handleOutgoing(dmesg, pc->router->registry);
 }
 
 static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
@@ -581,8 +584,22 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     }
 
     // TODO: This is throwing away a lot of data
-    if (node->address.path == message->address->path) {
+    if (message->address->path == 1) {
+        // response to a message from ourselves..
+        Log_debug(module->logger, "Got message for ourselves");
+    } else if (node->address.path == message->address->path) {
         responseFromNode(node, milliseconds, module);
+    } else {
+        Log_debug(module->logger, "Got message along unused path");
+        // We'll just give credit to the last node which is using a sub-part of this path.
+        struct Node_Two* nn = node;
+        while (!LabelSplicer_routesThrough(message->address->path, nn->address.path)) {
+            Assert_true(nn != module->nodeStore->selfNode);
+            nn = nn->bestParent->parent;
+        }
+        if (nn != module->nodeStore->selfNode) {
+            responseFromNode(nn, milliseconds, module);
+        }
     }
 
     #ifdef Log_DEBUG
@@ -641,8 +658,7 @@ void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* reques
 {
     struct PingContext* pctx = Identity_check((struct PingContext*)promise);
     pctx->messageDict = request;
-    // comes out at sendMsg()
-    Pinger_sendPing(pctx->pp);
+    // actual send is triggered asynchronously
 }
 
 struct RouterModule_Promise* RouterModule_pingNode(struct Address* addr,

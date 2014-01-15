@@ -104,13 +104,6 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                struct Allocator* alloc,
                                                struct SwitchPinger* ctx);
 
-/**
- * Send a ping message after allocating a callback structure for it.
- *
- * @param ping the ping to send.
- */
-void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping);
-
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
                                       struct Random* rand,
