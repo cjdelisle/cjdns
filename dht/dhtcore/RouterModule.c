@@ -190,9 +190,6 @@
  */
 #define REACH_WINDOW 8
 
-/** Allow this many missed pings before we start zeroing reach, reduces lag spikes. */
-#define PING_GRACE_COUNT 2
-
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
@@ -278,7 +275,6 @@ static inline void responseFromNode(struct Node_Two* node,
     if (millisecondsSinceRequest == 0) {
         millisecondsSinceRequest = 1;
     }
-    node->missedPings = 0;
     int64_t newReach = reachAfterDecay(node->pathQuality) +
         ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
     NodeStore_updateReach(module->nodeStore, node, newReach - node->pathQuality);
@@ -458,15 +454,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 
         int64_t newReach;
 
-        if (n->missedPings < 255) {
-            n->missedPings++;
-        }
-        if (n->missedPings > PING_GRACE_COUNT) {
-            newReach = reachAfterTimeout(n->pathQuality);
-        }
-        else {
-            newReach = reachAfterDecay(n->pathQuality);
-        }
+        newReach = reachAfterTimeout(n->pathQuality);
 
         #ifdef Log_DEBUG
             uint8_t addr[60];
@@ -702,85 +690,6 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
     RouterModule_sendMessage(promise, d);
     return promise;
 }
-
-/** See: RouterModule.h */
-/*void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version)
-{
-    Address_getPrefix(address);
-    NodeStore_addNode(module->nodeStore, address, 0, version);
-    struct Node* best = RouterModule_lookup(address->ip6.bytes, module);
-    if (best && best->address.path != address->path) {
-        RouterModule_pingNode(&best->address, 0, module, module->allocator);
-    }
-}*/
-
-/**
- * Calculates expected latency from reach, bound between gmrt and timeout
- * Used to determine time between sending new pings when doing refreshReach
- * Also used to set a different ping timeout per node when doing refreshReach
- * This allows us to quickly notice when a route has dropped, instead of waiting
- * for the normal ping timeout (which is quite long).
-
-static uint32_t getExpectedLatency(struct Node_Two* node, struct RouterModule* module)
-{
-    uint32_t expectedLatency = (node->pathQuality > 1)
-                             ? UINT32_MAX / node->pathQuality
-                             : UINT32_MAX;
-
-    expectedLatency = ( expectedLatency
-                      < RouterModule_globalMeanResponseTime(module) )
-                    ? RouterModule_globalMeanResponseTime(module)
-                    : expectedLatency;
-
-    expectedLatency = ( expectedLatency
-                      < pingTimeoutMilliseconds(module) )
-                    ? expectedLatency
-                    : pingTimeoutMilliseconds(module);
-
-    return expectedLatency;
-} */
-
-/**
- * For each path to a destination, if the path has not recently been pinged, then ping it.
- * TODO this is done in a very messy way, and needs to be fixed.
- * What we *should* be doing is using RumorMill, or something similar to it, to queue
- * nodes for the Janitor to ping.
-
-void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                               struct RouterModule* module)
-{
-    struct Address address;
-    Bits_memcpyConst(address.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
-    struct Allocator* nodeListAlloc = Allocator_child(module->allocator);
-    struct NodeList* nodeList = NodeStore_getClosestNodes(module->nodeStore,
-                                                          &address,
-                                                          8,
-                                                          Version_CURRENT_PROTOCOL,
-                                                          nodeListAlloc);
-    if (nodeList) {
-        uint64_t now = Time_currentTimeMilliseconds(module->eventBase);
-        for (uint32_t i = 0 ; i < nodeList->size ; i++) {
-            Assert_true(nodeList->nodes[i]->address.path != 0);
-            if ( now > nodeList->nodes[i]->timeOfNextPing ) {
-                uint32_t expectedLatency = getExpectedLatency(nodeList->nodes[i], module);
-
-                RouterModule_pingNode( &nodeList->nodes[i]->address,
-                                       (2*expectedLatency)+10,
-                                       module,
-                                       module->allocator );
-
-                uint32_t timeUntilNextPing = RouterModule_globalMeanResponseTime(module) * 2;
-                if (timeUntilNextPing < 1000) {
-                    timeUntilNextPing = 1000;
-                }
-                nodeList->nodes[i]->timeOfNextPing = now + timeUntilNextPing;
-
-                break;
-            }
-        }
-    }
-    Allocator_free(nodeListAlloc);
-} */
 
 struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module)

@@ -111,14 +111,6 @@ struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SI
 
 uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
 
-/**
- * Look up several (currently 8) paths to the destination address.
- * For each path, if it has not been pinged recently, ping it.
- * This keep our knowledge of which links are up and low latency from going stale.
- */
-void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                               struct RouterModule* module);
-
 struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
                                                    uint32_t timeoutMilliseconds,
