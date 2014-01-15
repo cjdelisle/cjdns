@@ -591,6 +591,15 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
         responseFromNode(node, milliseconds, module);
     } else {
         Log_debug(module->logger, "Got message along unused path");
+        // We'll just give credit to the last node which is using a sub-part of this path.
+        struct Node_Two* nn = node;
+        while (!LabelSplicer_routesThrough(message->address->path, nn->address.path)) {
+            Assert_true(nn != module->nodeStore->selfNode);
+            nn = nn->bestParent->parent;
+        }
+        if (nn != module->nodeStore->selfNode) {
+            responseFromNode(nn, milliseconds, module);
+        }
     }
 
     #ifdef Log_DEBUG
