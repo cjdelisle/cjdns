@@ -12,40 +12,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CString_H
-#define CString_H
+#ifndef ReplySerializer_H
+#define ReplySerializer_H
 
-#include "util/Gcc.h"
+#include "benc/Dict.h"
+#include "dht/Address.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
 #include "util/Linker.h"
-Linker_require("util/CString.c")
+Linker_require("dht/dhtcore/ReplySerializer.c")
 
-#include <stddef.h> // size_t
-
-Gcc_PURE
-Gcc_NONNULL(1)
-unsigned long CString_strlen(const char* str);
-
-Gcc_PURE
-Gcc_NONNULL(1,2)
-int CString_strcmp(const char* a, const char* b);
-
-Gcc_PURE
-Gcc_NONNULL(1)
-char* CString_strchr(const char *a, int b);
-
-Gcc_PURE
-Gcc_NONNULL(1)
-char* CString_strrchr(const char *a, int b);
-
-Gcc_PURE
-int CString_strcasecmp(const char *a, const char *b);
-
-/** strstr(haystack, needle); */
-Gcc_PURE
-Gcc_NONNULL(1,2)
-char* CString_strstr(const char* a, const char* b);
-
-Gcc_NONNULL(1,2)
-char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n);
+/**
+ * For serializing and parsing responses to getPeers and search requests.
+ */
+struct Address_List* ReplySerializer_parse(struct Address* fromNode,
+                                           Dict* result,
+                                           struct Log* log,
+                                           struct Allocator* alloc);
 
 #endif

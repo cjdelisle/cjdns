@@ -38,7 +38,7 @@ Assert_compileTime(sizeof(struct RandomSeed_Buffer) == RandomSeed_Buffer_SIZE);
 
 static int get(struct RandomSeed* rs, uint64_t buffer[8])
 {
-    struct RandomSeed_pvt* ctx = Identity_cast((struct RandomSeed_pvt*) rs);
+    struct RandomSeed_pvt* ctx = Identity_check((struct RandomSeed_pvt*) rs);
     Log_info(ctx->logger, "Attempting to seed random number generator");
 
     // each provider overwrites input and output is a rolling hash.

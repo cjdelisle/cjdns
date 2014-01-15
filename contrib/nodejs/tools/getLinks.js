@@ -17,42 +17,14 @@ var Cjdns = require('../cjdnsadmin/cjdnsadmin');
 var nThen = require('../cjdnsadmin/nthen');
 var PublicToIp6 = require('./lib/publicToIp6');
 
-var NodeStore_getNode = function(cjdns, state, addr, callback) {
-    if (typeof(state['NodeStore_getNode' + addr]) !== 'undefined') {
-        callback(state['NodeStore_getNode' + addr]);
+var NodeStore_nodeForAddr = function(cjdns, state, addr, callback) {
+    if (typeof(state['NodeStore_nodeForAddr' + addr]) !== 'undefined') {
+        callback(state['NodeStore_nodeForAddr' + addr]);
     } else {
-        //console.log('NodeStore_getNode(' + addr + ');');
-        cjdns.NodeStore_getNode(addr, function (err, ret) {
+        //console.log('NodeStore_nodeForAddr(' + addr + ');');
+        cjdns.NodeStore_nodeForAddr(addr, function (err, ret) {
             if (err) { throw err; }
-            state['NodeStore_getNode' + addr] = ret;
-            callback(ret);
-        });
-    }
-};
-
-var NodeStore_getRouteLabel = function(cjdns, state, parentPath, childAddr, callback) {
-    var key = 'NodeStore_getRouteLabel' + parentPath + ', ' + childAddr;
-    if (typeof(state[key]) !== 'undefined') {
-        callback(state[key]);
-    } else {
-        //console.log('NodeStore_getRouteLabel(' + parentPath + ', ' + childAddr + ');');
-        cjdns.NodeStore_getRouteLabel(parentPath, childAddr, function (err, ret) {
-            if (err) { throw err; }
-            state[key] = ret;
-            callback(ret);
-        });
-    }
-};
-
-var NodeStore_getLink = function (cjdns, state, addr, num, callback) {
-    var key = 'NodeStore_getLink' + addr + ', ' + num;
-    if (typeof(state[key]) !== 'undefined') {
-        callback(state[key]);
-    } else {
-        //console.log('NodeStore_getLink(' + addr + ', ' + num + ');');
-        cjdns.NodeStore_getLink(addr, num, function (err, ret) {
-            if (err) { throw err; }
-            state[key] = ret;
+            state['NodeStore_nodeForAddr' + addr] = ret;
             callback(ret);
         });
     }
@@ -60,15 +32,14 @@ var NodeStore_getLink = function (cjdns, state, addr, num, callback) {
 
 var getNode = function (cjdns, next, output, state, parentPath, ipsByReach, nodes, callback) {
 
-    if (next.parent === next.child || nodes.indexOf(next.child) > -1) { process.nextTick(callback); return; }
-    nodes.push(next.child);
+    if (next.parent === next.child) { process.nextTick(callback); return; }
 
     var getNodeRet;
-    var path = undefined;
+    var path;
     nThen(function (waitFor) {
 
-        NodeStore_getNode(cjdns, state, next.child, waitFor(function (ret) {
-            //console.log('cjdns.NodeStore_getNode(' + next.child + '); --> ' + JSON.stringify(ret, null, '  '));
+        NodeStore_nodeForAddr(cjdns, state, next.child, waitFor(function (ret) {
+            //console.log('cjdns.NodeStore_nodeForAddr(' + next.child + '); --> ' + JSON.stringify(ret, null, '  '));
             getNodeRet = ret;
         }));
 
@@ -78,11 +49,13 @@ var getNode = function (cjdns, next, output, state, parentPath, ipsByReach, node
             return;
         }
 
-        NodeStore_getRouteLabel(cjdns, state, parentPath, next.child, waitFor(function (ret) {
+        cjdns.NodeStore_getRouteLabel(parentPath, next.cannonicalLabel, waitFor(function (err, ret) {
+            if (err) { throw err; }
             if (ret.error !== 'none') {
-                throw new Error('cjdns.NodeStore_getRouteLabel(' + parentPath + ', ' + next.child +
-                    '); --> ' + JSON.stringify([ret, parents], null, '  '));
+                throw new Error('cjdns.NodeStore_getRouteLabel(' + parentPath + ', ' + next.cannonicalLabel +
+                    '); --> ' + JSON.stringify(ret, null, '  '));
             }
+            //console.log('cjdns.NodeStore_getRouteLabel(' + parentPath + ', ' + next.pathParentToChild + ') --> ' + ret.result);
             if (ret.result !== 'ffff.ffff.ffff.ffff') {
                 path = ret.result;
             }
@@ -100,6 +73,7 @@ var getNode = function (cjdns, next, output, state, parentPath, ipsByReach, node
         if (output.peers) { /* sanity check */ throw new Error(); }
         output.addr = next.child;
         output.cannonicalLabel = next.cannonicalLabel;
+        output.isOneHop = next.isOneHop;
         output.fullPath = path;
         output.peers = [];
 
@@ -109,15 +83,20 @@ var getNode = function (cjdns, next, output, state, parentPath, ipsByReach, node
         nThen(function (waitFor) {
 
             for (var i = 0; i < getNodeRet.result.linkCount; i++) {
-                NodeStore_getLink(cjdns, state, next.child, i, waitFor(function (ret) {
+                cjdns.NodeStore_getLink(next.child, i, waitFor(function (err, ret) {
+                    if (err) { throw err; }
                     links.push(ret);
                 }));
             }
 
         }).nThen(function (waitFor) {
 
+            if (nodes.indexOf(next.child) > -1) { process.nextTick(callback); return; }
+            nodes.push(next.child);
+
             //console.log(JSON.stringify(links, null, '  '));
             links.sort(function (a,b) {
+                if (a.isOneHop !== b.isOneHop) { return a.isOneHop ? -1 : 1; }
                 return (ipsByReach.indexOf(a.result.child) < ipsByReach.indexOf(b.result.child)) ?
                     -1 : 1;
             });
@@ -187,7 +166,7 @@ var ipsByReachDesc = function (cjdns, callback) {
 var getTree = function (cjdns, callback) {
     ipsByReachDesc(cjdns, function (ipsByReach) {
 
-        cjdns.NodeStore_getNode(undefined, function (err, ret) {
+        cjdns.NodeStore_nodeForAddr(undefined, function (err, ret) {
             if (err) { throw err; }
             var myIp6 = PublicToIp6.convert(ret['result']['key']);
             var output = {};
@@ -208,14 +187,17 @@ var printTree = function (cjdns, tree, callback) {
             cjdns.RouterModule_pingNode(tree.fullPath, waitFor(function (err, ret) {
                 if (err) { throw err; }
                 var resp = (ret.result !== 'pong') ? "[" + ret.error + "]" : (ret.ms + 'ms.');
+                if (resp == '[could not find node to ping]') { resp = '[notfound]'; }
                 process.stdout.write('  rp:' + resp);
             }));
         }).nThen(function (waitFor) {
             cjdns.SwitchPinger_ping(tree.fullPath, waitFor(function (err, ret) {
                 if (err) { throw err; }
-                var resp = (ret.result !== 'pong') ? ret.error : (ret.ms + 'ms.');
-                process.stdout.write('  sp:' + resp + '\n');
+                var resp = (ret.result !== 'pong') ? ("["+ret.result+"]") : (ret.ms + 'ms.');
+                process.stdout.write('  sp:' + resp);
             }));
+        }).nThen(function (waitFor) {
+            process.stdout.write(((tree.isOneHop === '1') ? '  oh' : '') + '\n');
         }).nThen;
 
         tree.peers.forEach(function (peer) {

@@ -41,7 +41,7 @@ struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,
 /** @see AverageRoller.h */
 uint32_t AverageRoller_getAverage(struct AverageRoller* averageRoller)
 {
-    struct AverageRoller_pvt* roller = Identity_cast((struct AverageRoller_pvt*) averageRoller);
+    struct AverageRoller_pvt* roller = Identity_check((struct AverageRoller_pvt*) averageRoller);
     return roller->average;
 }
 
@@ -57,7 +57,7 @@ uint32_t AverageRoller_updateAtTime(struct AverageRoller* averageRoller,
                                     const uint64_t now,
                                     const uint32_t newEntry)
 {
-    struct AverageRoller_pvt* roller = Identity_cast((struct AverageRoller_pvt*) averageRoller);
+    struct AverageRoller_pvt* roller = Identity_check((struct AverageRoller_pvt*) averageRoller);
     uint32_t index =
         (now - roller->lastUpdateTime + roller->lastUpdateIndex) % roller->windowSeconds;
 
@@ -82,7 +82,7 @@ uint32_t AverageRoller_updateAtTime(struct AverageRoller* averageRoller,
 /** @see AverageRoller.h */
 uint32_t AverageRoller_update(struct AverageRoller* averageRoller, const uint32_t newEntry)
 {
-    struct AverageRoller_pvt* roller = Identity_cast((struct AverageRoller_pvt*) averageRoller);
+    struct AverageRoller_pvt* roller = Identity_check((struct AverageRoller_pvt*) averageRoller);
     return AverageRoller_updateAtTime(averageRoller,
                                       Time_currentTimeSeconds(roller->eventBase),
                                       newEntry);

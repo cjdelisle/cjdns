@@ -17,6 +17,7 @@
 
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
 #include "util/Bits.h"
@@ -77,6 +78,7 @@ struct SearchRunner* SearchRunner_new(struct NodeStore* nodeStore,
                                       struct EventBase* base,
                                       struct RouterModule* module,
                                       uint8_t myAddress[16],
+                                      struct RumorMill* rumorMill,
                                       struct Allocator* alloc);
 
 #endif

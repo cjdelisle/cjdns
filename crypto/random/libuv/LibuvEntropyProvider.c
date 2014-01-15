@@ -42,7 +42,7 @@ struct LibuvEntropyProvider
 static void takeSample(void* vLibuvEntropyProvider)
 {
     struct LibuvEntropyProvider* lep =
-        Identity_cast((struct LibuvEntropyProvider*) vLibuvEntropyProvider);
+        Identity_check((struct LibuvEntropyProvider*) vLibuvEntropyProvider);
     uint64_t nanotime = uv_hrtime();
     Log_keys(lep->logger, "Adding high-res time [%" PRIu64 "] to random generator", nanotime);
     uint32_t input = (uint32_t) (nanotime ^ (nanotime >> 32));

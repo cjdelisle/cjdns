@@ -73,7 +73,7 @@ Builder.configure({
         // f8 = 241 peers max, fixed width 8 bit
         // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D',' NumberCompress_TYPE=v4x8',
+        '-D',' NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
         '-D','Log_DEBUG',
@@ -83,12 +83,6 @@ Builder.configure({
     );
     if (process.env['NO_PIE'] == undefined) {
         builder.config.cflags.push('-fPIE')
-    }
-    if (process.env['EXPERIMENTAL_PATHFINDER']) {
-        console.log("Building with experimental pathfinder");
-        builder.config.cflags.push(
-            '-D','EXPERIMENTAL_PATHFINDER=1'
-        );
     }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(

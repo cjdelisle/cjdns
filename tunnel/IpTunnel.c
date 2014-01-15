@@ -130,7 +130,7 @@ int IpTunnel_allowConnection(uint8_t publicKeyOfAuthorizedNode[32],
                              struct Sockaddr* ip4Addr,
                              struct IpTunnel* tunnel)
 {
-    struct IpTunnel_pvt* context = Identity_cast((struct IpTunnel_pvt*)tunnel);
+    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
     uint8_t* ip6Address = NULL;
     uint8_t* ip4Address = NULL;
@@ -243,7 +243,7 @@ static uint8_t requestAddresses(struct IpTunnel_Connection* conn,
  */
 int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* tunnel)
 {
-    struct IpTunnel_pvt* context = Identity_cast((struct IpTunnel_pvt*)tunnel);
+    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
     struct IpTunnel_Connection* conn = newConnection(true, context);
     Bits_memcpyConst(conn->header.nodeKey, publicKeyOfNodeToConnectTo, 32);
@@ -268,7 +268,7 @@ int IpTunnel_connectTo(uint8_t publicKeyOfNodeToConnectTo[32], struct IpTunnel* 
  */
 int IpTunnel_removeConnection(int connectionNumber, struct IpTunnel* tunnel)
 {
-    //struct IpTunnel_pvt* context = Identity_cast((struct IpTunnel_pvt*)tunnel);
+    //struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunnel);
 
     return 0;
 }
@@ -354,7 +354,7 @@ static uint8_t requestForAddresses(Dict* request,
 
 static void addAddressCallback(Dict* responseMessage, void* vcontext)
 {
-    struct IpTunnel_pvt* ctx = Identity_cast((struct IpTunnel_pvt*) vcontext);
+    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) vcontext);
     char* err = "invalid response";
     String* error = Dict_getString(responseMessage, String_CONST("error"));
     if (error) {
@@ -573,7 +573,7 @@ static struct IpTunnel_Connection* getConnection(struct IpTunnel_Connection* con
 
 static uint8_t incomingFromTun(struct Message* message, struct Interface* tunIf)
 {
-    struct IpTunnel_pvt* context = Identity_cast((struct IpTunnel_pvt*)tunIf);
+    struct IpTunnel_pvt* context = Identity_check((struct IpTunnel_pvt*)tunIf);
 
     if (message->length < 20) {
         Log_debug(context->logger, "Dropping runt.");
@@ -702,11 +702,11 @@ static uint8_t incomingFromNode(struct Message* message, struct Interface* nodeI
 static void timeout(void* vcontext)
 {
     struct IpTunnel_pvt* context = vcontext;
-    Log_debug(context->logger, "Checking for connections to poll. Total connections [%u]",
-                                context->pub.connectionList.count);
     if (!context->pub.connectionList.count) {
         return;
     }
+    Log_debug(context->logger, "Checking for connections to poll. Total connections [%u]",
+                                context->pub.connectionList.count);
     uint32_t beginning = Random_uint32(context->rand) % context->pub.connectionList.count;
     uint32_t i = beginning;
     do {
@@ -725,7 +725,7 @@ static void timeout(void* vcontext)
 
 void IpTunnel_setTunName(char* interfaceName, struct IpTunnel* ipTun)
 {
-    struct IpTunnel_pvt* ctx = Identity_cast((struct IpTunnel_pvt*) ipTun);
+    struct IpTunnel_pvt* ctx = Identity_check((struct IpTunnel_pvt*) ipTun);
     ctx->ifName = String_new(interfaceName, ctx->allocator);
 }
 

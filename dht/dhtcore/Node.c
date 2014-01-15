@@ -12,23 +12,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NodeList_H
-#define NodeList_H
-
-#include <stdint.h>
 
 #include "dht/dhtcore/Node.h"
+#include "switch/EncodingScheme.h"
+#include "util/Assert.h"
+#include "util/Bits.h"
 
-/**
- * List of nodes.
- */
-struct NodeList
+bool Node_isOneHopLink(struct Node_Link* link)
 {
-    /** The number of nodes in the list. */
-    uint32_t size;
-
-    /** An array of pointers to nodes. */
-    struct Node_Two** nodes;
-};
-
-#endif
+    struct EncodingScheme* ps = link->parent->encodingScheme;
+    int num = EncodingScheme_getFormNum(ps, link->cannonicalLabel);
+    Assert_always(num > -1 && num < ps->count);
+    return EncodingScheme_formSize(&ps->forms[num]) == Bits_log2x64(link->cannonicalLabel);
+}

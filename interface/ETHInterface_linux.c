@@ -85,7 +85,7 @@ struct ETHInterface
 
 static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
 {
-    struct ETHInterface* context = Identity_cast((struct ETHInterface*) ethIf);
+    struct ETHInterface* context = Identity_check((struct ETHInterface*) ethIf);
 
     struct sockaddr_ll addr;
     Bits_memcpyConst(&addr, &context->addrBase, sizeof(struct sockaddr_ll));
@@ -188,7 +188,7 @@ static void handleBeacon(struct Message* msg, struct ETHInterface* context)
 
 static void sendBeacon(void* vcontext)
 {
-    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
+    struct ETHInterface* context = Identity_check((struct ETHInterface*) vcontext);
     if (context->beaconState != ETHInterface_beacon_ACCEPTING_AND_SENDING) {
         // beaconing disabled
         return;
@@ -217,7 +217,7 @@ static void sendBeacon(void* vcontext)
 
 static void handleEvent(void* vcontext)
 {
-    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
+    struct ETHInterface* context = Identity_check((struct ETHInterface*) vcontext);
 
     struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
     struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);

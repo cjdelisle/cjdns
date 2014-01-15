@@ -26,6 +26,12 @@ struct Timeout
 
     void* callbackContext;
 
+    uint64_t milliseconds;
+
+    int isInterval;
+
+    struct Allocator* alloc;
+
     Identity
 };
 
@@ -34,8 +40,11 @@ struct Timeout
  */
 static void handleEvent(uv_timer_t* handle, int status)
 {
-    struct Timeout* timeout = Identity_cast((struct Timeout*) handle);
+    struct Timeout* timeout = Identity_check((struct Timeout*) handle);
     timeout->callback(timeout->callbackContext);
+    if (!timeout->isInterval) {
+        Allocator_free(timeout->alloc);
+    }
 }
 
 static void onFree2(uv_handle_t* timer)
@@ -45,7 +54,7 @@ static void onFree2(uv_handle_t* timer)
 
 static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct Timeout* t = Identity_cast((struct Timeout*) job->userData);
+    struct Timeout* t = Identity_check((struct Timeout*) job->userData);
     t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
     return Allocator_ONFREE_ASYNC;
@@ -72,10 +81,14 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   struct Allocator* allocator)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    struct Timeout* timeout = Allocator_calloc(allocator, sizeof(struct Timeout), 1);
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct Timeout* timeout = Allocator_calloc(alloc, sizeof(struct Timeout), 1);
 
     timeout->callback = callback;
     timeout->callbackContext = callbackContext;
+    timeout->milliseconds = milliseconds;
+    timeout->alloc = alloc;
+    timeout->isInterval = interval;
     Identity_set(timeout);
 
     uv_timer_init(base->loop, &timeout->timer);
@@ -83,7 +96,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
 
     timeout->timer.data = timeout;
 
-    Allocator_onFree(allocator, onFree, timeout);
+    Allocator_onFree(alloc, onFree, timeout);
 
     return timeout;
 }
