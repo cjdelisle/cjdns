@@ -234,10 +234,10 @@ static void maintanenceCycle(void* vcontext)
 
     // Do something useful for a node we're actively trying to communicate with.
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
+
         // Check if we already have a search running for this address
         struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
         struct SearchRunner_SearchData* searchData;
-
         bool alreadySearchingForNode = false;
         for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
             searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
