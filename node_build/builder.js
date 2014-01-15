@@ -93,7 +93,7 @@ var tmpFile = function (state, name) {
 var mkBuilder = function (state) {
     var builder = {
         cc: function (args, callback) {
-            compiler(builder.config.gcc, args, callback)
+            compiler(builder.config.gcc, args, callback);
         },
         buildExecutable: function (cFile, outputFile, callback) {
             compile(cFile, outputFile, builder, callback);
@@ -194,7 +194,7 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
         }
         return i;
     };
-    if (unflatten(flatArray, 0, elems) !== flatArray.length) { throw new Error() };
+    if (unflatten(flatArray, 0, elems) !== flatArray.length) { throw new Error(); }
 
     var nt = nThen;
     elems.forEach(function (elem, i) {
@@ -223,7 +223,7 @@ var getFile = function ()
 };
 
 var getObjectFile = function (cFile) {
-    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o'
+    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o';
 };
 
 var getFlags = function (state, fileName, includeDirs) {
