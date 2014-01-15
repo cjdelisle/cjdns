@@ -22,6 +22,7 @@
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "interface/Interface.h"
 #include "interface/SessionManager.h"
@@ -484,28 +485,12 @@ static inline uint8_t incomingFromTun(struct Message* message,
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
+    // Add destination to nodesOfInterest, so we can do something useful in the janitor.
+    struct Address rumorAddr = { .path = 0 };
+    Bits_memcpyConst(rumorAddr.ip6.bytes, header->destinationAddr, Address_SEARCH_TARGET_SIZE);
+    RumorMill_addNode(context->nodesOfInterest, &rumorAddr);
+
     struct Node_Two* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
-
-    // If bestNext doesn't lead to the destination, trigger a search
-    // TODO: use something like RumorMill instead of sending searches ourselves
-    uint64_t now = Time_currentTimeMilliseconds(context->eventBase);
-    if (!bestNext || Bits_memcmp(header->destinationAddr, bestNext->address.ip6.bytes, 16)) {
-         if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
-             context->timeOfLastSearch = now;
-             SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
-         }
-     }
-
-    // Refresh reach.
-    // TODO: use something like RumorMill instead of sending pings ourselves
-    if (bestNext && bestNext->timeOfNextPing < now) {
-        RouterModule_refreshReach(header->destinationAddr, context->routerModule);
-         if (context->timeOfLastSearch + context->timeBetweenSearches < now) {
-             context->timeOfLastSearch = now;
-             SearchRunner_search(header->destinationAddr, context->searchRunner, context->alloc);
-         }
-    }
-
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
         nextHopSession = SessionManager_getSession(bestNext->address.ip6.bytes,
@@ -1158,6 +1143,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
                                    struct SearchRunner* searchRunner,
+                                   struct RumorMill* nodesOfInterest,
                                    struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
@@ -1168,6 +1154,7 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
     context->routerModule = routerModule;
+    context->nodesOfInterest = nodesOfInterest;
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;

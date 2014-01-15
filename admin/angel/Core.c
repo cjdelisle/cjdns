@@ -406,6 +406,8 @@ void Core_init(struct Allocator* alloc,
 
     struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
 
+    struct RumorMill* nodesOfInterest = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
+
     struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
                                                          logger,
                                                          eventBase,
@@ -420,6 +422,7 @@ void Core_init(struct Allocator* alloc,
                 nodeStore,
                 searchRunner,
                 rumorMill,
+                nodesOfInterest,
                 logger,
                 alloc,
                 eventBase,
@@ -435,6 +438,7 @@ void Core_init(struct Allocator* alloc,
                                             registry,
                                             routerModule,
                                             searchRunner,
+                                            nodesOfInterest,
                                             switchCore,
                                             eventBase,
                                             alloc,

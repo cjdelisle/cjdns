@@ -720,7 +720,7 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
  * Also used to set a different ping timeout per node when doing refreshReach
  * This allows us to quickly notice when a route has dropped, instead of waiting
  * for the normal ping timeout (which is quite long).
- */
+
 static uint32_t getExpectedLatency(struct Node_Two* node, struct RouterModule* module)
 {
     uint32_t expectedLatency = (node->pathQuality > 1)
@@ -738,14 +738,14 @@ static uint32_t getExpectedLatency(struct Node_Two* node, struct RouterModule* m
                     : pingTimeoutMilliseconds(module);
 
     return expectedLatency;
-}
+} */
 
 /**
  * For each path to a destination, if the path has not recently been pinged, then ping it.
  * TODO this is done in a very messy way, and needs to be fixed.
  * What we *should* be doing is using RumorMill, or something similar to it, to queue
  * nodes for the Janitor to ping.
- */
+
 void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                struct RouterModule* module)
 {
@@ -780,7 +780,7 @@ void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
         }
     }
     Allocator_free(nodeListAlloc);
-}
+} */
 
 struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
                                  struct RouterModule* module)

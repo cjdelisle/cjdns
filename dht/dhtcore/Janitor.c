@@ -52,6 +52,8 @@ struct Janitor
 
     struct RumorMill* rumorMill;
 
+    struct RumorMill* nodesOfInterest;
+
     struct Timeout* timeout;
 
     struct Log* logger;
@@ -230,6 +232,36 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
+    // Do something useful for a node we're actively trying to communicate with.
+    if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
+        // Check if we already have a search running for this address
+        struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
+        struct SearchRunner_SearchData* searchData;
+
+        bool alreadySearchingForNode = false;
+        for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
+            searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
+                                                        i,
+                                                        seachListAlloc);
+            if (!searchData) { continue; } //Just in case
+            if (!Bits_memcmp(searchData->target, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
+                alreadySearchingForNode = true;
+                break; //No point in continuing
+            }
+        }
+        Allocator_free(seachListAlloc);
+
+        // If there's no search running for this address, start one.
+        if (!alreadySearchingForNode) {
+            search(addr.ip6.bytes, janitor);
+            #ifdef Log_DEBUG
+                uint8_t addrStr[60];
+                Address_print(addrStr, &addr);
+                Log_debug(janitor->logger, "Search for node [%s] from nodesOfInterest", addrStr);
+            #endif
+        }
+    }
+
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
 
@@ -268,6 +300,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct NodeStore* nodeStore,
                             struct SearchRunner* searchRunner,
                             struct RumorMill* rumorMill,
+                            struct RumorMill* nodesOfInterest,
                             struct Log* logger,
                             struct Allocator* allocator,
                             struct EventBase* eventBase,
@@ -280,6 +313,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .nodeStore = nodeStore,
         .searchRunner = searchRunner,
         .rumorMill = rumorMill,
+        .nodesOfInterest = nodesOfInterest,
         .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .localMaintainenceMilliseconds = localMaintainenceMilliseconds,

@@ -39,6 +39,17 @@ struct RumorMill_pvt
     Identity
 };
 
+static inline bool hasNode(struct RumorMill* mill, struct Address* addr)
+{
+    struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
+    for (int i = 0; i < rm->pub.count; i++) {
+        if (!Bits_memcmp(&rm->addresses[i], addr->ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static int getBadness(struct Address* badAddr, struct Address* selfAddr)
 {
     uint64_t xor = Endian_bigEndianToHost64(badAddr->ip6.longs.one_be ^ selfAddr->ip6.longs.one_be);
@@ -62,6 +73,7 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
 
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
 {
+    if (hasNode(mill, addr)) { return; } // Avoid duplicates
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!Bits_memcmp(addr->key, rm->selfAddr->key, 32)) { return; }
     Address_getPrefix(addr);
