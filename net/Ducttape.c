@@ -66,17 +66,11 @@ static inline uint8_t incomingDHT(struct Message* message,
                                   struct Address* addr,
                                   struct Ducttape_pvt* context)
 {
-    struct DHTMessage dht;
-    Bits_memset(&dht, 0, sizeof(struct DHTMessage));
-
-    // TODO: These copies are not necessary at all.
-    const uint32_t length = (message->length < DHTMessage_MAX_SIZE)
-        ? message->length
-        : DHTMessage_MAX_SIZE;
-    Bits_memcpy(dht.bytes, message->bytes, length);
-
-    dht.address = addr;
-    dht.allocator = message->alloc;
+    struct DHTMessage dht = {
+        .address = addr,
+        .binMessage = message,
+        .allocator = message->alloc
+    };
 
     DHTModuleRegistry_handleIncoming(&dht, context->registry);
 
@@ -156,68 +150,68 @@ static int handleOutgoing(struct DHTMessage* dmessage,
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) vcontext);
 
-    struct Message message = {
-        .length = dmessage->length,
-        .bytes = (uint8_t*) dmessage->bytes,
-        .padding = 512,
-        .capacity = DHTMessage_MAX_SIZE
-    };
+    // Stub out all of the crypto code because setting up a CA session
+    // with yourself causes problems.
+    if (dmessage->address->path == 1) {
+        struct Allocator* alloc = Allocator_child(context->alloc);
+        Allocator_adopt(alloc, dmessage->binMessage->alloc);
+        incomingDHT(dmessage->binMessage, dmessage->address, context);
+        Allocator_free(alloc);
+        return 0;
+    }
 
-    Message_shift(&message, Headers_UDPHeader_SIZE, NULL);
-    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message.bytes;
-    uh->srcPort_be = 0;
-    uh->destPort_be = 0;
-    uh->length_be = Endian_hostToBigEndian16(dmessage->length);
-    uh->checksum_be = 0;
+    struct Message* msg = dmessage->binMessage;
 
-    uint16_t payloadLength = message.length;
+    {
+        Message_push(msg, (&(struct Headers_UDPHeader) {
+            .srcPort_be = 0,
+            .destPort_be = 0,
+            .length_be = Endian_hostToBigEndian16(msg->length),
+            .checksum_be = 0,
+        }), Headers_UDPHeader_SIZE, NULL);
+    }
 
-    Message_shift(&message, Headers_IP6Header_SIZE, NULL);
-    struct Headers_IP6Header* header = (struct Headers_IP6Header*) message.bytes;
-    header->versionClassAndFlowLabel = 0;
-    header->flowLabelLow_be = 0;
-    header->nextHeader = 17;
-    header->hopLimit = 0;
-    header->payloadLength_be = Endian_hostToBigEndian16(payloadLength);
+    struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) msg->bytes;
 
-    Bits_memcpyConst(header->sourceAddr,
-                     context->myAddr.ip6.bytes,
-                     Address_SEARCH_TARGET_SIZE);
+    {
+        struct Headers_IP6Header ip = {
+            .versionClassAndFlowLabel = 0,
+            .flowLabelLow_be = 0,
+            .nextHeader = 17,
+            .hopLimit = 0,
+            .payloadLength_be = Endian_hostToBigEndian16(msg->length),
+            .sourceAddr = {0}
+        };
+        Bits_memcpyConst(ip.sourceAddr,
+                         context->myAddr.ip6.bytes,
+                         Address_SEARCH_TARGET_SIZE);
+        Bits_memcpyConst(ip.destinationAddr,
+                         dmessage->address->ip6.bytes,
+                         Address_SEARCH_TARGET_SIZE);
+        Message_push(msg, &ip, Headers_IP6Header_SIZE, NULL);
+    }
 
-    Bits_memcpyConst(header->destinationAddr,
-                     dmessage->address->ip6.bytes,
-                     Address_SEARCH_TARGET_SIZE);
+    struct Headers_IP6Header* ip = (struct Headers_IP6Header*) msg->bytes;
 
-    #ifdef Log_DEBUG
-        Assert_true(!((uintptr_t)dmessage->bytes % 4) || !"alignment fault");
-    #endif
+    Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
 
-    uh->checksum_be =
-        Checksum_udpIp6(header->sourceAddr, (uint8_t*) uh, message.length - Headers_IP6Header_SIZE);
+    uh->checksum_be = Checksum_udpIp6(ip->sourceAddr,
+                                      (uint8_t*) uh,
+                                      msg->length - Headers_IP6Header_SIZE);
 
-    struct Ducttape_MessageHeader* dtHeader = getDtHeader(&message, true);
-    dtHeader->ip6Header = header;
+    struct Ducttape_MessageHeader* dtHeader = getDtHeader(msg, true);
+    dtHeader->ip6Header = ip;
     dtHeader->switchLabel = dmessage->address->path;
 
     struct SessionManager_Session* session =
         SessionManager_getSession(dmessage->address->ip6.bytes,
                                   dmessage->address->key,
                                   context->sm);
-    if (session->version == Version_DEFAULT_ASSUMPTION && dmessage->replyTo) {
-        int64_t* verPtr = Dict_getInt(dmessage->replyTo->asDict, String_CONST("p"));
-        session->version = (verPtr) ? *verPtr : Version_DEFAULT_ASSUMPTION;
-    }
-    if (session->version == Version_DEFAULT_ASSUMPTION) {
-        struct Node_Two* n = RouterModule_nodeForPath(dmessage->address->path,
-                                                      context->routerModule);
-        if (n) {
-            n->address.protocolVersion = session->version =
-                (n->address.protocolVersion > session->version) ?
-                    n->address.protocolVersion : session->version;
-        }
-    }
 
-    sendToRouter(&message, dtHeader, session, context);
+    session->version = dmessage->address->protocolVersion;
+    Assert_true(session->version);
+
+    sendToRouter(msg, dtHeader, session, context);
 
     return 0;
 }

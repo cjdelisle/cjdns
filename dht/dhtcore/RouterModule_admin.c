@@ -119,7 +119,6 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
                              Dict* responseDict)
 {
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
-
     Dict* out = Dict_new(promise->alloc);
     String* result = (responseDict) ? String_CONST("peers") : String_CONST("timeout");
     Dict_putString(out, String_CONST("result"), result, promise->alloc);
@@ -137,6 +136,8 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
     }
 
     Dict_putInt(out, String_CONST("ms"), lag, promise->alloc);
+
+    Dict_putString(out, String_CONST("error"), String_CONST("none"), promise->alloc);
 
     Admin_sendMessage(out, ping->txid, ping->ctx->admin);
 }

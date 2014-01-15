@@ -24,7 +24,7 @@ var SYSTEM = process.platform;
 var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = process.env['BUILDDIR'];
-if (BUILDDIR == undefined) {
+if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
 }
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
@@ -81,8 +81,8 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
-    if (process.env['NO_PIE'] == undefined) {
-        builder.config.cflags.push('-fPIE')
+    if (process.env['NO_PIE'] === undefined) {
+        builder.config.cflags.push('-fPIE');
     }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(
@@ -102,7 +102,7 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] == undefined) {
+    if (process.env['NO_PIE'] === undefined) {
         builder.config.ldflags.push(
             '-pie'
         );
@@ -114,6 +114,7 @@ Builder.configure({
             '-Wno-invalid-pp-token',
             '-Wno-dollar-in-identifier-extension',
             '-Wno-newline-eof',
+            '-Wno-unused-value',
 
             // lots of places where depending on preprocessor conditions, a statement might be
             // a case of if (1 == 1)
@@ -178,7 +179,7 @@ Builder.configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(BUILDDIR+'/dependencies/libuv/');
-            var args = ['-j', WORKERS, 'CC='+builder.config.gcc]
+            var args = ['-j', WORKERS, 'CC='+builder.config.gcc];
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
             if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
             var make = Spawn('make', args);

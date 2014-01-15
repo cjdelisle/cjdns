@@ -354,7 +354,7 @@ static void handleRequest(Dict* messageDict,
     // If they're asking for a cookie then lets give them one.
     String* cookie = String_CONST("cookie");
     if (String_equals(query, cookie)) {
-        Log_debug(admin->logger, "Got a request for a cookie");
+        //Log_debug(admin->logger, "Got a request for a cookie");
         Dict* d = Dict_new(allocator);
         char bytes[32];
         snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));

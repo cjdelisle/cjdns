@@ -116,6 +116,12 @@ static inline int Message_shift(struct Message* toShift, int32_t amount, struct 
     return 1;
 }
 
+static inline void Message_reset(struct Message* toShift)
+{
+    toShift->length = toShift->capacity;
+    Message_shift(toShift, -toShift->length, NULL);
+}
+
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
                                 size_t size,

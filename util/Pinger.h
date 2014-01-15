@@ -84,15 +84,6 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    struct Pinger* pinger);
 
 /**
- * Once the ping has been allocated, send it.
- * This is split into two functions so they caller can allocate a structure using thie ping's
- * allocator and guarantee that the structure will be cleaned up after the ping is complete.
- *
- * @param ping the ping to send.
- */
-void Pinger_sendPing(struct Pinger_Ping* ping);
-
-/**
  * Function to call when data comes in which appears to be a ping response.
  *
  * @param data the data as it comes in.
