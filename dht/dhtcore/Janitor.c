@@ -262,6 +262,34 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
+    // Search for the closest possible address to ourself that is not ourself.
+    // This attempts to emulate a kad dht structure without having to do work.
+    addr = *janitor->nodeStore->selfAddress;
+    addr.ip6.bytes[7] = addr.ip6.bytes[7] ^ 0x01;
+    struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
+    struct SearchRunner_SearchData* searchData;
+    bool alreadySearchingForNode = false;
+    for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
+        searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
+                                                   i,
+                                                   seachListAlloc);
+        if (!searchData) { continue; } //Just in case
+        if (!Bits_memcmp(searchData->target, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
+            alreadySearchingForNode = true;
+            break; //No point in continuing
+        }
+    }
+    Allocator_free(seachListAlloc);
+    // If there's no search running for this address, start one.
+    if (!alreadySearchingForNode) {
+        search(addr.ip6.bytes, janitor);
+        #ifdef Log_DEBUG
+            uint8_t addrStr[60];
+            Address_print(addrStr, &addr);
+            Log_debug(janitor->logger, "Trying to find myself. Sort-of. [%s]", addrStr);
+        #endif
+    }
+
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
 
