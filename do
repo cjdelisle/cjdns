@@ -18,7 +18,7 @@ NODE_MIN_VER="v0.8.15"
 
 hasOkNode()
 {
-    NODE=`which node` || NODE=`which nodejs`
+    NODE=`which nodejs` || NODE=`which node`
     if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
         NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
     fi
