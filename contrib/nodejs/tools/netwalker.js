@@ -24,14 +24,14 @@ var getKey = function (nodeId) {
 var print = function (map) {
     var done = [];
     p = function (key, id, spaces) {
-        var peers = map[key];
-        if (!peers || done.indexOf(key) > -1) { return; }
+        var entry = map[key];
+        if (!entry || done.indexOf(key) > -1) { return; }
         done.push(key);
         console.log(spaces + id);
-        for (var i = 0; i < peers.length; i++) {
-            var k = getKey(peers[i]);
-            if (k === key) { continue; }
-            p(k, peers[i], spaces + '  ');
+        for (var i = 0; i < entry.peers.length; i++) {
+            var k = getKey(entry.peers[i]);
+            if (k === key || map[k].bestParent != key) { continue; }
+            p(k, entry.peers[i], spaces + '  ');
         }
     };
     p(getKey(map.selfNode), map.selfNode, '')
@@ -60,29 +60,30 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
         }));
 
     }).nThen(function (waitFor) {
-        var more = function () {
-            if (addrs.length === 0) { return; }
-            var addr = addrs.shift();
+        var again = function (addr) {
             var key = getKey(addr);
-            if (queried.indexOf(key) > -1) {
-                more();
-                return;
-            }
-            cjdns.RouterModule_getPeers(addr, waitFor(function (err, ret) {
+            cjdns.RouterModule_getPeers(addr, 200, waitFor(function (err, ret) {
                 if (err) { throw err; }
+console.log(addr + ' -> ' + JSON.stringify(ret, null, '  '));
+if (typeof(ret.peers) === 'undefined') { return; }
                 if (ret.error !== 'none') { throw new Error(ret.error); }
                 for (var i = 0; i < ret.peers.length; i++) {
-                    addrs.push(ret.peers[i]);
+                    var ckey = getKey(ret.peers[i]);
+                    if (queried.indexOf(ckey) === -1) {
+                        (map[ckey] = map[ckey] || {}).bestParent = key;
+                        queried.push(ckey);
+                        again(ret.peers[i]);
+                    }
+//console.log(ret.peers[i]);
                 }
-                map[key] = ret.peers;
-                queried.push(key);
-                more();
+                (map[key] = map[key] || {}).peers = ret.peers;
             }));
         };
-        more();
+        again(addrs.pop());
 
     }).nThen(function (waitFor) {
-        //console.log(JSON.stringify(map, null, '  '));
+        console.log(JSON.stringify(map, null, '  '));
+        //var tree = buildTree(map);
         print(map);
         cjdns.disconnect();
     });
