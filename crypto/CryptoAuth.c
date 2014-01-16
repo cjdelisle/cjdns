@@ -823,13 +823,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "DROP dupe hello packet with same temp key");
             return Error_AUTHENTICATION;
         }
-    } else if (nonce == 1 && wrapper->nextNonce >= 4 && !wrapper->established) {
-        // A repeat hello packet (skip test if it's the first key packet that made it to us)
-        if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
-            cryptoAuthDebug0(wrapper, "DROP repeat hello packet with different temp key");
-            return Error_AUTHENTICATION;
-        }
     } else if (nonce == 2 && wrapper->nextNonce >= 4) {
         // we accept a new key packet and let it change the session since the other end might have
         // killed off the session while it was in the midst of setting up.
