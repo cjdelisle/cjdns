@@ -155,6 +155,7 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
         if (!searchData) { continue; }
         if (!Bits_memcmp(searchData->target, target, Address_SEARCH_TARGET_SIZE)) {
             // Already have a search going for this address, so nothing to do.
+            Allocator_free(seachListAlloc);
             return;
         }
     }
