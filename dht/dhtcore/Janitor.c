@@ -143,6 +143,34 @@ static void search(uint8_t target[16], struct Janitor* janitor)
     rp->userData = search;
 }
 
+static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Janitor* janitor)
+{
+    // See if we're already searching for this address.
+    struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
+    struct SearchRunner_SearchData* searchData;
+    for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
+        searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
+                                                   i,
+                                                   seachListAlloc);
+        if (!searchData) { continue; }
+        if (!Bits_memcmp(searchData->target, target, Address_SEARCH_TARGET_SIZE)) {
+            // Already have a search going for this address, so nothing to do.
+            return;
+        }
+    }
+    Allocator_free(seachListAlloc);
+
+    // There's no search running for this address, so we start one.
+    search(target, janitor);
+    #ifdef Log_DEBUG
+        struct Address addr;
+        Bits_memcpyConst(addr.ip6.bytes, target, Address_SEARCH_TARGET_SIZE);
+        uint8_t addrStr[60];
+        Address_print(addrStr, &addr);
+        Log_debug(janitor->logger, "No active search for [%s], starting one.", addrStr);
+    #endif
+}
+
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
                                   struct Node_Two* fromNode,
@@ -232,62 +260,19 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
-    // Do something useful for a node we're actively trying to communicate with.
-    if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
-
-        // Check if we already have a search running for this address
-        struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
-        struct SearchRunner_SearchData* searchData;
-        bool alreadySearchingForNode = false;
-        for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
-            searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
-                                                        i,
-                                                        seachListAlloc);
-            if (!searchData) { continue; } //Just in case
-            if (!Bits_memcmp(searchData->target, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
-                alreadySearchingForNode = true;
-                break; //No point in continuing
-            }
-        }
-        Allocator_free(seachListAlloc);
-
-        // If there's no search running for this address, start one.
-        if (!alreadySearchingForNode) {
-            search(addr.ip6.bytes, janitor);
-            #ifdef Log_DEBUG
-                uint8_t addrStr[60];
-                Address_print(addrStr, &addr);
-                Log_debug(janitor->logger, "Search for node [%s] from nodesOfInterest", addrStr);
-            #endif
-        }
-    }
-
-    // Search for the closest possible address to ourself that is not ourself.
-    // This attempts to emulate a kad dht structure without having to do work.
+    /**
+     * Search for our closest possible keyspace neighbor.
+     * Should find our extant keyspace neighbors, which is good for DHT health.
+     * Assumes we rot64 addresses when doing distance calculations.
+     * If that behavior ever changes, this needs to be updated.
+     */
     addr = *janitor->nodeStore->selfAddress;
     addr.ip6.bytes[7] = addr.ip6.bytes[7] ^ 0x01;
-    struct Allocator* seachListAlloc = Allocator_child(janitor->allocator);
-    struct SearchRunner_SearchData* searchData;
-    bool alreadySearchingForNode = false;
-    for (int i = 0; i < SearchRunner_DEFAULT_MAX_CONCURRENT_SEARCHES; i++) {
-        searchData = SearchRunner_showActiveSearch(janitor->searchRunner,
-                                                   i,
-                                                   seachListAlloc);
-        if (!searchData) { continue; } //Just in case
-        if (!Bits_memcmp(searchData->target, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
-            alreadySearchingForNode = true;
-            break; //No point in continuing
-        }
-    }
-    Allocator_free(seachListAlloc);
-    // If there's no search running for this address, start one.
-    if (!alreadySearchingForNode) {
-        search(addr.ip6.bytes, janitor);
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Trying to find myself. Sort-of. [%s]", addrStr);
-        #endif
+    searchNoDupe(addr.ip6.bytes, janitor);
+
+    // Do something useful for a node we're actively trying to communicate with.
+    if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
+        searchNoDupe(addr.ip6.bytes, janitor);
     }
 
     // random search

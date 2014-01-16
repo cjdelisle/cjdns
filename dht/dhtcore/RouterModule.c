@@ -185,8 +185,8 @@
 #define MIN_TIMEOUT 10
 
 /**
- * Used to keep reach a weighted rolling average of recent ping times.
- * The smaller this value, the more significant recent pings are to reach.
+ * Used to keep reach a weighted rolling average of recent ping/search times.
+ * The smaller this value, the more significant recent pings/searches are to reach.
  */
 #define REACH_WINDOW 8
 
