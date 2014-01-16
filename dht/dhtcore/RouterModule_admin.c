@@ -205,7 +205,7 @@ static void pingNode(Dict* args, void* vctx, String* txid, struct Allocator* req
 static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vctx);
-    String* nearbyLabelStr = Dict_getString(args, String_CONST("nearbyLabel"));
+    String* nearbyLabelStr = Dict_getString(args, String_CONST("nearbyPath"));
     String* pathStr = Dict_getString(args, String_CONST("path"));
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
