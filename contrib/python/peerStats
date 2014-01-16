@@ -17,3 +17,4 @@ cjdns=at.connect()
 
 at.peerStats(cjdns,verbose=True);
 
+cjdns.disconnect()

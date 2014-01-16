@@ -16,6 +16,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 G=at.makeGraph()
-p=nx.spring_layout(G,iterations=200)
-nx.draw(G,pos=p,node_size=1200)
+p=nx.spring_layout(G)
+nx.draw(G,pos=p,node_size=1000)
+
 plt.show()

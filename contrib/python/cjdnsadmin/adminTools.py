@@ -12,9 +12,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-def connect():
-    from cjdnsadmin import connectWithAdminInfo
-    cjdns = connectWithAdminInfo()
+def connect(ip='',port=0,password=''):
+    from cjdnsadmin import connect, connectWithAdminInfo
+    try:
+        cjdns = connect(ip,int(port), password)
+    except:
+        cjdns = connectWithAdminInfo()
     return cjdns
 
 def disconnect(cjdns):
@@ -22,7 +25,7 @@ def disconnect(cjdns):
 
 def whoami(cjdns):
     from publicToIp6 import PublicToIp6_convert;
-    root=cjdns.NodeStore_getNode(0)
+    root=cjdns.NodeStore_nodeForAddr(0)
     root=PublicToIp6_convert(root['result']['key'])
     return root
     

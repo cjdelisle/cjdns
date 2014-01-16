@@ -11,55 +11,47 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-def getNodes(cjdns,G,ip,parentRoute):
-    import networkx as nx
-    #ip becomes the parent node
-    resp=cjdns.NodeStore_getNode(ip)
-    parentNode=resp['result']
-    numLinks=int(parentNode['linkCount'])
-
-    route=''
-    ##Dont add anymore nodes from this branch if label is too long
-    if (parentRoute != 'ffff.ffff.ffff.ffff' and len(parentRoute) == 19):
-        route = cjdns.NodeStore_getRouteLabel(parentRoute, ip);
-        if route['error'] == 'none':
-            route = route['result']
-            nodes=[]
-            #loop over number of the parent node's links 
-            for i in range(0,numLinks):
-                resp = cjdns.NodeStore_getLink(ip, i)
-                childLink=resp['result']
-                childIP=childLink['child']
-                # Check to see if its one hop away from parent node
-                if childLink['isOneHop'] != 1:
-                    continue
-                # If its a new node then we want to follow it
-                if not childIP[-4:] in G.nodes():
-                    G.add_node(childIP[-4:],ip=childIP)
-                    nodes.append(childIP)
-                # If there is not a link between the nodes we should put one there
-                if (not (childIP[-4:],ip[-4:]) in G.edges()) and (not (ip[-4:],childIP[-4:]) in G.edges()):
-                    G.add_edge(ip[-4:],childIP[-4:])
-
-            #Follow newly found nodes
-            for n in nodes:
-                G=getNodes(cjdns,G,n,route)
-    return G
-
 def makeGraph():
     import adminTools as admin
     import networkx as nx
     from publicToIp6 import PublicToIp6_convert
+    from collections import deque
 
     cjdns=admin.connect()
     root=admin.whoami(cjdns)
     pstats=admin.peerStats(cjdns,up=True)
     peers=[PublicToIp6_convert(x['publicKey']) for x in pstats]
-    G=nx.Graph()
+
+    G=nx.Graph()    
     G.add_node(root[-4:],ip=root)
-    for ip in peers:
-        G.add_node(ip[-4:],ip=ip)
-        G.add_edge(root[-4:],ip[-4:])
-    for ip in peers:
-        G=getNodes(cjdns,G,ip,'0000.0000.0000.0001')
+
+    nodes=deque()
+    for p in peers: 
+        nodes.append(p)
+        G.add_node(p[-4:],ip=p)
+        G.add_edge(root[-4:],p[-4:])   
+
+    while len(nodes) != 0:
+        parentIP=nodes.popleft()
+        resp=cjdns.NodeStore_nodeForAddr(parentIP)
+        numLinks=0
+	if 'result' in resp:
+            link=resp['result']
+            if 'linkCount' in link: numLinks=int(resp['result']['linkCount'])
+
+        for i in range(0,numLinks):
+            resp = cjdns.NodeStore_getLink(parentIP, i)
+            childLink=resp['result']
+            childIP=childLink['child']
+            # Check to see if its one hop away from parent node
+            if childLink['isOneHop'] != 1:
+                continue
+            # If its a new node then we want to follow it
+            if not childIP[-4:] in G.nodes():
+                G.add_node(childIP[-4:],ip=childIP)
+                nodes.append(childIP)
+            # If there is not a link between the nodes we should put one there
+            if (not childIP[-4:] in G[parentIP[-4:]]):
+                G.add_edge(parentIP[-4:],childIP[-4:])
+
     return G

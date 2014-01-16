@@ -16,3 +16,5 @@ import cjdnsadmin.adminTools as at
 cjdns=at.connect()
 
 at.dumpTable(cjdns,verbose=True);
+
+cjdns.disconnect()
