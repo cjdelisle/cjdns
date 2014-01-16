@@ -1133,8 +1133,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
         debugHandlesAndLabel(context->logger, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
-                             "DROP Failed decrypting message NoH[%d] state[%d]",
-                             nonceOrHandle, CryptoAuth_getState(&session->iface));
+                             "DROP Failed decrypting message NoH[%d] state[%s]",
+                             nonceOrHandle,
+                             CryptoAuth_stateString(CryptoAuth_getState(&session->iface)));
         return Error_AUTHENTICATION;
     }
 
