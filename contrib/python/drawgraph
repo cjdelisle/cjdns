@@ -11,11 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cjdnsadmin.analysisTools as at
+import cjdnsadmin.graphMaker as graph
 import networkx as nx
 import matplotlib.pyplot as plt
 
-G=at.makeGraph()
+G=graph.makeGraph()
 p=nx.spring_layout(G)
 nx.draw(G,pos=p,node_size=1000)
 
