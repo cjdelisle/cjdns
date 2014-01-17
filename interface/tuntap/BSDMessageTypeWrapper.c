@@ -67,7 +67,8 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 {
-    struct BSDMessageTypeWrapper_pvt* ctx = Identity_check((struct BSDMessageTypeWrapper_pvt*)iface);
+    struct BSDMessageTypeWrapper_pvt* ctx =
+        Identity_check((struct BSDMessageTypeWrapper_pvt*)iface);
 
     Assert_true(msg->length >= 4);
 
