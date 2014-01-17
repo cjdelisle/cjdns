@@ -190,32 +190,38 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
 {
     struct Address addr = *janitor->nodeStore->selfAddress;
 
-    // Get furthest possible address
-    for (int i = 1 ; i < Address_SEARCH_TARGET_SIZE ; i++) {
-        // Leaving [0] alone keeps the 0xfc around, so it's a valid cjdns address.
-        addr.ip6.bytes[i] = ~(addr.ip6.bytes[i]);
-    }
-
     int byte = 0;
     int bit = 0;
     for (int i = 0; i < 128 ; i++) {
+        // Bitwise walk across keyspace
         if (63 < i && i < 72) {
             // We want to leave the 0xfc alone
             continue;
         }
+
+        // Figure out which bit of the address to flip for this step in keyspace.
+        // This looks ugly because of the rot64 done in distance calculations.
         if (i < 64) { byte = 8 + (i/8); }
         else        { byte = (i/8) - 8; }
         bit = (i % 8);
 
+        // Flip that bit.
         addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
 
+        // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (!n) {
-            // We found a hole! Exit loop and let the search trigger.
-            break;
+        if (n) {
+            //We do know a valid next hop, so flip the bit back and continue.
+            addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+            continue;
         }
+
+        // We found a hole! Exit loop and let the search trigger.
+        break;
     }
+
+    // Search for a node that satisfies the address requirements to fill the hole.
     searchNoDupe(addr.ip6.bytes, janitor);
 }
 
