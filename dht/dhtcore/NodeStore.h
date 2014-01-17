@@ -52,16 +52,14 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  * @param nodeStore the store
  * @param addr the address of the new node
  * @param reachDiff the amount to credit this node
- * @param version the protocol version
  * @param scheme the encoding scheme used by this node.
  * @param encodingFormNumber the number of the smallest possible encoding form for to encoding
  *                           the interface number through which this message came.
  */
-struct Node_Two* NodeStore_discoverNode(struct NodeStore* nodeStore,
-                                        struct Address* addr,
-                                        uint32_t version,
-                                        struct EncodingScheme* scheme,
-                                        int encodingFormNumber);
+struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
+                                         struct Address* addr,
+                                         struct EncodingScheme* scheme,
+                                         int encodingFormNumber);
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 

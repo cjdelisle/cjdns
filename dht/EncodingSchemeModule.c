@@ -72,6 +72,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         Log_debug(ctx->logger, "Incompatible version");
         return -1;
     }
+    message->address->protocolVersion = *version;
 
     int64_t* encIdx = Dict_getInt(message->asDict, CJDHTConstants_ENC_INDEX);
     if (!encIdx || *encIdx < 0 || *encIdx >= scheme->count) {
@@ -79,7 +80,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return -1;
     }
 
-    NodeStore_discoverNode(ctx->ns, message->address, *version, scheme, *encIdx);
+    NodeStore_discoverNode(ctx->ns, message->address, scheme, *encIdx);
 
     return 0;
 }
