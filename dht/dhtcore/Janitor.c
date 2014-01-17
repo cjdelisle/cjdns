@@ -172,6 +172,53 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     #endif
 }
 
+/**
+ * For a Distributed Hash Table to work, each node must know a valid next hop in the search,
+ * if such a thing exists.
+ *
+ * In a Kademlia DHT, can be done by organizing nodes into k-buckets. These are collections
+ * of k nodes for which the first n bits of your node IDs match. Among other things, k-buckets
+ * allow a node to identify holes in their lookup table and fill them. If the nth bucket is empty,
+ * it means your node knows of no valid next hop for any key matching the first n bits of your
+ * address and differing in bit n+1.
+ *
+ * Without going to the trouble of organizing nodes in the buckets, this function iterates
+ * bitwise over keyspace, to identify the same kind of routing holes.
+ * It then dispatches a search for the first (largest) such hole in keyspace that it finds.
+ */
+static void plugLargestKeyspaceHole(struct Janitor* janitor)
+{
+    struct Address addr = *janitor->nodeStore->selfAddress;
+
+    // Get furthest possible address
+    for (int i = 1 ; i < Address_SEARCH_TARGET_SIZE ; i++) {
+        // Leaving [0] alone keeps the 0xfc around, so it's a valid cjdns address.
+        addr.ip6.bytes[i] = ~(addr.ip6.bytes[i]);
+    }
+
+    int byte = 0;
+    int bit = 0;
+    for (int i = 0; i < 128 ; i++) {
+        if (63 < i && i < 72) {
+            // We want to leave the 0xfc alone
+            continue;
+        }
+        if (i < 64) { byte = 8 + (i/8); }
+        else        { byte = (i/8) - 8; }
+        bit = (i % 8);
+
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+
+        struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+
+        if (!n) {
+            // We found a hole! Exit loop and let the search trigger.
+            break;
+        }
+    }
+    searchNoDupe(addr.ip6.bytes, janitor);
+}
+
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
                                   struct Node_Two* fromNode,
@@ -261,15 +308,8 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
-    /**
-     * Search for our closest possible keyspace neighbor.
-     * Should find our extant keyspace neighbors, which is good for DHT health.
-     * Assumes we rot64 addresses when doing distance calculations.
-     * If that behavior ever changes, this needs to be updated.
-     */
-    addr = *janitor->nodeStore->selfAddress;
-    addr.ip6.bytes[7] = addr.ip6.bytes[7] ^ 0x01;
-    searchNoDupe(addr.ip6.bytes, janitor);
+    // This is good for DHT health. See function description.
+    plugLargestKeyspaceHole(janitor);
 
     // Do something useful for a node we're actively trying to communicate with.
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
@@ -278,6 +318,8 @@ static void maintanenceCycle(void* vcontext)
 
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
+    // Make this a valid address.
+    addr.ip6.bytes[0] = 0xfc;
 
     struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
