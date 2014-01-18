@@ -19,25 +19,22 @@ def makeGraph():
 
     cjdns=admin.connect()
     root=admin.whoami(cjdns)
-    pstats=admin.peerStats(cjdns,up=True)
-    peers=[PublicToIp6_convert(x['publicKey']) for x in pstats]
+    rootIP=root['IP']
 
     G=nx.Graph()    
-    G.add_node(root[-4:],ip=root)
+    G.add_node(rootIP[-4:],ip=rootIP)
 
     nodes=deque()
-    for p in peers: 
-        nodes.append(p)
-        G.add_node(p[-4:],ip=p)
-        G.add_edge(root[-4:],p[-4:])   
-
+    nodes.append(rootIP)
     while len(nodes) != 0:
         parentIP=nodes.popleft()
         resp=cjdns.NodeStore_nodeForAddr(parentIP)
         numLinks=0
 	if 'result' in resp:
             link=resp['result']
-            if 'linkCount' in link: numLinks=int(resp['result']['linkCount'])
+            if 'linkCount' in link: 
+                numLinks=int(resp['result']['linkCount'])
+                G.node[parentIP[-4:]]['version']=resp['result']['protocolVersion']
 
         for i in range(0,numLinks):
             resp = cjdns.NodeStore_getLink(parentIP, i)

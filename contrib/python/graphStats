@@ -19,6 +19,7 @@ import numpy as np
 cjdns=at.connect()
 
 root=at.whoami(cjdns)
+root=root['IP']
 
 G=ant.makeGraph()
 path=nx.single_source_dijkstra(G,root[-4:])

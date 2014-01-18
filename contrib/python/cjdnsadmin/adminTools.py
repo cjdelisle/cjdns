@@ -25,9 +25,11 @@ def disconnect(cjdns):
 
 def whoami(cjdns):
     from publicToIp6 import PublicToIp6_convert;
-    root=cjdns.NodeStore_nodeForAddr(0)
-    root=PublicToIp6_convert(root['result']['key'])
-    return root
+    resp=cjdns.NodeStore_nodeForAddr(0)
+    key=resp['result']['key']
+    ver=resp['result']['protocolVersion']
+    IP=PublicToIp6_convert(key)
+    return {'IP':IP,'key':key,'version':ver}
     
 def dumpTable(cjdns,verbose=False,unique_ip=False,nodes=[]):
     if nodes == []: nodes=[]
