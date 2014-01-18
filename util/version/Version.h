@@ -230,12 +230,6 @@ Linker_require("util/version/Version.c")
 
 
 /**
- * The git commit version of the code.
- */
-const uint8_t* Version_gitVersion();
-
-
-/**
  * Check the compatibility matrix and return whether two versions are compatible.
  * If a version is not listed on the table, the highest version on the table is
  * substituted for it but if the return value is yes, it is changed to maybe.

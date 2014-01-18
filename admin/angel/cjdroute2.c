@@ -470,7 +470,7 @@ int main(int argc, char** argv)
         } else if (strcmp(argv[1], "--bench") == 0) {
             return benchmark();
         } else if ((strcmp(argv[1], "--version") == 0) || (strcmp(argv[1], "-v") == 0)) {
-            printf("Cjdns Git Version ID: %s\n", Version_gitVersion());
+            printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
         } else if (strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
