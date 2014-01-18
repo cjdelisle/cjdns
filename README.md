@@ -74,7 +74,7 @@ the existing Internet does not guarantee any of them and a number of network
 security exploits come from the cases where these assumptions break down.
 
 Cjdns guarantees confidentiality, authenticity and integrity of data by using
-modern cryptography in a non-intrusive way. Information transmitted over a cjdns
+modern cryptography in a non-intrusive way. Information transmitted over a Cjdns
 network can't be altered or read en-route. While you can create multiple
 identities, it's practically impossible to impersonate other nodes on the
 network and since a node's IPv6 address is the fingerprint of its key,
@@ -124,7 +124,7 @@ close to the target address.
 
 ## How close is it to complete?
 
-[Hyperboria][] is the largest cjdns network, with hundreds of active nodes
+[Hyperboria][] is the largest Cjdns network, with hundreds of active nodes
 around the world.
 
 Cjdns has been tested on x86, amd64, ARMv5, ARMv7, MIPS, and PowerPC.
@@ -132,7 +132,7 @@ It's [continually tested][buildbots] on Linux, FreeBSD, OS X, and Illumos
 systems.
 
 The protocols and algorithms are experimental and subject to change.
-To minimize the harm to the network, please update your cjdns nodes often.
+To minimize the harm to the network, please update your Cjdns nodes often.
 
 
 ### You can help!
@@ -146,7 +146,7 @@ if you'd like to help out.
 
 ## How does routing work?
 
-In a cjdns network, a packet goes to a router and the router labels the packet
+In a Cjdns network, a packet goes to a router and the router labels the packet
 with directions to the router best able to handle it. That is, a router which
 is physically nearby and has an address numerically close to the destination
 address of the packet. The directions are added to the packet to allow it to go
@@ -176,12 +176,12 @@ hash table.
 
 Advanced configuration:
 
-* [Setup a cjdns NAT gateway for your LAN](doc/nat-gateway.md)
-* [Install cjdns on OpenIndiana](doc/open-indiana.md)
+* [Setup a Cjdns NAT gateway for your LAN](doc/nat-gateway.md)
+* [Install Cjdns on OpenIndiana](doc/open-indiana.md)
 
 Thank you for your time and interest,
 
-The cjdns developers.
+The Cjdns developers.
 
 --------------------------------------------------------------------------------
 
@@ -199,7 +199,7 @@ Installing [Node.js](http://nodejs.org/), although preferable, is not
 strictly necessary. If Node.js is unavailable or an unacceptable
 version, it will be downloaded and built in the source tree.
 
-### 1. Retrieve cjdns from GitHub
+### 1. Retrieve Cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
 
@@ -351,14 +351,14 @@ If you want to have your logs written to a file:
 
     sudo ./cjdroute < cjdroute.conf > cjdroute.log
 
-To stop cjdns:
+To stop Cjdns:
 
     sudo killall cjdroute
 
 If you are having problems use `killall cjdroute` to return to sanity. Use
 `pgrep cjdroute` or `top` to see if it running.
 
-**Note:** this starts cjdns as the root user so it can configure your system
+**Note:** this starts Cjdns as the root user so it can configure your system
 without concern for permissions. To start cjdns as a non-root user, see
 [doc/non-root-user.md](doc/non-root-user.md).
 
