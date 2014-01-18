@@ -225,10 +225,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     }));
     DHTModuleRegistry_register(dm, registry);
 
-    Hex_decode(out->gitVersionBytes, 20, Version_gitVersion(), 40);
-    out->gitVersion.len = 20;
-    out->gitVersion.bytes = (char*) out->gitVersionBytes;
-
     Address_forKey(&out->address, myAddress);
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
@@ -389,7 +385,6 @@ static inline int handleQuery(struct DHTMessage* message,
         // Treat as a ping, tell them our version
         Dict_putString(message->asDict,
                        CJDHTConstants_VERSION,
-                       &module->gitVersion,
                        message->allocator);
     }
 
