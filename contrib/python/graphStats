@@ -12,7 +12,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import cjdnsadmin.adminTools as at
-import cjdnsadmin.analysisTools as ant
+import cjdnsadmin.graphMaker as gm
 import networkx as nx
 import numpy as np
 
@@ -21,7 +21,7 @@ cjdns=at.connect()
 root=at.whoami(cjdns)
 root=root['IP']
 
-G=ant.makeGraph()
+G=gm.makeGraph()
 path=nx.single_source_dijkstra(G,root[-4:])
 degrees=G.degree()
 hops=np.array([path[0][key] for key in path[0].keys()])

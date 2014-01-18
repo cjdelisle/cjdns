@@ -46,6 +46,7 @@ def makeGraph():
             # If its a new node then we want to follow it
             if not childIP[-4:] in G.nodes():
                 G.add_node(childIP[-4:],ip=childIP)
+                G.node[childIP[-4:]]['version']=0
                 nodes.append(childIP)
             # If there is not a link between the nodes we should put one there
             if (not childIP[-4:] in G[parentIP[-4:]]):
