@@ -171,7 +171,15 @@ var getCompiler = function(cc) {
     var args = [];
     args.push.apply(args, compileCall.args);
     args.push('-o', compileCall.outFile, '-c', compileCall.inFile);
+    cflags = process.env['CFLAGS'];
+    if (cflags) {
+      flags = cflags.split(' ');
+      flags.forEach(function(flag) {
+        args.push(flag);
+      });
+    }
     cc(args, function(retCode, stdout, stderr) {
+      if (stdout !== '') { console.log(stdout); }
       if (stderr !== '') { console.log(stderr); }
       if (retCode !== 0) { throw new Error('failed to compile'); }
       onComplete();
