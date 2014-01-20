@@ -173,13 +173,16 @@ struct SessionManager_Session* SessionManager_getSession(uint8_t* lookupKey,
                     .version = Version_DEFAULT_ASSUMPTION,
                     .external = {
                         .sendMessage = sendMessage,
-                        .senderContext = ss,
                         .allocator = ifAlloc
                     },
                 },
                 .sm = sm
             }));
         Identity_set(ss);
+
+        // const hack
+        Bits_memcpyConst((void*)&ss->pub.external.senderContext, &ss, sizeof(char*));
+
         Bits_memcpyConst(ss->pub.ip6, lookupKey, 16);
         ss->pub.internal = CryptoAuth_wrapInterface(&ss->pub.external,
                                                     cryptoKey,
