@@ -1014,7 +1014,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
         #ifdef Log_DEBUG
             struct Address herAddr = {
-                .protocolVersion = Endian_bigEndianToHost32(keyPing->version_be);
+                .protocolVersion = Endian_bigEndianToHost32(keyPing->version_be),
                 .path = label
             };
             Bits_memcpyConst(herAddr.key, keyPing->key, 32);

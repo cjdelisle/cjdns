@@ -16,6 +16,7 @@
 #define SwitchPinger_H
 
 #include "benc/String.h"
+#include "dht/Address.h"
 #include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "util/events/EventBase.h"
