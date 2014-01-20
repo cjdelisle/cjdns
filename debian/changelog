@@ -1,3 +1,9 @@
+cjdns (0.6) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Tue, 21 Jan 2014 00:53:59 +0400
+
 cjdns (0.0.1) unstable; urgency=low
 
   * Initial Release.
