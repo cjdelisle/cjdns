@@ -16,8 +16,6 @@
 #define Version_H
 
 #include <stdint.h>
-#include "util/Linker.h"
-Linker_require("util/version/Version.c")
 
 /**
  * Cjdns Protocol Versions
@@ -227,12 +225,6 @@ Linker_require("util/version/Version.c")
 
 #define Version_MINIMUM_COMPATIBLE 5
 #define Version_DEFAULT_ASSUMPTION 5
-
-
-/**
- * The git commit version of the code.
- */
-const uint8_t* Version_gitVersion();
 
 
 /**
