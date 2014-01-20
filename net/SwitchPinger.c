@@ -261,6 +261,7 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
+                                      struct Address* myAddr,
                                       struct Allocator* alloc)
 {
     struct SwitchPinger* sp = Allocator_malloc(alloc, sizeof(struct SwitchPinger));
