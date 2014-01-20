@@ -186,6 +186,8 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     uint32_t linkCount = NodeStore_linkCount(node);
     Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
 
+    Dict_putInt(result, String_new("reach", alloc), node->pathQuality, alloc);
+
     List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
     Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
 

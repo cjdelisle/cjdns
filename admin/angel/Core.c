@@ -428,7 +428,7 @@ void Core_init(struct Allocator* alloc,
                 eventBase,
                 rand);
 
-    EncodingSchemeModule_register(registry, nodeStore, logger, alloc);
+    EncodingSchemeModule_register(registry, logger, alloc);
 
     SerializationModule_register(registry, logger, alloc);
 
@@ -447,7 +447,7 @@ void Core_init(struct Allocator* alloc,
                                             rand);
 
     struct SwitchPinger* sp =
-        SwitchPinger_new(&dt->switchPingerIf, eventBase, rand, logger, alloc);
+        SwitchPinger_new(&dt->switchPingerIf, eventBase, rand, logger, &addr, alloc);
 
     // Interfaces.
     struct InterfaceController* ifController =

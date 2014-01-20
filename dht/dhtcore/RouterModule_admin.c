@@ -70,52 +70,44 @@ struct Ping
 
 static void pingResponse(struct RouterModule_Promise* promise,
                          uint32_t lag,
-                         struct Node_Two* node,
+                         struct Address* from,
                          Dict* responseDict)
 {
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
+    struct Allocator* tempAlloc = promise->alloc;
+    Dict* resp = Dict_new(tempAlloc);
 
-    uint8_t versionStr[40] = "old";
-    String* version = String_CONST((char*)versionStr);
     String* versionBin = Dict_getString(responseDict, CJDHTConstants_VERSION);
     if (versionBin && versionBin->len == 20) {
-        Hex_encode(versionStr, 40, (uint8_t*) versionBin->bytes, 20);
-        version->len = 40;
-    }
-    int64_t* protocolVersion = Dict_getInt(responseDict, CJDHTConstants_PROTOCOL);
-    int64_t pv = (protocolVersion) ? *protocolVersion : -1;
-
-    Dict response = NULL;
-    Dict verResponse = Dict_CONST(String_CONST("version"), String_OBJ(version), response);
-    if (versionBin) {
-        response = verResponse;
+        String* versionStr = String_newBinary(NULL, 40, tempAlloc);
+        Hex_encode(versionStr->bytes, 40, versionBin->bytes, 20);
+        Dict_putString(resp, String_CONST("version"), versionStr, tempAlloc);
+    } else {
+        Dict_putString(resp, String_CONST("version"), String_CONST("unknown"), tempAlloc);
     }
 
     String* result = (responseDict) ? String_CONST("pong") : String_CONST("timeout");
-    response = Dict_CONST(String_CONST("result"), String_OBJ(result), response);
+    Dict_putString(resp, String_CONST("result"), result, tempAlloc);
 
-    Dict protoResponse = Dict_CONST(String_CONST("protocol"), Int_OBJ(pv), response);
+    int64_t* protocolVersion = Dict_getInt(responseDict, CJDHTConstants_PROTOCOL);
     if (protocolVersion) {
-        response = protoResponse;
+        Dict_putInt(resp, String_CONST("protocol"), *protocolVersion, tempAlloc);
     }
 
-    response = Dict_CONST(String_CONST("ms"), Int_OBJ(lag), response);
+    Dict_putInt(resp, String_CONST("ms"), lag, tempAlloc);
 
-    char from[60] = "";
-    if (node) {
-        Address_print((uint8_t*)from, &node->address);
-    }
-    Dict fromResponse = Dict_CONST(String_CONST("from"), String_OBJ(String_CONST(from)), response);
-    if (node) {
-        response = fromResponse;
+    if (from) {
+        uint8_t fromStr[60] = "";
+        Address_print(fromStr, from);
+        Dict_putString(resp, String_CONST("from"), String_new(fromStr, tempAlloc), tempAlloc);
     }
 
-    Admin_sendMessage(&response, ping->txid, ping->ctx->admin);
+    Admin_sendMessage(resp, ping->txid, ping->ctx->admin);
 }
 
 static void getPeersResponse(struct RouterModule_Promise* promise,
                              uint32_t lag,
-                             struct Node_Two* node,
+                             struct Address* from,
                              Dict* responseDict)
 {
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
@@ -125,7 +117,7 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
 
     if (responseDict) {
         struct Address_List* addrs =
-            ReplySerializer_parse(&node->address, responseDict, NULL, promise->alloc);
+            ReplySerializer_parse(from, responseDict, NULL, promise->alloc);
 
         List* nodes = NULL;
         for (int i = 0; i < addrs->length; i++) {

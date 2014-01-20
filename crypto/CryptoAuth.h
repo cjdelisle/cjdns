@@ -159,6 +159,8 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 void CryptoAuth_reset(struct Interface* iface);
 
+void CryptoAuth_resetIfTimeout(struct Interface* iface);
+
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0
 

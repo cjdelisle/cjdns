@@ -29,10 +29,18 @@ struct SessionManager;
 
 struct SessionManager_Session
 {
-    struct Interface iface;
+    struct Interface external;
 
-    /** When the last message was received on this session. */
-    uint32_t lastMessageTime;
+    struct Interface* internal;
+
+    /** When the last message was received on this session (milliseconds since epoch). */
+    uint64_t timeOfLastIn;
+
+    /** When the last message was sent on this session (milliseconds since epoch). */
+    uint64_t timeOfLastOut;
+
+    /** The CryptoAuth state as of the last message. See: CryptoAuth_getState() */
+    int cryptoAuthState;
 
     /** The handle which will be used to lookup this session on our side, big endian. */
     uint32_t receiveHandle_be;

@@ -40,6 +40,9 @@ struct DHTMessage
     /** The message as a bencoded dictionary. */
     Dict* asDict;
 
+    struct EncodingScheme* encodingScheme;
+    int encIndex;
+
     /**
      * If this message is an outgoing reply, replyTo is the original query.
      * For incoming replies or any queries, it is NULL.

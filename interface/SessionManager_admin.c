@@ -84,25 +84,27 @@ static void sessionStats(Dict* args,
     AddrTools_printIp(printedAddr, ip6);
     Dict_putString(r, String_CONST("ip6"), String_new(printedAddr, alloc), alloc);
 
-    int state = CryptoAuth_getState(&session->iface);
     Dict_putString(r,
                    String_CONST("state"),
-                   String_new(CryptoAuth_stateString(state), alloc),
+                   String_new(CryptoAuth_stateString(session->cryptoAuthState), alloc),
                    alloc);
 
-    struct ReplayProtector* rp = CryptoAuth_getReplayProtector(&session->iface);
+    struct ReplayProtector* rp = CryptoAuth_getReplayProtector(session->internal);
     Dict_putInt(r, String_CONST("duplicates"), rp->duplicates, alloc);
     Dict_putInt(r, String_CONST("lostPackets"), rp->lostPackets, alloc);
     Dict_putInt(r, String_CONST("receivedOutOfRange"), rp->receivedOutOfRange, alloc);
 
-    uint8_t* key = CryptoAuth_getHerPublicKey(&session->iface);
+    uint8_t* key = CryptoAuth_getHerPublicKey(session->internal);
     Dict_putString(r, String_CONST("publicKey"), Key_stringify(key, alloc), alloc);
-    Dict_putInt(r, String_CONST("last"), session->lastMessageTime, alloc);
     Dict_putInt(r, String_CONST("version"), session->version, alloc);
     Dict_putInt(r, String_CONST("handle"),
                 Endian_bigEndianToHost32(session->receiveHandle_be), alloc);
     Dict_putInt(r, String_CONST("sendHandle"),
                 Endian_bigEndianToHost32(session->sendHandle_be), alloc);
+
+    Dict_putInt(r, String_CONST("timeOfLastIn"), session->timeOfLastIn, alloc);
+    Dict_putInt(r, String_CONST("timeOfLastOut"), session->timeOfLastOut, alloc);
+
     Admin_sendMessage(r, txid, context->admin);
     return;
 }

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /* vim: set expandtab ts=4 sw=4: */
 /*
  * You may redistribute this program and/or modify it under the terms of
@@ -12,23 +13,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Assert.h"
-#include "util/Gcc.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
+/*
+ * test the admin port
+ */
 
-Gcc_PRINTF(1, 2)
-void Assert_failure(const char* format, ...)
-{
-    printf("\n\n");
-    fflush(stdout);
-    fflush(stderr);
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    fflush(stderr);
-    abort();
-    va_end(args);
-}
+
+var Cjdns = require('../cjdnsadmin/cjdnsadmin');
+var nThen = require('../cjdnsadmin/nthen');
+
+Cjdns.connectWithAdminInfo(function (cjdns) {
+
+    nThen(function (waitFor) {
+
+        for (var i = 0; i < 10000; i++) {
+            cjdns.RouterModule_pingNode('0000.0000.0000.0001', waitFor(function (err, ret) {
+                if (err) { throw err; }
+            }));
+        }
+
+    }).nThen(function (waitFor) {
+
+        cjdns.disconnect();
+    });
+
+});

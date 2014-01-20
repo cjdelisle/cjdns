@@ -58,7 +58,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
                     process.stdout.write(node.ip + '@' + ret.result.routeLabel);
                 }));
             }).nThen(function (waitFor) {
-                cjdns.RouterModule_pingNode(node.ip, 1000, waitFor(function (err, ret) {
+                cjdns.RouterModule_pingNode(node.ip, 3000, waitFor(function (err, ret) {
                     if (err) { throw err; }
                     if (ret.result === 'pong') {
                         process.stdout.write('  ' + ret.ms + 'ms  linkq:' + node.link);

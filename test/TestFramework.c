@@ -131,7 +131,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         Ducttape_register((uint8_t*)privateKey, registry, routerModule, searchRunner,
                           nodesOfInterest, switchCore, base, allocator, logger, ipTun, rand);
 
-    struct SwitchPinger* sp = SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, allocator);
+    struct SwitchPinger* sp =
+        SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, myAddress, allocator);
 
     // Interfaces.
     struct InterfaceController* ifController =

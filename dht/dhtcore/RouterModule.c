@@ -268,16 +268,13 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
     return (oldReach / 2);
 }
 
-static inline void responseFromNode(struct Node_Two* node,
-                                    uint32_t millisecondsSinceRequest,
-                                    struct RouterModule* module)
+static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
 {
-    if (millisecondsSinceRequest == 0) {
-        millisecondsSinceRequest = 1;
-    }
-    int64_t newReach = reachAfterDecay(node->pathQuality) +
-        ((UINT32_MAX / REACH_WINDOW) / millisecondsSinceRequest);
-    NodeStore_updateReach(module->nodeStore, node, newReach - node->pathQuality);
+    int64_t out = reachAfterDecay(millisecondsLag) +
+        ((UINT32_MAX / REACH_WINDOW) / millisecondsLag);
+    // TODO: is this safe?
+    Assert_true(out < (UINT32_MAX - 1024) && out > 0);
+    return out;
 }
 
 static inline int sendNodes(struct NodeList* nodeList,
@@ -452,9 +449,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
     // Ping timeout -> decrease reach
     if (n && !Bits_memcmp(pctx->address.key, n->address.key, 32)) {
 
-        int64_t newReach;
-
-        newReach = reachAfterTimeout(n->pathQuality);
+        uint32_t newReach = reachAfterTimeout(n->pathQuality);
 
         #ifdef Log_DEBUG
             uint8_t addr[60];
@@ -467,7 +462,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
                        (unsigned int)newReach);
         #endif
 
-        NodeStore_updateReach(pctx->router->nodeStore, n, newReach - n->pathQuality);
+        NodeStore_updateReach(pctx->router->nodeStore, n, newReach);
     }
 
     if (pctx->pub.callback) {
@@ -545,49 +540,30 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
                AverageRoller_getAverage(pctx->router->gmrtRoller));
     */
 
-    // this implementation only pings to get the address of a node, so lets add the node.
+    // prevent division by zero
+    if (milliseconds == 0) { milliseconds++; }
+
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
+    if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+        // This path is already known
+        NodeStore_updateReach(module->nodeStore, node, nextReach(0, milliseconds));
+    } else {
+        struct Node_Link* link = NodeStore_discoverNode(module->nodeStore,
+                                                        message->address,
+                                                        message->encodingScheme,
+                                                        message->encIndex,
+                                                        nextReach(0, milliseconds));
+        node = (link) ? link->child : NULL;
+    }
 
     // EncodingSchemeModule should have added this node to the store, check it.
     if (!node) {
         #ifdef Log_DEBUG
             uint8_t printedAddr[60];
             Address_print(printedAddr, message->address);
-            Log_debug(module->logger, "Got message from nonexistant node! [%s]\n", printedAddr);
+            Log_info(module->logger, "Got message from nonexistant node! [%s]\n", printedAddr);
         #endif
         return;
-    }
-
-    if (Bits_memcmp(node->address.key, message->address->key, 32)) {
-        #ifdef Log_DEBUG
-            uint8_t printedAddr[60];
-            Address_print(printedAddr, message->address);
-            uint8_t expected[60];
-            Address_print(expected, &node->address);
-            Log_debug(module->logger, "Got message from node at path to other node! [%s] "
-                                      "expected [%s]",
-                      printedAddr, expected);
-        #endif
-        return;
-    }
-
-    // TODO: This is throwing away a lot of data
-    if (message->address->path == 1) {
-        // response to a message from ourselves..
-        Log_debug(module->logger, "Got message for ourselves");
-    } else if (node->address.path == message->address->path) {
-        responseFromNode(node, milliseconds, module);
-    } else {
-        Log_debug(module->logger, "Got message along unused path");
-        // We'll just give credit to the last node which is using a sub-part of this path.
-        struct Node_Two* nn = node;
-        while (!LabelSplicer_routesThrough(message->address->path, nn->address.path)) {
-            Assert_true(nn != module->nodeStore->selfNode);
-            nn = nn->bestParent->parent;
-        }
-        if (nn != module->nodeStore->selfNode) {
-            responseFromNode(nn, milliseconds, module);
-        }
     }
 
     #ifdef Log_DEBUG
@@ -604,7 +580,7 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     #endif
 
     if (pctx->pub.callback) {
-        pctx->pub.callback(&pctx->pub, milliseconds, node, message->asDict);
+        pctx->pub.callback(&pctx->pub, milliseconds, message->address, message->asDict);
     }
 }
 
@@ -615,6 +591,11 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
 {
     // sending yourself a ping?
 //    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
+
+    Assert_true(addr->path ==
+        EncodingScheme_convertLabel(module->nodeStore->selfNode->encodingScheme,
+                                    addr->path,
+                                    EncodingScheme_convertLabel_convertTo_CANNONICAL));
 
     if (timeoutMilliseconds == 0) {
         timeoutMilliseconds = pingTimeoutMilliseconds(module);

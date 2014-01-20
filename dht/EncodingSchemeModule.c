@@ -44,7 +44,7 @@ struct EncodingSchemeModule_pvt
     String* schemeDefinition;
     struct EncodingScheme* scheme;
 
-    struct NodeStore* ns;
+    struct EncodingScheme* legacyV3x5x8;
 
     struct Log* logger;
 
@@ -56,20 +56,26 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     struct EncodingSchemeModule_pvt* ctx =
         Identity_check((struct EncodingSchemeModule_pvt*) vcontext);
 
+    struct EncodingScheme* scheme = NULL;
+
     String* schemeDefinition = Dict_getString(message->asDict, CJDHTConstants_ENC_SCHEME);
-    if (!schemeDefinition) {
-        return 0;
+    if (schemeDefinition) {
+        scheme = EncodingScheme_deserialize(schemeDefinition, message->allocator);
+    } else {
+        scheme = ctx->legacyV3x5x8;
     }
-    struct EncodingScheme* scheme =
-        EncodingScheme_deserialize(schemeDefinition, message->allocator);
+
     if (!scheme) {
         Log_debug(ctx->logger, "Failed to parse encoding scheme");
+        Assert_ifTesting(0);
         return -1;
     }
+    message->encodingScheme = scheme;
 
     int64_t* version = Dict_getInt(message->asDict, CJDHTConstants_PROTOCOL);
     if (!version || !Version_isCompatible(Version_CURRENT_PROTOCOL, *version)) {
         Log_debug(ctx->logger, "Incompatible version");
+        Assert_ifTesting(0);
         return -1;
     }
     message->address->protocolVersion = *version;
@@ -77,10 +83,10 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     int64_t* encIdx = Dict_getInt(message->asDict, CJDHTConstants_ENC_INDEX);
     if (!encIdx || *encIdx < 0 || *encIdx >= scheme->count) {
         Log_debug(ctx->logger, "Invalid encoding index");
+        Assert_ifTesting(0);
         return -1;
     }
-
-    NodeStore_discoverNode(ctx->ns, message->address, scheme, *encIdx);
+    message->encIndex = *encIdx;
 
     return 0;
 }
@@ -96,15 +102,23 @@ static int handleOutgoing(struct DHTMessage* dmesg, void* vcontext)
                    ctx->schemeDefinition,
                    dmesg->allocator);
 
+    #ifdef TESTING
+        // sanity check
+        Assert_true(dmesg->address->path ==
+            EncodingScheme_convertLabel(ctx->scheme,
+                                        dmesg->address->path,
+                                        EncodingScheme_convertLabel_convertTo_CANNONICAL));
+    #endif
+
     // And tell the asker which interface the message came from
     int encIdx = EncodingScheme_getFormNum(ctx->scheme, dmesg->address->path);
+    Assert_true(encIdx != EncodingScheme_getFormNum_INVALID);
     Dict_putInt(dmesg->asDict, CJDHTConstants_ENC_INDEX, encIdx, dmesg->allocator);
 
     return 0;
 }
 
 void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
-                                   struct NodeStore* ns,
                                    struct Log* logger,
                                    struct Allocator* alloc)
 {
@@ -121,10 +135,10 @@ void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
             .logger = logger,
             .scheme = scheme,
             .schemeDefinition = schemeDefinition,
-            .ns = ns
         }));
     Identity_set(ctx);
     ctx->module.context = ctx;
+    ctx->legacyV3x5x8 = NumberCompress_v3x5x8_defineScheme(alloc);
 
     DHTModuleRegistry_register(&ctx->module, reg);
 }

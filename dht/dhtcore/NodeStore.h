@@ -55,11 +55,13 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
  * @param scheme the encoding scheme used by this node.
  * @param encodingFormNumber the number of the smallest possible encoding form for to encoding
  *                           the interface number through which this message came.
+ * @param reach the quality of the path to the new node
  */
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
-                                         int encodingFormNumber);
+                                         int inverseLinkEncodingFormNumber,
+                                         uint32_t reach);
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 
@@ -146,7 +148,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
-void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, int64_t reachDiff);
+void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach);
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore);
 
