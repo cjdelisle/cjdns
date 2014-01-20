@@ -81,8 +81,14 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     message->address->protocolVersion = *version;
 
     int64_t* encIdx = Dict_getInt(message->asDict, CJDHTConstants_ENC_INDEX);
-    if (!encIdx || *encIdx < 0 || *encIdx >= scheme->count) {
-        Log_debug(ctx->logger, "Invalid encoding index");
+    if (!encIdx) {
+        Log_debug(ctx->logger, "Missing encoding index, version [%d]", (int) (*version));
+        return -1;
+    }
+    if (*encIdx < 0 || *encIdx >= scheme->count) {
+        Log_debug(ctx->logger, "Invalid encoding index [%lld], version [%d]",
+                  (long long int) (*encIdx),
+                  (int) (*version));
         Assert_ifTesting(0);
         return -1;
     }
