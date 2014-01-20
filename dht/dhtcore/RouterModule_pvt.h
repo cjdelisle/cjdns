@@ -50,9 +50,6 @@ struct RouterModule
 
     struct Admin* admin;
 
-    uint8_t gitVersionBytes[20];
-    String gitVersion;
-
     struct Random* rand;
 
 
