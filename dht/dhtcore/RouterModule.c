@@ -381,11 +381,6 @@ static inline int handleQuery(struct DHTMessage* message,
         nodeList =
             NodeStore_getPeers(targetPath, RouterModule_K, message->allocator, module->nodeStore);
 
-    } else {
-        // Treat as a ping, tell them our version
-        Dict_putString(message->asDict,
-                       CJDHTConstants_VERSION,
-                       message->allocator);
     }
 
     return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
