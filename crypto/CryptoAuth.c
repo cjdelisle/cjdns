@@ -582,7 +582,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
     // this will reset the session if it has timed out.
-    CryptoAuth_getState(interface);
+    CryptoAuth_resetIfTimeout(interface);
 
     // If the nonce wraps, start over.
     if (wrapper->nextNonce >= 0xfffffff0) {
@@ -1223,15 +1223,6 @@ int CryptoAuth_getState(struct Interface* interface)
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
 
-    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
-    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
-        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
-                  (int) (nowSecs - wrapper->timeOfLastPacket));
-
-        wrapper->timeOfLastPacket = nowSecs;
-        reset(wrapper);
-    }
-
     switch (wrapper->nextNonce) {
         case 0:
             return CryptoAuth_NEW;
@@ -1251,6 +1242,28 @@ int CryptoAuth_getState(struct Interface* interface)
         default:
             // Received data.
             return (wrapper->established) ? CryptoAuth_ESTABLISHED : CryptoAuth_HANDSHAKE3;
+    }
+}
+
+void CryptoAuth_resetIfTimeout(struct Interface* iface)
+{
+    struct CryptoAuth_Wrapper* wrapper =
+        Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
+
+    if (wrapper->nextNonce == 1) {
+        // Lets not reset the session, we just sent one or more hello packets and
+        // have not received a response, if they respond after we reset then we'll
+        // be in a tough state.
+        return;
+    }
+
+    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
+    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
+        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
+                  (int) (nowSecs - wrapper->timeOfLastPacket));
+
+        wrapper->timeOfLastPacket = nowSecs;
+        reset(wrapper);
     }
 }
 

@@ -16,6 +16,7 @@
 #define SwitchPinger_H
 
 #include "benc/String.h"
+#include "dht/Address.h"
 #include "crypto/random/Random.h"
 #include "interface/Interface.h"
 #include "util/events/EventBase.h"
@@ -108,6 +109,7 @@ struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
                                       struct Random* rand,
                                       struct Log* logger,
+                                      struct Address* myAddr,
                                       struct Allocator* alloc);
 
 #endif

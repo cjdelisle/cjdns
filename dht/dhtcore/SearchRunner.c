@@ -124,14 +124,14 @@ static void searchStep(struct SearchRunner_Search* search);
 
 static void searchReplyCallback(struct RouterModule_Promise* promise,
                                 uint32_t lagMilliseconds,
-                                struct Node_Two* fromNode,
+                                struct Address* from,
                                 Dict* result)
 {
     struct SearchRunner_Search* search =
         Identity_check((struct SearchRunner_Search*)promise->userData);
 
     struct Address_List* nodeList =
-        ReplySerializer_parse(&fromNode->address, result, search->runner->logger, promise->alloc);
+        ReplySerializer_parse(from, result, search->runner->logger, promise->alloc);
 
     for (int i = 0; nodeList && i < nodeList->length; i++) {
         if (isDuplicateEntry(nodeList, i)) {
@@ -144,36 +144,37 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
             RumorMill_addNode(search->runner->rumorMill, &nodeList->elems[i]);
         }
 
-        if (Address_closest(&search->target, &nodeList->elems[i], &fromNode->address) >= 0) {
+        if (Address_closest(&search->target, &nodeList->elems[i], from) >= 0) {
             // Too much noise.
             //Log_debug(search->runner->logger, "Answer was further from the target than us.\n");
             continue;
         }
 
-        if (search->lastNodeAsked.path != fromNode->address.path) {
+        if (search->lastNodeAsked.path != from->path) {
             // old queries coming in late...
             continue;
         }
 
-        struct Node_Two* n = NodeStore_getBest(&nodeList->elems[i], search->runner->nodeStore);
-        SearchStore_addNodeToSearch((n) ? &n->address : &nodeList->elems[i], search->search);
+        nodeList->elems[i].path =
+            NodeStore_optimizePath(search->runner->nodeStore, nodeList->elems[i].path);
+        SearchStore_addNodeToSearch(&nodeList->elems[i], search->search);
     }
 }
 
 static void searchCallback(struct RouterModule_Promise* promise,
                            uint32_t lagMilliseconds,
-                           struct Node_Two* fromNode,
+                           struct Address* from,
                            Dict* result)
 {
     struct SearchRunner_Search* search =
         Identity_check((struct SearchRunner_Search*)promise->userData);
 
-    if (fromNode) {
-        searchReplyCallback(promise, lagMilliseconds, fromNode, result);
+    if (from) {
+        searchReplyCallback(promise, lagMilliseconds, from, result);
     }
 
     if (search->pub.callback) {
-        search->pub.callback(&search->pub, lagMilliseconds, fromNode, result);
+        search->pub.callback(&search->pub, lagMilliseconds, from, result);
     }
     searchStep(search);
 }

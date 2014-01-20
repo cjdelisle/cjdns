@@ -59,7 +59,7 @@ var buildTree = function (origNodes) {
             var current = nodes[i];
             nodes.splice(i, 1);
             var out = buildTreeCycle(current, nodes);
-            if (nodes.length > 0) { throw new Error(); }
+            //if (nodes.length > 0) { throw new Error(); }
             return out;
         }
     }
@@ -67,7 +67,7 @@ var buildTree = function (origNodes) {
 };
 
 var printTree = function (tree, spaces) {
-    console.log(spaces + tree.ip + ' ' + tree.bestParent.parentChildLabel);
+    console.log(spaces + tree.ip + ' ' + tree.bestParent.parentChildLabel + '  ' + tree.routeLabel + '  ' + tree.reach);
     for (var i = 0; i < tree.peers.length; i++) {
         printTree(tree.peers[i], spaces + '  ');
     }

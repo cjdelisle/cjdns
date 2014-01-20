@@ -34,14 +34,17 @@ Gcc_PRINTF(1, 2)
 Gcc_NORETURN
 void Assert_failure(const char* format, ...);
 
-/** Runtime assertion which is always applied. */
-#define Assert_always(expr) do { \
+#define Assert_fileLine(expr, file, line) do { \
         if (!(expr)) {                                                                   \
-            Assert_failure("Assertion failure [%s:%d] [%s]\n", Gcc_SHORT_FILE, Gcc_LINE, \
+            Assert_failure("Assertion failure [%s:%d] [%s]\n", (file), (line),           \
                            #expr);                                                       \
         }                                                                                \
     } while (0)
 /* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
+
+
+/** Runtime assertion which is always applied. */
+#define Assert_always(expr) Assert_fileLine((expr), Gcc_SHORT_FILE, Gcc_LINE)
 
 #ifdef PARANOIA
     #define Assert_true(expr) Assert_always(expr)

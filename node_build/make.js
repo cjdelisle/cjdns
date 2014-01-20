@@ -76,14 +76,16 @@ Builder.configure({
         '-D',' NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
-        '-D','Log_DEBUG',
         '-D','Identity_CHECK=1',
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
+    var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
+    builder.config.cflags.push('-D','Log_'+logLevel);
     if (process.env['NO_PIE'] === undefined) {
         builder.config.cflags.push('-fPIE');
     }
+    if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(
             '!-fPIE',

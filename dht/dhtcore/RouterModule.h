@@ -42,7 +42,7 @@ struct RouterModule_Promise
 {
     void (* callback)(struct RouterModule_Promise* promise,
                       uint32_t lag,
-                      struct Node_Two* fromNode,
+                      struct Address* from,
                       Dict* result);
     void* userData;
     struct Allocator* alloc;

@@ -28,7 +28,29 @@
 #endif
 #define ALLOCATOR_SIZE sizeof(struct Allocator_pvt)
 
-int main()
+static int increment(int* num)
+{
+    (*num)++;
+    return 1;
+}
+
+struct TestStruct {
+    int value;
+};
+
+static void allocatorClone()
+{
+    struct Allocator* alloc = MallocAllocator_new(2048);
+    int calls = 0;
+    struct TestStruct* ts = Allocator_clone(alloc, (&(struct TestStruct) {
+        .value = increment(&calls)
+    }));
+    Assert_true(calls == 1);
+    Assert_true(ts->value == 1);
+    Allocator_free(alloc);
+}
+
+static void structureSizes()
 {
     struct Allocator* alloc = MallocAllocator_new(2048);
     size_t bytesUsed;
@@ -53,5 +75,11 @@ int main()
     Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(alloc);
+}
+
+int main()
+{
+    allocatorClone();
+    structureSizes();
     return 0;
 }

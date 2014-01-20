@@ -224,7 +224,6 @@ static void pingCallback(void* vic)
             }
 
             bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
-            uint32_t lag = ~0u;
             if (unresponsive) {
                 // flush the peer from the table...
                 RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
@@ -235,9 +234,6 @@ static void pingCallback(void* vic)
                 }
 
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
-                lag = ((now - ep->timeOfLastMessage) / 1024);
-            } else {
-                lag = ((now - ep->timeOfLastMessage) / 1024);
             }
 
             struct SwitchPinger_Ping* ping =
@@ -247,6 +243,10 @@ static void pingCallback(void* vic)
                                      onPingResponse,
                                      ic->allocator,
                                      ic->switchPinger);
+
+            #ifdef Log_DEBUG
+                uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
+            #endif
 
             if (!ping) {
                 Log_debug(ic->logger,

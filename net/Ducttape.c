@@ -87,7 +87,8 @@ static inline uint8_t sendToRouter(struct Message* message,
 {
     int safeDistance = Headers_SwitchHeader_SIZE;
 
-    if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+    CryptoAuth_resetIfTimeout(session->internal);
+    if (CryptoAuth_getState(session->internal) < CryptoAuth_HANDSHAKE3) {
         // Bug 104, see Version.h
         #ifdef Version_2_COMPAT
         if (session->version >= 3) {
@@ -127,7 +128,7 @@ static inline uint8_t sendToRouter(struct Message* message,
     // This comes out in outgoingFromCryptoAuth() then sendToSwitch()
     dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
     dtHeader->layer = Ducttape_SessionLayer_OUTER;
-    return session->iface.sendMessage(message, &session->iface);
+    return Interface_sendMessage(session->internal, message);
 }
 
 static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool init)
@@ -376,7 +377,8 @@ static inline uint8_t sendToSwitch(struct Message* message,
 {
     uint64_t label = dtHeader->switchLabel;
 
-    if (CryptoAuth_getState(&session->iface) >= CryptoAuth_HANDSHAKE3) {
+    CryptoAuth_resetIfTimeout(session->internal);
+    if (CryptoAuth_getState(session->internal) >= CryptoAuth_HANDSHAKE3) {
         //debugHandlesAndLabel0(context->logger, session, label, "layer2 sending run message");
         uint32_t sendHandle_be = session->sendHandle_be;
         #ifdef Version_2_COMPAT
@@ -550,7 +552,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
     // The CryptoAuth may send a 120 byte CA header and it might only send a 4 byte
     // nonce and 16 byte authenticator depending on its state.
 
-    if (CryptoAuth_getState(&session->iface) < CryptoAuth_HANDSHAKE3) {
+    CryptoAuth_resetIfTimeout(session->internal);
+    if (CryptoAuth_getState(session->internal) < CryptoAuth_HANDSHAKE3) {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
         Message_shift(message, Headers_CryptoAuth_SIZE + 4, NULL);
         Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
@@ -569,7 +572,7 @@ static inline uint8_t incomingFromTun(struct Message* message,
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
     dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
     dtHeader->layer = Ducttape_SessionLayer_INNER;
-    return session->iface.sendMessage(message, &session->iface);
+    return Interface_sendMessage(session->internal, message);
 }
 
 /**
@@ -676,13 +679,13 @@ static inline int core(struct Message* message,
 
             dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
             dtHeader->layer = Ducttape_SessionLayer_INNER;
-            return session->iface.receiveMessage(message, &session->iface);
+            return Interface_receiveMessage(&session->external, message);
         } else {
             // double encrypted, inner layer plaintext.
             // The session is still set from the router-to-router traffic and that is the one we use
             // to determine the node's id.
             return incomingForMe(message, dtHeader, session, context,
-                                 CryptoAuth_getHerPublicKey(&session->iface));
+                                 CryptoAuth_getHerPublicKey(session->internal));
         }
     }
 
@@ -784,7 +787,7 @@ static inline int incomingFromRouter(struct Message* message,
                                      struct SessionManager_Session* session,
                                      struct Ducttape_pvt* context)
 {
-    uint8_t* pubKey = CryptoAuth_getHerPublicKey(&session->iface);
+    uint8_t* pubKey = CryptoAuth_getHerPublicKey(session->internal);
     if (!validEncryptedIP6(message)) {
         // Not valid cjdns IPv6, we'll try it as an IPv4 or ICANN-IPv6 packet
         // and check if we have an agreement with the node who sent it.
@@ -826,7 +829,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
     }
 
     // If the packet came from a new session, put the send handle in the session.
-    if (CryptoAuth_getState(iface) < CryptoAuth_ESTABLISHED) {
+    if (CryptoAuth_getState(session->internal) < CryptoAuth_ESTABLISHED) {
         // If this is true then the incoming message is definitely a handshake.
         if (message->length < 4) {
             debugHandles0(context->logger, session, "runt");
@@ -855,7 +858,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
             return incomingFromRouter(message, dtHeader, session, context);
         case Ducttape_SessionLayer_INNER:
             return incomingForMe(message, dtHeader, session, context,
-                                 CryptoAuth_getHerPublicKey(iface));
+                                 CryptoAuth_getHerPublicKey(session->internal));
         default:
             Assert_always(false);
     }
@@ -937,11 +940,12 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             }
             struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
             if (causeCtrl->type_be != Control_PING_be) {
+                uint32_t errorType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
                 Log_info(context->logger,
-                          "error packet from [%s] caused by [%s] packet ([%u])",
+                          "error packet from [%s] caused by [%s] packet ([%s])",
                           labelStr,
                           Control_typeString(causeCtrl->type_be),
-                          Endian_bigEndianToHost16(causeCtrl->type_be));
+                          Error_strerror(errorType));
             } else {
                 if (LabelSplicer_isOneHop(label)
                     && ctrl->content.error.errorType_be
@@ -964,10 +968,14 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                       "error packet from [%s] containing cause of unknown type [%u]",
                       labelStr, causeType);
         } else {
-            Log_info(context->logger,
-                      "error packet from [%s] [%s]",
-                      labelStr,
-                      Error_strerror(Endian_bigEndianToHost32(ctrl->content.error.errorType_be)));
+            uint32_t errorType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
+            if (errorType != Error_RETURN_PATH_INVALID) {
+                // Error_RETURN_PATH_INVALID is impossible to prevent so will appear all the time.
+                Log_info(context->logger,
+                         "error packet from [%s] [%s]",
+                         labelStr,
+                         Error_strerror(errorType));
+            }
         }
     } else if (ctrl->type_be == Control_PONG_be) {
         pong = true;
@@ -988,8 +996,49 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
         Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
-        Log_info(context->logger, "got switch ping from [%s]", labelStr);
+        Log_debug(context->logger, "got switch ping from [%s]", labelStr);
         switchIf->receiveMessage(message, switchIf);
+
+    } else if (ctrl->type_be == Control_KEYPONG_be) {
+        pong = true;
+    } else if (ctrl->type_be == Control_KEYPING_be) {
+
+        Message_shift(message, -Control_HEADER_SIZE, NULL);
+
+        if (message->length < Control_KeyPing_MIN_SIZE) {
+            Log_info(context->logger, "DROP runt keyping");
+            return Error_INVALID;
+        }
+
+        struct Control_KeyPing* keyPing = (struct Control_KeyPing*) message->bytes;
+
+        #ifdef Log_DEBUG
+            struct Address herAddr = {
+                .protocolVersion = Endian_bigEndianToHost32(keyPing->version_be),
+                .path = label
+            };
+            Bits_memcpyConst(herAddr.key, keyPing->key, 32);
+            String* addrStr = Address_toString(&herAddr, message->alloc);
+            Log_debug(context->logger, "got switch keyPing from [%s]", addrStr->bytes);
+        #endif
+
+        if (message->length > Control_KeyPing_MIN_SIZE + 64) {
+            Log_debug(context->logger, "DROP oversize keyping message");
+            return Error_INVALID;
+        }
+
+        keyPing->magic = Control_KeyPong_MAGIC;
+        keyPing->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
+        Bits_memcpyConst(keyPing->key, context->myAddr.key, 32);
+        Message_shift(message, Control_HEADER_SIZE, NULL);
+
+        ctrl->type_be = Control_KEYPONG_be;
+        ctrl->checksum_be = 0;
+        ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
+        Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
+
+        Interface_receiveMessage(switchIf, message);
+
     } else {
         Log_info(context->logger,
                   "control packet of unknown type from [%s], type [%d]",
@@ -1122,12 +1171,12 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     // then incomingFromRouter() then core()
     dtHeader->layer = Ducttape_SessionLayer_OUTER;
 
-    if (session->iface.receiveMessage(message, &session->iface) == Error_AUTHENTICATION) {
+    if (Interface_receiveMessage(&session->external, message) == Error_AUTHENTICATION) {
         debugHandlesAndLabel(context->logger, session,
                              Endian_bigEndianToHost64(switchHeader->label_be),
                              "DROP Failed decrypting message NoH[%d] state[%s]",
                              nonceOrHandle,
-                             CryptoAuth_stateString(CryptoAuth_getState(&session->iface)));
+                             CryptoAuth_stateString(CryptoAuth_getState(session->internal)));
         return Error_AUTHENTICATION;
     }
 

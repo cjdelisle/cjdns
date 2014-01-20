@@ -92,12 +92,12 @@ struct Janitor_Search
 
 static void responseCallback(struct RouterModule_Promise* promise,
                              uint32_t lagMilliseconds,
-                             struct Node_Two* fromNode,
+                             struct Address* from,
                              Dict* result)
 {
     struct Janitor_Search* search = Identity_check((struct Janitor_Search*)promise->userData);
-    if (fromNode) {
-        Bits_memcpyConst(&search->best, &fromNode->address, sizeof(struct Address));
+    if (from) {
+        Bits_memcpyConst(&search->best, from, sizeof(struct Address));
         return;
     }
 
@@ -164,10 +164,8 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     // There's no search running for this address, so we start one.
     search(target, janitor);
     #ifdef Log_DEBUG
-        struct Address addr;
-        Bits_memcpyConst(addr.ip6.bytes, target, Address_SEARCH_TARGET_SIZE);
-        uint8_t addrStr[60];
-        Address_print(addrStr, &addr);
+        uint8_t addrStr[40];
+        AddrTools_printIp(addrStr, target);
         Log_debug(janitor->logger, "No active search for [%s], starting one.", addrStr);
     #endif
 }
@@ -227,13 +225,13 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
 
 static void peersResponseCallback(struct RouterModule_Promise* promise,
                                   uint32_t lagMilliseconds,
-                                  struct Node_Two* fromNode,
+                                  struct Address* from,
                                   Dict* result)
 {
     struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
-    if (!fromNode) { return; }
+    if (!from) { return; }
     struct Address_List* addresses =
-        ReplySerializer_parse(&fromNode->address, result, janitor->logger, promise->alloc);
+        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
 
     for (int i = 0; addresses && i < addresses->length; i++) {
         struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
