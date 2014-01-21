@@ -26,8 +26,10 @@ isNodeVersionOk()
 
 hasOkNode()
 {
-    [ -f "${BUILDDIR}/nodejs/node/bin/node" ] && NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node" &&
+    if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
+        NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
         isNodeVersionOK $NODE && return 0;
+    fi
     NODE=`which nodejs`
     isNodeVersionOk $NODE && return 0;
     NODE=`which node`
