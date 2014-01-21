@@ -236,6 +236,8 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     out->rand = rand;
     out->pinger = Pinger_new(eventBase, rand, logger, allocator);
 
+    out->encodingScheme = NumberCompress_defineScheme(allocator);
+
     Identity_set(out);
     return out;
 }
@@ -294,6 +296,22 @@ static inline int sendNodes(struct NodeList* nodeList,
         Bits_memcpyConst(&addr, &nodeList->nodes[i]->address, sizeof(struct Address));
 
         addr.path = LabelSplicer_getLabelFor(addr.path, query->address->path);
+
+        #ifdef PARANOIA
+            int encIdx = EncodingScheme_getFormNum(module->encodingScheme, query->address->path);
+            Assert_true(encIdx != EncodingScheme_getFormNum_INVALID);
+            int resEncIdx = EncodingScheme_getFormNum(module->encodingScheme,
+                                                      nodeList->nodes[i]->address.path);
+            if (nodeList->nodes[i]->address.path != 1 && resEncIdx < encIdx) {
+                uint64_t converted = EncodingScheme_convertLabel(module->encodingScheme,
+                                                                 nodeList->nodes[i]->address.path,
+                                                                 encIdx);
+                if (converted == UINT64_MAX && (addr.path >> 59) != 0) {
+                } else {
+                    Assert_true(converted == addr.path);
+                }
+            }
+        #endif
 
         Address_serialize(&nodes->bytes[i * Address_SERIALIZED_SIZE], &addr);
 
@@ -673,7 +691,8 @@ struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SI
 
 struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_nodeForPath(module->nodeStore, path);
+    struct Node_Link* l = NodeStore_linkForPath(module->nodeStore, path);
+    return l ? l->child : NULL;
 }
 
 void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)

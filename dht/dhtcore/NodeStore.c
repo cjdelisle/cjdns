@@ -1032,13 +1032,13 @@ struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t pat
     return Identity_check(out->child);
 }
 
-struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path)
+struct Node_Link* NodeStore_linkForPath(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* out = NULL;
     uint64_t pathParentChild = findClosest(path, &out, NULL, store);
     if (pathParentChild != 1) { return NULL; }
-    return Identity_check(out->child);
+    return Identity_check(out);
 }
 
 struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
@@ -1406,9 +1406,9 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         AddrTools_printPath(pathStr, path);
         Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
     #endif
-    struct Node_Two* nn = NodeStore_nodeForPath(nodeStore, path);
-    if (nn && nn->pathQuality > 0) {
-        handleBadNews(nn, 0, store);
+    struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
+    if (nl && nl->child->bestParent == nl && nl->child->pathQuality > 0) {
+        handleBadNews(nl->child, 0, store);
     }
     check(store);
 }

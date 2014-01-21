@@ -27,6 +27,9 @@ struct RouterModule
     /** This node's address, doesn't contain networkAddress component. */
     struct Address address;
 
+    /** This node's encoding scheme. */
+    struct EncodingScheme* encodingScheme;
+
     /** An AverageRoller for calculating the global mean response time. */
     struct AverageRoller* gmrtRoller;
 

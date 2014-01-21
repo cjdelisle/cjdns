@@ -224,12 +224,18 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 {
     struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
     if (!from) { return; }
+    struct Node_Link* fromLink = NodeStore_linkForPath(janitor->nodeStore, from->path);
+    Assert_true(fromLink);
     struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+        ReplySerializer_parse(from,
+                              fromLink->child->encodingScheme,
+                              fromLink->inverseLinkEncodingFormNumber,
+                              result,
+                              janitor->logger,
+                              promise->alloc);
 
     for (int i = 0; addresses && i < addresses->length; i++) {
-        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nn) {
+        if (!NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path)) {
             RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
         }
     }

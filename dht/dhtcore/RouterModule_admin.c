@@ -117,7 +117,7 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
 
     if (responseDict) {
         struct Address_List* addrs =
-            ReplySerializer_parse(from, responseDict, NULL, promise->alloc);
+            ReplySerializer_parse(from, NULL, 0, responseDict, NULL, promise->alloc);
 
         List* nodes = NULL;
         for (int i = 0; i < addrs->length; i++) {

@@ -22,19 +22,6 @@
 #include <stdbool.h>
 
 /**
- * Convert a full path (represention we can use) to a representaiton which a node
- * along that path can use.
- *
- * @param fullPath the full route to the destination
- * @param midPath a path to a node which falls somewhere within fullPath
- * @return a version of fullPath which is sutible for use by node at midPath
- */
-static inline uint64_t LabelSplicer_unsplice(uint64_t fullPath, uint64_t midPath)
-{
-    return fullPath >> Bits_log2x64(midPath);
-}
-
-/**
  * Splice a label and a label fragment together.
  *
  */
@@ -106,6 +93,20 @@ static inline bool LabelSplicer_routesThrough(uint64_t destination, uint64_t mid
     }
     uint64_t mask = UINT64_MAX >> (64 - Bits_log2x64(midPath));
     return (destination & mask) == (midPath & mask);
+}
+
+/**
+ * Convert a full path (represention we can use) to a representaiton which a node
+ * along that path can use.
+ *
+ * @param fullPath the full route to the destination
+ * @param midPath a path to a node which falls somewhere within fullPath
+ * @return a version of fullPath which is sutible for use by node at midPath
+ */
+static inline uint64_t LabelSplicer_unsplice(uint64_t fullPath, uint64_t midPath)
+{
+    Assert_true(LabelSplicer_routesThrough(fullPath, midPath));
+    return fullPath >> Bits_log2x64(midPath);
 }
 
 #endif

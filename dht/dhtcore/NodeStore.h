@@ -67,7 +67,7 @@ struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr
 
 struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t path);
 
-struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path);
+struct Node_Link* NodeStore_linkForPath(struct NodeStore* nodeStore, uint64_t path);
 
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
 

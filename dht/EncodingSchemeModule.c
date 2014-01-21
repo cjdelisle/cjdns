@@ -25,6 +25,8 @@
 #include "util/version/Version.h"
 #include "dht/dhtcore/NodeStore.h"
 
+#include "dht/dhtcore/ReplySerializer.h"
+
 /**
  * The encoding scheme module tags each message with our encoding scheme
  * representation as well as the number of the smallest encoding form which
@@ -47,6 +49,8 @@ struct EncodingSchemeModule_pvt
     struct EncodingScheme* legacyV3x5x8;
 
     struct Log* logger;
+
+    struct Allocator* alloc;
 
     Identity
 };
@@ -93,6 +97,10 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return -1;
     }
     message->encIndex = *encIdx;
+
+    struct Allocator* alloc = Allocator_child(ctx->alloc);
+    ReplySerializer_parse(message->address, scheme, *encIdx, message->asDict, ctx->logger, alloc);
+    Allocator_free(alloc);
 
     return 0;
 }
@@ -141,6 +149,7 @@ void EncodingSchemeModule_register(struct DHTModuleRegistry* reg,
             .logger = logger,
             .scheme = scheme,
             .schemeDefinition = schemeDefinition,
+            .alloc = alloc
         }));
     Identity_set(ctx);
     ctx->module.context = ctx;

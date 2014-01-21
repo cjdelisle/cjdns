@@ -29,6 +29,8 @@
  * For serializing and parsing responses to getPeers and search requests.
  */
 struct Address_List* ReplySerializer_parse(struct Address* fromNode,
+                                           struct EncodingScheme* fromNodeScheme,
+                                           int inverseLinkEncodingForm,
                                            Dict* result,
                                            struct Log* log,
                                            struct Allocator* alloc)
@@ -71,6 +73,22 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
 
         // calculate the ipv6
         Address_getPrefix(&addr);
+
+        if (fromNodeScheme && addr.path != 1) {
+            int formNum = EncodingScheme_getFormNum(fromNodeScheme, addr.path);
+            if (formNum < inverseLinkEncodingForm) {
+                Log_info(log, "Invalid path");
+                continue;
+            } else if (formNum > inverseLinkEncodingForm) {
+                uint64_t cannonicalPath =
+                    EncodingScheme_convertLabel(fromNodeScheme,
+                                                addr.path,
+                                                EncodingScheme_convertLabel_convertTo_CANNONICAL);
+                if (cannonicalPath != addr.path) {
+                    Log_info(log, "Wasted space");
+                }
+            }
+        }
 
         // We need to splice the given address on to the end of the
         // address of the node which gave it to us.

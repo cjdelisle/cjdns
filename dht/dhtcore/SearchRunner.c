@@ -130,8 +130,16 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
     struct SearchRunner_Search* search =
         Identity_check((struct SearchRunner_Search*)promise->userData);
 
+    struct Node_Link* fromLink = NodeStore_linkForPath(search->runner->nodeStore, from->path);
+    Assert_true(fromLink);
+
     struct Address_List* nodeList =
-        ReplySerializer_parse(from, result, search->runner->logger, promise->alloc);
+        ReplySerializer_parse(from,
+                              fromLink->child->encodingScheme,
+                              fromLink->inverseLinkEncodingFormNumber,
+                              result,
+                              search->runner->logger,
+                              promise->alloc);
 
     for (int i = 0; nodeList && i < nodeList->length; i++) {
         if (isDuplicateEntry(nodeList, i)) {

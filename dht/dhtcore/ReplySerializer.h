@@ -18,6 +18,7 @@
 #include "benc/Dict.h"
 #include "dht/Address.h"
 #include "memory/Allocator.h"
+#include "switch/EncodingScheme.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
 Linker_require("dht/dhtcore/ReplySerializer.c")
@@ -26,6 +27,8 @@ Linker_require("dht/dhtcore/ReplySerializer.c")
  * For serializing and parsing responses to getPeers and search requests.
  */
 struct Address_List* ReplySerializer_parse(struct Address* fromNode,
+                                           struct EncodingScheme* fromNodeScheme,
+                                           int inverseLinkEncodingForm,
                                            Dict* result,
                                            struct Log* log,
                                            struct Allocator* alloc);
