@@ -16,16 +16,27 @@ MARCH=`echo $(uname -m) | sed "s/i./x/g"`
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
+isNodeVersionOk()
+{
+    [[ "${1}" == "" ]] && return 1;
+    [ `${1} -v | sed 's/[^[0-9]/0000/g'` -ge \
+      `echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'` ] && return 0
+    return 1;
+}
+
 hasOkNode()
 {
-    NODE=`which nodejs` || NODE=`which node`
     if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
         NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
+        isNodeVersionOK $NODE && return 0;
     fi
-    [[ "${NODE}" == "" ]] && return 1;
-    [ `${NODE} -v | sed 's/[^[0-9]/0000/g'` -ge \
-      `echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'` ] && return 0
-    echo "You have a version of node but it is too old";
+    NODE=`which nodejs`
+    isNodeVersionOk $NODE && return 0;
+    NODE=`which node`
+    isNodeVersionOk $NODE && return 0;
+
+    [[ "${1}" == "" ]] && echo 'nodejs not found' && return 1
+    echo 'you have a version of nodejs but it is too old';
     return 1
 }
 
