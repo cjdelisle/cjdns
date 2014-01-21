@@ -224,10 +224,6 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
     }));
     DHTModuleRegistry_register(dm, registry);
 
-    Hex_decode(out->gitVersionBytes, 20, Version_gitVersion(), 40);
-    out->gitVersion.len = 20;
-    out->gitVersion.bytes = (char*) out->gitVersionBytes;
-
     Address_forKey(&out->address, myAddress);
 
     out->gmrtRoller = AverageRoller_new(GMRT_SECONDS, eventBase, allocator);
@@ -370,12 +366,6 @@ static inline int handleQuery(struct DHTMessage* message,
         nodeList =
             NodeStore_getPeers(targetPath, RouterModule_K, message->allocator, module->nodeStore);
 
-    } else {
-        // Treat as a ping, tell them our version
-        Dict_putString(message->asDict,
-                       CJDHTConstants_VERSION,
-                       &module->gitVersion,
-                       message->allocator);
     }
 
     return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
