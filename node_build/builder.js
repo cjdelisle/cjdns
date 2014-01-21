@@ -64,6 +64,11 @@ var compiler = function (compilerPath, args, callback, content) {
         gcc.on('close', returnAfter(function(ret) {
             callback(ret, out, err);
         }));
+        gcc.on('error', function(err) {
+          // handle the error safely
+          console.log(args);
+          console.log(err);
+        });
         if (content) {
             gcc.stdin.write(content, function (err) {
                 if (err) { throw err; }

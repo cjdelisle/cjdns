@@ -16,6 +16,13 @@ var getCompiler = function(cc) {
     args.push.apply(args, compileCall.args);
     args.push('-o', compileCall.outFile, compileCall.inFile);
     args.push(BUILD_DIR + '/libnacl.a');
+    cflags = process.env['CFLAGS'];
+    if (cflags) {
+      flags = cflags.split(' ');
+      flags.forEach(function(flag) {
+        args.push(flag);
+      });
+    }
     cc(args, function(retCode, stdout, stderr) {
       if (stderr !== '') { console.log(stderr); }
       if (retCode !== 0) { throw new Error('failed to compile'); }

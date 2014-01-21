@@ -7,7 +7,8 @@ module.exports.run = function(cc, onComplete) {
     if (err) { throw err; }
     Fs.writeFile(Common.INCLUDE_INTERNAL + '/randombytes.h', content, function(err) {
       if (err) { throw err; }
-      cc(args, function(retCode, stderr) {
+      cc(args, function(retCode, stdout, stderr) {
+        if (stdout !== '') { console.log(stdout); }
         if (stderr !== '') { console.log(stderr); }
         if (retCode) { throw new Error('failed to compile'); }
         onComplete();
