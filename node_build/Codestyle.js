@@ -44,6 +44,9 @@ var parseFile = function (fileName, fileContent) {
 
     var lines = fileContent.split('\n');
 
+    var lineInfo = '';
+    var ignore = false;
+
     var error = function(msg) {
         if (!ignore) {
             output += lineInfo + '  ' + msg + '\n';
@@ -54,8 +57,8 @@ var parseFile = function (fileName, fileContent) {
         var line = lines[lineNum];
 
         // switch to 1 indexing for human readability
-        var lineInfo = fileName + ":" + (lineNum+1);
-        var ignore = false;
+        lineInfo = fileName + ":" + (lineNum+1);
+        ignore = false;
 
         if (lineNum < headerLines.length) {
             var expectedLine = headerLines[lineNum];
