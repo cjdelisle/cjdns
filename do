@@ -28,7 +28,7 @@ hasOkNode()
 {
     for NODE in "node" "nodejs" "`pwd`/${BUILDDIR}/nodejs/node/bin/node"; do
         if ${NODE} -v >/dev/null; then
-            if nodenodeUpToDate "${NODE}"; then
+            if nodeUpToDate "${NODE}"; then
                 return 0 #Found it!
             else
                 echo "You have a version of node but it is too old"
