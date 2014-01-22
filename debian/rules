@@ -13,8 +13,8 @@
 	dh $@ 
 
 override_dh_auto_configure:
-	export PLATFORM="$DEB_BUILD_ARCH_OS"
-	export MARCH="$DEB_HOST_GNU_CPU"
+	export PLATFORM="${DEB_BUILD_ARCH_OS}"
+	export MARCH="${DEB_HOST_GNU_CPU}"
 	./do
 
 override_dh_install:
