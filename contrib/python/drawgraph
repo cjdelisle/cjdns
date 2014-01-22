@@ -11,10 +11,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cjdnsadmin.adminTools as at
+import cjdnsadmin.graphMaker as graph
+import networkx as nx
+import matplotlib.pyplot as plt
 
-cjdns=at.connect()
+G=graph.makeGraph()
+p=nx.spring_layout(G)
+nx.draw(G,pos=p,node_size=1000)
 
-at.peerStats(cjdns,verbose=True);
-
-cjdns.disconnect()
+plt.show()
