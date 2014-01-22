@@ -177,6 +177,11 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
 
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
         Assert_fileLine(node->pathQuality != 0, file, line);
+
+        Assert_fileLine(node == NodeStore_closestNode(&store->pub, node->address.path), file, line);
+        Assert_fileLine(LabelSplicer_routesThrough(node->address.path,
+                                                   node->bestParent->parent->address.path),
+                        file, line);
     } else {
         Assert_fileLine(node->address.path == UINT64_MAX, file, line);
         Assert_fileLine(node->pathQuality == 0, file, line);
@@ -229,10 +234,29 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     node->pathQuality = 0;
 }
 
-static int updateBestPathCycle(struct Node_Two* node,
-                               int cycle,
-                               int limit,
-                               struct NodeStore_pvt* store)
+/**
+ * This is called when we have no idea what the reach should be for the next hop
+ * because the path we previously used to get to it is broken and we need to use
+ * a different one. Take a somewhat educated guess as to what it might be in a way
+ * that will make the reach non-zero.
+ */
+static uint32_t guessReachOfChild(struct Node_Link* link)
+{
+    // return 3/4 of the parent's reach if it's 1 hop, 1/2 otherwise.
+    uint32_t r = link->parent->pathQuality / 2;
+    if (r < (1<<12)) {
+        r = link->parent->pathQuality - 1;
+    } else if (r < (1<<16)) {
+        r = link->parent->pathQuality - Bits_log2x64(link->cannonicalLabel);
+    }
+    Assert_true(r < link->parent->pathQuality && r != 0);
+    return r;
+}
+
+static int updateBestParentCycle(struct Node_Two* node,
+                                 int cycle,
+                                 int limit,
+                                 struct NodeStore_pvt* store)
 {
     Assert_always(cycle < 1000);
     if (cycle < limit) {
@@ -240,15 +264,15 @@ static int updateBestPathCycle(struct Node_Two* node,
         struct Node_Link* next = NULL;
         RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
             if (next->child->bestParent == next && next->child != node) {
-                total += updateBestPathCycle(next->child, cycle+1, limit, store);
+                total += updateBestParentCycle(next->child, cycle+1, limit, store);
             }
         }
         return total;
     }
 
     struct Node_Link* newBestLink = node->bestParent;
-
     struct Node_Two* newBest = newBestLink->parent;
+
     uint64_t bestPath = extendRoute(newBest->address.path,
                                     newBest->encodingScheme,
                                     newBestLink->cannonicalLabel,
@@ -270,38 +294,28 @@ static int updateBestPathCycle(struct Node_Two* node,
     #endif
 
     node->address.path = bestPath;
+    verifyNode(node, store);
     return 1;
 }
 
-static void updateBestPath(struct Node_Two* node, struct NodeStore_pvt* store)
+static void updateBestParent(struct Node_Two* node,
+                             struct Node_Link* newBestParent,
+                             uint32_t nextReach,
+                             struct NodeStore_pvt* store)
 {
+    check(store);
+    node->bestParent = newBestParent;
+    node->pathQuality = nextReach;
+    Assert_true(node->pathQuality < newBestParent->parent->pathQuality);
+
     for (int i = 0; i < 10000; i++) {
-        if (!updateBestPathCycle(node, 0, i, store)) {
+        if (!updateBestParentCycle(node, 0, i, store)) {
             check(store);
             return;
         }
-        check(store);
+        verifyNode(node, store);
     }
     Assert_true(0);
-}
-
-/**
- * This is called when we have no idea what the reach should be for the next hop
- * because the path we previously used to get to it is broken and we need to use
- * a different one. Take a somewhat educated guess as to what it might be in a way
- * that will make the reach non-zero.
- */
-static uint32_t guessReachOfChild(struct Node_Link* link)
-{
-    // return 3/4 of the parent's reach if it's 1 hop, 1/2 otherwise.
-    uint32_t r = link->parent->pathQuality / 2;
-    if (r < (1<<12)) {
-        r = link->parent->pathQuality - 1;
-    } else if (r < (1<<16)) {
-        r = link->parent->pathQuality - Bits_log2x64(link->cannonicalLabel);
-    }
-    Assert_true(r < link->parent->pathQuality && r != 0);
-    return r;
 }
 
 static void handleGoodNews(struct Node_Two* node,
@@ -326,9 +340,7 @@ static void handleGoodNews(struct Node_Two* node,
         if (!child->bestParent || child->bestParent->parent->pathQuality < newReach) {
             uint32_t nextReach = guessReachOfChild(link);
             if (child->pathQuality > nextReach) { continue; }
-            child->pathQuality = nextReach;
-            child->bestParent = link;
-            updateBestPath(child, store);
+            updateBestParent(child, link, nextReach, store);
         }
     }
 }
@@ -372,11 +384,12 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     Assert_true(node->pathQuality < best->parent->pathQuality);
 
     check(store);
-    node->bestParent = best;
-    check(store);
-    handleGoodNews(node, nextReach, store);
-    check(store);
-    updateBestPath(node, store);
+    //node->bestParent = best;
+    updateBestParent(node, best, node->pathQuality, store);
+    //check(store);
+    //handleGoodNews(node, nextReach, store);
+    //check(store);
+    //updateBestPath(node, store);
     check(store);
 }
 
@@ -609,9 +622,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
     if (!child->bestParent) {
         if (parent->bestParent) {
-            child->bestParent = link;
-            child->pathQuality = guessReachOfChild(link);
-            updateBestPath(child, store);
+            updateBestParent(child, link, guessReachOfChild(link), store);
         } else {
             unreachable(child, store);
         }
@@ -679,7 +690,7 @@ static uint64_t findClosest(const uint64_t path,
             {
                 Assert_ifTesting(!"wasting space");
                 Log_info(store->logger, "Wasted space");
-                //return findClosest_INVALID;
+                return findClosest_INVALID;
             }
             tmpl.cannonicalLabel = cannonical;
         }
@@ -857,8 +868,9 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             if (parent->pathQuality >= child->pathQuality) {
                 // Parent definitely does not decend from child.
                 Assert_true(grandChild->pathQuality < UINT32_MAX);
-                child->bestParent = parentLink;
+                updateBestParent(child, parentLink, child->pathQuality, store);
             } else {
+                // Child definitely does not decend from parent
                 // Parent may decend from child, if it does we cannot safely re-root child
                 // if not then we could but if we believe the reach of the child is better,
                 // we might as well use the route which goes via the child rather than re-rooting
@@ -893,12 +905,14 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         if (grandChild->bestParent == splitLink) {
 
             Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
-
-            check(store);
-            grandChild->bestParent = (lcg) ? lcg : parentLink;
-            Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
-            check(store);
-            updateBestPath(grandChild, store);
+            updateBestParent(grandChild,
+                             ((lcg) ? lcg : parentLink),
+                             grandChild->pathQuality,
+                             store);
+            if (grandChild->bestParent) {
+                 // grqandchild might now be unreachable because the path is too long.
+                 Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
+            }
             check(store);
         }
 
