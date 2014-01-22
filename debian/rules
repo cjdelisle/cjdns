@@ -14,12 +14,9 @@
 
 override_dh_auto_configure:
 	export PLATFORM="${DEB_BUILD_ARCH_OS}"
-	if test "${DEB_HOST_GNU_CPU}" '=' "i686"
-	then
-	    export MARCH="x86"
-	else
-	    export MARCH="${DEB_HOST_GNU_CPU}"
-	fi
+	export MARCH="${DEB_HOST_GNU_CPU}"
+	# work around cjdns being unspecific about x86 compiler targets such as i686
+	echo "${DEB_HOST_GNU_CPU}" | grep -q 'i.86' && export MARCH="x86"
 	./do
 
 override_dh_install:
