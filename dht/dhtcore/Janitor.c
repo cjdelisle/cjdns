@@ -74,6 +74,9 @@ struct Janitor
     /** Number of concurrent searches taking place. */
     int searches;
 
+    // Used to keep dht healthy
+    uint8_t keyspaceMaintainenceCounter;
+
     Identity
 };
 
@@ -188,33 +191,92 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
 {
     struct Address addr = *janitor->nodeStore->selfAddress;
 
-    // Get furthest possible address
-    for (int i = 1 ; i < Address_SEARCH_TARGET_SIZE ; i++) {
-        // Leaving [0] alone keeps the 0xfc around, so it's a valid cjdns address.
-        addr.ip6.bytes[i] = ~(addr.ip6.bytes[i]);
-    }
-
     int byte = 0;
     int bit = 0;
     for (int i = 0; i < 128 ; i++) {
+        // Bitwise walk across keyspace
         if (63 < i && i < 72) {
             // We want to leave the 0xfc alone
             continue;
         }
+
+        // Figure out which bit of the address to flip for this step in keyspace.
+        // This looks ugly because of the rot64 done in distance calculations.
         if (i < 64) { byte = 8 + (i/8); }
         else        { byte = (i/8) - 8; }
         bit = (i % 8);
 
+        // Flip that bit.
         addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
 
+        // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (!n) {
-            // We found a hole! Exit loop and let the search trigger.
+        if (n) {
+            //We do know a valid next hop, so flip the bit back and continue.
+            addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+            continue;
+        }
+
+        // We found a hole! Exit loop and let the search trigger.
+        break;
+    }
+
+    // Search for a node that satisfies the address requirements to fill the hole.
+    searchNoDupe(addr.ip6.bytes, janitor);
+}
+
+// Counterpart to plugLargestKeyspaceHole, used to refresh reach of known routes with a search.
+// This also finds redundant routes for that area of keyspace, which helps the DHT some.
+static void keyspaceMaintainence(struct Janitor* janitor)
+{
+    struct Address addr = *janitor->nodeStore->selfAddress;
+
+    int byte = 0;
+    int bit = 0;
+
+    // Restart cycle if we've already finished it.
+    if (janitor->keyspaceMaintainenceCounter > 127) {
+        janitor->keyspaceMaintainenceCounter = 0;
+    }
+    for (;janitor->keyspaceMaintainenceCounter < 128;
+          janitor->keyspaceMaintainenceCounter++) {
+
+        // Just to make referring to this thing quicker
+        int i = janitor->keyspaceMaintainenceCounter;
+
+        if (63 < i && i < 72) {
+            // We want to leave the 0xfc alone
+            continue;
+        }
+
+        // Figure out which bit of the address to flip for this step in keyspace.
+        // This looks ugly because of the rot64 done in distance calculations.
+        if (i < 64) { byte = 8 + (i/8); }
+        else        { byte = (i/8) - 8; }
+        bit = (i % 8);
+
+        // Flip that bit.
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+
+        // See if we know a valid next hop.
+        struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+
+        if (n) {
+            // Start the next search 1 step further into keyspace.
+            janitor->keyspaceMaintainenceCounter = i+1;
             break;
         }
+
+        // Clean up address and move further into keyspace.
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+        continue;
     }
+
+    // Search for a node that satisfies the address requirements to fill the hole.
+    // Should end up self-searching in the event that we're all the way through keyspace.
     searchNoDupe(addr.ip6.bytes, janitor);
+
 }
 
 static void peersResponseCallback(struct RouterModule_Promise* promise,
@@ -344,6 +406,7 @@ static void maintanenceCycle(void* vcontext)
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         search(addr.ip6.bytes, janitor);
+        keyspaceMaintainence(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
 }
@@ -371,6 +434,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .localMaintainenceMilliseconds = localMaintainenceMilliseconds,
+        .keyspaceMaintainenceCounter = 0,
         .allocator = alloc,
         .rand = rand
     }));
