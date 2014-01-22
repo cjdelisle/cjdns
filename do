@@ -27,7 +27,7 @@ nodeUpToDate()
 
 hasOkNode()
 {
-    for NODE in "node" "nodejs" "`pwd`/${BUILDDIR}/nodejs/node/bin/node"; do
+    for NODE in "nodejs" "node" "`pwd`/${BUILDDIR}/nodejs/node/bin/node"; do
         if ${NODE} -v >/dev/null 2>&1; then
             if nodeUpToDate "${NODE}"; then
                 return 0 #Found it!
