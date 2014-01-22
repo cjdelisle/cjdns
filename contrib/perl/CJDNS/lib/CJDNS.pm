@@ -104,7 +104,8 @@ sub _make_methods {
             my $dec = bdecode($to_decode);
 
             if (ref($dec)) {
-                if ($dec->{error}) {
+                # { error: "none" } is a success case
+                if ($dec->{error} && $dec->{error} ne 'none') {
                     croak "[error] CJDNS method '$method_name': $dec->{error}";
                 } 
             }
