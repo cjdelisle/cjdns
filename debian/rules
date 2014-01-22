@@ -14,7 +14,8 @@
 
 override_dh_auto_configure:
 	export PLATFORM="${DEB_BUILD_ARCH_OS}"
-	if [ "${DEB_HOST_GNU_CPU}" = "i686" ]; then
+	if test "${DEB_HOST_GNU_CPU}" '=' "i686"
+	then
 	    export MARCH="x86"
 	else
 	    export MARCH="${DEB_HOST_GNU_CPU}"
