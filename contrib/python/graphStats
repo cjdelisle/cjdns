@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import cjdnsadmin.adminTools as at
+import cjdnsadmin.graphMaker as gm
+import networkx as nx
+import numpy as np
+
+cjdns=at.connect()
+
+root=at.whoami(cjdns)
+root=root['IP']
+
+G=gm.makeGraph()
+path=nx.single_source_dijkstra(G,root[-4:])
+degrees=G.degree()
+hops=np.array([path[0][key] for key in path[0].keys()])
+deg=np.array([degrees[key] for key in degrees.keys()])
+mean_d=deg.mean()
+std_d=deg.std()
+mean_h=hops.mean()
+std_h=hops.std()
+print '==================Graph Stats=================='
+print 'Number of Nodes: ',len(G.nodes())
+print 'Number of Edges: ',len(G.edges())
+print 'Maximum Shortest Path Length: ',str(hops.max())
+print 'Average Shortest Path Length: ',str(mean_h)[0:5], u'\u00B1',str(std_h)[0:5]
+print 'Maximum Number of Connections: ',str(deg.max())
+print 'Average Number of Connections: ',str(mean_d)[0:5], u'\u00B1',str(std_d)[0:5]
