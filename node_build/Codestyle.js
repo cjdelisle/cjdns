@@ -73,7 +73,7 @@ var parseFile = function (fileName, fileContent) {
 
         ignore = /CHECKFILES_IGNORE/.test(line);
 
-        if (expectBracket == 1) {
+        if (expectBracket === 1) {
             expectBracket = 0;
             if (!(/^[\s]*{/.test(line))) {
                 error("expecting a { bracket " + line);
@@ -150,7 +150,7 @@ var parseFile = function (fileName, fileContent) {
             var txt = (parenthCount > 0) ? line : matches[2];
             parenthCount += (txt.match(/\(/g)||[]).length;
             parenthCount -= (txt.match(/\)/g)||[]).length;
-            if (parenthCount == 0) {
+            if (parenthCount === 0) {
                 txt = txt.substring(txt.lastIndexOf(')') + 1);
                 // for (x; y; z) ;         <-- ok
                 // for (x; y; z) {         <-- ok
@@ -204,8 +204,8 @@ var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
         var err = '';
         var out = '';
         var proc = Child.spawn(process.execPath, [__filename]);
-        proc.stdout.on('data', function (data) { err += data.toString('utf8') });
-        proc.stderr.on('data', function (data) { err += data.toString('utf8') });
+        proc.stdout.on('data', function (data) { err += data.toString('utf8'); });
+        proc.stderr.on('data', function (data) { err += data.toString('utf8'); });
         proc.on('close', function (ret) {
             out += err;
             var error;
@@ -221,7 +221,7 @@ var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
         Fs.readFile('.gitignore', waitFor(function (err, ret) {
             if (err) { throw err; }
             gitIgnoreLines = ret.toString('utf8').split('\n');
-        }))
+        }));
 
     }).nThen(function (waitFor) {
 
@@ -238,7 +238,7 @@ var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
                         } else {
                             if (stat.isDirectory()) {
                                 addDir(dir + '/' + file);
-                            } else if (/.*(\.c|\.h)$/.test(file)) {
+                            } else if (/.*\.[ch]$/.test(file)) {
                                 checkFile(dir + '/' + file, waitFor(function (ret) {
                                     output += ret;
                                 }));

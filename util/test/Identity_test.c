@@ -12,32 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NodeHeader_H
-#define NodeHeader_H
-
+#include "util/Identity.h"
 #include "util/Assert.h"
 
-#include <stdint.h>
-
-/**
- * Information about a given node.
- */
-struct NodeHeader
+struct Thing
 {
-    /** The first 4 bytes of the node's address, swapped into host order for easy sorting. */
-    uint32_t addressPrefix;
-
-    /**
-     * Reach value for the node.
-     * See: Node.h
-     */
-    uint32_t reach;
-
-    /** The number interface of the next hop to get to this node. */
-    uint32_t switchIndex;
-
-    /** The protocol version of the node. */
-    uint32_t version;
+    int counter;
+    Identity
 };
 
-#endif
+static struct Thing* increment(struct Thing* t)
+{
+    t->counter++;
+    return t;
+}
+
+int main()
+{
+    struct Thing t = {
+        .counter = 0
+    };
+    struct Thing* tp = &t;
+    Identity_set(tp);
+    tp = Identity_check(increment(tp));
+    Assert_always(tp == &t);
+    Assert_always(t.counter == 1);
+    return 0;
+}

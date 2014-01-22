@@ -25,7 +25,7 @@ var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = process.env['BUILDDIR'];
-if (BUILDDIR == undefined) {
+if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
 }
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
@@ -74,7 +74,7 @@ Builder.configure({
         // f8 = 241 peers max, fixed width 8 bit
         // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D',' NumberCompress_TYPE=v4x8',
+        '-D',' NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
         '-D','Log_DEBUG',
@@ -82,14 +82,8 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
-    if (process.env['NO_PIE'] == undefined) {
-        builder.config.cflags.push('-fPIE')
-    }
-    if (process.env['EXPERIMENTAL_PATHFINDER']) {
-        console.log("Building with experimental pathfinder");
-        builder.config.cflags.push(
-            '-D','EXPERIMENTAL_PATHFINDER=1'
-        );
+    if (process.env['NO_PIE'] === undefined) {
+        builder.config.cflags.push('-fPIE');
     }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(
@@ -109,7 +103,7 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] == undefined) {
+    if (process.env['NO_PIE'] === undefined) {
         builder.config.ldflags.push(
             '-pie'
         );
@@ -121,6 +115,7 @@ Builder.configure({
             '-Wno-invalid-pp-token',
             '-Wno-dollar-in-identifier-extension',
             '-Wno-newline-eof',
+            '-Wno-unused-value',
 
             // lots of places where depending on preprocessor conditions, a statement might be
             // a case of if (1 == 1)
@@ -192,7 +187,7 @@ Builder.configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(BUILDDIR+'/dependencies/libuv/');
-            var args = ['-j', WORKERS, 'CC='+builder.config.gcc]
+            var args = ['-j', WORKERS, 'CC='+builder.config.gcc];
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
             if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
             var make = Spawn('make', args);

@@ -60,8 +60,8 @@ struct Hermes
 /** Called when the request allocator is freed. */
 static int removeReqFromSet(struct Allocator_OnFreeJob* job)
 {
-    struct Request* req = Identity_cast((struct Request*) job->userData);
-    struct Hermes* h = Identity_cast(req->hermes);
+    struct Request* req = Identity_check((struct Request*) job->userData);
+    struct Hermes* h = Identity_check(req->hermes);
     int index = Map_RequestSet_indexForHandle(req->handle, &h->requestSet);
     if (index > -1) {
         Map_RequestSet_remove(index, &h->requestSet);
@@ -73,7 +73,7 @@ static int removeReqFromSet(struct Allocator_OnFreeJob* job)
 
 static void timeout(void* vrequest)
 {
-    struct Request* req = Identity_cast((struct Request*) vrequest);
+    struct Request* req = Identity_check((struct Request*) vrequest);
     Dict resp = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST("timeout")), NULL);
     req->onResponse(&resp, req->onResponseContext);
     Allocator_free(req->alloc);
@@ -111,14 +111,14 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
         return;
     }
 
-    struct Request* req = Identity_cast((struct Request*) hermes->requestSet.values[index]);
+    struct Request* req = Identity_check((struct Request*) hermes->requestSet.values[index]);
     req->onResponse(&d, req->onResponseContext);
     Allocator_free(req->alloc);
 }
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct Hermes* hermes = Identity_cast((struct Hermes*) iface->receiverContext);
+    struct Hermes* hermes = Identity_check((struct Hermes*) iface->receiverContext);
     struct Allocator* alloc = Allocator_child(hermes->alloc);
     receiveMessage2(msg, hermes, alloc);
     Allocator_free(alloc);

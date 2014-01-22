@@ -32,24 +32,24 @@
         (pointer)->Identity_verifier = Identity_MAGIC
 
     #define Identity_check(pointer) \
-        Assert_always((pointer)->Identity_verifier == Identity_MAGIC)
-
-    #define Identity_cast(pointer) \
-        (pointer); Identity_check(pointer)
+        (__extension__ ({                                                      \
+            __typeof__(pointer) Identity_ptr = (pointer);                      \
+            Assert_always(Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Identity_ptr;                                                      \
+        }))
 
     #define Identity_ncheck(pointer) \
-        Assert_always(!(pointer) || (pointer)->Identity_verifier == Identity_MAGIC)
-
-    #define Identity_ncast(pointer) \
-        (pointer); Identity_ncheck(pointer)
+        (__extension__ ({                                                                       \
+            __typeof__(pointer) Identity_ptr = (pointer);                                       \
+            Assert_always(!Identity_ptr || Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Identity_ptr;                                                                       \
+        }))
 
 #else
     #define Identity
     #define Identity_set(pointer)
-    #define Identity_check(pointer)
-    #define Identity_cast(pointer) (pointer)
-    #define Identity_ncheck(pointer)
-    #define Identity_ncast(pointer) (pointer)
+    #define Identity_check(pointer) (pointer)
+    #define Identity_ncheck(pointer) (pointer)
 #endif
 
 #endif

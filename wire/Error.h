@@ -42,6 +42,9 @@
 /** Message could not be sent to its destination through no fault of the sender. */
 #define Error_UNDELIVERABLE        8
 
+/** The route enters and leaves through the same interface in one switch. */
+#define Error_LOOP_ROUTE           9
+
 static inline char* Error_strerror(int err)
 {
     switch (err) {
@@ -54,6 +57,7 @@ static inline char* Error_strerror(int err)
         case Error_AUTHENTICATION:      return "Error_AUTHENTICATION";
         case Error_INVALID:             return "Error_INVALID";
         case Error_UNDELIVERABLE:       return "Error_UNDELIVERABLE";
+        case Error_LOOP_ROUTE:          return "Error_LOOP_ROUTE";
         default: return "UNKNOWN";
     }
 }

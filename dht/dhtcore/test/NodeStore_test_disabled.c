@@ -409,11 +409,9 @@ static void test_pathfinderTwo_splitLink()
 
     // Now should be efef->39ee
     Assert_always(NodeStore_linkCount(store->selfNode) == 2);
-    struct Node_Link* linkSelfEfef =
-        NodeStore_getLink(store, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 0);
+    struct Node_Link* linkSelfEfef = NodeStore_getLink(store->selfNode, 0);
     Assert_always(NodeStore_linkCount(linkSelfEfef->child) == 1);
-    struct Node_Link* linkEfEf39ee =
-        NodeStore_getLink(store, linkSelfEfef->child->address.ip6.bytes, 0);
+    struct Node_Link* linkEfEf39ee = NodeStore_getLink(linkSelfEfef->child, 0);
     struct Node_Two* node39ee = linkEfEf39ee->child;
     Assert_always(NodeStore_linkCount(linkEfEf39ee->child) == 0);
 
@@ -423,12 +421,10 @@ static void test_pathfinderTwo_splitLink()
 
     // This split efef->39ee resulting in:  efef->2765->39ee
     Assert_always(NodeStore_linkCount(linkSelfEfef->child) == 1);
-    struct Node_Link* linkEfef2765 =
-        NodeStore_getLink(store, linkSelfEfef->child->address.ip6.bytes, 0);
+    struct Node_Link* linkEfef2765 = NodeStore_getLink(linkSelfEfef->child, 0);
     Assert_always(linkEfef2765->child != node39ee);
     Assert_always(NodeStore_linkCount(linkEfef2765->child) == 1);
-    struct Node_Link* link276539ee =
-        NodeStore_getLink(store, linkEfef2765->child->address.ip6.bytes, 0);
+    struct Node_Link* link276539ee = NodeStore_getLink(linkEfef2765->child, 0);
     Assert_always(link276539ee->child == node39ee);
     Assert_always(NodeStore_linkCount(node39ee) == 0);
 }

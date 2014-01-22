@@ -33,7 +33,7 @@ static void doLog(struct Log* genericLog,
                   const char* format,
                   va_list args)
 {
-    struct IndirectLog_pvt* il = Identity_cast((struct IndirectLog_pvt*) genericLog);
+    struct IndirectLog_pvt* il = Identity_check((struct IndirectLog_pvt*) genericLog);
     if (il && il->wrapped) {
         il->wrapped->print(il->wrapped, logLevel, file, lineNum, format, args);
     }
@@ -52,6 +52,6 @@ struct Log* IndirectLog_new(struct Allocator* alloc)
 
 void IndirectLog_set(struct Log* indirectLog, struct Log* wrapped)
 {
-    struct IndirectLog_pvt* il = Identity_cast((struct IndirectLog_pvt*) indirectLog);
+    struct IndirectLog_pvt* il = Identity_check((struct IndirectLog_pvt*) indirectLog);
     il->wrapped = wrapped;
 }

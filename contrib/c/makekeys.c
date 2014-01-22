@@ -15,6 +15,7 @@
 #include "crypto/random/Random.h"
 #include "memory/MallocAllocator.h"
 #include "crypto/AddressCalc.h"
+#include "util/AddrTools.h"
 #include "util/Hex.h"
 
 #include "crypto_scalarmult_curve25519.h"
@@ -30,13 +31,15 @@ int main(int argc, char** argv)
     uint8_t publicKey[32];
     uint8_t ip[16];
     uint8_t hexPrivateKey[65];
+    uint8_t printedIp[40];
 
     for (;;) {
         Random_bytes(rand, privateKey, 32);
         crypto_scalarmult_curve25519_base(publicKey, privateKey);
         if (AddressCalc_addressForPublicKey(ip, publicKey)) {
             Hex_encode(hexPrivateKey, 65, privateKey, 32);
-            printf("%s\n", hexPrivateKey);
+            AddrTools_printIp(printedIp, ip);
+            printf("%s %s\n", hexPrivateKey, printedIp);
         }
     }
     return 0;

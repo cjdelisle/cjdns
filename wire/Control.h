@@ -106,7 +106,6 @@ struct Control
     /**
      * This should be the one's complement checksum
      * of the control packet with 0'd checksum field.
-     * TODO...
      */
     uint16_t checksum_be;
 

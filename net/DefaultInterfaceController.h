@@ -17,6 +17,7 @@
 
 #include "crypto/CryptoAuth.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "switch/SwitchCore.h"
@@ -30,6 +31,7 @@ Linker_require("net/DefaultInterfaceController.c")
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
+                                                           struct RumorMill* rumorMill,
                                                            struct Log* logger,
                                                            struct EventBase* eventBase,
                                                            struct SwitchPinger* switchPinger,

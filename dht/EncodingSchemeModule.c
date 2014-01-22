@@ -54,7 +54,7 @@ struct EncodingSchemeModule_pvt
 static int handleIncoming(struct DHTMessage* message, void* vcontext)
 {
     struct EncodingSchemeModule_pvt* ctx =
-        Identity_cast((struct EncodingSchemeModule_pvt*) vcontext);
+        Identity_check((struct EncodingSchemeModule_pvt*) vcontext);
 
     String* schemeDefinition = Dict_getString(message->asDict, CJDHTConstants_ENC_SCHEME);
     if (!schemeDefinition) {
@@ -79,7 +79,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
         return -1;
     }
 
-    NodeStore_discoverNode(ctx->ns, message->address, 2, *version, scheme, *encIdx);
+    NodeStore_discoverNode(ctx->ns, message->address, *version, scheme, *encIdx);
 
     return 0;
 }
@@ -87,7 +87,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
 static int handleOutgoing(struct DHTMessage* dmesg, void* vcontext)
 {
     struct EncodingSchemeModule_pvt* ctx =
-        Identity_cast((struct EncodingSchemeModule_pvt*) vcontext);
+        Identity_check((struct EncodingSchemeModule_pvt*) vcontext);
 
     // Send our encoding scheme definition
     Dict_putString(dmesg->asDict,

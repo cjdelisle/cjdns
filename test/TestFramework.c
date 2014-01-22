@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
+#include "crypto/AddressCalc.h"
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"
@@ -44,7 +45,7 @@ struct TestFramework_Link
 static uint8_t sendTo(struct Message* msg, struct Interface* iface)
 {
     struct TestFramework_Link* link =
-        Identity_cast((struct TestFramework_Link*)iface->senderContext);
+        Identity_check((struct TestFramework_Link*)iface->senderContext);
 
     struct Interface* dest;
     struct TestFramework* srcTf;
@@ -105,13 +106,20 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, 128, allocator, logger, rand);
+    struct NodeStore* nodeStore = NodeStore_new(myAddress, 128, allocator, logger);
 
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);
 
-    struct SearchRunner* searchRunner =
-        SearchRunner_new(nodeStore, logger, base, routerModule, myAddress->ip6.bytes, allocator);
+    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
+
+    struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
+                                                         logger,
+                                                         base,
+                                                         routerModule,
+                                                         myAddress->ip6.bytes,
+                                                         rumorMill,
+                                                         allocator);
 
     SerializationModule_register(registry, logger, allocator);
 
@@ -128,6 +136,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         DefaultInterfaceController_new(ca,
                                        switchCore,
                                        routerModule,
+                                       rumorMill,
                                        logger,
                                        base,
                                        sp,
