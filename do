@@ -16,16 +16,25 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
+nodeUpToDate()
+# accepts 1 parameter: path to Node.js binary
+{
+    local_version=`${1} -v | sed 's/[^[0-9]/0000/g'`
+    [ "${local_version}" -ge "${NODE_MIN_VER}" ] && return 0
+    return 1
+}
+
 hasOkNode()
 {
-    NODE=`which node` || NODE=`which nodejs`
-    if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
-        NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
-    fi
-    [[ "${NODE}" == "" ]] && return 1;
-    [ `${NODE} -v | sed 's/[^[0-9]/0000/g'` -ge \
-      `echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'` ] && return 0
-    echo "You have a version of node but it is too old";
+    for NODE in "node" "nodejs" "`pwd`/${BUILDDIR}/nodejs/node/bin/node"; do
+        if ${NODE} -v >/dev/null; then
+            if nodenodeUpToDate "${NODE}"; then
+                return 0 #Found it!
+            else
+                echo "You have a version of node but it is too old"
+            fi
+        fi
+    done
     return 1
 }
 
@@ -55,7 +64,7 @@ getNode()
         echo "No nodejs executable available for ${PLATFORM}-${MARCH}"
         echo -n "Please install nodejs (>= ${NODE_MIN_VER}) from "
         echo "your distribution package repository or from source."
-        exit 1
+        return 1
     fi
 
     origDir=`pwd`
@@ -64,11 +73,11 @@ getNode()
     cd "${BUILDDIR}/nodejs"
 
     APP=`which wget || which curl || echo 'none'`
-    [ "$APP" = 'none' ] && echo 'Need wget or curl' && exit 1;
+    [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
     [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
     [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
 
-    ${SHA256SUM} ./*.tar.gz | grep ${NODE_SHA} || exit 1
+    ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} || echo 'The downloaded file is damaged! Aborting.' && return 1
     tar -xzf *.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
     cd $origDir
