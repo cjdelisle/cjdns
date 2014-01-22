@@ -20,7 +20,8 @@ nodeUpToDate()
 # accepts 1 parameter: path to Node.js binary
 {
     local_version=`${1} -v | sed 's/[^[0-9]/0000/g'`
-    [ "${local_version}" -ge "${NODE_MIN_VER}" ] && return 0
+    minimal_required_version=`echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'`
+    [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
     return 1
 }
 
