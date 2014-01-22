@@ -11,8 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
-MARCH=`echo $(uname -m) | sed "s/i./x/g"`
+[ -n "$PLATFORM" ] || PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
+[ -n "$MARCH" ] || MARCH=`echo $(uname -m) | sed "s/i./x/g"`
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
