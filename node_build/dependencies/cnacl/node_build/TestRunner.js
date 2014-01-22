@@ -3,7 +3,7 @@ var Spawn = require('child_process').spawn;
 var JobQueue = require('./JobQueue');
 var Common = require('./Common');
 
-var BUILD_DIR = 'jsbuild'
+var BUILD_DIR = 'jsbuild';
 var OBJ_DIR = BUILD_DIR + '/objects_internal';
 var WORKERS = 4;
 
