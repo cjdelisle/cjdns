@@ -909,7 +909,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                              ((lcg) ? lcg : parentLink),
                              grandChild->pathQuality,
                              store);
-            Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
+            if (grandChild->bestParent) {
+                 // grqandchild might now be unreachable because the path is too long.
+                 Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
+            }
             check(store);
         }
 
