@@ -25,7 +25,7 @@ var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
 
 var BUILDDIR = process.env['BUILDDIR'];
-if (BUILDDIR == undefined) {
+if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
 }
 var WORKERS = Math.floor(Os.cpus().length * 1.25);
@@ -82,8 +82,8 @@ Builder.configure({
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
-    if (process.env['NO_PIE'] == undefined) {
-        builder.config.cflags.push('-fPIE')
+    if (process.env['NO_PIE'] === undefined) {
+        builder.config.cflags.push('-fPIE');
     }
     if (process.env['EXPERIMENTAL_PATHFINDER']) {
         console.log("Building with experimental pathfinder");
@@ -109,7 +109,7 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] == undefined) {
+    if (process.env['NO_PIE'] === undefined) {
         builder.config.ldflags.push(
             '-pie'
         );
@@ -192,7 +192,7 @@ Builder.configure({
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(BUILDDIR+'/dependencies/libuv/');
-            var args = ['-j', WORKERS, 'CC='+builder.config.gcc]
+            var args = ['-j', WORKERS, 'CC='+builder.config.gcc];
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
             if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
             var make = Spawn('make', args);
