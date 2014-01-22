@@ -11,21 +11,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
-MARCH=`echo $(uname -m) | sed "s/i./x/g"`
+[ -n "$PLATFORM" ] || PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
+[ -n "$MARCH" ] || MARCH=`echo $(uname -m) | sed "s/i./x/g"`
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
+nodeUpToDate()
+# accepts 1 parameter: path to Node.js binary
+{
+    local_version=`${1} -v | sed 's/[^[0-9]/0000/g'`
+    minimal_required_version=`echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'`
+    [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
+    return 1
+}
+
 hasOkNode()
 {
-    NODE=`which node` || NODE=`which nodejs`
-    if [ -f "${BUILDDIR}/nodejs/node/bin/node" ]; then
-        NODE="`pwd`/${BUILDDIR}/nodejs/node/bin/node"
-    fi
-    [[ "${NODE}" == "" ]] && return 1;
-    [ `${NODE} -v | sed 's/[^[0-9]/0000/g'` -ge \
-      `echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'` ] && return 0
-    echo "You have a version of node but it is too old";
+    for NODE in "`pwd`/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do
+        if ${NODE} -v >/dev/null 2>&1; then
+            if nodeUpToDate "${NODE}"; then
+                return 0 #Found it!
+            else
+                echo "You have a version of node but it is too old"
+            fi
+        fi
+    done
     return 1
 }
 
@@ -55,7 +65,7 @@ getNode()
         echo "No nodejs executable available for ${PLATFORM}-${MARCH}"
         echo -n "Please install nodejs (>= ${NODE_MIN_VER}) from "
         echo "your distribution package repository or from source."
-        exit 1
+        return 1
     fi
 
     origDir=`pwd`
@@ -64,11 +74,14 @@ getNode()
     cd "${BUILDDIR}/nodejs"
 
     APP=`which wget || which curl || echo 'none'`
-    [ "$APP" = 'none' ] && echo 'Need wget or curl' && exit 1;
+    [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
     [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
     [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
 
-    ${SHA256SUM} ./*.tar.gz | grep ${NODE_SHA} || exit 1
+    if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
+        echo 'The downloaded file is damaged! Aborting.'
+        return 1
+    fi
     tar -xzf *.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
     cd $origDir
