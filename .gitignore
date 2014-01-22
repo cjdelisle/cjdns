@@ -15,3 +15,5 @@
 .clang_complete
 *~
 .DS_Store
+/node_build/node_modules/jshint
+/node_build/node_modules/.bin

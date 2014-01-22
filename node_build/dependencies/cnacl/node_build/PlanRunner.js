@@ -1,7 +1,7 @@
 var Fs = require('fs');
 var JobQueue = require('./JobQueue');
 
-var BUILD_DIR = 'jsbuild'
+var BUILD_DIR = 'jsbuild';
 var OBJ_DIR = BUILD_DIR + '/objects_internal';
 
 var done = function(workers, onComplete) {
@@ -116,7 +116,7 @@ var writeOPHeader = function (protos, opi, onComplete) {
     Fs.mkdir(dir, function (err) {
       if (err) { throw err; }
       write();
-    })
+    });
   });
 };
 
