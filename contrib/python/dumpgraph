@@ -11,10 +11,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cjdnsadmin.adminTools as at
+import json
+import cjdnsadmin.graphMaker as graph
+import networkx as nx
+from networkx.readwrite import json_graph
 
-cjdns=at.connect()
+G=graph.makeGraph()
+d=json_graph.node_link_data(G)
 
-at.peerStats(cjdns,verbose=True);
-
-cjdns.disconnect()
+print json.dumps(d,sort_keys=True,indent=4,separators=(',', ': '))
