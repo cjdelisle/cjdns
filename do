@@ -78,7 +78,10 @@ getNode()
     [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
     [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
 
-    ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} || echo 'The downloaded file is damaged! Aborting.' && return 1
+    if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
+        echo 'The downloaded file is damaged! Aborting.'
+        return 1
+    fi
     tar -xzf *.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
     cd $origDir
