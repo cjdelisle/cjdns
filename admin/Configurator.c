@@ -392,8 +392,12 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
 static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    Dict d = NULL;
-    rpcCall(String_CONST("Security_dropPermissions"), &d, ctx, tempAlloc);
+    Dict* d = Dict_new(tempAlloc);
+    Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
+    // it's ok if this fails
+    rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, false);
+    d = Dict_new(tempAlloc);
+    rpcCall(String_CONST("Security_dropPermissions"), d, ctx, tempAlloc);
 }
 
 void Configurator_config(Dict* config,
