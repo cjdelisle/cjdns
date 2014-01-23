@@ -207,6 +207,8 @@ Builder.configure({
     builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
     builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
 
+    builder.buildExecutable('crypto/random/randombytes.c',        './randombytes', waitFor());
+
 }).test(function (builder, waitFor) {
 
     nThen(function (waitFor) {
