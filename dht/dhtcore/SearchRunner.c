@@ -301,7 +301,7 @@ struct RouterModule_Promise* SearchRunner_search(uint8_t target[16],
     struct NodeList* nodes =
         NodeStore_getClosestNodes(runner->nodeStore,
                                   &targetAddr,
-                                  RouterModule_K,
+                                  MAX_REQUESTS_PER_SEARCH,
                                   Version_CURRENT_PROTOCOL,
                                   alloc);
 
