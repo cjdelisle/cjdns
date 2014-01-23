@@ -62,9 +62,6 @@ static int comparePeers(const struct Node_Link* la, const struct Node_Link* lb)
     Identity_check(lb);
     uint64_t a = la->cannonicalLabel;
     uint64_t b = lb->cannonicalLabel;
-    if (a == b) {
-        return 0;
-    }
 
     int log2Diff = Bits_log2x64(b) - Bits_log2x64(a);
     if (log2Diff) {
@@ -72,6 +69,8 @@ static int comparePeers(const struct Node_Link* la, const struct Node_Link* lb)
     }
     if (Bits_bitReverse64(a) < Bits_bitReverse64(b)) {
         return A_COMES_FIRST;
+    } else if (a == b) {
+        return 0;
     }
     return B_COMES_FIRST;
 }
@@ -178,10 +177,17 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
         Assert_fileLine(node->pathQuality != 0, file, line);
 
+        struct Node_Two* nn = node;
+        do {
+            Assert_fileLine(
+                LabelSplicer_routesThrough(nn->address.path, nn->bestParent->parent->address.path),
+                file,
+                line
+            );
+            nn = nn->bestParent->parent;
+        } while (nn != store->pub.selfNode);
         Assert_fileLine(node == NodeStore_closestNode(&store->pub, node->address.path), file, line);
-        Assert_fileLine(LabelSplicer_routesThrough(node->address.path,
-                                                   node->bestParent->parent->address.path),
-                        file, line);
+
     } else {
         Assert_fileLine(node->address.path == UINT64_MAX, file, line);
         Assert_fileLine(node->pathQuality == 0, file, line);
