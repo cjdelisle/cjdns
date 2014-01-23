@@ -175,8 +175,22 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
     addr.protocolVersion = version;
 
-    if (!RouterModule_nodeForPath(label, ic->routerModule)) {
+    struct Node_Two* node = RouterModule_nodeForPath(label, ic->routerModule);
+    if (!node) {
         RumorMill_addNode(ic->rumorMill, &addr);
+    }
+
+    else if (!node->bestParent) {
+        #ifdef Log_DEBUG
+        uint8_t path[20];
+        AddrTools_printPath(path, label);
+        uint8_t sl[20];
+        AddrTools_printPath(sl, ep->switchLabel);
+        Log_debug(ic->logger, "Orphaned node at path [%s] label [%s], "
+                              "attempting to fix with router ping", path, sl);
+        #endif
+        AddressCalc_addressForPublicKey(addr.ip6.bytes, addr.key);
+        RouterModule_pingNode(&addr, 2048, ic->routerModule, ic->allocator);
     }
 
     #ifdef Log_DEBUG

@@ -229,17 +229,6 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (next->child->bestParent == next) { unreachable(next->child, store); }
     }
-    if (node->bestParent && node->bestParent->parent == store->selfLink->parent) {
-        // For some reason, once a direct peer has been marked unreachable, it will never
-        // be marked reachable again after coming back.
-        // TODO figure out why that happens and fix it.
-        // It seems likely that DefaultInterfaceController.c needs to do this.
-        uint8_t addrStr[40];
-        AddrTools_printIp(addrStr, node->address.ip6.bytes);
-        Log_debug(store->logger, "Not removing link between self and direct peer [%s]",
-                  addrStr);
-        return;
-    }
     node->bestParent = NULL;
     node->address.path = UINT64_MAX;
     node->pathQuality = 0;
@@ -1030,6 +1019,23 @@ Assert_true(0);
                                           inverseLinkEncodingFormNumber);
     handleNews(link->child, reach, store);
     check(store);
+
+    // This is a workaround to rediscover orphaned direct peers.
+    // It doesn't actually work. Instead, nodes behind those peers can still be discovered.
+    // Eventually a splitlink walks all the way back the path to your direct peer and fixes it.
+    // TODO something less awful.
+    child = NodeStore_nodeForPath(nodeStore, addr->path);
+    if (child && !child->bestParent) {
+        link = discoverLink(store,
+                            store->selfLink,
+                            addr->path,
+                            child,
+                            addr->path,
+                            inverseLinkEncodingFormNumber);
+        handleNews(link->child, reach, store);
+        check(store);
+    }
+
     return link;
 }
 

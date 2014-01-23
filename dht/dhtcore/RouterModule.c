@@ -534,7 +534,7 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     if (milliseconds == 0) { milliseconds++; }
 
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
-    if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+    if (node && node->bestParent && !Bits_memcmp(node->address.key, message->address->key, 32)) {
         // This path is already known
         NodeStore_updateReach(module->nodeStore, node, nextReach(0, milliseconds));
     } else {
@@ -544,6 +544,10 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
                                                         message->encIndex,
                                                         nextReach(0, milliseconds));
         node = (link) ? link->child : NULL;
+        if (node && !node->bestParent) {
+            // We 'discovered' a node, but left it in an orphaned state.
+            Log_debug(module->logger, "Not doing my job!");
+        }
     }
 
     // EncodingSchemeModule should have added this node to the store, check it.
