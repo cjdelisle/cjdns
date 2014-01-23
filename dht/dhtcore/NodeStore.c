@@ -1017,25 +1017,21 @@ Assert_true(0);
                                           child,
                                           addr->path,
                                           inverseLinkEncodingFormNumber);
-    handleNews(link->child, reach, store);
-    check(store);
-
-    // This is a workaround to rediscover orphaned direct peers.
-    // It doesn't actually work. Instead, nodes behind those peers can still be discovered.
-    // Eventually a splitlink walks all the way back the path to your direct peer and fixes it.
-    // TODO something less awful.
-    child = NodeStore_nodeForPath(nodeStore, addr->path);
-    if (child && !child->bestParent) {
+    if (!link->child->bestParent) {
+        // This is a workaround to rediscover orphaned direct peers.
+        // It doesn't actually work. Instead, nodes behind those peers can still be discovered.
+        // Eventually a splitlink walks all the way back the path to your direct peer and fixes it.
+        // TODO something less awful.
         link = discoverLink(store,
                             store->selfLink,
                             addr->path,
                             child,
                             addr->path,
                             inverseLinkEncodingFormNumber);
-        handleNews(link->child, reach, store);
-        check(store);
+        updateBestParent(child, link, reach, store);
     }
-
+    handleNews(link->child, reach, store);
+    check(store);
     return link;
 }
 
