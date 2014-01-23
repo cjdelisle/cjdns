@@ -75,8 +75,10 @@ getNode()
 
     APP=`which wget || which curl || echo 'none'`
     [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
+    ( ulimit -f 20000 # prohibit creation of files more than 10Mb in size
     [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
     [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+    )
 
     if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
         echo 'The downloaded file is damaged! Aborting.'
