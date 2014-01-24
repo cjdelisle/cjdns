@@ -71,7 +71,7 @@ getNode()
         return 1
     fi
 
-    origDir=$(pwd)
+    origDir="$(pwd)"
     [ -d "${BUILDDIR}/nodejs" ] && rm -r "${BUILDDIR}/nodejs"
     mkdir -p "${BUILDDIR}/nodejs"
     cd "${BUILDDIR}/nodejs"
