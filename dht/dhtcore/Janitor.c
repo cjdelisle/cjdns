@@ -212,7 +212,7 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
         // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (n) {
+        if (n && n->bestParent) {
             //We do know a valid next hop, so flip the bit back and continue.
             addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
             continue;
@@ -262,7 +262,7 @@ static void keyspaceMaintainence(struct Janitor* janitor)
         // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (n) {
+        if (n && n->bestParent) {
             // Start the next search 1 step further into keyspace.
             janitor->keyspaceMaintainenceCounter = i+1;
             break;

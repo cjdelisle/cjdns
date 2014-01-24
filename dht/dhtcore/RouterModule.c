@@ -546,7 +546,14 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
         node = (link) ? link->child : NULL;
         if (node && !node->bestParent) {
             // We 'discovered' a node, but left it in an orphaned state.
-            Log_debug(module->logger, "Not doing my job!");
+            // Claim to be its bestParent. This is needed for direct peers
+            // that were made temporarily unavailable.
+            // TODO find a better place to make the check and call this.
+            NodeStore_adoptOrphan(module->nodeStore,
+                                  node,
+                                  message->address,
+                                  message->encIndex,
+                                  nextReach(0, milliseconds));
         }
     }
 

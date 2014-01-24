@@ -931,6 +931,26 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     return parentLink;
 }
 
+void NodeStore_adoptOrphan(struct NodeStore* nodeStore,
+                           struct Node_Two* node,
+                           struct Address* addr,
+                           int inverseLinkEncodingFormNumber,
+                           uint32_t reach)
+{
+    // If we know a valid route to a node, but it has no bestParent, become a parent.
+    // This is needed when a direct peer goes offline then comes back.
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Link* link = discoverLink(store,
+                                          store->selfLink,
+                                          addr->path,
+                                          node,
+                                          addr->path,
+                                          inverseLinkEncodingFormNumber);
+    updateBestParent(link->child, link, reach, store);
+    handleNews(link->child, reach, store);
+    check(store);
+}
+
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
@@ -1023,19 +1043,6 @@ Assert_true(0);
                                           child,
                                           addr->path,
                                           inverseLinkEncodingFormNumber);
-    if (!link->child->bestParent) {
-        // This is a workaround to rediscover orphaned direct peers.
-        // It doesn't actually work. Instead, nodes behind those peers can still be discovered.
-        // Eventually a splitlink walks all the way back the path to your direct peer and fixes it.
-        // TODO something less awful.
-        link = discoverLink(store,
-                            store->selfLink,
-                            addr->path,
-                            child,
-                            addr->path,
-                            inverseLinkEncodingFormNumber);
-        updateBestParent(child, link, reach, store);
-    }
     handleNews(link->child, reach, store);
     check(store);
     return link;
