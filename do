@@ -11,23 +11,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-[ -n "$PLATFORM" ] || PLATFORM=`uname | tr '[:upper:]' '[:lower:]'`
-[ -n "$MARCH" ] || MARCH=`echo $(uname -m) | sed "s/i./x/g"`
+[ -n "$PLATFORM" ] || PLATFORM=$(uname | tr '[:upper:]' '[:lower:]')
+[ -n "$MARCH" ] || MARCH=$(uname -m | sed "s/i./x/g")
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
 nodeUpToDate()
 # accepts 1 parameter: path to Node.js binary
 {
-    local_version=`${1} -v | sed 's/[^[0-9]/0000/g'`
-    minimal_required_version=`echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g'`
+    local_version=$(${1} -v | sed 's/[^[0-9]/0000/g')
+    minimal_required_version=$(echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g')
     [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
     return 1
 }
 
 hasOkNode()
 {
-    for NODE in "`pwd`/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do
+    for NODE in "$(pwd)/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do
         if ${NODE} -v >/dev/null 2>&1; then
             if nodeUpToDate "${NODE}"; then
                 return 0 #Found it!
@@ -68,29 +68,29 @@ getNode()
         return 1
     fi
 
-    origDir=`pwd`
+    origDir=$(pwd)
     [ -d "${BUILDDIR}/nodejs" ] && rm -r "${BUILDDIR}/nodejs"
     mkdir -p "${BUILDDIR}/nodejs"
     cd "${BUILDDIR}/nodejs"
 
-    APP=`which wget || which curl || echo 'none'`
+    APP="$(which wget || which curl || echo 'none')"
     [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
-    [ "x$APP" = x`which wget` ] && $APP ${NODE_DOWNLOAD}
-    [ "x$APP" = x`which curl` ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+    [ "x$APP" = x"$(which wget)" ] && $APP ${NODE_DOWNLOAD}
+    [ "x$APP" = x"$(which curl)" ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
 
     if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
         echo 'The downloaded file is damaged! Aborting.'
         return 1
     fi
-    tar -xzf *.tar.gz
+    tar -xzf ./*.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
-    cd $origDir
+    cd "$origDir"
     hasOkNode && return 0;
     return 1;
 }
 
 die() {
-    echo "ERROR: $1"
+    echo "ERROR: $1" >&2
     exit 1
 }
 
@@ -107,12 +107,12 @@ getsha256sum() {
 }
 
 main() {
-    [ `dirname $0` ] && cd `dirname $0` || die "failed to set directory"
-    [ -d ${BUILDDIR} ] || mkdir ${BUILDDIR} || die "failed to create build dir ${BUILDDIR}"
+    cd "$(dirname $0)" || die "failed to set directory"
+    [ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}" || die "failed to create build dir ${BUILDDIR}"
     getsha256sum || die "couldn't find working sha256 hasher";
     hasOkNode || getNode || die "could not get working nodejs impl";
 
-    $NODE ./node_build/make.js $@ || return 1
+    $NODE ./node_build/make.js "${@}" || return 1
 }
 
 main
