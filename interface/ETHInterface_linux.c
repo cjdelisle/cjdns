@@ -215,11 +215,8 @@ static void sendBeacon(void* vcontext)
     }
 }
 
-static void handleEvent(void* vcontext)
+static void handleEvent2(struct ETHInterface* context, struct Allocator* messageAlloc)
 {
-    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
-
-    struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
     struct Message* msg = Message_new(MAX_PACKET_SIZE, PADDING, messageAlloc);
 
     struct sockaddr_ll addr;
@@ -265,7 +262,13 @@ static void handleEvent(void* vcontext)
     */
 
     Interface_receiveMessage(&context->generic, msg);
+}
 
+static void handleEvent(void* vcontext)
+{
+    struct ETHInterface* context = Identity_cast((struct ETHInterface*) vcontext);
+    struct Allocator* messageAlloc = Allocator_child(context->generic.allocator);
+    handleEvent2(context, messageAlloc);
     Allocator_free(messageAlloc);
 }
 
