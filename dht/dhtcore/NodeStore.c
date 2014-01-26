@@ -1286,6 +1286,7 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     struct Node_Link* next = NULL;
     RB_FOREACH_REVERSE(next, PeerRBTree, &store->pub.selfNode->peerTree) {
         uint64_t p = next->child->address.path;
+        if (p > (((uint64_t)1)<<63)) { continue; }
         int j;
         for (j = 0; j < (int)max; j++) {
             if (out->nodes[j] && (out->nodes[j]->address.path ^ label) < (p ^ label)) {
