@@ -64,6 +64,11 @@ var compiler = function (compilerPath, args, callback, content) {
         gcc.on('close', returnAfter(function(ret) {
             callback(ret, out, err);
         }));
+        gcc.on('error', function(err) {
+          // handle the error safely
+          console.log(args);
+          console.log(err);
+        });
         if (content) {
             gcc.stdin.write(content, function (err) {
                 if (err) { throw err; }
@@ -119,6 +124,7 @@ var execJs = function (js, builder, file, fileName, callback) {
     }, 120000);
     nThen(function (waitFor) {
         try {
+            /* jshint -W054 */ // Suppress jshint warning on Function being a form of eval
             var func = new Function('file','require','fileName','console','builder',js);
             func.async = function () {
                 return waitFor(function (result) {
@@ -182,6 +188,7 @@ var preprocess = function (content, builder, fileObj, fileName, callback) {
     var elems = [];
     var unflatten = function (array, startAt, out) {
         for (var i = startAt; i < array.length; i++) {
+            /* jshint -W018 */ // Suppress jshint warning on ! being confusing
             if (!((i - startAt) % 2)) {
                 out.push(array[i]);
             } else if (array[i] === '<?js') {
@@ -237,11 +244,11 @@ var getFlags = function (state, fileName, includeDirs) {
             flags.push(state.includeDirs[i]);
         }
     }
-    for (var i = flags.length-1; i >= 0; i--) {
+    for (var ii = flags.length-1; ii >= 0; ii--) {
         // might be undefined because splicing causes us to be off the end of the array
-        if (typeof(flags[i]) === 'string' && flags[i][0] === '!') {
-            var f = flags[i].substring(1);
-            flags.splice(i, 1);
+        if (typeof(flags[ii]) === 'string' && flags[ii][0] === '!') {
+            var f = flags[ii].substring(1);
+            flags.splice(ii, 1);
             var index;
             while ((index = flags.indexOf(f)) > -1) { flags.splice(index, 1); }
         }
@@ -424,28 +431,30 @@ var recursiveCompile = function (fileName, builder, tempDir, callback)
     var doCycle = function (toCompile, parentStack, callback) {
         if (toCompile.length === 0) { callback(); return; }
         nThen(function(waitFor) {
-            for (var file = toCompile.pop(); file; file = toCompile.pop()) {
-                (function(file) {
-                    var stack = [];
-                    stack.push.apply(stack, parentStack);
-                    //debug("compiling " + file);
-                    stack.push(file);
-                    if (stack.indexOf(file) !== stack.length-1) {
-                        throw new Error("Dependency loops are bad and you should feel bad\n" + 
-                                        "Dependency stack:\n" + stack.reverse().join('\n'));
-                    }
-                    compileFile(file, builder, tempDir, waitFor(function () {
-                        var toCompile = [];
-                        state.files[file].links.forEach(function(link) {
-                            if (link === file) { return; }
-                            toCompile.push(link);
-                        });
-                        doCycle(toCompile, stack, waitFor(function () {
-                            if (stack[stack.length-1] !== file) { throw new Error(); }
-                            stack.pop();
-                        }));
+            var filefunc = function(file) {
+                var stack = [];
+                stack.push.apply(stack, parentStack);
+                //debug("compiling " + file);
+                stack.push(file);
+                if (stack.indexOf(file) !== stack.length-1) {
+                    throw new Error("Dependency loops are bad and you should feel bad\n" +
+                                    "Dependency stack:\n" + stack.reverse().join('\n'));
+                }
+                compileFile(file, builder, tempDir, waitFor(function () {
+                    var toCompile = [];
+                    state.files[file].links.forEach(function(link) {
+                        if (link === file) { return; }
+                        toCompile.push(link);
+                    });
+                    doCycle(toCompile, stack, waitFor(function () {
+                        if (stack[stack.length-1] !== file) { throw new Error(); }
+                        stack.pop();
                     }));
-                })(file);
+                }));
+            };
+
+            for (var file = toCompile.pop(); file; file = toCompile.pop()) {
+                filefunc(file);
             }
         }).nThen(function (waitFor) {
             callback();

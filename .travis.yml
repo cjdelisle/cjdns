@@ -10,4 +10,5 @@ compiler:
   - gcc
 
 script:
+  - "bash node_build/run_jshint"
   - "bash do"

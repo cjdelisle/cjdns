@@ -43,18 +43,22 @@ var parseFile = function (fileName, fileContent) {
     var name = fileName.replace(/^.*\//, '').replace(/\..*$/,'');
 
     var lines = fileContent.split('\n');
+
+    var lineInfo = '';
+    var ignore = false;
+
+    var error = function(msg) {
+        if (!ignore) {
+            output += lineInfo + '  ' + msg + '\n';
+        }
+    };
+
     for (var lineNum = 0; lineNum < lines.length; lineNum++) {
         var line = lines[lineNum];
 
         // switch to 1 indexing for human readability
-        var lineInfo = fileName + ":" + (lineNum+1);
-        var ignore = false;
-
-        var error = function(msg) {
-            if (!ignore) {
-                output += lineInfo + '  ' + msg + '\n';
-            }
-        };
+        lineInfo = fileName + ":" + (lineNum+1);
+        ignore = false;
 
         if (lineNum < headerLines.length) {
             var expectedLine = headerLines[lineNum];
@@ -120,13 +124,13 @@ var parseFile = function (fileName, fileContent) {
         if (/\.h$/.test(fileName) && fileName.indexOf('util/platform/libc/') === -1) {
 
             // If the name is CryptoAuth_pvt.h, it's ok to make a structure called CryptoAuth
-            var n = name.replace(/_pvt$/, '').replace(/_impl$/, '');
+            var nameRe = name.replace(/_pvt$/, '').replace(/_impl$/, '');
 
-            if (/^struct /.test(line) && line.indexOf('struct ' + n) !== 0 && !(/\(/.test(line))) {
+            if (/^struct /.test(line) && line.indexOf('struct ' + nameRe) !== 0 && !(/\(/.test(line))) {
                 error("all structures must begin with the name of the file.");
             }
 
-            if (/#define /.test(line) && line.indexOf('#define ' + n) === -1) {
+            if (/#define /.test(line) && line.indexOf('#define ' + nameRe) === -1) {
                 error("all defines must begin with the name of the file.");
             }
         }
@@ -147,19 +151,19 @@ var parseFile = function (fileName, fileContent) {
             matches = /[^\w#](if|for|while) (\(.*$)/.exec(line);
         }
         if (parenthCount > 0 || matches) {
-            var txt = (parenthCount > 0) ? line : matches[2];
-            parenthCount += (txt.match(/\(/g)||[]).length;
-            parenthCount -= (txt.match(/\)/g)||[]).length;
+            var txt1 = (parenthCount > 0) ? line : matches[2];
+            parenthCount += (txt1.match(/\(/g)||[]).length;
+            parenthCount -= (txt1.match(/\)/g)||[]).length;
             if (parenthCount === 0) {
-                txt = txt.substring(txt.lastIndexOf(')') + 1);
+                txt1 = txt1.substring(txt1.lastIndexOf(')') + 1);
                 // for (x; y; z) ;         <-- ok
                 // for (x; y; z) {         <-- ok
                 // for (x; y; z) {   \     <-- ok (in preprocessor macro)
                 // for (x; y; z)           <-- ok but you better put a bracket on the next line
                 // for (x; y; z) { j++; }  <-- ok
                 // for (x; y; z) j++;      <-- BZZZZZZZZZZT
-                if (!(/^[\s]*[;{].*$/.test(txt)) && !(/^[\s]+{[\s]*\\$/).test(txt)) {
-                    if (/[\s]*$/.test(txt)) {
+                if (!(/^[\s]*[;{].*$/.test(txt1)) && !(/^[\s]+{[\s]*\\$/).test(txt1)) {
+                    if (/[\s]*$/.test(txt1)) {
                         expectBracket = 1;
                     } else {
                         error(parenthCount + '  ' + line);

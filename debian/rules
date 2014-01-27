@@ -13,7 +13,7 @@
 	dh $@ 
 
 override_dh_auto_configure:
-	./do
+	debian/do-wrapper
 
 override_dh_install:
 	dh_install --fail-missing
