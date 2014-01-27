@@ -76,16 +76,20 @@ getNode()
     mkdir -p "${BUILDDIR}/nodejs"
     cd "${BUILDDIR}/nodejs"
 
-    APP="$(which wget || which curl || echo 'none')"
-    [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
-    [ "x$APP" = x"$(which wget)" ] && $APP ${NODE_DOWNLOAD}
-    [ "x$APP" = x"$(which curl)" ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+    if wget --version > /dev/null 2>&1; then
+        wget -O - "${NODE_DOWNLOAD}" > node.tar.gz
+    elif curl --version > /dev/null 2>&1; then
+        curl "${NODE_DOWNLOAD}" > node.tar.gz
+    else
+        echo 'wget or curl is required download node.js but you have neither!'
+        return 1
+    fi
 
-    if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
+    if ! ( ${SHA256SUM} node.tar.gz | grep -q ${NODE_SHA} ); then
         echo 'The downloaded file is damaged! Aborting.'
         return 1
     fi
-    tar -xzf ./*.tar.gz
+    tar -xzf node.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
     cd "$origDir"
     hasOkNode && return 0;
