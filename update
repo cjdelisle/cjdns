@@ -4,11 +4,9 @@ then
     [ -a "./tmp_update.sh" ] && rm -rf ./tmp_update.sh
     [ -a "./tmp_update.sh" ] && rm -rf cjdns.updatepkg
     echo -e "\033[1;34mRebuilding...\033[22;0m"
-    # cp -rf ./update ../update.bak
     touch ./rebuild.sh
     echo '(./clean && ./do ) || ( echo -e "\033[1;31mFailed to rebuild.\033[22;0m" && exit 1 )' >> ../finishup.sh
     echo 'echo "Update finished."' >> ../finishup.sh
-    # echo '[ -a "./update" ] || mv ../update.bak ./update' >> ../finishup.sh
     echo "sh ./update finish" >> ../finishup.sh
     chmod +x ../finishup.sh
     sh ../finishup.sh
@@ -36,7 +34,6 @@ then
     curl -Lk https://github.com/cjdelisle/cjdns/archive/master.tar.gz | tar xz ; mv cjdns-master cjdns.updatepkg
     touch ./tmp_update.sh
     echo "cp -rf ./cjdns.updatepkg/* ./* && ./update postupdateclean" > ./tmp_update.sh
-    # echo -e "\033[1;32mUpdate completed.\033[22;0m"
     sh ./tmp_update.sh
 elif [ "$DLMETHOD" -eq 2 ]
 then
