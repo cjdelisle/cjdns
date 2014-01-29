@@ -2,21 +2,10 @@
 if [ "$1" == "postupdateclean" ]
 then
     [ -a "./tmp_update.sh" ] && rm -rf ./tmp_update.sh
-    [ -a "./tmp_update.sh" ] && rm -rf cjdns.updatepkg
+    [ -a "./cjdns.updatepkg" ] && rm -rf cjdns.updatepkg
     echo -e "\033[1;34mRebuilding...\033[22;0m"
-    touch ./rebuild.sh
-    echo '(./clean && ./do ) || ( echo -e "\033[1;31mFailed to rebuild.\033[22;0m" && exit 1 )' >> ../finishup.sh
-    echo 'echo "Update finished."' >> ../finishup.sh
-    echo "sh ./update finish" >> ../finishup.sh
-    chmod +x ../finishup.sh
-    sh ../finishup.sh
-    exit 0
-fi
-
-if [ "$1" == "finish" ]
-then
-    # [ -a "../update.bak" ] && rm -rf "../update.bak"
-    rm -rf "../finishup.sh"
+    ./clean && ./do
+    echo -e "\033[1;32mUpdate completed.\033[22;0m"
     exit 0
 fi
 
