@@ -14,7 +14,6 @@ echo -e "\033[1;34mcjdns root directory detected as $PWD\033[22;0m"
 echo -e "\033[1;34mAttempting quick update using Git...\033[22;0m" && git pull origin master && ./update postupdateclean && exit 0
 echo -e "\033[1;33mAn error occurred while retrieving updates with Git. Switching to fallback download methods...\033[22;0m"
 DLMETHOD=0
-EXTRACTMETHOD=0
 command -v wget >/dev/null 2>&1 && DLMETHOD=2
 command -v curl >/dev/null 2>&1 && DLMETHOD=1
 if [ "$DLMETHOD" -eq 1 ]
