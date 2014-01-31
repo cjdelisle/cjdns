@@ -44,31 +44,29 @@ getNode()
     echo "Installing node.js"
     echo "You can bypass this step by manually installing node.js ${NODE_MIN_VER} or newer"
     if [ "${PLATFORM}-${MARCH}" = "linux-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x64.tar.gz"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-x64.tar.gz"
         NODE_SHA="6ef93f4a5b53cdd4471786dfc488ba9977cb3944285ed233f70c508b50f0cb5f"
     elif [ "${PLATFORM}-${MARCH}" = "linux-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-x86.tar.gz"
         NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
     elif [ "${PLATFORM}-${MARCH}" = "linux-armv6l" ]; then #Raspberry Pi
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-arm-pi.tar.gz"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-arm-pi.tar.gz"
         NODE_SHA="bdd5e253132c363492fa24ed9985873733a10558240fd45b0a4a15989ab8da90"
     elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x64.tar.gz"
-        NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
+         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x64.tar.gz"
+         NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
     elif [ "${PLATFORM}-${MARCH}" = "darwin-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x86.tar.gz"
-        NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
+         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x86.tar.gz"
+         NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
     elif [ "${PLATFORM}-${MARCH}" = "sunos-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x64.tar.gz"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-sunos-x64.tar.gz"
         NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
     elif [ "${PLATFORM}-${MARCH}" = "sunos-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-sunos-x86.tar.gz"
         NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
     else
         echo "No nodejs executable available for ${PLATFORM}-${MARCH}"
-        echo -n "Please install nodejs (>= ${NODE_MIN_VER}) from "
-        echo "your distribution package repository or from source."
-        return 1
+        return 1;
     fi
 
     origDir="$(pwd)"
@@ -91,9 +89,34 @@ getNode()
     fi
     tar -xzf node.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
-    cd "$origDir"
-    hasOkNode && return 0;
-    return 1;
+    cd ${origDir}
+    hasOkNode && return 0
+    return 1
+}
+
+buildNode() {
+    cd ${BUILDDIR}
+    [ -d "nodejs" ] || mkdir nodejs
+    cd nodejs
+    CORES=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu)
+    echo "Attempting to build node.js from source..."
+    echo "Downloading source package..."
+    if wget --version > /dev/null 2>&1; then
+        wget -O - http://nodejs.org/dist/v0.10.25/node-v0.10.25.tar.gz > node.tar.gz
+    elif curl --version > /dev/null 2>&1; then
+        curl http://nodejs.org/dist/v0.10.25/node-v0.10.25.tar.gz > node.tar.gz
+    else
+        echo 'wget or curl is required download node.js but you have neither!'
+        return 1
+    fi
+    tar -xzf node.tar.gz
+    cd node-v0.10.25
+    ./configure --prefix="../node" && make -j $CORES && make install
+    cd ..
+    cd ..
+    cd ..
+    hasOkNode && return 0
+    return 1
 }
 
 die() {
@@ -117,7 +140,7 @@ main() {
     cd "$(dirname $0)" || die "failed to set directory"
     [ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}" || die "failed to create build dir ${BUILDDIR}"
     getsha256sum || die "couldn't find working sha256 hasher";
-    hasOkNode || getNode || die "could not get working nodejs impl";
+    hasOkNode || getNode || buildNode || die "could not get working nodejs impl";
 
     $NODE ./node_build/make.js "${@}" || return 1
 }
