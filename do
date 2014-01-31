@@ -52,12 +52,12 @@ getNode()
     elif [ "${PLATFORM}-${MARCH}" = "linux-armv6l" ]; then #Raspberry Pi
         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-arm-pi.tar.gz"
         NODE_SHA="bdd5e253132c363492fa24ed9985873733a10558240fd45b0a4a15989ab8da90"
-    elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
-         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x64.tar.gz"
-         NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
-    elif [ "${PLATFORM}-${MARCH}" = "darwin-x86" ]; then
-         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x86.tar.gz"
-         NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
+    # elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
+    #     NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x64.tar.gz"
+    #     NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
+    # elif [ "${PLATFORM}-${MARCH}" = "darwin-x86" ]; then
+    #     NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x86.tar.gz"
+    #     NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
     elif [ "${PLATFORM}-${MARCH}" = "sunos-x86_64" ]; then
         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-sunos-x64.tar.gz"
         NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
@@ -94,27 +94,15 @@ getNode()
     return 1
 }
 
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD"
+}
+
+
 buildNode() {
-    cd ${BUILDDIR}
-    [ -d "nodejs" ] || mkdir nodejs
-    cd nodejs
-    CORES=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu)
-    echo "Attempting to build node.js from source..."
-    echo "Downloading source package..."
-    if wget --version > /dev/null 2>&1; then
-        wget -O - http://nodejs.org/dist/v0.10.25/node-v0.10.25.tar.gz > node.tar.gz
-    elif curl --version > /dev/null 2>&1; then
-        curl http://nodejs.org/dist/v0.10.25/node-v0.10.25.tar.gz > node.tar.gz
-    else
-        echo 'wget or curl is required download node.js but you have neither!'
-        return 1
-    fi
-    tar -xzf node.tar.gz
-    cd node-v0.10.25
-    ./configure --prefix="../node" && make -j $CORES && make install
-    cd ..
-    cd ..
-    cd ..
+    export BASEDIR=$(realpath "$0")
+    chmod +x contrib/bash/buildNode.sh
+    . contrib/bash/buildNode.sh
     hasOkNode && return 0
     return 1
 }
