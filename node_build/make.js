@@ -27,7 +27,10 @@ var GCC = process.env['CC'] || 'gcc';
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
+
 }
+// on BSD and iphone systems, os.cpus() is not reliable so if it
+// returns undefined, let's just assume 1
 var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
 
 process.on('exit', function () {
