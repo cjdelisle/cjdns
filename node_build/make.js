@@ -28,7 +28,7 @@ var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
 }
-var WORKERS = Math.floor(Os.cpus().length * 1.25);
+var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
 
 process.on('exit', function () {
     console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");

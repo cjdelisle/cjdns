@@ -7,7 +7,8 @@ var TestRunner = require('./TestRunner');
 var RandomBytes = require('./RandomBytes');
 var Common = require('./Common');
 
-var WORKERS = Os.cpus().length;
+var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length));
+
 var GCC = process.env['CC'] || 'gcc';
 var AR = process.env['AR'] || 'ar';
 var RANLIB = process.env['RANLIB'] || 'ranlib';
