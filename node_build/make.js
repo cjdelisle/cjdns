@@ -128,6 +128,16 @@ Builder.configure({
         );
     }
 
+    // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
+    // with NEON on the BBB
+    cflags = process.env['CFLAGS'];
+    if (cflags) {
+        flags = cflags.split(' ');
+        flags.forEach(function(flag) {
+            builder.config.cflags.push(flag);
+        });
+    }
+
     // Build dependencies
     nThen(function (waitFor) {
         Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
