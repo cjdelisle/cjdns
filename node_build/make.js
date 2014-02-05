@@ -138,6 +138,16 @@ Builder.configure({
         });
     }
 
+    // We also need to pass various architecture/floating point flags to GCC when invoked as 
+    // a linker.
+    ldflags = process.env['LDFLAGS'];
+    if (ldflags) {
+        flags = ldflags.split(' ');
+        flags.forEach(function(flag) {
+            builder.config.ldflags.push(flag);
+        });
+    }
+
     // Build dependencies
     nThen(function (waitFor) {
         Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
