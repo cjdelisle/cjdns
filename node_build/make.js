@@ -214,7 +214,15 @@ Builder.configure({
             process.chdir(BUILDDIR+'/dependencies/libuv/');
             var args = ['-j', WORKERS, 'CC='+builder.config.gcc];
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
-            if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
+            // Make sure to pass along any user-specified CFLAGS to the libuv build, in case 
+            // we need to configure ARM floating point or something.
+            var cflags = process.env['CFLAGS'];
+            if (!cflags) {
+                cflags = "";
+            }
+            if (builder.config.systemName !== 'darwin') { cflags += " -fPIC"; }
+            args.push('CFLAGS="' + cflags + '"');
+            console.log("make " + args.join(' '));
             var make = Spawn('make', args);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
