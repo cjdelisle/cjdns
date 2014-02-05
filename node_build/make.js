@@ -220,8 +220,8 @@ Builder.configure({
             if (!cflags) {
                 cflags = "";
             }
-            if (builder.config.systemName !== 'darwin') { cflags += " -fPIC"; }
-            args.push('CFLAGS="' + cflags + '"');
+            if (builder.config.systemName !== 'darwin') { cflags = "-fPIC " + cflags; }
+            args.push('CFLAGS=' + cflags);
             console.log("make " + args.join(' '));
             var make = Spawn('make', args);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
