@@ -238,7 +238,7 @@ Then `cat /dev/net/tun` again.
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
-need.
+need. If you're on OS X, don't worry about this step.
 
 
 ### 1. Generate a new configuration file
