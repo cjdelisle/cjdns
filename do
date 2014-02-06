@@ -19,9 +19,8 @@ NODE_MIN_VER="v0.8.15"
 nodeUpToDate()
 # accepts 1 parameter: path to Node.js binary
 {
-    local_version=$(${1} -v | sed 's/[^[0-9]/0000/g')
-    minimal_required_version=$(echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g')
-    [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
+    local_version=$("${1}" -v)
+    echo -e "${NODE_MIN_VER}"'\n'"$local_version" | sort --version-sort --check=quiet && return 0
     return 1
 }
 
