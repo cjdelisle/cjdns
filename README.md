@@ -238,7 +238,7 @@ Then `cat /dev/net/tun` again.
 If it says: `cat: /dev/net/tun: Permission denied` You're probably using a VPS
 based on the OpenVZ virtualization platform. Ask your provider to enable the
 TUN/TAP device - this is standard protocol so they should know exactly what you
-need.
+need. If you're on OS X, don't worry about this step.
 
 
 ### 1. Generate a new configuration file
@@ -277,7 +277,9 @@ a look at the [Project Meshnet Map][] to find peers near you (note: scroll the
 map right, not left; the markers don't repeat).
 
 
-### 3. Fill in your friend's info
+### 3. Connect your node to your friend's node
+
+**To initiate the connection OUTbound**
 
 In your conf file, you will see:
 
@@ -290,16 +292,24 @@ In your conf file, you will see:
 }
 ```
 
-After adding their connection credentials, it should look like:
+A conf file with multiple friend-nodes, setup OUTbound, should look like:
 
 ``` javascript
 // Nodes to connect to.
 "connectTo":
 {
+    //friend_1 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
     "0.1.2.3:45678":
     {
-        "password": "thisIsNotARealConnection",
-        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile.k"
+        "password": "thisIsNotARealConnection_1",
+        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
+    }
+    
+    //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+    "5.1.2.3:5678":
+    {
+        "password": "thisIsNotARealConnection_2",
+        "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_2.k"
     }
 }
 ```
@@ -307,27 +317,65 @@ After adding their connection credentials, it should look like:
 You can add as many connections as you want to the `connectTo` attribute,
 following JSON syntax.
 
-Your own connection credentials will be shown in a JSON comment above in your
-"authorizedPasswords" section. Do not modify this but if you want to allow
-someone to connect to you, give it to them.
 
-It looks like this:
+**To allow your friend to initiate the connection INbound**
 
+In your conf file, you will see:
 ``` javascript
-/* These are your connection credentials for people connecting to you with your
-default password. Adding more passwords for different users is advisable so
-that leaks can be isolated.
+"authorizedPasswords":
+    [
+        // A unique string which is known to the client and server.
+        {"password": "thisisauniquestring_001"}
+        
+        // More passwords should look like this.
+        // {"password": "thisisauniquestring_002"}
+        // {"password": "thisisauniquestring_003"}
+        // {"password": "thisisauniquestring_004"}
+        ...
+        
+        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
 
-"your.external.ip.goes.here:12345":
-{
-    "password": "thisIsNotARealConnectionEither",
-    "publicKey": "thisIsAlsoJustForAnExampleDoNotUseThisInYourConfFile.k"
-}
-*/
+    ],
 ```
 
-`your.external.ip.goes.here` is to be replaced with the IPv4 address which
-people will use to connect to you from over The Old Internet.
+A conf file with multiple friend-nodes, setup INbound, should look like:
+``` javascript
+"authorizedPasswords":
+    [
+        // A unique string which is known to the client and server.
+        {"password": "thisisauniquestring_001"}
+        
+        // More passwords should look like this.
+    //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
+{"password": "thisisauniquestring_002"}
+    //friend_4 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
+{"password": "thisisauniquestring_003"}
+        // {"password": "thisisauniquestring_004"}
+        ...
+        
+        // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
+
+    ],
+```
+
+
+You need to give friend_3 (who is making the INbound connection) the following 4 items:
+
+1. Your external IPv4
+2. The port found in your conf file here:
+
+                `// Bind to this port.
+                "bind": "0.0.0.0:yourportnumberishere",`
+                
+3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
+4. Your public key: "publicKey":thisisauniqueKEY_001.k"
+
+
+
+Please note that you and your friend can *initiate* a 
+connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
+but traffic flows both ways once the connection is established.
+
 
 See [doc/configure.md](doc/configure.md) for more details on configuration,
 including how to peer with other cjdns nodes over ethernet and wifi.
