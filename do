@@ -19,10 +19,30 @@ NODE_MIN_VER="v0.8.15"
 nodeUpToDate()
 # accepts 1 parameter: path to Node.js binary
 {
-    local_version=$(${1} -v | sed 's/[^[0-9]/0000/g')
-    minimal_required_version=$(echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g')
-    [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
-    return 1
+    local_version=$("${1}" -v)
+    local_version="${local_version#v}"
+    minimum_required_version="${NODE_MIN_VER#v}"
+    i=1
+    while true; do
+        local_ver_segment=$(echo "$local_version" | cut --only-delimited -d '.' -f "$i")
+        local_ver_segment=${local_ver_segment:-0} # set segment to zero if we're out of dots
+        min_ver_segment=$(echo "$minimum_required_version" | cut --only-delimited -d '.' -f "$i")
+        min_ver_segment=${min_ver_segment:-0} # set segment to zero if we're out of dots
+
+        if [ "${local_ver_segment}" -gt "${min_ver_segment}" ]; then
+            return 0
+        elif [ "${local_ver_segment}" -lt "${min_ver_segment}" ]; then
+            return 1
+        elif [ -z "$(echo $local_version | cut --only-delimited -d '.' -f $i)" ]; then
+            # we've walked the whole version and all the numbers are equal
+            return 0
+        elif [ $i -ge 20 ]; then
+            echo "Infinite loop in version check! Please report a bug."
+            exit 1
+        else
+            i=$((i+1))
+        fi
+    done
 }
 
 hasOkNode()
