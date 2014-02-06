@@ -16,24 +16,12 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
-nodeUpToDate()
-# accepts 1 parameter: path to Node.js binary
-{
-    local_version=$(${1} -v | sed 's/[^[0-9]/0000/g')
-    minimal_required_version=$(echo "${NODE_MIN_VER}" | sed 's/[^[0-9]/0000/g')
-    [ "${local_version}" -ge "${minimal_required_version}" ] && return 0
-    return 1
-}
-
 hasOkNode()
 {
     for NODE in "$(pwd)/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do
         if ${NODE} -v >/dev/null 2>&1; then
-            if nodeUpToDate "${NODE}"; then
-                return 0 #Found it!
-            else
-                echo "You have a version of node but it is too old"
-            fi
+            ${NODE} ./node_build/versionTest.js ${NODE_MIN_VER} && return 0;
+            echo "You have a version of node [${NODE}] but it is too old [`${NODE} -v`]"
         fi
     done
     return 1
@@ -76,16 +64,20 @@ getNode()
     mkdir -p "${BUILDDIR}/nodejs"
     cd "${BUILDDIR}/nodejs"
 
-    APP="$(which wget || which curl || echo 'none')"
-    [ "$APP" = 'none' ] && echo 'wget or curl is required download node.js but you have neither!' && return 1
-    [ "x$APP" = x"$(which wget)" ] && $APP ${NODE_DOWNLOAD}
-    [ "x$APP" = x"$(which curl)" ] && $APP ${NODE_DOWNLOAD} > node.tar.gz
+    if wget --version > /dev/null 2>&1; then
+        wget -O - "${NODE_DOWNLOAD}" > node.tar.gz
+    elif curl --version > /dev/null 2>&1; then
+        curl "${NODE_DOWNLOAD}" > node.tar.gz
+    else
+        echo 'wget or curl is required download node.js but you have neither!'
+        return 1
+    fi
 
-    if ! ( ${SHA256SUM} ./*.tar.gz | grep -q ${NODE_SHA} ); then
+    if ! ( ${SHA256SUM} node.tar.gz | grep -q ${NODE_SHA} ); then
         echo 'The downloaded file is damaged! Aborting.'
         return 1
     fi
-    tar -xzf ./*.tar.gz
+    tar -xzf node.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
     cd "$origDir"
     hasOkNode && return 0;

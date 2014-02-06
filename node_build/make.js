@@ -27,8 +27,11 @@ var GCC = process.env['CC'] || 'gcc';
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
+
 }
-var WORKERS = Math.floor(Os.cpus().length * 1.25);
+// on BSD and iphone systems, os.cpus() is not reliable so if it
+// returns undefined, let's just assume 1
+var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
 
 process.on('exit', function () {
     console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
