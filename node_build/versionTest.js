@@ -12,8 +12,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-var verArray = process.version.substring(1).split(".");
+var currentVersion = process.version;
+var verArray = currentVersion.substring(1).split(".");
 var minVerArray = process.argv[process.argv.length-1].substring(1).split(".");
 for (var i = 0; i < minVerArray.length; i++) {
-    if (Number(verArray[i]) < Number(minVerArray[i])) { process.exit(1); }
+    if (Number(verArray[i]) < Number(minVerArray[i])) {
+        process.exit(1);
+    } else if (Number(verArray[i]) > Number(minVerArray[i])) {
+        process.exit(0);
+    }
 }
