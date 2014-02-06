@@ -462,6 +462,13 @@ static inline uint8_t incomingFromTun(struct Message* message,
     if (ethertype != Ethernet_TYPE_IP6 || !AddressCalc_validAddress(header->sourceAddr)) {
         return context->ipTunnel->tunInterface.sendMessage(message,
                                                            &context->ipTunnel->tunInterface);
+    } else if (!AddressCalc_validAddress(header->destinationAddr)) {
+        #ifdef Log_INFO
+            uint8_t dst[40];
+            AddrTools_printIp(dst, header->destinationAddr);
+            Log_warn(context->logger, "DROP packet to [%s] because it must begin with fc", dst);
+        #endif
+        return Error_INVALID;
     }
 
     if (Bits_memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16)) {
