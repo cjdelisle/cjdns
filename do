@@ -32,31 +32,29 @@ getNode()
     echo "Installing node.js"
     echo "You can bypass this step by manually installing node.js ${NODE_MIN_VER} or newer"
     if [ "${PLATFORM}-${MARCH}" = "linux-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x64.tar.gz"
-        NODE_SHA="6ef93f4a5b53cdd4471786dfc488ba9977cb3944285ed233f70c508b50f0cb5f"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-x64.tar.gz"
+        NODE_SHA="1dac61c21fa21e47fc6e799757569c6c3914897ca46fc8f4dd2c8f13f0400626"
     elif [ "${PLATFORM}-${MARCH}" = "linux-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-x86.tar.gz"
-        NODE_SHA="fb6487e72d953451d55e28319c446151c1812ed21919168b82ab1664088ecf46"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-linux-x86.tar.gz"
+        NODE_SHA="3f1fa0bb332b1354bca8d52d89e92c8884b6469a0f5fc3826ee72c2639279995"
     elif [ "${PLATFORM}-${MARCH}" = "linux-armv6l" ]; then #Raspberry Pi
         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-linux-arm-pi.tar.gz"
         NODE_SHA="bdd5e253132c363492fa24ed9985873733a10558240fd45b0a4a15989ab8da90"
     elif [ "${PLATFORM}-${MARCH}" = "darwin-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x64.tar.gz"
-        NODE_SHA="c1c523014124a0327d71ba5d6f737a4c866a170f1749f8895482c5fa8be877b0"
+         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x64.tar.gz"
+         NODE_SHA="5ae186f86564df87d82811614f667b9333a6219b02c6f405fd72807b459b8fc7"
     elif [ "${PLATFORM}-${MARCH}" = "darwin-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-darwin-x86.tar.gz"
-        NODE_SHA="8b8d2bf9828804c3f8027d7d442713318814a36df12dea97dceda8f4aff42b3c"
+         NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-darwin-x86.tar.gz"
+         NODE_SHA="22af5001e5b0166fa91934107c17727e173677e5c972bd7122373743309c5372"
     elif [ "${PLATFORM}-${MARCH}" = "sunos-x86_64" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x64.tar.gz"
-        NODE_SHA="7cb714df92055b93a908b3b6587ca388a2884b1a9b5247c708a867516994a373"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-sunos-x64.tar.gz"
+        NODE_SHA="931059671413872c5c5e862df5f7a56066fdb1fe2b678b9ee3c3b242b23a4198"
     elif [ "${PLATFORM}-${MARCH}" = "sunos-x86" ]; then
-        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.24/node-v0.10.24-sunos-x86.tar.gz"
-        NODE_SHA="af69ab26aae42b05841c098f5d11d17e21d22d980cd32666e2db45a53ddffe34"
+        NODE_DOWNLOAD="http://nodejs.org/dist/v0.10.25/node-v0.10.25-sunos-x86.tar.gz"
+        NODE_SHA="61d187416814dd10074d1db5666fd0ca61be6152fbb7920f0aaa4e285db10717"
     else
         echo "No nodejs executable available for ${PLATFORM}-${MARCH}"
-        echo -n "Please install nodejs (>= ${NODE_MIN_VER}) from "
-        echo "your distribution package repository or from source."
-        return 1
+        return 1;
     fi
 
     origDir="$(pwd)"
@@ -79,9 +77,22 @@ getNode()
     fi
     tar -xzf node.tar.gz
     find ./ -mindepth 1 -maxdepth 1 -type d -exec mv {} node \;
-    cd "$origDir"
-    hasOkNode && return 0;
-    return 1;
+    cd ${origDir}
+    hasOkNode && return 0
+    return 1
+}
+
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD"
+}
+
+
+buildNode() {
+    export BASEDIR=$(realpath "$0")
+    chmod +x contrib/bash/buildNode.sh
+    . contrib/bash/buildNode.sh
+    hasOkNode && return 0
+    return 1
 }
 
 die() {
@@ -105,7 +116,7 @@ main() {
     cd "$(dirname $0)" || die "failed to set directory"
     [ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}" || die "failed to create build dir ${BUILDDIR}"
     getsha256sum || die "couldn't find working sha256 hasher";
-    hasOkNode || getNode || die "could not get working nodejs impl";
+    hasOkNode || getNode || buildNode || die "could not get working nodejs impl";
 
     $NODE ./node_build/make.js "${@}" || return 1
 }
