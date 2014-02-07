@@ -186,7 +186,6 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
             );
             nn = nn->bestParent->parent;
         } while (nn != store->pub.selfNode);
-        Assert_fileLine(node == NodeStore_closestNode(&store->pub, node->address.path), file, line);
 
     } else {
         Assert_fileLine(node->address.path == UINT64_MAX, file, line);
@@ -216,6 +215,11 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
                 file, line
             );
         }
+    }
+
+    // #3 make sure looking for the node by address will actually find the correct node.
+    if (node->bestParent) {
+        Assert_fileLine(node == NodeStore_closestNode(&store->pub, node->address.path), file, line);
     }
 }
 #define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
