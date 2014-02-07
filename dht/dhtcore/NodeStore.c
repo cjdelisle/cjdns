@@ -136,7 +136,7 @@ static void _assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store, c
 }
 #define assertNoLoop(node, store) _assertNoLoop(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 */
-static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
+static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
     #ifndef PARANOIA
         return;
@@ -150,7 +150,7 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
     struct Node_Link* link;
     for (link = node->reversePeers; link; link = link->nextPeer) {
         Assert_fileLine(link->child == node, file, line);
-        Assert_fileLine(RB_FIND(PeerRBTree, &link->parent->peerTree, link), file, line);
+        Assert_fileLine(RB_FIND(PeerRBTree, &link->parent->peerTree, link) == link, file, line);
     }
 
     struct Node_Link* lastLink = NULL;
@@ -193,14 +193,56 @@ static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char
         Assert_fileLine(node->pathQuality == 0, file, line);
     }
 }
+#define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
+
+static void _verifyNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
+{
+    #ifndef PARANOIA
+        return;
+    #endif
+    // #1 check the node (do the basic checks)
+    _checkNode(node, store, file, line);
+
+    // #2 make sure all of the node's outgoing links are split properly
+    struct Node_Link* link = NULL;
+    RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
+        // make sure any peers of this node are split properly
+        struct Node_Link* linkB = link;
+        struct Node_Link* linkC = link;
+        RB_FOREACH_REVERSE_FROM(linkB, PeerRBTree, linkC) {
+            if (linkB == link || link == store->selfLink) { continue; }
+            Assert_fileLine(
+                !LabelSplicer_routesThrough(linkB->cannonicalLabel, link->cannonicalLabel),
+                file, line
+            );
+        }
+    }
+}
 #define verifyNode(node, store) _verifyNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
 
-static void _check(struct NodeStore_pvt* store, char* file, int line)
+// Verify is more thorough than check because it makes sure all links are split properly.
+static void _verify(struct NodeStore_pvt* store, char* file, int line)
 {
+    #ifndef PARANOIA
+        return;
+    #endif
     Assert_true(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         _verifyNode(nn, store, file, line);
+    }
+}
+#define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
+
+static void _check(struct NodeStore_pvt* store, char* file, int line)
+{
+    #ifndef PARANOIA
+        return;
+    #endif
+    Assert_true(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        _checkNode(nn, store, file, line);
     }
 }
 #define check(store) _check(store, Gcc_SHORT_FILE, Gcc_LINE)
@@ -300,7 +342,7 @@ static int updateBestParentCycle(struct Node_Two* node,
     #endif
 
     node->address.path = bestPath;
-    verifyNode(node, store);
+    checkNode(node, store);
     return 1;
 }
 
@@ -319,7 +361,7 @@ static void updateBestParent(struct Node_Two* node,
             check(store);
             return;
         }
-        verifyNode(node, store);
+        checkNode(node, store);
     }
     Assert_true(0);
 }
@@ -658,6 +700,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 static uint64_t findClosest(const uint64_t path,
                             struct Node_Link** output,
                             uint32_t* hops,
+                            struct Node_Link* parentLink,
                             struct NodeStore_pvt* store)
 {
     struct Node_Link tmpl = {
@@ -666,15 +709,16 @@ static uint64_t findClosest(const uint64_t path,
     };
 
     struct Node_Link* nextLink;
-    struct Node_Link* link = store->selfLink;
+    struct Node_Link* link = parentLink;
     uint32_t actualHops = 0;
     for (; !hops || actualHops < *hops; actualHops++) {
 
-        // First we splice off the parent's Director leaving the child's Director.
-        tmpl.cannonicalLabel = LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
-
         // Then we cannoicalize the child's Director
-        if (link != store->selfLink) {
+        if (link != parentLink) {
+
+            // First we splice off the parent's Director leaving the child's Director.
+            tmpl.cannonicalLabel =
+                LabelSplicer_unsplice(tmpl.cannonicalLabel, link->cannonicalLabel);
 
             int formNum =
                 EncodingScheme_getFormNum(link->child->encodingScheme, tmpl.cannonicalLabel);
@@ -775,19 +819,67 @@ static struct Node_Two* nodeForIp(struct NodeStore_pvt* store, uint8_t ip[16])
 }
 
 static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
-                                      struct Node_Link* closest,
-                                      uint64_t pathParentChild,
+                                      struct Node_Link* closestKnown,
+                                      uint64_t pathKnownParentChild,
                                       struct Node_Two* child,
                                       uint64_t discoveredPath,
                                       int inverseLinkEncodingFormNumber)
 {
-    #ifdef Log_DEBUG
-        uint8_t printedAddr[60];
-        Address_print(printedAddr, &child->address);
-        Log_debug(store->logger, "discoverLink(%s)", printedAddr);
-    #endif
+    // Make sure this link cannot be split before beginning.
+    struct Node_Link* closest = NULL;
+    uint64_t pathParentChild =
+        findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
+
+    if (pathParentChild == findClosest_INVALID) {
+        return NULL;
+    }
 
     struct Node_Two* parent = closest->child;
+
+    #ifdef Log_DEBUG
+    {
+        uint8_t parentStr[40];
+        uint8_t childStr[40];
+        uint8_t pathStr[20];
+
+        AddrTools_printIp(parentStr, parent->address.ip6.bytes);
+        AddrTools_printIp(childStr, child->address.ip6.bytes);
+        AddrTools_printPath(pathStr, pathParentChild);
+        Log_debug(store->logger, "discoverLink( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
+    }
+    #endif
+
+    for (;;) {
+        if (parent == child) {
+            if (pathParentChild == 1) {
+                // Link is already known.
+                update(closest, 0, store);
+                //Log_debug(store->logger, "Already known");
+                return closest;
+            } else {
+                logLink(store, closest, "Loopey route");
+                // parent->child->somenode->child
+                // we'll link them and then hope the link is never used, when it's split
+                // we'll find a nice link to somenode.
+                break;
+            }
+        } else if (pathParentChild == 1) {
+            logLink(store, closest, "Node at end of path appears to have changed");
+
+            // This should never happen for a direct peer or for a direct decendent in
+            // a split link.
+            Assert_always(closestKnown != closest);
+
+            unlinkNodes(closest, store);
+            pathParentChild =
+                findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
+            Assert_always(pathParentChild != findClosest_INVALID);
+            parent = closest->child;
+            check(store);
+        } else {
+            break;
+        }
+    }
 
     // link parent to child
     // TODO: linking every node with 0 link state, this can't be right.
@@ -800,7 +892,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                              store);
 
     if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
-        verifyNode(child, store);
+        checkNode(child, store);
         RB_INSERT(NodeRBTree, &store->nodeTree, child);
     }
 
@@ -902,6 +994,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                discoveredPath,
                                splitLink->inverseLinkEncodingFormNumber);
 
+            Assert_true(lcg);
             Assert_true(lcg->child == grandChild);
 
             //lcg = linkNodes(child, grandChild, childToGrandchild, splitLink->linkState,
@@ -938,7 +1031,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          uint32_t reach)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    check(store);
+    verify(store);
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
@@ -961,70 +1054,25 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     Assert_true(child->address.protocolVersion);
     Assert_true(EncodingScheme_equals(scheme, child->encodingScheme));//TODO
 
-    struct Node_Link* closest = NULL;
-    uint64_t pathParentChild = findClosest(addr->path, &closest, NULL, store);
+    struct Node_Link* link = discoverLink(store,
+                                          store->selfLink,
+                                          addr->path,
+                                          child,
+                                          addr->path,
+                                          inverseLinkEncodingFormNumber);
 
-    if (pathParentChild == findClosest_INVALID) {
+    if (!link) {
         if (alloc) {
             Allocator_free(alloc);
         }
-        check(store);
+        verify(store);
 Assert_true(0);
         Log_debug(store->logger, "Invalid path");
         return NULL;
     }
 
-    struct Node_Two* parent = closest->child;
-
-    for (;;) {
-        if (parent == child) {
-            if (pathParentChild == 1) {
-                // Link is already known.
-                update(closest, 0, store);
-                //Log_debug(store->logger, "Already known");
-                return closest;
-            } else {
-                logLink(store, closest, "Loopey route");
-                // parent->child->somenode->child
-                // we'll link them and then hope the link is never used, when it's split
-                // we'll find a nice link to somenode.
-                break;
-            }
-        } else if (pathParentChild == 1) {
-            logLink(store, closest, "Node at end of path appears to have changed");
-
-            // This is disabled because RouterModule really wants this node to exist before talking
-            // to it.
-            /*if (closest->discoveredPath < addr->path) {
-                // Minor defense against being lied to, trust the shortest path.
-                // TODO: send a ping to check if it's still correct?
-                Log_info(store->logger, "Not replacing link because discovery path is longer");
-                if (alloc) {
-                    Allocator_free(alloc);
-                }
-                check(store);
-                Log_debug(store->logger, "Better path already known");
-                return NULL;
-            }*/
-
-            unlinkNodes(closest, store);
-            pathParentChild = findClosest(addr->path, &closest, NULL, store);
-            Assert_always(pathParentChild != findClosest_INVALID);
-            parent = closest->child;
-            check(store);
-        } else {
-            break;
-        }
-    }
-
-    struct Node_Link* link = discoverLink(store,
-                                          closest,
-                                          pathParentChild,
-                                          child,
-                                          addr->path,
-                                          inverseLinkEncodingFormNumber);
     handleNews(link->child, reach, store);
-    check(store);
+    verify(store);
     return link;
 }
 
@@ -1047,7 +1095,7 @@ struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t pat
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* out = NULL;
-    findClosest(path, &out, NULL, store);
+    findClosest(path, &out, NULL, store->selfLink, store);
     if (!out) { return NULL; }
     return Identity_check(out->child);
 }
@@ -1056,7 +1104,7 @@ struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t pat
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* out = NULL;
-    uint64_t pathParentChild = findClosest(path, &out, NULL, store);
+    uint64_t pathParentChild = findClosest(path, &out, NULL, store->selfLink, store);
     if (pathParentChild != 1) { return NULL; }
     return Identity_check(out->child);
 }
@@ -1068,7 +1116,7 @@ struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* link = NULL;
     uint32_t num = hopNum;
-    uint64_t path = findClosest(routeLabel, &link, &num, store);
+    uint64_t path = findClosest(routeLabel, &link, &num, store->selfLink, store);
     if (path == findClosest_INVALID || num < hopNum) {
         return NULL;
     }
@@ -1103,7 +1151,7 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* linkToParent;
-    if (findClosest(pathToParent, &linkToParent, NULL, store) != 1) {
+    if (findClosest(pathToParent, &linkToParent, NULL, store->selfLink, store) != 1) {
         return NodeStore_getRouteLabel_PARENT_NOT_FOUND;
     }
     logLink(store, linkToParent, "NodeStore_getRouteLabel() PARENT");
@@ -1126,7 +1174,7 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* linkToParent;
-    uint64_t next = findClosest(path, &linkToParent, NULL, store);
+    uint64_t next = findClosest(path, &linkToParent, NULL, store->selfLink, store);
     if (next == findClosest_INVALID) {
         return NodeStore_optimizePath_INVALID;
     }
@@ -1275,7 +1323,6 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
                                     struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    check(store);
 
     // truncate the label to the part which this node uses...
     label &= Bits_maxBits64(NumberCompress_bitsUsedForLabel(label));
@@ -1311,12 +1358,11 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
 
     for (int i = 0; i < (int)out->size; i++) {
         Identity_check(out->nodes[i]);
-        verifyNode(out->nodes[i], store);
+        checkNode(out->nodes[i], store);
         Assert_true(out->nodes[i]->address.path);
         Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
         out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
-    check(store);
     return out;
 }
 
@@ -1385,16 +1431,15 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
         Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
         out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
-    check(store);
     return out;
 }
 
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    check(store);
+    verify(store);
     handleNews(node, newReach, store);
-    check(store);
+    verify(store);
 }
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)
@@ -1422,6 +1467,7 @@ int NodeStore_size(struct NodeStore* nodeStore)
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    verify(store);
     #ifdef Log_DEBUG
         uint8_t pathStr[20];
         AddrTools_printPath(pathStr, path);
@@ -1431,5 +1477,5 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
     if (nn && nn->pathQuality > 0) {
         handleBadNews(nn, 0, store);
     }
-    check(store);
+    verify(store);
 }

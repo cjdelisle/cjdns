@@ -77,12 +77,13 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
         uint64_t path = LabelSplicer_splice(addr.path, fromNode->path);
 
         if (path == UINT64_MAX) {
+            /* common, lots of noise
             uint8_t discovered[60];
             uint8_t fromAddr[60];
             Address_print(discovered, &addr);
             Address_print(fromAddr, fromNode);
             Log_debug(log, "Dropping response [%s] from [%s] because route could not be spliced",
-                      discovered, fromAddr);
+                      discovered, fromAddr);*/
             continue;
         }
 
