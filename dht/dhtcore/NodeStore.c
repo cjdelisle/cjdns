@@ -1007,7 +1007,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
         if (grandChild->bestParent == splitLink) {
 
-            Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
+            if (lcg && lcg->parent != child) {
+                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+                    handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                }
+            }
+
+            Assert_true(((lcg) ? lcg : parentLink)->parent->pathQuality > grandChild->pathQuality);
             updateBestParent(grandChild,
                              ((lcg) ? lcg : parentLink),
                              grandChild->pathQuality,
