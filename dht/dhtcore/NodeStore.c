@@ -346,6 +346,10 @@ static int updateBestParentCycle(struct Node_Two* node,
     #endif
 
     node->address.path = bestPath;
+    // The low 8 bits of the reach hold the hop count.
+    node->pathQuality = (node->pathQuality & 0xffffff00) | ((newBest->pathQuality & 0xff) - 1);
+    // best path over 255 hops -> abort
+    Assert_true(node->pathQuality & 0xff);
     checkNode(node, store);
     return 1;
 }
