@@ -1032,6 +1032,31 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     return parentLink;
 }
 
+void NodeStore_adoptOrphan(struct NodeStore* nodeStore,
+                           struct Node_Two* node,
+                           struct Address* addr,
+                           int inverseLinkEncodingFormNumber,
+                           uint32_t reach)
+{
+    if (node->bestParent) { return; }
+    // If we know a valid route to a node, but it has no bestParent, try to find one.
+    // This bestParent usually ends up to be ourself.
+    // Needed when a direct peer goes offline then comes back.
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Link* link = discoverLink(store,
+                                          store->selfLink,
+                                          addr->path,
+                                          node,
+                                          addr->path,
+                                          inverseLinkEncodingFormNumber);
+    if (!node->bestParent && link->parent->pathQuality > reach) {
+        updateBestParent(node, link, reach, store);
+        handleNews(link->child, reach, store);
+    }
+    check(store);
+}
+
+
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,

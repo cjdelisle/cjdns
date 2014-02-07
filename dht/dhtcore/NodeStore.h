@@ -69,6 +69,12 @@ struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t pat
 
 struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path);
 
+void NodeStore_adoptOrphan(struct NodeStore* nodeStore,
+                           struct Node_Two* node,
+                           struct Address* addr,
+                           int inverseLinkEncodingFormNumber,
+                           uint32_t reach);
+
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
 
 struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
