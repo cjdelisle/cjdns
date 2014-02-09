@@ -83,8 +83,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// Failsafe: abort if more than 2^22 bytes are allocated (4MB)
-#define ALLOCATOR_FAILSAFE (1<<22)
+// Failsafe: abort if more than 2^23 bytes are allocated (8MB)
+#define ALLOCATOR_FAILSAFE (1<<23)
 
 /** The number of nodes which we will keep track of. */
 #define NODE_STORE_SIZE 256

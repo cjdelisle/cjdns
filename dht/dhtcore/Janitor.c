@@ -35,6 +35,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define MAX_SEARCHES 10
+
 /**
  * The goal of this is to run searches in the local area of this node.
  * it searches for hashes every localMaintainenceSearchPeriod milliseconds.
@@ -114,7 +116,7 @@ static void responseCallback(struct RouterModule_Promise* promise,
 
 static void search(uint8_t target[16], struct Janitor* janitor)
 {
-    if (janitor->searches >= 20) {
+    if (janitor->searches >= MAX_SEARCHES) {
         Log_debug(janitor->logger, "Skipping search because 20 are in progress");
         return;
     }

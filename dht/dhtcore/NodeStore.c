@@ -982,48 +982,37 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             check(store);
         }
 
-        struct Node_Link* lcg = NULL;
         if (child == grandChild) {
             // There's an existing link from the parent to the child and it loops
             // it takes a detour over to some other nodes and then comes back to the grandChild
             Log_debug(store->logger, "replace existing link which contains a loop...");
+
         } else {
             Assert_true(splitLink->cannonicalLabel != pathParentChild);
             Assert_true(childToGrandchild != 1);
 
-            lcg = discoverLink(store,
-                               parentLink,
-                               childToGrandchild,
-                               grandChild,
-                               discoveredPath,
-                               splitLink->inverseLinkEncodingFormNumber);
+            struct Node_Link* lcg = discoverLink(store,
+                                                 parentLink,
+                                                 childToGrandchild,
+                                                 grandChild,
+                                                 discoveredPath,
+                                                 splitLink->inverseLinkEncodingFormNumber);
 
-            Assert_true(lcg);
-            Assert_true(lcg->child == grandChild);
-
-            //lcg = linkNodes(child, grandChild, childToGrandchild, splitLink->linkState,
-            //                splitLink->inverseLinkEncodingFormNumber, addr->path, store);
-        }
-
-        if (grandChild->bestParent == splitLink) {
-
-            if (lcg && lcg->parent != child) {
-                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
-                    handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+            // If the best path to the child is the one being split,
+            // lets bump up the quality of the result of splitting.
+            if (lcg && grandChild->bestParent == splitLink) {
+                Assert_true(lcg->child == grandChild);
+                if (lcg->parent != child) {
+                    if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+                        handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                    }
                 }
+                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
             }
 
-            Assert_true(((lcg) ? lcg : parentLink)->parent->pathQuality > grandChild->pathQuality);
-            updateBestParent(grandChild,
-                             ((lcg) ? lcg : parentLink),
-                             grandChild->pathQuality,
-                             store);
-            if (grandChild->bestParent) {
-                 // grqandchild might now be unreachable because the path is too long.
-                 Assert_true(grandChild->bestParent->parent->pathQuality > grandChild->pathQuality);
-            }
-            check(store);
         }
+        check(store);
 
         struct Node_Link* unlinkMe = splitLink;
         splitLink = PeerRBTree_RB_NEXT(splitLink);
