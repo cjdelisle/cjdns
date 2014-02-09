@@ -193,6 +193,10 @@ work verbatim.
 
 ### 0. Install dependencies
 
+On both platforms, installing [Node.js](http://nodejs.org/), although preferable, 
+is not strictly necessary. If Node.js is unavailable or an unacceptable version,
+it will be downloaded and built in the source tree.
+
 #### Debian-based distro:
 
     sudo apt-get install nodejs git build-essential
@@ -216,11 +220,6 @@ the Command Line Tools.
 You must also install git and Node.js. If you have [Homebrew](http://brew.sh/), run:
 
     brew install git nodejs
-
-**A note on Node.js:** On both platforms, Installing [Node.js](http://nodejs.org/),
-although preferable, is not strictly necessary. If Node.js is 
-unavailable or an unacceptable version, it will be downloaded and 
-built in the source tree.
 
 ### 1. Retrieve cjdns from GitHub
 
