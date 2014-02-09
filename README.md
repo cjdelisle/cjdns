@@ -197,10 +197,6 @@ work verbatim.
 
     sudo apt-get install nodejs git build-essential
 
-Installing [Node.js](http://nodejs.org/), although preferable, is not
-strictly necessary. If Node.js is unavailable or an unacceptable
-version, it will be downloaded and built in the source tree.
-
 #### OS X:
 
 On OS X, you must install the Command Line Developer Tools. If 
@@ -217,9 +213,14 @@ compatible with your version of OS X. If you encounter issues, there is a
 thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
-You must then install git. If you have [Homebrew](http://brew.sh/), run:
+You must also install git and Node.js. If you have [Homebrew](http://brew.sh/), run:
 
-    brew install git
+    brew install git nodejs
+
+**A note on Node.js:** On both platforms, Installing [Node.js](http://nodejs.org/),
+although preferable, is not strictly necessary. If Node.js is 
+unavailable or an unacceptable version, it will be downloaded and 
+built in the source tree.
 
 ### 1. Retrieve cjdns from GitHub
 
