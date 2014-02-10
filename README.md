@@ -217,9 +217,18 @@ compatible with your version of OS X. If you encounter issues, there is a
 thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
-You must also install git and Node.js. If you have [Homebrew](http://brew.sh/), run:
+You must also install git and Node.js. There are a few options. If you use [Homebrew](http://brew.sh/):
 
     brew install git nodejs
+
+If you use [Macports](https://www.macports.org/):
+
+    sudo port install git-core nodejs
+
+Or if you use neither and would like to install the binaries from their websites:
+
+- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
+- git: [http://git-scm.com/download](http://git-scm.com/download)
 
 ### 1. Retrieve cjdns from GitHub
 
