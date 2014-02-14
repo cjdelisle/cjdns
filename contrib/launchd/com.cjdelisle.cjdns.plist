@@ -6,7 +6,7 @@
 	<string>com.cjdelisle.cjdns</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>cjdroute</string>
+		<string>/usr/local/bin/cjdroute</string>
 	</array>
 	<key>UserName</key>
 	<string>root</string>
