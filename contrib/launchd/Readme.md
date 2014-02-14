@@ -9,7 +9,7 @@ Copy to /Library/LaunchDaemons
 Set permissions and ownership with:
 
 ```
-sudo chmod 640 /Library/LaunchDaemons/com.cjdelisle.cjdns.plist
+sudo chmod 644 /Library/LaunchDaemons/com.cjdelisle.cjdns.plist
 sudo chown root:wheel /Library/LaunchDaemons/com.cjdelisle.cjdns.plist
 ```
 
