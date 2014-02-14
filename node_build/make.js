@@ -131,6 +131,26 @@ Builder.configure({
         );
     }
 
+    // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
+    // with NEON on the BBB
+    cflags = process.env['CFLAGS'];
+    if (cflags) {
+        flags = cflags.split(' ');
+        flags.forEach(function(flag) {
+            builder.config.cflags.push(flag);
+        });
+    }
+
+    // We also need to pass various architecture/floating point flags to GCC when invoked as 
+    // a linker.
+    ldflags = process.env['LDFLAGS'];
+    if (ldflags) {
+        flags = ldflags.split(' ');
+        flags.forEach(function(flag) {
+            builder.config.ldflags.push(flag);
+        });
+    }
+
     // Build dependencies
     nThen(function (waitFor) {
         Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
@@ -197,7 +217,15 @@ Builder.configure({
             process.chdir(BUILDDIR+'/dependencies/libuv/');
             var args = ['-j', WORKERS, 'CC='+builder.config.gcc];
             if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
-            if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
+            // Make sure to pass along any user-specified CFLAGS to the libuv build, in case 
+            // we need to configure ARM floating point or something.
+            var cflags = process.env['CFLAGS'];
+            if (!cflags) {
+                cflags = "";
+            }
+            if (builder.config.systemName !== 'darwin') { cflags = "-fPIC " + cflags; }
+            args.push('CFLAGS=' + cflags);
+            console.log("make " + args.join(' '));
             var make = Spawn('make', args);
             make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
