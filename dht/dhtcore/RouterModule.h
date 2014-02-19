@@ -117,4 +117,8 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc);
 
+void RouterModule_peerIsReachable(uint64_t pathToPeer,
+                                  uint64_t lagMilliseconds,
+                                  struct RouterModule* module);
+
 #endif

@@ -1072,6 +1072,10 @@ Assert_true(0);
         return NULL;
     }
 
+    if (link->parent == store->pub.selfNode && !link->child->bestParent) {
+        updateBestParent(link->child, link, reach, store);
+    }
+
     handleNews(link->child, reach, store);
     verify(store);
     return link;

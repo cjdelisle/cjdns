@@ -175,8 +175,11 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
     addr.protocolVersion = version;
 
-    if (!RouterModule_nodeForPath(label, ic->routerModule)) {
+    struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
+    if (!nn) {
         RumorMill_addNode(ic->rumorMill, &addr);
+    } else if (!nn->bestParent) {
+        RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
     }
 
     #ifdef Log_DEBUG
@@ -207,7 +210,10 @@ static void pingCallback(void* vic)
         // TODO: understand the cause of this issue rather than checking for it once per second.
         struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
 
-        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds || !peerNode) {
+        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds
+            || !peerNode
+            || !peerNode->bestParent)
+        {
             #ifdef Log_DEBUG
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);

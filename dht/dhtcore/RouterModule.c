@@ -685,3 +685,25 @@ uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module)
 {
     return (uint32_t) AverageRoller_getAverage(module->gmrtRoller);
 }
+
+void RouterModule_peerIsReachable(uint64_t pathToPeer,
+                                  uint64_t lagMilliseconds,
+                                  struct RouterModule* module)
+{
+    Assert_true(LabelSplicer_isOneHop(pathToPeer));
+    struct Node_Two* nn = RouterModule_nodeForPath(pathToPeer, module);
+    for (struct Node_Link* peerLink = nn->reversePeers; peerLink; peerLink = peerLink->nextPeer) {
+        if (peerLink->parent != module->nodeStore->selfNode) { continue; }
+        if (peerLink->cannonicalLabel != pathToPeer) { continue; }
+        struct Address address = { .path = 0 };
+        Bits_memcpyConst(&address, &nn->address, sizeof(struct Address));
+        address.path = pathToPeer;
+        NodeStore_discoverNode(module->nodeStore,
+                               &address,
+                               nn->encodingScheme,
+                               peerLink->inverseLinkEncodingFormNumber,
+                               nextReach(0, lagMilliseconds));
+        return;
+    }
+    Assert_true(0);
+}
