@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "crypto_box.h"
 #include "randombytes.h"
 
