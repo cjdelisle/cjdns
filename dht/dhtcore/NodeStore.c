@@ -162,11 +162,11 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
                         file, line);
         struct Node_Link* rlink = NULL;
         for (rlink = link->child->reversePeers; rlink; rlink = rlink->nextPeer) {
-            if (rlink->parent == node) {
+            if (rlink == link) {
                 break;
             }
         }
-        Assert_fileLine(rlink, file, line);
+        Assert_fileLine(rlink && "child contains reverse link", file, line);
         lastLink = link;
     }
 
@@ -531,6 +531,17 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     struct Node_Two* parent = Identity_check(link->parent);
     check(store);
 
+    // Change the best parent and path if necessary
+    if (child->bestParent == link) {
+        handleBadNews(child, 0, store);
+    }
+
+    if (child->bestParent == link) {
+        unreachable(child, store);
+    }
+
+    check(store);
+
     // Remove the entry from the reversePeers
     struct Node_Link* current = child->reversePeers;
     struct Node_Link** currentP = &child->reversePeers;
@@ -543,15 +554,6 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
         current = *currentP;
     }
     Assert_true(current);
-
-    // Change the best parent and path if necessary
-    if (child->bestParent == link) {
-        handleBadNews(child, 0, store);
-    }
-
-    if (child->bestParent == link) {
-        unreachable(child, store);
-    }
 
     // Remove the RBTree entry
     Assert_ifParanoid(link == RB_FIND(PeerRBTree, &parent->peerTree, link));
