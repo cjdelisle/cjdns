@@ -36,26 +36,28 @@
 
 #define UV_PLATFORM_LOOP_FIELDS                                               \
   uv_thread_t cf_thread;                                                      \
-  void* cf_cb;                                                                \
-  void* cf_loop;                                                              \
+  void* _cf_reserved;                                                         \
+  void* cf_state;                                                             \
   uv_mutex_t cf_mutex;                                                        \
   uv_sem_t cf_sem;                                                            \
-  ngx_queue_t cf_signals;                                                     \
+  void* cf_signals[2];                                                        \
 
 #define UV_PLATFORM_FS_EVENT_FIELDS                                           \
   uv__io_t event_watcher;                                                     \
   char* realpath;                                                             \
   int realpath_len;                                                           \
   int cf_flags;                                                               \
-  void* cf_eventstream;                                                       \
   uv_async_t* cf_cb;                                                          \
-  ngx_queue_t cf_events;                                                      \
-  uv_sem_t cf_sem;                                                            \
+  void* cf_events[2];                                                         \
+  void* cf_member[2];                                                         \
+  int cf_error;                                                               \
   uv_mutex_t cf_mutex;                                                        \
 
 #define UV_STREAM_PRIVATE_PLATFORM_FIELDS                                     \
   void* select;                                                               \
 
 #define UV_HAVE_KQUEUE 1
+
+#define UV_PLATFORM_HAS_IP6_LINK_LOCAL_ADDRESS
 
 #endif /* UV_DARWIN_H */

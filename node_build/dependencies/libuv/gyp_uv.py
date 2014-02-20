@@ -24,6 +24,7 @@ def host_arch():
   if machine == 'i386': return 'ia32'
   if machine == 'x86_64': return 'x64'
   if machine.startswith('arm'): return 'arm'
+  if machine.startswith('mips'): return 'mips'
   return machine  # Return as-is and hope for the best.
 
 
@@ -74,7 +75,7 @@ if __name__ == '__main__':
   if sys.platform != 'win32':
     if '-f' not in args:
       args.extend('-f make'.split())
-    if 'ninja' not in args:
+    if 'eclipse' not in args and 'ninja' not in args:
       args.extend(['-Goutput_dir=' + output_dir])
       args.extend(['--generator-output', output_dir])
     (major, minor), is_clang = compiler_version()

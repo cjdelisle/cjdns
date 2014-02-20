@@ -19,16 +19,28 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_LINUX_H
-#define UV_LINUX_H
+#include "uv.h"
+#include "task.h"
 
-#define UV_PLATFORM_LOOP_FIELDS                                               \
-  uv__io_t inotify_read_watcher;                                              \
-  void* inotify_watchers;                                                     \
-  int inotify_fd;                                                             \
+#include <stdio.h>
+#include <string.h>
 
-#define UV_PLATFORM_FS_EVENT_FIELDS                                           \
-  ngx_queue_t watchers;                                                       \
-  int wd;                                                                     \
 
-#endif /* UV_LINUX_H */
+TEST_IMPL(ip4_addr) {
+
+  struct sockaddr_in addr;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT(0 == uv_ip4_addr("255.255.255.255", TEST_PORT, &addr));
+  ASSERT(UV_EINVAL == uv_ip4_addr("255.255.255*000", TEST_PORT, &addr));
+  ASSERT(UV_EINVAL == uv_ip4_addr("255.255.255.256", TEST_PORT, &addr));
+  ASSERT(UV_EINVAL == uv_ip4_addr("2555.0.0.0", TEST_PORT, &addr));
+  ASSERT(UV_EINVAL == uv_ip4_addr("255", TEST_PORT, &addr));
+
+  /* for broken address family */
+  ASSERT(UV_EAFNOSUPPORT == uv_inet_pton(42, "127.0.0.1",
+    &addr.sin_addr.s_addr));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

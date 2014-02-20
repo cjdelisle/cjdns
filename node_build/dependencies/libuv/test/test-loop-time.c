@@ -22,76 +22,13 @@
 #include "uv.h"
 #include "task.h"
 
-#include <string.h>
 
-#define memeq(a, b, c) (memcmp((a), (b), (c)) == 0)
+TEST_IMPL(loop_update_time) {
+  uint64_t start;
 
-
-TEST_IMPL(strlcpy) {
-  size_t r;
-
-  {
-    char dst[2] = "A";
-    r = uv_strlcpy(dst, "", 0);
-    ASSERT(r == 0);
-    ASSERT(memeq(dst, "A", 1));
-  }
-
-  {
-    char dst[2] = "A";
-    r = uv_strlcpy(dst, "B", 1);
-    ASSERT(r == 0);
-    ASSERT(memeq(dst, "", 1));
-  }
-
-  {
-    char dst[2] = "A";
-    r = uv_strlcpy(dst, "B", 2);
-    ASSERT(r == 1);
-    ASSERT(memeq(dst, "B", 2));
-  }
-
-  {
-    char dst[3] = "AB";
-    r = uv_strlcpy(dst, "CD", 3);
-    ASSERT(r == 2);
-    ASSERT(memeq(dst, "CD", 3));
-  }
-
-  return 0;
-}
-
-
-TEST_IMPL(strlcat) {
-  size_t r;
-
-  {
-    char dst[2] = "A";
-    r = uv_strlcat(dst, "B", 1);
-    ASSERT(r == 1);
-    ASSERT(memeq(dst, "A", 2));
-  }
-
-  {
-    char dst[2] = "A";
-    r = uv_strlcat(dst, "B", 2);
-    ASSERT(r == 1);
-    ASSERT(memeq(dst, "A", 2));
-  }
-
-  {
-    char dst[3] = "A";
-    r = uv_strlcat(dst, "B", 3);
-    ASSERT(r == 2);
-    ASSERT(memeq(dst, "AB", 3));
-  }
-
-  {
-    char dst[5] = "AB";
-    r = uv_strlcat(dst, "CD", 5);
-    ASSERT(r == 4);
-    ASSERT(memeq(dst, "ABCD", 5));
-  }
+  start = uv_now(uv_default_loop());
+  while (uv_now(uv_default_loop()) - start < 1000)
+    ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_NOWAIT));
 
   return 0;
 }

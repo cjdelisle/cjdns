@@ -1,4 +1,4 @@
-# Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+# Copyright StrongLoop, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -18,36 +18,29 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-SRCDIR ?= $(CURDIR)
+BUILDTYPE ?= Debug
+BUILDDIR ?= build
+GYP ?= gyp
+V ?=
 
-ifeq (,$(builddir_name))
+SOURCES := client.c defs.h getopt.c main.c s5.c s5.h server.c util.c
 
-VPATH := $(SRCDIR)
-include $(SRCDIR)/build.mk
+.PHONY: all clean
 
-else  # Out of tree build.
+all: $(BUILDDIR)/$(BUILDTYPE)/s5-proxy
 
-# Drop all built-in rules.
-.SUFFIXES:
+clean:
+	$(RM) $(BUILDDIR)
 
-.PHONY:	$(builddir_name)
-$(builddir_name): $(builddir_name)/.buildstamp
-	$(MAKE) -C $@ -f $(CURDIR)/Makefile $(MAKECMDGOALS) \
-		SRCDIR=$(CURDIR) builddir_name=
+$(BUILDDIR)/$(BUILDTYPE)/s5-proxy: $(BUILDDIR)/Makefile $(SOURCES)
+	$(MAKE) -C $(BUILDDIR) V=$(V)
 
-$(builddir_name)/.buildstamp:
-	mkdir -p $(dir $@)
-	touch $@
-
-# Add no-op rules for Makefiles to stop make from trying to rebuild them.
-Makefile:: ;
-%.mk:: ;
-
-# Turn everything else into a no-op rule that depends on the build directory.
-%:: $(builddir_name) ;
-
-.PHONY: clean distclean
-clean distclean:
-	$(RM) -fr $(builddir_name)
-
-endif
+$(BUILDDIR)/Makefile: ../../common.gypi build.gyp
+	$(GYP)	\
+		-Dlibrary=static_library \
+		-Goutput_dir=. \
+		-I../../common.gypi \
+		-f make \
+		--depth=. \
+		--generator-output=$(BUILDDIR) \
+		build.gyp

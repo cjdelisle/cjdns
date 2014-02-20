@@ -30,8 +30,8 @@ static void timer_cb(uv_timer_t* handle, int status);
 static void close_cb(uv_handle_t* handle);
 static void poll_cb(uv_fs_poll_t* handle,
                     int status,
-                    const uv_statbuf_t* prev,
-                    const uv_statbuf_t* curr);
+                    const uv_stat_t* prev,
+                    const uv_stat_t* curr);
 
 static uv_fs_poll_t poll_handle;
 static uv_timer_t timer_handle;
@@ -74,21 +74,20 @@ static void timer_cb(uv_timer_t* handle, int status) {
 
 static void poll_cb(uv_fs_poll_t* handle,
                     int status,
-                    const uv_statbuf_t* prev,
-                    const uv_statbuf_t* curr) {
-  uv_statbuf_t zero_statbuf;
+                    const uv_stat_t* prev,
+                    const uv_stat_t* curr) {
+  uv_stat_t zero_statbuf;
 
   memset(&zero_statbuf, 0, sizeof(zero_statbuf));
 
   ASSERT(handle == &poll_handle);
-  ASSERT(uv_is_active((uv_handle_t*)handle));
+  ASSERT(1 == uv_is_active((uv_handle_t*) handle));
   ASSERT(prev != NULL);
   ASSERT(curr != NULL);
 
   switch (poll_cb_called++) {
   case 0:
-    ASSERT(status == -1);
-    ASSERT(uv_last_error(loop).code == UV_ENOENT);
+    ASSERT(status == UV_ENOENT);
     ASSERT(0 == memcmp(prev, &zero_statbuf, sizeof(zero_statbuf)));
     ASSERT(0 == memcmp(curr, &zero_statbuf, sizeof(zero_statbuf)));
     touch_file(FIXTURE);
@@ -116,10 +115,9 @@ static void poll_cb(uv_fs_poll_t* handle,
     break;
 
   case 4:
-    ASSERT(status == -1);
+    ASSERT(status == UV_ENOENT);
     ASSERT(0 != memcmp(prev, &zero_statbuf, sizeof(zero_statbuf)));
     ASSERT(0 == memcmp(curr, &zero_statbuf, sizeof(zero_statbuf)));
-    ASSERT(uv_last_error(loop).code == UV_ENOENT);
     uv_close((uv_handle_t*)handle, close_cb);
     break;
 

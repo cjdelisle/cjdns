@@ -1,4 +1,4 @@
-# Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+# Copyright StrongLoop, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -18,31 +18,29 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-# Use make -f Makefile.gcc PREFIX=i686-w64-mingw32-
-# for cross compilation
-CC = $(PREFIX)gcc
-AR = $(PREFIX)ar
-E=.exe
-
-CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0600
-LDFLAGS=-lm
-
-WIN_SRCS=$(wildcard $(SRCDIR)/src/win/*.c)
-WIN_OBJS=$(WIN_SRCS:.c=.o)
-
-RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE # Need _GNU_SOURCE for strdup?
-RUNNER_LDFLAGS=$(LDFLAGS)
-RUNNER_LIBS=-lws2_32 -lpsapi -liphlpapi
-RUNNER_SRC=test/runner-win.c
-
-libuv.a: $(WIN_OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/version.o
-	$(AR) rcs $@ $^
-
-src/%.o: src/%.c include/uv.h include/uv-private/uv-win.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-src/win/%.o: src/win/%.c include/uv.h include/uv-private/uv-win.h src/win/internal.h
-	$(CC) $(CFLAGS) -o $@ -c $<
-
-clean-platform:
-	-rm -f src/win/*.o
+{
+  'targets': [
+    {
+      'dependencies': ['../../uv.gyp:libuv'],
+      'target_name': 's5-proxy',
+      'type': 'executable',
+      'sources': [
+        'client.c',
+        'defs.h',
+        'main.c',
+        's5.c',
+        's5.h',
+        'server.c',
+        'util.c',
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'defines': ['HAVE_UNISTD_H=0'],
+          'sources': ['getopt.c']
+        }, {
+          'defines': ['HAVE_UNISTD_H=1']
+        }]
+      ]
+    }
+  ]
+}
