@@ -1067,7 +1067,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
             Allocator_free(alloc);
         }
         verify(store);
-Assert_true(0);
+//Assert_true(0);
         Log_debug(store->logger, "Invalid path");
         return NULL;
     }
