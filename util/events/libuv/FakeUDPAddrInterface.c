@@ -80,19 +80,21 @@ struct AddrInterface* FakeUDPAddrInterface_new(struct EventBase* eventBase,
 
     if (ret) {
         Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
-                     uv_err_name(uv_last_error(base->loop)));
+                     uv_strerror(ret);
     }
 
-    if (uv_udp_recv_start(&context->uvHandle, allocate, incoming)) {
-        const char* err = uv_err_name(uv_last_error(base->loop));
+    ret = uv_udp_recv_start(&context->uvHandle, allocate, incoming)
+    if (ret) {
+        const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
         Except_throw(exHandler, "uv_udp_recv_start() failed [%s]", err);
     }
 
     int nameLen = sizeof(struct Sockaddr_storage);
     Bits_memset(&ss, 0, sizeof(struct Sockaddr_storage));
-    if (uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen)) {
-        const char* err = uv_err_name(uv_last_error(base->loop));
+    ret = uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen)
+    if (ret) {
+        const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
         Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
     }
