@@ -65,7 +65,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
         Identity_cast((struct UDPAddrInterface_WriteRequest_pvt*) uvReq);
     if (error) {
         Log_info(req->udp->logger, "DROP Failed to write to UDPAddrInterface [%s]",
-                 uv_err_name(uv_last_error(req->udp->uvHandle.loop)) );
+                 uv_strerror(error) );
     }
     Assert_true(req->msg->length == req->length);
     req->udp->queueLen -= req->msg->length;
@@ -111,17 +111,12 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
     };
 
     int ret = 0;
-    if (ss.addr.addrLen == sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD) {
-        uv_udp_send6(&req->uvReq, &context->uvHandle, buffers, 1,
-                     *((struct sockaddr_in6*)ss.nativeAddr), sendComplete);
-    } else {
-        uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
-                     *((struct sockaddr_in*)ss.nativeAddr), sendComplete);
-    }
+    uv_udp_send(&req->uvReq, &context->uvHandle, buffers, 1,
+                (const struct sockaddr*)ss.nativeAddr, (uv_udp_send_cb)&sendComplete);
 
     if (ret) {
         Log_info(context->logger, "DROP Failed writing to UDPAddrInterface [%s]",
-                 uv_err_name(uv_last_error(context->uvHandle.loop)) );
+                 uv_strerror(ret));
         Allocator_free(req->alloc);
         return Error_NONE;
         //return Error_UNDELIVERABLE;
@@ -138,7 +133,7 @@ static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 
 static void incoming(uv_udp_t* handle,
                      ssize_t nread,
-                     uv_buf_t buf,
+                     const uv_buf_t* buf,
                      struct sockaddr* addr,
                      unsigned flags)
 {
@@ -147,14 +142,10 @@ static void incoming(uv_udp_t* handle,
     context->inCallback = 1;
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
+    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
 
-    if (nread < 0) {
-        // probably causes a drop
-        Log_warn(context->logger, "DROP encountered error [%s]",
-                 uv_err_name(uv_last_error(handle->loop)) );
-
-    } else if (nread == 0) {
+    // if nread < 0, we used to log uv_last_error, which doesn't exist anymore.
+    if (nread == 0) {
         // Happens constantly
         //Log_debug(context->logger, "0 length read");
 
@@ -162,8 +153,8 @@ static void incoming(uv_udp_t* handle,
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
         m->length = nread;
         m->padding = UDPAddrInterface_PADDING_AMOUNT + context->pub.addr->addrLen;
-        m->capacity = buf.len;
-        m->bytes = (uint8_t*)buf.base;
+        m->capacity = buf->len;
+        m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
         Sockaddr_normalizeNative(addr);
         Message_push(m, addr, context->pub.addr->addrLen - 8, NULL);
@@ -179,7 +170,7 @@ static void incoming(uv_udp_t* handle,
     }
 }
 
-static uv_buf_t allocate(uv_handle_t* handle, size_t size)
+static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     struct UDPAddrInterface_pvt* context = ifaceForHandle((uv_udp_t*)handle);
 
@@ -192,7 +183,8 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 
     ALLOC(buff) = child;
 
-    return (uv_buf_t) { .base = buff, .len = size };
+    buf->base = buff;
+    buf->len = size;
 }
 
 static void onClosed(uv_handle_t* wasClosed)
@@ -257,27 +249,25 @@ struct AddrInterface* UDPAddrInterface_new(struct EventBase* eventBase,
 
     int ret;
     void* native = Sockaddr_asNative(addr);
-    if (Sockaddr_getFamily(addr) == Sockaddr_AF_INET6) {
-        ret = uv_udp_bind6(&context->uvHandle, *((struct sockaddr_in6*)native), 0);
-    } else {
-        ret = uv_udp_bind(&context->uvHandle, *((struct sockaddr_in*)native), 0);
-    }
+    ret = uv_udp_bind(&context->uvHandle, (const struct sockaddr*)native, 0);
 
     if (ret) {
         Except_throw(exHandler, "call to uv_udp_bind() failed [%s]",
-                     uv_err_name(uv_last_error(base->loop)));
+                     uv_strerror(ret));
     }
 
-    if (uv_udp_recv_start(&context->uvHandle, allocate, incoming)) {
-        const char* err = uv_err_name(uv_last_error(base->loop));
+    ret = uv_udp_recv_start(&context->uvHandle, (uv_alloc_cb)&allocate, (uv_udp_recv_cb)&incoming);
+    if (ret) {
+        const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
         Except_throw(exHandler, "uv_udp_recv_start() failed [%s]", err);
     }
 
     int nameLen = sizeof(struct Sockaddr_storage);
     Bits_memset(&ss, 0, sizeof(struct Sockaddr_storage));
-    if (uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen)) {
-        const char* err = uv_err_name(uv_last_error(base->loop));
+    ret = uv_udp_getsockname(&context->uvHandle, (void*)ss.nativeAddr, &nameLen);
+    if (ret) {
+        const char* err = uv_strerror(ret);
         uv_close((uv_handle_t*) &context->uvHandle, NULL);
         Except_throw(exHandler, "uv_udp_getsockname() failed [%s]", err);
     }
