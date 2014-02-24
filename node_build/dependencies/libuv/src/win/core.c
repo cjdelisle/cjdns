@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <crtdbg.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -39,6 +40,32 @@ static uv_loop_t uv_default_loop_;
 /* uv_once intialization guards */
 static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
 static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
+
+
+#ifdef _DEBUG
+/* Our crt debug report handler allows us to temporarily disable asserts */
+/* just for the current thread. */
+
+__declspec( thread ) int uv__crt_assert_enabled = TRUE;
+
+static int uv__crt_dbg_report_handler(int report_type, char *message, int *ret_val) {
+  if (uv__crt_assert_enabled || report_type != _CRT_ASSERT)
+    return FALSE;
+  
+  if (ret_val) {
+    /* Set ret_val to 0 to continue with normal execution. */
+    /* Set ret_val to 1 to trigger a breakpoint. */
+
+    if(IsDebuggerPresent())     
+      *ret_val = 1;  
+    else
+      *ret_val = 0;  
+  }
+
+  /* Don't call _CrtDbgReport. */
+  return TRUE;
+}
+#endif
 
 
 static void uv__crt_invalid_parameter_handler(const wchar_t* expression,
@@ -57,6 +84,13 @@ static void uv_init(void) {
   /* passed. The main issue is that invalid FDs will trigger this behavior. */
 #if !defined(__MINGW32__) || __MSVCRT_VERSION__ >= 0x800
   _set_invalid_parameter_handler(uv__crt_invalid_parameter_handler);
+#endif
+
+  /* We also need to setup our debug report handler because some CRT */
+  /* functions (eg _get_osfhandle) raise an assert when called with invalid */
+  /* FDs even though they return the proper error code in the release build. */
+#ifdef _DEBUG
+  _CrtSetReportHook(uv__crt_dbg_report_handler);
 #endif
 
   /* Fetch winapi function pointers. This must be done first because other */
@@ -90,10 +124,11 @@ static void uv_loop_init(uv_loop_t* loop) {
   /* To prevent uninitialized memory access, loop->time must be intialized */
   /* to zero before calling uv_update_time for the first time. */
   loop->time = 0;
+  loop->last_tick_count = 0;
   uv_update_time(loop);
 
-  ngx_queue_init(&loop->handle_queue);
-  ngx_queue_init(&loop->active_reqs);
+  QUEUE_INIT(&loop->handle_queue);
+  QUEUE_INIT(&loop->active_reqs);
   loop->active_handles = 0;
 
   loop->pending_reqs_tail = NULL;
@@ -117,8 +152,6 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   loop->timer_counter = 0;
   loop->stop_flag = 0;
-
-  loop->last_err = uv_ok_;
 }
 
 
@@ -209,6 +242,11 @@ static void uv_poll(uv_loop_t* loop, int block) {
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
     uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
+  } else {
+    /* We're sure that at least `timeout` milliseconds have expired, but */
+    /* this may not be reflected yet in the GetTickCount() return value. */
+    /* Therefore we ensure it's taken into account here. */
+    uv__time_forward(loop, timeout);
   }
 }
 
@@ -243,14 +281,24 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
     uv_fatal_error(GetLastError(), "GetQueuedCompletionStatusEx");
+  } else if (timeout > 0) {
+    /* We're sure that at least `timeout` milliseconds have expired, but */
+    /* this may not be reflected yet in the GetTickCount() return value. */
+    /* Therefore we ensure it's taken into account here. */
+    uv__time_forward(loop, timeout);
   }
 }
 
 
-static int uv__loop_alive(uv_loop_t* loop) {
+static int uv__loop_alive(const uv_loop_t* loop) {
   return loop->active_handles > 0 ||
-         !ngx_queue_empty(&loop->active_reqs) ||
+         !QUEUE_EMPTY(&loop->active_reqs) ||
          loop->endgame_handles != NULL;
+}
+
+
+int uv_loop_alive(const uv_loop_t* loop) {
+    return uv__loop_alive(loop);
 }
 
 
@@ -263,23 +311,16 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   else
     poll = &uv_poll;
 
-  if (!uv__loop_alive(loop))
-    return 0;
-
   r = uv__loop_alive(loop);
+  if (!r)
+    uv_update_time(loop);
+
   while (r != 0 && loop->stop_flag == 0) {
     uv_update_time(loop);
     uv_process_timers(loop);
 
-    /* Call idle callbacks if nothing to do. */
-    if (loop->pending_reqs_tail == NULL &&
-        loop->endgame_handles == NULL) {
-      uv_idle_invoke(loop);
-    }
-
     uv_process_reqs(loop);
-    uv_process_endgames(loop);
-
+    uv_idle_invoke(loop);
     uv_prepare_invoke(loop);
 
     (*poll)(loop, loop->idle_handles == NULL &&
@@ -287,10 +328,25 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
                   loop->endgame_handles == NULL &&
                   !loop->stop_flag &&
                   (loop->active_handles > 0 ||
-                   !ngx_queue_empty(&loop->active_reqs)) &&
+                   !QUEUE_EMPTY(&loop->active_reqs)) &&
                   !(mode & UV_RUN_NOWAIT));
 
     uv_check_invoke(loop);
+    uv_process_endgames(loop);
+
+    if (mode == UV_RUN_ONCE) {
+      /* UV_RUN_ONCE implies forward progess: at least one callback must have
+       * been invoked when it returns. uv__io_poll() can return without doing
+       * I/O (meaning: no callbacks) when its timeout expires - which means we
+       * have pending timers that satisfy the forward progress constraint.
+       *
+       * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
+       * the check.
+       */
+      uv_update_time(loop);
+      uv_process_timers(loop);
+    }
+
     r = uv__loop_alive(loop);
     if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
       break;

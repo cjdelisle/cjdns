@@ -71,7 +71,7 @@ int Process_spawn(char* binaryPath, char** args, struct EventBase* base, struct 
         .stdio_count = 3
     };
 
-    return uv_spawn(ctx->loop, &p->proc, options);
+    return uv_spawn(ctx->loop, &p->proc, &options);
 }
 
 char* Process_getPath(struct Allocator* alloc)

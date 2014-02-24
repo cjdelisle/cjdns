@@ -28,7 +28,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
-#include <uv-private/tree.h>
+#include <tree.h>
 
 /** A list of DHT nodes. */
 struct NodeStore_pvt
