@@ -175,7 +175,8 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
             || node == store->pub.selfNode, file, line);
 
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
-        Assert_fileLine(node->pathQuality != 0, file, line);
+        // Should never get as low as 512...
+        Assert_fileLine(node->pathQuality > 512, file, line);
 
         struct Node_Two* nn = node;
         do {
@@ -358,6 +359,7 @@ static void updateBestParent(struct Node_Two* node,
     check(store);
     node->bestParent = newBestParent;
     node->pathQuality = nextReach;
+    //Assert_true(node->pathQuality > 1023);
     Assert_true(node->pathQuality < newBestParent->parent->pathQuality);
 
     for (int i = 0; i < 10000; i++) {
@@ -376,6 +378,7 @@ static void handleGoodNews(struct Node_Two* node,
 {
     // TODO: Paths longer than 1024 will blow up, handle more gracefully
     Assert_always(newReach != UINT32_MAX);
+    Assert_always(newReach > 1023);
 
     Assert_true(newReach > node->pathQuality);
 
@@ -436,12 +439,7 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     Assert_true(node->pathQuality < best->parent->pathQuality);
 
     check(store);
-    //node->bestParent = best;
-    updateBestParent(node, best, node->pathQuality, store);
-    //check(store);
-    //handleGoodNews(node, nextReach, store);
-    //check(store);
-    //updateBestPath(node, store);
+    updateBestParent(node, best, nextReach, store);
     check(store);
 }
 
@@ -464,8 +462,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
         uint32_t ret = handleBadNewsOne(next, newReach, store);
         if (ret > highestRet) { highestRet = ret; }
     }
-    if (highestRet > newReach) { newReach = highestRet; }
-    if (highestRet == 0) { highestRet = newReach; }
+    if (!highestRet) { highestRet = newReach; }
 
     Assert_true(link->child != store->pub.selfNode);
     if (!highestRet) {
@@ -474,6 +471,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
         link->child->pathQuality = highestRet;
     }
 
+    if (highestRet < 1023) { highestRet = 1023; }
     return highestRet+1;
 }
 
@@ -491,6 +489,7 @@ static void handleBadNews(struct Node_Two* node,
     // might be destroyed by handleBadNewsOne()
     struct Node_Link* bp = node->bestParent;
 
+    Assert_true(!newReach || newReach > 1023);
     handleBadNewsOne(node->bestParent, newReach, store);
 
     // If our bad news actually improved the reach number for the node (because it was previously
@@ -514,6 +513,8 @@ static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStor
     // This is because reach is used to prevent loops so it must be 1 more for each hop closer
     // to the root.
     if (newReach > (UINT32_MAX - 1024)) { newReach = (UINT32_MAX - 1024); }
+    if (newReach < 1024) { newReach = 1024; }
+
     check(store);
     if (newReach < node->pathQuality) {
         handleBadNews(node, newReach, store);
