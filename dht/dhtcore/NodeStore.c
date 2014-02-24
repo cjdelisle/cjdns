@@ -1002,7 +1002,9 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
             // If the best path to the child is the one being split,
             // lets bump up the quality of the result of splitting.
-            if (lcg && grandChild->bestParent == splitLink) {
+            // if !lcg->parent->bestParent, link lcg already exists but it is too far
+            //    out to be reachable. Leave things as they are for now.
+            if (lcg && lcg->parent->bestParent && grandChild->bestParent == splitLink) {
                 Assert_true(lcg->child == grandChild);
                 if (lcg->parent != child) {
                     if (lcg->parent->pathQuality <= grandChild->pathQuality) {
