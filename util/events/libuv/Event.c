@@ -70,17 +70,11 @@ struct Event* Event_socketRead(void (* const callback)(void* callbackContext),
     }));
     Identity_set(out);
 
-    if (uv_poll_init(base->loop, &out->handler, s) != 0) {
-        Allocator_free(alloc);
-        Except_throw(eh, "Failed to create event. errno [%s]",
-                     uv_strerror(uv_last_error(base->loop)));
-    }
+    // != 0 check, removed because uv_poll_init always returns 0
+    uv_poll_init(base->loop, &out->handler, s);
 
-    if (uv_poll_start(&out->handler, UV_READABLE, handleEvent) == -1) {
-        Allocator_free(alloc);
-        Except_throw(eh, "Failed to register event. errno [%s]",
-                     uv_strerror(uv_last_error(base->loop)));
-    }
+    // == -1 check, removed because uv_poll_start always returns 0
+    uv_poll_start(&out->handler, UV_READABLE, handleEvent);
 
     out->handler.data = out;
 

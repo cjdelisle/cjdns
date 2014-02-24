@@ -103,7 +103,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         }
         Bits_memcpy(addr, str, addrLen);
         struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
-        if (uv_inet_pton(AF_INET, (char*) addr, &in->sin_addr).code != UV_OK) {
+        if (uv_inet_pton(AF_INET, (char*) addr, &in->sin_addr) != 0) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;
@@ -137,8 +137,8 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         }
         Bits_memcpy(addr, str, addrLen);
         struct sockaddr_in6* in6 = (struct sockaddr_in6*) Sockaddr_asNative(&out->addr);
-        uv_err_t ret = uv_inet_pton(AF_INET6, (char*) addr, &in6->sin6_addr);
-        if (ret.code != UV_OK) {
+        int ret = uv_inet_pton(AF_INET6, (char*) addr, &in6->sin6_addr);
+        if (ret != 0) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD;
@@ -185,8 +185,8 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
 
     #define BUFF_SZ 64
     char printedAddr[BUFF_SZ] = {0};
-    uv_err_t ret = uv_inet_ntop(addr->ss.ss_family, inAddr, printedAddr, BUFF_SZ - 1);
-    if (ret.code != UV_OK) {
+    int ret = uv_inet_ntop(addr->ss.ss_family, inAddr, printedAddr, BUFF_SZ - 1);
+    if (ret != 0) {
         return "invalid";
     }
 

@@ -76,7 +76,7 @@ static void sendMessageCallback(uv_write_t* uvReq, int error)
     struct Pipe_WriteRequest_pvt* req = Identity_cast((struct Pipe_WriteRequest_pvt*) uvReq);
     if (error) {
         Log_info(req->pipe->pub.logger, "Failed to write to pipe [%s] [%s]",
-                 req->pipe->pub.fullName, uv_err_name(uv_last_error(req->pipe->out->loop)) );
+                 req->pipe->pub.fullName, uv_strerror(error) );
     }
     req->pipe->queueLen -= req->msg->length;
     Assert_true(req->pipe->queueLen >= 0);
@@ -92,9 +92,10 @@ static uint8_t sendMessage2(struct Pipe_WriteRequest_pvt* req)
         { .base = (char*)m->bytes, .len = m->length }
     };
 
-    if (uv_write(&req->uvReq, (uv_stream_t*) pipe->out, buffers, 1, sendMessageCallback)) {
+    int ret = uv_write(&req->uvReq, (uv_stream_t*) pipe->out, buffers, 1, sendMessageCallback);
+    if (ret) {
         Log_info(pipe->pub.logger, "Failed writing to pipe [%s] [%s]",
-                 pipe->pub.fullName, uv_err_name(uv_last_error(pipe->out->loop)) );
+                 pipe->pub.fullName, uv_strerror(ret) );
         Allocator_free(req->alloc);
         return Error_UNDELIVERABLE;
     }
@@ -167,25 +168,19 @@ static void onClose(uv_handle_t* handle)
 #endif
 #define ALLOC(buff) (((struct Allocator**) &(buff[-(8 + (((uintptr_t)buff) % 8))]))[0])
 
-static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
+static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) stream->data);
 
     // Grab out the allocator which was placed there by allocate()
-    struct Allocator* alloc = buf.base ? ALLOC(buf.base) : NULL;
+    struct Allocator* alloc = buf->base ? ALLOC(buf->base) : NULL;
     pipe->isInCallback = 1;
 
     Assert_true(!alloc || alloc->fileName == pipe->alloc->fileName);
 
     if (nread < 0) {
-        if (uv_last_error(pipe->peer.loop).code == UV_EOF) {
-            Log_info(pipe->pub.logger, "Pipe closed with EOF [%s]", pipe->pub.fullName);
-        } else {
-            Log_warn(pipe->pub.logger, "Pipe encountered error [%s] [%s]",
-                     pipe->pub.fullName, uv_err_name(uv_last_error(pipe->peer.loop)) );
-        }
         if (pipe->pub.onClose) {
-            pipe->pub.onClose(&pipe->pub, uv_last_error(pipe->peer.loop).code);
+            pipe->pub.onClose(&pipe->pub, 0);
         }
         uv_close((uv_handle_t*) stream, onClose);
 
@@ -198,8 +193,8 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
         struct Message* m = Allocator_malloc(alloc, sizeof(struct Message));
         m->length = nread;
         m->padding = Pipe_PADDING_AMOUNT;
-        m->capacity = buf.len;
-        m->bytes = (uint8_t*)buf.base;
+        m->capacity = buf->len;
+        m->bytes = (uint8_t*)buf->base;
         m->alloc = alloc;
         Interface_receiveMessage(&pipe->pub.iface, m);
     }
@@ -212,7 +207,7 @@ static void incoming(uv_stream_t* stream, ssize_t nread, uv_buf_t buf)
     }
 }
 
-static uv_buf_t allocate(uv_handle_t* handle, size_t size)
+static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 {
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) handle->data);
     size = Pipe_BUFFER_CAP;
@@ -224,7 +219,8 @@ static uv_buf_t allocate(uv_handle_t* handle, size_t size)
 
     ALLOC(buff) = child;
 
-    return (uv_buf_t) { .base = buff, .len = size };
+    buf->base = buff;
+    buf->len = size;
 }
 
 static void connected(uv_connect_t* req, int status)
@@ -233,14 +229,15 @@ static void connected(uv_connect_t* req, int status)
     struct Pipe_pvt* pipe = Identity_cast((struct Pipe_pvt*) link->data);
     Log_debug(pipe->pub.logger, "Pipe [%s] established connection", pipe->pub.fullName);
 
+    int ret;
     if (status) {
         Log_info(pipe->pub.logger, "uv_pipe_connect() failed for pipe [%s] [%s]",
-                 pipe->pub.fullName, uv_err_name(uv_last_error(link->loop)) );
+                 pipe->pub.fullName, uv_strerror(status) );
         uv_close((uv_handle_t*) &pipe->peer, onClose);
 
-    } else if (uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming)) {
+    } else if ((ret = uv_read_start((uv_stream_t*)&pipe->peer, allocate, incoming))) {
         Log_info(pipe->pub.logger, "uv_read_start() failed for pipe [%s] [%s]",
-                 pipe->pub.fullName, uv_err_name(uv_last_error(link->loop)) );
+                 pipe->pub.fullName, uv_strerror(ret));
         uv_close((uv_handle_t*) &pipe->peer, onClose);
 
     } else {
@@ -268,7 +265,7 @@ static void listenCallback(uv_stream_t* server, int status)
     }
     if (status == -1) {
         Log_info(pipe->pub.logger, "failed to accept pipe connection [%s] [%s]",
-                 pipe->pub.fullName, uv_err_name(uv_last_error(server->loop)) );
+                 pipe->pub.fullName, uv_strerror(status) );
 
         if (pipe->pub.onConnection) {
             pipe->pub.onConnection(&pipe->pub, status);
@@ -276,9 +273,10 @@ static void listenCallback(uv_stream_t* server, int status)
         return;
     }
 
-    if (uv_accept(server, (uv_stream_t*) &pipe->peer)) {
+    int ret = uv_accept(server, (uv_stream_t*) &pipe->peer);
+    if (ret) {
         Log_warn(pipe->pub.logger, "uv_accept() failed: pipe [%s] [%s]",
-                 pipe->pub.fullName, uv_err_name(uv_last_error(pipe->server.loop)) );
+                 pipe->pub.fullName, uv_strerror(ret) );
         if (pipe->pub.onConnection) {
             pipe->pub.onConnection(&pipe->pub, -1);
         }
@@ -357,8 +355,16 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
         .alloc = alloc
     }));
 
-    if (uv_pipe_init(ctx->loop, &out->peer, 0) || uv_pipe_init(ctx->loop, &out->server, 0)) {
-        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_err_name(uv_last_error(ctx->loop)));
+    int ret;
+
+    ret = uv_pipe_init(ctx->loop, &out->peer, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
+    }
+
+    ret = uv_pipe_init(ctx->loop, &out->server, 0);
+    if (ret) {
+        Except_throw(eh, "uv_pipe_init() failed [%s]", uv_strerror(ret));
     }
 
     #ifdef win32
@@ -388,18 +394,19 @@ struct Pipe* Pipe_forFiles(int inFd,
     snprintf(buff, 31, "forFiles(%d,%d)", inFd, outFd);
 
     struct Pipe_pvt* out = newPipe(eb, buff, eh, userAlloc);
-    struct EventBase_pvt* ctx = EventBase_privatize(eb);
 
-    if (uv_pipe_open(&out->peer, inFd)) {
+    int ret = uv_pipe_open(&out->peer, inFd);
+    if (ret) {
         Except_throw(eh, "uv_pipe_open(inFd) failed [%s]",
-                     uv_err_name(uv_last_error(ctx->loop)));
+                     uv_strerror(ret));
     }
 
     if (inFd != outFd) {
         out->out = &out->server;
-        if (uv_pipe_open(out->out, outFd)) {
+        ret = uv_pipe_open(out->out, outFd);
+        if (ret) {
             Except_throw(eh, "uv_pipe_open(outFd) failed [%s]",
-                         uv_err_name(uv_last_error(ctx->loop)));
+                         uv_strerror(ret));
         }
     }
 
@@ -415,18 +422,20 @@ struct Pipe* Pipe_named(const char* name,
                         struct Allocator* userAlloc)
 {
     struct Pipe_pvt* out = newPipe(eb, name, eh, userAlloc);
-    struct EventBase_pvt* ctx = EventBase_privatize(eb);
+    int ret;
 
     // Attempt to create pipe.
-    if (!uv_pipe_bind(&out->server, out->pub.fullName)) {
-        if (uv_listen((uv_stream_t*) &out->server, 1, listenCallback)) {
+    ret = uv_pipe_bind(&out->server, out->pub.fullName);
+    if (!ret) {
+        ret = uv_listen((uv_stream_t*) &out->server, 1, listenCallback);
+        if (ret) {
             Except_throw(eh, "uv_listen() failed [%s] for pipe [%s]",
-                         uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
+                         uv_strerror(ret), out->pub.fullName);
         }
         return &out->pub;
     }
 
-    if (uv_last_error(ctx->loop).code == UV_EADDRINUSE) {
+    if (ret == UV_EADDRINUSE) {
         // Pipe exists, connect to it.
         uv_connect_t* req = Allocator_malloc(out->alloc, sizeof(uv_connect_t));
         req->data = out;
@@ -435,7 +444,7 @@ struct Pipe* Pipe_named(const char* name,
     }
 
     Except_throw(eh, "uv_pipe_bind() failed [%s] for pipe [%s]",
-                 uv_err_name(uv_last_error(ctx->loop)), out->pub.fullName);
+                 uv_strerror(ret), out->pub.fullName);
 
     return &out->pub;
 }
