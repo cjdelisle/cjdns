@@ -20,7 +20,9 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
-
+#ifdef _OPENMP_
+    #include <omp.h>
+#endif
 enum ResponseCode {
     ResponseCode_NO_ERROR = 0,
     ResponseCode_FORMAT_ERROR = 1,
@@ -224,6 +226,25 @@ static struct DNSServer_Message* parseMessage(struct Message* msg,
     dmesg->authorities = Allocator_calloc(alloc, sizeof(uintptr_t), totalAuthorityRRs+1);
     dmesg->additionals = Allocator_calloc(alloc, sizeof(uintptr_t), totalAdditionalRRs+1);
 
+#ifdef _OPENMP_
+    omp_set_num_threads(4);
+    #pragma omp parallel
+    {
+        int threadNum = omp_get_thread_num();
+        for (int i = threadNum; i < totalQuestions; i = (i + threadNum)) {
+            dmesg->questions[i] = parseQuestion(msg, alloc, eh);
+        }
+        for (int i = threadNum; i < totalAnswerRRs; i = (i + threadNum)) {
+            dmesg->answers[i] = parseRR(msg, alloc, eh);
+        }
+        for (int i = threadNum; i < totalAuthorityRRs; i = (i + threadNum)) {
+            dmesg->authorities[i] = parseRR(msg, alloc, eh);
+        }
+        for (int i = threadNum; i < totalAdditionalRRs; i = (i + threadNum)) {
+            dmesg->additionals[i] = parseRR(msg, alloc, eh);
+        }
+    }
+#else
     for (int i = 0; i < totalQuestions; i++) {
         dmesg->questions[i] = parseQuestion(msg, alloc, eh);
     }
@@ -236,6 +257,7 @@ static struct DNSServer_Message* parseMessage(struct Message* msg,
     for (int i = 0; i < totalAdditionalRRs; i++) {
         dmesg->additionals[i] = parseRR(msg, alloc, eh);
     }
+#endif
 
     return dmesg;
 }
