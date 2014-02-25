@@ -241,6 +241,7 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
+    return; // This uses a *lot* of cpu horsepower
     #ifndef PARANOIA
         return;
     #endif
@@ -1007,10 +1008,8 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             //    out to be reachable. Leave things as they are for now.
             if (lcg && lcg->parent->bestParent && grandChild->bestParent == splitLink) {
                 Assert_true(lcg->child == grandChild);
-                if (lcg->parent != child) {
-                    if (lcg->parent->pathQuality <= grandChild->pathQuality) {
-                        handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
-                    }
+                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+                    handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
                 }
                 Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
                 updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
