@@ -83,7 +83,7 @@ struct ETHInterface
     Identity
 };
 
-static uint8_t sendMessageB(struct Message* message, struct Interface* ethIf, int bug)
+static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
 {
     struct ETHInterface* context = Identity_cast((struct ETHInterface*) ethIf);
 
@@ -133,11 +133,6 @@ static uint8_t sendMessageB(struct Message* message, struct Interface* ethIf, in
         }
     }
     return 0;
-}
-
-static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
-{
-    return sendMessageB(message, ethIf, true);
 }
 
 static void handleBeacon(struct Message* msg, struct ETHInterface* context)
@@ -216,7 +211,7 @@ static void sendBeacon(void* vcontext)
     };
 
     int ret;
-    if ((ret = sendMessageB(&m, &context->generic, false)) != 0) {
+    if ((ret = sendMessage(&m, &context->generic)) != 0) {
         Log_info(context->logger, "Got error [%d] sending beacon [%s]", ret, strerror(errno));
     }
 }
