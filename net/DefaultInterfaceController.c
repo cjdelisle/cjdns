@@ -384,13 +384,12 @@ static int registerPeer(struct InterfaceController* ifController,
 {
     struct Context* ic = Identity_cast((struct Context*) ifController);
 
-    Log_debug(ic->logger, "registerPeer [%p] total [%u]",
-              (void*)externalInterface, ic->peerMap.count);
     if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
-        Log_debug(ic->logger, "Skipping registerPeer [%p] because peer is already registered",
-                  (void*)externalInterface);
         return 0;
     }
+
+    Log_debug(ic->logger, "registerPeer [%p] total [%u]",
+              (void*)externalInterface, ic->peerMap.count);
 
     uint8_t ip6[16];
     if (herPublicKey) {

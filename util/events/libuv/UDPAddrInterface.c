@@ -23,6 +23,7 @@
 #include "util/Identity.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
+#include "util/Hex.h"
 
 struct UDPAddrInterface_pvt
 {
@@ -163,6 +164,11 @@ static void incoming(uv_udp_t* handle,
         Sockaddr_normalizeNative((struct sockaddr*) m->bytes);
 
         Message_push(m, &context->pub.addr->addrLen, 8, NULL);
+
+        uint8_t buff[256] = {0};
+        Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.addr->addrLen));
+        Log_debug(context->logger, "Message from [%s]", buff);
+
         Interface_receiveMessage(&context->pub.generic, m);
     }
 

@@ -35,7 +35,7 @@ int main()
         .allocator = alloc
     };
 
-    struct MultiInterface* mif = MultiInterface_new(8, &iface, tf->ifController);
+    struct MultiInterface* mif = MultiInterface_new(8, &iface, tf->ifController, NULL);
 
     struct Interface* peerIf = MultiInterface_ifaceForKey(mif, "The Key ");
     InterfaceController_registerPeer(tf->ifController, NULL, NULL, true, false, peerIf);

@@ -95,7 +95,8 @@ struct UDPInterface* UDPInterface_new(struct EventBase* base,
         .alloc = allocator
     }), sizeof(struct UDPInterface_pvt));
 
-    context->multiIface = MultiInterface_new(context->pub.addr->addrLen, &udpBase->generic, ic);
+    context->multiIface =
+        MultiInterface_new(context->pub.addr->addrLen, &udpBase->generic, ic, logger);
 
     return &context->pub;
 }

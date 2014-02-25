@@ -86,7 +86,7 @@ int main()
         .senderContext = &ctx
     };
 
-    /*struct MultiInterface* mif = */MultiInterface_new(KEY_SIZE, &externalIf, &ctx.ic);
+    /*struct MultiInterface* mif = */MultiInterface_new(KEY_SIZE, &externalIf, &ctx.ic, NULL);
 
     struct Entry* entries = Allocator_malloc(alloc, sizeof(struct Entry) * ENTRY_COUNT);
     Random_bytes(rand, (uint8_t*)entries, ENTRY_COUNT * sizeof(struct Entry));

@@ -17,6 +17,8 @@
 #include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "util/log/Log.h"
+#include "util/Hex.h"
 
 /*
  * An Interface such as Ethernet or UDP which may connect to multiple peers
@@ -85,6 +87,8 @@ struct MultiInterface_pvt
 
     struct MapKey* workSpace;
 
+    struct Log* logger;
+
     Identity
 };
 
@@ -116,6 +120,10 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     if (index >= 0) {
         return mif->peerMap.values[index];
     }
+
+    uint8_t keyHex[256] = {0};
+    Assert_true(Hex_encode(keyHex, 255, (uint8_t*)key, key->keySize+4));
+    Log_debug(mif->logger, "New incoming message from [%s]", keyHex);
 
     // Per peer allocator.
     struct Allocator* alloc = Allocator_child(mif->allocator);
@@ -186,7 +194,8 @@ struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void
 
 struct MultiInterface* MultiInterface_new(int keySize,
                                           struct Interface* external,
-                                          struct InterfaceController* ic)
+                                          struct InterfaceController* ic,
+                                          struct Log* logger)
 {
     Assert_true(!(keySize % 4));
     Assert_true(keySize > 4);
@@ -198,7 +207,8 @@ struct MultiInterface* MultiInterface_new(int keySize,
             },
             .peerMap = { .allocator = external->allocator },
             .ic = ic,
-            .allocator = external->allocator
+            .allocator = external->allocator,
+            .logger = logger
         }));
     Identity_set(out);
 
