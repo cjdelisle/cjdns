@@ -230,17 +230,18 @@ static struct DNSServer_Message* parseMessage(struct Message* msg,
     omp_set_num_threads(4);
     #pragma omp parallel
     {
+        int nthreads = omp_get_num_threads();
         int threadNum = omp_get_thread_num();
-        for (int i = threadNum; i < totalQuestions; i = (i + threadNum)) {
+        for (int i = threadNum; i < totalQuestions; i = (i + nthreads)) {
             dmesg->questions[i] = parseQuestion(msg, alloc, eh);
         }
-        for (int i = threadNum; i < totalAnswerRRs; i = (i + threadNum)) {
+        for (int i = threadNum; i < totalAnswerRRs; i = (i + nthreads)) {
             dmesg->answers[i] = parseRR(msg, alloc, eh);
         }
-        for (int i = threadNum; i < totalAuthorityRRs; i = (i + threadNum)) {
+        for (int i = threadNum; i < totalAuthorityRRs; i = (i + nthreads)) {
             dmesg->authorities[i] = parseRR(msg, alloc, eh);
         }
-        for (int i = threadNum; i < totalAdditionalRRs; i = (i + threadNum)) {
+        for (int i = threadNum; i < totalAdditionalRRs; i = (i + nthreads)) {
             dmesg->additionals[i] = parseRR(msg, alloc, eh);
         }
     }
