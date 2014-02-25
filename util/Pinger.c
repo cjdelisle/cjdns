@@ -75,7 +75,7 @@ static int freePing(struct Allocator_OnFreeJob* job)
     struct Ping* p = Identity_check((struct Ping*) job->userData);
 
     if (p->timeSent) {
-        Log_debug(p->pinger->logger, "Ping cancelled [%u]", p->pub.handle);
+        //Log_debug(p->pinger->logger, "Ping cancelled [%u]", p->pub.handle);
     }
 
     int index = Map_OutstandingPings_indexForHandle(p->pub.handle - p->pinger->baseHandle,

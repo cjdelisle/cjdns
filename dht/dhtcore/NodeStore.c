@@ -336,7 +336,7 @@ static int updateBestParentCycle(struct Node_Two* node,
         return 1;
     }
 
-    #ifdef Log_DEBUG
+    /*#ifdef Log_DEBUG
         if (node->address.path != bestPath) {
             uint8_t pathStr[20];
             AddrTools_printPath(pathStr, bestPath);
@@ -344,7 +344,7 @@ static int updateBestParentCycle(struct Node_Two* node,
             AddrTools_printIp(addrStr, node->address.ip6.bytes);
             Log_debug(store->logger, "New best path [%s@%s]", addrStr, pathStr);
         }
-    #endif
+    #endif*/
 
     node->address.path = bestPath;
     checkNode(node, store);
