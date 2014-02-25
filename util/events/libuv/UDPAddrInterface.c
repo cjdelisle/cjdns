@@ -166,7 +166,9 @@ static void incoming(uv_udp_t* handle,
         Interface_receiveMessage(&context->pub.generic, m);
     }
 
-    Allocator_free(alloc);
+    if (alloc) {
+        Allocator_free(alloc);
+    }
 
     context->inCallback = 0;
     if (context->blockFreeInsideCallback) {
