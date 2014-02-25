@@ -165,9 +165,9 @@ static void incoming(uv_udp_t* handle,
 
         Message_push(m, &context->pub.addr->addrLen, 8, NULL);
 
-        uint8_t buff[256] = {0};
+        /*uint8_t buff[256] = {0};
         Assert_true(Hex_encode(buff, 255, m->bytes, context->pub.addr->addrLen));
-        Log_debug(context->logger, "Message from [%s]", buff);
+        Log_debug(context->logger, "Message from [%s]", buff);*/
 
         Interface_receiveMessage(&context->pub.generic, m);
     }
