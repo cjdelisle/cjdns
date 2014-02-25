@@ -16,6 +16,11 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
+for PYTHON2 in "`which python`" "`which python2`" "`which python2.7`" "false"; do
+    ${PYTHON2} --version 2>&1 | grep '2.7' >/dev/null 2>/dev/null && break;
+    [ "x${PYTHON2}" = "xfalse" ] && echo 'No sutible python2.7 version found' && exit 1;
+done
+
 hasOkNode()
 {
     for NODE in "$(pwd)/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do

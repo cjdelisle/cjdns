@@ -23,6 +23,7 @@ var Os = require('os');
 var SYSTEM = process.platform;
 var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
+var PYTHON = process.env['PYTHON2'] || 'python';
 
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
@@ -214,7 +215,7 @@ Builder.configure({
             process.chdir(BUILDDIR+'/dependencies/libuv/');
 
             var args = ['./gyp_uv.py'];
-            var gyp = Spawn('python', args);
+            var gyp = Spawn(PYTHON, args);
             gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
             gyp.on('close', waitFor(function () {
