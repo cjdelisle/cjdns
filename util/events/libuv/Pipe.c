@@ -199,7 +199,9 @@ static void incoming(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
         Interface_receiveMessage(&pipe->pub.iface, m);
     }
 
-    Allocator_free(alloc);
+    if (alloc) {
+        Allocator_free(alloc);
+    }
 
     pipe->isInCallback = 0;
     if (pipe->blockFreeInsideCallback) {

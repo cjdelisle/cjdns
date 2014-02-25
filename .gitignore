@@ -11,6 +11,7 @@
 /publictoip6
 /sybilsim
 /makekeys
+/randombytes
 *.pyc
 .clang_complete
 *~
