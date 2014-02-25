@@ -57,6 +57,7 @@ Builder.configure({
         '-Werror',
         '-Wno-pointer-sign',
         '-pedantic',
+        '-fopenmp',
         '-D',builder.config.systemName + '=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
@@ -191,7 +192,8 @@ Builder.configure({
     }).nThen(function (waitFor) {
         builder.config.libs.push(
             BUILDDIR+'/dependencies/libuv/out/Release/libuv.a',
-            '-lpthread'
+            '-lpthread',
+            '-fopenmp'
         );
         if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
