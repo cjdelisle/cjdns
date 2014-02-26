@@ -309,7 +309,7 @@ static void handleHotKeysReply(struct Message* msg, struct RainflyClient_pvt* ct
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct RainflyClient_pvt* ctx =
-        Identity_cast((struct RainflyClient_pvt*)iface->receiverContext);
+        Identity_check((struct RainflyClient_pvt*)iface->receiverContext);
 
     if (msg->length < ctx->addr->addrLen + 4) {
         Log_debug(ctx->logger, "runt");
@@ -339,7 +339,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static void sendHotKeysRequest(void* vRainflyClient)
 {
-    struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)vRainflyClient);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)vRainflyClient);
 
     int time;
     if (Bits_popCountx32(ctx->keyMap) < ctx->pub.minSignatures && ctx->keyCount) {
@@ -387,7 +387,7 @@ static void sendHotKeysRequest(void* vRainflyClient)
 static int lookupOnFree(struct Allocator_OnFreeJob* onFree)
 {
     struct RainflyClient_Lookup_pvt* lookup =
-        Identity_cast((struct RainflyClient_Lookup_pvt*)onFree->userData);
+        Identity_check((struct RainflyClient_Lookup_pvt*)onFree->userData);
 
     struct RainflyClient_Lookup_pvt* l = lookup->ctx->lookups;
     if (l == lookup) {
@@ -406,8 +406,8 @@ static int lookupOnFree(struct Allocator_OnFreeJob* onFree)
 static void tryNextServer(void* vLookup)
 {
     struct RainflyClient_Lookup_pvt* lookup =
-        Identity_cast((struct RainflyClient_Lookup_pvt*)vLookup);
-    struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)lookup->ctx);
+        Identity_check((struct RainflyClient_Lookup_pvt*)vLookup);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)lookup->ctx);
 
     if (lookup->triedServers++ > ctx->pub.maxTries) {
         if (lookup->pub.onReply) {
@@ -448,7 +448,7 @@ static void tryNextServer(void* vLookup)
 
 struct RainflyClient_Lookup* RainflyClient_lookup(struct RainflyClient* client, String* domain)
 {
-    struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)client);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)client);
 
     if (!ctx->keyCount || ctx->keyCount < ctx->pub.minSignatures) {
         Log_debug(ctx->logger, "Not enough keys to get required signatues");
@@ -489,7 +489,7 @@ struct RainflyClient_Lookup* RainflyClient_lookup(struct RainflyClient* client, 
 
 int RainflyClient_addKey(struct RainflyClient* client, uint8_t key[32])
 {
-    struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)client);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)client);
     if (ctx->keyCount > 63) {
         return RainflyClient_addKey_TOO_MANY_KEYS;
     }
@@ -502,7 +502,7 @@ int RainflyClient_addKey(struct RainflyClient* client, uint8_t key[32])
 
 int RainflyClient_addServer(struct RainflyClient* client, struct Sockaddr* addr)
 {
-    struct RainflyClient_pvt* ctx = Identity_cast((struct RainflyClient_pvt*)client);
+    struct RainflyClient_pvt* ctx = Identity_check((struct RainflyClient_pvt*)client);
     if (addr->addrLen != ctx->addr->addrLen
         || Sockaddr_getFamily(addr) != Sockaddr_getFamily(ctx->addr))
     {

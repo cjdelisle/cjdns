@@ -15,6 +15,7 @@
 #include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth_pvt.h"
 #include "net/DefaultInterfaceController.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
 #include "util/Base32.h"
@@ -23,6 +24,7 @@
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "util/version/Version.h"
+#include "util/AddrTools.h"
 #include "wire/Error.h"
 #include "wire/Message.h"
 
@@ -113,6 +115,8 @@ struct Context
     /** Router needed to inject newly added nodes to bootstrap the system. */
     struct RouterModule* const routerModule;
 
+    struct RumorMill* const rumorMill;
+
     struct Log* const logger;
 
     struct EventBase* const eventBase;
@@ -148,7 +152,7 @@ struct Context
 
 static inline struct Context* ifcontrollerForPeer(struct IFCPeer* ep)
 {
-    return Identity_cast((struct Context*) ep->switchIf.senderContext);
+    return Identity_check((struct Context*) ep->switchIf.senderContext);
 }
 
 static void onPingResponse(enum SwitchPinger_Result result,
@@ -161,7 +165,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     if (SwitchPinger_Result_OK != result) {
         return;
     }
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) onResponseContext);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) onResponseContext);
     struct Context* ic = ifcontrollerForPeer(ep);
 
     struct Address addr;
@@ -169,7 +173,14 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
     Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
-    RouterModule_addNode(ic->routerModule, &addr, version);
+    addr.protocolVersion = version;
+
+    struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
+    if (!nn) {
+        RumorMill_addNode(ic->rumorMill, &addr);
+    } else if (!nn->bestParent) {
+        RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
+    }
 
     #ifdef Log_DEBUG
         // This will be false if it times out.
@@ -186,7 +197,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
 // Called from the pingInteral timeout.
 static void pingCallback(void* vic)
 {
-    struct Context* ic = Identity_cast((struct Context*) vic);
+    struct Context* ic = Identity_check((struct Context*) vic);
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     ic->pingCount++;
 
@@ -197,9 +208,12 @@ static void pingCallback(void* vic)
         // This is here because of a pathological state where the connection is in ESTABLISHED
         // state but the *direct peer* has somehow been dropped from the routing table.
         // TODO: understand the cause of this issue rather than checking for it once per second.
-        struct Node* peerNode = RouterModule_getNode(ep->switchLabel, ic->routerModule);
+        struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
 
-        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds || !peerNode) {
+        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds
+            || !peerNode
+            || !peerNode->bestParent)
+        {
             #ifdef Log_DEBUG
                   uint8_t key[56];
                   Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
@@ -216,7 +230,6 @@ static void pingCallback(void* vic)
             }
 
             bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
-            uint32_t lag = ~0u;
             if (unresponsive) {
                 // flush the peer from the table...
                 RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
@@ -227,9 +240,6 @@ static void pingCallback(void* vic)
                 }
 
                 ep->state = InterfaceController_PeerState_UNRESPONSIVE;
-                lag = ((now - ep->timeOfLastMessage) / 1024);
-            } else {
-                lag = ((now - ep->timeOfLastMessage) / 1024);
             }
 
             struct SwitchPinger_Ping* ping =
@@ -240,6 +250,10 @@ static void pingCallback(void* vic)
                                      ic->allocator,
                                      ic->switchPinger);
 
+            #ifdef Log_DEBUG
+                uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
+            #endif
+
             if (!ping) {
                 Log_debug(ic->logger,
                           "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
@@ -248,8 +262,6 @@ static void pingCallback(void* vic)
             }
 
             ping->onResponseContext = ep;
-
-            SwitchPinger_sendPing(ping);
 
             Log_debug(ic->logger,
                       "Pinging %s peer [%s.k] lag [%u]",
@@ -281,7 +293,7 @@ static void moveEndpointIfNeeded(struct IFCPeer* ep, struct Context* ic)
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
     struct Context* ic = ifcontrollerForPeer(ep);
 
     ep->bytesIn += msg->length;
@@ -328,7 +340,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 // This is directly called from SwitchCore, message is not encrypted.
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
-    struct IFCPeer* ep = Identity_cast((struct IFCPeer*) switchIf);
+    struct IFCPeer* ep = Identity_check((struct IFCPeer*) switchIf);
 
     ep->bytesOut += msg->length;
 
@@ -362,7 +374,7 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct IFCPeer* toClose = Identity_cast((struct IFCPeer*) job->userData);
+    struct IFCPeer* toClose = Identity_check((struct IFCPeer*) job->userData);
 
     struct Context* ic = ifcontrollerForPeer(toClose);
 
@@ -382,7 +394,7 @@ static int registerPeer(struct InterfaceController* ifController,
                         bool isIncomingConnection,
                         struct Interface* externalInterface)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
 
     if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
         return 0;
@@ -480,13 +492,13 @@ static int registerPeer(struct InterfaceController* ifController,
 static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
 {
     struct Interface* cryptoAuthIf = CryptoAuth_getConnectedInterface(iface);
-    struct IFCPeer* p = Identity_cast((struct IFCPeer*) cryptoAuthIf->receiverContext);
+    struct IFCPeer* p = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
     return p->state;
 }
 
 static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beacon* beacon)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifc);
+    struct Context* ic = Identity_check((struct Context*) ifc);
     beacon->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
     Bits_memcpyConst(beacon->password, ic->beaconPassword, Headers_Beacon_PASSWORD_LEN);
     Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
@@ -496,7 +508,7 @@ static int getPeerStats(struct InterfaceController* ifController,
                         struct Allocator* alloc,
                         struct InterfaceController_peerStats** statsOut)
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
     int count = ic->peerMap.count;
     struct InterfaceController_peerStats* stats =
         Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
@@ -527,7 +539,7 @@ static int getPeerStats(struct InterfaceController* ifController,
 
 static int disconnectPeer(struct InterfaceController* ifController, uint8_t herPublicKey[32])
 {
-    struct Context* ic = Identity_cast((struct Context*) ifController);
+    struct Context* ic = Identity_check((struct Context*) ifController);
 
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
         struct IFCPeer* peer = ic->peerMap.values[i];
@@ -542,6 +554,7 @@ static int disconnectPeer(struct InterfaceController* ifController, uint8_t herP
 struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
                                                            struct SwitchCore* switchCore,
                                                            struct RouterModule* routerModule,
+                                                           struct RumorMill* rumorMill,
                                                            struct Log* logger,
                                                            struct EventBase* eventBase,
                                                            struct SwitchPinger* switchPinger,
@@ -564,6 +577,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
         .ca = ca,
         .switchCore = switchCore,
         .routerModule = routerModule,
+        .rumorMill = rumorMill,
         .logger = logger,
         .eventBase = eventBase,
         .switchPinger = switchPinger,

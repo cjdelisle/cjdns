@@ -58,6 +58,8 @@ struct Ducttape_pvt
 
     struct SearchRunner* searchRunner;
 
+    struct RumorMill* nodesOfInterest;
+
     /** The interface which interacts with the switch core. */
     struct Interface switchInterface;
 

@@ -272,7 +272,7 @@ union Headers_CryptoAuth
     struct {
         /**
          * Numbers one through three are interpreted as handshake packets, UINT32_MAX is
-         * a connectToMe packet and anything else is a nonce in a traff packet.
+         * a connectToMe packet and anything else is a nonce in a traffic packet.
          */
         uint32_t handshakeStage;
 

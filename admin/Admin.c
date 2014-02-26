@@ -174,7 +174,7 @@ static int checkAddress(struct Admin* admin, int index, uint64_t now)
 
 static void clearExpiredAddresses(void* vAdmin)
 {
-    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    struct Admin* admin = Identity_check((struct Admin*) vAdmin);
     uint64_t now = Time_currentTimeMilliseconds(admin->eventBase);
     int count = 0;
     for (int i = admin->map.count - 1; i >= 0; i--) {
@@ -302,7 +302,7 @@ static bool checkArgs(Dict* args,
 
 static void asyncEnabled(Dict* args, void* vAdmin, String* txid, struct Allocator* requestAlloc)
 {
-    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    struct Admin* admin = Identity_check((struct Admin*) vAdmin);
     int64_t enabled = admin->asyncEnabled;
     Dict d = Dict_CONST(String_CONST("asyncEnabled"), Int_OBJ(enabled), NULL);
     Admin_sendMessage(&d, txid, admin);
@@ -311,7 +311,7 @@ static void asyncEnabled(Dict* args, void* vAdmin, String* txid, struct Allocato
 #define ENTRIES_PER_PAGE 8
 static void availableFunctions(Dict* args, void* vAdmin, String* txid, struct Allocator* tempAlloc)
 {
-    struct Admin* admin = Identity_cast((struct Admin*) vAdmin);
+    struct Admin* admin = Identity_check((struct Admin*) vAdmin);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
 
@@ -354,7 +354,7 @@ static void handleRequest(Dict* messageDict,
     // If they're asking for a cookie then lets give them one.
     String* cookie = String_CONST("cookie");
     if (String_equals(query, cookie)) {
-        Log_debug(admin->logger, "Got a request for a cookie");
+        //Log_debug(admin->logger, "Got a request for a cookie");
         Dict* d = Dict_new(allocator);
         char bytes[32];
         snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));
@@ -467,7 +467,7 @@ static void handleMessage(struct Message* message,
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
-    struct Admin* admin = Identity_cast((struct Admin*) iface->receiverContext);
+    struct Admin* admin = Identity_check((struct Admin*) iface->receiverContext);
 
     Assert_true(message->length >= (int)admin->addrLen);
     struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };

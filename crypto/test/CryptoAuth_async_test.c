@@ -67,7 +67,7 @@ struct TestContext
 
 static uint8_t sendMessageAlice(struct Message* msg, struct Interface* iface)
 {
-    struct TestContext* tctx = Identity_cast((struct TestContext*)
+    struct TestContext* tctx = Identity_check((struct TestContext*)
         (((char*)iface) - offsetof(struct TestContext, aliceExternalIf)));
     tctx->aliceCryptMsg = msg;
     return 0;
@@ -75,7 +75,7 @@ static uint8_t sendMessageAlice(struct Message* msg, struct Interface* iface)
 
 static uint8_t sendMessageBob(struct Message* msg, struct Interface* iface)
 {
-    struct TestContext* tctx = Identity_cast((struct TestContext*)
+    struct TestContext* tctx = Identity_check((struct TestContext*)
         (((char*)iface) - offsetof(struct TestContext, bobExternalIf)));
     tctx->bobCryptMsg = msg;
     return 0;

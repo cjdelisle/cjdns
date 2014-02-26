@@ -50,3 +50,8 @@ char* CString_strstr(const char* haystack, const char* needle)
 {
     return strstr(haystack,needle);
 }
+
+char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n)
+{
+    return strncpy(dest, src, n);
+}

@@ -11,6 +11,8 @@
 /publictoip6
 /sybilsim
 /makekeys
+/node_build/node_modules/jshint
+/node_build/node_modules/.bin
 /randombytes
 *.pyc
 .clang_complete

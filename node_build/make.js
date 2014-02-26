@@ -78,23 +78,19 @@ Builder.configure({
         // f8 = 241 peers max, fixed width 8 bit
         // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D',' NumberCompress_TYPE=v4x8',
+        '-D',' NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
-        '-D','Log_DEBUG',
         '-D','Identity_CHECK=1',
         '-D','Allocator_USE_CANARIES=1',
         '-D','PARANOIA=1'
     );
+    var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
+    builder.config.cflags.push('-D','Log_'+logLevel);
     if (process.env['NO_PIE'] === undefined) {
         builder.config.cflags.push('-fPIE');
     }
-    if (process.env['EXPERIMENTAL_PATHFINDER']) {
-        console.log("Building with experimental pathfinder");
-        builder.config.cflags.push(
-            '-D','EXPERIMENTAL_PATHFINDER=1'
-        );
-    }
+    if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
     if (SYSTEM === 'win32') {
         builder.config.cflags.push(
             '!-fPIE',
@@ -125,6 +121,7 @@ Builder.configure({
             '-Wno-invalid-pp-token',
             '-Wno-dollar-in-identifier-extension',
             '-Wno-newline-eof',
+            '-Wno-unused-value',
 
             // lots of places where depending on preprocessor conditions, a statement might be
             // a case of if (1 == 1)
@@ -248,6 +245,8 @@ Builder.configure({
     builder.buildExecutable('contrib/c/cleanconfig.c',     './cleanconfig', waitFor());
     builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
     builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
+
+    builder.buildExecutable('crypto/random/randombytes.c',        './randombytes', waitFor());
 
 }).test(function (builder, waitFor) {
 

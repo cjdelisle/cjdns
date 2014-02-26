@@ -22,9 +22,13 @@
 Gcc_PRINTF(1, 2)
 void Assert_failure(const char* format, ...)
 {
+    printf("\n\n");
+    fflush(stdout);
+    fflush(stderr);
     va_list args;
     va_start(args, format);
     vfprintf(stderr, format, args);
+    fflush(stderr);
     abort();
     va_end(args);
 }

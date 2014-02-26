@@ -21,12 +21,11 @@
 
 struct Ping
 {
-    struct Pinger_Ping public;
+    struct Pinger_Ping pub;
     struct Pinger* pinger;
     struct Timeout* timeout;
     String* data;
-    uint32_t timeSent;
-    uint32_t handle;
+    int64_t timeSent;
     uint64_t cookie;
     Pinger_SEND_PING(sendPing);
     Pinger_ON_RESPONSE(onResponse);
@@ -45,34 +44,52 @@ struct Pinger
     struct Random* rand;
     struct Log* logger;
     struct Allocator* allocator;
+
+    /** Make all handles for different pingers wildly different to simplify debugging. */
+    uint32_t baseHandle;
 };
 
 static void callback(String* data, struct Ping* ping)
 {
     uint32_t now = Time_currentTimeMilliseconds(ping->pinger->eventBase);
-    ping->onResponse(data, now - ping->timeSent, ping->public.context);
-    Allocator_free(ping->public.pingAlloc);
+    ping->onResponse(data, now - ping->timeSent, ping->pub.context);
+
+    // Flag the freePing function to tell it that the ping was not terminated by the user...
+    ping->timeSent = 0;
+
+    Allocator_free(ping->pub.pingAlloc);
 }
 
 static void timeoutCallback(void* vping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) vping);
+    struct Ping* p = Identity_check((struct Ping*) vping);
+    int64_t now = Time_currentTimeMilliseconds(p->pinger->eventBase);
+    long long diff = ((long long) now) - ((long long)p->timeSent);
+    Assert_true(diff < 1000000000);
+    Log_debug(p->pinger->logger, "Ping timeout for [%u] in [%lld] ms", p->pub.handle, diff);
     callback(NULL, p);
 }
 
 static int freePing(struct Allocator_OnFreeJob* job)
 {
-    struct Ping* p = Identity_cast((struct Ping*) job->userData);
-    int index = Map_OutstandingPings_indexForHandle(p->handle, &p->pinger->outstandingPings);
+    struct Ping* p = Identity_check((struct Ping*) job->userData);
+
+    if (p->timeSent) {
+        //Log_debug(p->pinger->logger, "Ping cancelled [%u]", p->pub.handle);
+    }
+
+    int index = Map_OutstandingPings_indexForHandle(p->pub.handle - p->pinger->baseHandle,
+                                                    &p->pinger->outstandingPings);
     Assert_true(index > -1);
     Map_OutstandingPings_remove(index, &p->pinger->outstandingPings);
     return 0;
 }
 
-void Pinger_sendPing(struct Pinger_Ping* ping)
+static void asyncSendPing(void* vping)
 {
-    struct Ping* p = Identity_cast((struct Ping*) ping);
-    p->sendPing(p->data, ping->context);
+    struct Ping* p = Identity_check((struct Ping*) vping);
+    //Log_debug(p->pinger->logger, "Sending ping [%u]", p->pub.handle);
+    p->sendPing(p->data, p->pub.context);
 }
 
 struct Pinger_Ping* Pinger_newPing(String* data,
@@ -85,7 +102,7 @@ struct Pinger_Ping* Pinger_newPing(String* data,
     struct Allocator* alloc = Allocator_child(allocator);
 
     struct Ping* ping = Allocator_clone(alloc, (&(struct Ping) {
-        .public = {
+        .pub = {
             .pingAlloc = alloc,
         },
         .sendPing = sendPing,
@@ -96,13 +113,13 @@ struct Pinger_Ping* Pinger_newPing(String* data,
     Identity_set(ping);
 
     int pingIndex = Map_OutstandingPings_put(&ping, &pinger->outstandingPings);
-    ping->handle = pinger->outstandingPings.handles[pingIndex];
+    ping->pub.handle = pinger->outstandingPings.handles[pingIndex] + pinger->baseHandle;
 
     ping->cookie = Random_uint64(pinger->rand);
 
     // Prefix the data with the handle and cookie
     String* toSend = String_newBinary(NULL, ((data) ? data->len : 0) + 12, alloc);
-    Bits_memcpyConst(toSend->bytes, &ping->handle, 4);
+    Bits_memcpyConst(toSend->bytes, &ping->pub.handle, 4);
     Bits_memcpyConst(&toSend->bytes[4], &ping->cookie, 8);
     if (data) {
         Bits_memcpy(toSend->bytes + 12, data->bytes, data->len);
@@ -114,7 +131,9 @@ struct Pinger_Ping* Pinger_newPing(String* data,
     ping->timeout =
         Timeout_setTimeout(timeoutCallback, ping, timeoutMilliseconds, pinger->eventBase, alloc);
 
-    return &ping->public;
+    Timeout_setTimeout(asyncSendPing, ping, 0, pinger->eventBase, alloc);
+
+    return &ping->pub;
 }
 
 void Pinger_pongReceived(String* data, struct Pinger* pinger)
@@ -123,8 +142,10 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         Log_debug(pinger->logger, "Invalid ping response, too short");
         return;
     }
-    uint32_t handle = *((uint32_t*) data->bytes);
-    int index = Map_OutstandingPings_indexForHandle(handle, &pinger->outstandingPings);
+    uint32_t handle;
+    Bits_memcpyConst(&handle, data->bytes, 4);
+    int index = Map_OutstandingPings_indexForHandle(handle - pinger->baseHandle,
+                                                    &pinger->outstandingPings);
     if (index < 0) {
         Log_debug(pinger->logger, "Invalid ping response handle [%u].", handle);
     } else {
@@ -132,7 +153,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger)
         data->bytes += 4;
         uint64_t cookie;
         Bits_memcpyConst(&cookie, data->bytes, 8);
-        struct Ping* p = Identity_cast((struct Ping*) pinger->outstandingPings.values[index]);
+        struct Ping* p = Identity_check((struct Ping*) pinger->outstandingPings.values[index]);
         if (cookie != p->cookie) {
             Log_debug(pinger->logger, "Ping response with invalid cookie");
             return;
@@ -148,7 +169,7 @@ struct Pinger* Pinger_new(struct EventBase* eventBase,
                           struct Log* logger,
                           struct Allocator* alloc)
 {
-    return Allocator_clone(alloc, (&(struct Pinger) {
+    struct Pinger* out = Allocator_clone(alloc, (&(struct Pinger) {
         .outstandingPings = {
             .allocator = alloc
         },
@@ -157,4 +178,6 @@ struct Pinger* Pinger_new(struct EventBase* eventBase,
         .logger = logger,
         .allocator = alloc
     }));
+    out->baseHandle = Random_uint32(rand);
+    return out;
 }

@@ -28,7 +28,7 @@ struct NodeList
     uint32_t size;
 
     /** An array of pointers to nodes. */
-    struct Node** nodes;
+    struct Node_Two** nodes;
 };
 
 #endif

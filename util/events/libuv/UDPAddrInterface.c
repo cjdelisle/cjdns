@@ -57,13 +57,13 @@ struct UDPAddrInterface_WriteRequest_pvt {
 struct UDPAddrInterface_pvt* ifaceForHandle(uv_udp_t* handle)
 {
     char* hp = ((char*)handle) - offsetof(struct UDPAddrInterface_pvt, uvHandle);
-    return Identity_cast((struct UDPAddrInterface_pvt*) hp);
+    return Identity_check((struct UDPAddrInterface_pvt*) hp);
 }
 
 static void sendComplete(uv_udp_send_t* uvReq, int error)
 {
     struct UDPAddrInterface_WriteRequest_pvt* req =
-        Identity_cast((struct UDPAddrInterface_WriteRequest_pvt*) uvReq);
+        Identity_check((struct UDPAddrInterface_WriteRequest_pvt*) uvReq);
     if (error) {
         Log_info(req->udp->logger, "DROP Failed to write to UDPAddrInterface [%s]",
                  uv_strerror(error) );
@@ -77,7 +77,7 @@ static void sendComplete(uv_udp_send_t* uvReq, int error)
 
 static uint8_t sendMessage(struct Message* m, struct Interface* iface)
 {
-    struct UDPAddrInterface_pvt* context = Identity_cast((struct UDPAddrInterface_pvt*) iface);
+    struct UDPAddrInterface_pvt* context = Identity_check((struct UDPAddrInterface_pvt*) iface);
 
     if (context->queueLen > UDPAddrInterface_MAX_QUEUE) {
         Log_warn(context->logger, "DROP Maximum queue length reached");
@@ -172,7 +172,9 @@ static void incoming(uv_udp_t* handle,
         Interface_receiveMessage(&context->pub.generic, m);
     }
 
-    Allocator_free(alloc);
+    if (alloc) {
+        Allocator_free(alloc);
+    }
 
     context->inCallback = 0;
     if (context->blockFreeInsideCallback) {
@@ -200,14 +202,14 @@ static void allocate(uv_handle_t* handle, size_t size, uv_buf_t* buf)
 static void onClosed(uv_handle_t* wasClosed)
 {
     struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) wasClosed->data);
+        Identity_check((struct UDPAddrInterface_pvt*) wasClosed->data);
     Allocator_onFreeComplete((struct Allocator_OnFreeJob*) context->closeHandleOnFree);
 }
 
 static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
 {
     struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) job->userData);
+        Identity_check((struct UDPAddrInterface_pvt*) job->userData);
     context->closeHandleOnFree = job;
     uv_close((uv_handle_t*)&context->uvHandle, onClosed);
     return Allocator_ONFREE_ASYNC;
@@ -216,7 +218,7 @@ static int closeHandleOnFree(struct Allocator_OnFreeJob* job)
 static int blockFreeInsideCallback(struct Allocator_OnFreeJob* job)
 {
     struct UDPAddrInterface_pvt* context =
-        Identity_cast((struct UDPAddrInterface_pvt*) job->userData);
+        Identity_check((struct UDPAddrInterface_pvt*) job->userData);
     if (!context->inCallback) {
         return 0;
     }

@@ -187,7 +187,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
             // - the return path probably doesn't start with 3 zeroes, but it will still be working,
             //   as the source discriminator is large enough to make space for 3 zeroes between
             //   reverse return path and forward path (see below)
-            if (0 != ((label ^ 1) & (UINT64_MAX >> (64 - sourceBits)))) {
+            if (0 != ((label ^ 1) & (UINT64_MAX >> (64 - sourceBits - 4)))) {
                 // This is a bug.
                 // https://github.com/cjdelisle/cjdns/issues/93
                 // The problem is that there is no way to splice a route and know for certain
@@ -199,7 +199,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 DEBUG_SRC_DST(sourceIf->core->logger,
                               "DROP packet for this router because there is no way to "
                               "represent the return path.");
-                sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+                sendError(sourceIf, message, Error_RETURN_PATH_INVALID, sourceIf->core->logger);
                 return Error_NONE;
             }
             bits = sourceBits;
@@ -217,6 +217,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
                 return Error_NONE;
             }
         } else {
+            Log_info(sourceIf->core->logger, "source exceeds dest");
             DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because source address is "
                                                   "larger than destination address.");
             sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
@@ -225,17 +226,18 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
     }
 
     if (core->interfaces[destIndex].iface == NULL) {
+        Log_info(sourceIf->core->logger, "no such iface");
         DEBUG_SRC_DST(sourceIf->core->logger, "DROP packet because there is no interface "
                                               "where the bits specify.");
         sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
         return Error_NONE;
     }
 
-    if (sourceIndex == destIndex && sourceIndex != 1) {
+    /*if (sourceIndex == destIndex && sourceIndex != 1) {
         DEBUG_SRC_DST(sourceIf->core->logger, "DROP Packet with redundant route.");
-        sendError(sourceIf, message, Error_MALFORMED_ADDRESS, sourceIf->core->logger);
+        sendError(sourceIf, message, Error_LOOP_ROUTE, sourceIf->core->logger);
         return Error_NONE;
-    }
+    }*/
 
     uint64_t sourceLabel = Bits_bitReverse64(NumberCompress_getCompressed(sourceIndex, bits));
     uint64_t targetLabel = (label >> bits) | sourceLabel;

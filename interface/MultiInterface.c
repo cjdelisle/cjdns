@@ -94,15 +94,15 @@ struct MultiInterface_pvt
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* peerIface)
 {
-    struct Peer* p = Identity_cast((struct Peer*) peerIface);
+    struct Peer* p = Identity_check((struct Peer*) peerIface);
     Message_push(msg, p->key.bytes, p->key.keySize, NULL);
     return p->multiIface->iface->sendMessage(msg, p->multiIface->iface);
 }
 
 static int removePeer(struct Allocator_OnFreeJob* job)
 {
-    struct Peer* p = Identity_cast((struct Peer*) job->userData);
-    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) p->multiIface);
+    struct Peer* p = Identity_check((struct Peer*) job->userData);
+    struct MultiInterface_pvt* mif = Identity_check((struct MultiInterface_pvt*) p->multiIface);
     struct Map_OfPeersByKey* peerMap = &mif->peerMap;
     for (int i = 0; i < (int)peerMap->count; i++) {
         if (peerMap->values[i] == p) {
@@ -159,7 +159,7 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
 static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 {
     struct MultiInterface_pvt* mif =
-        Identity_cast((struct MultiInterface_pvt*) external->receiverContext);
+        Identity_check((struct MultiInterface_pvt*) external->receiverContext);
 
     // push the key size to the message.
     Message_push(msg, &mif->pub.keySize, 4, NULL);
@@ -185,7 +185,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 
 struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void* key)
 {
-    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) mIface);
+    struct MultiInterface_pvt* mif = Identity_check((struct MultiInterface_pvt*) mIface);
     mif->workSpace->keySize = mif->pub.keySize;
     Bits_memcpy(mif->workSpace->bytes, key, mif->pub.keySize);
     struct Peer* p = peerForKey(mif, mif->workSpace, false);

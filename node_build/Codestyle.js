@@ -77,7 +77,7 @@ var parseFile = function (fileName, fileContent) {
 
         ignore = /CHECKFILES_IGNORE/.test(line);
 
-        if (expectBracket == 1) {
+        if (expectBracket === 1) {
             expectBracket = 0;
             if (!(/^[\s]*{/.test(line))) {
                 error("expecting a { bracket " + line);
@@ -242,7 +242,7 @@ var checkDir = module.exports.checkDir = function (dir, runInFork, callback) {
                         } else {
                             if (stat.isDirectory()) {
                                 addDir(dir + '/' + file);
-                            } else if (/.*(\.c|\.h)$/.test(file)) {
+                            } else if (/.*\.[ch]$/.test(file)) {
                                 checkFile(dir + '/' + file, waitFor(function (ret) {
                                     output += ret;
                                 }));

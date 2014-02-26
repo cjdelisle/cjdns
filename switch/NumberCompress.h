@@ -293,7 +293,7 @@ static inline uint64_t NumberCompress_v4x8_getCompressed(uint32_t number,
             if (number == 0) { number = 1; }
             return (number << 1) | 1;
         case 9:
-            Assert_ifTesting(number < 256);
+            Assert_ifTesting(number <= 256);
             // 2 is encoded as 1, 1 and 0 are both encoded as 0 because 1 never happens.
             if (number) { number--; }
             return number << 1;

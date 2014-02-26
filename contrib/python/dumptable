@@ -11,19 +11,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+import cjdnsadmin.adminTools as at
 
-cjdns = connectWithAdminInfo();
+cjdns=at.connect()
 
-routes = [];
-names = {};
-i = 0;
-while True:
-    table = cjdns.NodeStore_dumpTable(i)
-    for r in table['routingTable']:
-        print(r['ip'] + ' ' + r['path'] + ' ' + str(r['link']) + ' ' + str(r['version']));
-    if not 'more' in table:
-        print("count " + str(table['count']));
-        break
-    i += 1
+at.dumpTable(cjdns,verbose=True);
 
+cjdns.disconnect()

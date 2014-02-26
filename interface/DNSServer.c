@@ -413,9 +413,9 @@ static void onRainflyReply(struct RainflyClient_Lookup* promise,
                            enum RainflyClient_ResponseCode code)
 {
     struct DNSServer_RainflyRequest* lookup =
-        Identity_cast((struct DNSServer_RainflyRequest*)promise->userData);
+        Identity_check((struct DNSServer_RainflyRequest*)promise->userData);
     struct DNSServer_pvt* ctx =
-        Identity_cast((struct DNSServer_pvt*)lookup->ctx);
+        Identity_check((struct DNSServer_pvt*)lookup->ctx);
 
     struct DNSServer_Message* dmesg = lookup->dmesg;
     struct DNSServer_Question* q = dmesg->questions[0];
@@ -572,7 +572,7 @@ static void receiveB(struct Message* msg, struct DNSServer_pvt* ctx, struct Exce
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct DNSServer_pvt* const ctx = Identity_cast((struct DNSServer_pvt*)iface->receiverContext);
+    struct DNSServer_pvt* const ctx = Identity_check((struct DNSServer_pvt*)iface->receiverContext);
 
     struct Jmp jmp = { .message = NULL };
     Jmp_try(jmp) {
@@ -587,7 +587,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 int DNSServer_addServer(struct DNSServer* dns, struct Sockaddr* addr)
 {
-    struct DNSServer_pvt* ctx = Identity_cast((struct DNSServer_pvt*)dns);
+    struct DNSServer_pvt* ctx = Identity_check((struct DNSServer_pvt*)dns);
 
     if (addr->addrLen != ctx->addr->addrLen
         || Sockaddr_getFamily(addr) != Sockaddr_getFamily(ctx->addr))

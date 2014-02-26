@@ -57,6 +57,9 @@ struct Pinger_Ping
      */
     struct Allocator* pingAlloc;
 
+    /** How the ping will be identified on the wire. */
+    uint32_t handle;
+
     /**
      * This is NULL by default and is set by the caller of Pinger_ping(),
      * when sendPing() and onResponse() are called, whatever this is, will be passed to them.
@@ -79,15 +82,6 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    uint32_t timeoutMilliseconds,
                                    struct Allocator* allocator,
                                    struct Pinger* pinger);
-
-/**
- * Once the ping has been allocated, send it.
- * This is split into two functions so they caller can allocate a structure using thie ping's
- * allocator and guarantee that the structure will be cleaned up after the ping is complete.
- *
- * @param ping the ping to send.
- */
-void Pinger_sendPing(struct Pinger_Ping* ping);
 
 /**
  * Function to call when data comes in which appears to be a ping response.

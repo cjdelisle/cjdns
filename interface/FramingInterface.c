@@ -78,7 +78,7 @@ static struct Message* mergeMessage(struct FramingInterface_pvt* fi, struct Mess
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
     struct FramingInterface_pvt* fi =
-        Identity_cast((struct FramingInterface_pvt*)iface->receiverContext);
+        Identity_check((struct FramingInterface_pvt*)iface->receiverContext);
 
     if (fi->bytesRemaining > fi->maxMessageSize) {
         return Error_OVERSIZE_MESSAGE;
@@ -156,7 +156,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 {
-    struct FramingInterface_pvt* fi = Identity_cast((struct FramingInterface_pvt*)iface);
+    struct FramingInterface_pvt* fi = Identity_check((struct FramingInterface_pvt*)iface);
 
     int32_t length_be = Endian_hostToBigEndian32((uint32_t)msg->length);
     Message_push(msg, &length_be, 4, NULL);

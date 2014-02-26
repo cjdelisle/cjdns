@@ -577,12 +577,12 @@ static inline uint8_t encryptMessage(struct Message* message,
 static uint8_t sendMessage(struct Message* message, struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*) interface->senderContext);
+        Identity_check((struct CryptoAuth_Wrapper*) interface->senderContext);
 
     // If there has been no incoming traffic for a while, reset the connection to state 0.
     // This will prevent "connection in bad state" situations from lasting forever.
     // this will reset the session if it has timed out.
-    CryptoAuth_getState(interface);
+    CryptoAuth_resetIfTimeout(interface);
 
     // If the nonce wraps, start over.
     if (wrapper->nextNonce >= 0xfffffff0) {
@@ -823,13 +823,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "DROP dupe hello packet with same temp key");
             return Error_AUTHENTICATION;
         }
-    } else if (nonce == 1 && wrapper->nextNonce >= 4 && !wrapper->established) {
-        // A repeat hello packet (skip test if it's the first key packet that made it to us)
-        if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
-            cryptoAuthDebug0(wrapper, "DROP repeat hello packet with different temp key");
-            return Error_AUTHENTICATION;
-        }
     } else if (nonce == 2 && wrapper->nextNonce >= 4) {
         // we accept a new key packet and let it change the session since the other end might have
         // killed off the session while it was in the midst of setting up.
@@ -948,7 +941,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 static uint8_t receiveMessage(struct Message* received, struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*) interface->receiverContext);
+        Identity_check((struct CryptoAuth_Wrapper*) interface->receiverContext);
 
     union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
 
@@ -1073,7 +1066,7 @@ int32_t CryptoAuth_addUser(String* password,
                            String* user,
                            struct CryptoAuth* ca)
 {
-    struct CryptoAuth_pvt* context = Identity_cast((struct CryptoAuth_pvt*) ca);
+    struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     if (authType != 1) {
         return CryptoAuth_addUser_INVALID_AUTHTYPE;
     }
@@ -1099,7 +1092,7 @@ int32_t CryptoAuth_addUser(String* password,
 
 int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
 {
-    struct CryptoAuth_pvt* ctx = Identity_cast((struct CryptoAuth_pvt*) context);
+    struct CryptoAuth_pvt* ctx = Identity_check((struct CryptoAuth_pvt*) context);
     if (!user) {
         int count = ctx->passwordCount;
         Log_debug(ctx->logger, "Flushing [%d] users", count);
@@ -1124,7 +1117,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user)
 
 List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 {
-    struct CryptoAuth_pvt* ctx = Identity_cast((struct CryptoAuth_pvt*) context);
+    struct CryptoAuth_pvt* ctx = Identity_check((struct CryptoAuth_pvt*) context);
     uint32_t count = ctx->passwordCount;
 
     List* users = NULL;
@@ -1140,7 +1133,7 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
 String* CryptoAuth_getUser(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
+        Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
 
     String* user = wrapper->user;
     if (user) {
@@ -1163,7 +1156,7 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            char* name,
                                            struct CryptoAuth* ca)
 {
-    struct CryptoAuth_pvt* context = Identity_cast((struct CryptoAuth_pvt*) ca);
+    struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     struct CryptoAuth_Wrapper* wrapper = Allocator_clone(toWrap->allocator,
         (&(struct CryptoAuth_Wrapper) {
             .user = NULL,
@@ -1206,7 +1199,7 @@ void CryptoAuth_setAuth(const String* password,
                         struct Interface* wrappedInterface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*)wrappedInterface->senderContext);
+        Identity_check((struct CryptoAuth_Wrapper*)wrappedInterface->senderContext);
     wrapper->password = (password != NULL)
         ? String_newBinary(password->bytes, password->len, wrappedInterface->allocator)
         : NULL;
@@ -1221,23 +1214,14 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* interface)
 void CryptoAuth_reset(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
+        Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
     reset(wrapper);
 }
 
 int CryptoAuth_getState(struct Interface* interface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*)interface->senderContext);
-
-    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
-    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
-        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
-                  (int) (nowSecs - wrapper->timeOfLastPacket));
-
-        wrapper->timeOfLastPacket = nowSecs;
-        reset(wrapper);
-    }
+        Identity_check((struct CryptoAuth_Wrapper*)interface->senderContext);
 
     switch (wrapper->nextNonce) {
         case 0:
@@ -1261,16 +1245,38 @@ int CryptoAuth_getState(struct Interface* interface)
     }
 }
 
+void CryptoAuth_resetIfTimeout(struct Interface* iface)
+{
+    struct CryptoAuth_Wrapper* wrapper =
+        Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
+
+    if (wrapper->nextNonce == 1) {
+        // Lets not reset the session, we just sent one or more hello packets and
+        // have not received a response, if they respond after we reset then we'll
+        // be in a tough state.
+        return;
+    }
+
+    uint64_t nowSecs = Time_currentTimeSeconds(wrapper->context->eventBase);
+    if (nowSecs - wrapper->timeOfLastPacket > wrapper->context->pub.resetAfterInactivitySeconds) {
+        cryptoAuthDebug(wrapper, "No traffic in [%d] seconds, resetting connection.",
+                  (int) (nowSecs - wrapper->timeOfLastPacket));
+
+        wrapper->timeOfLastPacket = nowSecs;
+        reset(wrapper);
+    }
+}
+
 struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
 {
     if (iface->sendMessage == sendMessage) {
         // internal (plaintext side)
         struct CryptoAuth_Wrapper* wrapper =
-            Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
+            Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
         return wrapper->wrappedInterface;
     } else if (iface->receiveMessage == receiveMessage) {
         struct CryptoAuth_Wrapper* wrapper =
-            Identity_cast((struct CryptoAuth_Wrapper*)iface->receiverContext);
+            Identity_check((struct CryptoAuth_Wrapper*)iface->receiverContext);
         return &wrapper->externalInterface;
     }
     return NULL;
@@ -1279,7 +1285,7 @@ struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface)
 struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface)
 {
     struct CryptoAuth_Wrapper* wrapper =
-        Identity_cast((struct CryptoAuth_Wrapper*)iface->senderContext);
+        Identity_check((struct CryptoAuth_Wrapper*)iface->senderContext);
     return &wrapper->replayProtector;
 }
 

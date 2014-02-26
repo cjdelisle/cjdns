@@ -20,35 +20,8 @@
 #include "memory/Allocator.h"
 #include "util/Assert.h"
 #include "util/Identity.h"
-
-/** A network address for reaching a peer, in the format which is sent over the wire. */
-struct Node
-{
-    /**
-     * The reach of the node (how big/fast/close it is).
-     * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
-     */
-    uint32_t reach;
-
-    /** The version of the node, must be synchronized with NodeHeader */
-    uint32_t version;
-
-    /** The address of the node. */
-    struct Address address;
-
-    /**
-     * If we lookup a node and the current time is later than this, ping it.
-     * In ms, as per Time_currentTimeMilliseconds.
-     */
-    uint64_t timeOfNextPing;
-
-    /**
-     * Used to count the number of consecutive missed pings when testing reach.
-     * Not allowing 1 or 2 before penalizing was causing us to switch paths too often,
-     * leading to latency spikes.
-     */
-    uint8_t missedPings;
-};
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/Node.c")
 
 struct Node_Link;
 
@@ -57,20 +30,12 @@ struct Node_Two
     /**
      * The reach of the node (how big/fast/close it is).
      * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
+     * DO NOT ALTER THIS OUTSIDE OF NODESTORE
      */
-    uint32_t reach;
-
-    /** The version of the node, must be synchronized with NodeHeader */
-    uint32_t version;
+    uint32_t pathQuality;
 
     /** The address of the node. */
     struct Address address;
-
-    /**
-     * If we lookup a node and the current time is later than this, ping it.
-     * In ms, as per Time_currentTimeMilliseconds.
-     */
-    uint64_t timeOfNextPing;
 
     // new stuff
 
@@ -88,19 +53,21 @@ struct Node_Two
     /** Used for freeing the links associated with this node. */
     struct Node_Link* reversePeers;
 
+    /** The best link for getting to this node. */
+    struct Node_Link* bestParent;
+
+    /** Used by nodeStore's RBTree of nodes by address. */
+    struct {
+        struct Node_Two* rbe_left;
+        struct Node_Two* rbe_right;
+        struct Node_Two* rbe_parent;
+        int rbe_color;
+    } nodeTree;
+
     struct Allocator* alloc;
 
     Identity
 };
-
-// Make sure Node_Two is castable to Node
-#define Node_ASSERT_MATCHES(field) \
-    Assert_compileTime(offsetof(struct Node_Two, field) == offsetof(struct Node, field))
-Node_ASSERT_MATCHES(reach);
-Node_ASSERT_MATCHES(version);
-Node_ASSERT_MATCHES(address);
-Node_ASSERT_MATCHES(timeOfNextPing);
-#undef Node_ASSERT_MATCHES
 
 /**
  * A link represents a link between two nodes.
@@ -157,5 +124,8 @@ struct Node_Link
 
     Identity
 };
+
+
+bool Node_isOneHopLink(struct Node_Link* link);
 
 #endif

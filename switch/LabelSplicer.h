@@ -42,7 +42,7 @@ static inline uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere)
 {
     uint64_t log2ViaHere = Bits_log2x64(viaHere);
 
-    if (Bits_log2x64(goHere) + log2ViaHere > 60) {
+    if (Bits_log2x64(goHere) + log2ViaHere > 59) {
         // Too big, can't splice.
         return UINT64_MAX;
     }

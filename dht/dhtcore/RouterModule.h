@@ -42,7 +42,7 @@ struct RouterModule_Promise
 {
     void (* callback)(struct RouterModule_Promise* promise,
                       uint32_t lag,
-                      struct Node* fromNode,
+                      struct Address* from,
                       Dict* result);
     void* userData;
     struct Allocator* alloc;
@@ -80,59 +80,45 @@ struct RouterModule* RouterModule_register(struct DHTModuleRegistry* registry,
 uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module);
 
 /**
- * Manually add a node to the routing table.
- * This injects a node directly into the routing table, it's much safer to ping the node and let the
- * routing engine pick up the ping response and insert the node then.
- *
- * @param module the router module to add the node to.
- * @param address the address of the node.
- * @param version the protocol version of the node which we are adding.
- */
-void RouterModule_addNode(struct RouterModule* module, struct Address* address, uint32_t version);
-
-/**
  * Send a ping to a node, when it responds it will be added to the routing table.
  * This is the best way to introduce nodes manually.
  *
- * @param node the node to ping.
+ * @param addr the address of the node to ping.
  * @param timeoutMilliseconds the number of milliseconds to wait beforwe calling a ping timed out
  *                            if zero, it will be calculated based on the mean response time.
  * @param module the router module.
  * @param alloc to cancel the ping, free this allocator
  * @return 0 if the ping was sent, -1 if there was no more space to store state.
  */
-struct RouterModule_Promise* RouterModule_pingNode(struct Node* node,
+struct RouterModule_Promise* RouterModule_pingNode(struct Address* addr,
                                                    uint32_t timeoutMilliseconds,
                                                    struct RouterModule* module,
                                                    struct Allocator* alloc);
 
-struct RouterModule_Promise* RouterModule_newMessage(struct Node* node,
+struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
                                                      uint32_t timeoutMilliseconds,
                                                      struct RouterModule* module,
                                                      struct Allocator* alloc);
 
 void RouterModule_sendMessage(struct RouterModule_Promise* promise, Dict* request);
 
-int RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
+void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module);
 
-/**
- * Get a node from the NodeStore, see: NodeStore_getNodeByNetworkAddr() of which this is a clone.
- */
-struct Node* RouterModule_getNode(uint64_t path, struct RouterModule* module);
+struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* module);
 
-struct Node* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                 struct RouterModule* module);
-
-void RouterModule_updateReach(struct Node* node, struct RouterModule* module);
+struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
+                                     struct RouterModule* module);
 
 uint32_t RouterModule_globalMeanResponseTime(struct RouterModule* module);
 
-/**
- * Look up several (currently 8) paths to the destination address.
- * For each path, if it has not been pinged recently, ping it.
- * This keep our knowledge of which links are up and low latency from going stale.
- */
-void RouterModule_refreshReach(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                               struct RouterModule* module);
+struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
+                                                   uint64_t nearbyLabel,
+                                                   uint32_t timeoutMilliseconds,
+                                                   struct RouterModule* module,
+                                                   struct Allocator* alloc);
+
+void RouterModule_peerIsReachable(uint64_t pathToPeer,
+                                  uint64_t lagMilliseconds,
+                                  struct RouterModule* module);
 
 #endif
