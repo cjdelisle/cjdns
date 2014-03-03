@@ -1063,9 +1063,11 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                             Assert_always(linkToGrandchild);
                         }
                         lcg = linkToGrandchild;
+                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
 
                     } else {
                         handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
                     }
 
                     Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
