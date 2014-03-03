@@ -241,7 +241,6 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
-    return; // This uses a *lot* of cpu horsepower
     #ifndef PARANOIA
         return;
     #endif
@@ -826,6 +825,20 @@ static struct Node_Two* nodeForIp(struct NodeStore_pvt* store, uint8_t ip[16])
     return Identity_ncheck(RB_FIND(NodeRBTree, &store->nodeTree, &fakeNode));
 }
 
+static bool isAncestorOf(struct NodeStore_pvt* store,
+                         struct Node_Two* maybeAncestor,
+                         struct Node_Two* maybeDecendent)
+{
+    struct Node_Link* parent = maybeDecendent->bestParent;
+    for (int i = 0; i < 1000; i++) {
+        if (!maybeDecendent->bestParent) { return false; }
+        if (store->pub.selfNode == parent->parent) { return false; }
+        if (maybeDecendent == parent->parent) { return true; }
+        parent = parent->parent->bestParent;
+    }
+    Assert_always(0);
+}
+
 static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                       struct Node_Link* closestKnown,
                                       uint64_t pathKnownParentChild,
@@ -881,7 +894,14 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             unlinkNodes(closest, store);
             pathParentChild =
                 findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
-            Assert_always(pathParentChild != findClosest_INVALID);
+
+            if (pathParentChild != findClosest_INVALID) {
+                // TODO: handle this in some way other than just failing to install the route.
+                logLink(store, closestKnown, "Apparently the reverse link encoding scheme for "
+                                             "link has changed.");
+                return NULL;
+            }
+
             parent = closest->child;
             check(store);
         } else {
@@ -1001,6 +1021,57 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                                  grandChild,
                                                  discoveredPath,
                                                  splitLink->inverseLinkEncodingFormNumber);
+
+            if (grandChild->bestParent != splitLink) {
+                // The link has been created and we don't care much about it because it's not
+                // the best path.
+
+            } else if (!lcg) {
+                // The path is probably broken... TODO: log or something
+
+            } else if (!lcg->parent->bestParent) {
+                // The path is probably too long so it can't be represented, unreachable...
+
+            } else {
+                // Normally we would expect lcg->parent to be equal to child but because of the
+                // findClosest() call at the beginning of the discoverLink() function, that is not
+                // necessarily true. One or more nodes along the path childToGrandchild might
+                // already be known, in which case lcg->parent will be the last known node along
+                // that path.
+                //
+                // To add to the complexity, one of these nodes might actually be *the* grandChild,
+                // that is to say, the route might have a phantom loop and when that loop becomes
+                // non-phantom, it will cause a crash because the below handleGoodNews() call will
+                // increase the grandChild reach as well as the lcg->parent.
+                //
+                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+                    if (isAncestorOf(store, grandChild, lcg->parent)) {
+                        // Phantom loop, path to grandChild looks like this:
+                        // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
+                        // (... means possibly intermediate nodes)
+                        //
+                        // Now we need to find the first instance of the grandChild in the path.
+                        struct Node_Link* linkToGrandchild = NULL;
+                        for (int limit = 1; linkToGrandchild->child != grandChild; limit++) {
+                            int limitCpy = limit;
+                            linkToGrandchild = NULL;
+                            findClosest(childToGrandchild,
+                                        &linkToGrandchild,
+                                        &limitCpy,
+                                        parentLink,
+                                        store);
+                            Assert_always(linkToGrandchild);
+                        }
+                        lcg = linkToGrandchild;
+
+                    } else {
+                        handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                    }
+
+                    Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                    updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
+                }
+            }
 
             // If the best path to the child is the one being split,
             // lets bump up the quality of the result of splitting.
