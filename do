@@ -115,7 +115,7 @@ main() {
     getsha256sum || die "couldn't find working sha256 hasher";
     hasOkNode || getNode || die "could not get working nodejs impl";
 
-    $NODE ./node_build/make.js "${@}" || return 1
+    PYTHON2=$PYTHON2 $NODE ./node_build/make.js "${@}" || return 1
 }
 
 main
