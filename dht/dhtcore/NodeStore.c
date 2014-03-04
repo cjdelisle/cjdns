@@ -145,6 +145,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         Assert_fileLine(node->bestParent || link->child->bestParent != link, file, line);
         Assert_fileLine(link->parent == node, file, line);
+        Assert_fileLine(link->child != node || link == store->selfLink, file, line);
         Assert_fileLine(!lastLink || link->cannonicalLabel != lastLink->cannonicalLabel,
                         file, line);
         struct Node_Link* rlink = NULL;
