@@ -48,6 +48,11 @@ struct NodeStore_pvt
     /** The maximum number of nodes which can be allocated. TODO: make use of */
     int capacity;
 
+    /**
+     * The links to be freed next time freePendingLinks() is called.
+     */
+    struct Node_Link* linksToFree;
+
     /** The means for this node store to log. */
     struct Log* logger;
 
@@ -118,24 +123,7 @@ static void logLink(struct NodeStore_pvt* store,
     AddrTools_printPath(path, link->cannonicalLabel);
     Log_debug(store->logger, "link[%s]->[%s] [%s] %s", parent, child, path, message);
 }
-/*
-static void _assertNoLoop(struct Node_Two* node,  struct NodeStore_pvt* store, char* file, int line)
-{
-    //Log_debug(store->logger, "Beginning check for loops");
-    struct Node_Link* parent = node->bestParent;
 
-    for (int i = 0; i < 1000; i++) {
-        if (!node->bestParent) { return; }
-        if (store->pub.selfNode == parent->parent) { return; }
-        //logLink(store, parent, "Checking for loops");
-        Assert_fileLine(node != parent->parent, file, line);
-        parent = parent->parent->bestParent;
-    }
-    // loop higher up the chain...
-    _assertNoLoop(parent->child, store, file, line);
-}
-#define assertNoLoop(node, store) _assertNoLoop(node, store, Gcc_SHORT_FILE, Gcc_LINE)
-*/
 static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char* file, int line)
 {
     #ifndef PARANOIA
@@ -156,7 +144,6 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
     struct Node_Link* lastLink = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         Assert_fileLine(node->bestParent || link->child->bestParent != link, file, line);
-        Assert_fileLine(link->linkAddr == (uintptr_t)link, file, line);
         Assert_fileLine(link->parent == node, file, line);
         Assert_fileLine(!lastLink || link->cannonicalLabel != lastLink->cannonicalLabel,
                         file, line);
@@ -560,7 +547,8 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     Assert_ifParanoid(link == RB_FIND(PeerRBTree, &parent->peerTree, link));
     RB_REMOVE(PeerRBTree, &parent->peerTree, link);
 
-    freeLink(link, store);
+    link->nextPeer = store->linksToFree;
+    store->linksToFree = link;
 
     check(store);
 }
@@ -663,7 +651,6 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->inverseLinkEncodingFormNumber = inverseLinkEncodingFormNumber;
     link->child = child;
     link->parent = parent;
-    link->linkAddr = (uintptr_t)link;
     link->discoveredPath = discoveredPath;
     Identity_set(link);
 
@@ -837,6 +824,15 @@ static bool isAncestorOf(struct NodeStore_pvt* store,
         parent = parent->parent->bestParent;
     }
     Assert_always(0);
+}
+
+static void freePendingLinks(struct NodeStore_pvt* store)
+{
+    struct Node_Link* link;
+    while ((link = store->linksToFree)) {
+        store->linksToFree = link->nextPeer;
+        freeLink(link, store);
+    }
 }
 
 static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
@@ -1074,26 +1070,14 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                     updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
                 }
             }
-
-            // If the best path to the child is the one being split,
-            // lets bump up the quality of the result of splitting.
-            // if !lcg->parent->bestParent, link lcg already exists but it is too far
-            //    out to be reachable. Leave things as they are for now.
-            if (lcg && lcg->parent->bestParent && grandChild->bestParent == splitLink) {
-                Assert_true(lcg->child == grandChild);
-                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
-                    handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
-                }
-                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-                updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
-            }
-
         }
         check(store);
 
-        struct Node_Link* unlinkMe = splitLink;
-        splitLink = PeerRBTree_RB_NEXT(splitLink);
-        unlinkNodes(unlinkMe, store);
+        unlinkNodes(splitLink, store);
+
+        // link RB_NEXT might have also been freed by a recursive call to discoverLink()
+        // so we'll just start over from the beginning and walk the list of links.
+        splitLink = RB_MIN(PeerRBTree, &parent->peerTree);
     }
 
     check(store);
@@ -1152,6 +1136,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     }
 
     handleNews(link->child, reach, store);
+    freePendingLinks(store);
     verify(store);
     return link;
 }
