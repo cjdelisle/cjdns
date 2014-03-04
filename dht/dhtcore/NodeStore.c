@@ -833,7 +833,7 @@ static bool isAncestorOf(struct NodeStore_pvt* store,
     for (int i = 0; i < 1000; i++) {
         if (!maybeDecendent->bestParent) { return false; }
         if (store->pub.selfNode == parent->parent) { return false; }
-        if (maybeDecendent == parent->parent) { return true; }
+        if (maybeAncestor == parent->parent) { return true; }
         parent = parent->parent->bestParent;
     }
     Assert_always(0);
