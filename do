@@ -17,10 +17,9 @@ BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
 for pythonName in "python" "python2" "python2.7"; do
-    PYTHON2="`which $pythonName`" &&
-        ${PYTHON2} --version 2>&1 | grep '2.7' >/dev/null 2>/dev/null &&
+    ${pythonName} --version 2>&1 | grep '2.7' >/dev/null 2>/dev/null &&
+        PYTHON2="$pythonName" &&
             break;
-    PYTHON2=
 done
 [ "x${PYTHON2}" = "x" ] && echo 'No sutible python2.7 version found' && exit 1;
 
