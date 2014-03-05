@@ -16,10 +16,12 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
-for PYTHON2 in "`which python`" "`which python2`" "`which python2.7`" "false"; do
-    ${PYTHON2} --version 2>&1 | grep '2.7' >/dev/null 2>/dev/null && break;
-    [ "x${PYTHON2}" = "xfalse" ] && echo 'No sutible python2.7 version found' && exit 1;
+for pythonName in "python" "python2" "python2.7"; do
+    ${pythonName} --version 2>&1 | grep '2.7' >/dev/null 2>/dev/null &&
+        PYTHON2="$pythonName" &&
+            break;
 done
+[ "x${PYTHON2}" = "x" ] && echo 'No sutible python2.7 version found' && exit 1;
 
 hasOkNode()
 {
@@ -112,7 +114,7 @@ main() {
     getsha256sum || die "couldn't find working sha256 hasher";
     hasOkNode || getNode || die "could not get working nodejs impl";
 
-    $NODE ./node_build/make.js "${@}" || return 1
+    PYTHON2=$PYTHON2 $NODE ./node_build/make.js "${@}" || return 1
 }
 
 main
