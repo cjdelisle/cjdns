@@ -1049,7 +1049,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                         //
                         // Now we need to find the first instance of the grandChild in the path.
                         struct Node_Link* linkToGrandchild = NULL;
-                        for (int limit = 1; linkToGrandchild->child != grandChild; limit++) {
+                        for (int limit = 1;
+                             !linkToGrandchild || linkToGrandchild->child != grandChild;
+                             limit++)
+                        {
                             int limitCpy = limit;
                             linkToGrandchild = NULL;
                             findClosest(childToGrandchild,
