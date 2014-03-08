@@ -148,6 +148,8 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
         Assert_fileLine(link->child != node || link == store->selfLink, file, line);
         Assert_fileLine(!lastLink || link->cannonicalLabel != lastLink->cannonicalLabel,
                         file, line);
+        Assert_fileLine(link->cannonicalLabel < UINT64_MAX && link->cannonicalLabel > 0,
+                        file, line);
         struct Node_Link* rlink = NULL;
         for (rlink = link->child->reversePeers; rlink; rlink = rlink->nextPeer) {
             if (rlink == link) {
@@ -849,6 +851,9 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
 
     if (pathParentChild == findClosest_INVALID) {
+        return NULL;
+    }
+    if (closest->child == child) {
         return NULL;
     }
 
