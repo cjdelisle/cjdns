@@ -231,6 +231,7 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
+return;
     #ifndef PARANOIA
         return;
     #endif

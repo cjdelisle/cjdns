@@ -21,7 +21,7 @@ var PYTHONS = ["python", "python2", "python2.7", "python2.6", "python2.5"];
 var find = module.exports.find = function (tempFile, callback) {
     var nt = nThen(function (waitFor) {
         Fs.writeFile(tempFile,
-                     "import sys; exit(sys.version_info.major != 2);",
+                     "import sys; exit(sys.version_info[0] != 2);",
                      waitFor(function (err) { if (err) { throw err; } }));
     }).nThen;
     PYTHONS.forEach(function (python) {
