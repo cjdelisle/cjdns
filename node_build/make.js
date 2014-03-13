@@ -17,13 +17,14 @@ var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
+var Extend = require('node.extend');
 var Os = require('os');
+var FindPython2 = require('./FindPython2');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
 var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
-var PYTHON = process.env['PYTHON2'] || 'python';
 
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
@@ -208,14 +209,31 @@ Builder.configure({
         builder.config.includeDirs.push(
             BUILDDIR+'/dependencies/libuv/include/'
         );
-        Fs.exists(BUILDDIR+'/dependencies/libuv/out/Release/libuv.a', waitFor(function (exists) {
-            if (exists) { return; }
+        var libuvBuilt;
+        var python;
+        nThen(function (waitFor) {
+            Fs.exists(BUILDDIR+'/dependencies/libuv/out/Release/libuv.a', waitFor(function (exists) {
+                if (exists) { libuvBuilt = true; }
+            }));
+        }).nThen(function (waitFor) {
+            if (libuvBuilt) { return; }
+            FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
+                if (err) { throw err; }
+                python = pythonExec;
+            }));
+        }).nThen(function (waitFor) {
+            if (libuvBuilt) { return; }
             console.log("Build Libuv");
             var cwd = process.cwd();
             process.chdir(BUILDDIR+'/dependencies/libuv/');
 
             var args = ['./gyp_uv.py'];
-            var gyp = Spawn(PYTHON, args);
+            var env = Extend({}, process.env);
+            env.CC = builder.config.gcc;
+            if (env.TARGET_ARCH) {
+                args.push('-Dtarget_arch='+env.TARGET_ARCH);
+            }
+            var gyp = Spawn(python, args, {env:env});
             gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
             gyp.on('close', waitFor(function () {
@@ -229,7 +247,7 @@ Builder.configure({
                     process.chdir(cwd);
                 }));
             }));
-        }));
+        }).nThen(waitFor());
 
     }).nThen(waitFor());
 

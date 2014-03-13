@@ -132,6 +132,7 @@ static void search(uint8_t target[16], struct Janitor* janitor)
 
     if (!rp) {
         Log_debug(janitor->logger, "SearchRunner_search() returned NULL, probably full.");
+        Allocator_free(searchAlloc);
         return;
     }
 
@@ -332,11 +333,7 @@ static void maintanenceCycle(void* vcontext)
 
     uint64_t nextTimeout = (janitor->localMaintainenceMilliseconds / 2);
     nextTimeout += Random_uint32(janitor->rand) % (nextTimeout * 2);
-    janitor->timeout = Timeout_setTimeout(maintanenceCycle,
-                                          janitor,
-                                          nextTimeout,
-                                          janitor->eventBase,
-                                          janitor->allocator);
+    Timeout_resetTimeout(janitor->timeout, nextTimeout);
 
     if (NodeStore_size(janitor->nodeStore) == 0 && janitor->rumorMill->count == 0) {
         if (now > janitor->timeOfNextGlobalMaintainence) {

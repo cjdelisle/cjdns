@@ -41,10 +41,10 @@ struct Timeout
 static void handleEvent(uv_timer_t* handle, int status)
 {
     struct Timeout* timeout = Identity_check((struct Timeout*) handle);
-    timeout->callback(timeout->callbackContext);
     if (!timeout->isInterval) {
-        Allocator_free(timeout->alloc);
+        Timeout_clearTimeout(timeout);
     }
+    timeout->callback(timeout->callbackContext);
 }
 
 static void onFree2(uv_handle_t* timer)

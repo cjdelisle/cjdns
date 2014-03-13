@@ -58,6 +58,7 @@
 #include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
+#include "memory/Allocator_admin.h"
 #include "net/Ducttape.h"
 #include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
@@ -152,15 +153,6 @@ struct Context
     struct EventBase* base;
     String* exitTxid;
 };
-
-static void adminMemory(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
-{
-    struct Context* context = vcontext;
-    Dict d = Dict_CONST(
-        String_CONST("bytes"), Int_OBJ(Allocator_bytesAllocated(context->allocator)), NULL
-    );
-    Admin_sendMessage(&d, txid, context->admin);
-}
 
 static void shutdown(void* vcontext)
 {
@@ -491,6 +483,7 @@ void Core_init(struct Allocator* alloc,
     IpTunnel_admin_register(ipTun, admin, alloc);
     SessionManager_admin_register(dt->sessionManager, admin, alloc);
     RainflyClient_admin_register(rainfly, admin, alloc);
+    Allocator_admin_register(alloc, admin);
 
     struct Context* ctx = Allocator_clone(alloc, (&(struct Context) {
         .allocator = alloc,
@@ -499,7 +492,6 @@ void Core_init(struct Allocator* alloc,
         .hermes = hermes,
         .base = eventBase,
     }));
-    Admin_registerFunction("memory", adminMemory, ctx, false, NULL, admin);
     Admin_registerFunction("Core_exit", adminExit, ctx, true, NULL, admin);
 }
 

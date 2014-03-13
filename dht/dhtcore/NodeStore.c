@@ -148,6 +148,8 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
         Assert_fileLine(link->child != node || link == store->selfLink, file, line);
         Assert_fileLine(!lastLink || link->cannonicalLabel != lastLink->cannonicalLabel,
                         file, line);
+        Assert_fileLine(link->cannonicalLabel < UINT64_MAX && link->cannonicalLabel > 0,
+                        file, line);
         struct Node_Link* rlink = NULL;
         for (rlink = link->child->reversePeers; rlink; rlink = rlink->nextPeer) {
             if (rlink == link) {
@@ -229,6 +231,7 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
+return;
     #ifndef PARANOIA
         return;
     #endif
@@ -551,6 +554,10 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     link->nextPeer = store->linksToFree;
     store->linksToFree = link;
 
+    // prevent double-free of link.
+    link->parent = NULL;
+    link->child = NULL;
+
     check(store);
 }
 
@@ -851,6 +858,9 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     if (pathParentChild == findClosest_INVALID) {
         return NULL;
     }
+    if (closest->child == child) {
+        return NULL;
+    }
 
     struct Node_Two* parent = closest->child;
 
@@ -1049,7 +1059,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                         //
                         // Now we need to find the first instance of the grandChild in the path.
                         struct Node_Link* linkToGrandchild = NULL;
-                        for (int limit = 1; linkToGrandchild->child != grandChild; limit++) {
+                        for (int limit = 1;
+                             !linkToGrandchild || linkToGrandchild->child != grandChild;
+                             limit++)
+                        {
                             int limitCpy = limit;
                             linkToGrandchild = NULL;
                             findClosest(childToGrandchild,
@@ -1074,7 +1087,11 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         }
         check(store);
 
-        unlinkNodes(splitLink, store);
+        // be careful!
+        // splitLink might have been unlinked by the recursive discoverLink() call.
+        if (splitLink->parent) {
+            unlinkNodes(splitLink, store);
+        }
 
         // link RB_NEXT might have also been freed by a recursive call to discoverLink()
         // so we'll just start over from the beginning and walk the list of links.

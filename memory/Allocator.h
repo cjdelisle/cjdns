@@ -307,6 +307,14 @@ void Allocator_setCanary(struct Allocator* alloc, unsigned long value);
  */
 unsigned long Allocator_bytesAllocated(struct Allocator* allocator);
 
+/**
+ * Dump a memory snapshot to stderr.
+ *
+ * @param alloc any allocator in the tree, the whole tree will be dumped.
+ * @param includeAllocations if non-zero then the individual memory allocations will be printed.
+ */
+void Allocator_snapshot(struct Allocator* alloc, int includeAllocations);
+
 
 /**
  * The underlying memory provider function which backs the allocator.
