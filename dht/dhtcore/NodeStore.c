@@ -858,7 +858,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     if (pathParentChild == findClosest_INVALID) {
         return NULL;
     }
-    if (closest->child == child) {
+    if (closest->child == child && closestKnown != store->selfLink) {
         return NULL;
     }
 
