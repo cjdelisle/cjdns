@@ -554,6 +554,10 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     link->nextPeer = store->linksToFree;
     store->linksToFree = link;
 
+    // prevent double-free of link.
+    link->parent = NULL;
+    link->child = NULL;
+
     check(store);
 }
 
@@ -1083,7 +1087,11 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         }
         check(store);
 
-        unlinkNodes(splitLink, store);
+        // be careful!
+        // splitLink might have been unlinked by the recursive discoverLink() call.
+        if (splitLink->parent) {
+            unlinkNodes(splitLink, store);
+        }
 
         // link RB_NEXT might have also been freed by a recursive call to discoverLink()
         // so we'll just start over from the beginning and walk the list of links.
