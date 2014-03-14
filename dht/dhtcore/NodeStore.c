@@ -1057,28 +1057,26 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 if (lcg->parent->pathQuality <= grandChild->pathQuality) {
                     struct Node_Link* oldLcg = lcg;
                     for (;;) {
-                        if (isAncestorOf(store, grandChild, lcg->parent)) {
-                            // Phantom loop, path to grandChild looks like this:
-                            // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
-                            // (... means possibly intermediate nodes)
-                            //
-                            // Now we need to find the first instance of the grandChild in the path.
-                            do {
-                                lcg = lcg->parent->bestParent;
-                                Assert_true(lcg != store->selfLink);
-                                // loop check.
-                                Assert_true(oldLcg != lcg);
-                            } while (lcg->child != grandChild);
-                            Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-
-                        } else {
+                        if (!isAncestorOf(store, grandChild, lcg->parent)) {
                             handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
                             Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
                             break;
                         }
-                    }
 
+                        // Phantom loop, path to grandChild looks like this:
+                        // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
+                        // (... means possibly intermediate nodes)
+                        //
+                        // Now we need to find the first instance of the grandChild in the path.
+                        do {
+                            lcg = lcg->parent->bestParent;
+                            Assert_true(lcg != store->selfLink);
+                            // loop check.
+                            Assert_true(oldLcg != lcg);
+                        } while (lcg->child != grandChild);
+                    }
                     Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+
                     updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
                 }
             }
