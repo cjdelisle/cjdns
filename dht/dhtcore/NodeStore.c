@@ -1029,6 +1029,12 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                                  discoveredPath,
                                                  splitLink->inverseLinkEncodingFormNumber);
 
+            // so...
+            // There is a chance... that in the recursion, the link we JUST CREATED (parentLink)
+            // was split and unlinked. If that is so, we really should just return because
+            // everything we were planning to do here has been done for us.
+            if (!parentLink->child) { return NULL; }
+
             if (grandChild->bestParent != splitLink) {
                 // The link has been created and we don't care much about it because it's not
                 // the best path.
