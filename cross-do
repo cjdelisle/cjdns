@@ -8,6 +8,7 @@ export CC=${CROSS}gcc
 export AR=${CROSS}ar
 export RANLIB=${CROSS}ranlib
 export CFLAGS=${CROSS_CFLAGS}
+export LDFLAGS=${CROSS_LDFLAGS}
 gcc_version=$(${CC} --version)
 log_filename="${cross_log%.*}"
 echo Using $gcc_version
@@ -15,10 +16,12 @@ rm -rf build_*
 if [ "x$enabled_log" == "x1" ]; then
   echo Compiler CC: $CC > $cross_log
   echo Compiler CFLAGS: $CFLAGS >> $cross_log
+  echo Compiler LDFLAGS: $LDFLAGS >> $cross_log
   time ./do &>> $cross_log
   mv cjdroute ${log_filename}_cjdroute
 else
   echo Compiler CC: $CC
   echo Compiler CFLAGS: $CFLAGS
+  echo Compiler LDFLAGS: $LDFLAGS
   time ./do
 fi
