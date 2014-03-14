@@ -858,9 +858,6 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     if (pathParentChild == findClosest_INVALID) {
         return NULL;
     }
-    if (closest->child == child) {
-        return NULL;
-    }
 
     struct Node_Two* parent = closest->child;
 
@@ -1058,32 +1055,27 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // increase the grandChild reach as well as the lcg->parent.
                 //
                 if (lcg->parent->pathQuality <= grandChild->pathQuality) {
-                    if (isAncestorOf(store, grandChild, lcg->parent)) {
-                        // Phantom loop, path to grandChild looks like this:
-                        // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
-                        // (... means possibly intermediate nodes)
-                        //
-                        // Now we need to find the first instance of the grandChild in the path.
-                        struct Node_Link* linkToGrandchild = NULL;
-                        for (int limit = 1;
-                             !linkToGrandchild || linkToGrandchild->child != grandChild;
-                             limit++)
-                        {
-                            int limitCpy = limit;
-                            linkToGrandchild = NULL;
-                            findClosest(childToGrandchild,
-                                        &linkToGrandchild,
-                                        &limitCpy,
-                                        parentLink,
-                                        store);
-                            Assert_always(linkToGrandchild);
-                        }
-                        lcg = linkToGrandchild;
-                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                    struct Node_Link* oldLcg = lcg;
+                    for (;;) {
+                        if (isAncestorOf(store, grandChild, lcg->parent)) {
+                            // Phantom loop, path to grandChild looks like this:
+                            // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
+                            // (... means possibly intermediate nodes)
+                            //
+                            // Now we need to find the first instance of the grandChild in the path.
+                            do {
+                                lcg = lcg->parent->bestParent;
+                                Assert_true(lcg != store->selfLink);
+                                // loop check.
+                                Assert_true(oldLcg != lcg);
+                            } while (lcg->child != grandChild);
+                            Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
 
-                    } else {
-                        handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
-                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                        } else {
+                            handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                            Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                            break;
+                        }
                     }
 
                     Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
