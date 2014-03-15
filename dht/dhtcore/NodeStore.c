@@ -858,9 +858,6 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     if (pathParentChild == findClosest_INVALID) {
         return NULL;
     }
-    if (closest->child == child) {
-        return NULL;
-    }
 
     struct Node_Two* parent = closest->child;
 
@@ -991,6 +988,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         }
         #endif
 
+        if (child == grandChild) {
+            // There's an existing link from the parent to the child and it loops
+            // it takes a detour over to some other nodes and then comes back to the grandChild
+            Log_debug(store->logger, "replace existing link which contains a loop...");
+            goto done;
+        }
+
         if (grandChild->bestParent == splitLink && child->pathQuality <= grandChild->pathQuality) {
             // We know that the grandchild decends from the parent because splitLink is parent-->gc
             // Two possibilities:
@@ -1010,87 +1014,124 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // it anyway.
             }
             handleGoodNews(child, grandChild->pathQuality+1, store);
+
+            // parent->pathQuality is by definition higher than grandChild->pathQuality
+            // so if child is a decendent of grandChild then it should have been switched.
+            Assert_true(child->pathQuality > grandChild->pathQuality);
+
             check(store);
         }
 
-        if (child == grandChild) {
-            // There's an existing link from the parent to the child and it loops
-            // it takes a detour over to some other nodes and then comes back to the grandChild
-            Log_debug(store->logger, "replace existing link which contains a loop...");
+        Assert_true(splitLink->cannonicalLabel != pathParentChild);
+        Assert_true(childToGrandchild != 1);
 
-        } else {
-            Assert_true(splitLink->cannonicalLabel != pathParentChild);
-            Assert_true(childToGrandchild != 1);
+        struct Node_Link* lcg = discoverLink(store,
+                                             parentLink,
+                                             childToGrandchild,
+                                             grandChild,
+                                             discoveredPath,
+                                             splitLink->inverseLinkEncodingFormNumber);
 
-            struct Node_Link* lcg = discoverLink(store,
-                                                 parentLink,
-                                                 childToGrandchild,
-                                                 grandChild,
-                                                 discoveredPath,
-                                                 splitLink->inverseLinkEncodingFormNumber);
+        // so...
+        // There is a chance... that in the recursion, the link we JUST CREATED (parentLink)
+        // was split and unlinked. If that is so, we really should just return because
+        // everything we were planning to do here has been done for us.
+        if (!parentLink->child) { return NULL; }
 
-            // so...
-            // There is a chance... that in the recursion, the link we JUST CREATED (parentLink)
-            // was split and unlinked. If that is so, we really should just return because
-            // everything we were planning to do here has been done for us.
-            if (!parentLink->child) { return NULL; }
+        if (grandChild->bestParent != splitLink) {
+            // The link has been created and we don't care much about it because it's not
+            // the best path.
+            goto done;
+        }
 
-            if (grandChild->bestParent != splitLink) {
-                // The link has been created and we don't care much about it because it's not
-                // the best path.
+        if (!lcg) {
+            // The path is probably broken... TODO: log or something
+            goto done;
+        }
 
-            } else if (!lcg) {
-                // The path is probably broken... TODO: log or something
+        if (!lcg->parent->bestParent) {
+            // The path is probably too long so it can't be represented, unreachable...
+            goto done;
+        }
 
-            } else if (!lcg->parent->bestParent) {
-                // The path is probably too long so it can't be represented, unreachable...
+        // Normally we would expect lcg->parent to be equal to child but because of the
+        // findClosest() call at the beginning of the discoverLink() function, that is not
+        // necessarily true. One or more nodes along the path childToGrandchild might
+        // already be known, in which case lcg->parent will be the last known node along
+        // that path.
+        //
+        // Worse, lcg->parent->bestParent might actually be grandChild or a decendent
+        // thereof. Consider a path looking like this:
+        // parent<-child<-Alice<-Bob Charlie->Dave->grandChild
+        //
+        // The best path to grandChild is obviously via child and therefor Charlie and Dave
+        // are mistaken and this is a phantom loop.
+
+        if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+
+            // I know, I repeat myself...
+            Assert_true(child->pathQuality > grandChild->pathQuality);
+
+            if (isAncestorOf(store, grandChild, lcg->parent)) {
+
+                // Again, just making dead sure that the child is not a decendent of the
+                // grandChild, this should not be possible at this point
+                Assert_true(parentLink->child != lcg->parent);
+
+                // Now we're going to walk the path, when we encounter a node which decends from
+                // grandChild, we're going to switch it to decend from the previous node along the
+                // path.
+                struct Node_Link* link = NULL;
+                for (int limit = 1; !link || link->child != grandChild; limit++) {
+                    int limitCpy = limit;
+                    link = NULL;
+                    findClosest(childToGrandchild,
+                                &link,
+                                &limitCpy,
+                                parentLink,
+                                store);
+                    Assert_always(link);
+
+                    // We should never get here because the if statement below should have
+                    // handled this in the previous round.
+                    Assert_true(link->parent->pathQuality >= grandChild->pathQuality);
+
+                    if (link->child->pathQuality <= grandChild->pathQuality) {
+                        // Ok we're found a node whose pathQuality is less than grandChild's
+                        // and this node is in the best path *to* the grandChild so it's quality
+                        // needs to be increased and we need to swap it's bestParent so that we're
+                        // sure it doesn't decend from grandChild.
+                        if (link->child->bestParent != link) {
+                            handleGoodNews(link->parent, grandChild->pathQuality+2, store);
+                            Assert_true(link->parent->pathQuality > grandChild->pathQuality);
+                            updateBestParent(link->child, link, grandChild->pathQuality+1, store);
+                        }
+                        handleGoodNews(link->child, grandChild->pathQuality+1, store);
+                        Assert_true(link->child->pathQuality > grandChild->pathQuality);
+                    }
+                }
+
+                // Guess what!
+                // grandChild *might* just show up MULTIPLE times in the path (phantom loop),
+                // of so, link is now the first instance of grandChild and lcg is the final
+                // instance (end of the path). We don't care much about the path beyond the first
+                // instance of grandChild so we're just going to quietly swap the lcg for link
+                // if it happens that they are not the same.
+                lcg = link;
+                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
 
             } else {
-                // Normally we would expect lcg->parent to be equal to child but because of the
-                // findClosest() call at the beginning of the discoverLink() function, that is not
-                // necessarily true. One or more nodes along the path childToGrandchild might
-                // already be known, in which case lcg->parent will be the last known node along
-                // that path.
-                //
-                // To add to the complexity, one of these nodes might actually be *the* grandChild,
-                // that is to say, the route might have a phantom loop and when that loop becomes
-                // non-phantom, it will cause a crash because the below handleGoodNews() call will
-                // increase the grandChild reach as well as the lcg->parent.
-                //
-                if (lcg->parent->pathQuality <= grandChild->pathQuality) {
-                    if (isAncestorOf(store, grandChild, lcg->parent)) {
-                        // Phantom loop, path to grandChild looks like this:
-                        // child-->...-->grandChild-->...-->lcgParent-->...-->grandChild
-                        // (... means possibly intermediate nodes)
-                        //
-                        // Now we need to find the first instance of the grandChild in the path.
-                        struct Node_Link* linkToGrandchild = NULL;
-                        for (int limit = 1;
-                             !linkToGrandchild || linkToGrandchild->child != grandChild;
-                             limit++)
-                        {
-                            int limitCpy = limit;
-                            linkToGrandchild = NULL;
-                            findClosest(childToGrandchild,
-                                        &linkToGrandchild,
-                                        &limitCpy,
-                                        parentLink,
-                                        store);
-                            Assert_always(linkToGrandchild);
-                        }
-                        lcg = linkToGrandchild;
-                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-
-                    } else {
-                        handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
-                        Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-                    }
-
-                    Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-                    updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
-                }
+                handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
+                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
             }
+
+            Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+            updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
         }
+
+        // pfew
+        done:
+
         check(store);
 
         // be careful!
