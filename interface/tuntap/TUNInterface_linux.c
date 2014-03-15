@@ -56,10 +56,18 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         }
         strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
+    #if defined(android)
+    int fileno = open("/dev/tun", O_RDWR);
+    #else
     int fileno = open("/dev/net/tun", O_RDWR);
+    #endif
 
     if (fileno < 0) {
+        #if defined(android)
+        Except_throw(eh, "open(\"/dev/tun\") [%s]", strerror(errno));
+        #else
         Except_throw(eh, "open(\"/dev/net/tun\") [%s]", strerror(errno));
+        #endif
     }
 
     if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
