@@ -39,6 +39,12 @@
 #include <linux/if_tun.h>
 #include <linux/if_ether.h>
 
+#if defined(android)
+  #define DEVICE_PATH "/dev/tun"
+#else
+  #define DEVICE_PATH "/dev/net/tun"
+#endif
+
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
                                    struct EventBase* base,
@@ -56,10 +62,10 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         }
         strncpy(ifRequest.ifr_name, interfaceName, maxNameSize);
     }
-    int fileno = open("/dev/net/tun", O_RDWR);
+    int fileno = open(DEVICE_PATH, O_RDWR);
 
     if (fileno < 0) {
-        Except_throw(eh, "open(\"/dev/net/tun\") [%s]", strerror(errno));
+        Except_throw(eh, "open(\"%s\") [%s]", DEVICE_PATH, strerror(errno));
     }
 
     if (ioctl(fileno, TUNSETIFF, &ifRequest) < 0) {
