@@ -1567,9 +1567,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    verify(store);
     handleNews(node, newReach, store);
-    verify(store);
 }
 
 int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)
