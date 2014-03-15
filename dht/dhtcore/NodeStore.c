@@ -101,10 +101,12 @@ RB_GENERATE_STATIC(NodeRBTree, Node_Two, nodeTree, compareNodes)
 static void freeLink(struct Node_Link* link, struct NodeStore_pvt* store)
 {
     Allocator_realloc(store->alloc, link, 0);
+    store->pub.linkCount--;
 }
 
 static struct Node_Link* getLink(struct NodeStore_pvt* store)
 {
+    store->pub.linkCount++;
     return Allocator_calloc(store->alloc, sizeof(struct Node_Link), 1);
 }
 
@@ -926,6 +928,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     if (!RB_FIND(NodeRBTree, &store->nodeTree, child)) {
         checkNode(child, store);
         RB_INSERT(NodeRBTree, &store->nodeTree, child);
+        store->pub.nodeCount++;
     }
 
     check(store);
@@ -1036,7 +1039,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         // There is a chance... that in the recursion, the link we JUST CREATED (parentLink)
         // was split and unlinked. If that is so, we really should just return because
         // everything we were planning to do here has been done for us.
-        if (!parentLink->child) { return NULL; }
+        if (!parentLink->child) {
+            // return that last link along pathParentChild.
+            struct Node_Link* link = NULL;
+            findClosest(pathParentChild, &link, NULL, closest, store);
+            Assert_always(link);
+            return link;
+        }
 
         if (grandChild->bestParent != splitLink) {
             // The link has been created and we don't care much about it because it's not
@@ -1149,6 +1158,80 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     return parentLink;
 }
 
+/**
+ * We define the worst node as either node which is furthest in address space
+ * from us which is either unreachable or, if no nodes are unreachable, has no
+ * nodes for which it is the bestParent.
+ * This metric will take into account both reach and address distance, although
+ * reach is not directly fed into the function but rather the function relies on
+ * the structure of the store which is affected by the reach.
+ * O(2n)
+ */
+static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
+{
+    struct Node_Two* worst = NULL;
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        // first cycle we clear all markings as we go and set markings
+        // so markings remain if they are behind us
+        nn->marked = 0;
+        if (nn->bestParent) {
+            nn->bestParent->parent->marked = 1;
+        } else if (!worst
+            || Address_closest(&store->pub.selfNode->address, &nn->address, &worst->address) > 0)
+        {
+            worst = nn;
+        }
+    }
+    if (worst) { return worst; }
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        // second cycle we set the markings as we go but if they are behind the
+        // node which would have marked them, they are already set.
+        if (nn->bestParent) {
+            nn->bestParent->parent->marked = 1;
+        }
+        if (nn->marked) { continue; }
+        if (!worst
+            || Address_closest(&store->pub.selfNode->address, &nn->address, &worst->address) > 0)
+        {
+            worst = nn;
+        }
+    }
+    // somebody has to be at the end of the line, not *everyone* can be someone's best parent!
+    Assert_true(worst);
+    return worst;
+}
+
+static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    struct Node_Link* link;
+    RB_FOREACH(link, PeerRBTree, &node->peerTree) {
+        Identity_check(link);
+        unlinkNodes(link, store);
+    }
+
+    // optimization
+    #ifndef PARANOIA
+        node->bestParent = NULL;
+        node->address.path = UINT64_MAX;
+    #endif
+
+    link = node->reversePeers;
+    while (link) {
+        struct Node_Link* nextLink = link->nextPeer;
+        unlinkNodes(link, store);
+        link = nextLink;
+    }
+
+    Assert_true(!node->bestParent);
+
+    Assert_ifParanoid(node == RB_FIND(NodeRBTree, &store->nodeTree, node));
+    RB_REMOVE(NodeRBTree, &store->nodeTree, node);
+    store->pub.nodeCount--;
+
+    Allocator_free(node->alloc);
+}
+
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
@@ -1202,6 +1285,21 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
 
     handleNews(link->child, reach, store);
     freePendingLinks(store);
+
+    while (store->pub.nodeCount >= store->pub.nodeCapacity
+        || store->pub.linkCount >= store->pub.linkCapacity)
+    {
+        struct Node_Two* worst = getWorstNode(store);
+        #ifdef Log_DEBUG
+            uint8_t worstAddr[60];
+            Address_print(worstAddr, &worst->address);
+            Log_debug(store->logger, "store full, removing worst node: [%s] nodes [%d] links [%d]",
+                      worstAddr, store->pub.nodeCount, store->pub.linkCount);
+        #endif
+        destroyNode(worst, store);
+        freePendingLinks(store);
+    }
+
     verify(store);
     return link;
 }
@@ -1348,6 +1446,10 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     struct Allocator* alloc = Allocator_child(allocator);
 
     struct NodeStore_pvt* out = Allocator_clone(alloc, (&(struct NodeStore_pvt) {
+        .pub = {
+            .nodeCapacity = NodeStore_DEFAULT_NODE_CAPACITY,
+            .linkCapacity = NodeStore_DEFAULT_LINK_CAPACITY
+        },
         .capacity = capacity,
         .logger = logger,
         .alloc = alloc
@@ -1568,28 +1670,6 @@ void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, u
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     handleNews(node, newReach, store);
-}
-
-int NodeStore_nonZeroNodes(struct NodeStore* nodeStore)
-{
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    int nonZeroNodes = 0;
-    struct Node_Two* nn = NULL;
-    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        nonZeroNodes += (nn->pathQuality > 0);
-    }
-    return nonZeroNodes;
-}
-
-int NodeStore_size(struct NodeStore* nodeStore)
-{
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    int size = 0;
-    struct Node_Two* nn = NULL;
-    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
-        size++;
-    }
-    return size;
 }
 
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)

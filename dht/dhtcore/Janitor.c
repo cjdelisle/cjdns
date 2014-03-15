@@ -335,7 +335,7 @@ static void maintanenceCycle(void* vcontext)
     nextTimeout += Random_uint32(janitor->rand) % (nextTimeout * 2);
     Timeout_resetTimeout(janitor->timeout, nextTimeout);
 
-    if (NodeStore_size(janitor->nodeStore) == 0 && janitor->rumorMill->count == 0) {
+    if (janitor->nodeStore->nodeCount == 0 && janitor->rumorMill->count == 0) {
         if (now > janitor->timeOfNextGlobalMaintainence) {
             Log_warn(janitor->logger,
                      "No nodes in routing table, check network connection and configuration.");
@@ -391,17 +391,11 @@ static void maintanenceCycle(void* vcontext)
         checkPeers(janitor, n);
     }
 
-    #ifdef Log_DEBUG
-        int nonZeroNodes = NodeStore_nonZeroNodes(janitor->nodeStore);
-        int total = NodeStore_size(janitor->nodeStore);
-        Log_debug(janitor->logger,
-                  "Global Mean Response Time: %u non-zero nodes: [%d] zero nodes [%d] "
-                  "total [%d]",
-                  RouterModule_globalMeanResponseTime(janitor->routerModule),
-                  nonZeroNodes,
-                  (total - nonZeroNodes),
-                  total);
-    #endif
+    Log_debug(janitor->logger,
+              "Global Mean Response Time: %u nodes [%d] links [%d]",
+              RouterModule_globalMeanResponseTime(janitor->routerModule),
+              janitor->nodeStore->nodeCount,
+              janitor->nodeStore->linkCount);
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         search(addr.ip6.bytes, janitor);
