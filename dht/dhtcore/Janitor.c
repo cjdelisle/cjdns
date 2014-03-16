@@ -371,12 +371,12 @@ static void maintanenceCycle(void* vcontext)
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
         if (!n) {
-            // We don't know a (valid) path to this node, so lets search for one.
+            // We don't know a next hop to this node, so lets search for one.
             searchNoDupe(addr.ip6.bytes, janitor);
         }
         else {
-            // We know a (valid) path to this node.
-            // TODO: something useful.
+            // We know a next hop for this node.
+            // TODO: something useful (maybe take some action if next hop != destination?)
         }
     }
 
