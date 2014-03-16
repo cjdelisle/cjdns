@@ -187,17 +187,48 @@ The cjdns developers.
 
 ## How to install cjdns
 
-These instructions are for Debian-based Linux distributions. They should be
-informative enough for user on other distributions - just don't expect them to
+These instructions are for Debian-based Linux distributions and OS X. They should be
+informative enough for use on other distributions - just don't expect them to
 work verbatim.
 
 ### 0. Install dependencies
 
+On both platforms, installing [Node.js](http://nodejs.org/), although preferable, 
+is not strictly necessary. If Node.js is unavailable or an unacceptable version,
+it will be downloaded and installed in the source tree.
+
+#### Debian-based distro:
+
     sudo apt-get install nodejs git build-essential
 
-Installing [Node.js](http://nodejs.org/), although preferable, is not
-strictly necessary. If Node.js is unavailable or an unacceptable
-version, it will be downloaded and built in the source tree.
+#### OS X:
+
+On OS X, you must install the Command Line Developer Tools. If 
+you already have a recent version of Xcode (>= OS X 10.9 and >= Xcode 5.0.1), run the
+following command:
+
+    xcode-select --install
+
+If Xcode is not installed, you can either install it through the App
+Store and run the command above, or make a free Apple Developer account here:
+[https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
+Then sign in, search for Command Line Tools, and install the latest package
+compatible with your version of OS X. If you encounter issues, there is a 
+thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
+the Command Line Tools.
+
+You must also install git and Node.js. There are a few options. If you use [Homebrew](http://brew.sh/):
+
+    brew install git nodejs
+
+If you use [Macports](https://www.macports.org/):
+
+    sudo port install git-core nodejs
+
+Or if you use neither and would like to install the binaries from their websites:
+
+- Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
+- git: [http://git-scm.com/download](http://git-scm.com/download)
 
 ### 1. Retrieve cjdns from GitHub
 

@@ -15,27 +15,36 @@
 #ifndef Version_H
 #define Version_H
 
+#include "util/Linker.h"
+Linker_require("util/version/Version.c")
+
 #include <stdint.h>
 
-/**
+/*
  * Cjdns Protocol Versions
  *
- *
+ * The first argument to Version_COMPAT is the new version, the second argument is a list of
+ * older versions with which it is compatible. All versions are obviously assumed to be compatible
+ * with themselves and any version which is compatible with the most recent version to date is
+ * assumed to be compatible with all future versions.
+ */
+#ifndef Version_COMPAT
+    // defined otherwise in Version.c
+    #define Version_COMPAT(one, twoRange)
+#endif
+
+/*
  * Version 0:
  * January 2012
+ *
  * First version.
  */
-#define Version_isCompat0(x, y) \
-    (1)
+Version_COMPAT(0, ([]))
+
 /*
- * ----------------------------------
- *
  * Version 1:
  * October 2012
- */
-#define Version_isCompat1(x, y) \
-    (1)
-/*
+ *
  * When you send someone a message through cjdns, it's encrypted.
  * When you send the first message to a router, it has a nice header on it which tells them your key
  * and allows them to establish a cryptographic session with you. For every message after that, they
@@ -126,25 +135,21 @@
  *
  * Protocol1.2
  * Changes in protocol1.1 are reverted as a solution was found in the implementation.
- *
- * ----------------------------------
- *
+ */
+Version_COMPAT(1, ([0]))
+
+/*
  * Version 2:
  * February 21, 2013
- */
-#define Version_isCompat2(x, y) \
-    ((x == 2) ? (y > 0) : Version_isCompat1(x, y))
-/*
+ *
  * Remove compatibility layer for communicating with version 0 nodes.
- *
- * ----------------------------------
- *
+ */
+Version_COMPAT(2, ([1]))
+
+/*
  * Version 3:
  * August 16, 2013
- */
-#define Version_isCompat3(x, y) \
-    ((x == 3) ? (y > 0) : Version_isCompat2(x, y))
-/*
+ *
  * In version 1, handles were introduced so that a session could be looked when a packet came in.
  * During the initiation of a session, the node's handle was placed before the CryptoAuth block
  * unless the message was a layer-3 (forwarded) message in which case it was at the beginning
@@ -166,66 +171,59 @@
  * As of version 3, implementations must not send handles which are less than 4 so that when they
  * receive them back, they will not be confused with the initial 4 bytes of a CryptoAuth setup
  * packet which is not preceeded by a handle.
- *
- * ----------------------------------
- *
+ */
+Version_COMPAT(3, ([1,2]))
+
+/*
  * Version 4:
  * August 27, 2013
- */
-#define Version_isCompat4(x, y) \
-    ((x == 4) ? (y > 0) : Version_isCompat3(x, y))
-/*
+ *
  * This version makes no protocol changes but fixes a nasty bug with forwarding which caused
  * messages to be forwarded to random nodes, updated to encourage nodes to forward via others
  * who do not have the bug.
- *
- * ----------------------------------
- *
+ */
+Version_COMPAT(4, ([1,2,3]))
+
+/*
  * Version 5:
  * September 4, 2013
- */
-#define Version_isCompat5(x, y) \
-    ((x == 5) ? (y > 0) : Version_isCompat4(x, y))
-/*
+ *
  * This version introduces a new RPC call for getting directly connected peers from a node.
  * The new RPC call is called "gp" and it takes a target label called "tar" which must be an
  * 8 byte long benc string. It returns a list of peers exactly the same as a search but they
  * must all be direct peers and they are the peers whose labels have smallest XOR distance
  * from "tar".
- *
- * ----------------------------------
- *
+ */
+Version_COMPAT(5, ([1,2,3,4]))
+
+/*
  * Version 6:
  * December 14, 2013
- */
-#define Version_isCompat6(x, y) \
-    ((x == 5) ? (y > 4) : Version_isCompat5(x, y))
-/*
+ *
  * Drop support for versions older than 5
  */
+Version_COMPAT(6, ([5]))
 
-
-
-/**
- * Determine if two versions are compatible inefficiently.
- * Used to populate lookup table.
+/*
+ * Version 7:
+ * March 16, 2014
  *
- * When adding a new version, this must be redirected to the highest
- * numbered isCompat macro.
+ * A ceremonial version which has the pathfinder2 implemented.
+ * this is still compatible with the same versions and doesn't expressly change the protocol
+ * although it is nolonger able to communicate with *older* version 5 nodes which do not advertize
+ * their encoding scheme.
  */
-#define Version_isCompatConst(x, y) \
-    ((x > y) ? Version_isCompat6(x, y) : Version_isCompat6(y, x))
-
+Version_COMPAT(7, ([5,6]))
 
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 6
+#define Version_CURRENT_PROTOCOL 7
 #define Version_5_COMPAT
+#define Version_6_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 5
 #define Version_DEFAULT_ASSUMPTION 5
-
 
 /**
  * Check the compatibility matrix and return whether two versions are compatible.
@@ -236,39 +234,6 @@
  * @param version2 the second version
  * @return 1 meaning compatible or 0 meaning incompatible.
  */
-static inline int Version_isCompatible(uint32_t version1, uint32_t version2)
-{
-    // When adding a new version, a new column and row must be added.
-    #define Version_TABLE_ROW(col) { \
-        Version_isCompatConst(col,0), \
-        Version_isCompatConst(col,1), \
-        Version_isCompatConst(col,2), \
-        Version_isCompatConst(col,3), \
-        Version_isCompatConst(col,4), \
-        Version_isCompatConst(col,5), \
-        Version_isCompatConst(col,6)  \
-    }
-    static const uint8_t table[7][7] = {
-        Version_TABLE_ROW(0),
-        Version_TABLE_ROW(1),
-        Version_TABLE_ROW(2),
-        Version_TABLE_ROW(3),
-        Version_TABLE_ROW(4),
-        Version_TABLE_ROW(5),
-        Version_TABLE_ROW(6)
-    };
-
-    #define Version_TABLE_HEIGHT (sizeof(table) / sizeof(table[0]))
-    #define Version_TABLE_WIDTH  sizeof(table[0])
-
-    if (version2 >= Version_TABLE_WIDTH) {
-        version2 = Version_TABLE_WIDTH - 1;
-    }
-    if (version1 >= Version_TABLE_HEIGHT) {
-        version1 = Version_TABLE_HEIGHT - 1;
-    }
-
-    return table[version1][version2];
-}
+int Version_isCompatible(uint32_t one, uint32_t two);
 
 #endif

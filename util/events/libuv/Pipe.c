@@ -336,6 +336,8 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
 
     #ifdef win32
         #define PREFIX "\\\\.\\pipe\\cjdns_pipe_"
+    #elif defined(android)
+        #define PREFIX "/data/local/tmp/cjdns_pipe_"
     #else
         #define PREFIX "/tmp/cjdns_pipe_"
     #endif

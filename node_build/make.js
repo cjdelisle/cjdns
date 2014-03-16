@@ -140,7 +140,7 @@ Builder.configure({
         });
     }
 
-    // We also need to pass various architecture/floating point flags to GCC when invoked as 
+    // We also need to pass various architecture/floating point flags to GCC when invoked as
     // a linker.
     ldflags = process.env['LDFLAGS'];
     if (ldflags) {
@@ -148,6 +148,12 @@ Builder.configure({
         flags.forEach(function(flag) {
             builder.config.ldflags.push(flag);
         });
+    }
+
+    if (/.*android.*/.test(GCC)) {
+        builder.config.cflags.push(
+            '-Dandroid=1'
+        );
     }
 
     // Build dependencies
@@ -188,16 +194,20 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
         builder.config.libs.push(
-            BUILDDIR+'/dependencies/libuv/out/Release/libuv.a',
-            '-lpthread'
+            BUILDDIR+'/dependencies/libuv/out/Release/libuv.a'
         );
+        if (!/.*android.*/.test(GCC)) {
+            builder.config.libs.push(
+                '-lpthread'
+            );
+        }
         if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
                 '-lws2_32',
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );
-        } else if (builder.config.systemName === 'linux') {
+        } else if (builder.config.systemName === 'linux' && !/.*android.*/.test(GCC)) {
             builder.config.libs.push(
                 '-lrt' // clock_gettime()
             );
@@ -233,6 +243,7 @@ Builder.configure({
             if (env.TARGET_ARCH) {
                 args.push('-Dtarget_arch='+env.TARGET_ARCH);
             }
+            if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
             var gyp = Spawn(python, args, {env:env});
             gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });

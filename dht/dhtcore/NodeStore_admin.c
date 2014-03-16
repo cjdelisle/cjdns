@@ -44,7 +44,7 @@ static void dumpTable_send(struct Context* ctx,
     if (isMore) {
         table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
     } else {
-        int count = NodeStore_size(ctx->store);
+        int count = ctx->store->nodeCount;
         table = Dict_CONST(String_CONST("count"), Int_OBJ(count), table);
     }
     Admin_sendMessage(&table, txid, ctx->admin);
@@ -72,7 +72,7 @@ static void dumpTable_addEntries(struct Context* ctx,
 
     struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
 
-    if (i >= NodeStore_size(ctx->store) || j >= ENTRIES_PER_PAGE) {
+    if (i >= ctx->store->nodeCount || j >= ENTRIES_PER_PAGE) {
         dumpTable_send(ctx, last, (j >= ENTRIES_PER_PAGE), txid);
         return;
     }

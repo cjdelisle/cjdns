@@ -18,7 +18,6 @@
 #include "dht/Address.h"
 #include "switch/EncodingScheme.h"
 #include "memory/Allocator.h"
-#include "util/Assert.h"
 #include "util/Identity.h"
 #include "util/Linker.h"
 Linker_require("dht/dhtcore/Node.c")
@@ -34,10 +33,11 @@ struct Node_Two
      */
     uint32_t pathQuality;
 
+    /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
+    int marked;
+
     /** The address of the node. */
     struct Address address;
-
-    // new stuff
 
     /** The encoding method used by this node. */
     struct EncodingScheme* encodingScheme;

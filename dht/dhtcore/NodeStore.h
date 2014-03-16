@@ -31,7 +31,16 @@ struct NodeStore
     struct Address* selfAddress;
 
     struct Node_Two* selfNode;
+
+    int nodeCount;
+    int nodeCapacity;
+
+    int linkCount;
+    int linkCapacity;
 };
+
+#define NodeStore_DEFAULT_NODE_CAPACITY 128
+#define NodeStore_DEFAULT_LINK_CAPACITY 1024
 
 /**
  * Create a new NodeStore.
@@ -149,10 +158,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Allocator* allocator);
 
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach);
-
-int NodeStore_nonZeroNodes(struct NodeStore* nodeStore);
-
-int NodeStore_size(struct NodeStore* nodeStore);
 
 /**
  * Remove all nodes who are reachable by this path.
