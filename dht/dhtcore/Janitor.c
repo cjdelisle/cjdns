@@ -367,16 +367,21 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
-    /* shitstorm of search traffic
-
     // This is good for DHT health. See function description.
     plugLargestKeyspaceHole(janitor);
 
     // Do something useful for a node we're actively trying to communicate with.
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
-        searchNoDupe(addr.ip6.bytes, janitor);
+        struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+        if (!n) {
+            // We don't know a (valid) path to this node, so lets search for one.
+            searchNoDupe(addr.ip6.bytes, janitor);
+        }
+        else {
+            // We know a (valid) path to this node.
+            // TODO: something useful.
+        }
     }
-    */
 
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
