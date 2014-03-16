@@ -195,7 +195,7 @@ work verbatim.
 
 On both platforms, installing [Node.js](http://nodejs.org/), although preferable, 
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
-it will be downloaded and built in the source tree.
+it will be downloaded and installed in the source tree.
 
 #### Debian-based distro:
 
