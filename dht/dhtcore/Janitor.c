@@ -368,11 +368,16 @@ static void maintanenceCycle(void* vcontext)
     }
 
     // Do something useful for a node we're actively trying to communicate with.
-    if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
+    while (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
         if (!n) {
-            // We don't know a next hop to this node, so lets search for one.
-            searchNoDupe(addr.ip6.bytes, janitor);
+            // We don't know a next hop to this node.
+            // That means the node must exist in a keyspace hole, so lets try to fill it.
+            // Note: Searching directly would probably work better... but lets rely on the DHT.
+            // (If the DHT isn't working right, we want to be able to notice that.)
+            // (Not directly searching also limits the max concurrent searches to ~1.)
+            plugLargestKeyspaceHole(janitor);
+            break;
         }
         else {
             // We know a next hop for this node.
