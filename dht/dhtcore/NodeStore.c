@@ -1158,6 +1158,27 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     return parentLink;
 }
 
+static struct Node_Two* whichIsWorse(struct Node_Two* one,
+                                     struct Node_Two* two,
+                                     struct NodeStore_pvt* store)
+{
+    if (one->address.protocolVersion != two->address.protocolVersion) {
+        if (one->address.protocolVersion < Version_CURRENT_PROTOCOL) {
+            if (two->address.protocolVersion >= Version_CURRENT_PROTOCOL) {
+                return one;
+            }
+        } else if (two->address.protocolVersion < Version_CURRENT_PROTOCOL) {
+            if (one->address.protocolVersion >= Version_CURRENT_PROTOCOL) {
+                return two;
+            }
+        }
+    }
+    if (Address_closest(&store->pub.selfNode->address, &one->address, &two->address) > 0) {
+        return one;
+    }
+    return two;
+}
+
 /**
  * We define the worst node as either node which is furthest in address space
  * from us which is either unreachable or, if no nodes are unreachable, has no
@@ -1177,9 +1198,8 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
         nn->marked = 0;
         if (nn->bestParent) {
             nn->bestParent->parent->marked = 1;
-        } else if (!worst
-            || Address_closest(&store->pub.selfNode->address, &nn->address, &worst->address) > 0)
-        {
+        } else if (!worst || whichIsWorse(nn, worst, store) == nn) {
+            // this time around we're only addressing nodes which are unreachable.
             worst = nn;
         }
     }
@@ -1191,9 +1211,7 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
             nn->bestParent->parent->marked = 1;
         }
         if (nn->marked) { continue; }
-        if (!worst
-            || Address_closest(&store->pub.selfNode->address, &nn->address, &worst->address) > 0)
-        {
+        if (!worst || whichIsWorse(nn, worst, store) == nn) {
             worst = nn;
         }
     }
