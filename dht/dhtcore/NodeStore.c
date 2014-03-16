@@ -876,43 +876,41 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     }
     #endif
 
-    for (;;) {
-        if (parent == child) {
-            if (pathParentChild == 1) {
-                // Link is already known.
-                update(closest, 0, store);
-                //Log_debug(store->logger, "Already known");
-                return closest;
-            } else {
-                logLink(store, closest, "Loopey route");
-                // parent->child->somenode->child
-                // we'll link them and then hope the link is never used, when it's split
-                // we'll find a nice link to somenode.
-                break;
-            }
-        } else if (pathParentChild == 1) {
-            logLink(store, closest, "Node at end of path appears to have changed");
-
-            // This should never happen for a direct peer or for a direct decendent in
-            // a split link.
-            Assert_always(closestKnown != closest);
-
-            unlinkNodes(closest, store);
-            pathParentChild =
-                findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
-
-            if (pathParentChild != findClosest_INVALID) {
-                // TODO: handle this in some way other than just failing to install the route.
-                logLink(store, closestKnown, "Apparently the reverse link encoding scheme for "
-                                             "link has changed.");
-                return NULL;
-            }
-
-            parent = closest->child;
-            check(store);
-        } else {
-            break;
+    if (parent == child) {
+        if (pathParentChild == 1) {
+            // Link is already known.
+            update(closest, 0, store);
+            //Log_debug(store->logger, "Already known");
+            return closest;
         }
+
+        Log_debug(store->logger, "Loopey route");
+        // lets not bother storing this link, a link with the same parent and child is
+        // invalid according to verify() and it's just going to take up space in the store
+        // we'll return closest which is a perfectly valid path to the same node.
+        return closest;
+    }
+
+    while (pathParentChild == 1) {
+        logLink(store, closest, "Node at end of path appears to have changed");
+
+        // This should never happen for a direct peer or for a direct decendent in
+        // a split link.
+        Assert_always(closestKnown != closest);
+
+        unlinkNodes(closest, store);
+        pathParentChild =
+            findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
+
+        if (pathParentChild != findClosest_INVALID) {
+            // TODO: handle this in some way other than just failing to install the route.
+            logLink(store, closestKnown, "Apparently the reverse link encoding scheme for "
+                                         "link has changed.");
+            return NULL;
+        }
+
+        parent = closest->child;
+        check(store);
     }
 
     // link parent to child
