@@ -367,6 +367,8 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
+    /* shitstorm of search traffic
+
     // This is good for DHT health. See function description.
     plugLargestKeyspaceHole(janitor);
 
@@ -374,6 +376,7 @@ static void maintanenceCycle(void* vcontext)
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
         searchNoDupe(addr.ip6.bytes, janitor);
     }
+    */
 
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
@@ -384,7 +387,8 @@ static void maintanenceCycle(void* vcontext)
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || n->pathQuality == 0) {
-        search(addr.ip6.bytes, janitor);
+        //search(addr.ip6.bytes, janitor);
+        plugLargestKeyspaceHole(janitor);
         return;
 
     } else {
@@ -398,7 +402,7 @@ static void maintanenceCycle(void* vcontext)
               janitor->nodeStore->linkCount);
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
-        search(addr.ip6.bytes, janitor);
+        //search(addr.ip6.bytes, janitor);
         keyspaceMaintainence(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
