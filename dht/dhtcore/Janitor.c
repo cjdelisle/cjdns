@@ -367,9 +367,6 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
-    // This is good for DHT health. See function description.
-    plugLargestKeyspaceHole(janitor);
-
     // Do something useful for a node we're actively trying to communicate with.
     if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
@@ -408,6 +405,7 @@ static void maintanenceCycle(void* vcontext)
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);
+        plugLargestKeyspaceHole(janitor);
         keyspaceMaintainence(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
