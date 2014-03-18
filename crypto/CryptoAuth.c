@@ -46,10 +46,6 @@
     #undef interface
 #endif
 
-/** The constant used in nacl. */
-static const uint8_t keyHashSigma[16] = "expand 32-byte k";
-static const uint8_t keyHashNonce[16] = {0};
-
 #ifdef Log_KEYS
 static inline void printHexKey(uint8_t output[65], uint8_t key[32])
 {
