@@ -215,6 +215,10 @@ Builder.configure({
             builder.config.libs.push(
                 '-framework', 'CoreServices'
             );
+        } else if (builder.config.systemName === 'freebsd') {
+            builder.config.libs.push(
+                '-lkvm'
+            );
         }
         builder.config.includeDirs.push(
             BUILDDIR+'/dependencies/libuv/include/'
@@ -251,7 +255,12 @@ Builder.configure({
                 var args = ['-j', WORKERS, '-C', 'out', 'BUILDTYPE=Release', 'CC='+builder.config.gcc];
                 if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
                 if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
-                var make = Spawn('make', args);
+                var make;
+                if (builder.config.systemName == 'freebsd') {
+                    make = Spawn('gmake', args);
+                } else {
+                    make = Spawn('make', args);
+                }
                 make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
                 make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
                 make.on('close', waitFor(function () {
