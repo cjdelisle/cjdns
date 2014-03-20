@@ -71,7 +71,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         } else if (ppa < 0) {
             error = "fdevname/getting number from fdevname";
         }
-        Except_raise(eh, TUNInterface_new_INTERNAL, error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
@@ -89,7 +89,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     if (error) {
         int err = errno;
         close(tunFd);
-        Except_raise(eh, TUNInterface_new_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);

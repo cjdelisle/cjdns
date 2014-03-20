@@ -1089,7 +1089,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // grandChild, we're going to switch it to decend from the previous node along the
                 // path.
                 struct Node_Link* link = NULL;
-                for (int limit = 1; !link || link->child != grandChild; limit++) {
+                for (int limit = 1; ; limit++) {
                     int limitCpy = limit;
                     link = NULL;
                     findClosest(childToGrandchild,
@@ -1098,6 +1098,8 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                 parentLink,
                                 store);
                     Assert_always(link);
+
+                    if (link->child == grandChild) { break; }
 
                     // We should never get here because the if statement below should have
                     // handled this in the previous round.
@@ -1109,11 +1111,15 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                         // needs to be increased and we need to swap it's bestParent so that we're
                         // sure it doesn't decend from grandChild.
                         if (link->child->bestParent != link) {
-                            handleGoodNews(link->parent, grandChild->pathQuality+2, store);
+                            if (link->parent->pathQuality <= grandChild->pathQuality+1) {
+                                handleGoodNews(link->parent, grandChild->pathQuality+2, store);
+                            }
                             Assert_true(link->parent->pathQuality > grandChild->pathQuality);
                             updateBestParent(link->child, link, grandChild->pathQuality+1, store);
                         }
-                        handleGoodNews(link->child, grandChild->pathQuality+1, store);
+                        if (link->child->pathQuality <= grandChild->pathQuality) {
+                            handleGoodNews(link->child, grandChild->pathQuality+1, store);
+                        }
                         Assert_true(link->child->pathQuality > grandChild->pathQuality);
                     }
                 }
