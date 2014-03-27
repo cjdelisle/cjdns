@@ -373,18 +373,15 @@ static void maintanenceCycle(void* vcontext)
         if (n) {
             // We know a next hop for this node.
             // Normally this happens if we've recently tried to directly communicate with a node.
-            if (n->address.ip6.bytes == addr.ip6.bytes) {
+            if (!Bits_memcmp(n->address.ip6.bytes, addr.ip6.bytes, Address_SEARCH_TARGET_SIZE)) {
                 // We know a direct route to this node.
                 // TODO? Lets ping it to keep reach good
-                //RouterModule_pingNode(&addr, 0, janitor->routerModule, janitor->allocator);
-                break;
+                //RouterModule_pingNode(&n->address, 0, janitor->routerModule, janitor->allocator);
             }
-
             else {
                 // We do not know a direct route to this node.
                 // TODO? Do a DHT lookup (aka a search) for a path directly to it.
                 //searchNoDupe(addr.ip6.bytes, janitor);
-                break;
             }
         }
         else {
@@ -392,7 +389,6 @@ static void maintanenceCycle(void* vcontext)
             // That means the node must exist in a keyspace hole, so lets try to fill it.
             // Normally this happens if we've recently failed to forward a packet.
             plugLargestKeyspaceHole(janitor);
-            break;
         }
     }
 
