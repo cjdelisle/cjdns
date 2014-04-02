@@ -158,6 +158,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            struct Allocator* allocator);
 
 void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach);
+void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newReach);
 
 /**
  * Remove all nodes who are reachable by this path.

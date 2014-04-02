@@ -1709,3 +1709,25 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
     }
     verify(store);
 }
+
+// When a response comes in, we need to pay attention to the path used.
+void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newReach)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Link* nextLink = store->selfLink;
+    uint32_t hop = 0;
+    while (nextLink) {
+        // If we're looking at the selfLink, don't touch its reach
+        if (nextLink != store->selfLink) {
+            // Possibly update the reach for the node
+            if (nextLink->child->pathQuality < newReach) {
+                NodeStore_updateReach(nodeStore, nextLink->child, newReach);
+                newReach++; // Should have ~no effect except loop avoidance
+            }
+        }
+
+        // Move to the next node
+        hop++;
+        nextLink = NodeStore_getLinkOnPath(nodeStore, path, hop);
+    }
+}

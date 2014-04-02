@@ -452,7 +452,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
                        (unsigned int)newReach);
         #endif
 
-        NodeStore_updateReach(pctx->router->nodeStore, n, newReach);
+        NodeStore_updatePathReach(pctx->router->nodeStore, pctx->address.path, newReach);
     }
 
     if (pctx->pub.callback) {
@@ -536,7 +536,9 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
     if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
         // This path is already known
-        NodeStore_updateReach(module->nodeStore, node, nextReach(0, milliseconds));
+        NodeStore_updatePathReach(module->nodeStore,
+                                  message->address->path,
+                                  nextReach(0, milliseconds));
     } else {
         struct Node_Link* link = NodeStore_discoverNode(module->nodeStore,
                                                         message->address,
