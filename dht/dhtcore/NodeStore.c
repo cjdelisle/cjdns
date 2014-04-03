@@ -1719,15 +1719,21 @@ void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint3
     while (nextLink) {
         // If we're looking at the selfLink, don't touch its reach
         if (nextLink != store->selfLink) {
-            // Possibly update the reach for the node
+            // Possibly update the reach for this hop on the path
             if (nextLink->child->pathQuality < newReach) {
                 NodeStore_updateReach(nodeStore, nextLink->child, newReach);
                 newReach++; // Should have ~no effect except loop avoidance
             }
         }
 
-        // Move to the next node
+        // Move to the next hop on the path
         hop++;
         nextLink = NodeStore_getLinkOnPath(nodeStore, path, hop);
+    }
+
+    // Finally, unconditionally update the reach of the last node
+    struct Node_Two* node = NodeStore_closestNode(nodeStore, path);
+    if (node) {
+        NodeStore_updateReach(nodeStore, node, newReach);
     }
 }
