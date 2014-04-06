@@ -17,6 +17,8 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 #include "util/platform/libc/string.h"
+#include "util/Seccomp.h"
+#include "memory/Allocator.h"
 
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -24,6 +26,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+
+#define __USE_MISC // for MAP_ANONYMOUS
+#include <sys/mman.h>
 
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
@@ -43,63 +48,105 @@ int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
     return 0;
 }
 
+static int canOpenFiles()
+{
+    int file = dup(0);
+    close(file);
+    return file >= 0;
+}
+
 static void noFiles(struct Except* eh)
 {
     #if !defined(RLIMIT_NOFILE) && defined(RLIMIT_OFILE)
         #define RLIMIT_NOFILE RLIMIT_OFILE
     #endif
 
-    int file = dup(0);
-    if (file < 0) {
+    if (!canOpenFiles()) {
         Except_throw(eh, "Unable to dupe stdin");
     }
-    close(file);
     if (setrlimit(RLIMIT_NOFILE, &(struct rlimit){ 0, 0 })) {
         Except_throw(eh, "Failed to set open file limit to [%s]", strerror(errno));
     }
-    file = dup(0);
-    close(file);
-    if (file >= 0) {
+    if (canOpenFiles()) {
         Except_throw(eh, "Still able to dupe stdin after setting number of files to 0!");
     }
 }
 
-static void noForks(struct Except* eh)
+// RLIMIT_DATA doesn't prevent malloc() on linux.
+// see: http://lkml.indiana.edu/hypermail/linux/kernel/0707.1/0675.html
+#if !defined(RLIMIT_AS) && defined(RLIMIT_DATA)
+    #define Security_MEMORY_RLIMIT RLIMIT_DATA
+#elif defined(RLIMIT_AS)
+    #define Security_MEMORY_RLIMIT RLIMIT_AS
+#else
+    #error RLIMIT_AS and RLIMIT_DATA are not defined
+#endif
+
+static unsigned long getMaxMem(struct Except* eh)
 {
-/* TODO: understand why we are still able to fork after setting NPROC to 0
-    int pid = fork();
-    if (pid == 0) { exit(0); }
-    if (pid < 0) {
-        Except_throw(eh, "Unable to fork prior to setting noForks");
-    }
-    if (setrlimit(RLIMIT_NPROC, &(struct rlimit){ 0, 0 })) {
-        Except_throw(eh, "Failed to set fork limit to [%s]", strerror(errno));
+    struct rlimit lim = { 0, 0 };
+    if (getrlimit(Security_MEMORY_RLIMIT, &lim)) {
+        Except_throw(eh, "Failed to get memory limit [%s]", strerror(errno));
     }
 
-    pid = fork();
-    if (pid == 0) { exit(0); }
-    if (pid > 0) {
-        Except_throw(eh, "Still able to fork after calling noForks!");
+    // First time around, we try a very small mapping just to make sure it works.
+    size_t tryMapping = 100;
+    if (lim.rlim_max > 0) {
+        tryMapping = lim.rlim_max * 2l;
     }
-*/
+
+    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
+    if (ptr != MAP_FAILED) {
+        munmap(ptr, tryMapping);
+        if (lim.rlim_max > 0) {
+            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%lu] bytes",
+                         tryMapping);
+        }
+    } else if (lim.rlim_max == 0) {
+        Except_throw(eh, "Testing of memory limit not possible, unable to map memory");
+    }
+
+    return lim.rlim_max;
 }
 
 static void maxMemory(unsigned long max, struct Except* eh)
 {
-    // RLIMIT_DATA doesn't prevent malloc() on linux.
-    // see: http://lkml.indiana.edu/hypermail/linux/kernel/0707.1/0675.html
-    #if !defined(RLIMIT_AS) && defined(RLIMIT_DATA)
-        #define RLIMIT_AS RLIMIT_DATA
-    #endif
-    if (setrlimit(RLIMIT_AS, &(struct rlimit){ max, max })) {
+    unsigned long realMax = getMaxMem(eh);
+    if (realMax > 0 && realMax < max) {
+        Except_throw(eh, "Failed to limit available memory to [%lu] "
+                         "because existing limit is [%lu]", max, realMax);
+    }
+
+    if (setrlimit(Security_MEMORY_RLIMIT, &(struct rlimit){ max, max })) {
         Except_throw(eh, "Failed to limit available memory [%s]", strerror(errno));
     }
+    if (!setrlimit(Security_MEMORY_RLIMIT, &(struct rlimit){ max+1, max+1 })) {
+        Except_throw(eh, "Available memory was modifyable after limiting");
+    }
+
+    realMax = getMaxMem(eh);
+    if (realMax != max) {
+        Except_throw(eh, "Limiting available memory failed");
+    }
+}
+
+struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh)
+{
+    struct Security_Permissions* out =
+        Allocator_calloc(alloc, sizeof(struct Security_Permissions), 1);
+
+    out->noOpenFiles = !canOpenFiles();
+    out->seccompExists = Seccomp_exists();
+    out->seccompEnforcing = Seccomp_isWorking();
+    out->memoryLimitBytes = getMaxMem(eh);
+
+    return out;
 }
 
 void Security_dropPermissions(struct Except* eh)
 {
-    maxMemory(100000000, eh);
+    maxMemory(20000000, eh);
     noFiles(eh);
-return;
-    noForks(eh);
+    Seccomp_dropPermissions(eh);
+
 }
