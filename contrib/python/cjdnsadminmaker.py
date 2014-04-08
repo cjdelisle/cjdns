@@ -57,12 +57,12 @@ def validjson(conf):
     i = 0
     while not os.path.isfile(cleanconfig):
         if i < len(cjdnslocations):
-            cleanconfig = cjdnslocations[i] + "/build/cleanconfig"
+            cleanconfig = cjdnslocations[i] + "/cleanconfig"
             i += 1
         else:
             print "Failed to find cleanconfig"
             print "Please tell me where it is"
-            cleanconfig = raw_input("HINT: <cjdns git>/build/cleanconfig: ")
+            cleanconfig = raw_input("HINT: <cjdns git>/cleanconfig: ")
     print "Using " + cleanconfig
     process = subprocess.Popen([cleanconfig], stdin=open(conf), stdout=subprocess.PIPE)
     cleanconf = process.stdout.read()
