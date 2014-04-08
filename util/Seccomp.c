@@ -14,6 +14,10 @@
  */
 #include "util/Seccomp.h"
 
+// SIG_UNBLOCK
+#define _POSIX_SOURCE
+#include <signal.h>
+
 // getpriority()
 #include <sys/resource.h>
 #include <errno.h>
@@ -85,6 +89,11 @@ void Seccomp_dropPermissions(struct Except* eh)
     // abort()
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0);
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(tgkill), 0);
+    rc |= seccomp_rule_add(ctx,
+                           SCMP_ACT_ALLOW,
+                           SCMP_SYS(rt_sigprocmask),
+                           1,
+                           SCMP_CMP(0, SCMP_CMP_EQ, SIG_UNBLOCK, 0));
 
     // exit()
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
@@ -100,6 +109,9 @@ void Seccomp_dropPermissions(struct Except* eh)
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
 
+    // printf
+    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+
     /////
 
     char* err = NULL;
@@ -108,7 +120,7 @@ void Seccomp_dropPermissions(struct Except* eh)
     } else if (seccomp_load(ctx)) {
         err = "Failed to load SECCOMP";
     }
-seccomp_export_pfc(ctx, 1);
+
     seccomp_release(ctx);
 
     if (err) {
