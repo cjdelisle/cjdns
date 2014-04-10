@@ -176,6 +176,49 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     #endif
 }
 
+static void peersResponseCallback(struct RouterModule_Promise* promise,
+                                  uint32_t lagMilliseconds,
+                                  struct Address* from,
+                                  Dict* result)
+{
+    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
+    if (!from) { return; }
+    struct Address_List* addresses =
+        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+
+    for (int i = 0; addresses && i < addresses->length; i++) {
+        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nn) {
+            RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
+        }
+    }
+}
+
+static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
+{
+    // Lets check for non-one-hop links at each node along the path between us and this node.
+    uint32_t i = 0;
+    for (;;i++) {
+        struct Node_Link* link =
+            NodeStore_getLinkOnPath(janitor->nodeStore, n->address.path, i);
+        if (!link) { return; }
+        if (link->parent == janitor->nodeStore->selfNode) { continue; }
+        int count = NodeStore_linkCount(link->child);
+        for (int j = 0; j < count; j++) {
+            struct Node_Link* l = NodeStore_getLink(link->child, j);
+            if (!Node_isOneHopLink(l) || link->parent->pathQuality == 0) {
+                struct RouterModule_Promise* rp =
+                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
+                                          janitor->routerModule, janitor->allocator);
+                rp->callback = peersResponseCallback;
+                rp->userData = janitor;
+                // Only send max 1 getPeers req per second.
+                return;
+            }
+        }
+    }
+}
+
 /**
  * For a Distributed Hash Table to work, each node must know a valid next hop in the search,
  * if such a thing exists.
@@ -234,7 +277,7 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
 static void keyspaceMaintainence(struct Janitor* janitor)
 {
     struct Address addr = *janitor->nodeStore->selfAddress;
-
+    struct Node_Two* n;
     int byte = 0;
     int bit = 0;
 
@@ -263,7 +306,7 @@ static void keyspaceMaintainence(struct Janitor* janitor)
         addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
 
         // See if we know a valid next hop.
-        struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+        n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
         if (n) {
             // Start the next search 1 step further into keyspace.
@@ -279,50 +322,8 @@ static void keyspaceMaintainence(struct Janitor* janitor)
     // Search for a node that satisfies the address requirements to fill the hole.
     // Should end up self-searching in the event that we're all the way through keyspace.
     searchNoDupe(addr.ip6.bytes, janitor);
+    checkPeers(janitor, n);
 
-}
-
-static void peersResponseCallback(struct RouterModule_Promise* promise,
-                                  uint32_t lagMilliseconds,
-                                  struct Address* from,
-                                  Dict* result)
-{
-    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
-    if (!from) { return; }
-    struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
-
-    for (int i = 0; addresses && i < addresses->length; i++) {
-        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nn) {
-            RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
-        }
-    }
-}
-
-static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
-{
-    // Lets check for non-one-hop links at each node along the path between us and this node.
-    uint32_t i = 0;
-    for (;;i++) {
-        struct Node_Link* link =
-            NodeStore_getLinkOnPath(janitor->nodeStore, n->address.path, i);
-        if (!link) { return; }
-        if (link->parent == janitor->nodeStore->selfNode) { continue; }
-        int count = NodeStore_linkCount(link->child);
-        for (int j = 0; j < count; j++) {
-            struct Node_Link* l = NodeStore_getLink(link->child, j);
-            if (!Node_isOneHopLink(l) || link->parent->pathQuality == 0) {
-                struct RouterModule_Promise* rp =
-                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
-                                          janitor->routerModule, janitor->allocator);
-                rp->callback = peersResponseCallback;
-                rp->userData = janitor;
-                // Only send max 1 getPeers req per second.
-                return;
-            }
-        }
-    }
 }
 
 static void maintanenceCycle(void* vcontext)
@@ -347,7 +348,7 @@ static void maintanenceCycle(void* vcontext)
     struct Address addr = { .protocolVersion = 0 };
 
     // ping a node from the ping queue
-    if (RumorMill_getNode(janitor->rumorMill, &addr)) {
+    while (RumorMill_getNode(janitor->rumorMill, &addr)) {
         addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
         if (NodeStore_optimizePath_INVALID != addr.path) {
             struct RouterModule_Promise* rp =
@@ -364,6 +365,11 @@ static void maintanenceCycle(void* vcontext)
                 Address_print(addrStr, &addr);
                 Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
             #endif
+            struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
+            if (!n || !n->bestParent || n->bestParent->parent != janitor->nodeStore->selfNode) {
+                // We just sent a useful ping (not just a dead direct peer), so exit loop
+                break;
+            }
         }
     }
 
