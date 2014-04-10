@@ -413,18 +413,6 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
 
     // Ping timeout -> decrease reach
     if (n && !Bits_memcmp(pctx->address.key, n->address.key, 32)) {
-
-        #ifdef Log_DEBUG
-            uint8_t addr[60];
-            Address_print(addr, &n->address);
-            Log_debug(pctx->router->logger,
-                       "Ping timeout for %s, after %lums. changing reach from %u to %u\n",
-                       addr,
-                       (unsigned long)milliseconds,
-                       n->pathQuality,
-                       (unsigned int)(n->pathQuality/2));
-        #endif
-
         NodeStore_pathTimeout(pctx->router->nodeStore, pctx->address.path);
     }
 
