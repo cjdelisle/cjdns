@@ -322,7 +322,9 @@ static void keyspaceMaintainence(struct Janitor* janitor)
     // Search for a node that satisfies the address requirements to fill the hole.
     // Should end up self-searching in the event that we're all the way through keyspace.
     searchNoDupe(addr.ip6.bytes, janitor);
-    checkPeers(janitor, n);
+    if (n) {
+        checkPeers(janitor, n);
+    }
 
 }
 
@@ -365,12 +367,14 @@ static void maintanenceCycle(void* vcontext)
                 Address_print(addrStr, &addr);
                 Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
             #endif
-            struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
-            if (!n || !n->bestParent || n->bestParent->parent != janitor->nodeStore->selfNode) {
-                // We just sent a useful ping (not just a dead direct peer), so exit loop
-                break;
+            struct Node_Two* n = NodeStore_nodeForPath(janitor->nodeStore, addr.path);
+            if (n && n->bestParent) {
+                // We just sent a mostly-useless ping, such as to a direct peer in a bad state
+                // Lets try again...
+                continue;
             }
         }
+        break;
     }
 
     // Do something useful for a node we're actively trying to communicate with.
