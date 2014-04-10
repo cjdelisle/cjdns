@@ -1254,14 +1254,35 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     Allocator_free(node->alloc);
 }
 
+static uint32_t reachAfterDecay(const uint32_t oldReach)
+{
+    return (oldReach - (oldReach / NodeStore_latencyWindow));
+}
+
+static uint32_t reachAfterTimeout(const uint32_t oldReach)
+{
+    return (oldReach / 2);
+}
+
+static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
+{
+    int64_t out = reachAfterDecay(millisecondsLag) +
+        ((UINT32_MAX / NodeStore_latencyWindow) / millisecondsLag);
+    // TODO: is this safe?
+    Assert_true(out < (UINT32_MAX - 1024) && out > 0);
+    return out;
+}
+
 struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
                                          int inverseLinkEncodingFormNumber,
-                                         uint32_t reach)
+                                         uint64_t milliseconds)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     verify(store);
+
+    uint32_t reach = nextReach(0, milliseconds);
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
@@ -1688,11 +1709,11 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     return out;
 }
 
-void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach)
-{
-    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    handleNews(node, newReach, store);
-}
+//void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach)
+//{
+//    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+//    handleNews(node, newReach, store);
+//}
 
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
@@ -1711,7 +1732,7 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 }
 
 // When a response comes in, we need to pay attention to the path used.
-void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newReach)
+void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newReach)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* nextLink = store->selfLink;
@@ -1721,7 +1742,7 @@ void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint3
         if (nextLink != store->selfLink) {
             // Possibly update the reach for this hop on the path
             if (nextLink->child->pathQuality < newReach) {
-                NodeStore_updateReach(nodeStore, nextLink->child, newReach);
+                handleNews(nextLink->child, newReach, store);
                 newReach++; // Should have ~no effect except loop avoidance
             }
         }
@@ -1734,6 +1755,34 @@ void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint3
     // Finally, unconditionally update the reach of the last node
     struct Node_Two* node = NodeStore_closestNode(nodeStore, path);
     if (node) {
-        NodeStore_updateReach(nodeStore, node, newReach);
+        handleNews(node, newReach, store);
+    }
+}
+
+void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds)
+{
+    struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
+    if (node) {
+        uint32_t newReach = nextReach(node->pathQuality, milliseconds);
+        updatePathReach(nodeStore, path, newReach);
+    }
+}
+
+void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
+    if (node) {
+        uint32_t newReach = reachAfterTimeout(node->pathQuality);
+        #ifdef Log_DEBUG
+            uint8_t addr[60];
+            Address_print(addr, &node->address);
+            Log_debug(store->logger,
+                      "Ping timeout for %s. changing reach from %u to %u\n",
+                      addr,
+                      node->pathQuality,
+                      newReach);
+        #endif
+        handleNews(node, newReach, store);
     }
 }

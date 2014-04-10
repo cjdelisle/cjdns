@@ -184,12 +184,6 @@
 /** Never allow a search to be timed out in less than this number of milliseconds. */
 #define MIN_TIMEOUT 10
 
-/**
- * Used to keep reach a weighted rolling average of recent ping/search times.
- * The smaller this value, the more significant recent pings/searches are to reach.
- */
-#define REACH_WINDOW 8
-
 /*--------------------Prototypes--------------------*/
 static int handleIncoming(struct DHTMessage* message, void* vcontext);
 static int handleOutgoing(struct DHTMessage* message, void* vcontext);
@@ -252,25 +246,6 @@ uint64_t RouterModule_searchTimeoutMilliseconds(struct RouterModule* module)
     uint64_t x = (((uint64_t) AverageRoller_getAverage(module->gmrtRoller)) * 4);
     x = x + (Random_uint32(module->rand) % (x | 1)) / 2;
     return (x > MAX_TIMEOUT) ? MAX_TIMEOUT : (x < MIN_TIMEOUT) ? MIN_TIMEOUT : x;
-}
-
-static uint32_t reachAfterDecay(const uint32_t oldReach)
-{
-    return (oldReach - (oldReach / REACH_WINDOW));
-}
-
-static uint32_t reachAfterTimeout(const uint32_t oldReach)
-{
-    return (oldReach / 2);
-}
-
-static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
-{
-    int64_t out = reachAfterDecay(millisecondsLag) +
-        ((UINT32_MAX / REACH_WINDOW) / millisecondsLag);
-    // TODO: is this safe?
-    Assert_true(out < (UINT32_MAX - 1024) && out > 0);
-    return out;
 }
 
 static inline int sendNodes(struct NodeList* nodeList,
@@ -439,8 +414,6 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
     // Ping timeout -> decrease reach
     if (n && !Bits_memcmp(pctx->address.key, n->address.key, 32)) {
 
-        uint32_t newReach = reachAfterTimeout(n->pathQuality);
-
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &n->address);
@@ -449,10 +422,10 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
                        addr,
                        (unsigned long)milliseconds,
                        n->pathQuality,
-                       (unsigned int)newReach);
+                       (unsigned int)(n->pathQuality/2));
         #endif
 
-        NodeStore_updatePathReach(pctx->router->nodeStore, pctx->address.path, newReach);
+        NodeStore_pathTimeout(pctx->router->nodeStore, pctx->address.path);
     }
 
     if (pctx->pub.callback) {
@@ -534,29 +507,14 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     if (milliseconds == 0) { milliseconds++; }
 
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
-        if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
-        // This path is already known
-        if (node->address.path == message->address->path) {
-            // This packet came in on our best known path
-            // So plug the old reach value into nextReach
-            NodeStore_updatePathReach(module->nodeStore,
-                                      message->address->path,
-                                      nextReach(node->pathQuality, milliseconds));
-        }
-        else {
-            // This packet came in on something other than our best known path
-            // FIXME: We currently have no way to handle this correctly
-            // For now, lets just normalize it with REACH_WINDOW, so it's about the right size
-            NodeStore_updatePathReach(module->nodeStore,
-                                      message->address->path,
-                                      nextReach(0, milliseconds)*REACH_WINDOW*3/4);
-        }
+    if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+        NodeStore_pathResponse(module->nodeStore, message->address->path, milliseconds);
     } else {
         struct Node_Link* link = NodeStore_discoverNode(module->nodeStore,
                                                         message->address,
                                                         message->encodingScheme,
                                                         message->encIndex,
-                                                        nextReach(0, milliseconds));
+                                                        milliseconds);
         node = (link) ? link->child : NULL;
     }
 
@@ -716,7 +674,7 @@ void RouterModule_peerIsReachable(uint64_t pathToPeer,
                                &address,
                                nn->encodingScheme,
                                peerLink->inverseLinkEncodingFormNumber,
-                               nextReach(0, lagMilliseconds));
+                               lagMilliseconds);
         return;
     }
     Assert_true(0);
