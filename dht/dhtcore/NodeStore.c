@@ -1752,9 +1752,9 @@ void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newRea
         nextLink = NodeStore_getLinkOnPath(nodeStore, path, hop);
     }
 
-    // Finally, unconditionally update the reach of the last node
+    // Finally, unconditionally update the reach of the last node if along the same path
     struct Node_Two* node = NodeStore_closestNode(nodeStore, path);
-    if (node) {
+    if (node && node->address.path == path) {
         handleNews(node, newReach, store);
     }
 }
@@ -1763,7 +1763,20 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
 {
     struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
     if (node) {
-        uint32_t newReach = nextReach(node->pathQuality, milliseconds);
+        uint32_t newReach;
+        if (node->address.path == path) {
+            // Use old reach value to calculate new reach
+            newReach = nextReach(node->pathQuality, milliseconds);
+        }
+        else {
+            // Old reach value doesn't relate to this path, so we should do something different
+            // FIXME we're using the old reach from the wrong path...
+            // As a temporary workaround, penalize this reach slightly
+            // I think actually fixing this would require storing reach (or latency) per link,
+            // so we can calculate the expected reach for an arbitrary path
+            newReach = nextReach(node->pathQuality, milliseconds)
+                     * (NodeStore_latencyWindow - 1)/NodeStore_latencyWindow;
+        }
         updatePathReach(nodeStore, path, newReach);
     }
 }
@@ -1772,7 +1785,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
-    if (node) {
+    if (node && node->address.path == path) {
         uint32_t newReach = reachAfterTimeout(node->pathQuality);
         #ifdef Log_DEBUG
             uint8_t addr[60];
