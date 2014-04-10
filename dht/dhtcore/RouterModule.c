@@ -534,11 +534,23 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     if (milliseconds == 0) { milliseconds++; }
 
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
-    if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+        if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
         // This path is already known
-        NodeStore_updatePathReach(module->nodeStore,
-                                  message->address->path,
-                                  nextReach(0, milliseconds));
+        if (node->address.path == message->address->path) {
+            // This packet came in on our best known path
+            // So plug the old reach value into nextReach
+            NodeStore_updatePathReach(module->nodeStore,
+                                      message->address->path,
+                                      nextReach(node->pathQuality, milliseconds));
+        }
+        else {
+            // This packet came in on something other than our best known path
+            // FIXME: We currently have no way to handle this correctly
+            // For now, lets just normalize it with REACH_WINDOW, so it's about the right size
+            NodeStore_updatePathReach(module->nodeStore,
+                                      message->address->path,
+                                      nextReach(0, milliseconds)*REACH_WINDOW*3/4);
+        }
     } else {
         struct Node_Link* link = NodeStore_discoverNode(module->nodeStore,
                                                         message->address,
