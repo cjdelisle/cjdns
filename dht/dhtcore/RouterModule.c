@@ -439,7 +439,7 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
     // Ping timeout -> decrease reach
     if (n && !Bits_memcmp(pctx->address.key, n->address.key, 32)) {
 
-        uint32_t newReach = reachAfterTimeout(n->pathQuality);
+        uint32_t newReach = reachAfterTimeout(Node_getReach(n));
 
         #ifdef Log_DEBUG
             uint8_t addr[60];
@@ -448,11 +448,14 @@ static void onTimeout(uint32_t milliseconds, struct PingContext* pctx)
                        "Ping timeout for %s, after %lums. changing reach from %u to %u\n",
                        addr,
                        (unsigned long)milliseconds,
-                       n->pathQuality,
+                       Node_getReach(n),
                        (unsigned int)newReach);
         #endif
 
-        NodeStore_updateReach(pctx->router->nodeStore, n, newReach);
+        // don't change the reach if the path has been changed.
+        if (pctx->address.path == n->address.path) {
+            NodeStore_updateReach(pctx->router->nodeStore, n, newReach);
+        }
     }
 
     if (pctx->pub.callback) {
@@ -534,7 +537,10 @@ static void onResponseOrTimeout(String* data, uint32_t milliseconds, void* vping
     if (milliseconds == 0) { milliseconds++; }
 
     struct Node_Two* node = NodeStore_closestNode(module->nodeStore, message->address->path);
-    if (node && !Bits_memcmp(node->address.key, message->address->key, 32)) {
+    if (node
+        && node->address.path == message->address->path
+        && !Bits_memcmp(node->address.key, message->address->key, 32))
+    {
         // This path is already known
         NodeStore_updateReach(module->nodeStore, node, nextReach(0, milliseconds));
     } else {

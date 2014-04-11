@@ -312,7 +312,7 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
         int count = NodeStore_linkCount(link->child);
         for (int j = 0; j < count; j++) {
             struct Node_Link* l = NodeStore_getLink(link->child, j);
-            if (!Node_isOneHopLink(l) || link->parent->pathQuality == 0) {
+            if (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0) {
                 struct RouterModule_Promise* rp =
                     RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
                                           janitor->routerModule, janitor->allocator);
@@ -386,7 +386,7 @@ static void maintanenceCycle(void* vcontext)
     struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
-    if (n == NULL || n->pathQuality == 0) {
+    if (n == NULL || Node_getReach(n) == 0) {
         //search(addr.ip6.bytes, janitor);
         plugLargestKeyspaceHole(janitor);
         return;
