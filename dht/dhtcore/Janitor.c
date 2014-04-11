@@ -367,8 +367,8 @@ static void maintanenceCycle(void* vcontext)
                 Address_print(addrStr, &addr);
                 Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
             #endif
-            struct Node_Two* n = NodeStore_nodeForPath(janitor->nodeStore, addr.path);
-            if (n && n->bestParent) {
+            struct Node_Two* n = NodeStore_closestNode(janitor->nodeStore, addr.path);
+            if (n && n->bestParent && n->bestParent->parent == janitor->nodeStore->selfNode) {
                 // We just sent a mostly-useless ping, such as to a direct peer in a bad state
                 // Lets try again...
                 continue;
