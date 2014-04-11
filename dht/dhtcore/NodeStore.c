@@ -1770,11 +1770,10 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         }
         else {
             // Old reach value doesn't relate to this path, so we should do something different
-            // FIXME we're using the old reach from the wrong path...
-            // As a temporary workaround, penalize this reach slightly
+            // FIXME we're just guessing what the reach would stabilize to
             // I think actually fixing this would require storing reach (or latency) per link,
             // so we can calculate the expected reach for an arbitrary path
-            newReach = nextReach(node->pathQuality, milliseconds)
+            newReach = nextReach(0, milliseconds)
                      * (NodeStore_latencyWindow - 1)/NodeStore_latencyWindow;
         }
         updatePathReach(nodeStore, path, newReach);
