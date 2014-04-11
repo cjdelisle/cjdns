@@ -73,13 +73,18 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
 
 static struct Address* getBest(struct RumorMill_pvt* rm)
 {
-    if (rm->pub.count < 1) { return NULL; }
-    struct Address* closest = &rm->addresses[0];
-    for (int i = 1; i < rm->pub.count; i++) {
-        if (rm->addresses[i].path < closest->path) { closest = &rm->addresses[i]; }
+    if (rm->pub.count == 0) { return NULL; }
+    struct Address* best = NULL;
+    int howBadIsTheBest = -1;
+    for (int i = 0; i < rm->pub.count; i++) {
+        int howBad = getBadness(&rm->addresses[i], rm->selfAddr);
+        if (howBad < howBadIsTheBest || !best) {
+            howBadIsTheBest = howBad;
+            best = &rm->addresses[i];
+        }
     }
-    Assert_true(closest);
-    return closest;
+    Assert_true(best);
+    return best;
 }
 
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
