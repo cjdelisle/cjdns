@@ -1282,7 +1282,9 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     verify(store);
 
-    uint32_t reach = nextReach(0, milliseconds);
+    // conservative guess of what the reach would stabilize to
+    uint32_t reach = nextReach(0, milliseconds)
+                   * (NodeStore_latencyWindow - 1)/NodeStore_latencyWindow;
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
