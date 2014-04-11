@@ -352,7 +352,7 @@ static void maintanenceCycle(void* vcontext)
     struct Address addr = { .protocolVersion = 0 };
 
     // ping a node from the ping queue
-    while (RumorMill_getNode(janitor->rumorMill, &addr)) {
+    if (RumorMill_getNode(janitor->rumorMill, &addr)) {
         addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
         if (NodeStore_optimizePath_INVALID != addr.path) {
             struct RouterModule_Promise* rp =
@@ -369,14 +369,7 @@ static void maintanenceCycle(void* vcontext)
                 Address_print(addrStr, &addr);
                 Log_debug(janitor->logger, "Pinging possible node [%s] from RumorMill", addrStr);
             #endif
-            struct Node_Two* n = NodeStore_closestNode(janitor->nodeStore, addr.path);
-            if (n && n->bestParent && n->bestParent->parent == janitor->nodeStore->selfNode) {
-                // We just sent a mostly-useless ping, such as to a direct peer in a bad state
-                // Lets try again...
-                continue;
-            }
         }
-        break;
     }
 
     // Do something useful for a node we're actively trying to communicate with.
