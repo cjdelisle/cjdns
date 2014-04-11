@@ -746,6 +746,11 @@ static inline int core(struct Message* message,
         Log_info(context->logger, "DROP message because this node is the closest known "
                                    "node to the destination %s.", ipAddr);
     #endif
+
+    // Getting this far suggest that we may have a hole in our routing table.
+    // Let the janitor look into it during the maintenance cycle.
+    RumorMill_addNode(context->nodesOfInterest, &destination);
+
     return Error_UNDELIVERABLE;
 }
 
