@@ -71,6 +71,17 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
     return worst;
 }
 
+static struct Address* getBest(struct RumorMill_pvt* rm)
+{
+    if (rm->pub.count < 1) { return NULL; }
+    struct Address* closest = &rm->addresses[0];
+    for (int i = 1; i < rm->pub.count; i++) {
+        if (rm->addresses[i].path < closest->path) { closest = &rm->addresses[i]; }
+    }
+    Assert_true(closest);
+    return closest;
+}
+
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
 {
     if (hasNode(mill, addr)) { return; } // Avoid duplicates
@@ -90,7 +101,11 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
 {
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!rm->pub.count) { return false; }
-    Bits_memcpyConst(output, &rm->addresses[--rm->pub.count], sizeof(struct Address));
+    struct Address temp;
+    struct Address* best = getBest(rm);
+    Bits_memcpyConst(&temp, &rm->addresses[--rm->pub.count], sizeof(struct Address));
+    Bits_memcpyConst(output, best, sizeof(struct Address));
+    Bits_memcpyConst(best, &temp, sizeof(struct Address));
     return true;
 }
 
