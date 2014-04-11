@@ -188,7 +188,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 
     for (int i = 0; addresses && i < addresses->length; i++) {
         struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nn) {
+        if (!nn || Bits_memcmp(nn->address.ip6.bytes,
+                               addresses->elems[i].ip6.bytes,
+                               Address_SEARCH_TARGET_SIZE)) {
             RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
         }
     }
