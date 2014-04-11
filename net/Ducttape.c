@@ -493,12 +493,6 @@ static inline uint8_t incomingFromTun(struct Message* message,
     }
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
-
-    // Add destination to nodesOfInterest, so we can do something useful in the janitor.
-    struct Address rumorAddr = { .path = 0 };
-    Bits_memcpyConst(rumorAddr.ip6.bytes, header->destinationAddr, Address_SEARCH_TARGET_SIZE);
-    RumorMill_addNode(context->nodesOfInterest, &rumorAddr);
-
     struct Node_Two* bestNext = RouterModule_lookup(header->destinationAddr, context->routerModule);
     struct SessionManager_Session* nextHopSession;
     if (bestNext) {
@@ -746,11 +740,6 @@ static inline int core(struct Message* message,
         Log_info(context->logger, "DROP message because this node is the closest known "
                                    "node to the destination %s.", ipAddr);
     #endif
-
-    // Getting this far suggest that we may have a hole in our routing table.
-    // Let the janitor look into it during the maintenance cycle.
-    RumorMill_addNode(context->nodesOfInterest, &destination);
-
     return Error_UNDELIVERABLE;
 }
 
@@ -1205,7 +1194,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
                                    struct DHTModuleRegistry* registry,
                                    struct RouterModule* routerModule,
                                    struct SearchRunner* searchRunner,
-                                   struct RumorMill* nodesOfInterest,
                                    struct SwitchCore* switchCore,
                                    struct EventBase* eventBase,
                                    struct Allocator* allocator,
@@ -1216,7 +1204,6 @@ struct Ducttape* Ducttape_register(uint8_t privateKey[32],
     struct Ducttape_pvt* context = Allocator_calloc(allocator, sizeof(struct Ducttape_pvt), 1);
     context->registry = registry;
     context->routerModule = routerModule;
-    context->nodesOfInterest = nodesOfInterest;
     context->logger = logger;
     context->eventBase = eventBase;
     context->alloc = allocator;

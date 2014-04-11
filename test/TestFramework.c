@@ -113,8 +113,6 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
 
-    struct RumorMill* nodesOfInterest = RumorMill_new(allocator, myAddress, 64);
-
     struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
                                                          logger,
                                                          base,
@@ -129,7 +127,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     struct Ducttape* dt =
         Ducttape_register((uint8_t*)privateKey, registry, routerModule, searchRunner,
-                          nodesOfInterest, switchCore, base, allocator, logger, ipTun, rand);
+                          switchCore, base, allocator, logger, ipTun, rand);
 
     struct SwitchPinger* sp =
         SwitchPinger_new(&dt->switchPingerIf, base, rand, logger, myAddress, allocator);
