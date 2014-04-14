@@ -37,23 +37,18 @@ Codestyle:
 If there is a better way, come to irc and announce it, this code style has
 evolved to where it is now.
 
+Assert.h
+--------
 
-checkfiles.pl
--------------
-
-There is a simple perl script in /scripts/ which will look out for some of the
-easy mistakes in code style, to invoke it use:
-
-    find ./ -name '*.c' | perl ./scripts/checkfiles.pl
-    find ./ -name '*.h' | perl ./scripts/checkfiles.pl
-
-There should be no output, most importantly, your change should not introduce
-any new output.  If there is a line which it complains about and you really
-need it that way, add a trailing comment with:
-
-    // CHECKFILES_IGNORE
-
-as is done in Crypto.c
+Lining your code with assertions is great! You'll find a few macros in Assert.h
+to help you. If an assertion is cheap or in a cold codepath or you otherwise feel
+it's important that it's never skipped, use `Assert_true()`, if you want the
+asserion to be skipped on small hardware where `-DPARANOIA` is disabled, use
+`Assert_ifParanoid()`, if your assertion might be triggered by "bad nodes" in a
+realistic network and is for simulation only, use `Assert_ifTesting()` and it
+will only be included if `-DTESTING` is passed. If your assertion has
+side-effects, you must use `Assert_true()` because these are macros which
+are completely removed if they are disabled.
 
 
 Testing

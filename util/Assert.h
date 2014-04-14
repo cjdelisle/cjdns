@@ -50,12 +50,14 @@ void Assert_failure(const char* format, ...);
     #define Assert_ifParanoid(expr) Assert_true(expr)
 #else
     #define Assert_ifParanoid(expr) do { } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 #endif
 
 #ifdef TESTING
     #define Assert_ifTesting(expr) Assert_true(expr)
 #else
     #define Assert_ifTesting(expr) do { } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 #endif
 
 #endif
