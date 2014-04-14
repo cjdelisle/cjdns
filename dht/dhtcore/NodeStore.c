@@ -1283,7 +1283,7 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
 
 static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
 {
-    int64_t out = reachAfterDecay(millisecondsLag) +
+    int64_t out = reachAfterDecay(oldReach) +
         ((UINT32_MAX / NodeStore_latencyWindow) / (millisecondsLag + 1));
     // TODO: is this safe?
     Assert_true(out < (UINT32_MAX - 1024) && out > 0);
