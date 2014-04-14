@@ -384,7 +384,7 @@ static void maintanenceCycle(void* vcontext)
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || Node_getReach(n) == 0) {
         //search(addr.ip6.bytes, janitor);
-        plugLargestKeyspaceHole(janitor, false);
+        plugLargestKeyspaceHole(janitor, true);
         return;
 
     } else {
