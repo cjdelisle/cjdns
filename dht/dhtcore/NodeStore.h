@@ -157,9 +157,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
-//void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach);
-//void NodeStore_updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newReach);
-#define NodeStore_latencyWindow 8
+// Used to update reach when a ping/search response comes in
 void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds);
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path);
 

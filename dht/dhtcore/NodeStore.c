@@ -1270,6 +1270,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     Allocator_free(node->alloc);
 }
 
+#define NodeStore_latencyWindow 8
 static uint32_t reachAfterDecay(const uint32_t oldReach)
 {
     return (oldReach - (oldReach / NodeStore_latencyWindow));
@@ -1726,12 +1727,6 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     }
     return out;
 }
-
-//void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach)
-//{
-//    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-//    handleNews(node, newReach, store);
-//}
 
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
