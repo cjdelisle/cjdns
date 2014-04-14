@@ -1754,7 +1754,8 @@ void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newRea
         // If we're looking at the selfLink, don't touch its reach
         if (nextLink != store->selfLink) {
             // Possibly update the reach for this hop on the path
-            if (nextLink->child->reach_ro < newReach) {
+            if ( nextLink->child->reach_ro < newReach &&
+                 LabelSplicer_routesThrough(path, nextLink->child->address.path)) {
                 handleNews(nextLink->child, newReach, store);
                 newReach++; // Should have ~no effect except loop avoidance
             }
