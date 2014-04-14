@@ -99,7 +99,7 @@ static unsigned long getMaxMem(struct Except* eh)
     if (ptr != MAP_FAILED) {
         munmap(ptr, tryMapping);
         if (lim.rlim_max > 0) {
-            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%lu] bytes",
+            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes",
                          tryMapping);
         }
     } else if (lim.rlim_max == 0) {
