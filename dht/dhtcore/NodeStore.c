@@ -1787,8 +1787,7 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
             // FIXME we're just guessing what the reach would stabilize to
             // I think actually fixing this would require storing reach (or latency) per link,
             // so we can calculate the expected reach for an arbitrary path
-            newReach = nextReach(0, milliseconds)
-                     * (NodeStore_latencyWindow - 1)/NodeStore_latencyWindow;
+            newReach = nextReach(0, milliseconds) * (NodeStore_latencyWindow - 1);
         }
         updatePathReach(nodeStore, path, newReach);
     }
