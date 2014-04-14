@@ -1300,8 +1300,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     verify(store);
 
     // conservative guess of what the reach would stabilize to
-    uint32_t reach = nextReach(0, milliseconds)
-                   * (NodeStore_latencyWindow - 1)/NodeStore_latencyWindow;
+    uint32_t reach = nextReach(0, milliseconds) * (NodeStore_latencyWindow - 1);
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
