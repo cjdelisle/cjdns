@@ -189,6 +189,8 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         if (!nn || Bits_memcmp(nn->address.ip6.bytes,
                                addresses->elems[i].ip6.bytes,
                                Address_SEARCH_TARGET_SIZE)) {
+            addresses->elems[i].path = NodeStore_optimizePath(janitor->nodeStore,
+                                                              addresses->elems[i].path);
             RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
         }
     }
