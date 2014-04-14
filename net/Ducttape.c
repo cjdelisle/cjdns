@@ -275,7 +275,7 @@ static inline uint8_t incomingForMe(struct Message* message,
     //Bits_memcpyConst(addr.ip6.bytes, session->ip6, 16);
     Bits_memcpyConst(addr.key, herPublicKey, 32);
     AddressCalc_addressForPublicKey(addr.ip6.bytes, herPublicKey);
-    Assert_always(!Bits_memcmp(session->ip6, addr.ip6.bytes, 16));
+    Assert_true(!Bits_memcmp(session->ip6, addr.ip6.bytes, 16));
 
     if (Bits_memcmp(addr.ip6.bytes, dtHeader->ip6Header->sourceAddr, 16)) {
         #ifdef Log_DEBUG
@@ -642,7 +642,7 @@ static uint8_t sendToTun(struct Message* message, struct Interface* iface)
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)iface->receiverContext);
     uint16_t msgType = TUNMessageType_pop(message, NULL);
     if (msgType == Ethernet_TYPE_IP6) {
-        Assert_always(message->length >= Headers_IP6Header_SIZE);
+        Assert_true(message->length >= Headers_IP6Header_SIZE);
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) message->bytes;
         if (header->sourceAddr[0] == 0xfc || header->destinationAddr[0] == 0xfc) {
             Assert_failure("you can't do that");
@@ -866,7 +866,7 @@ static uint8_t incomingFromCryptoAuth(struct Message* message, struct Interface*
             return incomingForMe(message, dtHeader, session, context,
                                  CryptoAuth_getHerPublicKey(session->internal));
         default:
-            Assert_always(false);
+            Assert_true(false);
     }
     // never reached.
     return 0;
@@ -894,7 +894,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
         Log_debug(context->logger, "Sending layer3 message");
         return outgoingFromMe(message, dtHeader, session, context);
     } else {
-        Assert_always(0);
+        Assert_true(0);
     }
 }
 

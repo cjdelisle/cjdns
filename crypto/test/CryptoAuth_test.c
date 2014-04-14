@@ -74,7 +74,7 @@ static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message -->  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
     if (!suppressMessages) {
-        Assert_always(message->length + message->padding <= BUFFER_SIZE);
+        Assert_true(message->length + message->padding <= BUFFER_SIZE);
         if2->receiveMessage(message, if2);
     }
     return Error_NONE;
@@ -85,7 +85,7 @@ static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
     printf("sent message <--  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
     if (!suppressMessages) {
-        Assert_always(message->length + message->padding <= BUFFER_SIZE);
+        Assert_true(message->length + message->padding <= BUFFER_SIZE);
         if1->receiveMessage(message, if1);
     }
     return Error_NONE;
@@ -161,13 +161,13 @@ static int sendToIf1(const char* x)
     MK_MSG(x);
     cif2->sendMessage(&msg, cif2);
     if (!suppressMessages) {
-        Assert_always(if1Msg);
+        Assert_true(if1Msg);
         if (strncmp((char*)if1Msg, x, strlen(x)) != 0) {
             printf("expected %s, got %s\n", x, (char*)if1Msg);
-            Assert_always(0);
+            Assert_true(0);
         }
     } else {
-        Assert_always(!if1Msg);
+        Assert_true(!if1Msg);
     }
     return 0;
 }
@@ -178,13 +178,13 @@ static int sendToIf2(const char* x)
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
     if (!suppressMessages) {
-        Assert_always(if2Msg);
+        Assert_true(if2Msg);
         if (strncmp((char*)if2Msg, x, strlen(x)) != 0) {
             printf("expected %s, got %s\n", x, (char*)if2Msg);
-            Assert_always(0);
+            Assert_true(0);
         }
     } else {
-        Assert_always(!if2Msg);
+        Assert_true(!if2Msg);
     }
     return 0;
 }

@@ -132,7 +132,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
         return;
     #endif
 
-    Assert_always(node->address.path ==
+    Assert_true(node->address.path ==
         EncodingScheme_convertLabel(store->pub.selfNode->encodingScheme,
                                     node->address.path,
                                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
@@ -223,7 +223,7 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
     #ifndef PARANOIA
         return;
     #endif
-    Assert_always(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
+    Assert_true(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         _verifyNode(nn, store, file, line);
@@ -236,7 +236,7 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
     #ifndef PARANOIA
         return;
     #endif
-    Assert_always(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
+    Assert_true(store->pub.selfNode->bestParent == store->selfLink || !store->selfLink);
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         _checkNode(nn, store, file, line);
@@ -264,19 +264,19 @@ static uint64_t extendRoute(uint64_t routeLabel,
     if (previousLinkEncoding > nextLinkEncoding) {
         next = EncodingScheme_convertLabel(parentScheme, next, previousLinkEncoding);
     }
-    Assert_always(next != EncodingScheme_convertLabel_INVALID);
+    Assert_true(next != EncodingScheme_convertLabel_INVALID);
     return LabelSplicer_splice(next, routeLabel);
 }
 
 static void setReach(struct Node_Two* node, uint32_t newReach)
 {
     if (newReach) {
-        Assert_always(node->bestParent);
-        Assert_always(node->address.path < UINT64_MAX);
-        Assert_always(newReach > 512);
+        Assert_true(node->bestParent);
+        Assert_true(node->address.path < UINT64_MAX);
+        Assert_true(newReach > 512);
     } else {
-        Assert_always(!node->bestParent);
-        Assert_always(node->address.path == UINT64_MAX);
+        Assert_true(!node->bestParent);
+        Assert_true(node->address.path == UINT64_MAX);
     }
     node->reach_ro = newReach;
 }
@@ -307,7 +307,7 @@ static uint32_t guessReachOfChild(struct Node_Link* link)
     } else if (r < (1<<16)) {
         r = Node_getReach(link->parent) - Bits_log2x64(link->cannonicalLabel);
     }
-    Assert_always(r < Node_getReach(link->parent) && r != 0);
+    Assert_true(r < Node_getReach(link->parent) && r != 0);
     return r;
 }
 
@@ -317,7 +317,7 @@ static int updateBestParentCycle(struct Node_Two* node,
                                  uint32_t nextReach,
                                  struct NodeStore_pvt* store)
 {
-    Assert_always(cycle < 1000);
+    Assert_true(cycle < 1000);
     if (cycle < limit) {
         int total = 0;
         struct Node_Link* next = NULL;
@@ -367,9 +367,9 @@ static void updateBestParent(struct Node_Two* node,
 {
     check(store);
     node->bestParent = newBestParent;
-    Assert_always(newBestParent);
-    //Assert_always(nextReach > 1023);
-    Assert_always(nextReach < Node_getReach(newBestParent->parent));
+    Assert_true(newBestParent);
+    //Assert_true(nextReach > 1023);
+    Assert_true(nextReach < Node_getReach(newBestParent->parent));
 
     for (int i = 0; i < 10000; i++) {
         if (!updateBestParentCycle(node, 0, i, nextReach, store)) {
@@ -377,7 +377,7 @@ static void updateBestParent(struct Node_Two* node,
             return;
         }
     }
-    Assert_always(0);
+    Assert_true(0);
 }
 
 static void handleGoodNews(struct Node_Two* node,
@@ -385,10 +385,10 @@ static void handleGoodNews(struct Node_Two* node,
                            struct NodeStore_pvt* store)
 {
     // TODO: Paths longer than 1024 will blow up, handle more gracefully
-    Assert_always(newReach != UINT32_MAX);
-    Assert_always(newReach > 1023);
+    Assert_true(newReach != UINT32_MAX);
+    Assert_true(newReach > 1023);
 
-    Assert_always(newReach > Node_getReach(node));
+    Assert_true(newReach > Node_getReach(node));
 
     // The nodestore thinks it's unreachable, we can't very well update the reach.
     if (node->bestParent == NULL) { return; }
@@ -444,7 +444,7 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
 
     uint32_t nextReach = guessReachOfChild(best);
     if (nextReach <= Node_getReach(node)) { return; }
-    Assert_always(Node_getReach(node) < Node_getReach(best->parent));
+    Assert_true(Node_getReach(node) < Node_getReach(best->parent));
 
     check(store);
     updateBestParent(node, best, nextReach, store);
@@ -472,7 +472,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
     }
     if (!highestRet) { highestRet = newReach; }
 
-    Assert_always(link->child != store->pub.selfNode);
+    Assert_true(link->child != store->pub.selfNode);
     if (!highestRet) {
         unreachable(link->child, store);
     } else {
@@ -487,17 +487,17 @@ static void handleBadNews(struct Node_Two* node,
                           uint32_t newReach,
                           struct NodeStore_pvt* store)
 {
-    Assert_always(newReach < Node_getReach(node));
+    Assert_true(newReach < Node_getReach(node));
 
     // no bestParent implies a reach of 0
-    Assert_always(node->bestParent);
+    Assert_true(node->bestParent);
 
-    Assert_always(node->bestParent != store->selfLink);
+    Assert_true(node->bestParent != store->selfLink);
 
     // might be destroyed by handleBadNewsOne()
     struct Node_Link* bp = node->bestParent;
 
-    Assert_always(!newReach || newReach > 1023);
+    Assert_true(!newReach || newReach > 1023);
     handleBadNewsOne(node->bestParent, newReach, store);
 
     // If our bad news actually improved the reach number for the node (because it was previously
@@ -506,7 +506,7 @@ static void handleBadNews(struct Node_Two* node,
         if (Node_getReach(node) >= Node_getReach(node->bestParent->parent)) {
             handleGoodNews(node->bestParent->parent, Node_getReach(node)+1, store);
         }
-        Assert_always(Node_getReach(node) < Node_getReach(node->bestParent->parent));
+        Assert_true(Node_getReach(node) < Node_getReach(node->bestParent->parent));
     }
 
     check(store);
@@ -561,7 +561,7 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
         currentP = &(current->nextPeer);
         current = *currentP;
     }
-    Assert_always(current);
+    Assert_true(current);
 
     // Remove the RBTree entry
     Assert_ifParanoid(link == RB_FIND(PeerRBTree, &parent->peerTree, link));
@@ -630,14 +630,14 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     // in practice it should never actually be used and it might yield some interesting
     // information when the link is split, self-routes are not allowed unless the self
     // link is being set up :)
-    Assert_always(cannonicalLabel != 1 || store->selfLink == NULL);
+    Assert_true(cannonicalLabel != 1 || store->selfLink == NULL);
 
     #ifdef PARANOIA
         uint64_t definitelyCannonical =
             EncodingScheme_convertLabel(parent->encodingScheme,
                                         cannonicalLabel,
                                         EncodingScheme_convertLabel_convertTo_CANNONICAL);
-        Assert_always(definitelyCannonical == cannonicalLabel);
+        Assert_true(definitelyCannonical == cannonicalLabel);
     #endif
 
     struct Node_Link* link;
@@ -664,7 +664,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link = Identity_ncheck(RB_FIND(PeerRBTree, &parent->peerTree, &dummy));
     if (link) {
         logLink(store, link, "Attempted to create alternate link with same label!");
-        Assert_always(0);
+        Assert_true(0);
         return link;
     }
 
@@ -763,7 +763,7 @@ static uint64_t findClosest(const uint64_t path,
             tmpl.cannonicalLabel = cannonical;
         }
 
-        Assert_always(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
+        Assert_true(tmpl.cannonicalLabel != EncodingScheme_convertLabel_INVALID);
 
         // Then we search for the next peer in the path
         nextLink = Identity_ncheck(RB_NFIND(PeerRBTree, &link->child->peerTree, &tmpl));
@@ -781,7 +781,7 @@ static uint64_t findClosest(const uint64_t path,
         }
 
         Identity_check(nextLink);
-        Assert_always(nextLink->child->encodingScheme);
+        Assert_true(nextLink->child->encodingScheme);
 
         if (tmpl.cannonicalLabel == nextLink->cannonicalLabel) {
             //logLink(store, nextLink, "Exact match");
@@ -822,7 +822,7 @@ static uint64_t findClosest(const uint64_t path,
         Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
     #endif*/
 
-    Assert_always(tmpl.cannonicalLabel);/// TODO remove this
+    Assert_true(tmpl.cannonicalLabel);/// TODO remove this
     *output = link;
     if (hops) { *hops = actualHops; }
     return tmpl.cannonicalLabel;
@@ -847,7 +847,7 @@ static bool isAncestorOf(struct NodeStore_pvt* store,
         if (maybeAncestor == parent->parent) { return true; }
         parent = parent->parent->bestParent;
     }
-    Assert_always(0);
+    Assert_true(0);
 }
 
 static void freePendingLinks(struct NodeStore_pvt* store)
@@ -910,7 +910,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
         // This should never happen for a direct peer or for a direct decendent in
         // a split link.
-        Assert_always(closestKnown != closest);
+        Assert_true(closestKnown != closest);
 
         unlinkNodes(closest, store);
         pathParentChild =
@@ -952,7 +952,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     while (splitLink) {
         if (splitLink->cannonicalLabel <= pathParentChild) {
             if (splitLink->cannonicalLabel == pathParentChild) {
-                Assert_always(splitLink->child == child);
+                Assert_true(splitLink->child == child);
                 splitLink = PeerRBTree_RB_NEXT(splitLink);
                 continue;
             } else {
@@ -976,8 +976,8 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                         EncodingScheme_convertLabel_convertTo_CANNONICAL);
 
         // just so we're on the same page here
-        Assert_always(splitLink->parent == parent);
-        Assert_always(childToGrandchild < UINT64_MAX);
+        Assert_true(splitLink->parent == parent);
+        Assert_true(childToGrandchild < UINT64_MAX);
 
         #ifdef Log_DEBUG
         {
@@ -1021,7 +1021,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             check(store);
             if (Node_getReach(parent) >= Node_getReach(child)) {
                 // Parent definitely does not decend from child.
-                Assert_always(Node_getReach(grandChild) < UINT32_MAX);
+                Assert_true(Node_getReach(grandChild) < UINT32_MAX);
                 updateBestParent(child, parentLink, Node_getReach(child), store);
             } else {
                 // Child definitely does not decend from parent
@@ -1034,13 +1034,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
             // Node_getReach(parent) is by definition higher than Node_getReach(grandChild)
             // so if child is a decendent of grandChild then it should have been switched.
-            Assert_always(Node_getReach(child) > Node_getReach(grandChild));
+            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
 
             check(store);
         }
 
-        Assert_always(splitLink->cannonicalLabel != pathParentChild);
-        Assert_always(childToGrandchild != 1);
+        Assert_true(splitLink->cannonicalLabel != pathParentChild);
+        Assert_true(childToGrandchild != 1);
 
         struct Node_Link* lcg = discoverLink(store,
                                              parentLink,
@@ -1057,7 +1057,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             // return that last link along pathParentChild.
             struct Node_Link* link = NULL;
             findClosest(pathParentChild, &link, NULL, closest, store);
-            Assert_always(link);
+            Assert_true(link);
             return link;
         }
 
@@ -1093,13 +1093,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         if (Node_getReach(lcg->parent) <= Node_getReach(grandChild)) {
 
             // I know, I repeat myself...
-            Assert_always(Node_getReach(child) > Node_getReach(grandChild));
+            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
 
             if (isAncestorOf(store, grandChild, lcg->parent)) {
 
                 // Again, just making dead sure that the child is not a decendent of the
                 // grandChild, this should not be possible at this point
-                Assert_always(parentLink->child != lcg->parent);
+                Assert_true(parentLink->child != lcg->parent);
 
                 // Now we're going to walk the path, when we encounter a node which decends from
                 // grandChild, we're going to switch it to decend from the previous node along the
@@ -1113,13 +1113,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                                 &limitCpy,
                                 parentLink,
                                 store);
-                    Assert_always(link);
+                    Assert_true(link);
 
                     if (link->child == grandChild) { break; }
 
                     // We should never get here because the if statement below should have
                     // handled this in the previous round.
-                    Assert_always(Node_getReach(link->parent) >= Node_getReach(grandChild));
+                    Assert_true(Node_getReach(link->parent) >= Node_getReach(grandChild));
 
                     if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
                         // Ok we're found a node whose pathQuality is less than grandChild's
@@ -1130,13 +1130,13 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                             if (Node_getReach(link->parent) <= Node_getReach(grandChild)+1) {
                                 handleGoodNews(link->parent, Node_getReach(grandChild)+2, store);
                             }
-                            Assert_always(Node_getReach(link->parent) > Node_getReach(grandChild));
+                            Assert_true(Node_getReach(link->parent) > Node_getReach(grandChild));
                             updateBestParent(link->child, link, Node_getReach(grandChild)+1, store);
                         }
                         if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
                             handleGoodNews(link->child, Node_getReach(grandChild)+1, store);
                         }
-                        Assert_always(Node_getReach(link->child) > Node_getReach(grandChild));
+                        Assert_true(Node_getReach(link->child) > Node_getReach(grandChild));
                     }
                 }
 
@@ -1147,14 +1147,14 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // instance of grandChild so we're just going to quietly swap the lcg for link
                 // if it happens that they are not the same.
                 lcg = link;
-                Assert_always(Node_getReach(lcg->parent) > Node_getReach(grandChild));
+                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
 
             } else {
                 handleGoodNews(lcg->parent, Node_getReach(grandChild)+1, store);
-                Assert_always(Node_getReach(lcg->parent) > Node_getReach(grandChild));
+                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
             }
 
-            Assert_always(Node_getReach(lcg->parent) > Node_getReach(grandChild));
+            Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
             updateBestParent(grandChild, lcg, Node_getReach(grandChild), store);
         }
 
@@ -1236,7 +1236,7 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
         }
     }
     // somebody has to be at the end of the line, not *everyone* can be someone's best parent!
-    Assert_always(worst);
+    Assert_true(worst);
     return worst;
 }
 
@@ -1261,7 +1261,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
         link = nextLink;
     }
 
-    Assert_always(!node->bestParent);
+    Assert_true(!node->bestParent);
 
     Assert_ifParanoid(node == RB_FIND(NodeRBTree, &store->nodeTree, node));
     RB_REMOVE(NodeRBTree, &store->nodeTree, node);
@@ -1298,8 +1298,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     }
 
     // False if someone just updated.
-    //Assert_always(child->address.protocolVersion);
-    //Assert_always(EncodingScheme_equals(scheme, child->encodingScheme));//TODO
+    //Assert_true(child->address.protocolVersion);
+    //Assert_true(EncodingScheme_equals(scheme, child->encodingScheme));//TODO
 
     struct Node_Link* link = discoverLink(store,
                                           store->selfLink,
@@ -1557,7 +1557,7 @@ static int getBestCycle(struct Node_Two* node,
                         int cycle,
                         struct NodeStore_pvt* store)
 {
-    Assert_always(cycle < 1000);
+    Assert_true(cycle < 1000);
     if (cycle < limit) {
         int total = 0;
         struct Node_Link* next = NULL;
@@ -1629,8 +1629,8 @@ struct NodeList* NodeStore_getPeers(uint64_t label,
     for (int i = 0; i < (int)out->size; i++) {
         Identity_check(out->nodes[i]);
         checkNode(out->nodes[i], store);
-        Assert_always(out->nodes[i]->address.path);
-        Assert_always(out->nodes[i]->address.path < (((uint64_t)1)<<63));
+        Assert_true(out->nodes[i]->address.path);
+        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
         out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
     return out;
@@ -1697,8 +1697,8 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
 
     for (int i = 0; i < (int)out->size; i++) {
         Identity_check(out->nodes[i]);
-        Assert_always(out->nodes[i]->address.path);
-        Assert_always(out->nodes[i]->address.path < (((uint64_t)1)<<63));
+        Assert_true(out->nodes[i]->address.path);
+        Assert_true(out->nodes[i]->address.path < (((uint64_t)1)<<63));
         out->nodes[i] = Allocator_clone(allocator, out->nodes[i]);
     }
     return out;

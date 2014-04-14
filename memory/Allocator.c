@@ -250,7 +250,7 @@ static void releaseMemory(struct Allocator_pvt* context,
         loc = nextLoc;
     }
     #ifdef PARANOIA
-        Assert_always(allocatedHere == 0);
+        Assert_true(allocatedHere == 0);
     #endif
 }
 
@@ -306,7 +306,7 @@ static struct Allocator_pvt* getParent(struct Allocator_pvt* child)
         child = ls;
         ls = ls->lastSibling;
     }
-    Assert_always(0);
+    Assert_true(0);
 }
 
 static void freeAllocator(struct Allocator_pvt* context, const char* file, int line);
@@ -352,7 +352,7 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
         }
         cpp = &cp->next;
     }
-    Assert_always(found);
+    Assert_true(found);
 
     Assert_true(child->adoptions);
     Assert_true(child->adoptions->parents);
@@ -366,7 +366,7 @@ static void disconnectAdopted(struct Allocator_pvt* parent, struct Allocator_pvt
         }
         cpp = &cp->next;
     }
-    Assert_always(found);
+    Assert_true(found);
 }
 
 /**

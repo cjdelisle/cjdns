@@ -48,7 +48,7 @@ static Object* clone(Object* orig, struct Allocator* alloc)
         case Object_STRING: out->as.string = String_clone(orig->as.string, alloc); break;
         case Object_LIST: out->as.list = Cloner_cloneList(orig->as.list, alloc); break;
         case Object_DICT: out->as.dictionary = Cloner_cloneDict(orig->as.dictionary, alloc); break;
-        default: Assert_always(0);
+        default: Assert_true(0);
     }
     return out;
 }

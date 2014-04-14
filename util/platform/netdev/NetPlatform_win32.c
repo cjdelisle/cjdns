@@ -182,7 +182,7 @@ void NetPlatform_addAddress(const char* name,
     } else if (addrFam == Sockaddr_AF_INET) {
         Bits_memcpyConst(&ipRow.Address.Ipv4.sin_addr, addrBytes, 4);
     } else {
-        Assert_always(0);
+        Assert_true(0);
     }
 
     ipRow.OnLinkPrefixLength = prefixLen;

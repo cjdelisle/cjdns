@@ -87,9 +87,9 @@ static struct EncodingScheme* randomScheme(struct Random* rand, struct Allocator
 static void assertEqual(struct EncodingScheme* a,
                         struct EncodingScheme* b)
 {
-    Assert_always(b);
-    Assert_always(a->count == b->count);
-    Assert_always(
+    Assert_true(b);
+    Assert_true(a->count == b->count);
+    Assert_true(
         !Bits_memcmp(a->forms, b->forms, sizeof(struct EncodingScheme_Form) * a->count));
 }
 
@@ -150,8 +150,8 @@ static void encoding(struct Allocator* parent)
     };
     struct Allocator* alloc = Allocator_child(parent);
     String* data = EncodingScheme_serialize(&list, alloc);
-    Assert_always(data->len == 11);
-    Assert_always(!Bits_memcmp(data->bytes, "\x4f\xf4\xff\x29\xd9\xff\x7f\x89\xee\xff\x07", 11));
+    Assert_true(data->len == 11);
+    Assert_true(!Bits_memcmp(data->bytes, "\x4f\xf4\xff\x29\xd9\xff\x7f\x89\xee\xff\x07", 11));
     Allocator_free(alloc);
 }
 
@@ -174,19 +174,19 @@ static int convertLabel(struct EncodingScheme_Form* iform,
     int oformNum = 1;
     struct EncodingScheme* scheme = &s.scheme;
 
-    Assert_always(EncodingScheme_getFormNum(scheme, label) == iformNum);
+    Assert_true(EncodingScheme_getFormNum(scheme, label) == iformNum);
 
     uint64_t label2 = EncodingScheme_convertLabel(scheme, label, oformNum);
 
     if ((label & Bits_maxBits64(s.forms[0].prefixLen + s.forms[0].bitCount)) == 1) {
-        Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
+        Assert_true(label2 == EncodingScheme_convertLabel_INVALID);
         return convertLabel_SELF_ROUTE;
     }
 
     if (Bits_log2x64(label) + EncodingScheme_formSize(oform) -
         EncodingScheme_formSize(iform) > 59)
     {
-        Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
+        Assert_true(label2 == EncodingScheme_convertLabel_INVALID);
         return convertLabel_TOO_BIG;
     }
 
@@ -219,14 +219,14 @@ static int convertLabel(struct EncodingScheme_Form* iform,
 
     if ((converted & Bits_maxBits64(s.forms[1].prefixLen + s.forms[1].bitCount)) == 1) {
         // looks like a self-route
-        Assert_always(label2 == EncodingScheme_convertLabel_INVALID);
+        Assert_true(label2 == EncodingScheme_convertLabel_INVALID);
         return convertLabel_SELF_ROUTE;
     }
 
-    Assert_always(label2 == converted);
+    Assert_true(label2 == converted);
 
     uint64_t label3 = EncodingScheme_convertLabel(scheme, label2, iformNum);
-    Assert_always(label3 == label);
+    Assert_true(label3 == label);
     return 0;
 }
 
@@ -245,7 +245,7 @@ static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
             // make sure the label has the right prefix
             label <<= scheme->forms[iformNum].prefixLen;
             label |= scheme->forms[iformNum].prefix;
-            Assert_always(EncodingScheme_getFormNum(scheme, label) == iformNum);
+            Assert_true(EncodingScheme_getFormNum(scheme, label) == iformNum);
 
             if (Bits_log2x64(label) > 59) {
                 // fall through
@@ -260,7 +260,7 @@ static void convertLabelRand(struct Random* rand, struct EncodingScheme* scheme)
                     // success
                     break;
                 } else {
-                    Assert_always(0);
+                    Assert_true(0);
                 }
             }
             label >>= scheme->forms[iformNum].prefixLen + 1;

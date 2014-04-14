@@ -153,7 +153,7 @@ static void showConn(struct IpTunnel_Connection* conn,
     if (!Bits_isZero(conn->connectionIp6, 16)) {
         struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK6, alloc);
         uint8_t* address;
-        Assert_always(16 == Sockaddr_getAddress(addr, &address));
+        Assert_true(16 == Sockaddr_getAddress(addr, &address));
         Bits_memcpyConst(address, conn->connectionIp6, 16);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip6Address"), String_CONST(printedAddr), alloc);
@@ -162,7 +162,7 @@ static void showConn(struct IpTunnel_Connection* conn,
     if (!Bits_isZero(conn->connectionIp4, 4)) {
         struct Sockaddr* addr = Sockaddr_clone(Sockaddr_LOOPBACK, alloc);
         uint8_t* address;
-        Assert_always(4 == Sockaddr_getAddress(addr, &address));
+        Assert_true(4 == Sockaddr_getAddress(addr, &address));
         Bits_memcpyConst(address, conn->connectionIp4, 4);
         char* printedAddr = Sockaddr_print(addr, alloc);
         Dict_putString(d, String_CONST("ip4Address"), String_CONST(printedAddr), alloc);

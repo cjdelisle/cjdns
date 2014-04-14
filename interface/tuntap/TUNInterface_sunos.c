@@ -77,7 +77,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
     Message_shift(message, -4);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];
     if (ethertype != Ethernet_TYPE_IP6 && ethertype != Ethernet_TYPE_IP4) {
-        Assert_always(!"Unsupported ethertype");
+        Assert_true(!"Unsupported ethertype");
     }
 
     return Interface_sendMessage(&ctx->pipe->iface, message);

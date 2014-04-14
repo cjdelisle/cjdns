@@ -40,7 +40,7 @@ static void testDuplicates(struct Random* rand)
 
     for (uint32_t i = 0; i < outIdx; i++) {
         for (uint32_t j = i + 1; j < outIdx; j++) {
-            Assert_always(out[i] != out[j]);
+            Assert_true(out[i] != out[j]);
         }
     }
 }

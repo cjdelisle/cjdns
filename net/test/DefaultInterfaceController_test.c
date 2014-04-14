@@ -94,8 +94,8 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
         icIface.receiveMessage(outgoing, &icIface);
 
         message = *fromSwitchPtr;
-        Assert_always(message);
-        Assert_always(message->length == 24);
+        Assert_true(message);
+        Assert_true(message->length == 24);
 
         Hex_encode(hexBuffer, 1025, message->bytes, message->length);
         printf("%s\n", hexBuffer);
@@ -121,17 +121,17 @@ static int reconnectionNewEndpointTest(struct InterfaceController* ifController,
     }
 
     // check everything except the label
-    Assert_always(!CString_strcmp((char*)hexBuffer+16, "0000000068656c6c6f20776f726c6400"));
+    Assert_true(!CString_strcmp((char*)hexBuffer+16, "0000000068656c6c6f20776f726c6400"));
     // check label: make sure the interface has been switched back into position 0.
     uint64_t label_be;
     Hex_decode((uint8_t*) &label_be, 8, hexBuffer, 16);
     uint64_t rev_label = Bits_bitReverse64(Endian_bigEndianToHost64(label_be));
     // check label is decoded to 0
-    Assert_always(0 == NumberCompress_getDecompressed(rev_label,
+    Assert_true(0 == NumberCompress_getDecompressed(rev_label,
                                                       NumberCompress_bitsUsedForLabel(rev_label)));
     // check no other bits are set
     uint64_t out = NumberCompress_getCompressed(0, NumberCompress_bitsUsedForLabel(rev_label));
-    Assert_always(rev_label == out);
+    Assert_true(rev_label == out);
     return 0;
 }
 

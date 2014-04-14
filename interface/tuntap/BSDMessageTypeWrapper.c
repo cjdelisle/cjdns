@@ -79,7 +79,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
     } else if (ethertype == Ethernet_TYPE_IP4) {
         afType_be = ctx->afInet_be;
     } else {
-        Assert_always(!"Unsupported ethertype");
+        Assert_true(!"Unsupported ethertype");
     }
     ((uint16_t*) msg->bytes)[0] = 0;
     ((uint16_t*) msg->bytes)[1] = afType_be;

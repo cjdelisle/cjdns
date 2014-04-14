@@ -37,39 +37,39 @@ int main()
     volatile uint16_t sc = 0xbeca;
 
     if (!Endian_isBigEndian()) {
-        Assert_always(c == Endian_bigEndianToHost16(sc));
-        Assert_always(c == Endian_hostToBigEndian16(sc));
-        Assert_always(c == Endian_hostToLittleEndian16(c));
-        Assert_always(c == Endian_hostToLittleEndian16(c));
+        Assert_true(c == Endian_bigEndianToHost16(sc));
+        Assert_true(c == Endian_hostToBigEndian16(sc));
+        Assert_true(c == Endian_hostToLittleEndian16(c));
+        Assert_true(c == Endian_hostToLittleEndian16(c));
 
-        Assert_always(a == Endian_bigEndianToHost32(sa));
-        Assert_always(a == Endian_hostToBigEndian32(sa));
-        Assert_always(a == Endian_hostToLittleEndian32(a));
-        Assert_always(a == Endian_hostToLittleEndian32(a));
+        Assert_true(a == Endian_bigEndianToHost32(sa));
+        Assert_true(a == Endian_hostToBigEndian32(sa));
+        Assert_true(a == Endian_hostToLittleEndian32(a));
+        Assert_true(a == Endian_hostToLittleEndian32(a));
 
-        Assert_always(b == Endian_bigEndianToHost64(sb));
-        Assert_always(b == Endian_hostToBigEndian64(sb));
-        Assert_always(b == Endian_hostToLittleEndian64(b));
-        Assert_always(b == Endian_hostToLittleEndian64(b));
+        Assert_true(b == Endian_bigEndianToHost64(sb));
+        Assert_true(b == Endian_hostToBigEndian64(sb));
+        Assert_true(b == Endian_hostToLittleEndian64(b));
+        Assert_true(b == Endian_hostToLittleEndian64(b));
     } else {
-        Assert_always(c == Endian_bigEndianToHost16(c));
-        Assert_always(c == Endian_hostToBigEndian16(c));
-        Assert_always(c == Endian_hostToLittleEndian16(sc));
-        Assert_always(c == Endian_hostToLittleEndian16(sc));
+        Assert_true(c == Endian_bigEndianToHost16(c));
+        Assert_true(c == Endian_hostToBigEndian16(c));
+        Assert_true(c == Endian_hostToLittleEndian16(sc));
+        Assert_true(c == Endian_hostToLittleEndian16(sc));
 
-        Assert_always(a == Endian_bigEndianToHost32(a));
-        Assert_always(a == Endian_hostToBigEndian32(a));
-        Assert_always(a == Endian_hostToLittleEndian32(sa));
-        Assert_always(a == Endian_hostToLittleEndian32(sa));
+        Assert_true(a == Endian_bigEndianToHost32(a));
+        Assert_true(a == Endian_hostToBigEndian32(a));
+        Assert_true(a == Endian_hostToLittleEndian32(sa));
+        Assert_true(a == Endian_hostToLittleEndian32(sa));
 
-        Assert_always(b == Endian_bigEndianToHost64(b));
-        Assert_always(b == Endian_hostToBigEndian64(b));
-        Assert_always(b == Endian_hostToLittleEndian64(sb));
-        Assert_always(b == Endian_hostToLittleEndian64(sb));
+        Assert_true(b == Endian_bigEndianToHost64(b));
+        Assert_true(b == Endian_hostToBigEndian64(b));
+        Assert_true(b == Endian_hostToLittleEndian64(sb));
+        Assert_true(b == Endian_hostToLittleEndian64(sb));
     }
 
-    Assert_always(b == Endian_byteSwap64(sb));
-    Assert_always(a == Endian_byteSwap32(sa));
-    Assert_always(c == Endian_byteSwap16(sc));
+    Assert_true(b == Endian_byteSwap64(sb));
+    Assert_true(a == Endian_byteSwap32(sa));
+    Assert_true(c == Endian_byteSwap16(sc));
     return 0;
 }

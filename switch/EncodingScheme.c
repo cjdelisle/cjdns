@@ -363,7 +363,7 @@ struct EncodingScheme* EncodingScheme_defineFixedWidthScheme(int bitCount, struc
     };
     Bits_memcpyConst(out, &scheme, sizeof(struct NumberCompress_FixedWidthScheme));
 
-    Assert_always(EncodingScheme_isSane(&out->scheme));
+    Assert_true(EncodingScheme_isSane(&out->scheme));
 
     return &out->scheme;
 }

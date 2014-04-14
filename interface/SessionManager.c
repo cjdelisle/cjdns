@@ -105,12 +105,12 @@ static void cleanup(void* vsm)
 
 static void check(struct SessionManager* sm, int mapIndex)
 {
-    Assert_always(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
+    Assert_true(sm->ifaceMap.keys[mapIndex].bytes[0] == 0xfc);
     uint8_t* herPubKey = CryptoAuth_getHerPublicKey(sm->ifaceMap.values[mapIndex]->pub.internal);
     if (!Bits_isZero(herPubKey, 32)) {
         uint8_t ip6[16];
         AddressCalc_addressForPublicKey(ip6, herPubKey);
-        Assert_always(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
+        Assert_true(!Bits_memcmp(&sm->ifaceMap.keys[mapIndex], ip6, 16));
     }
 }
 

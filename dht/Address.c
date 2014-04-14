@@ -172,7 +172,7 @@ struct Address* Address_fromString(String* str, struct Allocator* alloc)
 
     int i = 1;
     for (; str->bytes[i] && str->bytes[i] != '.'; i++) {
-        Assert_always(i < 77);
+        Assert_true(i < 77);
         if (str->bytes[i] > '9' || str->bytes[i] < '0') { return NULL; }
         addr.protocolVersion *= 10;
         addr.protocolVersion += (str->bytes[i] - '0');
@@ -188,7 +188,7 @@ struct Address* Address_fromString(String* str, struct Allocator* alloc)
     str->bytes[i+19] = '.';
     if (ret) { return NULL; }
     String keyPart = { .len = str->len - i - 20,  .bytes = &str->bytes[i + 20] };
-    Assert_always(keyPart.len == 54 && keyPart.bytes[53] == 'k');
+    Assert_true(keyPart.len == 54 && keyPart.bytes[53] == 'k');
     if (Key_parse(&keyPart, addr.key, addr.ip6.bytes)) { return NULL; }
 
     return Allocator_clone(alloc, &addr);

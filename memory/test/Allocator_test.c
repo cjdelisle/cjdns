@@ -56,23 +56,23 @@ static void structureSizes()
     size_t bytesUsed;
 
     bytesUsed = Allocator_bytesAllocated(alloc);
-    Assert_always(bytesUsed == ALLOCATION_SIZE + sizeof(struct Allocator_FirstCtx));
+    Assert_true(bytesUsed == ALLOCATION_SIZE + sizeof(struct Allocator_FirstCtx));
     Allocator_malloc(alloc, 25);
     bytesUsed += (((25 / sizeof(char*)) + 1) * sizeof(char*)) + ALLOCATION_SIZE;
-    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_true(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     struct Allocator* child = Allocator_child(alloc);
     bytesUsed += ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_true(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_malloc(child, 30);
     bytesUsed += 32 + ALLOCATION_SIZE;
-    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_true(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(child);
     bytesUsed -= 32 + ALLOCATION_SIZE;
     bytesUsed -= ALLOCATION_SIZE + ALLOCATOR_SIZE;
-    Assert_always(Allocator_bytesAllocated(alloc) == bytesUsed);
+    Assert_true(Allocator_bytesAllocated(alloc) == bytesUsed);
 
     Allocator_free(alloc);
 }

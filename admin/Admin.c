@@ -194,7 +194,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         return 0;
     }
     Identity_check(admin);
-    Assert_always(txid && txid->len >= admin->addrLen);
+    Assert_true(txid && txid->len >= admin->addrLen);
 
     struct Sockaddr_storage addr;
     Bits_memcpy(&addr, txid->bytes, admin->addrLen);

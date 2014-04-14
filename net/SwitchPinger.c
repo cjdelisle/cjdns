@@ -112,7 +112,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 
     } else {
         // If it gets here then Ducttape.c is failing.
-        Assert_always(false);
+        Assert_true(false);
     }
 
     String* msgStr = &(String) { .bytes = (char*) msg->bytes, .len = msg->length };

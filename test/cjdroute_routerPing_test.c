@@ -72,7 +72,7 @@ return 0; // TODO make this work again
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m, &dt->pub, herPublicKey);
-    Assert_always(!dt->switchInterface.receiverContext);
+    Assert_true(!dt->switchInterface.receiverContext);
 
     // zero checksum
     udp->checksum_be = 0;
@@ -83,7 +83,7 @@ return 0; // TODO make this work again
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m2, &dt->pub, herPublicKey);
-    Assert_always(!dt->switchInterface.receiverContext);
+    Assert_true(!dt->switchInterface.receiverContext);
 
     // good checksum
     udp->checksum_be =
@@ -97,7 +97,7 @@ return 0; // TODO make this work again
         .alloc = alloc
     };
     Ducttape_injectIncomingForMe(&m3, &dt->pub, herPublicKey);
-    Assert_always(dt->switchInterface.receiverContext);
+    Assert_true(dt->switchInterface.receiverContext);
 
     Allocator_free(alloc);
     Allocator_free(allocator);

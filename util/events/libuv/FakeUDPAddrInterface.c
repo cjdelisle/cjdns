@@ -39,7 +39,7 @@ struct AddrInterface* FakeUDPAddrInterface_new(struct EventBase* eventBase,
                                                struct Log* logger)
 {
     struct EventBase_pvt* base = EventBase_privatize(eventBase);
-    Assert_always(base->faker);
+    Assert_true(base->faker);
 
     struct FakeUDPAddrInterface_pvt* context =
         Allocator_clone(alloc, (&(struct FakeUDPAddrInterface_pvt) {

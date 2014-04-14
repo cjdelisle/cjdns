@@ -139,7 +139,7 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
             hashPassword_sha256(auth, password);
             break;
         default:
-            Assert_always(!"Unsupported auth type.");
+            Assert_true(!"Unsupported auth type.");
     };
     return auth->secret;
 }
@@ -415,7 +415,7 @@ static uint8_t encryptHandshake(struct Message* message,
         // key.
         uint8_t calculatedIp6[16];
         AddressCalc_addressForPublicKey(calculatedIp6, wrapper->herPerminentPubKey);
-        Assert_always(!Bits_memcmp(wrapper->herIp6, calculatedIp6, 16));
+        Assert_true(!Bits_memcmp(wrapper->herIp6, calculatedIp6, 16));
     }
 
     if (wrapper->bufferedMessage) {
@@ -820,7 +820,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         // we accept a new key packet and let it change the session since the other end might have
         // killed off the session while it was in the midst of setting up.
         if (!Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
+            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
             cryptoAuthDebug0(wrapper, "DROP dupe key packet with same temp key");
             return Error_AUTHENTICATION;
         }
@@ -828,7 +828,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     } else if (nonce == 3 && wrapper->nextNonce >= 4) {
         // Got a repeat key packet, make sure the temp key is the same as the one we know.
         if (Bits_memcmp(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32)) {
-            Assert_always(!Bits_isZero(wrapper->herTempPubKey, 32));
+            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
             cryptoAuthDebug0(wrapper, "DROP repeat key packet with different temp key");
             return Error_AUTHENTICATION;
         }
@@ -844,7 +844,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     if (nextNonce == 4) {
         if (wrapper->nextNonce <= 4) {
             // and have not yet begun sending "run" data
-            Assert_always(wrapper->nextNonce <= nextNonce);
+            Assert_true(wrapper->nextNonce <= nextNonce);
             wrapper->nextNonce = nextNonce;
 
             wrapper->user = user;
@@ -880,7 +880,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             nextNonce = 3;
         }
 
-        Assert_always(wrapper->nextNonce <= nextNonce);
+        Assert_true(wrapper->nextNonce <= nextNonce);
         wrapper->nextNonce = nextNonce;
         wrapper->user = user;
         Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
@@ -894,7 +894,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         cryptoAuthDebug0(wrapper, "Incoming hello from node with lower key, resetting");
         reset(wrapper);
 
-        Assert_always(wrapper->nextNonce <= nextNonce);
+        Assert_true(wrapper->nextNonce <= nextNonce);
         wrapper->nextNonce = nextNonce;
         wrapper->user = user;
         Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
@@ -1009,7 +1009,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         cryptoAuthDebug(wrapper, "DROP key packet during established session nonce=[%d]", nonce);
         return Error_UNDELIVERABLE;
     }
-    Assert_always(0);
+    Assert_true(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1177,7 +1177,7 @@ struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
         AddressCalc_addressForPublicKey(calculatedIp6, herPublicKey);
         Bits_memcpyConst(wrapper->herIp6, calculatedIp6, 16);
         if (herIp6 != NULL) {
-            Assert_always(!Bits_memcmp(calculatedIp6, herIp6, 16));
+            Assert_true(!Bits_memcmp(calculatedIp6, herIp6, 16));
         }
     } else if (herIp6) {
         Bits_memcpyConst(wrapper->herIp6, herIp6, 16);

@@ -201,7 +201,7 @@ static struct Request* sendRaw(Dict* messageDict,
     Dict_putString(messageDict, String_CONST("txid"), id, req->alloc);
 
     if (cookie) {
-        Assert_always(!calculateAuth(messageDict, ctx->password, cookie, req->alloc));
+        Assert_true(!calculateAuth(messageDict, ctx->password, cookie, req->alloc));
     }
 
     struct Writer* writer =

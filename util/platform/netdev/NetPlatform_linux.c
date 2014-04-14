@@ -155,7 +155,7 @@ void NetPlatform_addAddress(const char* interfaceName,
             Except_throw(eh, "ioctl(SIOCSIFNETMASK) failed: [%s]", strerror(err));
         }
     } else {
-        Assert_always(0);
+        Assert_true(0);
     }
 
     close(s);

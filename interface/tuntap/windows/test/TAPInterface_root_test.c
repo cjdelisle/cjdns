@@ -117,7 +117,7 @@ printf("init test");
     ndp->prefixLen = 8;
 
     struct Sockaddr_storage ss;
-    Assert_always(!Sockaddr_parse("fd00::1", &ss));
+    Assert_true(!Sockaddr_parse("fd00::1", &ss));
     NetDev_addAddress(ifName, &ss.addr, 8, logger, NULL);
 
     Timeout_setTimeout(fail, alloc, 10000, base, alloc);

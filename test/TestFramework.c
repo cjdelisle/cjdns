@@ -56,7 +56,7 @@ static uint8_t sendTo(struct Message* msg, struct Interface* iface)
         dest = &link->destIf;
         srcTf = link->src;
     } else {
-        Assert_always(false);
+        Assert_true(false);
     }
 
     printf("Transferring message to [%p] - message length [%d]\n", (void*)dest, msg->length);
@@ -173,9 +173,9 @@ void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf)
     }
     struct Message* a = tf->lastMsg;
     struct Message* b = tf->lastMsgBackup;
-    Assert_always(a->length == b->length);
-    Assert_always(a->padding == b->padding);
-    Assert_always(!Bits_memcmp(a->bytes, b->bytes, a->length));
+    Assert_true(a->length == b->length);
+    Assert_true(a->padding == b->padding);
+    Assert_true(!Bits_memcmp(a->bytes, b->bytes, a->length));
 }
 
 void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server)

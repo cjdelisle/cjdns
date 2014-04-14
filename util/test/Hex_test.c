@@ -34,14 +34,14 @@ int main()
 
     uint8_t hex[64] = {0};
 
-    Assert_always(Hex_encode(hex, 65, bytes, 32) == 64);
+    Assert_true(Hex_encode(hex, 65, bytes, 32) == 64);
 
     //printf("hex encoded: %s\n", hex);
 
     uint8_t bytes2[32];
-    Assert_always(Hex_decode(bytes2, 32, hex, 64) == 32);
+    Assert_true(Hex_decode(bytes2, 32, hex, 64) == 32);
 
-    Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
+    Assert_true(Bits_memcmp(bytes, bytes2, 32) == 0);
 
     Allocator_free(alloc);
     return 0;

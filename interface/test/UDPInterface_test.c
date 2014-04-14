@@ -41,17 +41,17 @@ static int registerPeer(struct InterfaceController* ic,
 static void ifNewCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
 {
     struct AdminTestFramework* fw = p->userData;
-    Assert_always(!res->err);
+    Assert_true(!res->err);
     //printf("result content: >>%s<<", res->messageBytes);
     // d11:bindAddress13:0.0.0.0:362615:error4:none15:interfaceNumberi0e4:txid8:01000000e
-    Assert_always(CString_strstr(res->messageBytes, "5:error4:none15:interfaceNumberi0e"));
+    Assert_true(CString_strstr(res->messageBytes, "5:error4:none15:interfaceNumberi0e"));
     EventBase_endLoop(fw->eventBase);
 }
 
 static void badKeyCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
 {
     struct AdminTestFramework* fw = p->userData;
-    Assert_always(CString_strstr(res->messageBytes, "5:error30:key must be 52 characters long"));
+    Assert_true(CString_strstr(res->messageBytes, "5:error30:key must be 52 characters long"));
     EventBase_endLoop(fw->eventBase);
     //printf("result content: >>%s<<", res->messageBytes);
 }
@@ -59,7 +59,7 @@ static void badKeyCallback(struct AdminClient_Promise* p, struct AdminClient_Res
 static void goodCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
 {
     struct AdminTestFramework* fw = p->userData;
-    Assert_always(CString_strstr(res->messageBytes, "5:error4:none"));
+    Assert_true(CString_strstr(res->messageBytes, "5:error4:none"));
     EventBase_endLoop(fw->eventBase);
     //printf("result content: >>%s<<", res->messageBytes);
 }

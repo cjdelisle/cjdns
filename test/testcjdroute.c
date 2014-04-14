@@ -61,7 +61,7 @@ static uint64_t runTest(Test test,
                         struct EventBase* base)
 {
     fprintf(stderr, "Running test %s", name);
-    Assert_always(!test(argc, argv));
+    Assert_true(!test(argc, argv));
     uint64_t now = Time_hrtime();
     char* seventySpaces = "                                                                      ";
     int count = strlen(name);
@@ -90,7 +90,7 @@ int main(int argc, char** argv)
     uint64_t now = Time_hrtime();
     uint64_t startTime = now;
     if (argc < 2) {
-        Assert_always(argc > 0);
+        Assert_true(argc > 0);
         usage(argv[0]);
         return 100;
     }

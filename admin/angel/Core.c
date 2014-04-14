@@ -456,11 +456,11 @@ void Core_init(struct Allocator* alloc,
     // ------------------- DNS -------------------------//
 
     struct Sockaddr_storage rainflyAddr;
-    Assert_always(!Sockaddr_parse("::", &rainflyAddr));
+    Assert_true(!Sockaddr_parse("::", &rainflyAddr));
     struct AddrInterface* rainflyIface =
         UDPAddrInterface_new(eventBase, &rainflyAddr.addr, alloc, eh, logger);
     struct RainflyClient* rainfly = RainflyClient_new(rainflyIface, eventBase, rand, logger);
-    Assert_always(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
+    Assert_true(!Sockaddr_parse("[fc00::1]:53", &rainflyAddr));
     struct AddrInterface* magicUDP =
         PacketHeaderToUDPAddrInterface_new(&dt->magicInterface, alloc, &rainflyAddr.addr);
     DNSServer_new(magicUDP, logger, rainfly);

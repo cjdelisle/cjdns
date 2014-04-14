@@ -69,8 +69,8 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
         return 0;
     }
 
-    Assert_always(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
-    Assert_always(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
+    Assert_true(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
+    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
 
     Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
@@ -93,7 +93,7 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
 
 static void fail(void* ignored)
 {
-    Assert_always(!"timeout");
+    Assert_true(!"timeout");
 }
 
 static struct AddrInterface* setupUDP(struct EventBase* base,
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
 
     struct Sockaddr_storage addr;
-    Assert_always(!Sockaddr_parse("[fd00::1]", &addr));
+    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
 
     #ifdef freebsd
         // tun is not setup synchronously in bsd but it lets you bind to the tun's
@@ -140,11 +140,11 @@ int main(int argc, char** argv)
             break;
         }
     }
-    Assert_always(udp);
+    Assert_true(udp);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addrBytes;
-    Assert_always(16 == Sockaddr_getAddress(dest, &addrBytes));
+    Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
     Bits_memcpy(addrBytes, testAddrB, 16);
 
     struct Message* msg;

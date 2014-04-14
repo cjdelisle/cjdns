@@ -415,7 +415,7 @@ static int registerPeer(struct InterfaceController* ifController,
             return InterfaceController_registerPeer_BAD_KEY;
         }
     } else {
-        Assert_always(requireAuth);
+        Assert_true(requireAuth);
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;

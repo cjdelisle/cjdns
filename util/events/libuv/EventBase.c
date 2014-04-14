@@ -76,7 +76,7 @@ void EventBase_beginLoop(struct EventBase* eventBase)
 {
     struct EventBase_pvt* ctx = Identity_check((struct EventBase_pvt*) eventBase);
 
-    Assert_always(!ctx->running); // double begin
+    Assert_true(!ctx->running); // double begin
     ctx->running = 1;
 
     // start the loop.

@@ -114,7 +114,7 @@ int main()
 
         //printf("Received message for iface [%u] from [%p]\n", rnd, (void*)ctx.receivedOn);
         if (iface) {
-            Assert_always(ctx.receivedOn == iface);
+            Assert_true(ctx.receivedOn == iface);
         } else {
             ifaces[rnd] = ctx.receivedOn;
         }

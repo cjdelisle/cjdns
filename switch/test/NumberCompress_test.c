@@ -49,24 +49,24 @@ static void numberCompressions_generic(
             uint64_t label = getCompressed(i, bits);
 
             if (1 == i) {
-                Assert_always(1 == label);
+                Assert_true(1 == label);
                 continue;
             }
 
-            Assert_always(bits == bitsUsedForLabel(label));
-            Assert_always(i == getDecompressed(label, bits));
+            Assert_true(bits == bitsUsedForLabel(label));
+            Assert_true(i == getDecompressed(label, bits));
         }
     }
 
     for (uint64_t label = 0; label < 0x10000u; ++label) {
         uint32_t bits = bitsUsedForLabel(label);
-        Assert_always(1 == bitWidths[bits]);
+        Assert_true(1 == bitWidths[bits]);
         if (1 == (label & Bits_maxBits64(bits))) {
-            //Assert_always(4 == bits);
-            Assert_always(1 == getDecompressed(label, bits));
+            //Assert_true(4 == bits);
+            Assert_true(1 == getDecompressed(label, bits));
         } else {
             uint32_t i = getDecompressed(label, bits);
-            Assert_always(i < nInterfaces);
+            Assert_true(i < nInterfaces);
         }
     }
 

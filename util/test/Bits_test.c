@@ -26,17 +26,17 @@ int main()
     struct Allocator* alloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
-    Assert_always(Bits_log2x64(1)==0);
+    Assert_true(Bits_log2x64(1)==0);
 
     uint64_t x;
     Random_bytes(rand, (uint8_t*) &x, 8);
     printf("x = 0x%016" PRIx64 "\n", x);
 
-    Assert_always(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
-    Assert_always(
+    Assert_true(Bits_bitReverse64(Bits_bitReverse64(x)) == x);
+    Assert_true(
         Bits_bitReverse64(Endian_byteSwap64(Bits_bitReverse64(x))) == Endian_byteSwap64(x));
-    Assert_always(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
-    Assert_always(Bits_bitReverse64(0) == 0);
+    Assert_true(Bits_bitReverse64(1) == ((uint64_t)1)<<63);
+    Assert_true(Bits_bitReverse64(0) == 0);
 
     Allocator_free(alloc);
     return 0;

@@ -87,7 +87,7 @@ static int rpcCall0(String* function,
     EventBase_beginLoop(ctx->base);
 
     struct AdminClient_Result* res = ctx->currentResult;
-    Assert_always(res);
+    Assert_true(res);
 
     if (res->err) {
         Log_critical(ctx->logger,

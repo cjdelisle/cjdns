@@ -160,7 +160,7 @@ static void twoKeyPackets(struct Allocator* alloc, struct Context* ctx)
     // and now the stray repeat key packet is sent
     tctx->aliceMsg = NULL;
     Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
-    Assert_always(tctx->aliceMsg);
+    Assert_true(tctx->aliceMsg);
 }
 
 static void clearMessages(struct TestContext* tctx)
@@ -172,9 +172,9 @@ static void sendToAlice(char* msg, struct TestContext* tctx)
 {
     clearMessages(tctx);
     sendMsg(msg, tctx->bobInternalIf);
-    Assert_always(tctx->bobCryptMsg);
+    Assert_true(tctx->bobCryptMsg);
     Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
-    Assert_always(tctx->aliceMsg);
+    Assert_true(tctx->aliceMsg);
     clearMessages(tctx);
 }
 
@@ -182,9 +182,9 @@ static void sendToBob(char* msg, struct TestContext* tctx)
 {
     clearMessages(tctx);
     sendMsg(msg, tctx->aliceInternalIf);
-    Assert_always(tctx->aliceCryptMsg);
+    Assert_true(tctx->aliceCryptMsg);
     Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
-    Assert_always(tctx->bobMsg);
+    Assert_true(tctx->bobMsg);
     clearMessages(tctx);
 }
 
@@ -196,20 +196,20 @@ static void reset(struct Allocator* alloc, struct Context* ctx)
     sendToBob("how goes it?", tctx);
     sendToAlice("going well, be right back", tctx);
 
-    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
-    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
 
     CryptoAuth_reset(tctx->bobInternalIf);
 
     // Bob is reset and Alice is still jabbering
     sendMsg("A bunch of crap which Bob is totally not going to hear", tctx->aliceInternalIf);
     Interface_receiveMessage(&tctx->bobExternalIf, tctx->aliceCryptMsg);
-    Assert_always(!tctx->bobMsg);
+    Assert_true(!tctx->bobMsg);
 
     // Bob sends a new hello packet to Alice but it will be dropped because a session is live.
     sendMsg("Have to drop this because it might be a replay attack etc", tctx->bobInternalIf);
     Interface_receiveMessage(&tctx->aliceExternalIf, tctx->bobCryptMsg);
-    Assert_always(!tctx->aliceMsg);
+    Assert_true(!tctx->aliceMsg);
 
     CryptoAuth_reset(tctx->aliceInternalIf);
 
@@ -219,8 +219,8 @@ static void reset(struct Allocator* alloc, struct Context* ctx)
     sendToAlice("perfect", tctx);
     sendToBob("ok now I have to go", tctx);
 
-    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
-    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
 }
 
 /**
@@ -251,8 +251,8 @@ static void crossedOnTheWire(struct Allocator* alloc, struct Context* ctx)
     sendToBob("and we're established", tctx);
     sendToAlice("ok shutdown", tctx);
 
-    Assert_always(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
-    Assert_always(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->bobInternalIf) == CryptoAuth_ESTABLISHED);
+    Assert_true(CryptoAuth_getState(tctx->aliceInternalIf) == CryptoAuth_ESTABLISHED);
 }
 
 static void replayKeyPacket(struct Allocator* alloc, struct Context* ctx)
@@ -273,7 +273,7 @@ static void replayKeyPacket(struct Allocator* alloc, struct Context* ctx)
     sendMsg("Hi Bob!", tctx->aliceInternalIf);
     struct Message* m2 = tctx->aliceCryptMsg;
 
-    Assert_always(Bits_memcmp(m1->bytes, m2->bytes, 4));
+    Assert_true(Bits_memcmp(m1->bytes, m2->bytes, 4));
 }
 
 int main()

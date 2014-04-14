@@ -51,27 +51,27 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     ICMP6Generator_generate(msg, sourceAddr, destAddr, ICMP6Generator_Type_PACKET_TOO_BIG, mtu);
 
 
-    Assert_always(msg->length <= 1280);
+    Assert_true(msg->length <= 1280);
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
 
-    Assert_always(!Bits_memcmp(sourceAddr, header->sourceAddr, 16));
-    Assert_always(!Bits_memcmp(destAddr, header->destinationAddr, 16));
-    Assert_always(Headers_getIpVersion(header) == 6);
-    Assert_always(header->flowLabelLow_be == 0);
-    Assert_always(Endian_bigEndianToHost16(header->payloadLength_be) == msg->length);
-    Assert_always(header->nextHeader == 58); // 58 -> icmp
-    Assert_always(header->hopLimit == 64);
+    Assert_true(!Bits_memcmp(sourceAddr, header->sourceAddr, 16));
+    Assert_true(!Bits_memcmp(destAddr, header->destinationAddr, 16));
+    Assert_true(Headers_getIpVersion(header) == 6);
+    Assert_true(header->flowLabelLow_be == 0);
+    Assert_true(Endian_bigEndianToHost16(header->payloadLength_be) == msg->length);
+    Assert_true(header->nextHeader == 58); // 58 -> icmp
+    Assert_true(header->hopLimit == 64);
 
     struct Headers_ICMP6Header* icmp = (struct Headers_ICMP6Header*) msg->bytes;
     Message_shift(msg, -Headers_ICMP6Header_SIZE, NULL);
 
-    Assert_always(icmp->type == 2); // packet too big.
-    Assert_always(icmp->code == 0);
-    Assert_always(icmp->additional == Endian_hostToBigEndian32(mtu));
+    Assert_true(icmp->type == 2); // packet too big.
+    Assert_true(icmp->code == 0);
+    Assert_true(icmp->additional == Endian_hostToBigEndian32(mtu));
 
-    Assert_always(msg->length ==
+    Assert_true(msg->length ==
         MIN(messageSize,
             ICMP6Generator_MIN_IPV6_MTU
             - Headers_IP6Header_SIZE
@@ -81,7 +81,7 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     for (int i = 0; i < msg->length; i++) {
         out |= msg->bytes[i] ^ (i & 0xff);
     }
-    Assert_always(!out);
+    Assert_true(!out);
 
     Allocator_free(alloc);
 }
@@ -95,9 +95,9 @@ static uint8_t messageFromGenerator(struct Message* msg, struct Interface* iface
     int index = Headers_IP6Fragment_getOffset(frag);
 
     Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
-    Assert_always(Endian_bigEndianToHost16(ip6->payloadLength_be) == msg->length);
+    Assert_true(Endian_bigEndianToHost16(ip6->payloadLength_be) == msg->length);
     Message_shift(msg, -Headers_IP6Fragment_SIZE, NULL);
-    Assert_always(msg->length > 0);
+    Assert_true(msg->length > 0);
 
     Bits_memcpy(&reassemblyBuff[index], msg->bytes, msg->length);
     Message_shift(msg, (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE), NULL);
@@ -136,7 +136,7 @@ static void fragTest(struct Allocator* mainAlloc,
     ig->external.sendMessage(msg, &ig->external);
 
     for (int i = 0; i < (int)(messageSize - headersSize); i++) {
-        Assert_always(reassemblyBuff[i] == ((i + headersSize) & 0xff));
+        Assert_true(reassemblyBuff[i] == ((i + headersSize) & 0xff));
     }
 
     Allocator_free(alloc);

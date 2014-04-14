@@ -78,7 +78,7 @@ static void sessionStats(Dict* args,
         return;
     }
     // both or neither
-    Assert_always(ip6);
+    Assert_true(ip6);
 
     uint8_t printedAddr[40];
     AddrTools_printIp(printedAddr, ip6);

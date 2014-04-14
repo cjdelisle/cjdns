@@ -79,8 +79,8 @@ int main()
            publicKeyBase32Out,
            addressOut);
 
-    Assert_always(0 == Bits_memcmp(address.key, publicKey, 32));
-    Assert_always(0 == CString_strcmp(publicKeyBase32, (char*) publicKeyBase32Out));
-    Assert_always(0 == CString_strcmp(ipv6, (char*) addressOut));
+    Assert_true(0 == Bits_memcmp(address.key, publicKey, 32));
+    Assert_true(0 == CString_strcmp(publicKeyBase32, (char*) publicKeyBase32Out));
+    Assert_true(0 == CString_strcmp(ipv6, (char*) addressOut));
     return 0;
 }

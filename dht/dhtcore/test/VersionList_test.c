@@ -46,10 +46,10 @@ int main()
 
             struct VersionList* vl2 = VersionList_parse(str, alloc);
 
-            Assert_always(vl->length == vl2->length && vl->length == count);
+            Assert_true(vl->length == vl2->length && vl->length == count);
             for (uint32_t i = 0; i < count; i++) {
                 printf("[%d] [%d]\n", vl2->versions[i], vl->versions[i]);
-                Assert_always(vl2->versions[i] == vl->versions[i]);
+                Assert_true(vl2->versions[i] == vl->versions[i]);
             }
         }
     }

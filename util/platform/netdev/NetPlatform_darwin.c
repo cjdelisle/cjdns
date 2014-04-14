@@ -116,7 +116,7 @@ void NetPlatform_addAddress(const char* interfaceName,
     } else if (addrFam == Sockaddr_AF_INET) {
         addIp4Address(interfaceName, address, prefixLen, logger, eh);
     } else {
-        Assert_always(0);
+        Assert_true(0);
     }
 }
 

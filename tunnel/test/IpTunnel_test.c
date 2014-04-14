@@ -39,24 +39,24 @@ static int called = 0;
 static uint8_t responseWithIpCallback(struct Message* message, struct Interface* iface)
 {
     struct IpTunnel_PacketInfoHeader* pi = (struct IpTunnel_PacketInfoHeader*) message->bytes;
-    Assert_always(!Bits_memcmp(nodeCjdnsIp6, pi->nodeIp6Addr, 16));
-    Assert_always(!Bits_memcmp(fakePubKey, pi->nodeKey, 32));
+    Assert_true(!Bits_memcmp(nodeCjdnsIp6, pi->nodeIp6Addr, 16));
+    Assert_true(!Bits_memcmp(fakePubKey, pi->nodeKey, 32));
 
     Message_shift(message, -IpTunnel_PacketInfoHeader_SIZE, NULL);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
-    Assert_always(Headers_getIpVersion(ip) == 6);
+    Assert_true(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
-    Assert_always(length + Headers_IP6Header_SIZE == message->length);
-    Assert_always(ip->nextHeader == 17);
-    Assert_always(Bits_isZero(ip->sourceAddr, 32));
+    Assert_true(length + Headers_IP6Header_SIZE == message->length);
+    Assert_true(ip->nextHeader == 17);
+    Assert_true(Bits_isZero(ip->sourceAddr, 32));
 
     Message_shift(message, -Headers_IP6Header_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;
-    Assert_always(!Checksum_udpIp6(ip->sourceAddr, message->bytes, length));
+    Assert_true(!Checksum_udpIp6(ip->sourceAddr, message->bytes, length));
 
-    Assert_always(uh->srcPort_be == 0);
-    Assert_always(uh->destPort_be == 0);
-    Assert_always(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
+    Assert_true(uh->srcPort_be == 0);
+    Assert_true(uh->destPort_be == 0);
+    Assert_true(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
 
     Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
     char* expectedResponse =
@@ -66,21 +66,21 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
           "e"
           "4:txid" "4:abcd"
         "e";
-    Assert_always(message->length == (int32_t) strlen(expectedResponse));
-    Assert_always(!Bits_memcmp(message->bytes, expectedResponse, message->length));
+    Assert_true(message->length == (int32_t) strlen(expectedResponse));
+    Assert_true(!Bits_memcmp(message->bytes, expectedResponse, message->length));
     called = 1;
     return 0;
 }
 
 static uint8_t messageToTun(struct Message* message, struct Interface* iface)
 {
-    Assert_always(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
+    Assert_true(TUNMessageType_pop(message, NULL) == Ethernet_TYPE_IP6);
     struct Headers_IP6Header* ip = (struct Headers_IP6Header*) message->bytes;
-    Assert_always(Headers_getIpVersion(ip) == 6);
+    Assert_true(Headers_getIpVersion(ip) == 6);
     uint16_t length = Endian_bigEndianToHost16(ip->payloadLength_be);
-    Assert_always(length + Headers_IP6Header_SIZE == message->length);
-    Assert_always(ip->nextHeader == 17);
-    Assert_always(!Bits_memcmp(ip->sourceAddr, fakeIp6ToGive, 16));
+    Assert_true(length + Headers_IP6Header_SIZE == message->length);
+    Assert_true(ip->nextHeader == 17);
+    Assert_true(!Bits_memcmp(ip->sourceAddr, fakeIp6ToGive, 16));
     called = 1;
     return 0;
 }
@@ -142,7 +142,7 @@ int main()
 
     ipTun->nodeInterface.receiveMessage = responseWithIpCallback;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_always(called);
+    Assert_true(called);
     called = 0;
 
     // Now create a message for someone else.
@@ -157,7 +157,7 @@ int main()
 
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_always(called);
+    Assert_true(called);
 
     Allocator_free(alloc);
     return 0;

@@ -35,7 +35,7 @@ int main()
     struct Thing* tp = &t;
     Identity_set(tp);
     tp = Identity_check(increment(tp));
-    Assert_always(tp == &t);
-    Assert_always(t.counter == 1);
+    Assert_true(tp == &t);
+    Assert_true(t.counter == 1);
     return 0;
 }

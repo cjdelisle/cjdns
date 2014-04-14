@@ -425,7 +425,7 @@ static void checkRunningInstance(struct Allocator* allocator,
 
     EventBase_beginLoop(base);
 
-    Assert_always(ctx->res);
+    Assert_true(ctx->res);
     if (ctx->res->err != AdminClient_Error_TIMEOUT) {
         Except_throw(eh, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
     }

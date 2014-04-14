@@ -56,7 +56,7 @@ static int get(struct RandomSeed* rs, uint64_t buffer[8])
             Log_info(ctx->logger, "Trying random seed [%s] Failed", ctx->rsList[i]->name);
         }
     }
-    Assert_always(sizeof(buff.output) == 64);
+    Assert_true(sizeof(buff.output) == 64);
     Bits_memcpyConst(buffer, buff.output, 64);
 
     if (successCount > 0) {

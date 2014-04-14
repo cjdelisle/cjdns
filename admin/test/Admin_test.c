@@ -40,9 +40,9 @@ static void standardClientCallback(struct AdminClient_Promise* p, struct AdminCl
 {
     struct Context* ctx = p->userData;
     //printf("%d\n", res->err);
-    Assert_always(!res->err);
-    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
-    Assert_always(ctx->called);
+    Assert_true(!res->err);
+    Assert_true(Dict_getInt(res->responseDict, String_CONST("called!")));
+    Assert_true(ctx->called);
 
     EventBase_endLoop(ctx->framework->eventBase);
 }

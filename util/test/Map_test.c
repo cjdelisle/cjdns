@@ -57,14 +57,14 @@ int main()
                 uint32_t num = 0;
                 for (int i = 0; i < (int)map->count; i++) {
                     if (num > map->handles[i]) {
-                        Assert_always(!"map out of order");
+                        Assert_true(!"map out of order");
                     }
                     num = map->handles[i];
                 }
                 printf("failed to find the correct index for the handle "
                        "handle[%u], index[%u], indexForHandle[%u]\n",
                        handle, index, Map_OfLongsByInteger_indexForHandle(handle, map));
-                Assert_always(false);
+                Assert_true(false);
             }
         }
         Allocator_free(alloc);

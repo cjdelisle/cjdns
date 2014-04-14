@@ -72,11 +72,11 @@ static uint8_t messageToAngel(struct Message* msg, struct Interface* iface)
     struct Allocator* alloc = Allocator_child(ctx->alloc);
     struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, alloc);
     Dict* config = Dict_new(alloc);
-    Assert_always(!StandardBencSerializer_get()->parseDictionary(reader, alloc, config));
+    Assert_true(!StandardBencSerializer_get()->parseDictionary(reader, alloc, config));
     Dict* admin = Dict_getDict(config, String_CONST("admin"));
     String* bind = Dict_getString(admin, String_CONST("bind"));
     struct Sockaddr_storage ss;
-    Assert_always(!Sockaddr_parse(bind->bytes, &ss));
+    Assert_true(!Sockaddr_parse(bind->bytes, &ss));
     ctx->boundAddr = Sockaddr_clone(&ss.addr, ctx->alloc);
     Allocator_free(alloc);
     EventBase_endLoop(ctx->base);
@@ -107,7 +107,7 @@ static void sendFirstMessageToCore(void* vcontext)
 
     uint8_t buff[512];
     struct Writer* writer = ArrayWriter_new(buff, 512, alloc);
-    Assert_always(!StandardBencSerializer_get()->serializeDictionary(writer, d));
+    Assert_true(!StandardBencSerializer_get()->serializeDictionary(writer, d));
     Message_push(msg, buff, Writer_bytesWritten(writer), NULL);
 
     Interface_receiveMessage(&ctx->angelIface, msg);
@@ -181,12 +181,12 @@ static struct RPCCall* pushCall(struct Context* ctx)
 
 static void bindUDPCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
-    Assert_always(!res->err);
+    Assert_true(!res->err);
     Log_debug(&call->node->nodeLog, "UDPInterface_new() -> [%s]", res->messageBytes);
     String* addr = Dict_getString(res->responseDict, String_CONST("bindAddress"));
     int64_t* ifNum = Dict_getInt(res->responseDict, String_CONST("interfaceNumber"));
     struct Sockaddr_storage ss;
-    Assert_always(!Sockaddr_parse(addr->bytes, &ss));
+    Assert_true(!Sockaddr_parse(addr->bytes, &ss));
     call->node->ifNum = *ifNum;
     call->node->udpAddr = Sockaddr_clone(&ss.addr, call->node->alloc);
 }
@@ -254,7 +254,7 @@ static struct NodeContext* startNode(char* nodeName,
 
 static void beginConnectionCallback(struct RPCCall* call, struct AdminClient_Result* res)
 {
-    Assert_always(!res->err);
+    Assert_true(!res->err);
     Log_debug(&call->node->nodeLog, "UDPInterface_beginConnection() -> [%s]", res->messageBytes);
 }
 
@@ -314,7 +314,7 @@ static void linkAllNodes(struct Context* ctx)
         List* connectTo = Dict_getList(val, String_CONST("peers"));
         for (int j = 0; j < List_size(connectTo); j++) {
             String* server = List_getString(connectTo, j);
-            Assert_always(server);
+            Assert_true(server);
             for (int k = 0; k < Dict_size(ctx->confNodes); k++) {
                 if (String_equals(server, ctx->names[k])) {
                     linkNodes(ctx, ctx->nodes[i], ctx->nodes[k]);
@@ -441,7 +441,7 @@ static int usage(char* appName)
 
 int main(int argc, char** argv)
 {
-    Assert_always(argc > 0);
+    Assert_true(argc > 0);
     if (isatty(STDIN_FILENO)) {
         return usage(argv[0]);
     }

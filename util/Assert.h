@@ -44,20 +44,18 @@ void Assert_failure(const char* format, ...);
 
 
 /** Runtime assertion which is always applied. */
-#define Assert_always(expr) Assert_fileLine((expr), Gcc_SHORT_FILE, Gcc_LINE)
+#define Assert_true(expr) Assert_fileLine((expr), Gcc_SHORT_FILE, Gcc_LINE)
 
 #ifdef PARANOIA
-    #define Assert_true(expr) Assert_always(expr)
-    #define Assert_ifParanoid(expr) Assert_always(expr)
+    #define Assert_ifParanoid(expr) Assert_true(expr)
 #else
-    #define Assert_true(expr)
-    #define Assert_ifParanoid(expr)
+    #define Assert_ifParanoid(expr) do { } while (0)
 #endif
 
 #ifdef TESTING
-    #define Assert_ifTesting(expr) Assert_always(expr)
+    #define Assert_ifTesting(expr) Assert_true(expr)
 #else
-    #define Assert_ifTesting(expr)
+    #define Assert_ifTesting(expr) do { } while (0)
 #endif
 
 #endif

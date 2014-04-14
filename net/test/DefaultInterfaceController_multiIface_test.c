@@ -47,7 +47,7 @@ int main()
     Message_push(msg, "The Key ", 8, NULL);
     iface.receiveMessage(msg, &iface);
 
-    Assert_always(allocatorsFreed == 1);
+    Assert_true(allocatorsFreed == 1);
 
     Allocator_free(alloc);
     return 0;

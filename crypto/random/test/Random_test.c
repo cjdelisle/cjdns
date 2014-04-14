@@ -24,7 +24,7 @@
 
 static void checkBytes(struct Random* rand, int alignment, int length)
 {
-    Assert_always(length < 128 && alignment < 8);
+    Assert_true(length < 128 && alignment < 8);
 
     uint64_t buff64[20] = {0};
     uint8_t* buff = (uint8_t*) (&buff64[1]);
@@ -60,15 +60,15 @@ static void checkBytes(struct Random* rand, int alignment, int length)
 
         // Check that the function did not write after or before the buffer.
         uint8_t* origBuff = (uint8_t*) (buff64);
-        Assert_always(Bits_isZero(origBuff, 8+alignment));
-        Assert_always(Bits_isZero(buff+length, 8));
+        Assert_true(Bits_isZero(origBuff, 8+alignment));
+        Assert_true(Bits_isZero(buff+length, 8));
     }
 
     for (int i = 0; i < length+length-1; i++) {
-        Assert_always(!sameBytes[i]);
+        Assert_true(!sameBytes[i]);
     }
     for (int i = 0; i < length; i++) {
-        Assert_always(!sameAsOld[i]);
+        Assert_true(!sameAsOld[i]);
     }
 }
 
@@ -84,7 +84,7 @@ static void test179(struct Allocator* alloc, struct Log* logger)
     Random_bytes(rand, buff, 32);
     Random_bytes(rand2, buff, 32);
 
-    Assert_always(Bits_memcmp(buff, buff2, 32));
+    Assert_true(Bits_memcmp(buff, buff2, 32));
 }
 
 int main()

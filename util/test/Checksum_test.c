@@ -46,7 +46,7 @@ static void checksumAlgorithmTest()
 
     uint16_t calcatedSum = Checksum_engine(packet, 20);
     //printf("%2x == %2x", checksum, calcatedSum);
-    Assert_always(checksum == calcatedSum);
+    Assert_true(checksum == calcatedSum);
 }
 
 
@@ -84,7 +84,7 @@ static void udp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_udpIp6(&packet[8], &packet[40], 25);
     printf("%2x == %2x", udp6Checksum, calcatedSum);
-    Assert_always(udp6Checksum == calcatedSum);
+    Assert_true(udp6Checksum == calcatedSum);
 }
 
 
@@ -119,7 +119,7 @@ static void icmp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_icmp6(&packet[8], &packet[40], 64);
     //printf("%2x == %2x", checksum, calcatedSum);
-    Assert_always(checksum == calcatedSum);
+    Assert_true(checksum == calcatedSum);
 }
 
 

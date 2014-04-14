@@ -53,7 +53,7 @@ int main()
     fi->receiverContext = &output;
 
     char* text = "Hello World!";
-    Assert_always(12 == strlen(text));
+    Assert_true(12 == strlen(text));
     union MessageLength ml = { .length_be = Endian_hostToBigEndian32(12) };
 
     struct Message* msg;
@@ -73,7 +73,7 @@ int main()
         send(&dummy, msg, alloc);
     }
 
-    Assert_always(output == NULL);
+    Assert_true(output == NULL);
     struct Allocator* child = Allocator_child(alloc);
     output = &(struct Message) { .alloc = child };
 
@@ -85,8 +85,8 @@ int main()
         send(&dummy, msg, alloc);
     }
 
-    Assert_always(output && output->length == (int)strlen(text));
-    Assert_always(!Bits_memcmp(output->bytes, text, strlen(text)));
+    Assert_true(output && output->length == (int)strlen(text));
+    Assert_true(!Bits_memcmp(output->bytes, text, strlen(text)));
 
     Allocator_free(child);
     child = Allocator_child(alloc);
@@ -100,8 +100,8 @@ int main()
         send(&dummy, msg, alloc);
     }
 
-    Assert_always(output && output->length == (int)strlen(text));
-    Assert_always(!Bits_memcmp(output->bytes, text, strlen(text)));
+    Assert_true(output && output->length == (int)strlen(text));
+    Assert_true(!Bits_memcmp(output->bytes, text, strlen(text)));
 
     Allocator_free(alloc);
 

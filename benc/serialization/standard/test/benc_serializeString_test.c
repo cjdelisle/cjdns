@@ -42,11 +42,11 @@ static int expect(char* str, struct Writer* writer, struct Reader* reader)
 
 static void testSerialize(struct Writer* writer, struct Reader* reader)
 {
-    Assert_always(!StandardBencSerializer_get()->serializeString(writer, String_CONST("hello")));
-    Assert_always(!expect("5:hello", writer, reader));
+    Assert_true(!StandardBencSerializer_get()->serializeString(writer, String_CONST("hello")));
+    Assert_true(!expect("5:hello", writer, reader));
 
-    Assert_always(!StandardBencSerializer_get()->serializeString(writer, String_CONST("")));
-    Assert_always(!expect("0:", writer, reader));
+    Assert_true(!StandardBencSerializer_get()->serializeString(writer, String_CONST("")));
+    Assert_true(!expect("0:", writer, reader));
 }
 
 static void testParse(struct Writer* w, struct Reader* r, struct Allocator* alloc)
@@ -56,7 +56,7 @@ static void testParse(struct Writer* w, struct Reader* r, struct Allocator* allo
                     "e26b15511:q4:auth4:txid19:43866780dc455e15619e";
     Writer_write(w, badBenc, strlen(badBenc)+1);
     Dict dict;
-    Assert_always(StandardBencSerializer_get()->parseDictionary(r, alloc, &dict));
+    Assert_true(StandardBencSerializer_get()->parseDictionary(r, alloc, &dict));
 }
 
 

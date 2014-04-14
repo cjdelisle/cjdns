@@ -22,6 +22,6 @@ bool Node_isOneHopLink(struct Node_Link* link)
 {
     struct EncodingScheme* ps = link->parent->encodingScheme;
     int num = EncodingScheme_getFormNum(ps, link->cannonicalLabel);
-    Assert_always(num > -1 && num < ps->count);
+    Assert_true(num > -1 && num < ps->count);
     return EncodingScheme_formSize(&ps->forms[num]) == Bits_log2x64(link->cannonicalLabel);
 }

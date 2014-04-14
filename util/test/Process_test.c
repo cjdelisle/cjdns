@@ -41,7 +41,7 @@ struct Context {
 
 static void onConnectionParent(struct Pipe* p, int status)
 {
-    Assert_always(!status);
+    Assert_true(!status);
     struct Context* c = p->iface.receiverContext;
 
     struct Allocator* alloc = Allocator_child(c->alloc);
@@ -62,28 +62,28 @@ static void onConnectionParent(struct Pipe* p, int status)
 static uint8_t receiveMessageParent(struct Message* msg, struct Interface* iface)
 {
     struct Context* c = iface->receiverContext;
-    Assert_always(msg->length == (int)CString_strlen(MESSAGEB));
-    Assert_always(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)));
+    Assert_true(msg->length == (int)CString_strlen(MESSAGEB));
+    Assert_true(!Bits_memcmp(msg->bytes, MESSAGEB, CString_strlen(MESSAGEB)));
     Allocator_free(c->alloc);
     return Error_NONE;
 }
 
 static void timeout(void* vNULL)
 {
-    Assert_always(!"timed out.");
+    Assert_true(!"timed out.");
 }
 
 static void onConnectionChild(struct Pipe* p, int status)
 {
-    Assert_always(!status);
+    Assert_true(!status);
     printf("Child connected\n");
 }
 
 static uint8_t receiveMessageChild(struct Message* m, struct Interface* iface)
 {
     printf("Child received message\n");
-    Assert_always(m->length == (int)CString_strlen(MESSAGE));
-    Assert_always(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)));
+    Assert_true(m->length == (int)CString_strlen(MESSAGE));
+    Assert_true(!Bits_memcmp(m->bytes, MESSAGE, CString_strlen(MESSAGE)));
 
     Message_shift(m, -((int)CString_strlen(MESSAGE)), NULL);
     Message_push(m, MESSAGEB, CString_strlen(MESSAGEB), NULL);
@@ -136,17 +136,17 @@ int main(int argc, char** argv)
 
     char* path = Process_getPath(alloc);
 
-    Assert_always(path != NULL);
+    Assert_true(path != NULL);
     #ifdef win32
-        Assert_always(strstr(path, ":\\") == path + 1); /* C:\ */
-        Assert_always(strstr(path, ".exe"));
+        Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */
+        Assert_true(strstr(path, ".exe"));
     #else
-        Assert_always(path[0] == '/');
+        Assert_true(path[0] == '/');
     #endif
 
     char* args[] = { "Process_test", "child", name, NULL };
 
-    Assert_always(!Process_spawn(path, args, eb, alloc));
+    Assert_true(!Process_spawn(path, args, eb, alloc));
 
     Timeout_setTimeout(timeout, NULL, 2000, eb, alloc);
 
