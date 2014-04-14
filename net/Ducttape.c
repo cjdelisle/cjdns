@@ -946,12 +946,15 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             }
             struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
             if (causeCtrl->type_be != Control_PING_be) {
-                uint32_t errorType = Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
-                Log_info(context->logger,
-                          "error packet from [%s] caused by [%s] packet ([%s])",
-                          labelStr,
-                          Control_typeString(causeCtrl->type_be),
-                          Error_strerror(errorType));
+                #ifdef Log_INFO
+                    uint32_t errorType =
+                        Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
+                    Log_info(context->logger,
+                              "error packet from [%s] caused by [%s] packet ([%s])",
+                              labelStr,
+                              Control_typeString(causeCtrl->type_be),
+                              Error_strerror(errorType));
+                #endif
             } else {
                 if (LabelSplicer_isOneHop(label)
                     && ctrl->content.error.errorType_be

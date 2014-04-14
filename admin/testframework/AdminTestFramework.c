@@ -95,11 +95,11 @@ static void initAngel(struct Pipe* asClientPipe,
     Interface_sendMessage(&asClientPipe->iface, toAngel);
 
     // This is client->angel->core data, we can throw this away.
-    struct Message* angelToCore =
-        InterfaceWaiter_waitForData(asCoreIface, eventBase, tempAlloc, NULL);
+    //struct Message* angelToCore =
+    InterfaceWaiter_waitForData(asCoreIface, eventBase, tempAlloc, NULL);
 
     // unterminated string
-    Log_info(logger, "Init message from angel to core: [%s]", angelToCore->bytes);
+    //Log_info(logger, "Init message from angel to core: [%s]", angelToCore->bytes);
 
     // Send response on behalf of core.
     char* coreToAngelResponse = "        PADDING         "

@@ -799,7 +799,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
 
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
-        Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
+        Hex_encode(tempKeyHex, 65, header->handshake.encryptedTempKey, 32);
         Log_keys(wrapper->context->logger,
                   "Unwrapping temp public key:\n"
                   "    %s\n",
