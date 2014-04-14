@@ -30,6 +30,11 @@
 #define __USE_MISC // for MAP_ANONYMOUS
 #include <sys/mman.h>
 
+// Apple
+#ifndef MAP_ANONYMOUS
+    #define MAP_ANONYMOUS MAP_ANON
+#endif
+
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
     struct passwd* pw = getpwnam(userName);
