@@ -1,0 +1,77 @@
+#!/system/bin/sh
+
+CJDPATH="/sdcard/cjdns"
+
+# Create the daemon folder if it doesn't exist, then kill the script if it's still missing
+if [ ! -e "$CJDPATH" ]; then mkdir -p "$CJDPATH"; fi
+if [ ! -d "$CJDPATH" ]; then exit 1; fi
+
+if [ -f "${CJDPATH}/cjdaemon.conf" ]; then source "${CJDPATH}/cjdaemon.conf"; fi
+if [ -z "$CJDCFG" ]; then CJDCFG="cjdroute.conf"; fi
+
+cjdstart() {
+    if [ ! -f "${CJDPATH}/.lock" ]; then touch "${CJDPATH}/.lock"; fi
+
+    echo -n "starting cjdroute... "
+    if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then echo "error: already running"; exit 1; fi
+    if [ ! -f "${CJDPATH}/${CJDCFG}" ]; then echo "error: ${CJDPATH}/${CJDCFG} does not exist"; exit 1; fi
+    cjdroute < "${CJDPATH}/${CJDCFG}" &> /dev/null 2>&1
+    if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then echo "done!"; else echo "failed, cjdroute didn't start"; exit 1; fi
+
+    if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then if [ -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then exit 0; fi; fi
+    startcjdaemon
+}
+
+cjdstop() {
+    if [ -f "${CJDPATH}/.lock" ]; then rm "${CJDPATH}/.lock"; fi
+
+    echo -n "stopping cjdroute... "
+    if [ $(pgrep cjdroute | wc -l) -eq 0 ]; then echo "error: not running"; exit 1; fi
+    killall cjdroute
+    sleep 1
+    if [ $(pgrep cjdroute | wc -l) -eq 0 ]; then echo "done!"; else echo "failed, cjdroute still running"; exit 1; fi
+}
+
+startcjdaemon() {
+    if [ ! -f "${CJDPATH}/.lock" ]; then touch "${CJDPATH}/.lock"; fi
+
+    echo -n "starting daemon... "
+    if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then
+        if [ -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then
+            echo "error: daemon already running"
+            exit 1
+        fi
+    fi
+    cjdaemon &
+    sleep 1
+    if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then if [ -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then echo "done!"; else echo "error: daemon didn't start"; exit 1; fi; fi
+}
+
+stopcjdaemon() {
+    echo -n "stopping daemon... "
+    if [ ! -f "${CJDPATH}/.cjdaemon.pid" ]; then echo "error: pid file doesn't exist"; exit 1; fi
+    if [ -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then
+        kill $(cat "${CJDPATH}/.cjdaemon.pid")
+        sleep 1
+        if [ ! -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then echo "done!"; else echo "error: cjdaemon still running"; exit 1; fi
+    else
+        echo "error: cjdaemon isn't running"
+    fi
+    rm "${CJDPATH}/.cjdaemon.pid"
+    if [ -f "${CJDPATH}/.lock" ] || [ $(pgrep cjdroute | wc -l) -gt 0 ]; then cjdstop; fi
+}
+
+if [ "$1" = "start" ]; then
+    cjdstart
+elif [ "$1" = "stop" ]; then
+    cjdstop
+elif [ "$1" = "restart" ]; then
+    stop
+    start
+elif [ "$1" = "start-daemon" ]; then
+    startcjdaemon
+elif [ "$1" = "stop-daemon" ]; then
+    stopcjdaemon
+else
+    echo "$0 start|stop|restart|start-daemon|stop-daemon"
+fi
