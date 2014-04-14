@@ -82,7 +82,7 @@ void DHTModuleRegistry_handleIncoming(struct DHTMessage* message,
 
 static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* message)
 {
-    Assert_true(module != NULL);
+    Assert_ifParanoid(module != NULL);
     if (module->handleOutgoing) {
         DEBUG2(">> calling: %s->handleOutgoing\n", module->name);
         return module->handleOutgoing(message, module->context);

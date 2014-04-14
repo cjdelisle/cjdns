@@ -373,7 +373,7 @@ static uint8_t genReverseHandshake(struct Message* message,
     cryptoAuthDebug0(wrapper, "Buffered a message");
     struct Allocator* bmalloc = Allocator_child(wrapper->externalInterface.allocator);
     wrapper->bufferedMessage = Message_clone(message, bmalloc);
-    Assert_true(wrapper->nextNonce == 0);
+    Assert_ifParanoid(wrapper->nextNonce == 0);
 
     Message_shift(message, Headers_CryptoAuth_SIZE, NULL);
     header = (union Headers_CryptoAuth*) message->bytes;
@@ -505,7 +505,7 @@ static uint8_t encryptHandshake(struct Message* message,
     } else {
         // Handshake2
         // herTempPubKey was set by receiveMessage()
-        Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
+        Assert_ifParanoid(!Bits_isZero(wrapper->herTempPubKey, 32));
         getSharedSecret(sharedSecret,
                         wrapper->context->privateKey,
                         wrapper->herTempPubKey,
@@ -585,9 +585,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
         reset(wrapper);
     }
 
-    #ifdef Log_DEBUG
-        Assert_true(!((uintptr_t)message->bytes % 4) || !"alignment fault");
-    #endif
+    Assert_true(!((uintptr_t)message->bytes % 4) || !"alignment fault");
 
     // nextNonce 0: sending hello, we are initiating connection.
     // nextNonce 1: sending another hello, nothing received yet.
@@ -602,8 +600,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* interface)
             return encryptHandshake(message, wrapper, 0);
         } else {
             cryptoAuthDebug0(wrapper, "Doing final step to send message. nonce=4");
-            Assert_true(!Bits_isZero(wrapper->ourTempPrivKey, 32));
-            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
+            Assert_ifParanoid(!Bits_isZero(wrapper->ourTempPrivKey, 32));
+            Assert_ifParanoid(!Bits_isZero(wrapper->herTempPubKey, 32));
             getSharedSecret(wrapper->sharedSecret,
                             wrapper->ourTempPrivKey,
                             wrapper->herTempPubKey,
@@ -797,9 +795,8 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         return Error_AUTHENTICATION;
     }
 
-    #ifdef Log_DEBUG
-        Assert_true(!Bits_isZero(header->handshake.encryptedTempKey, 32));
-    #endif
+    Assert_ifParanoid(!Bits_isZero(header->handshake.encryptedTempKey, 32));
+
     #ifdef Log_KEYS
         uint8_t tempKeyHex[65];
         Hex_encode(tempKeyHex, 65, wrapper->tempKey, 32);
@@ -946,9 +943,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         return Error_UNDERSIZE_MESSAGE;
     }
     Assert_true(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
-    #ifdef Log_DEBUG
-        Assert_true(!((uintptr_t)received->bytes % 4) || !"alignment fault");
-    #endif
+    Assert_true(!((uintptr_t)received->bytes % 4) || !"alignment fault");
+
     Message_shift(received, -4, NULL);
 
     uint32_t nonce = Endian_bigEndianToHost32(header->nonce);
@@ -962,8 +958,8 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
             }
             cryptoAuthDebug(wrapper, "Trying final handshake step, nonce=%u\n", nonce);
             uint8_t secret[32];
-            Assert_true(!Bits_isZero(wrapper->ourTempPrivKey, 32));
-            Assert_true(!Bits_isZero(wrapper->herTempPubKey, 32));
+            Assert_ifParanoid(!Bits_isZero(wrapper->ourTempPrivKey, 32));
+            Assert_ifParanoid(!Bits_isZero(wrapper->herTempPubKey, 32));
             getSharedSecret(secret,
                             wrapper->ourTempPrivKey,
                             wrapper->herTempPubKey,
@@ -997,7 +993,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
         return decryptHandshake(wrapper, nonce, received, header);
 
     } else if (nonce > 3 && nonce != UINT32_MAX) {
-        Assert_true(!Bits_isZero(wrapper->sharedSecret, 32));
+        Assert_ifParanoid(!Bits_isZero(wrapper->sharedSecret, 32));
         if (decryptMessage(wrapper, nonce, received, wrapper->sharedSecret)) {
             return callReceivedMessage(wrapper, received);
         } else {

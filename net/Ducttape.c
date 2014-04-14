@@ -424,12 +424,11 @@ static uint8_t magicInterfaceSendMessage(struct Message* msg, struct Interface* 
         Identity_check((struct Ducttape_pvt*)
             &((uint8_t*)iface)[-offsetof(struct Ducttape, magicInterface)]);
 
+    Assert_ifParanoid(msg->length >= Headers_IP6Header_SIZE);
     #ifdef PARANOIA
-        Assert_true(msg->length >= Headers_IP6Header_SIZE);
         struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
-
-        Assert_true(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
-        Assert_true(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
+        Assert_ifParanoid(!Bits_memcmp(header->destinationAddr, ctx->myAddr.ip6.bytes, 16));
+        Assert_ifParanoid(!Bits_memcmp(header->sourceAddr, FC_ONE, 16));
     #endif
 
     TUNMessageType_push(msg, Ethernet_TYPE_IP6, NULL);
@@ -775,7 +774,7 @@ static inline uint8_t outgoingFromMe(struct Message* message,
 
     } else {
         // sanity check.
-        Assert_true(!Bits_memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16));
+        Assert_ifParanoid(!Bits_memcmp(header->sourceAddr, context->myAddr.ip6.bytes, 16));
     }
 
     // Need to set the length field to take into account

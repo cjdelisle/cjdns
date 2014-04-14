@@ -212,7 +212,7 @@ static void searchStep(struct SearchRunner_Search* search)
         break;
     }
 
-    Assert_true(node != ctx->nodeStore->selfNode);
+    Assert_always(node != ctx->nodeStore->selfNode);
 
     Bits_memcpyConst(&search->lastNodeAsked, &node->address, sizeof(struct Address));
 
@@ -252,7 +252,7 @@ static int searchOnFree(struct Allocator_OnFreeJob* job)
     if (search->nextSearch) {
         search->nextSearch->thisSearch = search->thisSearch;
     }
-    Assert_true(search->runner->searches > 0);
+    Assert_always(search->runner->searches > 0);
     search->runner->searches--;
     return 0;
 }

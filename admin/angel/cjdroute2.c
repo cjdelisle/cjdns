@@ -447,7 +447,7 @@ int main(int argc, char** argv)
         return Core_main(argc, argv);
     }
 
-    Assert_true(argc > 0);
+    Assert_ifParanoid(argc > 0);
     struct Except* eh = NULL;
 
     // Allow it to allocate 4MB
@@ -539,9 +539,9 @@ int main(int argc, char** argv)
     // --------------------- Setup Pipes to Angel --------------------- //
     char angelPipeName[64] = "client-angel-";
     Random_base32(rand, (uint8_t*)angelPipeName+13, 31);
-    Assert_true(EventBase_eventCount(eventBase) == 0);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
     struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
-    Assert_true(EventBase_eventCount(eventBase) == 2);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
     angelPipe->logger = logger;
 
     char* args[] = { "angel", angelPipeName, NULL };
@@ -635,7 +635,7 @@ int main(int argc, char** argv)
     }
 
     // sanity check, Pipe_named() creates 2 events, see above.
-    Assert_true(EventBase_eventCount(eventBase) == 2);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,

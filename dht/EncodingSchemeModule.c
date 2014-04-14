@@ -108,17 +108,15 @@ static int handleOutgoing(struct DHTMessage* dmesg, void* vcontext)
                    ctx->schemeDefinition,
                    dmesg->allocator);
 
-    #ifdef TESTING
-        // sanity check
-        Assert_true(dmesg->address->path ==
-            EncodingScheme_convertLabel(ctx->scheme,
-                                        dmesg->address->path,
-                                        EncodingScheme_convertLabel_convertTo_CANNONICAL));
-    #endif
+    // sanity check if in sym, real world broken nodes will trigger this.
+    Assert_ifTesting(dmesg->address->path ==
+        EncodingScheme_convertLabel(ctx->scheme,
+                                    dmesg->address->path,
+                                    EncodingScheme_convertLabel_convertTo_CANNONICAL));
 
     // And tell the asker which interface the message came from
     int encIdx = EncodingScheme_getFormNum(ctx->scheme, dmesg->address->path);
-    Assert_true(encIdx != EncodingScheme_getFormNum_INVALID);
+    Assert_ifParanoid(encIdx != EncodingScheme_getFormNum_INVALID);
     Dict_putInt(dmesg->asDict, CJDHTConstants_ENC_INDEX, encIdx, dmesg->allocator);
 
     return 0;

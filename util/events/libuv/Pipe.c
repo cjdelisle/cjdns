@@ -79,7 +79,7 @@ static void sendMessageCallback(uv_write_t* uvReq, int error)
                  req->pipe->pub.fullName, uv_strerror(error) );
     }
     req->pipe->queueLen -= req->msg->length;
-    Assert_true(req->pipe->queueLen >= 0);
+    Assert_ifParanoid(req->pipe->queueLen >= 0);
     Allocator_free(req->alloc);
 }
 

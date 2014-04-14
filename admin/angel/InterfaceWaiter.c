@@ -74,7 +74,7 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
         Except_throw(eh, "InterfaceWaiter Timed out waiting for data.");
     }
 
-    Assert_true(ctx.message);
+    Assert_always(ctx.message);
     return ctx.message;
 }
 

@@ -121,9 +121,11 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
         return mif->peerMap.values[index];
     }
 
-    uint8_t keyHex[256] = {0};
-    Assert_true(Hex_encode(keyHex, 255, (uint8_t*)key, key->keySize+4));
-    Log_debug(mif->logger, "New incoming message from [%s]", keyHex);
+    #ifdef Log_DEBUG
+        uint8_t keyHex[256] = {0};
+        Assert_true(Hex_encode(keyHex, 255, (uint8_t*)key, key->keySize+4));
+        Log_debug(mif->logger, "New incoming message from [%s]", keyHex);
+    #endif
 
     // Per peer allocator.
     struct Allocator* alloc = Allocator_child(mif->allocator);

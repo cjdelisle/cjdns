@@ -194,7 +194,7 @@ int Admin_sendMessage(Dict* message, String* txid, struct Admin* admin)
         return 0;
     }
     Identity_check(admin);
-    Assert_true(txid && txid->len >= admin->addrLen);
+    Assert_always(txid && txid->len >= admin->addrLen);
 
     struct Sockaddr_storage addr;
     Bits_memcpy(&addr, txid->bytes, admin->addrLen);
@@ -274,7 +274,7 @@ static bool checkArgs(Dict* args,
     String* error = NULL;
     while (entry != NULL) {
         String* key = (String*) entry->key;
-        Assert_true(entry->val->type == Object_DICT);
+        Assert_ifParanoid(entry->val->type == Object_DICT);
         Dict* value = entry->val->as.dictionary;
         entry = entry->next;
         if (*Dict_getInt(value, String_CONST("required")) == 0) {
@@ -469,7 +469,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct Admin* admin = Identity_check((struct Admin*) iface->receiverContext);
 
-    Assert_true(message->length >= (int)admin->addrLen);
+    Assert_ifParanoid(message->length >= (int)admin->addrLen);
     struct Sockaddr_storage addrStore = { .addr = { .addrLen = 0 } };
     Message_pop(message, &addrStore, admin->addrLen, NULL);
 

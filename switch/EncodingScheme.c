@@ -228,7 +228,7 @@ bool EncodingScheme_isSane(struct EncodingScheme* scheme)
 
 List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc)
 {
-    Assert_true(EncodingScheme_isSane(list));
+    Assert_ifParanoid(EncodingScheme_isSane(list));
     String* prefixLen = String_new("prefixLen", alloc);
     String* bitCount = String_new("bitCount", alloc);
     String* prefix = String_new("prefix", alloc);
@@ -276,7 +276,7 @@ struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* a
 String* EncodingScheme_serialize(struct EncodingScheme* list,
                                  struct Allocator* alloc)
 {
-    Assert_true(EncodingScheme_isSane(list));
+    Assert_ifParanoid(EncodingScheme_isSane(list));
 
     // Create the string as the largest that is possible for the list size.
     String* out = String_newBinary(NULL, list->count * 6, alloc);
@@ -382,7 +382,7 @@ struct EncodingScheme* EncodingScheme_defineDynWidthScheme(struct EncodingScheme
         .forms = formsCopy
     }));
 
-    Assert_true(EncodingScheme_isSane(scheme));
+    Assert_ifParanoid(EncodingScheme_isSane(scheme));
     return scheme;
 }
 

@@ -56,6 +56,7 @@ static inline int Bits_popCountx32(uint32_t number)
     return out;
 }
 
+// TODO(cjd): this is hot, optimize this to use the ASM instruction.
 static inline int Bits_log2x64(uint64_t number)
 {
     int out = 0;
@@ -68,7 +69,7 @@ static inline int Bits_log2x64(uint64_t number)
 /** Largest possible number whose log2 is bitCount. */
 static inline uint64_t Bits_maxBits64(uint32_t bitCount)
 {
-    Assert_true(bitCount < 64);
+    Assert_ifParanoid(bitCount < 64);
     return (((uint64_t)1) << bitCount) - 1;
 }
 

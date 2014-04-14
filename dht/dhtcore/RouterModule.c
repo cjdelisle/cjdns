@@ -299,8 +299,8 @@ static inline int sendNodes(struct NodeList* nodeList,
 
         versions->versions[i] = nodeList->nodes[i]->address.protocolVersion;
 
-        Assert_true(!Bits_isZero(&nodes->bytes[i * Address_SERIALIZED_SIZE],
-                                 Address_SERIALIZED_SIZE));
+        Assert_ifParanoid(!Bits_isZero(&nodes->bytes[i * Address_SERIALIZED_SIZE],
+                                       Address_SERIALIZED_SIZE));
     }
     nodes->len = i * Address_SERIALIZED_SIZE;
     versions->length = i;
@@ -588,7 +588,7 @@ struct RouterModule_Promise* RouterModule_newMessage(struct Address* addr,
     // sending yourself a ping?
 //    Assert_true(Bits_memcmp(addr->key, module->address.key, 32));
 
-    Assert_true(addr->path ==
+    Assert_ifParanoid(addr->path ==
         EncodingScheme_convertLabel(module->nodeStore->selfNode->encodingScheme,
                                     addr->path,
                                     EncodingScheme_convertLabel_convertTo_CANNONICAL));
@@ -696,7 +696,7 @@ void RouterModule_peerIsReachable(uint64_t pathToPeer,
                                   uint64_t lagMilliseconds,
                                   struct RouterModule* module)
 {
-    Assert_true(LabelSplicer_isOneHop(pathToPeer));
+    Assert_ifParanoid(LabelSplicer_isOneHop(pathToPeer));
     struct Node_Two* nn = RouterModule_nodeForPath(pathToPeer, module);
     for (struct Node_Link* peerLink = nn->reversePeers; peerLink; peerLink = peerLink->nextPeer) {
         if (peerLink->parent != module->nodeStore->selfNode) { continue; }

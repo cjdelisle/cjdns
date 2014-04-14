@@ -67,7 +67,7 @@ static struct Address* getWorst(struct RumorMill_pvt* rm)
             worst = &rm->addresses[i];
         }
     }
-    Assert_true(worst);
+    Assert_ifParanoid(worst);
     return worst;
 }
 

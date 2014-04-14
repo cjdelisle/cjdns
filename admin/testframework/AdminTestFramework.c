@@ -53,7 +53,7 @@ static void spawnAngel(char* testName,
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
     char* path = Process_getPath(tempAlloc);
-    Assert_true(path);
+    Assert_always(path);
     Process_spawn(path, args, base, alloc);
     Allocator_free(tempAlloc);
 }
@@ -167,7 +167,7 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char*
     initAngel(asClientPipe, asCoreIface, (char*)asCorePipe->name, eventBase, logger, alloc, rand);
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
+    Assert_always(!Sockaddr_parse("127.0.0.1", &addr));
 
     Log_info(logger, "Binding UDP admin socket");
     struct AddrInterface* udpAdmin =
