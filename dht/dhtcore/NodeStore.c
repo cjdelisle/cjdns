@@ -1281,10 +1281,11 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
     return (oldReach / 2);
 }
 
-static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
+static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
 {
     int64_t out = reachAfterDecay(oldReach) +
         ((UINT32_MAX / NodeStore_latencyWindow) / (millisecondsLag + 1));
+    if (!oldReach) { out = out * (NodeStore_latencyWindow - 1); }
     // TODO: is this safe?
     Assert_true(out < (UINT32_MAX - 1024) && out > 0);
     return out;
@@ -1300,7 +1301,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     verify(store);
 
     // conservative guess of what the reach would stabilize to
-    uint32_t reach = nextReach(0, milliseconds) * (NodeStore_latencyWindow - 1);
+    uint32_t reach = calcNextReach(0, milliseconds);
 
     struct Node_Two* child = nodeForIp(store, addr->ip6.bytes);
 
@@ -1779,14 +1780,14 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         uint32_t newReach;
         if (node->address.path == path) {
             // Use old reach value to calculate new reach
-            newReach = nextReach(node->reach_ro, milliseconds);
+            newReach = calcNextReach(node->reach_ro, milliseconds);
         }
         else {
             // Old reach value doesn't relate to this path, so we should do something different
             // FIXME we're just guessing what the reach would stabilize to
             // I think actually fixing this would require storing reach (or latency) per link,
             // so we can calculate the expected reach for an arbitrary path
-            newReach = nextReach(0, milliseconds) * (NodeStore_latencyWindow - 1);
+            newReach = calcNextReach(0, milliseconds);
         }
         updatePathReach(nodeStore, path, newReach);
     }
