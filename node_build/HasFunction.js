@@ -18,14 +18,14 @@ module.exports.check = function (builder, func, ldflags, callback) {
     }).nThen(function (waitFor) {
 
         var flags = [];
-        flags.push.apply(flags, ldflags);
         flags.push.apply(flags, ["-x", "c", "-o", outputFile, file]);
+        flags.push.apply(flags, ldflags);
 
-        builder.cc(flags, waitFor(function (err, ret) {
-            if (err && /undefined reference/.test(err.message)) {
+        builder.cc(flags, waitFor(function (ret, out, err) {
+            if (ret && /undefined reference/.test(err)) {
                 callback(undefined, false);
-            } else if (err) {
-                callback(err);
+            } else if (ret) {
+                callback(new Error(err));
             } else {
                 callback(undefined, true);
             }
