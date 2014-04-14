@@ -15,6 +15,7 @@
 #ifndef Security_H
 #define Security_H
 
+#include "memory/Allocator.h"
 #include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
@@ -24,10 +25,22 @@
     Linker_require("util/Security.c")
 #endif
 
+#include <stdint.h>
+
+struct Security_Permissions
+{
+    int noOpenFiles;
+    int seccompExists;
+    int seccompEnforcing;
+    uint64_t memoryLimitBytes;
+};
+
 /** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
 #define Security_setUser_PERMISSION -1
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
 void Security_dropPermissions(struct Except* eh);
+
+struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh);
 
 #endif

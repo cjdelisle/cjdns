@@ -163,12 +163,12 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
     }
 
     if (node->bestParent) {
-        Assert_fileLine(node->bestParent->parent->pathQuality > node->pathQuality
+        Assert_fileLine(Node_getReach(node->bestParent->parent) > Node_getReach(node)
             || node == store->pub.selfNode, file, line);
 
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
         // Should never get as low as 512...
-        Assert_fileLine(node->pathQuality > 512, file, line);
+        Assert_fileLine(Node_getReach(node) > 512, file, line);
 
         struct Node_Two* nn = node;
         do {
@@ -182,7 +182,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 
     } else {
         Assert_fileLine(node->address.path == UINT64_MAX, file, line);
-        Assert_fileLine(node->pathQuality == 0, file, line);
+        Assert_fileLine(Node_getReach(node) == 0, file, line);
     }
 }
 #define checkNode(node, store) _checkNode(node, store, Gcc_SHORT_FILE, Gcc_LINE)
@@ -233,7 +233,6 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
 
 static void _check(struct NodeStore_pvt* store, char* file, int line)
 {
-return;
     #ifndef PARANOIA
         return;
     #endif
@@ -269,6 +268,19 @@ static uint64_t extendRoute(uint64_t routeLabel,
     return LabelSplicer_splice(next, routeLabel);
 }
 
+static void setReach(struct Node_Two* node, uint32_t newReach)
+{
+    if (newReach) {
+        Assert_true(node->bestParent);
+        Assert_true(node->address.path < UINT64_MAX);
+        Assert_true(newReach > 512);
+    } else {
+        Assert_true(!node->bestParent);
+        Assert_true(node->address.path == UINT64_MAX);
+    }
+    node->reach_ro = newReach;
+}
+
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
@@ -277,7 +289,7 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     }
     node->bestParent = NULL;
     node->address.path = UINT64_MAX;
-    node->pathQuality = 0;
+    setReach(node, 0);
 }
 
 /**
@@ -289,19 +301,20 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 static uint32_t guessReachOfChild(struct Node_Link* link)
 {
     // return 3/4 of the parent's reach if it's 1 hop, 1/2 otherwise.
-    uint32_t r = link->parent->pathQuality / 2;
+    uint32_t r = Node_getReach(link->parent) / 2;
     if (r < (1<<12)) {
-        r = link->parent->pathQuality - 1;
+        r = Node_getReach(link->parent) - 1;
     } else if (r < (1<<16)) {
-        r = link->parent->pathQuality - Bits_log2x64(link->cannonicalLabel);
+        r = Node_getReach(link->parent) - Bits_log2x64(link->cannonicalLabel);
     }
-    Assert_true(r < link->parent->pathQuality && r != 0);
+    Assert_true(r < Node_getReach(link->parent) && r != 0);
     return r;
 }
 
 static int updateBestParentCycle(struct Node_Two* node,
                                  int cycle,
                                  int limit,
+                                 uint32_t nextReach,
                                  struct NodeStore_pvt* store)
 {
     Assert_always(cycle < 1000);
@@ -310,7 +323,7 @@ static int updateBestParentCycle(struct Node_Two* node,
         struct Node_Link* next = NULL;
         RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
             if (next->child->bestParent == next && next->child != node) {
-                total += updateBestParentCycle(next->child, cycle+1, limit, store);
+                total += updateBestParentCycle(next->child, cycle+1, limit, nextReach, store);
             }
         }
         return total;
@@ -340,6 +353,9 @@ static int updateBestParentCycle(struct Node_Two* node,
     #endif*/
 
     node->address.path = bestPath;
+    if (!limit) {
+        setReach(node, nextReach);
+    }
     checkNode(node, store);
     return 1;
 }
@@ -351,16 +367,15 @@ static void updateBestParent(struct Node_Two* node,
 {
     check(store);
     node->bestParent = newBestParent;
-    node->pathQuality = nextReach;
-    //Assert_true(node->pathQuality > 1023);
-    Assert_true(node->pathQuality < newBestParent->parent->pathQuality);
+    Assert_true(newBestParent);
+    //Assert_true(nextReach > 1023);
+    Assert_true(nextReach < Node_getReach(newBestParent->parent));
 
     for (int i = 0; i < 10000; i++) {
-        if (!updateBestParentCycle(node, 0, i, store)) {
+        if (!updateBestParentCycle(node, 0, i, nextReach, store)) {
             check(store);
             return;
         }
-        checkNode(node, store);
     }
     Assert_true(0);
 }
@@ -373,21 +388,21 @@ static void handleGoodNews(struct Node_Two* node,
     Assert_always(newReach != UINT32_MAX);
     Assert_always(newReach > 1023);
 
-    Assert_true(newReach > node->pathQuality);
+    Assert_true(newReach > Node_getReach(node));
 
     // The nodestore thinks it's unreachable, we can't very well update the reach.
     if (node->bestParent == NULL) { return; }
 
-    if (newReach+1 > node->bestParent->parent->pathQuality) {
+    if (newReach+1 > Node_getReach(node->bestParent->parent)) {
         handleGoodNews(node->bestParent->parent, newReach+1, store);
     }
-    node->pathQuality = newReach;
+    setReach(node, newReach);
     struct Node_Link* link = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         struct Node_Two* child = link->child;
-        if (!child->bestParent || child->bestParent->parent->pathQuality < newReach) {
+        if (!child->bestParent || Node_getReach(child->bestParent->parent) < newReach) {
             uint32_t nextReach = guessReachOfChild(link);
-            if (child->pathQuality > nextReach) { continue; }
+            if (Node_getReach(child) > nextReach) { continue; }
             updateBestParent(child, link, nextReach, store);
         }
     }
@@ -414,8 +429,8 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     struct Node_Link* rp = link->child->reversePeers;
     struct Node_Link* best = node->bestParent;
     while (rp) {
-        if (rp->parent->pathQuality >= best->parent->pathQuality) {
-            if (rp->parent->pathQuality > best->parent->pathQuality
+        if (Node_getReach(rp->parent) >= Node_getReach(best->parent)) {
+            if (Node_getReach(rp->parent) > Node_getReach(best->parent)
                 || rp->parent->address.path < best->parent->address.path)
             {
                 best = rp;
@@ -428,8 +443,8 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     if (best == node->bestParent) { return; }
 
     uint32_t nextReach = guessReachOfChild(best);
-    if (nextReach <= node->pathQuality) { return; }
-    Assert_true(node->pathQuality < best->parent->pathQuality);
+    if (nextReach <= Node_getReach(node)) { return; }
+    Assert_true(Node_getReach(node) < Node_getReach(best->parent));
 
     check(store);
     updateBestParent(node, best, nextReach, store);
@@ -450,7 +465,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
     RB_FOREACH_REVERSE(next, PeerRBTree, &link->child->peerTree) {
         if (next->child->bestParent != next) { continue; }
         if (next == store->selfLink) { continue; }
-        if (next->child->pathQuality < newReach) { continue; }
+        if (Node_getReach(next->child) < newReach) { continue; }
 
         uint32_t ret = handleBadNewsOne(next, newReach, store);
         if (ret > highestRet) { highestRet = ret; }
@@ -461,7 +476,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
     if (!highestRet) {
         unreachable(link->child, store);
     } else {
-        link->child->pathQuality = highestRet;
+        setReach(link->child, highestRet);
     }
 
     if (highestRet < 1023) { highestRet = 1023; }
@@ -472,7 +487,7 @@ static void handleBadNews(struct Node_Two* node,
                           uint32_t newReach,
                           struct NodeStore_pvt* store)
 {
-    Assert_true(newReach < node->pathQuality);
+    Assert_true(newReach < Node_getReach(node));
 
     // no bestParent implies a reach of 0
     Assert_true(node->bestParent);
@@ -488,10 +503,10 @@ static void handleBadNews(struct Node_Two* node,
     // If our bad news actually improved the reach number for the node (because it was previously
     // 0 and that node has children) then we need to handle it as good news as well.
     if (node->bestParent) {
-        if (node->pathQuality >= node->bestParent->parent->pathQuality) {
-            handleGoodNews(node->bestParent->parent, node->pathQuality+1, store);
+        if (Node_getReach(node) >= Node_getReach(node->bestParent->parent)) {
+            handleGoodNews(node->bestParent->parent, Node_getReach(node)+1, store);
         }
-        Assert_true(node->pathQuality < node->bestParent->parent->pathQuality);
+        Assert_true(Node_getReach(node) < Node_getReach(node->bestParent->parent));
     }
 
     check(store);
@@ -509,11 +524,10 @@ static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStor
     if (newReach < 1024) { newReach = 1024; }
 
     check(store);
-    if (newReach < node->pathQuality) {
+    if (newReach < Node_getReach(node)) {
         handleBadNews(node, newReach, store);
         check(store);
-    }
-    if (newReach > node->pathQuality) {
+    } else if (newReach > Node_getReach(node)) {
         handleGoodNews(node, newReach, store);
         check(store);
     }
@@ -996,17 +1010,19 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             goto done;
         }
 
-        if (grandChild->bestParent == splitLink && child->pathQuality <= grandChild->pathQuality) {
+        if (grandChild->bestParent == splitLink
+            && Node_getReach(child) <= Node_getReach(grandChild))
+        {
             // We know that the grandchild decends from the parent because splitLink is parent-->gc
             // Two possibilities:
             // someRoute-->child-->parent
             // someRoute-->parent-->child
 
             check(store);
-            if (parent->pathQuality >= child->pathQuality) {
+            if (Node_getReach(parent) >= Node_getReach(child)) {
                 // Parent definitely does not decend from child.
-                Assert_true(grandChild->pathQuality < UINT32_MAX);
-                updateBestParent(child, parentLink, child->pathQuality, store);
+                Assert_true(Node_getReach(grandChild) < UINT32_MAX);
+                updateBestParent(child, parentLink, Node_getReach(child), store);
             } else {
                 // Child definitely does not decend from parent
                 // Parent may decend from child, if it does we cannot safely re-root child
@@ -1014,11 +1030,11 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // we might as well use the route which goes via the child rather than re-rooting
                 // it anyway.
             }
-            handleGoodNews(child, grandChild->pathQuality+1, store);
+            handleGoodNews(child, Node_getReach(grandChild)+1, store);
 
-            // parent->pathQuality is by definition higher than grandChild->pathQuality
+            // Node_getReach(parent) is by definition higher than Node_getReach(grandChild)
             // so if child is a decendent of grandChild then it should have been switched.
-            Assert_true(child->pathQuality > grandChild->pathQuality);
+            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
 
             check(store);
         }
@@ -1074,10 +1090,10 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         // The best path to grandChild is obviously via child and therefor Charlie and Dave
         // are mistaken and this is a phantom loop.
 
-        if (lcg->parent->pathQuality <= grandChild->pathQuality) {
+        if (Node_getReach(lcg->parent) <= Node_getReach(grandChild)) {
 
             // I know, I repeat myself...
-            Assert_true(child->pathQuality > grandChild->pathQuality);
+            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
 
             if (isAncestorOf(store, grandChild, lcg->parent)) {
 
@@ -1103,24 +1119,24 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
                     // We should never get here because the if statement below should have
                     // handled this in the previous round.
-                    Assert_true(link->parent->pathQuality >= grandChild->pathQuality);
+                    Assert_true(Node_getReach(link->parent) >= Node_getReach(grandChild));
 
-                    if (link->child->pathQuality <= grandChild->pathQuality) {
+                    if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
                         // Ok we're found a node whose pathQuality is less than grandChild's
                         // and this node is in the best path *to* the grandChild so it's quality
                         // needs to be increased and we need to swap it's bestParent so that we're
                         // sure it doesn't decend from grandChild.
                         if (link->child->bestParent != link) {
-                            if (link->parent->pathQuality <= grandChild->pathQuality+1) {
-                                handleGoodNews(link->parent, grandChild->pathQuality+2, store);
+                            if (Node_getReach(link->parent) <= Node_getReach(grandChild)+1) {
+                                handleGoodNews(link->parent, Node_getReach(grandChild)+2, store);
                             }
-                            Assert_true(link->parent->pathQuality > grandChild->pathQuality);
-                            updateBestParent(link->child, link, grandChild->pathQuality+1, store);
+                            Assert_true(Node_getReach(link->parent) > Node_getReach(grandChild));
+                            updateBestParent(link->child, link, Node_getReach(grandChild)+1, store);
                         }
-                        if (link->child->pathQuality <= grandChild->pathQuality) {
-                            handleGoodNews(link->child, grandChild->pathQuality+1, store);
+                        if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
+                            handleGoodNews(link->child, Node_getReach(grandChild)+1, store);
                         }
-                        Assert_true(link->child->pathQuality > grandChild->pathQuality);
+                        Assert_true(Node_getReach(link->child) > Node_getReach(grandChild));
                     }
                 }
 
@@ -1131,15 +1147,15 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 // instance of grandChild so we're just going to quietly swap the lcg for link
                 // if it happens that they are not the same.
                 lcg = link;
-                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
 
             } else {
-                handleGoodNews(lcg->parent, grandChild->pathQuality+1, store);
-                Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
+                handleGoodNews(lcg->parent, Node_getReach(grandChild)+1, store);
+                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
             }
 
-            Assert_true(lcg->parent->pathQuality > grandChild->pathQuality);
-            updateBestParent(grandChild, lcg, grandChild->pathQuality, store);
+            Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
+            updateBestParent(grandChild, lcg, Node_getReach(grandChild), store);
         }
 
         // pfew
@@ -1267,7 +1283,7 @@ static uint32_t reachAfterTimeout(const uint32_t oldReach)
 static uint32_t nextReach(const uint32_t oldReach, const uint32_t millisecondsLag)
 {
     int64_t out = reachAfterDecay(millisecondsLag) +
-        ((UINT32_MAX / NodeStore_latencyWindow) / millisecondsLag);
+        ((UINT32_MAX / NodeStore_latencyWindow) / (millisecondsLag + 1));
     // TODO: is this safe?
     Assert_true(out < (UINT32_MAX - 1024) && out > 0);
     return out;
@@ -1510,7 +1526,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.selfNode = selfNode;
     selfNode->bestParent = linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     selfNode->address.path = 1;
-    selfNode->pathQuality = UINT32_MAX;
+    setReach(selfNode, UINT32_MAX);
     out->selfLink = selfNode->reversePeers;
     RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
@@ -1673,7 +1689,7 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     out->nodes = Allocator_calloc(allocator, count, sizeof(char*));
     out->size = count;
 
-    struct Node_Two fakeNode = { .pathQuality = 0 };
+    struct Node_Two fakeNode = { .marked = 0 };
     Bits_memcpyConst(&fakeNode.address, targetAddress, sizeof(struct Address));
 
     struct Node_Two* next = Identity_ncheck(RB_NFIND(NodeRBTree, &store->nodeTree, &fakeNode));
@@ -1727,7 +1743,7 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
     #endif
     struct Node_Two* nn = NodeStore_nodeForPath(nodeStore, path);
-    if (nn && nn->pathQuality > 0) {
+    if (nn && Node_getReach(nn) > 0) {
         handleBadNews(nn, 0, store);
     }
     verify(store);
@@ -1743,7 +1759,7 @@ void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newRea
         // If we're looking at the selfLink, don't touch its reach
         if (nextLink != store->selfLink) {
             // Possibly update the reach for this hop on the path
-            if (nextLink->child->pathQuality < newReach) {
+            if (nextLink->child->reach_ro < newReach) {
                 handleNews(nextLink->child, newReach, store);
                 newReach++; // Should have ~no effect except loop avoidance
             }
@@ -1768,7 +1784,7 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         uint32_t newReach;
         if (node->address.path == path) {
             // Use old reach value to calculate new reach
-            newReach = nextReach(node->pathQuality, milliseconds);
+            newReach = nextReach(node->reach_ro, milliseconds);
         }
         else {
             // Old reach value doesn't relate to this path, so we should do something different
@@ -1787,14 +1803,14 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
     if (node && node->address.path == path) {
-        uint32_t newReach = reachAfterTimeout(node->pathQuality);
+        uint32_t newReach = reachAfterTimeout(node->reach_ro);
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &node->address);
             Log_debug(store->logger,
                       "Ping timeout for %s. changing reach from %u to %u\n",
                       addr,
-                      node->pathQuality,
+                      node->reach_ro,
                       newReach);
         #endif
         handleNews(node, newReach, store);

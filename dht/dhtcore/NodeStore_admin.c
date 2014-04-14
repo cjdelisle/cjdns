@@ -78,7 +78,7 @@ static void dumpTable_addEntries(struct Context* ctx,
     }
 
     struct Node_Two* n = NodeStore_dumpTable(ctx->store, i);
-    link->as.number = n->pathQuality;
+    link->as.number = Node_getReach(n);
     version->as.number = n->address.protocolVersion;
     Address_printIp(ip, &n->address);
     AddrTools_printPath(path, n->address.path);
@@ -186,7 +186,7 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     uint32_t linkCount = NodeStore_linkCount(node);
     Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
 
-    Dict_putInt(result, String_new("reach", alloc), node->pathQuality, alloc);
+    Dict_putInt(result, String_new("reach", alloc), Node_getReach(node), alloc);
 
     List* encScheme = EncodingScheme_asList(node->encodingScheme, alloc);
     Dict_putList(result, String_new("encodingScheme", alloc), encScheme, alloc);
