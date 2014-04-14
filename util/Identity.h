@@ -48,8 +48,13 @@
 #else
     #define Identity
     #define Identity_set(pointer)
-    #define Identity_check(pointer) (pointer)
-    #define Identity_ncheck(pointer) (pointer)
+
+    #define Identity_check(pointer) \
+        (__extension__ ({                                                      \
+            (pointer);                                                         \
+        }))
+
+    #define Identity_ncheck(pointer) Identity_check(pointer)
 #endif
 
 #endif
