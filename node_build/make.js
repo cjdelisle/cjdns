@@ -83,8 +83,8 @@ Builder.configure({
 
         // disable for speed, enable for safety
         '-D','Identity_CHECK=1',
-        '-D','Allocator_USE_CANARIES=1',
-        '-D','PARANOIA=1'
+        '-D','Allocator_USE_CANARIES=1'
+//        '-D','PARANOIA=1'
     );
     var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
     builder.config.cflags.push('-D','Log_'+logLevel);

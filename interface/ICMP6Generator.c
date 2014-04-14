@@ -134,7 +134,7 @@ static uint8_t sendFragmented(struct ICMP6Generator_pvt* ctx,
     Interface_receiveMessage(&ctx->pub.internal, msg);
 
     // sanity check
-    Assert_true(!Bits_memcmp(&msgNextPartFirstLong, nextMessage->bytes, 8));
+    Assert_ifParanoid(!Bits_memcmp(&msgNextPartFirstLong, nextMessage->bytes, 8));
 
     Message_shift(nextMessage, sizeof(msgHeader), NULL);
     Bits_memcpyConst(nextMessage->bytes, msgHeader, sizeof(msgHeader));
