@@ -42,8 +42,7 @@
         var HasFunction = require("./HasFunction");
 
         HasFunction.check(builder, "seccomp_init", ["-lseccomp"], function (err, has) {
-            if (err) { throw err; }
-            builder.config.HAS_SECCOMP = has;
+            builder.config.HAS_SECCOMP = (!err && has);
             if (has) {
                 console.log("Successfully found SECCOMP");
                 builder.config.libs.push("-lseccomp");
