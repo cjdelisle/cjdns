@@ -1270,14 +1270,21 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     Allocator_free(node->alloc);
 }
 
+// Must be at least 2 to avoid multiplying by 0.
+// If too large, path choice may become unstable due to a guess we make in calcNextReach.
+// This is fixable by storing reach based on links. A lot of work.
+// In the mean time, just don't use a large value.
 #define NodeStore_latencyWindow 8
 static uint32_t reachAfterDecay(const uint32_t oldReach)
 {
+    // Reduce the reach by 1/Xth where X = NodeStore_latencyWindow
+    // This is used to keep a weighted rolling average
     return (oldReach - (oldReach / NodeStore_latencyWindow));
 }
 
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
+    // TODO just use reachAfterDecay?... would be less penalty for timeouts...
     return (oldReach / 2);
 }
 
@@ -1285,7 +1292,14 @@ static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecon
 {
     int64_t out = reachAfterDecay(oldReach) +
         ((UINT32_MAX / NodeStore_latencyWindow) / (millisecondsLag + 1));
-    if (!oldReach) { out = out * (NodeStore_latencyWindow - 1); }
+    if (!oldReach) {
+        // We don't know the old reach for this path.
+        // If every response comes in after same millisecondsLag, then we expect that the
+        // reach will stabilize to a value of (out * NodeStoare_latencyWindow).
+        // Lets guess what the reach will stabilize to, but try to be a little conservative,
+        // so we don't cause bestParents to switch unless the new route is appreciably better.
+        out = out * (NodeStore_latencyWindow - 1);
+    }
     // TODO: is this safe?
     Assert_true(out < (UINT32_MAX - 1024) && out > 0);
     return out;
@@ -1754,7 +1768,7 @@ void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newRea
         // If we're looking at the selfLink, don't touch its reach
         if (nextLink != store->selfLink) {
             // Possibly update the reach for this hop on the path
-            if ( nextLink->child->reach_ro < newReach &&
+            if ( Node_getReach(nextLink->child) < newReach &&
                  LabelSplicer_routesThrough(path, nextLink->child->address.path)) {
                 handleNews(nextLink->child, newReach, store);
                 newReach++; // Should have ~no effect except loop avoidance
@@ -1766,7 +1780,7 @@ void updatePathReach(struct NodeStore* nodeStore, uint64_t path, uint32_t newRea
         nextLink = NodeStore_getLinkOnPath(nodeStore, path, hop);
     }
 
-    // Finally, unconditionally update the reach of the last node if along the same path
+    // Finally, unconditionally update the reach of the last node if this is the best path
     struct Node_Two* node = NodeStore_closestNode(nodeStore, path);
     if (node && node->address.path == path) {
         handleNews(node, newReach, store);
@@ -1780,12 +1794,12 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         uint32_t newReach;
         if (node->address.path == path) {
             // Use old reach value to calculate new reach
-            newReach = calcNextReach(node->reach_ro, milliseconds);
+            newReach = calcNextReach(Node_getReach(node), milliseconds);
         }
         else {
             // Old reach value doesn't relate to this path, so we should do something different
-            // FIXME we're just guessing what the reach would stabilize to
-            // I think actually fixing this would require storing reach (or latency) per link,
+            // FIXME calcNextReach is guessing what the reach would stabilize to
+            // I think actually fixing this would require storing reach (or latency?) per link,
             // so we can calculate the expected reach for an arbitrary path
             newReach = calcNextReach(0, milliseconds);
         }
@@ -1798,14 +1812,14 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
     if (node && node->address.path == path) {
-        uint32_t newReach = reachAfterTimeout(node->reach_ro);
+        uint32_t newReach = reachAfterTimeout(Node_getReach(node));
         #ifdef Log_DEBUG
             uint8_t addr[60];
             Address_print(addr, &node->address);
             Log_debug(store->logger,
                       "Ping timeout for %s. changing reach from %u to %u\n",
                       addr,
-                      node->reach_ro,
+                      Node_getReach(node),
                       newReach);
         #endif
         handleNews(node, newReach, store);
