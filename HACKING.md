@@ -61,3 +61,18 @@ or using assert statements, whatever makes sense.  Tests are exempt from most
 code style rules and checkfiles.pl is much easier on them.
 
 *All patches which add tests will be addressed before any patches which don't.*
+
+
+Profiling
+---------
+
+The best way to profile cjdns is using Brendan Gregg's FlameGraph generator.
+http://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html
+You can do this on Linux using the `perf` utility.
+
+    sudo perf record -a -g -F 997 -p `pidof cjdroute`
+    # let this run for a while, put cjdroute through some exercises
+    <ctrl+c>
+    sudo perf script | ../FlameGraph/stackcollapse-perf.pl > ./cjdns-stackcollapse.out
+    ../FlameGraph/flamegraph.pl < ./cjdns-stackcollapse.out > ./cjdns-stackcollapse.svg
+    chromium ./cjdns-stackcollapse.svg
