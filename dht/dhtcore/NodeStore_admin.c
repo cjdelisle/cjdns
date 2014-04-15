@@ -216,13 +216,13 @@ static void getRouteLabel(Dict* args, void* vcontext, String* txid, struct Alloc
     char* err = NULL;
 
     String* pathToParentS = Dict_getString(args, String_CONST("pathToParent"));
-    uint64_t pathToParent;
+    uint64_t pathToParent = 0;
     if (pathToParentS->len != 19 || AddrTools_parsePath(&pathToParent, pathToParentS->bytes)) {
         err = "parse_pathToParent";
     }
 
     String* pathParentToChildS = Dict_getString(args, String_CONST("pathParentToChild"));
-    uint64_t pathParentToChild;
+    uint64_t pathParentToChild = 0;
     if (pathParentToChildS->len != 19
         || AddrTools_parsePath(&pathParentToChild, pathParentToChildS->bytes))
     {
