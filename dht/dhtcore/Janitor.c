@@ -54,8 +54,6 @@ struct Janitor
 
     struct RumorMill* rumorMill;
 
-    struct RumorMill* nodesOfInterest;
-
     struct Timeout* timeout;
 
     struct Log* logger;
@@ -78,6 +76,7 @@ struct Janitor
 
     // Used to keep dht healthy
     uint8_t keyspaceMaintainenceCounter;
+    uint8_t keyspaceHoleDepthCounter;
 
     Identity
 };
@@ -190,13 +189,14 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
  * bitwise over keyspace, to identify the same kind of routing holes.
  * It then dispatches a search for the first (largest) such hole in keyspace that it finds.
  */
-static void plugLargestKeyspaceHole(struct Janitor* janitor)
+static void plugLargestKeyspaceHole(struct Janitor* janitor, bool force)
 {
     struct Address addr = *janitor->nodeStore->selfAddress;
 
     int byte = 0;
     int bit = 0;
-    for (int i = 0; i < 128 ; i++) {
+    uint8_t holeDepth = 0;
+    for (uint8_t i = 0; i < 128 ; i++) {
         // Bitwise walk across keyspace
         if (63 < i && i < 72) {
             // We want to leave the 0xfc alone
@@ -210,23 +210,28 @@ static void plugLargestKeyspaceHole(struct Janitor* janitor)
         bit = (i % 8);
 
         // Flip that bit.
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
 
         // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
         if (n) {
             //We do know a valid next hop, so flip the bit back and continue.
-            addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+            addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
             continue;
         }
 
         // We found a hole! Exit loop and let the search trigger.
+        holeDepth = i;
         break;
     }
 
     // Search for a node that satisfies the address requirements to fill the hole.
-    searchNoDupe(addr.ip6.bytes, janitor);
+    if (holeDepth != janitor->keyspaceHoleDepthCounter || force) {
+        Log_debug(janitor->logger, "Setting keyspaceHoleDepthCounter [%u]", holeDepth);
+        janitor->keyspaceHoleDepthCounter = holeDepth;
+        searchNoDupe(addr.ip6.bytes, janitor);
+    }
 }
 
 // Counterpart to plugLargestKeyspaceHole, used to refresh reach of known routes with a search.
@@ -260,7 +265,7 @@ static void keyspaceMaintainence(struct Janitor* janitor)
         bit = (i % 8);
 
         // Flip that bit.
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
 
         // See if we know a valid next hop.
         struct Node_Two* n = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
@@ -272,7 +277,7 @@ static void keyspaceMaintainence(struct Janitor* janitor)
         }
 
         // Clean up address and move further into keyspace.
-        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x01 << bit);
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
         continue;
     }
 
@@ -295,6 +300,8 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
     for (int i = 0; addresses && i < addresses->length; i++) {
         struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
         if (!nn) {
+            addresses->elems[i].path = NodeStore_optimizePath(janitor->nodeStore,
+                                                              addresses->elems[i].path);
             RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
         }
     }
@@ -367,17 +374,6 @@ static void maintanenceCycle(void* vcontext)
         }
     }
 
-    /* shitstorm of search traffic
-
-    // This is good for DHT health. See function description.
-    plugLargestKeyspaceHole(janitor);
-
-    // Do something useful for a node we're actively trying to communicate with.
-    if (RumorMill_getNode(janitor->nodesOfInterest, &addr)) {
-        searchNoDupe(addr.ip6.bytes, janitor);
-    }
-    */
-
     // random search
     Random_bytes(janitor->rand, addr.ip6.bytes, 16);
     // Make this a valid address.
@@ -388,12 +384,14 @@ static void maintanenceCycle(void* vcontext)
     // If the best next node doesn't exist or has 0 reach, run a local maintenance search.
     if (n == NULL || Node_getReach(n) == 0) {
         //search(addr.ip6.bytes, janitor);
-        plugLargestKeyspaceHole(janitor);
+        plugLargestKeyspaceHole(janitor, true);
         return;
 
     } else {
         checkPeers(janitor, n);
     }
+
+    plugLargestKeyspaceHole(janitor, false);
 
     Log_debug(janitor->logger,
               "Global Mean Response Time: %u nodes [%d] links [%d]",
@@ -403,6 +401,7 @@ static void maintanenceCycle(void* vcontext)
 
     if (now > janitor->timeOfNextGlobalMaintainence) {
         //search(addr.ip6.bytes, janitor);
+        plugLargestKeyspaceHole(janitor, true);
         keyspaceMaintainence(janitor);
         janitor->timeOfNextGlobalMaintainence += janitor->globalMaintainenceMilliseconds;
     }
@@ -414,7 +413,6 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             struct NodeStore* nodeStore,
                             struct SearchRunner* searchRunner,
                             struct RumorMill* rumorMill,
-                            struct RumorMill* nodesOfInterest,
                             struct Log* logger,
                             struct Allocator* allocator,
                             struct EventBase* eventBase,
@@ -427,11 +425,11 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
         .nodeStore = nodeStore,
         .searchRunner = searchRunner,
         .rumorMill = rumorMill,
-        .nodesOfInterest = nodesOfInterest,
         .logger = logger,
         .globalMaintainenceMilliseconds = globalMaintainenceMilliseconds,
         .localMaintainenceMilliseconds = localMaintainenceMilliseconds,
         .keyspaceMaintainenceCounter = 0,
+        .keyspaceHoleDepthCounter = 0,
         .allocator = alloc,
         .rand = rand
     }));

@@ -177,7 +177,9 @@ static void onPingResponse(enum SwitchPinger_Result result,
 
     struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
     if (!nn) {
-        RumorMill_addNode(ic->rumorMill, &addr);
+        if (CryptoAuth_getState(ep->cryptoAuthIf) != CryptoAuth_ESTABLISHED) {
+            RumorMill_addNode(ic->rumorMill, &addr);
+        }
     } else if (!nn->bestParent) {
         RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
     }
