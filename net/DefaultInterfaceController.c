@@ -177,6 +177,16 @@ static void onPingResponse(enum SwitchPinger_Result result,
 
     struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
     if (!nn) {
+        // This if is here because CryptoAuth sessions seem to be breaking down
+        // occasionally and causing the same peer to endlessly be inserted into
+        // the mill.
+        // From Arceliar:
+        // The first thing I tried was a switch/case statement with each cryptoauth state.
+        // Established was the only one that was giving me problems. This is why I found it
+        // so confusing. It appeared that the peer and I both thought we had (different) CA
+        // sessions going, as I kept getting responses from an "un-setup" session and then
+        // incrementing nonce for an existing session.
+        // TODO(cjd) understand this properly.
         if (CryptoAuth_getState(ep->cryptoAuthIf) != CryptoAuth_ESTABLISHED) {
             RumorMill_addNode(ic->rumorMill, &addr);
         }
