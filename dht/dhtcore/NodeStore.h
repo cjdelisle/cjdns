@@ -70,7 +70,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
                                          struct Address* addr,
                                          struct EncodingScheme* scheme,
                                          int inverseLinkEncodingFormNumber,
-                                         uint32_t reach);
+                                         uint64_t milliseconds);
 
 struct Node_Two* NodeStore_nodeForAddr(struct NodeStore* nodeStore, uint8_t addr[16]);
 
@@ -157,7 +157,9 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* store,
                                            uint32_t versionOfRequestingNode,
                                            struct Allocator* allocator);
 
-void NodeStore_updateReach(struct NodeStore* nodeStore, struct Node_Two* node, uint32_t newReach);
+// Used to update reach when a ping/search response comes in
+void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds);
+void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path);
 
 /**
  * Remove all nodes who are reachable by this path.
