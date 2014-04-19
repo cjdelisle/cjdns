@@ -142,6 +142,10 @@ var parseFile = function (fileName, fileContent) {
             error("trailing whitespace.");
         }
 
+        if (/[^A-Z](TODO|FIXME|XXX)[^\(A-Z]/.test(line)) {
+            error("Please take responsibility for your TODO: eg: // TODO(cjd): make this work");
+        }
+
         if (/(if|for|while)\(/.test(line)) {
             error("If/for/while statements must be followed by whitespace.");
         }

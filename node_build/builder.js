@@ -579,7 +579,7 @@ var getStatePrototype = function () {
         libs: [],
 
         // Using temp files instead of pipes shaves about 400ms off a clean build.
-        // TODO: Understand why our use of pipes is not good.
+        // TODO(cjd): Understand why our use of pipes is not good.
         tempDir: '/tmp',
         useTempFiles: true,
 
