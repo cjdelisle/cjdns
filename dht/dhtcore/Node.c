@@ -18,6 +18,19 @@
 #include "util/Assert.h"
 #include "util/Bits.h"
 
+void Node_setReach(struct Node_Two* node, uint32_t newReach)
+{
+    if (newReach) {
+        Assert_true(node->bestParent);
+        Assert_true(node->address.path < UINT64_MAX);
+        Assert_true(newReach > 512);
+    } else {
+        Assert_true(!node->bestParent);
+        Assert_true(node->address.path == UINT64_MAX);
+    }
+    node->reach_pvt = newReach;
+}
+
 bool Node_isOneHopLink(struct Node_Link* link)
 {
     struct EncodingScheme* ps = link->parent->encodingScheme;

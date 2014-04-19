@@ -31,7 +31,7 @@ struct Node_Two
      * Since reach is a fraction, the reach number represents a percentage where 0xFFFFFFFF = 100%
      * DO NOT ALTER THIS OUTSIDE OF NODESTORE
      */
-    uint32_t reach_ro;
+    uint32_t reach_pvt;
 
     /** This is used to mark/sweep nodes in getWorstNode(), it's meaningless otherwise. */
     int marked;
@@ -123,7 +123,9 @@ struct Node_Link
     Identity
 };
 
-#define Node_getReach(node) ((node)->reach_ro + 0)
+#define Node_getReach(node) ((node)->reach_pvt + 0)
+
+void Node_setReach(struct Node_Two* node, uint32_t newReach);
 
 bool Node_isOneHopLink(struct Node_Link* link);
 

@@ -268,19 +268,6 @@ static uint64_t extendRoute(uint64_t routeLabel,
     return LabelSplicer_splice(next, routeLabel);
 }
 
-static void setReach(struct Node_Two* node, uint32_t newReach)
-{
-    if (newReach) {
-        Assert_true(node->bestParent);
-        Assert_true(node->address.path < UINT64_MAX);
-        Assert_true(newReach > 512);
-    } else {
-        Assert_true(!node->bestParent);
-        Assert_true(node->address.path == UINT64_MAX);
-    }
-    node->reach_ro = newReach;
-}
-
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
@@ -289,7 +276,7 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     }
     node->bestParent = NULL;
     node->address.path = UINT64_MAX;
-    setReach(node, 0);
+    Node_setReach(node, 0);
 }
 
 /**
@@ -354,7 +341,7 @@ static int updateBestParentCycle(struct Node_Two* node,
 
     node->address.path = bestPath;
     if (!limit) {
-        setReach(node, nextReach);
+        Node_setReach(node, nextReach);
     }
     checkNode(node, store);
     return 1;
@@ -396,7 +383,7 @@ static void handleGoodNews(struct Node_Two* node,
     if (newReach+1 > Node_getReach(node->bestParent->parent)) {
         handleGoodNews(node->bestParent->parent, newReach+1, store);
     }
-    setReach(node, newReach);
+    Node_setReach(node, newReach);
     struct Node_Link* link = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
         struct Node_Two* child = link->child;
@@ -476,7 +463,7 @@ static uint32_t handleBadNewsOne(struct Node_Link* link,
     if (!highestRet) {
         unreachable(link->child, store);
     } else {
-        setReach(link->child, highestRet);
+        Node_setReach(link->child, highestRet);
     }
 
     if (highestRet < 1023) { highestRet = 1023; }
@@ -1541,7 +1528,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     out->pub.selfNode = selfNode;
     selfNode->bestParent = linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     selfNode->address.path = 1;
-    setReach(selfNode, UINT32_MAX);
+    Node_setReach(selfNode, UINT32_MAX);
     out->selfLink = selfNode->reversePeers;
     RB_INSERT(NodeRBTree, &out->nodeTree, selfNode);
 
