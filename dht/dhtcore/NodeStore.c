@@ -45,7 +45,7 @@ struct NodeStore_pvt
 
     struct Allocator* alloc;
 
-    /** The maximum number of nodes which can be allocated. TODO: make use of */
+    /** The maximum number of nodes which can be allocated. TODO(cjd): make use of */
     int capacity;
 
     /**
@@ -371,7 +371,7 @@ static void handleGoodNews(struct Node_Two* node,
                            uint32_t newReach,
                            struct NodeStore_pvt* store)
 {
-    // TODO: Paths longer than 1024 will blow up, handle more gracefully
+    // TODO(cjd): Paths longer than 1024 will blow up, handle more gracefully
     Assert_true(newReach != UINT32_MAX);
     Assert_true(newReach > 1023);
 
@@ -568,7 +568,7 @@ static void update(struct Node_Link* link,
                    int64_t linkStateDiff,
                    struct NodeStore_pvt* store)
 {
-    /** TODO: Link state is not taken into account yet
+    /** TODO(cjd): Link state is not taken into account yet
     if (linkStateDiff + link->linkState > UINT32_MAX) {
         link->linkState = UINT32_MAX;
         logLink(store, link, "link state set to maximum");
@@ -809,7 +809,7 @@ static uint64_t findClosest(const uint64_t path,
         Log_debug(store->logger, "[%s] is not behind [%s] closest: [%s]", labelA, labelB, labelC);
     #endif*/
 
-    Assert_true(tmpl.cannonicalLabel);/// TODO remove this
+    Assert_true(tmpl.cannonicalLabel);/// TODO(cjd): remove this
     *output = link;
     if (hops) { *hops = actualHops; }
     return tmpl.cannonicalLabel;
@@ -904,7 +904,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             findClosest(pathKnownParentChild, &closest, NULL, closestKnown, store);
 
         if (pathParentChild != findClosest_INVALID) {
-            // TODO: handle this in some way other than just failing to install the route.
+            // TODO(cjd): handle this in some way other than just failing to install the route.
             logLink(store, closestKnown, "Apparently the reverse link encoding scheme for "
                                          "link has changed.");
             return NULL;
@@ -915,7 +915,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     }
 
     // link parent to child
-    // TODO: linking every node with 0 link state, this can't be right.
+    // TODO(cjd): linking every node with 0 link state, this can't be right.
     struct Node_Link* parentLink = linkNodes(parent,
                                              child,
                                              pathParentChild,
@@ -1055,7 +1055,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         }
 
         if (!lcg) {
-            // The path is probably broken... TODO: log or something
+            // The path is probably broken... TODO(cjd): log or something
             goto done;
         }
 
@@ -1271,7 +1271,7 @@ static uint32_t reachAfterDecay(const uint32_t oldReach)
 
 static uint32_t reachAfterTimeout(const uint32_t oldReach)
 {
-    // TODO just use reachAfterDecay?... would be less penalty for timeouts...
+    // TODO(arceliar) just use reachAfterDecay?... would be less penalty for timeouts...
     return (oldReach / 2);
 }
 
@@ -1287,7 +1287,7 @@ static uint32_t calcNextReach(const uint32_t oldReach, const uint32_t millisecon
         // so we don't cause bestParents to switch unless the new route is appreciably better.
         out = out * (NodeStore_latencyWindow - 1);
     }
-    // TODO: is this safe?
+    // TODO(arceliar): is this safe?
     Assert_true(out < (UINT32_MAX - 1024) && out > 0);
     return out;
 }
@@ -1549,7 +1549,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
 struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    // TODO: Schlameil the painter
+    // TODO(cjd): Schlameil the painter
     uint32_t i = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
@@ -1785,7 +1785,7 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
         }
         else {
             // Old reach value doesn't relate to this path, so we should do something different
-            // FIXME calcNextReach is guessing what the reach would stabilize to
+            // FIXME(arceliar): calcNextReach is guessing what the reach would stabilize to
             // I think actually fixing this would require storing reach (or latency?) per link,
             // so we can calculate the expected reach for an arbitrary path
             newReach = calcNextReach(0, milliseconds);

@@ -22,9 +22,9 @@ struct BufferAllocator_pvt;
 #include <stdint.h>
 
 /**
- * TODO: addOnFreeJob adds a job which is only run when the root allocator is freed
- *       and it needs to be run when the allocator which called it, or any of that allocator's
- *       ancestors is freed, not just the root.
+ * TODO(cjd): addOnFreeJob adds a job which is only run when the root allocator is freed
+ *            and it needs to be run when the allocator which called it, or any of that allocator's
+ *            ancestors is freed, not just the root.
  */
 
 /* Define alignment as the size of a pointer which is usually 4 or 8 bytes. */

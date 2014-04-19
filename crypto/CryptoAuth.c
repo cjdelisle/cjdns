@@ -1063,7 +1063,7 @@ int32_t CryptoAuth_addUser(String* password,
         return CryptoAuth_addUser_INVALID_AUTHTYPE;
     }
     if (context->passwordCount == context->passwordCapacity) {
-        // TODO: realloc password space and increase buffer.
+        // TODO(cjd): realloc password space and increase buffer.
         return CryptoAuth_addUser_OUT_OF_SPACE;
     }
     struct CryptoAuth_Auth a;

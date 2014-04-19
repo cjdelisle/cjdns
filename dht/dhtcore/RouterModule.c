@@ -82,7 +82,7 @@
  * this operation is performed periodicly every LOCAL_MAINTENANCE_SEARCH_MILLISECONDS unless
  * a local maintainence search is being run which is not often once the network is stable.
  *
- * TODO ---
+ * TODO(cjd): ---
  * In order to have the nodes with least distance:reach ratio ready to handle any incoming search,
  * we precompute the borders where the "best next node" changes. This computation is best understood
  * by graphing the nodes with their location in keyspace on the X axis and their reach on the Y

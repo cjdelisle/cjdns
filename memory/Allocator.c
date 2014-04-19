@@ -217,7 +217,7 @@ static void releaseAllocation(struct Allocator_pvt* context,
 {
     checkCanaries(allocation, context);
 
-    // TODO: make this optional.
+    // TODO(cjd): make this optional.
     Bits_memset(&(&allocation->pub)[1],
                 0xee,
                 allocation->pub.size - sizeof(struct Allocator_Allocation));

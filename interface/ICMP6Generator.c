@@ -162,7 +162,7 @@ static uint8_t incoming(struct Message* msg, struct Interface* iface)
         Identity_check((struct ICMP6Generator_pvt*)
             (((uint8_t*)iface) - offsetof(struct ICMP6Generator, external)));
 
-    // TODO calculate this on a per-node basis.
+    // TODO(cjd): calculate this on a per-node basis.
     int mtu = ctx->mtu;
 
     // source address for packets coming from the router.

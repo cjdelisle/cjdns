@@ -33,7 +33,7 @@ static uint8_t catchResponse(struct Message* msg, struct Interface* iface)
 
 int main()
 {
-return 0; // TODO make this work again
+return 0; // TODO(cjd): make this work again
     char* pingBenc = "d1:q4:ping4:txid4:abcd1:pi2ee";
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct TestFramework* tf = TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL);

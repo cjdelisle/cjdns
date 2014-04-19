@@ -353,7 +353,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     uint8_t srcMac[6];
     Bits_memcpyConst(srcMac, ifr.ifr_hwaddr.sa_data, 6);
 
-    // TODO: is the node's mac addr private information?
+    // TODO(cjd): is the node's mac addr private information?
     Log_info(context->logger, "found MAC for device %s [%i]: %02x:%02x:%02x:%02x:%02x:%02x\n",
             bindDevice, context->ifindex,
             srcMac[0], srcMac[1], srcMac[2], srcMac[3], srcMac[4], srcMac[5]);

@@ -94,7 +94,7 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
-    // TODO: fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
+    // TODO(cjd): fix TUNConfigurator_addIp4Address() for Illumos, Darwin, BSD.
     #if defined(sunos) || defined(darwin) || defined(freebsd)
         return 0;
     #endif

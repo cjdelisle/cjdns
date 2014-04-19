@@ -70,7 +70,7 @@ void DHTModuleRegistry_handleIncoming(struct DHTMessage* message,
         if (module && module->handleIncoming) {
             DEBUG2("<< calling: %s->handleIncoming\n", module->name);
             if (module->handleIncoming(message, module->context) != 0) {
-                // TODO: Call a debugger with all unhandlable messages?
+                // TODO(cjd): Call a debugger with all unhandlable messages?
                 return;
             }
         } else {

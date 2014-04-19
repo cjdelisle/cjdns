@@ -219,7 +219,7 @@ static void pingCallback(void* vic)
 
         // This is here because of a pathological state where the connection is in ESTABLISHED
         // state but the *direct peer* has somehow been dropped from the routing table.
-        // TODO: understand the cause of this issue rather than checking for it once per second.
+        // TODO(cjd): understand the cause of this issue rather than checking for it once per second
         struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
 
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds
@@ -360,9 +360,9 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
-        // XXX: This is a hack because if the time of last message exceeds the
-        //      unresponsive time, we need to send back an error and that means
-        //      mangling the message which would otherwise be in the queue.
+        // TODO(cjd): This is a hack because if the time of last message exceeds the
+        //            unresponsive time, we need to send back an error and that means
+        //            mangling the message which would otherwise be in the queue.
         struct Allocator* tempAlloc = Allocator_child(ic->allocator);
         struct Message* toSend = Message_clone(msg, tempAlloc);
         ret = Interface_sendMessage(ep->cryptoAuthIf, toSend);

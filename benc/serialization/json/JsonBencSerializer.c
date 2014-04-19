@@ -329,7 +329,7 @@ static int32_t parseList(struct Reader* reader,
                     return 0;
 
                 default:
-                    // FIXME: silently skipping anything we don't understand
+                    // FIXME(gerard): silently skipping anything we don't understand
                     // might not be the best idea
                     Reader_skip(reader, 1);
                     continue;

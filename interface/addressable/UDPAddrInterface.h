@@ -22,7 +22,7 @@
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "util/Linker.h"
-// TODO: Move this into util/events
+// TODO(cjd): Move this into util/events
 Linker_require("util/events/libuv/UDPAddrInterface.c")
 
 #define UDPAddrInterface_PADDING_AMOUNT 512

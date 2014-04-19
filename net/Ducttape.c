@@ -75,7 +75,7 @@ static inline uint8_t incomingDHT(struct Message* message,
 
     DHTModuleRegistry_handleIncoming(&dht, context->registry);
 
-    // TODO: return something meaningful.
+    // TODO(cjd): return something meaningful.
     return Error_NONE;
 }
 
@@ -691,7 +691,7 @@ static inline int core(struct Message* message,
 
     if (ip6Header->hopLimit == 0) {
         Log_debug(context->logger, "DROP message because hop limit has been exceeded.\n");
-        // TODO: send back an error message in response.
+        // TODO(cjd): send back an error message in response.
         return Error_UNDELIVERABLE;
     }
     ip6Header->hopLimit--;

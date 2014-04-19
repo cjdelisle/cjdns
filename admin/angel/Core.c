@@ -108,7 +108,7 @@
  * and the CryptoAuths to both the destination and the handoff node are both timed out.
  */
 #define WORST_CASE_OVERHEAD ( \
-    /* TODO: Headers_IPv4_SIZE */ 20 \
+    /* TODO(cjd): Headers_IPv4_SIZE */ 20 \
     + Headers_UDPHeader_SIZE \
     + 4 /* Nonce */ \
     + 16 /* Poly1305 authenticator */ \
@@ -124,7 +124,7 @@
   - WORST_CASE_OVERHEAD \
   + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
   + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
-  TODO: make sure we never hand off to a node for which the CA session is expired. */ \
+  TODO(cjd): make sure we never hand off to a node for which the CA session is expired. */ \
 )
 
 static void parsePrivateKey(uint8_t privateKey[32],

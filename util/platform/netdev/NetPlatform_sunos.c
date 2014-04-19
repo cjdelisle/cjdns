@@ -105,7 +105,7 @@ static void addIp4Address(const char* interfaceName,
                           struct Log* logger,
                           struct Except* eh)
 {
-    // TODO: implement this and then remove the exception from TUNInterface_ipv4_root_test.c
+    // TODO(cjd): implement this and then remove the exception from TUNInterface_ipv4_root_test.c
     Except_throw(eh, "unimplemented");
 }
 
