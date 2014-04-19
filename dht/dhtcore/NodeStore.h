@@ -46,12 +46,10 @@ struct NodeStore
  * Create a new NodeStore.
  *
  * @param myAddress the address for this DHT node.
- * @param capacity the number of nodes which this store can hold.
  * @param allocator the allocator to allocate storage space for this NodeStore.
  * @param logger the means for this node store to log.
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
-                                const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger);
 

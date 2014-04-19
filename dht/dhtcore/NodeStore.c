@@ -45,9 +45,6 @@ struct NodeStore_pvt
 
     struct Allocator* alloc;
 
-    /** The maximum number of nodes which can be allocated. TODO(cjd): make use of */
-    int capacity;
-
     /**
      * The links to be freed next time freePendingLinks() is called.
      */
@@ -1502,7 +1499,6 @@ uint32_t NodeStore_linkCount(struct Node_Two* node)
 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
-                                const uint32_t capacity,
                                 struct Allocator* allocator,
                                 struct Log* logger)
 {
@@ -1513,7 +1509,6 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
             .nodeCapacity = NodeStore_DEFAULT_NODE_CAPACITY,
             .linkCapacity = NodeStore_DEFAULT_LINK_CAPACITY
         },
-        .capacity = capacity,
         .logger = logger,
         .alloc = alloc
     }));

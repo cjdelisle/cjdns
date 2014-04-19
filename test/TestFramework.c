@@ -106,7 +106,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, 128, allocator, logger);
+    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, logger);
 
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);

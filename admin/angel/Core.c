@@ -87,9 +87,6 @@
 // Failsafe: abort if more than 2^23 bytes are allocated (8MB)
 #define ALLOCATOR_FAILSAFE (1<<23)
 
-/** The number of nodes which we will keep track of. */
-#define NODE_STORE_SIZE 256
-
 /** The number of milliseconds between attempting local maintenance searches. */
 #define LOCAL_MAINTENANCE_SEARCH_MILLISECONDS 1000
 
@@ -386,7 +383,7 @@ void Core_init(struct Allocator* alloc,
     ReplyModule_register(registry, alloc);
 
 
-    struct NodeStore* nodeStore = NodeStore_new(&addr, NODE_STORE_SIZE, alloc, logger);
+    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, logger);
 
     struct RouterModule* routerModule = RouterModule_register(registry,
                                                               alloc,
