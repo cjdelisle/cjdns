@@ -54,7 +54,7 @@ struct Node_Two
     struct Node_Link* reversePeers;
 
     /** The best link for getting to this node. */
-    struct Node_Link* bestParent;
+    struct Node_Link* bestParent_pvt;
 
     /** Used by nodeStore's RBTree of nodes by address. */
     struct {
@@ -123,9 +123,21 @@ struct Node_Link
     Identity
 };
 
-#define Node_getReach(node) ((node)->reach_pvt + 0)
-
+static inline uint32_t Node_getReach(struct Node_Two* node)
+{
+    return node->reach_pvt;
+}
 void Node_setReach(struct Node_Two* node, uint32_t newReach);
+
+static inline struct Node_Link* Node_getBestParent(struct Node_Two* node)
+{
+    return node->bestParent_pvt;
+}
+
+void Node_setParentReachAndPath(struct Node_Two* node,
+                                struct Node_Link* bestParent,
+                                uint32_t reach,
+                                uint64_t path);
 
 bool Node_isOneHopLink(struct Node_Link* link);
 

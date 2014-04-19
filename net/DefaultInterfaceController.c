@@ -190,7 +190,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
         if (CryptoAuth_getState(ep->cryptoAuthIf) != CryptoAuth_ESTABLISHED) {
             RumorMill_addNode(ic->rumorMill, &addr);
         }
-    } else if (!nn->bestParent) {
+    } else if (!Node_getBestParent(nn)) {
         RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
     }
 
@@ -224,7 +224,7 @@ static void pingCallback(void* vic)
 
         if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds
             || !peerNode
-            || !peerNode->bestParent)
+            || !Node_getBestParent(peerNode))
         {
             #ifdef Log_DEBUG
                   uint8_t key[56];

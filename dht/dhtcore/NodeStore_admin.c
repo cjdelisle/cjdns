@@ -193,11 +193,11 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
 
     Dict* bestParent = Dict_new(alloc);
     String* parentIp = String_newBinary(NULL, 39, alloc);
-    AddrTools_printIp(parentIp->bytes, node->bestParent->parent->address.ip6.bytes);
+    AddrTools_printIp(parentIp->bytes, Node_getBestParent(node)->parent->address.ip6.bytes);
     Dict_putString(bestParent, String_CONST("ip"), parentIp, alloc);
 
     String* parentChildLabel = String_newBinary(NULL, 19, alloc);
-    AddrTools_printPath(parentChildLabel->bytes, node->bestParent->cannonicalLabel);
+    AddrTools_printPath(parentChildLabel->bytes, Node_getBestParent(node)->cannonicalLabel);
     Dict_putString(bestParent, String_CONST("parentChildLabel"), parentChildLabel, alloc);
 
     Dict_putDict(result, String_CONST("bestParent"), bestParent, alloc);
