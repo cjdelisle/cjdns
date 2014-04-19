@@ -488,22 +488,10 @@ static void handleBadNews(struct Node_Two* node,
     struct Node_Link* bp = Node_getBestParent(node);
 
     // no bestParent implies a reach of 0
-    Assert_true(bp);
-
-    Assert_true(bp != store->selfLink);
+    Assert_true(bp && bp != store->selfLink);
 
     Assert_true(!newReach || newReach > 1023);
     handleBadNewsOne(bp, newReach, store);
-
-    // If our bad news actually improved the reach number for the node (because it was previously
-    // 0 and that node has children) then we need to handle it as good news as well.
-    if (Node_getBestParent(node)) {
-        struct Node_Link* nbp = Node_getBestParent(node);
-        if (Node_getReach(node) >= Node_getReach(nbp->parent)) {
-            handleGoodNews(nbp->parent, Node_getReach(node)+1, store);
-        }
-        Assert_true(Node_getReach(node) < Node_getReach(Node_getBestParent(node)->parent));
-    }
 
     check(store);
 
