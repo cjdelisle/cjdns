@@ -684,7 +684,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
 
 #define removeLinkFromLabel_IMPOSSIBLE UINT64_MAX
 #define removeLinkFromLabel_OVERSIZE (UINT64_MAX-1)
-#define removeLinkFromLabel_IS_INVALID(x) (((uint64_t)x) >> 63)
+#define removeLinkFromLabel_ERR(x) (((uint64_t)x) >> 63)
 // TODO(cjd): This does not depend on nodeStore or alter the link, consider moving to Node.c
 static uint64_t removeLinkFromLabel(struct Node_Link* link, uint64_t label)
 {
@@ -729,8 +729,8 @@ static uint64_t removeLinkFromLabel(struct Node_Link* link, uint64_t label)
  *         destination provided by the label argument. OR: firstHopInPath_INVALID if the
  *         label argument traverces a node whose encoding scheme is inconsistent with
  *         the label. OR: firstHopInPath_NO_NEXT_LINK if there are no *known* further
- *         links along the path. If the result is either of these "error code" values,
- *         outLink will remain untouched. Use firstHopInPath_ERR() to check if the return
+ *         links along the path. If the result is firstHopInPath_INVALID, outLink will
+ *         still be set to the node. Use firstHopInPath_ERR() to check if the return
  *         is an error code.
  */
 #define firstHopInPath_INVALID      UINT64_MAX
@@ -749,10 +749,9 @@ static uint64_t firstHopInPath(uint64_t label,
     struct Node_Link* nextLink =
         Identity_ncheck(RB_NFIND(PeerRBTree, &parentLink->child->peerTree, &tmpl));
 
-    // Now we walk back through the potential candidates looking for the longest path which
-    // routes through.
+    // Now we walk back through the potential candidates looking for a path which it routes though.
     while (nextLink && !LabelSplicer_routesThrough(label, nextLink->cannonicalLabel)) {
-        nextLink = Identity_check(RB_NEXT(PeerRBTree, NULL, nextLink));
+        nextLink = Identity_ncheck(RB_NEXT(PeerRBTree, NULL, nextLink));
     }
 
     // This node has no peers, if it's us then it always has a peer (which is the selfLink)
@@ -775,13 +774,14 @@ static uint64_t firstHopInPath(uint64_t label,
         return firstHopInPath_NO_NEXT_LINK;
     }
 
+    *outLink = nextLink;
+
     // Cannoicalize the child's Director
     label = removeLinkFromLabel(nextLink, label);
-    if (removeLinkFromLabel_IS_INVALID(label)) {
+    if (removeLinkFromLabel_ERR(label)) {
         return firstHopInPath_INVALID;
     }
 
-    *outLink = nextLink;
     return label;
 }
 
@@ -928,14 +928,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     // previous link should be split and node should be inserted in the middle.
     struct Node_Link* splitLink = RB_MIN(PeerRBTree, &parent->peerTree);
     while (splitLink) {
-        if (splitLink->cannonicalLabel <= pathParentChild) {
-            #ifdef PARANOIA
-                if (splitLink->cannonicalLabel == pathParentChild) {
-                    Assert_true(splitLink->child == child);
-                    splitLink = PeerRBTree_RB_NEXT(splitLink);
-                    Assert_true(!splitLink || splitLink->cannonicalLabel < pathParentChild);
-                }
-            #endif
+        if (splitLink == parentLink) {
             // Since they're in order, definitely not found.
             break;
         }
@@ -1083,9 +1076,8 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
                 for (;;) {
                     struct Node_Link* nextLink = NULL;
                     nextPath = firstHopInPath(nextPath, &nextLink, link, store);
+                    Assert_true(!firstHopInPath_ERR(nextPath));
                     link = nextLink;
-
-                    Assert_true(link);
 
                     if (link->child == grandChild) { break; }
 
@@ -1310,14 +1302,42 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Identity_set(child);
     }
 
-    struct Node_Link* link = discoverLink(store,
-                                          store->selfLink,
-                                          addr->path,
-                                          child,
-                                          addr->path,
-                                          inverseLinkEncodingFormNumber);
+    struct Node_Link* link = NULL;
+    for (;;) {
+        link = discoverLink(store,
+                            store->selfLink,
+                            addr->path,
+                            child,
+                            addr->path,
+                            inverseLinkEncodingFormNumber);
 
-    if (!link) {
+        if (link) { break; }
+
+        // We might have a broken link in the store which is causing new links to be rejected.
+        // On the other hand, this path might actually be garbage :)
+        // There's a DoS risk in that someone might use garbage paths to evict all of the
+        // existing good paths.
+        // While an attacker can send in a packet, it will necessarily follow a ridiculous path
+        // in order that the path contains one of their nodes.
+        // To resolve this, we'll walk the path looking for the "bad" link, then we'll check that
+        // node to see if the path we took to reach it is actually the *best* path to that node.
+        uint64_t path = addr->path;
+        struct Node_Link* lastLink = store->selfLink;
+        do {
+            struct Node_Link* nextLink = NULL;
+            path = firstHopInPath(path, &nextLink, lastLink, store);
+            lastLink = nextLink;
+            // If this happens, discoverLink() should have worked.
+            Assert_true(path != firstHopInPath_NO_NEXT_LINK);
+        } while (firstHopInPath_INVALID != path);
+
+        if (LabelSplicer_routesThrough(addr->path, lastLink->child->address.path)) {
+            // checking for sillyness...
+            Assert_true(lastLink != store->selfLink);
+            unlinkNodes(lastLink, store);
+            continue;
+        }
+
         if (alloc) {
             Allocator_free(alloc);
         }
@@ -1739,7 +1759,6 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         if (firstHopInPath_ERR(nextPath)) {
             break;
         }
-        Assert_true(nextLink);
 
         // expecting behavior of nextLinkOnPath()
         Assert_ifParanoid(nextLink->parent == link->child);
