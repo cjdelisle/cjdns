@@ -77,6 +77,11 @@ enabled!). The `print` command will help you extract the value of a local variab
 an argument to the function or really anything. In gdb, tab complete works for both
 commands and variables/arguments so if in doubt, hit tab :)
 
+To stop the program in the debugger, use ctrl+c, this will put you in the debugger shell.
+
+Once in the debugger shell, to quit the debugger use ctrl+d, if the program is
+running it will prompt you, another ctrl+d will be taken as a "yes, please quit".
+
 
 Profiling
 ---------
@@ -129,6 +134,10 @@ Example simulation config entry with added admin block:
       }
     },
 
+And to start it up (in the debugger):
+
+    gdb sybilsim -ex 'r < ~/my-cjdns-simulation.json'
+
 BUG: Sometimes the simulator doesn't really start up correctly! If you could figure out
-what is going wrong, your help would be most appreciated, if not, you can just press ctrl+c
-and then restart it again and it should start up ok.
+what is going wrong, your help would be most appreciated, if not, you can just quit and
+then restart it again and it should start up ok.
