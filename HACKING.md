@@ -55,12 +55,27 @@ Testing
 -------
 
 Any file in a /test/ subdirectory which ends with `_test.c` will be compiled as
-a test and added to the testing regime through some cmake hackery. you might
-have to cmake .. again before typing make. Tests can fail by returning non-zero
-or using assert statements, whatever makes sense.  Tests are exempt from most
-code style rules and checkfiles.pl is much easier on them.
+a test and added to the testing regime through some nodejs hackery. you might
+Tests can fail by returning non-zero or using Assert_true() statements, whatever
+makes sense.
 
 *All patches which add tests will be addressed before any patches which don't.*
+
+
+Debugging
+---------
+
+        sudo gdb ./cjdroute -ex 'set follow-fork-mode child' -ex 'r < /etc/cjdroute.conf'
+
+If it crashes, type `backtrace` to get some useful information.
+The backtrace will show where in the program it crashed and where called that
+and where called that, etc. Down the left side of the screen are numbers next
+to the function names, you can select one of these for further inspection using
+the `select-frame` command. Once you've selected a frame you can print arguments
+to the function or local variables (maybe not if compiler optimization was
+enabled!). The `print` command will help you extract the value of a local variable,
+an argument to the function or really anything. In gdb, tab complete works for both
+commands and variables/arguments so if in doubt, hit tab :)
 
 
 Profiling
@@ -76,3 +91,44 @@ You can do this on Linux using the `perf` utility.
     sudo perf script | ../FlameGraph/stackcollapse-perf.pl > ./cjdns-stackcollapse.out
     ../FlameGraph/flamegraph.pl < ./cjdns-stackcollapse.out > ./cjdns-stackcollapse.svg
     chromium ./cjdns-stackcollapse.svg
+
+
+Simulating
+----------
+
+Cjdns comes with it's own simulator, it will create *n* nodes and link them together
+however you wish. It's like having many cjdns processes all running together but they're
+all in the same process so it is much more efficient. You can set admin credentials on
+one node and then use the admin tools to access it as you would an ordinary router.
+You will however need private keys whose public keys hash to ip addresses beginning with
+fc. To make these keys, use the `makekeys` utility.
+
+    ./makekeys | head -n 32 > keys.txt
+
+To convert the list of keys into a simulator configuration, use `makesim.js`, note there
+are interesting constants inside of `makesim.js` which you might want to alter.
+
+    node ./contrib/nodejs/makesim.js keys.txt > ~/my-cjdns-simulation.json
+
+Once you have a simultaion setup, you may want to add your admin credentials to one of
+the nodes so you can inspect it, dump the table, etc...
+
+Example simulation config entry with added admin block:
+
+    "fc5c:0537:606a:3d7e:c9f0:2103:4dcd:6bc8": {
+      "privateKey": "0dc3d33bbffc2d16c175df463110c6d164714a40d23db2f83539664b7365a5b6",
+      "peers": [
+        "fc1c:84bf:9557:1ce4:4862:fd82:5105:9984",
+        "fc1c:90e4:2953:938b:47cc:65c3:6540:dff6",
+        "fc1b:7ea7:911f:f2d5:7685:ac22:6c4f:8b15"
+      ],
+      "admin":
+      {
+          "bind": "127.0.0.1:11234",
+          "password": "the_password_you_will_use_to_connect"
+      }
+    },
+
+BUG: Sometimes the simulator doesn't really start up correctly! If you could figure out
+what is going wrong, your help would be most appreciated, if not, you can just press ctrl+c
+and then restart it again and it should start up ok.
