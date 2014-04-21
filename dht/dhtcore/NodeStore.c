@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
 #include "dht/dhtcore/NodeStore.h"
@@ -26,8 +25,6 @@
 #include "switch/LabelSplicer.h"
 #include "util/Gcc.h"
 
-#include <stdbool.h>
-#include <inttypes.h>
 #include <tree.h>
 
 /** A list of DHT nodes. */
