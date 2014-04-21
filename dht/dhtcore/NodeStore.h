@@ -78,9 +78,23 @@ struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t pat
 
 struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
 
-struct Node_Link* NodeStore_getLinkOnPath(struct NodeStore* nodeStore,
-                                          uint64_t routeLabel,
-                                          uint32_t hopNum);
+/**
+ * Get the first peer along a path.
+ *
+ * @param nodeStore
+ * @param path the path to get the first peer along.
+ * @param correctedPath if non-null, this will be set to the path from the resulting link to the
+ *                      destination given by path. Calling this function iteratively, passing
+ *                      the result of this back to path and passing the return value as
+ *                      startingPoint will walk the path.
+ * @param startingPoint if non-null, the starting point from which path begins, otherwise it will
+ *                      be assumed to begin from the self-node.
+ * @return the first link along the path or NULL if no such link is known.
+ */
+struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
+                                           uint64_t path,
+                                           uint64_t* correctedPath,
+                                           struct Node_Link* startingPoint);
 
 uint32_t NodeStore_linkCount(struct Node_Two* node);
 

@@ -310,10 +310,12 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 {
     // Lets check for non-one-hop links at each node along the path between us and this node.
-    uint32_t i = 0;
-    for (;;i++) {
-        struct Node_Link* link =
-            NodeStore_getLinkOnPath(janitor->nodeStore, n->address.path, i);
+    uint64_t path = n->address.path;
+
+    struct Node_Link* link = NULL;
+
+    for (;;) {
+        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
         if (!link) { return; }
         if (link->parent == janitor->nodeStore->selfNode) { continue; }
         int count = NodeStore_linkCount(link->child);
