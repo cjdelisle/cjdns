@@ -74,8 +74,8 @@ void Allocator_snapshot(struct Allocator* alloc, int includeAllocations)
 {
     // get the root allocator.
     struct Allocator_pvt* rootAlloc = Identity_check((struct Allocator_pvt*)alloc);
-    while (rootAlloc->lastSibling && rootAlloc->lastSibling != rootAlloc) {
-        rootAlloc = rootAlloc->lastSibling;
+    while (rootAlloc->parent && rootAlloc->parent != rootAlloc) {
+        rootAlloc = rootAlloc->parent;
     }
     fprintf(stderr, "----- %scjdns memory snapshot -----\n", "");
 
@@ -258,25 +258,25 @@ static void releaseMemory(struct Allocator_pvt* context,
 static void disconnect(struct Allocator_pvt* context)
 {
     // Remove this allocator from the sibling list.
-    Assert_true(context->lastSibling);
+    Assert_true(context->parent);
 
-    if (context->lastSibling->nextSibling == context) {
+    if (context->lastSibling) {
+        Assert_ifParanoid(context->lastSibling->nextSibling == context);
+        Assert_ifParanoid(context->parent->firstChild != context);
         context->lastSibling->nextSibling = context->nextSibling;
-
-    } else if (context->lastSibling->firstChild == context) {
-        context->lastSibling->firstChild = context->nextSibling;
-
-    } else if (context->lastSibling == context) {
-        // root alloc
-        Assert_true(!context->nextSibling);
+    } else {
+        // must be first in the list or a root allocator.
+        Assert_ifParanoid(context->parent->firstChild == context || context->parent == context);
+        Assert_ifParanoid(context->parent != context || !context->nextSibling);
+        context->parent->firstChild = context->nextSibling;
     }
-
     if (context->nextSibling) {
+        Assert_ifParanoid(context->nextSibling->lastSibling == context);
         context->nextSibling->lastSibling = context->lastSibling;
-        context->nextSibling = NULL;
     }
-
-    context->lastSibling = context;
+    context->lastSibling = NULL;
+    context->nextSibling = NULL;
+    context->parent = NULL;
 }
 
 // connect an allocator to a new parent.
@@ -285,39 +285,27 @@ static void connect(struct Allocator_pvt* parent,
                     const char* file,
                     int line)
 {
-    Assert_true(child->lastSibling == child);
-    Assert_true(child->nextSibling == NULL);
+    Assert_ifParanoid(child->parent == NULL);
+    Assert_ifParanoid(child->lastSibling == NULL);
+    Assert_ifParanoid(child->nextSibling == NULL);
     child->nextSibling = parent->firstChild;
-    parent->firstChild = child;
-    child->lastSibling = parent;
-}
-
-static struct Allocator_pvt* getParent(struct Allocator_pvt* child)
-{
-    struct Allocator_pvt* ls = child->lastSibling;
-    while (ls) {
-        if (ls->firstChild == child) {
-           return ls;
-        }
-        if (ls == ls->lastSibling) {
-            // root alloc
-            return NULL;
-        }
-        child = ls;
-        ls = ls->lastSibling;
+    if (parent->firstChild) {
+        parent->firstChild->lastSibling = child;
     }
-    Assert_true(0);
+    parent->firstChild = child;
+    child->parent = parent;
 }
 
 static void freeAllocator(struct Allocator_pvt* context, const char* file, int line);
 
 static void childFreed(struct Allocator_pvt* child)
 {
-    struct Allocator_pvt* parent = getParent(child);
+    struct Allocator_pvt* parent = child->parent;
     // disconnect the child and if there are no children left then call freeAllocator()
-    // on the parent a second time.
+    // on the parent a second time. If child == parent then it's a root allocator and
+    // we do not want to double-free it.
     disconnect(child);
-    if (parent && !parent->firstChild && parent->pub.isFreeing) {
+    if (parent && parent != child && !parent->firstChild && parent->pub.isFreeing) {
         freeAllocator(parent, child->pub.fileName, child->pub.lineNum);
     }
 }
@@ -571,12 +559,7 @@ struct Allocator* Allocator__child(struct Allocator* allocator, const char* file
     Bits_memcpyConst(child, &stackChild, sizeof(struct Allocator_pvt));
 
     // Link the child into the parent's allocator list
-    child->lastSibling = parent;
-    child->nextSibling = parent->firstChild;
-    if (parent->firstChild != NULL) {
-        parent->firstChild->lastSibling = child;
-    }
-    parent->firstChild = child;
+    connect(parent, child, file, line);
 
     return &child->pub;
 }
@@ -603,10 +586,10 @@ static int isAncestorOf(struct Allocator_pvt* maybeParent,
     if (maybeParent == maybeChild) {
         return 1;
     }
-    if (maybeParent == NULL || maybeChild == NULL) {
+    if (maybeParent == NULL || maybeChild == NULL || maybeChild->parent == maybeChild) {
         return 0;
     }
-    if (isAncestorOf(maybeParent, getParent(maybeChild))) {
+    if (isAncestorOf(maybeParent, maybeChild->parent)) {
         return 1;
     }
     if (maybeChild->adoptions) {
@@ -728,7 +711,7 @@ struct Allocator* Allocator_new(unsigned long sizeLimit,
 
     struct Allocator_pvt* context = &firstContext->context;
     context->rootAlloc = firstContext;
-    context->lastSibling = context;
+    context->parent = context;
 
     Identity_set(context);
     return &context->pub;

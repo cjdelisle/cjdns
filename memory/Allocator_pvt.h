@@ -74,11 +74,12 @@ struct Allocator_pvt
     /** A linked list of jobs which must be done when this allocator is freed. */
     struct Allocator_OnFreeJob_pvt* onFree;
 
+    /** The parent of this allocator, self-pointer if this is a root allocator. */
+    struct Allocator_pvt* parent;
+
     /**
      * When this allocator is freed, lastSibling->nextSibling will be set to nextSibling
      * removing this allocator from the linked list.
-     * GOTCHYA: if this is the first sibling, lastSibling will point to the parent and
-     *          in that case, lastSibling->firstChild becomes nextSibling.
      */
     struct Allocator_pvt* lastSibling;
 
