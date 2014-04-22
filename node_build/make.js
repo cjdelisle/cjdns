@@ -20,6 +20,7 @@ var Spawn = require('child_process').spawn;
 var Extend = require('node.extend');
 var Os = require('os');
 var FindPython2 = require('./FindPython2');
+var CanCompile = require('./CanCompile');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
@@ -51,7 +52,7 @@ Builder.configure({
 
     builder.config.tempDir = '/tmp';
     builder.config.useTempFiles = true;
-    builder.config.cflags.push(
+    builder.config.cflags.push.apply(builder.config.cflags, [
         '-std=c99',
         '-Wall',
         '-Wextra',
@@ -73,19 +74,18 @@ Builder.configure({
 
         '-g',
 
-//        '-flto', not available on some  machines
-
         // f4 = 16 peers max, fixed width 4 bit
         // f8 = 241 peers max, fixed width 8 bit
         // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D',' NumberCompress_TYPE=v3x5x8',
+        '-D','NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
         '-D','Identity_CHECK=1',
-        '-D','Allocator_USE_CANARIES=1'
-//        '-D','PARANOIA=1'
-    );
+        '-D','Allocator_USE_CANARIES=1',
+        '-D','PARANOIA=1'
+    ]);
+
     var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
     builder.config.cflags.push('-D','Log_'+logLevel);
     if (process.env['NO_PIE'] === undefined) {
@@ -155,6 +155,18 @@ Builder.configure({
             '-Dandroid=1'
         );
     }
+
+    CanCompile.check(builder,
+                     'int main() { return 0; }',
+                     [ builder.config.cflags, '-flto', '-x', 'c' ],
+                     function (err, can) {
+        if (can) {
+            console.log("Compiler supports link time optimization");
+            builder.config.ldflags.push('-flto');
+        } else {
+            console.log("Link time optimization not supported [" + err + "]");
+        }
+    });
 
     // Build dependencies
     nThen(function (waitFor) {

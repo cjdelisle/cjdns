@@ -55,8 +55,25 @@ var error = function (message)
     }
 };
 
+var expandArgs = function (args) {
+    var out = [];
+    for (var i = 0; i < args.length; i++) {
+        if (typeof(args[i]) === 'object') {
+            if (Array.isArray(args[i])) {
+                out.push.apply(out, expandArgs(args[i]));
+            } else {
+                throw new Error("object in arguments [" + args + "]");
+            }
+        } else {
+            out.push(args[i]);
+        }
+    }
+    return out;
+};
+
 var sema = Semaphore.create(WORKERS);
 var compiler = function (compilerPath, args, callback, content) {
+    args = expandArgs(args);
     sema.take(function (returnAfter) {
         var gcc = Spawn(compilerPath, args);
         var err = '';
