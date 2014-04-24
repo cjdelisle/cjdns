@@ -267,6 +267,19 @@ static uint64_t extendRoute(uint64_t routeLabel,
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
+
+    #ifdef Log_INFO
+        for (next = node->reversePeers; next; next = next->nextPeer) {
+            if (next->parent == store->pub.selfNode
+                && LabelSplicer_isOneHop(next->cannonicalLabel))
+            {
+                uint8_t addr[40];
+                AddrTools_printIp(addr, node->address.ip6.bytes);
+                Log_info(store->logger, "Direct peer [%s] is unreachable", addr);
+            }
+        }
+    #endif
+
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
     }
@@ -519,6 +532,14 @@ static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
     struct Node_Two* child = Identity_check(link->child);
     struct Node_Two* parent = Identity_check(link->parent);
     check(store);
+
+    #ifdef Log_INFO
+    if (parent == store->pub.selfNode && LabelSplicer_isOneHop(link->cannonicalLabel)) {
+        uint8_t addr[40];
+        AddrTools_printIp(addr, child->address.ip6.bytes);
+        Log_info(store->logger, "Direct peer [%s] has been removed from NodeStore", addr);
+    }
+    #endif
 
     // Change the best parent and path if necessary
     if (Node_getBestParent(child) == link) {
