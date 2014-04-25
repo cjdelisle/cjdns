@@ -39,6 +39,7 @@ def makeGraph():
         for i in range(0,numLinks):
             resp = cjdns.NodeStore_getLink(parentIP, i)
             childLink=resp['result']
+            if not childLink: continue
             childIP=childLink['child']
             # Check to see if its one hop away from parent node
             if childLink['isOneHop'] != 1:
