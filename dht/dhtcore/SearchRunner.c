@@ -138,12 +138,6 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
             continue;
         }
 
-        struct Node_Two* nn =
-            NodeStore_closestNode(search->runner->nodeStore, nodeList->elems[i].path);
-        if (!nn || Bits_memcmp(nn->address.key, nodeList->elems[i].key, 32)) {
-            RumorMill_addNode(search->runner->rumorMill, &nodeList->elems[i]);
-        }
-
         if (Address_closest(&search->target, &nodeList->elems[i], from) >= 0) {
             // Too much noise.
             //Log_debug(search->runner->logger, "Answer was further from the target than us.\n");
@@ -153,6 +147,12 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
         if (search->lastNodeAsked.path != from->path) {
             // old queries coming in late...
             continue;
+        }
+
+        struct Node_Two* nn =
+            NodeStore_closestNode(search->runner->nodeStore, nodeList->elems[i].path);
+        if (!nn || Bits_memcmp(nn->address.key, nodeList->elems[i].key, 32)) {
+            RumorMill_addNode(search->runner->rumorMill, &nodeList->elems[i]);
         }
 
         nodeList->elems[i].path =
