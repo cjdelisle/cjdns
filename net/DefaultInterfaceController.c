@@ -172,8 +172,19 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Bits_memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
-    Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
     addr.protocolVersion = version;
+
+    #ifdef Log_DEBUG
+        uint8_t addrStr[60];
+        Address_print(addrStr, &addr);
+    #endif
+
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
+        Log_debug(ic->logger, "got switch pong from node [%s] with incompatible version [%d]",
+                  addrStr, version);
+    } else {
+        Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
+    }
 
     struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
     if (!nn) {
