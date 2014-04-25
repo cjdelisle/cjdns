@@ -297,6 +297,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
     struct Address_List* addresses =
         ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
 
+    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
+    if (!parent) { return; }
+    int loopCount = 0;
     for (int i = 0; addresses && i < addresses->length; i++) {
         struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
         if (!nn) {
@@ -305,24 +308,19 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
             RumorMill_addNode(janitor->rumorMill, &addresses->elems[i]);
         } else if (!Address_isSameIp(&addresses->elems[i], &nn->address)) {
             #ifdef Log_INFO
-                uint8_t oldAddr[60];
                 uint8_t newAddr[60];
-                Address_print(oldAddr, &nn->address);
-                Address_print(newAddr, &addresses->elems[i]);
-                Log_info(janitor->logger, "Change of address [%s] -> [%s]", oldAddr, newAddr);
                 Address_print(newAddr, from);
                 Log_info(janitor->logger, "Apparently [%s] has renumbered it's switch", newAddr);
             #endif
-            struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
             struct Node_Link* link = NodeStore_nextLink(parent, NULL);
             while (link) {
                 struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
                 NodeStore_unlinkNodes(janitor->nodeStore, link);
                 link = nextLink;
+                // restart from the beginning...
+                i = 0;
+                Assert_true(!loopCount++);
             }
-
-            // restart from the beginning...
-            i = 0;
         }
     }
 }
