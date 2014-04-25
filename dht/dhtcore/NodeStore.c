@@ -1351,11 +1351,14 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
             struct Node_Link* nextLink = NULL;
             path = firstHopInPath(path, &nextLink, lastLink, store);
             lastLink = nextLink;
-            // If this happens, discoverLink() should have worked.
-            Assert_true(path != firstHopInPath_NO_NEXT_LINK);
+            if (path == firstHopInPath_NO_NEXT_LINK) {
+                // discoverNode() failed for some other reason.
+                lastLink = NULL;
+                break;
+            }
         } while (firstHopInPath_INVALID != path);
 
-        if (LabelSplicer_routesThrough(addr->path, lastLink->child->address.path)) {
+        if (lastLink && LabelSplicer_routesThrough(addr->path, lastLink->child->address.path)) {
             // checking for sillyness...
             Assert_true(lastLink != store->selfLink);
             NodeStore_unlinkNodes(&store->pub, lastLink);
