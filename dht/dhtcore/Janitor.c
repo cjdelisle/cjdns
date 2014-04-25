@@ -185,110 +185,6 @@ static void searchNoDupe(uint8_t target[Address_SEARCH_TARGET_SIZE], struct Jani
     #endif
 }
 
-static void peersResponseCallback(struct RouterModule_Promise* promise,
-                                  uint32_t lagMilliseconds,
-                                  struct Address* from,
-                                  Dict* result)
-{
-    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
-    if (!from) { return; }
-    struct Address_List* addresses =
-        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
-
-    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
-    if (!parent) { return; }
-
-    // Figure out if this node has any split-able links.
-    bool hasSplitableLinks = false;
-    struct Node_Link* link = NodeStore_nextLink(parent, NULL);
-    while (link) {
-        if (!Node_isOneHopLink(link)) {
-            hasSplitableLinks = true;
-            break;
-        }
-        link = NodeStore_nextLink(parent, link);
-    }
-
-    int loopCount = 0;
-    for (int i = 0; addresses && i < addresses->length; i++) {
-        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nn) {
-            addresses->elems[i].path = NodeStore_optimizePath(janitor->nodeStore,
-                                                              addresses->elems[i].path);
-            if (hasSplitableLinks) {
-                RumorMill_addNode(janitor->splitMill, &addresses->elems[i]);
-            } else {
-                RumorMill_addNode(janitor->idleMill, &addresses->elems[i]);
-            }
-        } else if (!Address_isSameIp(&addresses->elems[i], &nn->address)) {
-            #ifdef Log_INFO
-                uint8_t newAddr[60];
-                Address_print(newAddr, from);
-                Log_info(janitor->logger, "Apparently [%s] has renumbered it's switch", newAddr);
-            #endif
-            link = NodeStore_nextLink(parent, NULL);
-            while (link) {
-                struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
-                NodeStore_unlinkNodes(janitor->nodeStore, link);
-                link = nextLink;
-                // restart from the beginning...
-                i = 0;
-                Assert_true(!loopCount++);
-            }
-        }
-    }
-}
-
-static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
-{
-    // Lets check for non-one-hop links at each node along the path between us and this node.
-    uint64_t path = n->address.path;
-
-    struct Node_Link* link = NULL;
-
-    for (;;) {
-        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
-        if (!link) { return; }
-        if (link->parent == janitor->nodeStore->selfNode) { continue; }
-
-        struct Node_Link* l = NULL;
-        do {
-            l = NodeStore_nextLink(link->child, l);
-            if (l && (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0)) {
-                struct RouterModule_Promise* rp =
-                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
-                                          janitor->routerModule, janitor->allocator);
-                rp->callback = peersResponseCallback;
-                rp->userData = janitor;
-                // Only send max 1 getPeers req per second.
-                return;
-            }
-        } while (l);
-    }
-}
-
-// Iterate over all nodes in the table. Try to split any split-able links.
-static void splitLinks(struct Janitor* janitor)
-{
-    uint32_t index = 0;
-    struct Node_Two* node = NodeStore_dumpTable(janitor->nodeStore, index);
-    while (node) {
-        struct Node_Link* bestParent = Node_getBestParent(node);
-        if (bestParent) {
-            struct Node_Link* link = NodeStore_nextLink(node, NULL);
-            while (link) {
-                if (!Node_isOneHopLink(link)) {
-                    RumorMill_addNode(janitor->splitMill, &node->address);
-                    break;
-                }
-                link = NodeStore_nextLink(node, link);
-            }
-        }
-        index++;
-        node = NodeStore_dumpTable(janitor->nodeStore, index);
-    }
-}
-
 /**
  * For a Distributed Hash Table to work, each node must know a valid next hop in the search,
  * if such a thing exists.
@@ -399,6 +295,110 @@ static void keyspaceMaintainence(struct Janitor* janitor)
     // Should end up self-searching in the event that we're all the way through keyspace.
     searchNoDupe(addr.ip6.bytes, janitor);
 
+}
+
+static void peersResponseCallback(struct RouterModule_Promise* promise,
+                                  uint32_t lagMilliseconds,
+                                  struct Address* from,
+                                  Dict* result)
+{
+    struct Janitor* janitor = Identity_check((struct Janitor*)promise->userData);
+    if (!from) { return; }
+    struct Address_List* addresses =
+        ReplySerializer_parse(from, result, janitor->logger, promise->alloc);
+
+    struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
+    if (!parent) { return; }
+
+    // Figure out if this node has any split-able links.
+    bool hasSplitableLinks = false;
+    struct Node_Link* link = NodeStore_nextLink(parent, NULL);
+    while (link) {
+        if (!Node_isOneHopLink(link)) {
+            hasSplitableLinks = true;
+            break;
+        }
+        link = NodeStore_nextLink(parent, link);
+    }
+
+    int loopCount = 0;
+    for (int i = 0; addresses && i < addresses->length; i++) {
+        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nn) {
+            addresses->elems[i].path = NodeStore_optimizePath(janitor->nodeStore,
+                                                              addresses->elems[i].path);
+            if (hasSplitableLinks) {
+                RumorMill_addNode(janitor->splitMill, &addresses->elems[i]);
+            } else {
+                RumorMill_addNode(janitor->idleMill, &addresses->elems[i]);
+            }
+        } else if (!Address_isSameIp(&addresses->elems[i], &nn->address)) {
+            #ifdef Log_INFO
+                uint8_t newAddr[60];
+                Address_print(newAddr, from);
+                Log_info(janitor->logger, "Apparently [%s] has renumbered it's switch", newAddr);
+            #endif
+            link = NodeStore_nextLink(parent, NULL);
+            while (link) {
+                struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
+                NodeStore_unlinkNodes(janitor->nodeStore, link);
+                link = nextLink;
+                // restart from the beginning...
+                i = 0;
+                Assert_true(!loopCount++);
+            }
+        }
+    }
+}
+
+static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
+{
+    // Lets check for non-one-hop links at each node along the path between us and this node.
+    uint64_t path = n->address.path;
+
+    struct Node_Link* link = NULL;
+
+    for (;;) {
+        link = NodeStore_firstHopInPath(janitor->nodeStore, path, &path, link);
+        if (!link) { return; }
+        if (link->parent == janitor->nodeStore->selfNode) { continue; }
+
+        struct Node_Link* l = NULL;
+        do {
+            l = NodeStore_nextLink(link->child, l);
+            if (l && (!Node_isOneHopLink(l) || Node_getReach(link->parent) == 0)) {
+                struct RouterModule_Promise* rp =
+                    RouterModule_getPeers(&link->parent->address, l->cannonicalLabel, 0,
+                                          janitor->routerModule, janitor->allocator);
+                rp->callback = peersResponseCallback;
+                rp->userData = janitor;
+                // Only send max 1 getPeers req per second.
+                return;
+            }
+        } while (l);
+    }
+}
+
+// Iterate over all nodes in the table. Try to split any split-able links.
+static void splitLinks(struct Janitor* janitor)
+{
+    uint32_t index = 0;
+    struct Node_Two* node = NodeStore_dumpTable(janitor->nodeStore, index);
+    while (node) {
+        struct Node_Link* bestParent = Node_getBestParent(node);
+        if (bestParent) {
+            struct Node_Link* link = NodeStore_nextLink(node, NULL);
+            while (link) {
+                if (!Node_isOneHopLink(link)) {
+                    RumorMill_addNode(janitor->splitMill, &node->address);
+                    break;
+                }
+                link = NodeStore_nextLink(node, link);
+            }
+        }
+        index++;
+        node = NodeStore_dumpTable(janitor->nodeStore, index);
+    }
 }
 
 static void maintanenceCycle(void* vcontext)
