@@ -267,15 +267,22 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
     }
 }
 
-// Iterate over all nodes in the table. Try to split any bestParent links.
+// Iterate over all nodes in the table. Try to split any split-able links.
 static void splitLinks(struct Janitor* janitor)
 {
     uint32_t index = 0;
     struct Node_Two* node = NodeStore_dumpTable(janitor->nodeStore, index);
     while (node) {
         struct Node_Link* bestParent = Node_getBestParent(node);
-        if (bestParent && !Node_isOneHopLink(bestParent)) {
-            RumorMill_addNode(janitor->splitMill, &bestParent->parent->address);
+        if (bestParent) {
+            struct Node_Link* link = NodeStore_nextLink(node, NULL);
+            while (link) {
+                if (!Node_isOneHopLink(link)) {
+                    RumorMill_addNode(janitor->splitMill, &node->address);
+                    break;
+                }
+                link = NodeStore_nextLink(node, link);
+            }
         }
         index++;
         node = NodeStore_dumpTable(janitor->nodeStore, index);
@@ -539,7 +546,7 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     }));
     Identity_set(janitor);
 
-    janitor->splitMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64);
+    janitor->splitMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 16);
 
     janitor->idleMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64);
 
