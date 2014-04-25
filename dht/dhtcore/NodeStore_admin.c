@@ -94,6 +94,27 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
     dumpTable_addEntries(ctx, i, 0, NULL, txid);
 }
 
+static int linkCount(struct Node_Two* parent)
+{
+    struct Node_Link* link = NULL;
+    int i = 0;
+    do {
+        link = NodeStore_nextLink(parent, link);
+        i++;
+    } while (link);
+    return i;
+}
+
+static struct Node_Link* getLinkByNum(struct Node_Two* parent, int linkNum)
+{
+    struct Node_Link* link = NULL;
+    for (int i = 0; i <= linkNum; i++) {
+        link = NodeStore_nextLink(parent, link);
+        if (!link) { break; }
+    }
+    return link;
+}
+
 static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
@@ -122,7 +143,7 @@ static void getLink(Dict* args, void* vcontext, String* txid, struct Allocator* 
                        String_new("not_found", alloc),
                        alloc);
 
-    } else if ((link = NodeStore_getLink(node, *linkNum))) {
+    } else if ((link = getLinkByNum(node, *linkNum))) {
         Dict_putInt(result,
                     String_new("inverseLinkEncodingFormNumber", alloc),
                     link->inverseLinkEncodingFormNumber,
@@ -183,8 +204,8 @@ static void nodeForAddr(Dict* args, void* vcontext, String* txid, struct Allocat
     String* key = Key_stringify(node->address.key, alloc);
     Dict_putString(result, String_new("key", alloc), key, alloc);
 
-    uint32_t linkCount = NodeStore_linkCount(node);
-    Dict_putInt(result, String_new("linkCount", alloc), linkCount, alloc);
+    uint32_t count = linkCount(node);
+    Dict_putInt(result, String_new("linkCount", alloc), count, alloc);
 
     Dict_putInt(result, String_new("reach", alloc), Node_getReach(node), alloc);
 

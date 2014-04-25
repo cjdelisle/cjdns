@@ -76,7 +76,17 @@ struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t pat
 
 struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path);
 
-struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum);
+void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link);
+
+/**
+ * Get an outgoing link for a node.
+ *
+ * @param parent the node from which the link begins.
+ * @param startLink the link to get the next link after, if NULL the first link from the parent
+ *                  will be returned.
+ * @return the next link from the parent of NULL if there are no more links.
+ */
+struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* startLink);
 
 /**
  * Get the first peer along a path.
@@ -95,8 +105,6 @@ struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
                                            uint64_t path,
                                            uint64_t* correctedPath,
                                            struct Node_Link* startingPoint);
-
-uint32_t NodeStore_linkCount(struct Node_Two* node);
 
 #define NodeStore_optimizePath_INVALID (~((uint64_t)0))
 uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path);

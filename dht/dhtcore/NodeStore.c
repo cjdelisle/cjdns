@@ -527,8 +527,9 @@ static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStor
     }
 }
 
-static void unlinkNodes(struct Node_Link* link, struct NodeStore_pvt* store)
+void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
 {
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*) nodeStore);
     struct Node_Two* child = Identity_check(link->child);
     struct Node_Two* parent = Identity_check(link->parent);
     check(store);
@@ -912,7 +913,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         // a split link.
         Assert_true(closestKnown != closest);
 
-        unlinkNodes(closest, store);
+        NodeStore_unlinkNodes(&store->pub, closest);
         pathParentChild = findClosest(pathKnownParentChild, &closest, closestKnown, store);
 
         if (pathParentChild != findClosest_INVALID) {
@@ -1016,7 +1017,9 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             check(store);
             if (Node_getReach(parent) > Node_getReach(child)) {
                 // Parent definitely does not decend from child.
-                updateBestParent(parentLink, Node_getReach(child), store);
+                uint32_t childNewReach = Node_getReach(child);
+                if (childNewReach < 1024) { childNewReach = guessReachOfChild(parentLink); }
+                updateBestParent(parentLink, childNewReach, store);
             } else {
                 // Child definitely does not decend from parent
                 // if parent reach is less than child reach, parent may decend from child,
@@ -1151,7 +1154,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         // be careful!
         // splitLink might have been unlinked by the recursive discoverLink() call.
         if (splitLink->parent) {
-            unlinkNodes(splitLink, store);
+            NodeStore_unlinkNodes(&store->pub, splitLink);
         }
 
         // link RB_NEXT might have also been freed by a recursive call to discoverLink()
@@ -1232,7 +1235,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &node->peerTree) {
         Identity_check(link);
-        unlinkNodes(link, store);
+        NodeStore_unlinkNodes(&store->pub, link);
     }
 
     // If the node has a bestParent, it will be changed a number
@@ -1245,7 +1248,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     link = node->reversePeers;
     while (link) {
         struct Node_Link* nextLink = link->nextPeer;
-        unlinkNodes(link, store);
+        NodeStore_unlinkNodes(&store->pub, link);
         link = nextLink;
     }
 
@@ -1355,7 +1358,7 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         if (LabelSplicer_routesThrough(addr->path, lastLink->child->address.path)) {
             // checking for sillyness...
             Assert_true(lastLink != store->selfLink);
-            unlinkNodes(lastLink, store);
+            NodeStore_unlinkNodes(&store->pub, lastLink);
             continue;
         }
 
@@ -1440,17 +1443,6 @@ struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
     return out;
 }
 
-struct Node_Link* NodeStore_getLink(struct Node_Two* parent, uint32_t linkNum)
-{
-    struct Node_Link* link = NULL;
-    RB_FOREACH_REVERSE(link, PeerRBTree, &parent->peerTree) {
-        if (!linkNum--) {
-            return link;
-        }
-    }
-    return NULL;
-}
-
 char* NodeStore_getRouteLabel_strerror(uint64_t returnVal)
 {
     switch (returnVal) {
@@ -1517,14 +1509,13 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
     return path;
 }
 
-uint32_t NodeStore_linkCount(struct Node_Two* node)
+struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* startLink)
 {
-    uint32_t i = 0;
-    struct Node_Link* link;
-    RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
-        i++;
+    if (!startLink) {
+        startLink = RB_MIN(PeerRBTree, &parent->peerTree);
+        if (!startLink) { return NULL; }
     }
-    return i;
+    return PeerRBTree_RB_NEXT(startLink);
 }
 
 /** See: NodeStore.h */
