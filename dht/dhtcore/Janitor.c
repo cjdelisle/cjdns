@@ -315,11 +315,11 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
             #endif
             struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
             struct Node_Link* link = NodeStore_nextLink(parent, NULL);
-            do {
+            while (link) {
                 struct Node_Link* nextLink = NodeStore_nextLink(parent, link);
                 NodeStore_unlinkNodes(janitor->nodeStore, link);
                 link = nextLink;
-            } while (link);
+            }
 
             // restart from the beginning...
             i = 0;
