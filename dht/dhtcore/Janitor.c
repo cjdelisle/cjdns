@@ -196,7 +196,6 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         if (!nn) {
             // Figure out if this path would split an already known link.
             bool canSplitPath = false;
-            struct Node_Two* parent = NodeStore_nodeForAddr(janitor->nodeStore, from->ip6.bytes);
             struct Node_Link* link = NodeStore_nextLink(parent, NULL);
             while (link) {
                 uint64_t linkPath = NodeStore_getRouteLabel(janitor->nodeStore,
