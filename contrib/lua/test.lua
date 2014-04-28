@@ -23,13 +23,26 @@ function testInterface(iface)
 
     print("Route lookup?")
     print("lookup", iface.router:lookup(testip))
+
     print("Router ping?")
-    print("ping", iface.router:pingNode(testip) .. "ms")
+    local ms, err = iface.router:pingNode(testip)
+    if err then
+      print("error", err)
+    else
+      print("ping", ms .. "ms")
+    end
+
     print("Router ping by lookup address...")
     local testpath, err = iface.router:lookup(testip)
     if testpath then
         print("Path: " .. testpath)
-        print("ping", iface.router:pingNode(testpath) .. "ms")
+
+        local ms, err = iface.router:pingNode(testpath)
+        if err then
+          print("error", err)
+        else
+          print("ping", ms .. "ms")
+        end
     else
         print("testpath failed: " .. err)
     end

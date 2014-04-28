@@ -39,7 +39,7 @@ function ConfigFile:read(path)
 end
 
 function ConfigFile:parse()
-    local obj, pos, err = djkson.decode(self.text)
+    local obj, pos, err = dkjson.decode(self.text)
     assert(err == nil, err) -- If there is an error, die and print it
 
     self.contents = obj
@@ -50,7 +50,7 @@ function ConfigFile:save(path)
     -- table contents, since Lua does not distinguish between [] and {}
 
     path = path or self.path
-    local savetext = assert(djkson.encode(self.contents, { indent = true }))
+    local savetext = assert(dkjson.encode(self.contents, { indent = true }))
 
     local f = assert(io.open(path, 'w'))
     f:write(savetext)
