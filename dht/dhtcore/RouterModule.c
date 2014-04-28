@@ -633,7 +633,9 @@ struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SI
 
 struct Node_Two* RouterModule_nodeForPath(uint64_t path, struct RouterModule* module)
 {
-    return NodeStore_nodeForPath(module->nodeStore, path);
+    struct Node_Link* link = NodeStore_linkForPath(module->nodeStore, path);
+    if (!link) { return NULL; }
+    return link->child;
 }
 
 void RouterModule_brokenPath(const uint64_t path, struct RouterModule* module)
