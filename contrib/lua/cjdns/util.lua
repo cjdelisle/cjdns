@@ -26,7 +26,7 @@ function UtilFunctions:ping()
 end
 
 function UtilFunctions:memory()
-    local response, err = self.ai:call({q = "memory"})
+    local response, err = self.ai:auth({q = "memory"})
     if response and response.bytes then
         return response.bytes
     else
