@@ -63,13 +63,6 @@ Builder.configure({
         '-Wno-unused-parameter',
         '-Wno-unused-result',
 
-        // Broken GCC patch makes -fstack-protector-all not work
-        // workaround is to give -fno-stack-protector first.
-        // see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
-        '-fno-stack-protector',
-        '-fstack-protector-all',
-        '-Wstack-protector',
-
         '-D','HAS_BUILTIN_CONSTANT_P',
 
         '-g',
@@ -167,6 +160,20 @@ Builder.configure({
             console.log("Link time optimization not supported [" + err + "]");
         }
     });
+
+    var uclibc = /uclibc/i.test(GCC);
+    var libssp = process.env['SSP_SUPPORT'] == 'y'
+    if (!uclibc || libssp) {
+        builder.config.cflags.push(
+            // Broken GCC patch makes -fstack-protector-all not work
+            // workaround is to give -fno-stack-protector first.
+            // see: https://bugs.launchpad.net/ubuntu/+source/gcc-4.5/+bug/691722
+            '-fno-stack-protector',
+            '-fstack-protector-all',
+            '-Wstack-protector'
+        );
+        if (uclibc) { builder.config.libs.push('-lssp'); }
+    }
 
     // Build dependencies
     nThen(function (waitFor) {
