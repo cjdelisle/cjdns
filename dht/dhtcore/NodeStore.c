@@ -1422,13 +1422,13 @@ struct Node_Two* NodeStore_closestNode(struct NodeStore* nodeStore, uint64_t pat
     return Identity_check(out->child);
 }
 
-struct Node_Two* NodeStore_nodeForPath(struct NodeStore* nodeStore, uint64_t path)
+struct Node_Link* NodeStore_linkForPath(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* out = NULL;
     uint64_t pathParentChild = findClosest(path, &out, store->selfLink, store);
     if (pathParentChild != 1) { return NULL; }
-    return Identity_check(out->child);
+    return Identity_check(out);
 }
 
 struct Node_Link* NodeStore_firstHopInPath(struct NodeStore* nodeStore,
@@ -1747,6 +1747,10 @@ struct NodeList* NodeStore_getClosestNodes(struct NodeStore* nodeStore,
     return out;
 }
 
+// TODO(cjd): There's no such thing as a "broken path", there's a broken *link* but we don't
+//            know exactly which link is broken, we need to interpret the incoming error message
+//            better and determine which link is likely broken and then send a getPeers message
+//            to the node before it to check if the next link is nolonger valid.
 void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
@@ -1756,9 +1760,9 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         AddrTools_printPath(pathStr, path);
         Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
     #endif
-    struct Node_Two* nn = NodeStore_nodeForPath(nodeStore, path);
-    if (nn && Node_getReach(nn) > 0) {
-        handleBadNews(nn, 0, store);
+    struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
+    if (nl && Node_getReach(nl->child) > 0) {
+        handleBadNews(nl->child, 0, store);
     }
     verify(store);
 }
@@ -1809,39 +1813,39 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
 void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t milliseconds)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
-    if (node) {
-        uint32_t newReach;
-        if (node->address.path == path) {
-            // Use old reach value to calculate new reach
-            newReach = calcNextReach(Node_getReach(node), milliseconds);
-        }
-        else {
-            // Old reach value doesn't relate to this path, so we should do something different
-            // FIXME(arceliar): calcNextReach is guessing what the reach would stabilize to
-            // I think actually fixing this would require storing reach (or latency?) per link,
-            // so we can calculate the expected reach for an arbitrary path
-            newReach = calcNextReach(0, milliseconds);
-        }
-        updatePathReach(store, path, newReach);
+    struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
+    if (!link) { return; }
+    struct Node_Two* node = link->child;
+    uint32_t newReach;
+    if (node->address.path == path) {
+        // Use old reach value to calculate new reach
+        newReach = calcNextReach(Node_getReach(node), milliseconds);
     }
+    else {
+        // Old reach value doesn't relate to this path, so we should do something different
+        // FIXME(arceliar): calcNextReach is guessing what the reach would stabilize to
+        // I think actually fixing this would require storing reach (or latency?) per link,
+        // so we can calculate the expected reach for an arbitrary path
+        newReach = calcNextReach(0, milliseconds);
+    }
+    updatePathReach(store, path, newReach);
 }
 
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    struct Node_Two* node = NodeStore_nodeForPath(nodeStore, path);
-    if (node && node->address.path == path) {
-        uint32_t newReach = reachAfterTimeout(Node_getReach(node));
-        #ifdef Log_DEBUG
-            uint8_t addr[60];
-            Address_print(addr, &node->address);
-            Log_debug(store->logger,
-                      "Ping timeout for %s. changing reach from %u to %u\n",
-                      addr,
-                      Node_getReach(node),
-                      newReach);
-        #endif
-        handleNews(node, newReach, store);
-    }
+    struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
+    if (!link || link->child->address.path != path) { return; }
+    struct Node_Two* node = link->child;
+    uint32_t newReach = reachAfterTimeout(Node_getReach(node));
+    #ifdef Log_DEBUG
+        uint8_t addr[60];
+        Address_print(addr, &node->address);
+        Log_debug(store->logger,
+                  "Ping timeout for %s. changing reach from %u to %u\n",
+                  addr,
+                  Node_getReach(node),
+                  newReach);
+    #endif
+    handleNews(node, newReach, store);
 }

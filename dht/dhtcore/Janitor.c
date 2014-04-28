@@ -323,8 +323,8 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 
     int loopCount = 0;
     for (int i = 0; addresses && i < addresses->length; i++) {
-        struct Node_Two* nn = NodeStore_nodeForPath(janitor->nodeStore, addresses->elems[i].path);
-        if (!nn) {
+        struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
+        if (!nl) {
             addresses->elems[i].path = NodeStore_optimizePath(janitor->nodeStore,
                                                               addresses->elems[i].path);
             if (hasSplitableLinks) {
@@ -332,7 +332,9 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
             } else {
                 RumorMill_addNode(janitor->idleMill, &addresses->elems[i]);
             }
-        } else if (!Address_isSameIp(&addresses->elems[i], &nn->address)) {
+        } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
+            // they're telling us about themselves, how helpful...
+            if (nl && nl->child == parent) { continue; }
             #ifdef Log_INFO
                 uint8_t newAddr[60];
                 Address_print(newAddr, from);

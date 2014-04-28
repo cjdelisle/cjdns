@@ -70,6 +70,9 @@ struct IFCPeer
     /** Milliseconds since the epoch when the last *valid* message was received. */
     uint64_t timeOfLastMessage;
 
+    /** Time when the last switch ping was sent to node. */
+    uint64_t timeOfLastPing;
+
     /** The handle which can be used to look up this endpoint in the endpoint set. */
     uint32_t handle;
 
@@ -216,68 +219,73 @@ static void pingCallback(void* vic)
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
         struct IFCPeer* ep = ic->peerMap.values[i];
 
-        // This is here because of a pathological state where the connection is in ESTABLISHED
-        // state but the *direct peer* has somehow been dropped from the routing table.
-        // TODO(cjd): understand the cause of this issue rather than checking for it once per second
-        struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
-
-        if (now > ep->timeOfLastMessage + ic->pingAfterMilliseconds
-            || !peerNode
-            || !Node_getBestParent(peerNode))
-        {
-            #ifdef Log_DEBUG
-                  uint8_t key[56];
-                  Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
-            #endif
-
-            if (ep->isIncomingConnection
-                && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
-            {
-                Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
-                                      "seconds, dropping connection",
-                                      key, ic->forgetAfterMilliseconds / 1024);
-                Allocator_free(ep->external->allocator);
-                return;
+        if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
+            if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
+                // Possibly an out-of-date node which is mangling packets, don't ping too often
+                // because it causes the RumorMill to be filled with this node over and over.
+                continue;
             }
-
-            bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
-            if (unresponsive) {
-                // flush the peer from the table...
-                RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
-
-                // Lets skip 87% of pings when they're really down.
-                if (ic->pingCount % 8) {
-                    continue;
-                }
-
-                ep->state = InterfaceController_PeerState_UNRESPONSIVE;
+            // This is here because of a pathological state where the connection is in ESTABLISHED
+            // state but the *direct peer* has somehow been dropped from the routing table
+            // usually because of a call to NodeStore_brokenPath()
+            struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
+            if (peerNode && Node_getBestParent(peerNode)) {
+                continue;
             }
-
-            struct SwitchPinger_Ping* ping =
-                SwitchPinger_newPing(ep->switchLabel,
-                                     String_CONST(""),
-                                     ic->timeoutMilliseconds,
-                                     onPingResponse,
-                                     ic->allocator,
-                                     ic->switchPinger);
-
-            #ifdef Log_DEBUG
-                uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
-            #endif
-
-            if (!ping) {
-                Log_debug(ic->logger,
-                          "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
-                          (unresponsive ? "unresponsive" : "lazy"), key, lag);
-                return;
-            }
-
-            ping->onResponseContext = ep;
-
-            Log_debug(ic->logger,
-                      "Pinging %s peer [%s.k] lag [%u]",
-                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
         }
+
+        #ifdef Log_DEBUG
+              uint8_t key[56];
+              Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+        #endif
+
+        if (ep->isIncomingConnection
+            && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
+        {
+            Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
+                                  "seconds, dropping connection",
+                                  key, ic->forgetAfterMilliseconds / 1024);
+            Allocator_free(ep->external->allocator);
+            return;
+        }
+
+        bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
+        if (unresponsive) {
+            // flush the peer from the table...
+            RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
+
+            // Lets skip 87% of pings when they're really down.
+            if (ic->pingCount % 8) {
+                continue;
+            }
+
+            ep->state = InterfaceController_PeerState_UNRESPONSIVE;
+        }
+
+        struct SwitchPinger_Ping* ping =
+            SwitchPinger_newPing(ep->switchLabel,
+                                 String_CONST(""),
+                                 ic->timeoutMilliseconds,
+                                 onPingResponse,
+                                 ic->allocator,
+                                 ic->switchPinger);
+
+        #ifdef Log_DEBUG
+            uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
+        #endif
+
+        if (!ping) {
+            Log_debug(ic->logger,
+                      "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
+                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
+            return;
+        }
+
+        ping->onResponseContext = ep;
+
+        Log_debug(ic->logger,
+                  "Pinging %s peer [%s.k] lag [%u]",
+                  (unresponsive ? "unresponsive" : "lazy"), key, lag);
     }
 }
 
