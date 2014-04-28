@@ -173,6 +173,8 @@ Builder.configure({
             '-Wstack-protector'
         );
         if (uclibc) { builder.config.libs.push('-lssp'); }
+    } else {
+        console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
     // Build dependencies
