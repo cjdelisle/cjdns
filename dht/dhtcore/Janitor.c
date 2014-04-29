@@ -309,6 +309,17 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
             // they're telling us about themselves, how helpful...
             if (nl && nl->child == parent) { continue; }
+            if (nl->parent != parent) {
+                #ifdef Log_INFO
+                    uint8_t newAddr[60];
+                    Address_print(newAddr, from);
+                    uint8_t labelStr[20];
+                    AddrTools_printPath(labelStr, nl->cannonicalLabel);
+                    Log_info(janitor->logger, "Apparently [%s] reported [%s] as it's peer",
+                             newAddr, labelStr);
+                #endif
+                continue;
+            }
             #ifdef Log_INFO
                 uint8_t newAddr[60];
                 Address_print(newAddr, from);
@@ -321,8 +332,10 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
                 link = nextLink;
                 // restart from the beginning...
                 i = 0;
-                Assert_true(!loopCount++);
+                Assert_true(!loopCount);
             }
+            Assert_true(!NodeStore_nextLink(parent, NULL));
+            loopCount++;
         }
     }
 }
