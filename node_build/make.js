@@ -30,8 +30,10 @@ var GCC = process.env['CC'] || 'gcc';
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
     BUILDDIR = 'build_'+SYSTEM;
-
 }
+
+var OPTIMIZE = '-O2';
+
 // on BSD and iphone systems, os.cpus() is not reliable so if it
 // returns undefined, let's just assume 1
 var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
@@ -155,9 +157,13 @@ Builder.configure({
                      function (err, can) {
         if (can) {
             console.log("Compiler supports link time optimization");
-            builder.config.ldflags.push('-flto');
+            builder.config.ldflags.push(
+                '-flto',
+                OPTIMIZE
+            );
         } else {
             console.log("Link time optimization not supported [" + err + "]");
+            builder.config.cflags.push(OPTIMIZE);
         }
     });
 
