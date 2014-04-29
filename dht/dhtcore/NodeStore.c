@@ -1267,7 +1267,7 @@ static void markKeyspaceNodes(struct NodeStore_pvt* store)
 
         // Mark the best nodes for this hop.
         // TODO(arceliar): Current implementation (calling markBestNodes on everything)
-        // is inefficient. Temporary workaround is to catch when we've found some
+        // scales poorly. Temporary workaround is to catch when we've found some
         // number of empty buckets and then exit. (done)
         // Better implementation would be to iterate over the tree *once* to fill NodeLists
         // for every bucket. Then iterate over all lists marking the nodes in the lists.
@@ -1319,12 +1319,23 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
             worst = nn;
         }
     }
+    if (worst) { return worst; }
+
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        // third cycle, every node is apparently important but we need to get rid of someone
+        // get whoever is worst if we ignore markings
+        // by definition, this shouldn't be a bestParent, because their children have lower reach
+        // so we're potentially creating a keyspace hole (routing blackhole) when we do this.
+        // TODO(arceliar): protect keyspace, evict the worst bestParent instead?
+        // Would require something like a forgetNode() to splice links together between
+        // that node's bestParent and all its children, before we kill it.
+        if (!worst || whichIsWorse(nn, worst, store) == nn) {
+            worst = nn;
+        }
+    }
+
     // somebody has to be at the end of the line, not *everyone* can be someone's best parent!
-    //Assert_true(worst);
-    // That's no longer technically true. If the network is sufficiently large and the NodeStore
-    // size is too small, then it's possible that every node is strictly required for DHT reasons
-    // or because it is a bestParent (in the path leading to a DHT-required node).
-    // This should still be extremely rare.
+    Assert_true(worst);
     return worst;
 }
 
@@ -1482,10 +1493,6 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         || store->pub.linkCount >= store->pub.linkCapacity)
     {
         struct Node_Two* worst = getWorstNode(store);
-        if (!worst) {
-            Log_debug(store->logger, "store full, but no nodes eligible for removal.");
-            break;
-        }
         #ifdef Log_DEBUG
             uint8_t worstAddr[60];
             Address_print(worstAddr, &worst->address);
