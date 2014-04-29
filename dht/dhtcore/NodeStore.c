@@ -1181,20 +1181,110 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
             }
         }
     }
+    if (Node_getReach(one) < Node_getReach(two)) { return one; }
+    if (Node_getReach(two) < Node_getReach(one)) { return two; }
     if (Address_closest(&store->pub.selfNode->address, &one->address, &two->address) > 0) {
         return one;
     }
     return two;
 }
 
+static bool markBestNodes(struct NodeStore_pvt* store,
+                          struct Address* targetAddress,
+                          const uint32_t count)
+{
+    struct Allocator* nodeListAlloc = Allocator_child(store->alloc);
+    struct NodeList* nodeList = Allocator_malloc(nodeListAlloc, sizeof(struct NodeList));
+    nodeList->nodes = Allocator_calloc(nodeListAlloc, count, sizeof(char*));
+    nodeList->size = 0;
+
+    struct Node_Two* nn = NULL;
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        if (Address_closest(targetAddress, store->pub.selfAddress, &nn->address) > 0) {
+            // This node is closer to the destination than we are.
+            struct Node_Two* newNode = nn;
+            struct Node_Two* tempNode = NULL;
+            for (uint32_t i = 0 ; i < count ; i++) {
+                if (nodeList->size < i+1) {
+                    // The list isn't full yet, so insert at the end.
+                    nodeList->size = i+1;
+                    nodeList->nodes[i] = newNode;
+                    break;
+                }
+                if ( (newNode->marked && !nodeList->nodes[i]->marked) ||
+                     (Node_getReach(nodeList->nodes[i]) < Node_getReach(newNode)) ) {
+                    // If we've already marked nodes because they're a bestParent,
+                    // lets give them priority in the bucket since we need to keep
+                    // them either way.
+                    // Otherwise, highest reach wins.
+                    // Insertion sorted list.
+                    tempNode = nodeList->nodes[i];
+                    nodeList->nodes[i] = newNode;
+                    newNode = tempNode;
+                }
+            }
+        }
+    }
+
+    bool retVal = false;
+    if (nodeList->size > 0) { retVal = true; }
+
+    for (uint32_t i = 0; i < nodeList->size; i++) {
+        // Now mark the nodes in the list to protect them.
+        Identity_check(nodeList->nodes[i]);
+        nodeList->nodes[i]->marked = 1;
+    }
+
+    // Cleanup
+    Allocator_free(nodeListAlloc);
+
+    return retVal;
+}
+
+#define Kademlia_bucketSize 8
+static void markKeyspaceNodes(struct NodeStore_pvt* store)
+{
+    struct Address addr = *store->pub.selfAddress;
+
+    uint8_t emptyBuckets = 0;
+    uint8_t byte = 0;
+    uint8_t bit = 0;
+    for (uint8_t i = 0; i < 128 ; i++) {
+        // Bitwise walk across keyspace
+        if (63 < i && i < 72) {
+            // We want to leave the 0xfc alone
+            continue;
+        }
+
+        // Figure out which bit of the address to flip for this step in keyspace.
+        // This looks ugly because of the rot64 done in distance calculations.
+        if (i < 64) { byte = 8 + (i/8); }
+        else        { byte = (i/8) - 8; }
+        bit = (i % 8);
+
+        // Flip that bit.
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
+
+        // Mark the best nodes for this hop.
+        // TODO(arceliar): Current implementation (calling markBestNodes on everything)
+        // scales poorly. Temporary workaround is to catch when we've found some
+        // number of empty buckets and then exit. (done)
+        // Better implementation would be to iterate over the tree *once* to fill NodeLists
+        // for every bucket. Then iterate over all lists marking the nodes in the lists.
+        if (!markBestNodes(store, &addr, Kademlia_bucketSize)) { emptyBuckets++; }
+        if ( emptyBuckets > 16 ) { return; }
+
+        // Flip the bit back and continue.
+        addr.ip6.bytes[byte] = addr.ip6.bytes[byte] ^ (0x80 >> bit);
+    }
+}
+
 /**
- * We define the worst node as either node which is furthest in address space
- * from us which is either unreachable or, if no nodes are unreachable, has no
- * nodes for which it is the bestParent.
- * This metric will take into account both reach and address distance, although
- * reach is not directly fed into the function but rather the function relies on
- * the structure of the store which is affected by the reach.
- * O(2n)
+ * We define the worst node the node with the lowest reach, excluding nodes which are required for
+ * the DHT, and nodes which are somebody's bestParent (only relevant if they're the bestParent of
+ * a DHT-required node, as otherwise their child would always be lower reach).
+ * If two nodes tie (e.g. two unreachable nodes with 0 reach) then the node which is
+ * further from us in keyspace is worse.
  */
 static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 {
@@ -1213,6 +1303,10 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
         }
     }
     if (worst) { return worst; }
+
+    // Mark the nodes that we need to protect for keyspace reasons.
+    markKeyspaceNodes(store);
+
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         // second cycle we set the markings as we go but if they are behind the
         // node which would have marked them, they are already set.
@@ -1225,6 +1319,21 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
             worst = nn;
         }
     }
+    if (worst) { return worst; }
+
+    RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
+        // third cycle, every node is apparently important but we need to get rid of someone
+        // get whoever is worst if we ignore markings
+        // by definition, this shouldn't be a bestParent, because their children have lower reach
+        // so we're potentially creating a keyspace hole (routing blackhole) when we do this.
+        // TODO(arceliar): protect keyspace, evict the worst bestParent instead?
+        // Would require something like a forgetNode() to splice links together between
+        // that node's bestParent and all its children, before we kill it.
+        if (!worst || whichIsWorse(nn, worst, store) == nn) {
+            worst = nn;
+        }
+    }
+
     // somebody has to be at the end of the line, not *everyone* can be someone's best parent!
     Assert_true(worst);
     return worst;
