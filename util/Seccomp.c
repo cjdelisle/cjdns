@@ -112,6 +112,9 @@ void Seccomp_dropPermissions(struct Except* eh)
     // printf
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 
+    // Some machines need this
+    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(clock_gettime), 0);
+
     /////
 
     char* err = NULL;
