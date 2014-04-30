@@ -107,6 +107,7 @@ void Seccomp_dropPermissions(struct Except* eh)
 
     // Security_checkPermissions() -> getMaxMem()
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
+    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ugetrlimit), 0);
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
 
     // printf
