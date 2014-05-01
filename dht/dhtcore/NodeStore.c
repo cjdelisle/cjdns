@@ -139,6 +139,10 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
 
     struct Node_Link* lastLink = NULL;
     RB_FOREACH_REVERSE(link, PeerRBTree, &node->peerTree) {
+        Assert_fileLine(!EncodingScheme_isSelfRoute(link->parent->encodingScheme,
+                                                    link->cannonicalLabel)
+                        || link == store->selfLink,
+                        file, line);
         Assert_fileLine(Node_getBestParent(node) || Node_getBestParent(link->child) != link,
                         file, line);
         Assert_fileLine(link->parent == node, file, line);
@@ -1489,6 +1493,12 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
     uint64_t next = findClosest(path, &linkToParent, store->selfLink, store);
     if (next == findClosest_INVALID) {
         return NodeStore_optimizePath_INVALID;
+    }
+    if (EncodingScheme_isSelfRoute(linkToParent, next)) {
+        // cannoicalize all the other wild ways that they can represent self routes.
+        // TODO(cjd): this has been the source of assert failures and we might be sweeping
+        //            a significant bug under the carpet.
+        next = 1;
     }
     if (linkToParent == store->selfLink) {
         if (next == 1) { return 1; }

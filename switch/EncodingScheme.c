@@ -129,7 +129,6 @@ uint64_t EncodingScheme_convertLabel(struct EncodingScheme* scheme,
     return routeLabel;
 }
 
-
 /**
  * Decode a form from it's binary representation.
  * Can only use a maximum of 41 bits.
@@ -392,4 +391,19 @@ int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b)
         return Bits_memcmp(a->forms, b->forms, sizeof(struct EncodingScheme_Form) * a->count);
     }
     return a->count > b->count ? 1 : -1;
+}
+
+/**
+ * Return true if the route is to the switch's router interface.
+ */
+int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabel)
+{
+    int formNum = EncodingScheme_getFormNum(scheme, routeLabel);
+    if (formNum == EncodingScheme_getFormNum_INVALID) {
+        return 0;
+    }
+
+    struct EncodingScheme_Form* currentForm = &scheme->forms[formNum];
+
+    return (routeLabel & Bits_maxBits64(currentForm->prefixLen + currentForm->bitCount)) == 1;
 }

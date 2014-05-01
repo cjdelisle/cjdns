@@ -99,4 +99,9 @@ int EncodingScheme_compare(struct EncodingScheme* a, struct EncodingScheme* b);
 struct EncodingScheme* EncodingScheme_fromList(List* scheme, struct Allocator* alloc);
 List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc);
 
+/**
+ * Return true if the route is to the switch's router interface.
+ */
+int EncodingScheme_isSelfRoute(struct EncodingScheme* scheme, uint64_t routeLabel);
+
 #endif
