@@ -168,7 +168,7 @@ Builder.configure({
     });
 
     var uclibc = /uclibc/i.test(GCC);
-    var libssp = process.env['SSP_SUPPORT'] == 'y'
+    var libssp = process.env['SSP_SUPPORT'] == 'y';
     if (!uclibc || libssp) {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
