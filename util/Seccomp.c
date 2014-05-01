@@ -107,9 +107,13 @@ void Seccomp_dropPermissions(struct Except* eh)
 
     // Security_checkPermissions() -> getMaxMem()
     // x86 uses ugetrlimit and mmap2
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
+    #ifdef __NR_getrlimit
+        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
+    #endif
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ugetrlimit), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+    #ifdef __NR_mmap
+        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+    #endif
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap2), 0);
 
     // printf
