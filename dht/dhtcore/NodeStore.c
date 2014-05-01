@@ -1494,7 +1494,7 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
     if (next == findClosest_INVALID) {
         return NodeStore_optimizePath_INVALID;
     }
-    if (EncodingScheme_isSelfRoute(linkToParent, next)) {
+    if (EncodingScheme_isSelfRoute(linkToParent->child->encodingScheme, next)) {
         // cannoicalize all the other wild ways that they can represent self routes.
         // TODO(cjd): this has been the source of assert failures and we might be sweeping
         //            a significant bug under the carpet.
