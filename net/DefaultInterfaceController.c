@@ -70,7 +70,7 @@ struct IFCPeer
     /** Milliseconds since the epoch when the last *valid* message was received. */
     uint64_t timeOfLastMessage;
 
-    /** Time when the last switch ping was sent to node. */
+    /** Time when the last switch ping response was received from this node. */
     uint64_t timeOfLastPing;
 
     /** The handle which can be used to look up this endpoint in the endpoint set. */
@@ -176,6 +176,8 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
     addr.protocolVersion = version;
+
+    ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
 
     #ifdef Log_DEBUG
         uint8_t addrStr[60];
