@@ -116,6 +116,11 @@ void Seccomp_dropPermissions(struct Except* eh)
     #endif
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap2), 0);
 
+    // Seem to be used on i686 (Linux 3.12.18 SMP PREEMPT i686 GNU/Linux) from glibc-2.18's time()
+    #ifdef __NR_time
+        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0);
+    #endif
+
     // printf
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 
