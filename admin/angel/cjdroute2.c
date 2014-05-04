@@ -49,6 +49,8 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
+#include "util/ArchInfo.h"
+#include "util/SysInfo.h"
 #include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
@@ -339,9 +341,12 @@ static int genconf(struct Random* rand)
     return 0;
 }
 
-static int usage(char* appName)
+static int usage(struct Allocator* alloc, char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), alloc);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
+    printf("Cjdns %s %s\n"
+           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -358,7 +363,7 @@ static int usage(char* appName)
            "    sudo %s < cjdroute.conf\n"
            "\n"
            "For more information about other functions and non-standard setups, see README.md\n",
-           appName, appName, appName);
+           archInfo, sysInfo, appName, appName, appName);
 
     return 0;
 }
@@ -458,7 +463,7 @@ int main(int argc, char** argv)
     if (argc == 2) {
         // one argument
         if ((strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
-            return usage(argv[0]);
+            return usage(allocator, argv[0]);
         } else if (strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
         } else if (strcmp(argv[1], "--pidfile") == 0) {
@@ -495,7 +500,7 @@ int main(int argc, char** argv)
         // We were started from a terminal
         // The chances an user wants to type in a configuration
         // bij hand are pretty slim so we show him the usage
-        return usage(argv[0]);
+        return usage(allocator, argv[0]);
     } else {
         // We assume stdin is a configuration file and that we should
         // start routing
@@ -530,6 +535,11 @@ int main(int argc, char** argv)
     if (!adminBind) {
         Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
     }
+
+    // --------------------- Welcome to cjdns ---------------------- //
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), allocator);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), allocator);
+    Log_info(logger, "Cjdns %s %s", archInfo, sysInfo);
 
     // --------------------- Check for running instance  --------------------- //
 
