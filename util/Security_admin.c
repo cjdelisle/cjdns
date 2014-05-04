@@ -54,7 +54,7 @@ static void dropPermissions(Dict* args, void* vctx, String* txid, struct Allocat
     struct Context* const ctx = (struct Context*) vctx;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        Security_dropPermissions(&jmp.handler);
+        Security_dropPermissions(requestAlloc, ctx->logger, &jmp.handler);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;

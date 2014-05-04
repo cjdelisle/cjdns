@@ -148,10 +148,9 @@ struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, 
     return out;
 }
 
-void Security_dropPermissions(struct Except* eh)
+void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
 {
     maxMemory(100000000, eh);
     noFiles(eh);
-    Seccomp_dropPermissions(eh);
-
+    Seccomp_dropPermissions(tempAlloc, logger, eh);
 }

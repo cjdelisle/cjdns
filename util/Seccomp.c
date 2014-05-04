@@ -12,28 +12,89 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/Seccomp.h"
 
 // SIG_UNBLOCK
 #define _POSIX_SOURCE
+
+#include "util/Seccomp.h"
+#include "util/Bits.h"
+#include "util/ArchInfo.h"
+
 #include <signal.h>
 
 // getpriority()
 #include <sys/resource.h>
+#include <sys/prctl.h>
 #include <errno.h>
-#include <seccomp.h>
+#include <string.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+#include <linux/audit.h>
+#include <sys/syscall.h>
 #include <stddef.h>
 
-void Seccomp_dropPermissions(struct Except* eh)
+#include <stdio.h>
+
+
+struct Filter {
+    int label;
+    int jt;
+    int jf;
+    struct sock_filter sf;
+};
+
+static struct sock_fprog* compile(struct Filter* input, int inputLen, struct Allocator* alloc)
 {
-    scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_TRAP);
-    if (!ctx) {
-        seccomp_release(ctx);
-        Except_throw(eh, "Failed to initialize SECCOMP");
+    // compute gotos
+    int totalOut = 0;
+    for (int i = inputLen-1; i >= 0; i--) {
+        struct Filter* a = &input[i];
+        if (a->label == 0) {
+            // check for unresolved gotos...
+            Assert_true(a->jt == 0 && a->jf == 0);
+            totalOut++;
+            continue;
+        }
+        int diff = 0;
+        for (int j = i-1; j >= 0; j--) {
+            struct Filter* b = &input[j];
+            if (b->label != 0) { continue; }
+            if (b->jt == a->label) {
+                b->sf.jt = diff;
+                b->jt = 0;
+            }
+            if (b->jf == a->label) {
+                b->sf.jf = diff;
+                b->jf = 0;
+            }
+            diff++;
+        }
     }
 
-    int rc = 0;
+    // copy into output filter array...
+    struct sock_filter* sf = Allocator_calloc(alloc, sizeof(struct sock_filter), totalOut);
+    int outI = 0;
+    for (int i = 0; i < inputLen; i++) {
+        if (input[i].label == 0) {
+            Bits_memcpyConst(&sf[outI++], &input[i].sf, sizeof(struct sock_filter));
+        }
+        Assert_true(outI <= totalOut);
+        Assert_true(i != inputLen-1 || outI == totalOut);
+    }
 
+    struct sock_fprog* out = Allocator_malloc(alloc, sizeof(struct sock_fprog));
+    out->len = (unsigned short) totalOut;
+    out->filter = sf;
+
+    return out;
+}
+
+#define RET_TRAP      0x00030000u
+#define RET_ERRNO(x) (0x00050000u | ((x) & 0x0000ffffu))
+#define RET_SUCCESS   0x7fff0000u
+
+static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
+{
     // Adding exceptions to the syscall filter:
     //
     // echo '#include <seccomp.h>' | gcc -E -dM - | grep 'define __NR_' | sort
@@ -58,90 +119,166 @@ void Seccomp_dropPermissions(struct Except* eh)
     //
     // Then add:
     //
-    //     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+    //     IFEQ(__NR_mmap, success),
     //
     // And add a comment documenting where you needed that syscall :)
 
-    // see seccomp.h:307 and "man seccomp_rule_add" for docs on this function
+    #define STMT(code, val) { .sf = BPF_STMT(code, val) }
 
-
-    // libuv
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_ctl), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(epoll_wait), 0);
-
-    // logging to stdout/stderr, tun and eth0
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
-
-    // tun device and eth0
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
-
-    // malloc()
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(brk), 0);
-
-    // udp
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendmsg), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvmsg), 0);
-
-    // ETHInterface
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
-
-    // abort()
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(gettid), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(tgkill), 0);
-    rc |= seccomp_rule_add(ctx,
-                           SCMP_ACT_ALLOW,
-                           SCMP_SYS(rt_sigprocmask),
-                           1,
-                           SCMP_CMP(0, SCMP_CMP_EQ, SIG_UNBLOCK, 0));
-
-    // exit()
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
-
-    // Seccomp_isWorking()
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ERRNO(9000), SCMP_SYS(getpriority), 0);
-
-    // Securiy_checkPermissions() -> canOpenFiles()
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(dup), 0);
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
-
-    // Security_checkPermissions() -> getMaxMem()
-    // x86 uses ugetrlimit and mmap2
-    #ifdef __NR_getrlimit
-        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
-    #endif
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ugetrlimit), 0);
-    #ifdef __NR_mmap
-        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
-    #endif
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap2), 0);
-
-    // Seem to be used on i686 (Linux 3.12.18 SMP PREEMPT i686 GNU/Linux) from glibc-2.18's time()
-    #ifdef __NR_time
-        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(time), 0);
-    #endif
-
-    // printf
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
-
-    // Some machines need this
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(clock_gettime), 0);
-
-    /////
-
-    char* err = NULL;
-    if (rc) {
-        err = "Failed to add SECCOMP filters";
-    } else if (seccomp_load(ctx)) {
-        err = "Failed to load SECCOMP";
+    #define JMPK(type, not, input, label) { \
+        .sf = BPF_JUMP(BPF_JMP+(type)+BPF_K, (input), 0, 0), \
+        .jt = (!(not) ? (label) : 0),                        \
+        .jf = ((not) ? (label) : 0)                          \
     }
 
-    seccomp_release(ctx);
+    // Create a label for jumps, the label must be represented by a non-zero integer.
+    #define LABEL(lbl) { .label = (lbl) }
 
-    if (err) {
-        Except_throw(eh, "%s", err);
-    } else if (!Seccomp_isWorking()) {
-        Except_throw(eh, "SECCOMP is not working correctly");
+    // Load offset into the register
+    #define LOAD(offset)    STMT(BPF_LD+BPF_W+BPF_ABS, (offset))
+
+    // Return constant value
+    #define RET(val)        STMT(BPF_RET+BPF_K, (val))
+
+    // If-equal if the currently loaded value equals input, jump to label.
+    #define IFEQ(input, label) JMPK(BPF_JEQ, 0, (input), (label))
+
+    // If-not-equal if the currently loaded value is not equal to input, jump to label.
+    #define IFNE(input, label) JMPK(BPF_JEQ, 1, (input), (label))
+
+    // If-greater-than
+    #define IFGT(input, label) JMPK(BPF_JGT, 0, (input), (label))
+
+    // If-greater-than-or-equal-to
+    #define IFGE(input, label) JMPK(BPF_JGE, 0, (input), (label))
+
+    // If-less-than
+    #define IFLT(input, label) JMPK(BPF_JGE, 1, (input), (label))
+
+    // If-less-than-or-equal-to
+    #define IFLE(input, label) JMPK(BPF_JGT, 1, (input), (label))
+
+
+    // labels are integers so they must be predefined
+    int success = 1;
+    int fail = 2;
+    int unmaskOnly = 3;
+    int isworking = 4;
+
+    enum ArchInfo ai = ArchInfo_detect();
+    uint32_t auditArch = ArchInfo_toAuditArch(ai);
+    if (auditArch == UINT32_MAX) {
+        Except_throw(eh, "Could not detect system architecture");
+    }
+
+    struct Filter seccompFilter[] = {
+
+        // verify the processor type is the same as what we're setup for.
+        LOAD(offsetof(struct seccomp_data, arch)),
+        IFNE(auditArch, fail),
+
+        // Get the syscall num.
+        LOAD(offsetof(struct seccomp_data, nr)),
+
+        // udp
+        IFEQ(__NR_sendmsg, success),
+        IFEQ(__NR_recvmsg, success),
+
+        // ETHInterface
+        IFEQ(__NR_sendto, success),
+        IFEQ(__NR_recvfrom, success),
+
+        // libuv
+        IFEQ(__NR_epoll_ctl, success),
+        IFEQ(__NR_epoll_wait, success),
+
+        // TUN (and logging)
+        IFEQ(__NR_write, success),
+        IFEQ(__NR_read, success),
+
+        // modern librt reads a read-only mapped section of kernel space which contains the time
+        // older versions need system calls for getting the time.
+        // i686 glibc-2.18's time() uses __NR_time
+        IFEQ(__NR_clock_gettime, success),
+        IFEQ(__NR_time, success),
+
+        // malloc()
+        IFEQ(__NR_brk, success),
+
+        // abort()
+        IFEQ(__NR_gettid, success),
+        IFEQ(__NR_tgkill, success),
+        IFEQ(__NR_rt_sigprocmask, unmaskOnly),
+
+        // exit()
+        IFEQ(__NR_exit_group, success),
+
+        // Seccomp_isWorking()
+        IFEQ(__NR_getpriority, isworking),
+
+        // Securiy_checkPermissions() -> canOpenFiles()
+        IFEQ(__NR_dup, success),
+        IFEQ(__NR_close, success),
+
+        // Security_checkPermissions() -> getMaxMem()
+        // x86/ARM use ugetrlimit and mmap2
+        // ARM does not even have __NR_getrlimit or __NR_mmap defined
+        // and AMD64 does not have __NR_ugetrlimit or __NR_mmap2 defined
+        #ifdef __NR_getrlimit
+            IFEQ(__NR_getrlimit, success),
+        #endif
+        #ifdef __NR_ugetrlimit
+            IFEQ(__NR_ugetrlimit, success),
+        #endif
+        #ifdef __NR_mmap
+            IFEQ(__NR_mmap, success),
+        #endif
+        #ifdef __NR_mmap2
+            IFEQ(__NR_mmap2, success),
+        #endif
+
+        // printf()
+        IFEQ(__NR_fstat, success),
+
+        RET(SECCOMP_RET_TRAP),
+
+
+        // We allow sigprocmask to *unmask* signals but we don't allow it to mask them.
+        LABEL(unmaskOnly),
+        LOAD(offsetof(struct seccomp_data, args[0])),
+        IFEQ(SIG_UNBLOCK, success),
+        RET(SECCOMP_RET_TRAP),
+
+        LABEL(isworking),
+        RET(RET_ERRNO(9000)),
+
+        LABEL(fail),
+        RET(SECCOMP_RET_TRAP),
+
+        LABEL(success),
+        RET(SECCOMP_RET_ALLOW),
+    };
+
+    return compile(seccompFilter, sizeof(seccompFilter)/sizeof(seccompFilter[0]), alloc);
+}
+
+static void installFilter(struct sock_fprog* filter, struct Log* logger, struct Except* eh)
+{
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
+        // don't worry about it.
+        Log_warn(logger, "prctl(PR_SET_NO_NEW_PRIVS) -> [%s]\n", strerror(errno));
+    }
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, filter) == -1) {
+        Except_throw(eh, "prctl(PR_SET_SECCOMP) -> [%s]\n", strerror(errno));
+    }
+}
+
+void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+{
+    struct sock_fprog* filter = mkFilter(tempAlloc, eh);
+    installFilter(filter, logger, eh);
+    if (!Seccomp_isWorking()) {
+        Except_throw(eh, "Seccomp filter not installed properly, Seccomp_isWorking() -> false");
     }
 }
 
@@ -155,4 +292,9 @@ int Seccomp_isWorking()
     // and if it is not, it treates it as a return value, 9000 is very unique so
     // we'll check for either case just in case this changes.
     return (ret == -1 && errno == 9000) || (ret == -9000 && errno == 0);
+}
+
+int Seccomp_exists()
+{
+    return 1;
 }

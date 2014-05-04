@@ -12,19 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Seccomp_H
-#define Seccomp_H
+#include "util/Seccomp.h"
 
-#include "exception/Except.h"
-#include "memory/Allocator.h"
-#include "util/log/Log.h"
+// This file is for machines which do not support seccomp.
 
-<?js require("../util/Seccomp.js").detect(this.async, file, builder); ?>
+void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+{
+}
 
-void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
+int Seccomp_isWorking()
+{
+    return 0;
+}
 
-int Seccomp_isWorking();
-
-int Seccomp_exists();
-
-#endif
+int Seccomp_exists()
+{
+    return 0;
+}
