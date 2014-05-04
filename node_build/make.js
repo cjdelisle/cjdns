@@ -161,6 +161,8 @@ Builder.configure({
                 '-flto',
                 OPTIMIZE
             );
+            // No optimization while building since actual compile happens during linking.
+            builder.config.cflags.push('-O0');
         } else {
             console.log("Link time optimization not supported [" + err + "]");
             builder.config.cflags.push(OPTIMIZE);
