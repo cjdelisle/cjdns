@@ -382,8 +382,9 @@ void Core_init(struct Allocator* alloc,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 
+    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
 
-    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, logger);
+    struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, logger, rumorMill);
 
     struct RouterModule* routerModule = RouterModule_register(registry,
                                                               alloc,
@@ -392,8 +393,6 @@ void Core_init(struct Allocator* alloc,
                                                               logger,
                                                               rand,
                                                               nodeStore);
-
-    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
 
     struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
                                                          logger,

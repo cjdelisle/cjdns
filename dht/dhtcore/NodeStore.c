@@ -27,6 +27,15 @@
 
 #include <tree.h>
 
+struct NodeStore_AsyncSplitLinks;
+struct NodeStore_AsyncSplitLinks
+{
+    struct Node_Two* node;
+    uint64_t path;
+    int inverseLinkEncodingFormNumber;
+    struct NodeStore_AsyncSplitLinks* next;
+};
+
 /** A list of DHT nodes. */
 struct NodeStore_pvt
 {
@@ -46,6 +55,16 @@ struct NodeStore_pvt
      * The links to be freed next time freePendingLinks() is called.
      */
     struct Node_Link* linksToFree;
+
+    /** Nodes which have very likely been reset. */
+    struct RumorMill* renumberMill;
+
+    /**
+     * The links which were split with asyncSplitLink() and should be re-connected after
+     * discoverNode is complete.
+     */
+    struct NodeStore_AsyncSplitLinks* asyncSplitLinks;
+    struct Allocator* asyncSplitLinksAlloc;
 
     /** The means for this node store to log. */
     struct Log* logger;
@@ -251,7 +270,8 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
  * link.
  *
  * @param routeLabel the label for reaching the parent node
- * @param link the link to extend the route with
+ * @param parentScheme the label encoding scheme used by the parent node
+ * @param parentChildLabel the cannonicalLabel for the link from parent to child
  * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
  */
 static uint64_t extendRoute(uint64_t routeLabel,
@@ -841,20 +861,6 @@ static struct Node_Two* nodeForIp(struct NodeStore_pvt* store, uint8_t ip[16])
     return Identity_ncheck(RB_FIND(NodeRBTree, &store->nodeTree, &fakeNode));
 }
 
-static bool isAncestorOf(struct NodeStore_pvt* store,
-                         struct Node_Two* maybeAncestor,
-                         struct Node_Two* maybeDecendent)
-{
-    struct Node_Link* link = Node_getBestParent(maybeDecendent);
-    for (int i = 0; i < 1000; i++) {
-        if (!Node_getBestParent(maybeDecendent)) { return false; }
-        if (store->pub.selfNode == link->parent) { return false; }
-        if (maybeAncestor == link->parent) { return true; }
-        link = Node_getBestParent(link->parent);
-    }
-    Assert_true(0);
-}
-
 static void freePendingLinks(struct NodeStore_pvt* store)
 {
     struct Node_Link* link;
@@ -864,13 +870,31 @@ static void freePendingLinks(struct NodeStore_pvt* store)
     }
 }
 
-// TODO(cjd): This is the worst function in the whole project.
-static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
-                                      struct Node_Link* closestKnown,
-                                      uint64_t pathKnownParentChild,
-                                      struct Node_Two* child,
-                                      uint64_t discoveredPath,
-                                      int inverseLinkEncodingFormNumber)
+static void asyncSplitLink(struct NodeStore_pvt* store, struct Node_Link* splitLink)
+{
+    logLink(store, splitLink, "Asynchronously splitting link");
+    if (!store->asyncSplitLinksAlloc) {
+        store->asyncSplitLinksAlloc = Allocator_child(store->alloc);
+    }
+    struct NodeStore_AsyncSplitLinks* asl =
+        Allocator_malloc(store->asyncSplitLinksAlloc, sizeof(struct NodeStore_AsyncSplitLinks));
+    asl->next = store->asyncSplitLinks;
+    store->asyncSplitLinks = asl;
+
+    asl->inverseLinkEncodingFormNumber = splitLink->inverseLinkEncodingFormNumber;
+    asl->node = splitLink->child;
+    asl->path = extendRoute(splitLink->parent->address.path,
+                            splitLink->parent->encodingScheme,
+                            splitLink->cannonicalLabel,
+                            Node_getBestParent(splitLink->parent)->inverseLinkEncodingFormNumber);
+}
+
+static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
+                                       struct Node_Link* closestKnown,
+                                       uint64_t pathKnownParentChild,
+                                       struct Node_Two* child,
+                                       uint64_t discoveredPath,
+                                       int inverseLinkEncodingFormNumber)
 {
     // Make sure this link cannot be split before beginning.
     struct Node_Link* closest = NULL;
@@ -891,7 +915,7 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
         AddrTools_printIp(parentStr, parent->address.ip6.bytes);
         AddrTools_printIp(childStr, child->address.ip6.bytes);
         AddrTools_printPath(pathStr, pathParentChild);
-        Log_debug(store->logger, "discoverLink( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
+        Log_debug(store->logger, "discoverLinkB( [%s]->[%s] [%s] )", parentStr, childStr, pathStr);
     }
     #endif
 
@@ -913,25 +937,24 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
     while (pathParentChild == 1) {
         logLink(store, closest, "Node at end of path appears to have changed");
 
-        // This should never happen for a direct peer or for a direct decendent in
-        // a split link.
+        // This should never happen for a direct peer or for a direct decendent in a split link.
         Assert_true(closestKnown != closest);
 
-        NodeStore_unlinkNodes(&store->pub, closest);
-        pathParentChild = findClosest(pathKnownParentChild, &closest, closestKnown, store);
+        // This probably means the parent node has renumbered it's switch...
+        RumorMill_addNode(store->renumberMill, &closest->parent->address);
 
-        if (pathParentChild != findClosest_INVALID) {
-            // TODO(cjd): handle this in some way other than just failing to install the route.
-            logLink(store, closestKnown, "Apparently the reverse link encoding scheme for "
-                                         "link has changed.");
-            return NULL;
-        }
-
-        parent = closest->child;
         check(store);
+
+        // But it's possible someone is just lieing to us.
+        return NULL;
     }
 
     // link parent to child
+    //
+    // ACKTUNG: From this point forward, the nodeStore is in an invalid state, calls to _verify()
+    //          will fail (calls to _check() will still succeed). We have linked parent with child
+    //          but we have not split all of the splitLinks from parent.
+    //
     // TODO(cjd): linking every node with 0 link state, this can't be right.
     struct Node_Link* parentLink = linkNodes(parent,
                                              child,
@@ -949,14 +972,24 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
 
     check(store);
 
+    #ifdef PARANOIA
+        int verifyOrder = 0;
+    #endif
+
     // Check whether the parent is already linked with a node which is "behind" the child.
-    // previous appears to be a "sibling link" to the closest->node link but in reality the
-    // previous link should be split and node should be inserted in the middle.
+    // splitLink appears to be a "sibling link" to the closest->node link but in reality the
+    // splitLink link should be split and node should be inserted in the middle.
     struct Node_Link* splitLink = RB_MIN(PeerRBTree, &parent->peerTree);
     while (splitLink) {
         if (splitLink == parentLink) {
-            // Since they're in order, definitely not found.
-            break;
+            #ifdef PARANOIA
+                verifyOrder = 1;
+                splitLink = PeerRBTree_RB_NEXT(splitLink);
+                continue;
+            #else
+                // Since they're in order, definitely not found.
+                break;
+            #endif
         }
 
         if (!LabelSplicer_routesThrough(splitLink->cannonicalLabel, pathParentChild)) {
@@ -964,210 +997,94 @@ static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
             continue;
         }
 
-        struct Node_Two* grandChild = splitLink->child;
-        // unsplice and cannonicalize so we now have a path from child to grandchild
-        uint64_t childToGrandchild =
-            LabelSplicer_unsplice(splitLink->cannonicalLabel, pathParentChild);
-        childToGrandchild =
-            EncodingScheme_convertLabel(child->encodingScheme,
-                                        childToGrandchild,
-                                        EncodingScheme_convertLabel_convertTo_CANNONICAL);
-
-        // just so we're on the same page here
-        Assert_true(splitLink->parent == parent);
-        Assert_true(childToGrandchild < UINT64_MAX);
-        Assert_true(childToGrandchild != 1);
-        Assert_true(splitLink->cannonicalLabel != pathParentChild);
-
-        #ifdef Log_DEBUG
-        {
-            uint8_t parentStr[40];
-            uint8_t childStr[40];
-            uint8_t pathStr[20];
-
-            AddrTools_printIp(parentStr, splitLink->parent->address.ip6.bytes);
-            AddrTools_printIp(childStr, splitLink->child->address.ip6.bytes);
-            AddrTools_printPath(pathStr, splitLink->cannonicalLabel);
-            Log_debug(store->logger, "Splitting link [%s]->[%s] [%s]",
-                      parentStr, childStr, pathStr);
-
-            AddrTools_printIp(parentStr, splitLink->parent->address.ip6.bytes);
-            AddrTools_printIp(childStr, child->address.ip6.bytes);
-            AddrTools_printPath(pathStr, pathParentChild);
-            Log_debug(store->logger, "New parent [%s]->[%s] [%s]", parentStr, childStr, pathStr);
-
-            AddrTools_printIp(parentStr, child->address.ip6.bytes);
-            AddrTools_printIp(childStr, splitLink->child->address.ip6.bytes);
-            AddrTools_printPath(pathStr, childToGrandchild);
-            Log_debug(store->logger, "New child [%s]->[%s] [%s]", parentStr, childStr, pathStr);
-        }
+        #ifdef PARANOIA
+            Assert_true(!verifyOrder);
         #endif
 
+        struct Node_Two* grandChild = splitLink->child;
+
         if (child == grandChild) {
-            // There's an existing link from the parent to the child and it loops
-            // it takes a detour over to some other nodes and then comes back to the grandChild
-            Log_debug(store->logger, "replace existing link which contains a loop...");
-            goto done;
+            // loopey route, kill it and let the bestParent pivit over to parentLink
+
+        } else if (Node_getBestParent(grandChild) != splitLink) {
+            // If the best parent is splitLink, we have to split the link *NOW* but if it is
+            // not, we can just kill the link (without disrupting the child node) and wait
+            // until the discoverLink process is complete then call discoverLink for the child
+            // nodes which we have killed off.
+            // This will prevent hellish bugs when this function recurses and alters the same
+            // node which it is currently discovering.
+            asyncSplitLink(store, splitLink);
+
+        } else {
+            // So the grandChild's bestParent is the parent, this is kind of annoying because
+            // if we were to split it asynchronously, we would unlink it and it would wreak
+            // havoc on the grandChild and her decendents, possibly even making them unreachable.
+            logLink(store, splitLink, "Synchronously splitting link");
+
+            // unsplice and cannonicalize so we now have a path from child to grandchild
+            uint64_t childToGrandchild =
+                LabelSplicer_unsplice(splitLink->cannonicalLabel, parentLink->cannonicalLabel);
+            childToGrandchild =
+                EncodingScheme_convertLabel(child->encodingScheme,
+                                            childToGrandchild,
+                                            EncodingScheme_convertLabel_convertTo_CANNONICAL);
+
+            Assert_true(childToGrandchild < UINT64_MAX);
+            Assert_true(childToGrandchild != 1);
+            Assert_true(splitLink->cannonicalLabel != parentLink->cannonicalLabel);
+
+            // child might actually decend from grandChild or some other wacky crap but when
+            // we kill the link from parent to grandChild, things will wort themselves out...
+            discoverLinkB(store, parentLink, childToGrandchild, grandChild,
+                          discoveredPath, parentLink->inverseLinkEncodingFormNumber);
         }
-
-        if (Node_getBestParent(grandChild) == splitLink
-            && Node_getReach(child) <= Node_getReach(grandChild))
-        {
-            // We know that the grandchild decends from the parent because splitLink is parent-->gc
-            // what we don't know is whether parent->child is the best path to child (probably not)
-            // the best path to child *might* go through grandChild, in which we have a phantom
-            // loop and we need to resolve this before trying to create the new link.
-
-            check(store);
-            if (Node_getReach(parent) > Node_getReach(child)) {
-                // Parent definitely does not decend from child.
-                uint32_t childNewReach = Node_getReach(child);
-                if (childNewReach < 1024) { childNewReach = guessReachOfChild(parentLink); }
-                updateBestParent(parentLink, childNewReach, store);
-            } else {
-                // Child definitely does not decend from parent
-                // if parent reach is less than child reach, parent may decend from child,
-                // if it does we cannot safely re-root child. If not then we could but if we
-                // believe the reach of the child is better, we might as well use the route
-                // which goes via the child rather than re-rooting it anyway.
-            }
-            handleGoodNews(child, Node_getReach(grandChild)+1, store);
-
-            // This is basically just checking that child is not still decending from grandChild.
-            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
-
-            check(store);
-        }
-
-        // Create a new link from the child to the grandChild.
-        // This is done *before* unlinking the existing link because if the existing link is the
-        // bestParent for the grandChild, it will wreak havoc on the grandChild and her decendents
-        // and possibly even make them unreachable.
-        struct Node_Link* lcg = discoverLink(store,
-                                             parentLink,
-                                             childToGrandchild,
-                                             grandChild,
-                                             discoveredPath,
-                                             splitLink->inverseLinkEncodingFormNumber);
-
-        // so...
-        // There is a chance... that in the recursion, the link we JUST CREATED (parentLink)
-        // was split and unlinked. If that is so, we really should just return because
-        // everything we were planning to do here has been done for us.
-        if (!parentLink->child) {
-            // return that last link along pathParentChild.
-            struct Node_Link* link = NULL;
-            findClosest(pathParentChild, &link, closest, store);
-            Assert_true(link);
-            return link;
-        }
-
-        if (Node_getBestParent(grandChild) != splitLink) {
-            // The link has been created and we don't care much about it because it's not
-            // the best path.
-
-        } else if (!lcg) {
-            // The path is probably broken... TODO(cjd): log or something
-
-        } else if (!Node_getBestParent(lcg->parent)) {
-            // The path is probably too long so it can't be represented, unreachable...
-
-        } else if (Node_getReach(lcg->parent) <= Node_getReach(grandChild)) {
-
-            // Normally we would expect lcg->parent to be equal to child but because of the
-            // findClosest() call at the beginning of the discoverLink() function, that is not
-            // necessarily true. One or more nodes along the path childToGrandchild might
-            // already be known, in which case lcg->parent will be the last known node along
-            // that path.
-            //
-            // Worse, lcg->parent->bestParent might actually be grandChild or a decendent
-            // thereof. Consider a path looking like this:
-            // parent<-child<-Alice<-Bob Charlie->Dave->grandChild
-            //
-            // The best path to grandChild is obviously via child and therefor Charlie and Dave
-            // are mistaken and this is a phantom loop.
-
-            // I know, I repeat myself...
-            Assert_true(Node_getReach(child) > Node_getReach(grandChild));
-
-            if (isAncestorOf(store, grandChild, lcg->parent)) {
-
-                // Again, just making dead sure that the child is not a decendent of the
-                // grandChild, this should not be possible at this point
-                Assert_true(parentLink->child != lcg->parent);
-
-                // Now we're going to walk the path, when we encounter a node which decends from
-                // grandChild, we're going to switch it to decend from the previous node along the
-                // path.
-                struct Node_Link* link = parentLink;
-                uint64_t nextPath = childToGrandchild;
-                for (;;) {
-                    struct Node_Link* nextLink = NULL;
-                    nextPath = firstHopInPath(nextPath, &nextLink, link, store);
-                    Assert_true(!firstHopInPath_ERR(nextPath));
-                    link = nextLink;
-
-                    if (link->child == grandChild) { break; }
-
-                    // We should never get here because the if statement below should have
-                    // handled this in the previous round.
-                    Assert_true(Node_getReach(link->parent) >= Node_getReach(grandChild));
-
-                    if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
-                        // Ok we're found a node whose pathQuality is less than grandChild's
-                        // and this node is in the best path *to* the grandChild so it's quality
-                        // needs to be increased and we need to swap it's bestParent so that we're
-                        // sure it doesn't decend from grandChild.
-                        if (Node_getBestParent(link->child) != link) {
-                            if (Node_getReach(link->parent) <= Node_getReach(grandChild)+1) {
-                                handleGoodNews(link->parent, Node_getReach(grandChild)+2, store);
-                            }
-                            Assert_true(Node_getReach(link->parent) > Node_getReach(grandChild));
-                            updateBestParent(link, Node_getReach(grandChild)+1, store);
-                        }
-                        if (Node_getReach(link->child) <= Node_getReach(grandChild)) {
-                            handleGoodNews(link->child, Node_getReach(grandChild)+1, store);
-                        }
-                        Assert_true(Node_getReach(link->child) > Node_getReach(grandChild));
-                    }
-                }
-
-                // Guess what!
-                // grandChild *might* just show up MULTIPLE times in the path (phantom loop),
-                // of so, link is now the first instance of grandChild and lcg is the final
-                // instance (end of the path). We don't care much about the path beyond the first
-                // instance of grandChild so we're just going to quietly swap the lcg for link
-                // if it happens that they are not the same.
-                lcg = link;
-                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
-
-            } else {
-                handleGoodNews(lcg->parent, Node_getReach(grandChild)+1, store);
-                Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
-            }
-
-            Assert_true(Node_getReach(lcg->parent) > Node_getReach(grandChild));
-            updateBestParent(lcg, Node_getReach(grandChild), store);
-        }
-
-        // pfew
-        done:
 
         check(store);
 
-        // be careful!
-        // splitLink might have been unlinked by the recursive discoverLink() call.
-        if (splitLink->parent) {
-            NodeStore_unlinkNodes(&store->pub, splitLink);
-        }
+        // Recursion schanigans should not be possible...
+        Assert_true(splitLink->parent);
 
-        // link RB_NEXT might have also been freed by a recursive call to discoverLink()
-        // so we'll just start over from the beginning and walk the list of links.
-        splitLink = RB_MIN(PeerRBTree, &parent->peerTree);
+        struct Node_Link* next = PeerRBTree_RB_NEXT(splitLink);
+        NodeStore_unlinkNodes(&store->pub, splitLink);
+        splitLink = next;
     }
 
     check(store);
     return parentLink;
+}
+
+static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
+                                      struct Node_Link* closestKnown,
+                                      uint64_t pathKnownParentChild,
+                                      struct Node_Two* child,
+                                      uint64_t discoveredPath,
+                                      int inverseLinkEncodingFormNumber)
+{
+    struct Node_Link* link =
+        discoverLinkB(store, closestKnown, pathKnownParentChild, child,
+                      discoveredPath, inverseLinkEncodingFormNumber);
+
+    if (link) { Assert_true(link->child); }
+
+    while (store->asyncSplitLinks) {
+        struct NodeStore_AsyncSplitLinks* asl = store->asyncSplitLinks;
+        store->asyncSplitLinks = asl->next;
+        discoverLinkB(store, store->selfLink, asl->path, asl->node,
+                      discoveredPath, asl->inverseLinkEncodingFormNumber);
+    }
+
+    if (link && !link->child) {
+        uint64_t pathParentChild = findClosest(pathKnownParentChild, &link, closestKnown, store);
+        // This should always be 1 because the link is gone only because it was just split!
+        Assert_true(pathParentChild == 1);
+    }
+
+    if (store->asyncSplitLinksAlloc) {
+        Allocator_free(store->asyncSplitLinksAlloc);
+        store->asyncSplitLinksAlloc = NULL;
+    }
+
+    return link;
 }
 
 static struct Node_Two* whichIsWorse(struct Node_Two* one,
@@ -1534,7 +1451,8 @@ struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* 
 /** See: NodeStore.h */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
-                                struct Log* logger)
+                                struct Log* logger,
+                                struct RumorMill* renumberMill)
 {
     struct Allocator* alloc = Allocator_child(allocator);
 
@@ -1543,6 +1461,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
             .nodeCapacity = NodeStore_DEFAULT_NODE_CAPACITY,
             .linkCapacity = NodeStore_DEFAULT_LINK_CAPACITY
         },
+        .renumberMill = renumberMill,
         .logger = logger,
         .alloc = alloc
     }));
