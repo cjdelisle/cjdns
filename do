@@ -11,6 +11,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+pythonfix()
+{
+    for PYTHON2 in "python2" "python2.7" "false"; do
+        [[ -e pathfix/python ]] && break
+        if [ ! $PYTHON2 = "false" ]; then
+            type -P $PYTHON2 >/dev/null 2>&1 \
+                && [[ -n $(`type -P python2` --version 2>&1 | grep -o "2.7") ]] && install -d pathfix && ln -s `type -P $PYTHON2` pathfix/python \
+                || (echo "Error: Cannot create the files necessary to override the system's python version with python 2.7 for the build process." && exit 1)
+        else
+            echo "Error: No suitable version of python 2.7 found, please install and try again." && exit 1
+        fi
+    done
+}
+type python >/dev/null 2>&1 && (python --version 2>&1 | grep 2.7 || pythonfix) || pythonfix
+[[ -d pathfix ]] && export PATH="${PWD}/pathfix":$PATH
+
 [ -n "$PLATFORM" ] || PLATFORM=$(uname | tr '[:upper:]' '[:lower:]')
 [ -n "$MARCH" ] || MARCH=$(uname -m | sed "s/i./x/g")
 BUILDDIR="build_${PLATFORM}"
