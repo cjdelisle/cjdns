@@ -16,7 +16,7 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
-VERSION_TEST=<<EOF
+read -d '' VERSION_TEST <<"EOF"
 var currentVersion = process.version;
 var verArray = currentVersion.substring(1).split(".");
 var minVerArray = process.argv[process.argv.length-1].substring(1).split(".");
