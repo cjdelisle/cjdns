@@ -870,7 +870,9 @@ static void freePendingLinks(struct NodeStore_pvt* store)
     }
 }
 
-static void asyncSplitLink(struct NodeStore_pvt* store, struct Node_Link* splitLink)
+static void asyncSplitLink(struct NodeStore_pvt* store,
+                           struct Node_Link* splitLink,
+                           struct Node_Link* splitLinkParent)
 {
     logLink(store, splitLink, "Asynchronously splitting link");
     if (!store->asyncSplitLinksAlloc) {
@@ -881,12 +883,14 @@ static void asyncSplitLink(struct NodeStore_pvt* store, struct Node_Link* splitL
     asl->next = store->asyncSplitLinks;
     store->asyncSplitLinks = asl;
 
+    Assert_true(splitLinkParent->child == splitLink->parent);
+
     asl->inverseLinkEncodingFormNumber = splitLink->inverseLinkEncodingFormNumber;
     asl->node = splitLink->child;
     asl->path = extendRoute(splitLink->parent->address.path,
                             splitLink->parent->encodingScheme,
                             splitLink->cannonicalLabel,
-                            Node_getBestParent(splitLink->parent)->inverseLinkEncodingFormNumber);
+                            splitLinkParent->inverseLinkEncodingFormNumber);
 }
 
 static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
@@ -1013,7 +1017,7 @@ static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
             // nodes which we have killed off.
             // This will prevent hellish bugs when this function recurses and alters the same
             // node which it is currently discovering.
-            asyncSplitLink(store, splitLink);
+            asyncSplitLink(store, splitLink, closest);
 
         } else {
             // So the grandChild's bestParent is the parent, this is kind of annoying because
