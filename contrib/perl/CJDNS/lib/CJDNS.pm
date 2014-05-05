@@ -2,7 +2,7 @@ package CJDNS;
 
 use Bencode qw(bencode bdecode);
 use Carp qw/croak/;
-use Digest::SHA2;
+use Digest::SHA qw(sha256_hex);
 use IO::Socket;
 
 # buffer size for reading from teh sawkets.
@@ -10,7 +10,6 @@ use constant BUFFER_SIZE => 8192;
 
 our @ISA = qw();
 our $VERSION = '0.01';
-our $sha2 = new Digest::SHA2 256;
 
 # turn on autoflush for this class.
 our $| = 1;
@@ -85,14 +84,14 @@ sub _make_methods {
             my $req = {
                 q => 'auth',
                 aq => $method_name,
-                hash => $self->_sha2_hexdigest($self->{password} . $cookie),
+                hash => sha256_hex($self->{password} . $cookie),
                 cookie => " $cookie",
                 args => \%args,
             };
 
             # replace $req->{hash} with a hash of the bencoded request.
             my $req_benc = bencode($req);
-            $req->{hash} = $self->_sha2_hexdigest($req_benc);
+            $req->{hash} = sha256_hex($req_benc);
 
             # then re-encode thusly:
             $req_benc = bencode($req);
@@ -136,13 +135,6 @@ sub capabilities {
         $return .= "\n";
     }
     return $return;
-}
-
-sub _sha2_hexdigest {
-    my ($self, $string) = @_;
-    $sha2->reset();
-    $sha2->add($string);
-    return $sha2->hexdigest;
 }
 
 sub _ping {
