@@ -97,7 +97,7 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 {
     // Adding exceptions to the syscall filter:
     //
-    // echo '#include <seccomp.h>' | gcc -E -dM - | grep 'define __NR_' | sort
+    // echo '#include <sys/syscall.h>' | gcc -E -dM - | grep 'define __NR_' | sort
     // for the full list of system calls with syscall numbers (different per ABI)
     //
     // If gdb traps out it will look like this:
@@ -227,6 +227,9 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // Securiy_checkPermissions() -> canOpenFiles()
         IFEQ(__NR_dup, success),
         IFEQ(__NR_close, success),
+
+        // 32-bit: recvmsg is a socketcall
+        IFEQ(__NR_socketcall, success),
 
         // Security_checkPermissions() -> getMaxMem()
         // x86/ARM use ugetrlimit and mmap2
