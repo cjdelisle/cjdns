@@ -29,6 +29,11 @@ uint32_t ArchInfo_toAuditArch(enum ArchInfo ai)
 
 #include <linux/audit.h>
 
+// TODO(cjd): understand why some machines are not defining this.
+#ifndef EM_ARM
+    #define EM_ARM 40
+#endif
+
 uint32_t ArchInfo_toAuditArch(enum ArchInfo ai)
 {
     switch (ArchInfo_getArch(ai)) {
