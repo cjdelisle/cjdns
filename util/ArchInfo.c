@@ -194,30 +194,30 @@ static enum ArchInfo_Endian assertEndian(enum ArchInfo_Endian end)
 
 enum ArchInfo ArchInfo_detect()
 {
-    enum ArchInfo arch;
+    enum ArchInfo arch = 0;
 
     #if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || \
         defined(_M_X64) || defined(__amd64)
-        arch = ArchInfo_Arch_AMD64;
+        arch |= ArchInfo_Arch_AMD64;
     #elif defined(__i386__) || defined(__x86__) || defined(__X86__) || \
           defined(_M_IX86) || defined(__i386)
-        arch = ArchInfo_Arch_I386;
+        arch |= ArchInfo_Arch_I386;
     #elif defined(__ARM_EABI__) || defined(__arm__)
-        arch = ArchInfo_Arch_ARM;
+        arch |= ArchInfo_Arch_ARM;
     #elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || defined(_ARCH_PPC64)
-        arch = ArchInfo_Arch_PPC | ArchInfo_Bits_64;
+        arch |= ArchInfo_Arch_PPC | ArchInfo_Bits_64;
     #elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
-        arch = ArchInfo_Arch_PPC | ArchInfo_Bits_32;
+        arch |= ArchInfo_Arch_PPC | ArchInfo_Bits_32;
     #elif defined(__sparcv9__) || defined(__sparcv9)
-        arch = ArchInfo_Arch_SPARC | ArchInfo_Sparc_v9;
+        arch |= ArchInfo_Arch_SPARC | ArchInfo_Sparc_v9;
     #elif defined(__sparc_v8__)
-        arch = ArchInfo_Arch_SPARC | ArchInfo_Sparc_v8;
+        arch |= ArchInfo_Arch_SPARC | ArchInfo_Sparc_v8;
     #elif defined(__sparc__) || defined(__sparc)
-        arch = ArchInfo_Arch_SPARC;
+        arch |= ArchInfo_Arch_SPARC;
     #elif defined(__mips__) || defined(__mips) || defined(__MIPS__)
-        arch = ArchInfo_Arch_MIPS;
+        arch |= ArchInfo_Arch_MIPS;
     #else
-        arch = ArchInfo_UNKNOWN;
+        arch |= ArchInfo_UNKNOWN;
     #endif
 
     switch ((int)arch) {

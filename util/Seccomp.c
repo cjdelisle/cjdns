@@ -181,12 +181,20 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         LOAD(offsetof(struct seccomp_data, nr)),
 
         // udp
-        IFEQ(__NR_sendmsg, success),
-        IFEQ(__NR_recvmsg, success),
+        #ifdef __NR_sendmsg
+            IFEQ(__NR_sendmsg, success),
+        #endif
+        #ifdef __NR_recvmsg
+            IFEQ(__NR_recvmsg, success),
+        #endif
 
         // ETHInterface
-        IFEQ(__NR_sendto, success),
-        IFEQ(__NR_recvfrom, success),
+        #ifdef __NR_sendto
+            IFEQ(__NR_sendto, success),
+        #endif
+        #ifdef __NR_recvfrom
+            IFEQ(__NR_recvfrom, success),
+        #endif
 
         // libuv
         IFEQ(__NR_epoll_ctl, success),
