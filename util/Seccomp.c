@@ -196,6 +196,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
             IFEQ(__NR_recvfrom, success),
         #endif
 
+        #ifdef __NR_socketcall
+            // 32-bit: recvmsg is a socketcall
+            IFEQ(__NR_socketcall, success),
+        #endif
+
         // libuv
         IFEQ(__NR_epoll_ctl, success),
         IFEQ(__NR_epoll_wait, success),
@@ -227,9 +232,6 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // Securiy_checkPermissions() -> canOpenFiles()
         IFEQ(__NR_dup, success),
         IFEQ(__NR_close, success),
-
-        // 32-bit: recvmsg is a socketcall
-        IFEQ(__NR_socketcall, success),
 
         // Security_checkPermissions() -> getMaxMem()
         // x86/ARM use ugetrlimit and mmap2
