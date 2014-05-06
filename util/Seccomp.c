@@ -110,11 +110,15 @@ void Seccomp_dropPermissions(struct Except* eh)
     #ifdef __NR_getrlimit
         rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(getrlimit), 0);
     #endif
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ugetrlimit), 0);
+    #ifdef __NR_ugetrlimit
+        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ugetrlimit), 0);
+    #endif
     #ifdef __NR_mmap
         rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
     #endif
-    rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap2), 0);
+    #ifdef __NR_mmap2
+        rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(mmap2), 0);
+    #endif
 
     // printf
     rc |= seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
