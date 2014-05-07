@@ -26,7 +26,7 @@ The PPA at `https://code.launchpad.net/~calebdelisle/cjdns-apt` is no-longer
 maintained, because of limitations in the launchpad system, it can neither be
 updated to `stable-0.5` nor to the master branch and
 THE LAST SUCCESSFUL BUILD WAS BEFORE THE SECURITY PATCH.
-Please remove the PPA installation.
+Please remove the PPA installation or switch to the [new standalone repository](https://github.com/Shnatsel/cjdns-ubuntu-pubkey).
 
 
 ## With built-in security and auto-configuration, everybody can own part of the network
