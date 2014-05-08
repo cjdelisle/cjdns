@@ -450,8 +450,8 @@ int main(int argc, char** argv)
     Assert_true(argc > 0);
     struct Except* eh = NULL;
 
-    // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    // Allow it to allocate 8MB
+    struct Allocator* allocator = MallocAllocator_new(1<<23);
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
