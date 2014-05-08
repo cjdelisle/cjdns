@@ -15,7 +15,6 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/TUNConfigurator.h"
-#include "util/Bits.h"
 
 #include <errno.h>
 #include <ctype.h>

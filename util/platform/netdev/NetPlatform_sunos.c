@@ -15,7 +15,6 @@
 #include "util/platform/netdev/NetPlatform.h"
 #include "util/Assert.h"
 #include "util/platform/Sockaddr.h"
-#include "util/Bits.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -80,8 +79,8 @@ static void setupRoute(const uint8_t address[16],
         }
     };
 
-    Bits_memcpyConst(&rm.dest.sin6_addr, address, 16);
-    Bits_memcpyConst(&rm.gateway.sin6_addr, address, 16);
+    memcpy(&rm.dest.sin6_addr, address, 16);
+    memcpy(&rm.gateway.sin6_addr, address, 16);
     maskForPrefix((uint8_t*) &rm.netmask.sin6_addr, prefixLen);
 
     int sock = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -123,7 +122,7 @@ static void addIp6Address(const char* interfaceName,
     struct sockaddr_in6* sin6 = (struct sockaddr_in6 *) &ifr.lifr_addr;
     maskForPrefix((uint8_t*) sin6->sin6_addr.s6_addr, prefixLen);
     ifr.lifr_addr.ss_family = AF_INET6;
-    strncpy(ifr.lifr_name, interfaceName, LIFNAMSIZ);
+    CString_strncpy(ifr.lifr_name, interfaceName, LIFNAMSIZ);
 
     int udpSock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (udpSock < 0) {
@@ -133,7 +132,7 @@ static void addIp6Address(const char* interfaceName,
         // set the netmask.
         error = "ioctl(SIOCSLIFNETMASK) (setting netmask)";
     }
-    Bits_memcpyConst(&sin6->sin6_addr, address, 16);
+    memcpy(&sin6->sin6_addr, address, 16);
     if (!error && ioctl(udpSock, SIOCSLIFADDR, (caddr_t)&ifr) < 0) {
         // set the ip address.
         error = "ioctl(SIOCSLIFADDR) (setting ipv6 address)";

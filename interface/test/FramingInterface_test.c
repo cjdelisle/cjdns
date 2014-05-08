@@ -16,9 +16,9 @@
 #include "interface/FramingInterface.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
 #include "util/Bits.h"
+#include "util/CString.h"
 #include "wire/Error.h"
 
 union MessageLength
@@ -53,7 +53,7 @@ int main()
     fi->receiverContext = &output;
 
     char* text = "Hello World!";
-    Assert_true(12 == strlen(text));
+    Assert_true(12 == CString_strlen(text));
     union MessageLength ml = { .length_be = Endian_hostToBigEndian32(12) };
 
     struct Message* msg;
@@ -85,8 +85,8 @@ int main()
         send(&dummy, msg, alloc);
     }
 
-    Assert_true(output && output->length == (int)strlen(text));
-    Assert_true(!Bits_memcmp(output->bytes, text, strlen(text)));
+    Assert_true(output && output->length == (int)CString_strlen(text));
+    Assert_true(!Bits_memcmp(output->bytes, text, CString_strlen(text)));
 
     Allocator_free(child);
     child = Allocator_child(alloc);
@@ -100,8 +100,8 @@ int main()
         send(&dummy, msg, alloc);
     }
 
-    Assert_true(output && output->length == (int)strlen(text));
-    Assert_true(!Bits_memcmp(output->bytes, text, strlen(text)));
+    Assert_true(output && output->length == (int)CString_strlen(text));
+    Assert_true(!Bits_memcmp(output->bytes, text, CString_strlen(text)));
 
     Allocator_free(alloc);
 

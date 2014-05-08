@@ -138,8 +138,8 @@ int main(int argc, char** argv)
 
     Assert_true(path != NULL);
     #ifdef win32
-        Assert_true(strstr(path, ":\\") == path + 1); /* C:\ */
-        Assert_true(strstr(path, ".exe"));
+        Assert_true(CString_strstr(path, ":\\") == path + 1); /* C:\ */
+        Assert_true(CString_strstr(path, ".exe"));
     #else
         Assert_true(path[0] == '/');
     #endif

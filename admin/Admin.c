@@ -33,10 +33,6 @@
 #include "util/Identity.h"
 #include "util/platform/Sockaddr.h"
 
-#define string_strstr
-#define string_strcmp
-#define string_strlen
-#include "util/platform/libc/string.h"
 
 #include <crypto_hash_sha256.h>
 
@@ -247,7 +243,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
         return false;
     }
 
-    uint8_t* hashPtr = (uint8_t*) strstr((char*) messageBytes->bytes, submittedHash->bytes);
+    uint8_t* hashPtr = (uint8_t*) CString_strstr((char*) messageBytes->bytes, submittedHash->bytes);
 
     if (!hashPtr || !admin->password) {
         return false;
@@ -256,7 +252,7 @@ static inline bool authValid(Dict* message, struct Message* messageBytes, struct
     uint8_t passAndCookie[64];
     snprintf((char*) passAndCookie, 64, "%s%u", admin->password->bytes, cookie);
     uint8_t hash[32];
-    crypto_hash_sha256(hash, passAndCookie, strlen((char*) passAndCookie));
+    crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode(hashPtr, 64, hash, 32);
 
     crypto_hash_sha256(hash, messageBytes->bytes, messageBytes->length);
@@ -358,7 +354,7 @@ static void handleRequest(Dict* messageDict,
         Dict* d = Dict_new(allocator);
         char bytes[32];
         snprintf(bytes, 32, "%u", (uint32_t) Time_currentTimeSeconds(admin->eventBase));
-        String* theCookie = &(String) { .len = strlen(bytes), .bytes = bytes };
+        String* theCookie = &(String) { .len = CString_strlen(bytes), .bytes = bytes };
         Dict_putString(d, cookie, theCookie, allocator);
         Admin_sendMessage(d, txid, admin);
         return;
@@ -512,13 +508,13 @@ void Admin_registerFunctionWithArgCount(char* name,
     for (int i = 0; arguments && i < argCount; i++) {
         // "type" must be one of: [ "String", "Int", "Dict", "List" ]
         String* type = NULL;
-        if (!strcmp(arguments[i].type, STRING->bytes)) {
+        if (!CString_strcmp(arguments[i].type, STRING->bytes)) {
             type = STRING;
-        } else if (!strcmp(arguments[i].type, INTEGER->bytes)) {
+        } else if (!CString_strcmp(arguments[i].type, INTEGER->bytes)) {
             type = INTEGER;
-        } else if (!strcmp(arguments[i].type, DICT->bytes)) {
+        } else if (!CString_strcmp(arguments[i].type, DICT->bytes)) {
             type = DICT;
-        } else if (!strcmp(arguments[i].type, LIST->bytes)) {
+        } else if (!CString_strcmp(arguments[i].type, LIST->bytes)) {
             type = LIST;
         } else {
             abort();

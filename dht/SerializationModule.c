@@ -27,7 +27,6 @@
 #include "util/log/Log.h"
 #include "wire/Message.h"
 
-#include "util/platform/libc/string.h"
 
 #define SERIALIZER StandardBencSerializer_get()
 

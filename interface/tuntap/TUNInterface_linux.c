@@ -18,10 +18,6 @@
 #include "interface/Interface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "util/events/Pipe.h"
-#define string_strncpy
-#define string_strlen
-#define string_strerror
-#include "util/platform/libc/string.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -34,7 +30,7 @@
 #include <stddef.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-
+#include <string.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <linux/if_ether.h>

@@ -26,10 +26,6 @@
 #include "util/log/Log_impl.h"
 #include "util/Hex.h"
 
-#define string_strcmp
-#define string_strrchr
-#define string_strlen
-#include "util/platform/libc/string.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -79,7 +75,7 @@ struct AdminLog
 
 static inline const char* getShortName(const char* fullFilePath)
 {
-    const char* out = strrchr(fullFilePath, '/');
+    const char* out = CString_strrchr(fullFilePath, '/');
     if (out) {
         return out + 1;
     }
@@ -99,7 +95,7 @@ static inline bool isMatch(struct Subscription* subscription,
             }
         } else {
             const char* shortFileName = getShortName(file);
-            if (strcmp(shortFileName, subscription->file)) {
+            if (CString_strcmp(shortFileName, subscription->file)) {
                 return false;
             }
 
@@ -232,7 +228,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
         if (file) {
             int i;
             for (i = 0; i < FILE_NAME_COUNT; i++) {
-                if (log->fileNames[i] && !strcmp(log->fileNames[i], file)) {
+                if (log->fileNames[i] && !CString_strcmp(log->fileNames[i], file)) {
                     file = log->fileNames[i];
                     sub->internalName = true;
                     break;

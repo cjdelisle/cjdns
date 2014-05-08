@@ -20,9 +20,9 @@
 #include "benc/Object.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
-
 #include "util/Assert.h"
-#include "util/platform/libc/string.h"
+
+#include <stddef.h> // NULL
 
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */

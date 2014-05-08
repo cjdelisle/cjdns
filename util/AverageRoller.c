@@ -17,7 +17,6 @@
 #include "util/Bits.h"
 #include "util/events/Time.h"
 
-#include "util/platform/libc/string.h"
 
 /** @see AverageRoller.h */
 struct AverageRoller* AverageRoller_new(const uint32_t windowSeconds,

@@ -23,7 +23,7 @@
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/Bits.h"
-#include "util/platform/libc/strlen.h"
+#include "util/CString.h"
 
 #include <stdio.h>
 
@@ -31,14 +31,14 @@ static int parseEmptyList()
 {
     char* test = "d" "2:hi" "le" "e";
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct Reader* reader = ArrayReader_new(test, strlen(test), alloc);
+    struct Reader* reader = ArrayReader_new(test, CString_strlen(test), alloc);
     Dict d;
     int ret = StandardBencSerializer_get()->parseDictionary(reader, alloc, &d);
 
     char out[256];
     struct Writer* w = ArrayWriter_new(out, 256, alloc);
     ret |= StandardBencSerializer_get()->serializeDictionary(w, &d);
-    ret |= Bits_memcmp(test, out, strlen(test));
+    ret |= Bits_memcmp(test, out, CString_strlen(test));
 
     Allocator_free(alloc);
     return ret;

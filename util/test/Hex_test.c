@@ -12,12 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strstr
-#define string_strcmp
 #include "crypto/random/Random.h"
 #include "memory/MallocAllocator.h"
-#include "util/platform/libc/string.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Assert.h"

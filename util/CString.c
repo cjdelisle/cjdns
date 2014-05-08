@@ -31,6 +31,11 @@ int CString_strcmp(const char* a, const char* b)
     return strcmp(a,b);
 }
 
+int CString_strncmp(const char* a, const char *b, size_t n)
+{
+    return strncmp(a, b, n);
+}
+
 char* CString_strchr(const char* a, int b)
 {
     return strchr(a,b);
@@ -49,6 +54,11 @@ int CString_strcasecmp(const char *a, const char *b)
 char* CString_strstr(const char* haystack, const char* needle)
 {
     return strstr(haystack,needle);
+}
+
+char* CString_strcpy(char* restrict dest, const char* restrict src)
+{
+    return strcpy(dest, src);
 }
 
 char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n)

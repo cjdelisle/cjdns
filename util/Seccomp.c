@@ -20,20 +20,18 @@
 #include "util/Bits.h"
 #include "util/ArchInfo.h"
 
-#include <signal.h>
-
 // getpriority()
 #include <sys/resource.h>
+#include <signal.h>
 #include <sys/prctl.h>
 #include <errno.h>
-#include <string.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <linux/audit.h>
 #include <sys/syscall.h>
 #include <stddef.h>
-
 #include <stdio.h>
+#include <string.h>
 
 static void catchViolation(int sig, siginfo_t* si, void* threadContext)
 {

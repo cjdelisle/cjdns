@@ -17,7 +17,6 @@
 #include "io/FileWriter.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
-#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"

@@ -24,7 +24,6 @@
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "util/Bits.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
@@ -89,7 +88,7 @@ static int calculateAuth(Dict* message,
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
     snprintf((char*) passAndCookie, 64, "%s%u", password->bytes, cookie);
     uint8_t hash[32];
-    crypto_hash_sha256(hash, passAndCookie, strlen((char*) passAndCookie));
+    crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode((uint8_t*)hashHex->bytes, 64, hash, 32);
 
     Dict_putString(message, String_new("hash", alloc), hashHex, alloc);

@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcpy
-#define string_strlen
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "io/FileWriter.h"
@@ -24,9 +22,9 @@
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
 #include "tunnel/IpTunnel.h"
-#include "util/platform/libc/string.h"
 #include "util/Bits.h"
 #include "util/Checksum.h"
+#include "util/CString.h"
 #include "wire/Message.h"
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
@@ -66,7 +64,7 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
           "e"
           "4:txid" "4:abcd"
         "e";
-    Assert_true(message->length == (int32_t) strlen(expectedResponse));
+    Assert_true(message->length == (int32_t) CString_strlen(expectedResponse));
     Assert_true(!Bits_memcmp(message->bytes, expectedResponse, message->length));
     called = 1;
     return 0;
@@ -108,8 +106,8 @@ int main()
           "1:q" "21:IpTunnel_getAddresses"
           "4:txid" "4:abcd"
         "e";
-    strcpy((char*)message->bytes, requestForAddresses);
-    message->length = strlen(requestForAddresses);
+    CString_strcpy((char*)message->bytes, requestForAddresses);
+    message->length = CString_strlen(requestForAddresses);
 
     Message_shift(message, Headers_UDPHeader_SIZE, NULL);
     struct Headers_UDPHeader* uh = (struct Headers_UDPHeader*) message->bytes;

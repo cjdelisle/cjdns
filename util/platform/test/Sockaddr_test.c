@@ -12,12 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strcmp
 #include "memory/MallocAllocator.h"
 #include "util/platform/Sockaddr.h"
 #include "util/Assert.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 
 static void expectFailure(char* address)
 {
@@ -32,8 +30,8 @@ static void expectConvert(char* address, char* expectedOutput)
     struct Allocator* alloc = MallocAllocator_new(20000);
     char* outAddr = Sockaddr_print(&ss.addr, alloc);
     Assert_true(outAddr);
-    Assert_true(strlen(outAddr) == strlen(expectedOutput));
-    Assert_true(!strcmp(outAddr, expectedOutput));
+    Assert_true(CString_strlen(outAddr) == CString_strlen(expectedOutput));
+    Assert_true(!CString_strcmp(outAddr, expectedOutput));
     Allocator_free(alloc);
 }
 

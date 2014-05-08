@@ -27,7 +27,6 @@
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "crypto/AddressCalc.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Checksum.h"
 #include "util/AddrTools.h"
 #include "util/events/EventBase.h"

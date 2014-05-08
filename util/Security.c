@@ -12,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strerror
 #include "exception/Except.h"
 #include "util/log/Log.h"
 #include "util/Security.h"
-#include "util/platform/libc/string.h"
 #include "util/Seccomp.h"
 #include "memory/Allocator.h"
 
@@ -26,6 +24,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define __USE_MISC // for MAP_ANONYMOUS
 #include <sys/mman.h>
@@ -39,7 +38,8 @@ int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
     struct passwd* pw = getpwnam(userName);
     if (!pw) {
-        Except_throw(eh, "Failed to set UID, couldn't find user named [%s].", strerror(errno));
+        Except_throw(eh, "Failed to set UID, couldn't find user named [%s].",
+                     strerror(errno));
     }
     if (setuid(pw->pw_uid)) {
         if (errno == EPERM) {

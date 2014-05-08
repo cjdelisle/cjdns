@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/Assert.h"
-#include "util/platform/libc/string.h"
 #include <stdint.h>
 #include <stdio.h>
 
