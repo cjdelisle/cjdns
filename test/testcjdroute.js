@@ -15,8 +15,6 @@
 var Fs = require("fs");
 var nThen = require("nthen");
 
-var Tests = module.exports;
-
 var Fs_stat = function (file, callback) {
     Fs.stat(file, function (err, ret) {
         if (err === 'ENOENT') {
@@ -53,9 +51,22 @@ var getTests = function (file, tests, callback) {
     });
 };
 
-var get = Tests.get = function (callback) {
+var generate = module.exports.generate = function (file, builder, callback)
+{
     var tests = [];
     getTests('.', tests, function () {
-        callback(tests);
+        var prototypes = [];
+        var listContent = [];
+        tests.forEach(function (test) {
+            var main = /^.*\/([^\/]+)\.c$/.exec(test)[1] + '_main';
+            (builder.config['cflags'+test] =
+                builder.config['cflags'+test] || []).push('-D', 'main='+main);
+            file.links.push(test);
+            listContent.push('{ .func = '+main+', .name = "'+test.replace(/^.*\/|.c$/g, '')+'" },');
+            prototypes.push('int '+main+'(int argc, char** argv);');
+        });
+        file.testcjdroute_tests = listContent.join('\n');
+        file.testcjdroute_prototypes = prototypes.join('\n');
+        callback();
     });
 };
