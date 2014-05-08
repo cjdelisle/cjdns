@@ -1,1 +1,0 @@
-This document has moved to https://github.com/cjdelisle/cjdns/raw/master/doc/benchmark.txt
