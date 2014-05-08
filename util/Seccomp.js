@@ -27,21 +27,25 @@ var TEST_PROGRAM = [
     "}"
 ].join('\n');
 
-var pushLinks = function (file, builder) {
-    if (typeof(builder.config.HAS_SECCOMP) !== 'undefined') { 
-        if (builder.config.HAS_SECCOMP) {
+var pushLinks = function (builder) {
+    builder.Seccomp_QUEUE.forEach(function (file) {
+        if (builder.Seccomp_EXISTS) {
             file.links.push("util/Seccomp.c");
         } else {
             file.links.push("util/Seccomp_dummy.c");
         }
-        return true;
-    }
-    return false;
+    });
+    builder.Seccomp_QUEUE = undefined;
 };
 
-var detect = module.exports.detect = function (async, file, builder) {
-
-    if (pushLinks(file, builder)) { return; }
+var detect = module.exports.detect = function (async, file, builder)
+{
+    if (typeof(builder.Seccomp_QUEUE) !== 'undefined') { builder.Seccomp_QUEUE.push(file); return; }
+    builder.Seccomp_QUEUE = [ file ];
+    if (typeof(builder.Seccomp_EXISTS) !== 'undefined') {
+        pushLinks(builder);
+        return;
+    }
 
     console.log("Searching for SECCOMP");
 
@@ -55,15 +59,15 @@ var detect = module.exports.detect = function (async, file, builder) {
         var CanCompile = require('../node_build/CanCompile');
         var cflags = [ builder.config.cflags, '-x', 'c' ];
         CanCompile.check(builder, TEST_PROGRAM, cflags, function (err, can) {
-            builder.config.HAS_SECCOMP = !!can;
+            builder.Seccomp_EXISTS = !!can;
             if (!can) {
                 console.log("Failed to get SECCOMP, compile failure: [" + err + "]");
             }
-            pushLinks(file, builder);
+            pushLinks(builder);
             done();
         });
         return;
     }
-    builder.config.HAS_SECCOMP = hasSeccomp;
-    pushLinks(file, builder);
+    builder.Seccomp_EXISTS = hasSeccomp;
+    pushLinks(builder);
 };
