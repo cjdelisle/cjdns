@@ -13,8 +13,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// SIG_UNBLOCK
-#define _POSIX_SOURCE
+// sigaction() siginfo_t SIG_UNBLOCK
+#define _POSIX_C_SOURCE 199309L
 
 #include "util/Seccomp.h"
 #include "util/Bits.h"
@@ -35,6 +35,12 @@
 
 #include <stdio.h>
 
+static void catchViolation(int sig, siginfo_t* si, void* threadContext)
+{
+    printf("Attempted banned syscall number [%d] see doc/Seccomp.md for more information\n",
+           si->si_value.sival_int);
+    Assert_failure("Disallowed Syscall");
+}
 
 struct Filter {
     int label;
@@ -277,6 +283,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
 
 static void installFilter(struct sock_fprog* filter, struct Log* logger, struct Except* eh)
 {
+    struct sigaction sa = { .sa_sigaction = catchViolation, .sa_flags = SA_SIGINFO };
+    if (sigaction(SIGSYS, &sa, NULL)) {
+        Log_warn(logger, "sigaction(SIGSYS) -> [%s]\n", strerror(errno));
+    }
+
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
         // don't worry about it.
         Log_warn(logger, "prctl(PR_SET_NO_NEW_PRIVS) -> [%s]\n", strerror(errno));
