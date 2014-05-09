@@ -13,17 +13,15 @@
 
 main()
 {
-    origDir=`pwd`
-    cd node_build
-    
+    pwd | grep 'node_build' && cd ..
+
     echo "Installing JSHint"
     npm install jshint || return 1
     JSHINT="`pwd`/node_modules/jshint/bin/jshint"
     
     echo "Running JSHint"
     ${JSHINT} --reporter=JSHintReporter.js . || return 1
-    
-    cd $origDir
+
     return 0
 }
 

@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcpy
-#define string_strlen
 #include "benc/List.h"
 #include "benc/String.h"
 #include "crypto/CryptoAuth_pvt.h"
@@ -22,7 +20,6 @@
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
-#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -56,7 +53,7 @@ static void encryptRndNonceTest()
     Bits_memset(secret, 0, 32);
 
     struct Message m = { .bytes=&buff[32], .length=12, .padding=32};
-    strcpy((char*) m.bytes, "hello world");
+    CString_strcpy((char*) m.bytes, "hello world");
 
     CryptoAuth_encryptRndNonce(nonce, &m, secret);
 
@@ -130,7 +127,7 @@ static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
             .senderContext = wrapper,
             .allocator = allocator
         };
-        String str = { .bytes = (char*) authPassword, .len = strlen((char*)authPassword) };
+        String str = { .bytes = (char*) authPassword, .len = CString_strlen((char*)authPassword) };
         CryptoAuth_setAuth(&str, 1, &temp);
     }
 
@@ -143,7 +140,7 @@ static struct CryptoAuth_Wrapper* setUp(uint8_t* myPrivateKey,
 
 static void testHello(uint8_t* password, uint8_t* expectedOutput)
 {
-    Assert_true(strlen((char*)expectedOutput) == 264);
+    Assert_true(CString_strlen((char*)expectedOutput) == 264);
     struct Message* outMessage;
     struct CryptoAuth_Wrapper* wrapper =
         setUp(NULL, (uint8_t*) "wxyzabcdefghijklmnopqrstuv987654", password, &outMessage);
@@ -201,7 +198,7 @@ static void receiveHelloWithNoAuth()
         "29ea3e12";
 
     uint8_t message[132];
-    Assert_true(Hex_decode(message, 132, messageHex, strlen((char*)messageHex)) > 0);
+    Assert_true(Hex_decode(message, 132, messageHex, CString_strlen((char*)messageHex)) > 0);
     struct Message incoming = {
         .length = 132,
         .padding = 0,

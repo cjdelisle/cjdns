@@ -12,13 +12,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-var currentVersion = process.version;
-var verArray = currentVersion.substring(1).split(".");
-var minVerArray = process.argv[process.argv.length-1].substring(1).split(".");
-for (var i = 0; i < minVerArray.length; i++) {
-    if (Number(verArray[i]) < Number(minVerArray[i])) {
-        process.exit(1);
-    } else if (Number(verArray[i]) > Number(minVerArray[i])) {
-        process.exit(0);
-    }
-}
+#ifndef SysInfo_H
+#define SysInfo_H
+
+#include "memory/Allocator.h"
+#include "util/Assert.h"
+
+#include "util/Linker.h"
+Linker_require("util/SysInfo.c")
+
+#include <stdint.h>
+
+enum SysInfo_Os
+{
+    SysInfo_Os_UNKNOWN,
+    SysInfo_Os_LINUX,
+    SysInfo_Os_SUNOS,
+    SysInfo_Os_DARWIN,
+    SysInfo_Os_FREEBSD,
+    SysInfo_Os_WIN32
+};
+
+struct SysInfo
+{
+    int seccomp : 1;
+    int os : 4;
+};
+Assert_compileTime(sizeof(struct SysInfo) == 4);
+
+struct SysInfo SysInfo_detect();
+
+char* SysInfo_describe(struct SysInfo si, struct Allocator* alloc);
+
+#endif

@@ -16,7 +16,6 @@
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/BSDMessageTypeWrapper.h"
 #include "util/AddrTools.h"
-#include "util/Bits.h"
 #include "util/events/Pipe.h"
 
 #include <errno.h>

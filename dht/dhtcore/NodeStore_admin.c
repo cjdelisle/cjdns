@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcpy
-#define string_strlen
 #include "admin/Admin.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
@@ -26,7 +24,6 @@
 #include "switch/EncodingScheme.h"
 #include "util/AddrTools.h"
 #include "util/version/Version.h"
-#include "util/platform/libc/string.h"
 
 struct Context {
     struct Admin* admin;

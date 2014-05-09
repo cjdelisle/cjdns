@@ -12,15 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strncmp
-#define string_strlen
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
 #include "io/FileWriter.h"
 #include "benc/String.h"
 #include "memory/MallocAllocator.h"
-#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -51,11 +47,11 @@ static struct Message msg;
 
 #define BUFFER_SIZE 400
 static uint8_t* textBuff;
-#define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
+#define ALIGNED_LEN(x) (CString_strlen(x) + 4 - (CString_strlen(x) % 4))
 #define MK_MSG(x) \
     Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
-    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
-    msg.length = strlen(x);                                                     \
+    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, CString_strlen(x));         \
+    msg.length = CString_strlen(x);                                                     \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
     msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 
@@ -136,7 +132,7 @@ static int init(const uint8_t* privateKey,
 
     ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
     if (password) {
-        String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
+        String passStr = {.bytes=(char*)password,.len=CString_strlen((char*)password)};
         CryptoAuth_setAuth(&passStr, 1, cif1);
         CryptoAuth_addUser(&passStr, 1, String_new(userObj, allocator), ca2);
     }
@@ -162,7 +158,7 @@ static int sendToIf1(const char* x)
     cif2->sendMessage(&msg, cif2);
     if (!suppressMessages) {
         Assert_true(if1Msg);
-        if (strncmp((char*)if1Msg, x, strlen(x)) != 0) {
+        if (CString_strncmp((char*)if1Msg, x, CString_strlen(x)) != 0) {
             printf("expected %s, got %s\n", x, (char*)if1Msg);
             Assert_true(0);
         }
@@ -179,7 +175,7 @@ static int sendToIf2(const char* x)
     cif1->sendMessage(&msg, cif1);
     if (!suppressMessages) {
         Assert_true(if2Msg);
-        if (strncmp((char*)if2Msg, x, strlen(x)) != 0) {
+        if (CString_strncmp((char*)if2Msg, x, CString_strlen(x)) != 0) {
             printf("expected %s, got %s\n", x, (char*)if2Msg);
             Assert_true(0);
         }

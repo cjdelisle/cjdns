@@ -141,6 +141,13 @@ var execJs = function (js, builder, file, fileName, callback) {
     var to = setTimeout(function () {
         throw new Error("Inline JS did not return after 120 seconds [" + js + "]");
     }, 120000);
+
+    var REQUIRE = function (str) {
+        if (typeof(str) !== 'string') { throw new Error("must be a string"); }
+        try { return require(str); } catch (e) { }
+        return require(process.cwd() + '/' + str);
+    };
+
     nThen(function (waitFor) {
         try {
             /* jshint -W054 */ // Suppress jshint warning on Function being a form of eval
@@ -152,7 +159,7 @@ var execJs = function (js, builder, file, fileName, callback) {
             };
             x = func.call(func,
                           file,
-                          require,
+                          REQUIRE,
                           fileName,
                           console,
                           builder);

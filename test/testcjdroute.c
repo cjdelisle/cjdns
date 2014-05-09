@@ -12,35 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strcmp
 #include "util/Assert.h"
-#include "util/platform/libc/string.h"
 #include "util/events/Time.h"
 #include "util/events/EventBase.h"
+#include "util/CString.h"
 #include "memory/MallocAllocator.h"
 
 #include <stdio.h>
 
-<?js
-    var done = this.async();
-    var Tests = require("./Tests");
-    Tests.get(function (tests) {
-        var prototypes = [];
-        var listContent = [];
-        tests.forEach(function (test) {
-            var main = /^.*\/([^\/]+)\.c$/.exec(test)[1] + '_main';
-            (builder.config['cflags'+test] =
-                builder.config['cflags'+test] || []).push('-D', 'main='+main);
-            file.links.push(test);
-            listContent.push('{ .func = '+main+', .name = "'+test.replace(/^.*\/|.c$/g, '')+'" },');
-            prototypes.push('int '+main+'(int argc, char** argv);');
-        });
-        file.testcjdroute_tests = listContent.join('\n');
-        file.testcjdroute_prototypes = prototypes.join('\n');
-        done();
-    });
-?>
+<?js require("./test/testcjdroute.js").generate(file, builder, this.async()); ?>
 
 <?js return file.testcjdroute_prototypes; ?>
 
@@ -64,7 +44,7 @@ static uint64_t runTest(Test test,
     Assert_true(!test(argc, argv));
     uint64_t now = Time_hrtime();
     char* seventySpaces = "                                                                      ";
-    int count = strlen(name);
+    int count = CString_strlen(name);
     if (count > 69) { count = 69; }
     fprintf(stderr, "%s%d.%d ms\n",
             &seventySpaces[count],
@@ -94,9 +74,9 @@ int main(int argc, char** argv)
         usage(argv[0]);
         return 100;
     }
-    if (strcmp("all", argv[1])) {
+    if (CString_strcmp("all", argv[1])) {
         for (int i = 0; i < (int)(sizeof(TESTS)/sizeof(*TESTS)); i++) {
-            if (!strcmp(TESTS[i].name, argv[1])) {
+            if (!CString_strcmp(TESTS[i].name, argv[1])) {
                 TESTS[i].func(argc, argv);
                 return 0;
             }

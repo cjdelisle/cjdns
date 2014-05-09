@@ -39,7 +39,7 @@ struct Security_Permissions
 #define Security_setUser_PERMISSION -1
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
-void Security_dropPermissions(struct Except* eh);
+void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
 
 struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh);
 

@@ -31,7 +31,6 @@
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
 #include "util/Hex.h"

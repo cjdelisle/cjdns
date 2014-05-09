@@ -17,6 +17,7 @@
 
 #include "dht/Address.h"
 #include "dht/dhtcore/Node.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "switch/EncodingScheme.h"
@@ -51,7 +52,8 @@ struct NodeStore
  */
 struct NodeStore* NodeStore_new(struct Address* myAddress,
                                 struct Allocator* allocator,
-                                struct Log* logger);
+                                struct Log* logger,
+                                struct RumorMill* renumberMill);
 
 /**
  * Discover a new node (or rediscover an existing one).

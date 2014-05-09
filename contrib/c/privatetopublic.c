@@ -12,18 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strerror
 #include "crypto/AddressCalc.h"
 #include "dht/Address.h"
 #include "util/Base32.h"
 #include "util/Hex.h"
-#include "util/platform/libc/string.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 static int usage(char* appName)
 {

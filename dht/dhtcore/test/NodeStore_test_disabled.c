@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
 #include "memory/MallocAllocator.h"
 #include "crypto/random/Random.h"
 #include "crypto/AddressCalc.h"
@@ -26,7 +25,6 @@
 #include "util/Endian.h"
 #include "util/log/WriterLog.h"
 #include "util/version/Version.h"
-#include "util/platform/libc/string.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -431,7 +429,7 @@ static void test_pathfinderTwo_splitLink()
 
 int main(int argc, char** argv)
 {
-    if (argc > 1 && !strcmp(argv[argc-1], "--genkeys")) {
+    if (argc > 1 && !CString_strcmp(argv[argc-1], "--genkeys")) {
         genKeys = 1;
     }
 

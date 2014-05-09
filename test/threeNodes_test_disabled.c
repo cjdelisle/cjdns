@@ -12,15 +12,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strncpy
-#define string_strlen
 #include "crypto/Key.h"
 #include "io/FileWriter.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "util/Base32.h"
 #include "util/Checksum.h"
-#include "util/platform/libc/string.h"
 #include "util/log/WriterLog.h"
 #include "test/TestFramework.h"
 #include "net/Ducttape_pvt.h"
@@ -149,8 +146,8 @@ static void sendMessage(struct ThreeNodes* tn,
     struct Message* msg;
     Message_STACK(msg, 64, 512);
 
-    Bits_memcpy(msg->bytes, message, strlen(message) + 1);
-    msg->length = strlen(message) + 1;
+    Bits_memcpy(msg->bytes, message, CString_strlen(message) + 1);
+    msg->length = CString_strlen(message) + 1;
 
     TestFramework_craftIPHeader(msg, from->ip, to->ip);
 

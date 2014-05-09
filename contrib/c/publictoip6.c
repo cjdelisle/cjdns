@@ -14,6 +14,7 @@
  */
 #include "crypto/Key.h"
 #include "util/AddrTools.h"
+#include "util/CString.h"
 #include <stdio.h>
 
 static int usage(char* appName)
@@ -34,7 +35,7 @@ int main(int argc, char** argv)
 
     uint8_t keyBytes[32];
     uint8_t ip6Bytes[16];
-    String key = { .bytes = argv[1], .len = strlen(argv[1]) };
+    String key = { .bytes = argv[1], .len = CString_strlen(argv[1]) };
 
     int ret = Key_parse(&key, keyBytes, ip6Bytes);
     switch (ret) {

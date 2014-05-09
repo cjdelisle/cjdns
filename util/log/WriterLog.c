@@ -15,14 +15,12 @@
 
 #include "util/log/WriterLog.h"
 #include "util/log/Log_impl.h"
+#include "util/CString.h"
 #include "io/Writer.h"
 
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#define string_strlen
-#define string_strrchr
-#include "util/platform/libc/string.h"
 #include <strings.h>
 #include <time.h>
 
@@ -44,20 +42,20 @@ static void print(struct Log* genericLog,
     time_t now;
     time(&now);
     snprintf(timeAndLevelBuff, 64, "%u %s ", (uint32_t) now, Log_nameForLevel(logLevel));
-    Writer_write(log->writer, timeAndLevelBuff, strlen(timeAndLevelBuff));
+    Writer_write(log->writer, timeAndLevelBuff, CString_strlen(timeAndLevelBuff));
 
     // Strip the path to make log lines shorter.
-    //char* lastSlash = strrchr(file, '/');
-    Writer_write(log->writer, file, strlen(file));
+    //char* lastSlash = CString_strrchr(file, '/');
+    Writer_write(log->writer, file, CString_strlen(file));
 
     #define Log_BUFFER_SZ 1024
     char buff[Log_BUFFER_SZ];
     snprintf(buff, Log_BUFFER_SZ, ":%u ", line);
-    Writer_write(log->writer, buff, strlen(buff));
+    Writer_write(log->writer, buff, CString_strlen(buff));
 
     vsnprintf(buff, Log_BUFFER_SZ, format, args);
 
-    size_t length = strlen(buff);
+    size_t length = CString_strlen(buff);
 
     // Some log lines end in \n, others don't.
     if (length < Log_BUFFER_SZ && buff[length - 1] != '\n') {

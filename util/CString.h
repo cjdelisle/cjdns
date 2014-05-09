@@ -30,6 +30,10 @@ Gcc_NONNULL(1,2)
 int CString_strcmp(const char* a, const char* b);
 
 Gcc_PURE
+Gcc_NONNULL(1,2)
+int CString_strncmp(const char* a, const char *b, size_t n);
+
+Gcc_PURE
 Gcc_NONNULL(1)
 char* CString_strchr(const char *a, int b);
 
@@ -44,6 +48,9 @@ int CString_strcasecmp(const char *a, const char *b);
 Gcc_PURE
 Gcc_NONNULL(1,2)
 char* CString_strstr(const char* a, const char* b);
+
+Gcc_NONNULL(1,2)
+char* CString_strcpy(char* restrict dest, const char* restrict src);
 
 Gcc_NONNULL(1,2)
 char* CString_strncpy(char* restrict dest, const char *restrict src, size_t n);

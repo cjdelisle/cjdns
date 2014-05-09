@@ -19,7 +19,6 @@
 #include "benc/List.h"
 #include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 
@@ -172,7 +171,7 @@ static int32_t serializeint64_t(struct Writer* writer,
 
     snprintf(buffer, 32, "%" PRId64, integer);
 
-    return Writer_write(writer, buffer, strlen(buffer));
+    return Writer_write(writer, buffer, CString_strlen(buffer));
 }
 
 /** @see BencSerializer.h */

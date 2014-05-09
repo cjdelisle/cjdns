@@ -12,9 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strrchr
-#define string_strlen
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
 #include "admin/angel/InterfaceWaiter.h"
@@ -49,7 +46,9 @@
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
+#include "util/ArchInfo.h"
+#include "util/SysInfo.h"
 #include "util/events/EventBase.h"
 #include "util/events/Pipe.h"
 #include "util/events/Process.h"
@@ -339,9 +338,12 @@ static int genconf(struct Random* rand)
     return 0;
 }
 
-static int usage(char* appName)
+static int usage(struct Allocator* alloc, char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), alloc);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
+    printf("Cjdns %s %s\n"
+           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -358,7 +360,7 @@ static int usage(char* appName)
            "    sudo %s < cjdroute.conf\n"
            "\n"
            "For more information about other functions and non-standard setups, see README.md\n",
-           appName, appName, appName);
+           archInfo, sysInfo, appName, appName, appName);
 
     return 0;
 }
@@ -441,38 +443,40 @@ int main(int argc, char** argv)
 
     if (isatty(STDIN_FILENO) || argc < 2) {
         // Fall through.
-    } else if (!strcmp("angel", argv[1])) {
+    } else if (!CString_strcmp("angel", argv[1])) {
         return AngelInit_main(argc, argv);
-    } else if (!strcmp("core", argv[1])) {
+    } else if (!CString_strcmp("core", argv[1])) {
         return Core_main(argc, argv);
     }
 
     Assert_ifParanoid(argc > 0);
     struct Except* eh = NULL;
 
-    // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    // Allow it to allocate 8MB
+    struct Allocator* allocator = MallocAllocator_new(1<<23);
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
         // one argument
-        if ((strcmp(argv[1], "--help") == 0) || (strcmp(argv[1], "-h") == 0)) {
-            return usage(argv[0]);
-        } else if (strcmp(argv[1], "--genconf") == 0) {
+        if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
+            return usage(allocator, argv[0]);
+        } else if (CString_strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
-        } else if (strcmp(argv[1], "--pidfile") == 0) {
+        } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
             // deprecated
             fprintf(stderr, "'--pidfile' option is deprecated.\n");
             return 0;
-        } else if (strcmp(argv[1], "--reconf") == 0) {
+        } else if (CString_strcmp(argv[1], "--reconf") == 0) {
             // Performed after reading the configuration
-        } else if (strcmp(argv[1], "--bench") == 0) {
+        } else if (CString_strcmp(argv[1], "--bench") == 0) {
             return benchmark();
-        } else if ((strcmp(argv[1], "--version") == 0) || (strcmp(argv[1], "-v") == 0)) {
+        } else if ((CString_strcmp(argv[1], "--version") == 0)
+            || (CString_strcmp(argv[1], "-v") == 0))
+        {
             printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
             return 0;
-        } else if (strcmp(argv[1], "--cleanconf") == 0) {
+        } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
@@ -484,7 +488,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "%s: too many arguments\n", argv[0]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         // because of '--pidfile $filename'?
-        if (strcmp(argv[1], "--pidfile") == 0)
+        if (CString_strcmp(argv[1], "--pidfile") == 0)
         {
             fprintf(stderr, "\n'--pidfile' option is deprecated.\n");
         }
@@ -495,7 +499,7 @@ int main(int argc, char** argv)
         // We were started from a terminal
         // The chances an user wants to type in a configuration
         // bij hand are pretty slim so we show him the usage
-        return usage(argv[0]);
+        return usage(allocator, argv[0]);
     } else {
         // We assume stdin is a configuration file and that we should
         // start routing
@@ -508,7 +512,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (argc == 2 && strcmp(argv[1], "--cleanconf") == 0) {
+    if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
         struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
         JsonBencSerializer_get()->serializeDictionary(stdoutWriter, &config);
         printf("\n");
@@ -525,11 +529,16 @@ int main(int argc, char** argv)
     if (!adminPass) {
         adminPass = String_newBinary(NULL, 32, allocator);
         Random_base32(rand, (uint8_t*) adminPass->bytes, 32);
-        adminPass->len = strlen(adminPass->bytes);
+        adminPass->len = CString_strlen(adminPass->bytes);
     }
     if (!adminBind) {
         Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
     }
+
+    // --------------------- Welcome to cjdns ---------------------- //
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), allocator);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), allocator);
+    Log_info(logger, "Cjdns %s %s", archInfo, sysInfo);
 
     // --------------------- Check for running instance  --------------------- //
 

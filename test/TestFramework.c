@@ -106,12 +106,12 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
-    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, logger);
+    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
+
+    struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, logger, rumorMill);
 
     struct RouterModule* routerModule =
         RouterModule_register(registry, allocator, publicKey, base, logger, rand, nodeStore);
-
-    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
 
     struct SearchRunner* searchRunner = SearchRunner_new(nodeStore,
                                                          logger,

@@ -16,11 +16,24 @@
 BUILDDIR="build_${PLATFORM}"
 NODE_MIN_VER="v0.8.15"
 
+read -d '' VERSION_TEST <<"EOF"
+var currentVersion = process.version;
+var verArray = currentVersion.substring(1).split(".");
+var minVerArray = process.argv[process.argv.length-1].substring(1).split(".");
+for (var i = 0; i < minVerArray.length; i++) {
+    if (Number(verArray[i]) < Number(minVerArray[i])) {
+        process.exit(1);
+    } else if (Number(verArray[i]) > Number(minVerArray[i])) {
+        process.exit(0);
+    }
+}
+EOF
+
 hasOkNode()
 {
     for NODE in "$(pwd)/${BUILDDIR}/nodejs/node/bin/node" "nodejs" "node"; do
         if ${NODE} -v >/dev/null 2>&1; then
-            ${NODE} ./node_build/versionTest.js ${NODE_MIN_VER} && return 0;
+            echo ${VERSION_TEST} | ${NODE} '' ${NODE_MIN_VER} && return 0;
             echo "You have a version of node [${NODE}] but it is too old [`${NODE} -v`]"
         fi
     done
@@ -91,12 +104,11 @@ die() {
 
 # get a sha256sum implementation.
 getsha256sum() {
-    expected="4ee73c05d5158b0fdfec9f5e52cab3fa85b98d6992a221bbff28fdbd935e8afc"
-    testFile=test/$expected
+    expected="01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
     for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
     do
         #echo "trying ${hasher} ${testFile}"
-        ${hasher} ${testFile} 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && return 0
+        echo '' | ${hasher} - 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && return 0
     done
     return 1
 }

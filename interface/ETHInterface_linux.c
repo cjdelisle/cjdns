@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strncpy
-#define string_strerror
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/ETHInterface.h"
@@ -25,7 +23,6 @@
 #include "wire/Error.h"
 #include "wire/Ethernet.h"
 #include "util/Assert.h"
-#include "util/platform/libc/string.h"
 #include "util/platform/Socket.h"
 #include "util/events/Event.h"
 #include "util/Identity.h"
@@ -33,6 +30,7 @@
 #include "util/version/Version.h"
 #include "util/events/Timeout.h"
 
+#include <string.h>
 #include <sys/socket.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
@@ -129,7 +127,8 @@ static uint8_t sendMessage(struct Message* message, struct Interface* ethIf)
                 return Error_LINK_LIMIT_EXCEEDED;
 
             default:;
-                Log_info(context->logger, "Got error sending to socket [%s]", strerror(errno));
+                Log_info(context->logger, "Got error sending to socket [%s]",
+                         strerror(errno));
         }
     }
     return 0;
@@ -339,7 +338,7 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     if (context->socket == -1) {
         Except_throw(exHandler, "call to socket() failed. [%s]", strerror(errno));
     }
-    strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
+    CString_strncpy(ifr.ifr_name, bindDevice, IFNAMSIZ - 1);
 
     if (ioctl(context->socket, SIOCGIFINDEX, &ifr) == -1) {
         Except_throw(exHandler, "failed to find interface index [%s]", strerror(errno));
@@ -347,7 +346,8 @@ struct ETHInterface* ETHInterface_new(struct EventBase* base,
     context->ifindex = ifr.ifr_ifindex;
 
     if (ioctl(context->socket, SIOCGIFHWADDR, &ifr) == -1) {
-       Except_throw(exHandler, "failed to find mac address of interface [%s]", strerror(errno));
+       Except_throw(exHandler, "failed to find mac address of interface [%s]",
+                    strerror(errno));
     }
 
     uint8_t srcMac[6];

@@ -16,43 +16,15 @@
 #define Seccomp_H
 
 #include "exception/Except.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
 
-<?js
-    var main = function (async) {
-        if (typeof(builder.config.HAS_SECCOMP) !== 'undefined') {
-            if (builder.config.HAS_SECCOMP) {
-                file.links.push("util/Seccomp.c");
-                return [
-                    "void Seccomp_dropPermissions(struct Except* eh);",
-                    "int Seccomp_isWorking();",
-                    "static inline int Seccomp_exists() { return 1; }",
-                ].join('\n');
-            } else {
-                return [
-                    "static inline void Seccomp_dropPermissions(struct Except* eh) { }",
-                    "static inline int Seccomp_isWorking() { return 0; }",
-                    "static inline int Seccomp_exists() { return 0; }",
-                ].join('\n');
-            }
-        }
+<?js require("../util/Seccomp.js").detect(this.async, file, builder); ?>
 
-        console.log("Searching for SECCOMP");
-        var done = async();
+void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
 
-        var HasFunction = require("./HasFunction");
+int Seccomp_isWorking();
 
-        HasFunction.check(builder, "seccomp_init", ["-lseccomp"], function (err, has) {
-            builder.config.HAS_SECCOMP = (!err && has);
-            if (has) {
-                console.log("Successfully found SECCOMP");
-                builder.config.libs.push("-lseccomp");
-            } else {
-                console.log("Could not find SECCOMP, skipping");
-            }
-            done(main());
-        });
-    };
-    return main(this.async);
-?>
+int Seccomp_exists();
 
 #endif

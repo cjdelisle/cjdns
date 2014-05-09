@@ -147,7 +147,7 @@ static int is_tap_win32_dev(const char *guid)
                     &len);
 
                 if (status == ERROR_SUCCESS && data_type == REG_SZ) {
-                    if (!Bits_memcmp(component_id, "tap", strlen("tap")) &&
+                    if (!Bits_memcmp(component_id, "tap", CString_strlen("tap")) &&
                         !strcmp (net_cfg_instance_id, guid)) {
                         RegCloseKey (unit_key);
                         RegCloseKey (netcard_key);
@@ -197,7 +197,7 @@ static int get_device_guid(
             WinFail_fail(eh, "RegEnumKeyEx() failed", status);
         }
 
-        if (len != strlen(NETWORK_ADAPTER_GUID)) {
+        if (len != CString_strlen(NETWORK_ADAPTER_GUID)) {
             // extranious directory, eg: "Descriptions"
             continue;
         }
@@ -224,8 +224,8 @@ static int get_device_guid(
         if (is_tap_win32_dev(enum_name)) {
             snprintf(name, name_size, "%s", enum_name);
             if (actual_name) {
-                if (strcmp(actual_name, "") != 0) {
-                    if (strcmp(name_data, actual_name) != 0) {
+                if (CString_strcmp(actual_name, "") != 0) {
+                    if (CString_strcmp(name_data, actual_name) != 0) {
                         RegCloseKey (connKey);
                         ++i;
                         continue;
@@ -266,12 +266,12 @@ struct TAPDevice* TAPDevice_find(const char* preferredName,
     }
 
     struct TAPDevice* out = Allocator_malloc(alloc, sizeof(struct TAPDevice));
-    out->name = Allocator_malloc(alloc, strlen(buff)+1);
-    Bits_memcpy(out->name, buff, strlen(buff)+1);
+    out->name = Allocator_malloc(alloc, CString_strlen(buff)+1);
+    Bits_memcpy(out->name, buff, CString_strlen(buff)+1);
 
     snprintf(buff, sizeof(buff), USERMODEDEVICEDIR "%s" TAPSUFFIX, guid);
 
-    out->path = Allocator_malloc(alloc, strlen(buff)+1);
-    Bits_memcpy(out->path, buff, strlen(buff)+1);
+    out->path = Allocator_malloc(alloc, CString_strlen(buff)+1);
+    Bits_memcpy(out->path, buff, CString_strlen(buff)+1);
     return out;
 }

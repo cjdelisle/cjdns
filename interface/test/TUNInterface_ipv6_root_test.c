@@ -29,7 +29,6 @@
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
-#include "util/platform/libc/string.h"
 #include "util/events/Timeout.h"
 #include "wire/Ethernet.h"
 #include "wire/Headers.h"

@@ -12,14 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef strlen_H
-#define strlen_H
+#include "util/Seccomp.h"
 
-#include "util/Gcc.h"
+// This file is for machines which do not support seccomp.
 
-#define strlen(a) __builtin_strlen(a)
-/*Gcc_PURE
-Gcc_NONNULL(1)
-unsigned long strlen(const char* str);*/
+void Seccomp_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
+{
+}
 
-#endif
+int Seccomp_isWorking()
+{
+    return 0;
+}
+
+int Seccomp_exists()
+{
+    return 0;
+}

@@ -13,13 +13,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util/platform/netdev/NetPlatform.h"
-#define string_strncpy
-#define string_strlen
-#define string_strerror
-#include "util/platform/libc/string.h"
 #include "util/platform/Sockaddr.h"
-#include "util/Bits.h"
 
+#include <string.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
@@ -31,7 +27,6 @@
 #include <stddef.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-
 #include <linux/if.h>
 
 /**
@@ -68,7 +63,7 @@ static int socketForIfName(const char* interfaceName,
         Except_throw(eh, "socket() [%s]", strerror(errno));
     }
 
-    Bits_memset(ifRequestOut, 0, sizeof(struct ifreq));
+    memset(ifRequestOut, 0, sizeof(struct ifreq));
     strncpy(ifRequestOut->ifr_name, interfaceName, IFNAMSIZ);
 
     if (ioctl(s, SIOCGIFINDEX, ifRequestOut) < 0) {
@@ -124,7 +119,7 @@ void NetPlatform_addAddress(const char* interfaceName,
             .ifr6_ifindex = ifIndex,
             .ifr6_prefixlen = prefixLen
         };
-        Bits_memcpyConst(&ifr6.ifr6_addr, address, 16);
+        memcpy(&ifr6.ifr6_addr, address, 16);
 
         if (ioctl(s, SIOCSIFADDR, &ifr6) < 0) {
             int err = errno;
@@ -135,8 +130,8 @@ void NetPlatform_addAddress(const char* interfaceName,
 
     } else if (addrFam == Sockaddr_AF_INET) {
         struct sockaddr_in sin = { .sin_family = AF_INET, .sin_port = 0 };
-        Bits_memcpyConst(&sin.sin_addr.s_addr, address, 4);
-        Bits_memcpyConst(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr));
+        memcpy(&sin.sin_addr.s_addr, address, 4);
+        memcpy(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr));
 
         if (ioctl(s, SIOCSIFADDR, &ifRequest) < 0) {
             int err = errno;
@@ -146,8 +141,8 @@ void NetPlatform_addAddress(const char* interfaceName,
 
         uint32_t x = ~0 << (32 - prefixLen);
         x = Endian_hostToBigEndian32(x);
-        Bits_memcpyConst(&sin.sin_addr, &x, 4);
-        Bits_memcpyConst(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr_in));
+        memcpy(&sin.sin_addr, &x, 4);
+        memcpy(&ifRequest.ifr_addr, &sin, sizeof(struct sockaddr_in));
 
         if (ioctl(s, SIOCSIFNETMASK, &ifRequest) < 0) {
             int err = errno;

@@ -15,11 +15,11 @@
 #include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
-#include "util/platform/libc/strlen.h"
 #include "util/events/Pipe.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/log/Log.h"
 #include "util/Identity.h"
+#include "util/CString.h"
 #include "wire/Message.h"
 #include "wire/Error.h"
 
@@ -342,9 +342,9 @@ static struct Pipe_pvt* newPipe(struct EventBase* eb,
         #define PREFIX "/tmp/cjdns_pipe_"
     #endif
 
-    char* cname = Allocator_malloc(alloc, strlen(PREFIX)+strlen(name)+1);
-    Bits_memcpy(cname, PREFIX, strlen(PREFIX));
-    Bits_memcpy(cname+strlen(PREFIX), name, strlen(name)+1);
+    char* cname = Allocator_malloc(alloc, CString_strlen(PREFIX)+CString_strlen(name)+1);
+    Bits_memcpy(cname, PREFIX, CString_strlen(PREFIX));
+    Bits_memcpy(cname+CString_strlen(PREFIX), name, CString_strlen(name)+1);
 
     struct Pipe_pvt* out = Allocator_clone(alloc, (&(struct Pipe_pvt) {
         .pub = {

@@ -161,6 +161,8 @@ Builder.configure({
                 '-flto',
                 OPTIMIZE
             );
+            // No optimization while building since actual compile happens during linking.
+            builder.config.cflags.push('-O0');
         } else {
             console.log("Link time optimization not supported [" + err + "]");
             builder.config.cflags.push(OPTIMIZE);
@@ -306,9 +308,6 @@ Builder.configure({
     builder.buildExecutable('contrib/c/publictoip6.c',     './publictoip6', waitFor());
     builder.buildExecutable('contrib/c/privatetopublic.c', './privatetopublic', waitFor());
     builder.buildExecutable('contrib/c/sybilsim.c',        './sybilsim', waitFor());
-    builder.buildExecutable('contrib/c/benc2json.c',       './benc2json', waitFor());
-    builder.buildExecutable('contrib/c/cleanconfig.c',     './cleanconfig', waitFor());
-    builder.buildExecutable('contrib/c/dnsserv.c',         './dnsserv', waitFor());
     builder.buildExecutable('contrib/c/makekeys.c',        './makekeys', waitFor());
 
     builder.buildExecutable('crypto/random/randombytes.c',        './randombytes', waitFor());

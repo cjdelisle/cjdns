@@ -36,10 +36,6 @@
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
-#define string_strlen
-#define string_strchr
-#define string_strcmp
-#include "util/platform/libc/string.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -109,9 +105,9 @@ static void initAngel(struct Pipe* asClientPipe,
 
     struct Message* m = &(struct Message) {
         .bytes = (uint8_t*) coreToAngelResponse,
-        .length = strlen(coreToAngelResponse),
+        .length = CString_strlen(coreToAngelResponse),
         .padding = 0,
-        .capacity = strlen(coreToAngelResponse)
+        .capacity = CString_strlen(coreToAngelResponse)
     };
     Message_shift(m, -24, NULL);
     m = Message_clone(m, tempAlloc);
@@ -136,7 +132,7 @@ static void initAngel(struct Pipe* asClientPipe,
 
 struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char* testName)
 {
-    if (argc > 2 && !strcmp(testName, argv[1]) && !strcmp("angel", argv[2])) {
+    if (argc > 2 && !CString_strcmp(testName, argv[1]) && !CString_strcmp("angel", argv[2])) {
         exit(AngelInit_main(argc-1, &argv[1]));
     }
 
@@ -201,10 +197,10 @@ void AdminTestFramework_tearDown(struct AdminTestFramework* framework)
           "1:q" "10:Angel_exit"
         "e";
 
-    char* start = strchr(buff, 'd');
+    char* start = CString_strchr(buff, 'd');
     struct Message m = {
         .bytes = (uint8_t*) start,
-        .length = strlen(start),
+        .length = CString_strlen(start),
         .padding = start - buff
     };
     struct Message* mp = Message_clone(&m, framework->alloc);

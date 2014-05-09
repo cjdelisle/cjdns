@@ -12,12 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strrchr
-#define string_strlen
 #include "admin/AdminClient.h"
 #include "admin/Configurator.h"
 #include "benc/String.h"
-#include "util/platform/libc/string.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
 #include "benc/List.h"
@@ -230,7 +227,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
                 Dict* value = entry->val->as.dictionary;
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
                 key = String_clone(key, perCallAlloc);
-                char* lastColon = strrchr(key->bytes, ':');
+                char* lastColon = CString_strrchr(key->bytes, ':');
 
                 if (!Sockaddr_parse(key->bytes, NULL)) {
                     // it's a sockaddr, fall through

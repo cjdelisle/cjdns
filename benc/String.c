@@ -16,15 +16,13 @@
 #include "benc/String.h"
 #include "util/Bits.h"
 
-#define string_strlen
-#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <stdarg.h>
 
 /** @see Object.h */
 String* String_new(const char* bytes, struct Allocator* allocator)
 {
-    return String_newBinary(bytes, strlen(bytes), allocator);
+    return String_newBinary(bytes, CString_strlen(bytes), allocator);
 }
 
 /** @see Object.h */
@@ -49,7 +47,7 @@ String* String_vprintf(struct Allocator* allocator, const char* format, va_list 
     #define String_BUFFER_SZ 1024
     char buff[String_BUFFER_SZ];
     vsnprintf(buff, String_BUFFER_SZ, format, args);
-    size_t length = strlen(buff);
+    size_t length = CString_strlen(buff);
     return String_newBinary(buff, length, allocator);
     #undef String_BUFFER_SZ
 }

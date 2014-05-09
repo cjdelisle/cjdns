@@ -41,7 +41,7 @@ int main()
     struct Ducttape_pvt* dt = (struct Ducttape_pvt*) tf->ducttape;
 
     struct Allocator* allocator = MallocAllocator_new(85000);
-    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(pingBenc);
+    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + CString_strlen(pingBenc);
     uint8_t* buff = Allocator_calloc(allocator, buffLen+PADDING, 1);
     struct Headers_SwitchHeader* sh = (struct Headers_SwitchHeader*) (buff + PADDING);
     sh->label_be = Endian_hostToBigEndian64(4);

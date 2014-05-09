@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#include "util/platform/libc/string.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "io/Reader.h"
@@ -32,8 +30,8 @@ static int expect(char* str, struct Writer* writer, struct Reader* reader)
     int ret = 0;
     char buffer[32];
     Writer_write(writer, "\0", 1);
-    Reader_read(reader, buffer, strlen(str) + 1);
-    if (strcmp(str, buffer) != 0) {
+    Reader_read(reader, buffer, CString_strlen(str) + 1);
+    if (CString_strcmp(str, buffer) != 0) {
         printf("Expected %s\n Got %s\n", str, buffer);
         return -1;
     }
@@ -54,7 +52,7 @@ static void testParse(struct Writer* w, struct Reader* r, struct Allocator* allo
     char* badBenc = "d2:aq21:RouterModule_pingNode4:argsd4:path39:fcd9:6a75:6c9c7:timeouti4000ee"
                     "6:cookie0:4:hash64:09c6bcd1482df339757c99bbc5e796192968a28562f701fb53a57ed6"
                     "e26b15511:q4:auth4:txid19:43866780dc455e15619e";
-    Writer_write(w, badBenc, strlen(badBenc)+1);
+    Writer_write(w, badBenc, CString_strlen(badBenc)+1);
     Dict dict;
     Assert_true(StandardBencSerializer_get()->parseDictionary(r, alloc, &dict));
 }

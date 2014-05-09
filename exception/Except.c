@@ -14,12 +14,11 @@
  */
 #define _POSIX_C_SOURCE 200112L
 
-#define string_strrchr
 
 #include "exception/Except.h"
+#include "util/CString.h"
 
 #include <stdarg.h>
-#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -28,7 +27,7 @@ void Except__throw(char* file, int line, struct Except* eh, char* format, ...)
     va_list args;
     va_start(args, format);
 
-    char* subFile = strrchr(file, '/');
+    char* subFile = CString_strrchr(file, '/');
     if (!subFile) {
         subFile = file;
     }
