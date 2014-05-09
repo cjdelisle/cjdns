@@ -92,6 +92,7 @@ static char* archStr(enum ArchInfo ai)
         case ArchInfo_Arch_PPC:   return "PPC";
         case ArchInfo_Arch_SPARC: return "SPARC";
         case ArchInfo_Arch_MIPS:  return "MIPS";
+        case ArchInfo_Arch_I386:  return "i386";
         default: return "UNKNOWN";
     };
 }
