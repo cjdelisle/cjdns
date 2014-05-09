@@ -120,6 +120,7 @@ var mkBuilder = function (state) {
             compiler(builder.config.gcc, args, callback);
         },
         buildExecutable: function (cFile, outputFile, callback) {
+            if (state.systemName === 'win32') { outputFile += '.exe'; }
             compile(cFile, outputFile, builder, callback);
         },
         config: state,
@@ -351,15 +352,11 @@ var compileFile = function (fileName, builder, tempDir, callback)
         //debug("Preprocess");
         preprocess(fileContent, builder, fileObj, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
-            if (state.useTempFiles) {
-                Fs.writeFile(preprocessed, output, waitFor(function (err) {
-                    if (err) { throw err; }
-                }));
-                // important, this will prevent the file from also being piped to gcc.
-                fileContent = undefined;
-            } else {
-                fileContent = output;
-            }
+            Fs.writeFile(preprocessed, output, waitFor(function (err) {
+                if (err) { throw err; }
+            }));
+            // important, this will prevent the file from also being piped to gcc.
+            fileContent = undefined;
         }));
 
         Fs.exists(outFile, waitFor(function (exists) {
@@ -374,11 +371,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
         //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile];
         flags.push.apply(flags, getFlags(state, fileName, false));
-        if (state.useTempFiles) {
-            flags.push(preprocessed);
-        } else {
-            flags.push('-');
-        }
+        flags.push(preprocessed);
         cc(state.gcc, flags, waitFor(function (err) {
             if (err) { throw err; }
             fileObj.obj = outFile;
@@ -539,7 +532,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         tempDir = tmpFile(state);
         Fs.mkdir(tempDir, waitFor(function (err) {
             if (err) { throw err; }
@@ -568,7 +560,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     }).nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         Fs.readdir(tempDir, waitFor(function(err, files) {
             if (err) { throw err; }
             files.forEach(function(file) {
@@ -580,7 +571,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     }).nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         Fs.rmdir(tempDir, waitFor(function(err) {
             if (err) { throw err; }
         }));
@@ -602,10 +592,7 @@ var getStatePrototype = function () {
         ldflags: [],
         libs: [],
 
-        // Using temp files instead of pipes shaves about 400ms off a clean build.
-        // TODO(cjd): Understand why our use of pipes is not good.
         tempDir: '/tmp',
-        useTempFiles: true,
 
         systemName: 'linux'
     };

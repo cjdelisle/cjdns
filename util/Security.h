@@ -20,7 +20,7 @@
 #include "util/log/Log.h"
 #include "util/Linker.h"
 #ifdef win32
-    Linker_require("util/Security_Windows.c")
+    Linker_require("util/Security_win32.c")
 #else
     Linker_require("util/Security.c")
 #endif

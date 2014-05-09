@@ -23,6 +23,16 @@ int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
     return 0;
 }
 
-void Security_dropPermissions(struct Except* eh)
+void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
 {
+}
+
+struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh)
+{
+    return Allocator_clone(alloc, (&(struct Security_Permissions) {
+        .noOpenFiles = 0,
+        .seccompExists = 0,
+        .seccompEnforcing = 0,
+        .memoryLimitBytes = UINT64_MAX
+    }));
 }

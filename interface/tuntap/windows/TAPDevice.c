@@ -18,6 +18,7 @@
 #include "exception/WinFail.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
+#include "util/CString.h"
 
 /*
  * Portions of this code are copied from QEMU project which is licensed

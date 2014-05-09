@@ -23,9 +23,10 @@ var FindPython2 = require('./FindPython2');
 var CanCompile = require('./CanCompile');
 
 // ['linux','darwin','sunos','win32','freebsd']
-var SYSTEM = process.platform;
+var SYSTEM = process.env['SYSTEM'] || process.platform;
 var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'] || 'gcc';
+var LOG_LEVEL = process.env['Log_LEVEL'] || 'DEBUG';
 
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
@@ -67,6 +68,8 @@ Builder.configure({
 
         '-D','HAS_BUILTIN_CONSTANT_P',
 
+        '-D','Log_'+LOG_LEVEL,
+
         '-g',
 
         // f4 = 16 peers max, fixed width 4 bit
@@ -81,22 +84,14 @@ Builder.configure({
         '-D','PARANOIA=1'
     ]);
 
-    var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
-    builder.config.cflags.push('-D','Log_'+logLevel);
-    if (process.env['NO_PIE'] === undefined) {
-        builder.config.cflags.push('-fPIE');
-    }
     if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
+
     if (SYSTEM === 'win32') {
-        builder.config.cflags.push(
-            '!-fPIE',
-            '!-pie',
-            '-Wno-format'
-        );
-        builder.config.libs.push(
-            '-lssp'
-        );
-    } else if (SYSTEM === 'linux') {
+        builder.config.cflags.push('-Wno-format');
+        builder.config.libs.push('-lssp');
+    }
+
+    if (SYSTEM === 'linux') {
         builder.config.ldflags.push(
             '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
@@ -105,10 +100,9 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] === undefined) {
-        builder.config.ldflags.push(
-            '-pie'
-        );
+    if (process.env['NO_PIE'] === undefined && SYSTEM !== 'win32') {
+        builder.config.cflags.push('-fPIE');
+        builder.config.ldflags.push('-pie');
     }
 
     if (/.*clang.*/.test(GCC) || SYSTEM === 'darwin') {
@@ -185,6 +179,11 @@ Builder.configure({
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
+    var libuvLib = BUILDDIR+'/dependencies/libuv/out/Release/libuv.a';
+    if (SYSTEM === 'win32') {
+        libuvLib = BUILDDIR+'/dependencies/libuv/out/Release/obj.target/libuv.a';
+    }
+
     // Build dependencies
     nThen(function (waitFor) {
         Fs.exists(BUILDDIR+'/dependencies', waitFor(function (exists) {
@@ -222,10 +221,8 @@ Builder.configure({
         }));
 
     }).nThen(function (waitFor) {
-        builder.config.libs.push(
-            BUILDDIR+'/dependencies/libuv/out/Release/libuv.a'
-        );
-        if (!/.*android.*/.test(GCC)) {
+        builder.config.libs.push(libuvLib);
+        if (!(/.*android.*/.test(GCC))) {
             builder.config.libs.push(
                 '-lpthread'
             );
@@ -255,7 +252,7 @@ Builder.configure({
         var libuvBuilt;
         var python;
         nThen(function (waitFor) {
-            Fs.exists(BUILDDIR+'/dependencies/libuv/out/Release/libuv.a', waitFor(function (exists) {
+            Fs.exists(libuvLib, waitFor(function (exists) {
                 if (exists) { libuvBuilt = true; }
             }));
         }).nThen(function (waitFor) {
@@ -276,14 +273,15 @@ Builder.configure({
             if (env.TARGET_ARCH) {
                 args.push('-Dtarget_arch='+env.TARGET_ARCH);
             }
+            args.push('--root-target=libuv');
             if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
+            if (SYSTEM === 'win32') { args.push('-DOS=win'); }
             var gyp = Spawn(python, args, {env:env});
             gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
             gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
             gyp.on('close', waitFor(function () {
                 var args = ['-j', WORKERS, '-C', 'out', 'BUILDTYPE=Release', 'CC='+builder.config.gcc];
-                if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
-                if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
+                if (!(/darwin|win32/.test(SYSTEM))) { args.push('CFLAGS=-fPIC'); }
                 var make;
                 if (builder.config.systemName == 'freebsd') {
                     make = Spawn('gmake', args);
