@@ -12,6 +12,6 @@ compiler:
   - gcc
 
 script:
-  - "bash uname -a"
+  - "uname -a"
   - "bash node_build/run_jshint"
   - "bash do"
