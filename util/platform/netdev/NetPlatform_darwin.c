@@ -85,7 +85,7 @@ static void addIp6Address(const char* interfaceName,
         ((uint8_t*)&mask->sin6_addr)[prefixLen>>3] = 0xff << (8 - (prefixLen%8));
     }
 
-    CString_strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
+    strncpy(in6_addreq.ifra_name, interfaceName, sizeof(in6_addreq.ifra_name));
 
     /* do the actual assignment ioctl */
     int s = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -133,7 +133,7 @@ void NetPlatform_setMTU(const char* interfaceName,
 
     struct ifreq ifRequest;
 
-    CString_strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
+    strncpy(ifRequest.ifr_name, interfaceName, IFNAMSIZ);
     ifRequest.ifr_mtu = mtu;
 
     Log_info(logger, "Setting MTU for device [%s] to [%u] bytes.", interfaceName, mtu);
