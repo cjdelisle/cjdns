@@ -18,7 +18,7 @@
 #include "util/CString.h"
 #include <stdio.h>
 
-#ifndef linux
+#if !defined(linux) || defined(android)
 
 uint32_t ArchInfo_toAuditArch(enum ArchInfo ai)
 {
