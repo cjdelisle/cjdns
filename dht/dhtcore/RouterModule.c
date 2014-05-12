@@ -343,7 +343,12 @@ static inline int handleQuery(struct DHTMessage* message,
 
     }
 
-    return (nodeList) ? sendNodes(nodeList, message, module, version) : 0;
+    if (nodeList && !(RouterModule_DUMB_CLIENT))
+    {
+        return sendNodes(nodeList, message, module, version);
+    } else {
+        return 0;
+    }
 }
 
 /**

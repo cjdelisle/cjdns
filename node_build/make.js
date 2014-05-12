@@ -81,6 +81,10 @@ Builder.configure({
         '-D','PARANOIA=1'
     ]);
 
+    if (process.env['DUMB_CLIENT'] !== undefined) {
+        builder.config.cflags.push('-D', 'RouterModule_DUMB_CLIENT=1');
+    }
+
     var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
     builder.config.cflags.push('-D','Log_'+logLevel);
     if (process.env['NO_PIE'] === undefined) {
