@@ -835,7 +835,10 @@ module.exports.configure = function (params, configure) {
         debug("Test " + time() + "ms");
 
         builder.executables.forEach(function (array) {
-            Fs.rename(array[0], array[1], waitFor(throwIfErr));
+            Fs.rename(array[0], array[1], waitFor(function (err) {
+                // TODO(cjd): It would be better to know in advance whether to expect the file.
+                if (err && err.code !== 'ENOENT') { throw err; }
+            }));
         });
 
     }).nThen(function(waitFor) {

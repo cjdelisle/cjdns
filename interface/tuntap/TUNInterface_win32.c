@@ -17,6 +17,7 @@
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,

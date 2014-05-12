@@ -85,11 +85,15 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
+    // tap mode is not supported at all by the sunos tun driver.
+    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+
     // Extract the number eg: 0 from tun0
     int ppa = 0;
     if (interfaceName) {
@@ -141,7 +145,9 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     int maxNameSize = (LIFNAMSIZ < TUNInterface_IFNAMSIZ) ? LIFNAMSIZ : TUNInterface_IFNAMSIZ;
-    snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
+    if (assignedInterfaceName) {
+        snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
+    }
     snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
 
     char* error = NULL;

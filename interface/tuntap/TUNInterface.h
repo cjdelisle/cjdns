@@ -40,6 +40,7 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
  * @param interfaceName the interface name you *want* to use or NULL to let the kernel decide.
  * @param assignedInterfaceName an empty buffer which will be filled in with the interface
  *                              name that is assigned.
+ * @param isTapMode if true, the TUN device will be initialized in TAP mode if supported.
  * @param base the libevent event base to use for listening for incoming packet events.
  * @param logger for logging messages about the tun device.
  * @param eh if this function fails, it will raise one an error.
@@ -48,6 +49,7 @@ Linker_require("interface/tuntap/TUNInterface_" + builder.config.systemName + ".
  */
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,

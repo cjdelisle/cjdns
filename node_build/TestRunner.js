@@ -39,6 +39,7 @@ var remote = module.exports.remote = function (url, argv) {
 
     return function (fileName, callback) {
         var out = [];
+        out.push('Testing Remotely');
         var req = Http.request(params, function(res) {
             if (res.statusCode !== 200) {
                 out.push('STATUS: ' + res.statusCode);

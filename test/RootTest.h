@@ -40,8 +40,9 @@ int main(int argc, char** argv)
     if (runIt) {
         return RootTest_main(j,argv);
     } else {
-        printf("Root test %s disabled, use [%s +roottest] to include it\n", RootTest_toStr(main),
-               (argc > 0) ? argv[0] : "");
+        fprintf(stderr, "\nRoot test %s disabled, use [%s +roottest] to include it\n",
+                RootTest_toStr(main),
+                (argc > 0) ? argv[0] : "");
     }
     return 0;
 }

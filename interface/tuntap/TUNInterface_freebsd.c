@@ -40,11 +40,14 @@
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
+    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+
     // Open the descriptor
     int tunFd = open("/dev/tun", O_RDWR);
 
@@ -75,7 +78,9 @@ struct Interface* TUNInterface_new(const char* interfaceName,
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
-    snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
+    if (assignedInterfaceName) {
+        snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
+    }
 
     char* error = NULL;
 

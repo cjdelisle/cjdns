@@ -128,7 +128,9 @@ static inline void Message_push(struct Message* restrict msg,
                                 struct Except* eh)
 {
     Message_shift(msg, (int)size, eh);
-    Bits_memcpy(msg->bytes, object, size);
+    if (object) {
+        Bits_memcpy(msg->bytes, object, size);
+    }
 }
 
 static inline void Message_pop(struct Message* restrict msg,
@@ -137,7 +139,9 @@ static inline void Message_pop(struct Message* restrict msg,
                                struct Except* eh)
 {
     Message_shift(msg, -((int)size), eh);
-    Bits_memcpy(object, &msg->bytes[-((int)size)], size);
+    if (object) {
+        Bits_memcpy(object, &msg->bytes[-((int)size)], size);
+    }
 }
 
 #define Message_popGeneric(size) \

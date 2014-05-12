@@ -12,26 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Ethernet_H
-#define Ethernet_H
+#ifndef NDPServer_H
+#define NDPServer_H
 
-#include "util/Endian.h"
+#include "interface/Interface.h"
+#include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "wire/Ethernet.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/NDPServer.c")
 
-/** It's not about to change but it makes for more readable code. */
-#define Ethernet_ADDRLEN 6
-
-struct Ethernet
+struct NDPServer
 {
-    uint16_t pad;
-    uint8_t destAddr[Ethernet_ADDRLEN];
-    uint8_t srcAddr[Ethernet_ADDRLEN];
-    uint16_t ethertype;
+    struct Interface generic;
+    uint8_t advertisePrefix[16];
+    uint8_t prefixLen;
 };
-#define Ethernet_SIZE 16
-Assert_compileTime(sizeof(struct Ethernet) == Ethernet_SIZE);
 
-#define Ethernet_TYPE_IP4   Endian_hostToBigEndian16( 0x0800 )
-#define Ethernet_TYPE_IP6   Endian_hostToBigEndian16( 0x86DD )
-#define Ethernet_TYPE_CJDNS Endian_hostToBigEndian16( 0xFC00 )
+struct NDPServer* NDPServer_new(struct Interface* external,
+                                struct Log* log,
+                                uint8_t localMac[Ethernet_ADDRLEN],
+                                struct Allocator* alloc);
 
 #endif
