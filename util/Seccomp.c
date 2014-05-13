@@ -216,8 +216,11 @@ static struct sock_fprog* mkFilter(struct Allocator* alloc, struct Except* eh)
         // modern librt reads a read-only mapped section of kernel space which contains the time
         // older versions need system calls for getting the time.
         // i686 glibc-2.18's time() uses __NR_time
+        // Raspberry Pi and BeagleBone Black don't provide __NR_time
         IFEQ(__NR_clock_gettime, success),
-        IFEQ(__NR_time, success),
+        #ifdef __NR_time
+            IFEQ(__NR_time, success),
+        #endif
 
         // malloc()
         IFEQ(__NR_brk, success),
