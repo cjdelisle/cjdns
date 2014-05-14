@@ -28,15 +28,19 @@ var find = module.exports.find = function (tempFile, callback) {
         nt = nt(function (waitFor) {
             console.log("testing python " + python);
             var py = Spawn(python, [tempFile]);
-            py.on('close', waitFor(function(ret) {
+            var cont = waitFor();
+            py.on('close', function(ret) {
                 if (ret === 0) {
                     callback(undefined, python);
                     waitFor.abort();
+                } else {
+                    cont();
                 }
-            }));
-            py.on('error', waitFor(function (err) {
+            });
+            py.on('error', function (err) {
                 if (err !== 'ENOENT') { console.log('error starting python ' + err); }
-            }));
+                cont();
+            });
             // Don't worry about errors, try the next.
         }).nThen;
     });
