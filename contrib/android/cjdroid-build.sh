@@ -109,9 +109,9 @@ export PATH="${WORK_DIR}/android-arm-toolchain/bin:${PATH}"
 [[ -x cjdns/cjdroute ]] && echo -e "\nBUILD COMPLETE! @ ${BUILD_DIR}/cjdns/cjdroute" || (echo -e "\nBUILD FAILED :("; exit 1)
 
 ##PACKAGE cjdroute and associated scripts for deployment
+VERSION=$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
 if [ ! -f "../cjdroid-${VERSION}.tar.gz" ]; then
     if [ -d cjdns/contrib/android/cjdroid ]; then
-        VERSION=$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
         cp -R cjdns/contrib/android/cjdroid .
         if [ -f cjdns/cjdroute ]; then
             install -Dm755 cjdns/cjdroute cjdroid/files/cjdroute
