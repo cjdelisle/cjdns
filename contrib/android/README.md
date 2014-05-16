@@ -21,8 +21,8 @@
 
 ### Requirements ###
 
-* **root**: The method required to root a phone differs from model to model.  If your phone isn't rooted yet and you're not sure where to start, look for the subforum for your device on XDA forums (linked below), and hopefully you'll find something that works.
-* **tun**: Most (if not all) 4.0+ phones include tun support. If yours uses 2.x, CyanogenMod and some stock ROMs include support, but many don't. If your phone doesn't have a TUN device at /dev/tun, download the link below (or find 'com.aed.tun.installer' to download it yourself), then install and run it to have it set one up for you.
+* **Root**: This is required to install things to the _/system_ partition as well as configure the network. The method required to root a phone differs from model to model.  If your phone isn't rooted yet and you're not sure where to start, look for the subforum for your device on XDA forums (linked below), and hopefully you'll find something that works.
+* **Tun Support**: This provides the interface cjdns uses to create a virtual network device. Most (if not all) 4.0+ phones include tun support. If yours uses 2.x, CyanogenMod and some stock ROMs include support, but many don't. If your phone doesn't have a TUN device at /dev/tun, download [com.aed.tun.installer](http://cjdns.ca/com.aed.tun.installer.apk), then install and run it to have it set one up for you.
 
 ### Setup Instructions ###
 
