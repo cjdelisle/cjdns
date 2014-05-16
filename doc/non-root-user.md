@@ -17,7 +17,7 @@ Create a new TUN device and give the cjdns user authority to access it:
 Run those commands to prepare your TUN device:
 
     sudo /sbin/ip addr add <your ipv6 address>/8 dev cjdroute0
-    sudo /sbin/ip link set mtu 1400 dev cjdroute0
+    sudo /sbin/ip link set mtu 1312 dev cjdroute0
     sudo /sbin/ip link set cjdroute0 up
 
 These commands should be executed as root now every time the system restarts.
