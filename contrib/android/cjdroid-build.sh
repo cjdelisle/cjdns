@@ -120,7 +120,7 @@ if [ ! -f "../cjdroid-${VERSION}.tar.gz" ]; then
             exit 1
         fi
         tar cfz ../cjdroid-${VERSION}.tar.gz cjdroid
-        echo "A deployable package has been successfully created @ $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}.tar.gz"
+        echo -e "\nSuccess: A deployable package has been created @ $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}.tar.gz"
     else
         echo "Error: Package not built because ${PWD}/cjdns/contrib/android/cjdroid does not exist"
         exit 1
