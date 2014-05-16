@@ -40,6 +40,7 @@ Below is a list of the files contained in _cjdroid-version.tar.gz_:
 * **files/cjdaemon** (run by system): Deployed to _/system/bin/cjdaemon_, this starts cjdroute if it's supposed to be running, then stops it when the phone sleeps and starts it again if it's supposed to be running when the phone wakes back up.
 * **files/cjdctl** (run by user as root): Deployed to _/system/bin/cjdctl_, this lets you control cjdroute as well as the daemon.
 * **files/cjdroute** (run by user as root and system): This is the _cjdroute_ binary, which can be used like normal to generate a config file with: `cjdroute --genconf > /sdcard/cjdns/cjdroute.conf`, and you can run: `cjdroute < /sdcard/cjdns/cjdroute.conf` to start it manually (running it manually may result in higher than normal battery drain in sleep mode).
+* **NOTE**: The files included in _cjdroid-version.tar.gz_ are from _cjdns-android/cjdns/contrib/android/cjdroid_ in the repo cloned by _cjdroid-build.sh_.
 
 ### Commands ###
 
