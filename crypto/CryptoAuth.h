@@ -65,6 +65,12 @@ struct CryptoAuth_Wrapper;
 #define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
 #define CryptoAuth_addUser_OUT_OF_SPACE      -2
 #define CryptoAuth_addUser_DUPLICATE         -3
+int32_t CryptoAuth_addUser_ipv6(String* password,
+                           uint8_t authType,
+                           String* user,
+                           String* ipv6,
+                           struct CryptoAuth* context);
+
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
                            String* user,

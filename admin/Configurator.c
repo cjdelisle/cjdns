@@ -143,14 +143,26 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         if (!user) {
           user = String_printf(child, "password [%d]", i);
         }
-
+        //String* publicKey = Dict_getString(d, String_CONST("publicKey"));
+        String* ipv6 = Dict_getString(d, String_CONST("ipv6"));
         Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].", i, user->bytes);
-
-        Dict args = Dict_CONST(
-            String_CONST("authType"), Int_OBJ(1), Dict_CONST(
-            String_CONST("password"), String_OBJ(passwd), Dict_CONST(
-            String_CONST("user"), String_OBJ(user), NULL
-        )));
+        Dict args;
+        if (ipv6) {
+            Log_info(ctx->logger,
+                "  This connection password restricted to [%s] only.", ipv6->bytes);
+            args = Dict_CONST(
+                String_CONST("authType"), Int_OBJ(1), Dict_CONST(
+                String_CONST("password"), String_OBJ(passwd), Dict_CONST(
+                String_CONST("ipv6"), String_OBJ(ipv6), Dict_CONST(
+                String_CONST("user"), String_OBJ(user), NULL
+            ))));
+        } else {
+            args = Dict_CONST(
+                String_CONST("authType"), Int_OBJ(1), Dict_CONST(
+                String_CONST("password"), String_OBJ(passwd), Dict_CONST(
+                String_CONST("user"), String_OBJ(user), NULL
+            )));
+        }
         rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx, child);
         Allocator_free(child);
     }
