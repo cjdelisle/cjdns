@@ -109,19 +109,23 @@ export PATH="${WORK_DIR}/android-arm-toolchain/bin:${PATH}"
 [[ -x cjdns/cjdroute ]] && echo -e "\nBUILD COMPLETE! @ ${BUILD_DIR}/cjdns/cjdroute" || (echo -e "\nBUILD FAILED :("; exit 1)
 
 ##PACKAGE cjdroute and associated scripts for deployment
-if [ -d cjdns/contrib/android/cjdroid ]; then
-    VERSION=$(git describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
-    cp -R cjdns/contrib/android/cjdroid .
-    if [ -f cjdns/cjdroute ]; then
-        install -Dm755 cjdns/cjdroute cjdroid/files/cjdroute
+if [ ! -f "../cjdroid-${VERSION}.tar.gz" ]; then
+    if [ -d cjdns/contrib/android/cjdroid ]; then
+        VERSION=$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
+        cp -R cjdns/contrib/android/cjdroid .
+        if [ -f cjdns/cjdroute ]; then
+            install -Dm755 cjdns/cjdroute cjdroid/files/cjdroute
+        else
+            echo "Error: Package not built because ${PWD}/cjdns/cjdroute does not exist"
+            exit 1
+        fi
+        tar cfz ../cjdroid-${VERSION}.tar.gz cjdroid
     else
-        echo "Error: Cannot find ${PWD}/cjdns/cjdroute"
+        echo "Error: Package not built because ${PWD}/cjdns/contrib/android/cjdroid does not exist"
         exit 1
     fi
-    tar cfz ../cjdroid-${VERSION}.tar.gz cjdroid
 else
-    echo "Error: Cannot find ${PWD}/cjdns/contrib/android/cjdroid"
-    exit 1
+    echo "Error: Package not built because $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}.tar.gz already exists"
 fi
 
 ##SAMPLES for deployment
