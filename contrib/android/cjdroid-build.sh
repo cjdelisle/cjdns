@@ -26,7 +26,7 @@
 #   http://forum.xda-developers.com/index.php?tab=all
 #
 #  2. tun device:
-#   Most if not all 4.0+ phones include tun support. If your device
+#   Most (if not all) 4.0+ phones include tun support. If yours
 #   uses 2.x, CyanogenMod and some stock ROMs include support, but
 #   many don't. If your phone doesn't have a TUN device at /dev/tun,
 #   download the link below (or find 'com.aed.tun.installer' to
@@ -48,7 +48,7 @@
 #  Use a different branch:
 #   Below change: BRANCH="newbranch"
 
-## Configurable Variables (note: remove 'cjdns-android/cjdns' before running this script when changing to a different repo)
+## Configurable Variables
 REPO="https://github.com/cjdelisle/cjdns/"
 BRANCH="master"
 BUILD_DIR="$(pwd)/cjdns-android"
