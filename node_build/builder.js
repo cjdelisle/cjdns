@@ -446,7 +446,7 @@ var getMTimes = function (files, mtimes, callback)
 
 var removeFile = function (state, fileName, callback)
 {
-    debug("remove " + fileName);
+    //debug("remove " + fileName);
     nThen(function (waitFor) {
         // And every file which includes it
         Object.keys(state.files).forEach(function (file) {
@@ -666,7 +666,7 @@ var stage = function (st, builder, waitFor) {
 
 var throwIfErr = function (err) { if (err) { throw err; } };
 
-module.exports.configure = function (params, configure) {
+var configure = module.exports.configure = function (params, configFunc) {
 
     // Track time taken for various steps
     var time = makeTime();
@@ -734,7 +734,7 @@ module.exports.configure = function (params, configure) {
         }
         state = getStatePrototype(params);
         builder = mkBuilder(state);
-        configure(builder, waitFor);
+        configFunc(builder, waitFor);
 
     }).nThen(function(waitFor) {
 
@@ -757,7 +757,16 @@ module.exports.configure = function (params, configure) {
 
         Object.keys(state.oldmtimes).forEach(function (fileName) {
             Fs.stat(fileName, waitFor(function (err, stat) {
-                if (err) { throw err; }
+                if (err) {
+                    if (err.code === 'ENOENT') {
+                        // Doesn't matter as long as it's not referenced...
+                        debug("File ["+fileName+"] was removed");
+                        delete state.files[fileName];
+                        return;
+                    } else {
+                        throw err;
+                    }
+                }
                 state.mtimes[fileName] = stat.mtime.getTime();
                 if (state.oldmtimes[fileName] !== stat.mtime.getTime()) {
                     debug(fileName + ' is out of date, rebuilding');
