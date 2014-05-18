@@ -42,7 +42,6 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
-#include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"

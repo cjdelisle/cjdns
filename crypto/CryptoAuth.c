@@ -861,7 +861,11 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             cryptoAuthDebug0(wrapper, "New key packet but we are already sending data");
         }
 
-    } else if (nextNonce == 2 && (!wrapper->isInitiator || wrapper->established)) {
+    } else if (nextNonce != 2) {
+
+        Assert_true(!"should never happen");
+
+    } else if (!wrapper->isInitiator || wrapper->established) {
         // This is a hello packet and we are either in ESTABLISHED state or we are
         // not the initiator of the connection.
         // If the case is that we are in ESTABLISHED state, the other side tore down the session
@@ -874,7 +878,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         }
         // We got a (possibly repeat) hello packet and we have not sent any hello packet,
         // new session.
-        if (wrapper->nextNonce == 3 && nextNonce == 2) {
+        if (wrapper->nextNonce == 3) {
             // We sent a key packet so the next packet is a repeat key but we got another hello
             // We'll just keep steaming along sending repeat key packets
             nextNonce = 3;
@@ -885,9 +889,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         wrapper->user = user;
         Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
 
-    } else if (nextNonce == 2
-        && Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0)
-    {
+    } else if (Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0) {
         // It's a hello and we are the initiator but their permant public key is numerically lower
         // than ours, this is so that in the event of two hello packets crossing on the wire, the
         // nodes will agree on who is the initiator.

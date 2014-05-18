@@ -938,7 +938,7 @@ static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
         return closest;
     }
 
-    while (pathParentChild == 1) {
+    if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathParentChild)) {
         logLink(store, closest, "Node at end of path appears to have changed");
 
         // This should never happen for a direct peer or for a direct decendent in a split link.

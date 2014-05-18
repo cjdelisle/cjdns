@@ -60,7 +60,7 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
 #include "net/Ducttape.h"
-#include "net/DefaultInterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
@@ -435,15 +435,8 @@ void Core_init(struct Allocator* alloc,
 
     // Interfaces.
     struct InterfaceController* ifController =
-        DefaultInterfaceController_new(cryptoAuth,
-                                       switchCore,
-                                       routerModule,
-                                       rumorMill,
-                                       logger,
-                                       eventBase,
-                                       sp,
-                                       rand,
-                                       alloc);
+        InterfaceController_new(cryptoAuth, switchCore, routerModule, rumorMill,
+                                logger, eventBase, sp, rand, alloc);
 
     // ------------------- DNS -------------------------//
 

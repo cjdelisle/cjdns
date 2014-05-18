@@ -17,7 +17,7 @@
 #include "dht/ReplyModule.h"
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/SerializationModule.h"
-#include "net/DefaultInterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"

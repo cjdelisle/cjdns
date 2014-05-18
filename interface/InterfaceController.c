@@ -14,7 +14,7 @@
  */
 #include "crypto/AddressCalc.h"
 #include "crypto/CryptoAuth_pvt.h"
-#include "net/DefaultInterfaceController.h"
+#include "interface/InterfaceController.h"
 #include "dht/dhtcore/RumorMill.h"
 #include "memory/Allocator.h"
 #include "net/SwitchPinger.h"
@@ -53,54 +53,14 @@
 
 /*--------------------Structs--------------------*/
 
-struct IFCPeer
-{
-    /** The interface which is registered with the switch. */
-    struct Interface switchIf;
-
-    /** The internal (wrapped by CryptoAuth) interface. */
-    struct Interface* cryptoAuthIf;
-
-    /** The external (network side) interface. */
-    struct Interface* external;
-
-    /** The label for this endpoint, needed to ping the endpoint. */
-    uint64_t switchLabel;
-
-    /** Milliseconds since the epoch when the last *valid* message was received. */
-    uint64_t timeOfLastMessage;
-
-    /** Time when the last switch ping response was received from this node. */
-    uint64_t timeOfLastPing;
-
-    /** The handle which can be used to look up this endpoint in the endpoint set. */
-    uint32_t handle;
-
-    /** True if we should forget about the peer if they do not respond. */
-    bool isIncomingConnection : 1;
-
-    /**
-     * If InterfaceController_PeerState_UNAUTHENTICATED, no permanent state will be kept.
-     * During transition from HANDSHAKE to ESTABLISHED, a check is done for a registeration of a
-     * node which is already registered in a different switch slot, if there is one and the
-     * handshake completes, it will be moved.
-     */
-    int state : 31;
-
-    // traffic counters
-    uint64_t bytesOut;
-    uint64_t bytesIn;
-
-    Identity
-};
 
 #define Map_NAME OfIFCPeerByExernalIf
 #define Map_ENABLE_HANDLES
 #define Map_KEY_TYPE struct Interface*
-#define Map_VALUE_TYPE struct IFCPeer*
+#define Map_VALUE_TYPE struct InterfaceController_Peer*
 #include "util/Map.h"
 
-struct Context
+struct InterfaceController_pvt
 {
     /** Public functions and fields for this ifcontroller. */
     struct InterfaceController pub;
@@ -153,9 +113,10 @@ struct Context
 
 //---------------//
 
-static inline struct Context* ifcontrollerForPeer(struct IFCPeer* ep)
+static inline struct InterfaceController_pvt* ifcontrollerForPeer(
+    struct InterfaceController_Peer* ep)
 {
-    return Identity_check((struct Context*) ep->switchIf.senderContext);
+    return Identity_check((struct InterfaceController_pvt*) ep->switchIf.senderContext);
 }
 
 static void onPingResponse(enum SwitchPinger_Result result,
@@ -168,8 +129,9 @@ static void onPingResponse(enum SwitchPinger_Result result,
     if (SwitchPinger_Result_OK != result) {
         return;
     }
-    struct IFCPeer* ep = Identity_check((struct IFCPeer*) onResponseContext);
-    struct Context* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_Peer* ep =
+        Identity_check((struct InterfaceController_Peer*) onResponseContext);
+    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
     struct Address addr;
     Bits_memset(&addr, 0, sizeof(struct Address));
@@ -213,13 +175,13 @@ static void onPingResponse(enum SwitchPinger_Result result,
 // Called from the pingInteral timeout.
 static void pingCallback(void* vic)
 {
-    struct Context* ic = Identity_check((struct Context*) vic);
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     ic->pingCount++;
 
     // scan for endpoints have not sent anything recently.
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
-        struct IFCPeer* ep = ic->peerMap.values[i];
+        struct InterfaceController_Peer* ep = ic->peerMap.values[i];
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
             if (now < ep->timeOfLastPing + ic->pingAfterMilliseconds) {
@@ -292,13 +254,14 @@ static void pingCallback(void* vic)
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
-static void moveEndpointIfNeeded(struct IFCPeer* ep, struct Context* ic)
+static void moveEndpointIfNeeded(struct InterfaceController_Peer* ep,
+                                 struct InterfaceController_pvt* ic)
 {
     Log_debug(ic->logger, "Checking for old sessions to merge with.");
 
     uint8_t* key = CryptoAuth_getHerPublicKey(ep->cryptoAuthIf);
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
-        struct IFCPeer* thisEp = ic->peerMap.values[i];
+        struct InterfaceController_Peer* thisEp = ic->peerMap.values[i];
         uint8_t* thisKey = CryptoAuth_getHerPublicKey(thisEp->cryptoAuthIf);
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
@@ -314,17 +277,19 @@ static void moveEndpointIfNeeded(struct IFCPeer* ep, struct Context* ic)
 // Incoming message which has passed through the cryptoauth and needs to be forwarded to the switch.
 static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cryptoAuthIf)
 {
-    struct IFCPeer* ep = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
-    struct Context* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_Peer* ep =
+        Identity_check((struct InterfaceController_Peer*) cryptoAuthIf->receiverContext);
+    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
     ep->bytesIn += msg->length;
 
+    int caState = CryptoAuth_getState(cryptoAuthIf);
     if (ep->state < InterfaceController_PeerState_ESTABLISHED) {
-        if (CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3) {
+        // EP states track CryptoAuth states...
+        ep->state = caState;
+        if (caState == CryptoAuth_ESTABLISHED) {
             moveEndpointIfNeeded(ep, ic);
-            ep->state = InterfaceController_PeerState_ESTABLISHED;
         } else {
-            ep->state = InterfaceController_PeerState_HANDSHAKE;
             // prevent some kinds of nasty things which could be done with packet replay.
             // This is checking the message switch header and will drop it unless the label
             // directs it to *this* router.
@@ -348,7 +313,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
             }
         }
     } else if (ep->state == InterfaceController_PeerState_UNRESPONSIVE
-        && CryptoAuth_getState(cryptoAuthIf) >= CryptoAuth_HANDSHAKE3)
+        && caState == CryptoAuth_ESTABLISHED)
     {
         ep->state = InterfaceController_PeerState_ESTABLISHED;
     } else {
@@ -361,11 +326,12 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
 // This is directly called from SwitchCore, message is not encrypted.
 static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 {
-    struct IFCPeer* ep = Identity_check((struct IFCPeer*) switchIf);
+    struct InterfaceController_Peer* ep =
+        Identity_check((struct InterfaceController_Peer*) switchIf);
 
     ep->bytesOut += msg->length;
 
-    struct Context* ic = ifcontrollerForPeer(ep);
+    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
     uint8_t ret;
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     if (now - ep->timeOfLastMessage > ic->unresponsiveAfterMilliseconds) {
@@ -395,9 +361,10 @@ static uint8_t sendFromSwitch(struct Message* msg, struct Interface* switchIf)
 
 static int closeInterface(struct Allocator_OnFreeJob* job)
 {
-    struct IFCPeer* toClose = Identity_check((struct IFCPeer*) job->userData);
+    struct InterfaceController_Peer* toClose =
+        Identity_check((struct InterfaceController_Peer*) job->userData);
 
-    struct Context* ic = ifcontrollerForPeer(toClose);
+    struct InterfaceController_pvt* ic = ifcontrollerForPeer(toClose);
 
     // flush the peer from the table...
     RouterModule_brokenPath(toClose->switchLabel, ic->routerModule);
@@ -408,14 +375,21 @@ static int closeInterface(struct Allocator_OnFreeJob* job)
     return 0;
 }
 
-static int registerPeer(struct InterfaceController* ifController,
-                        uint8_t herPublicKey[32],
-                        String* password,
-                        bool requireAuth,
-                        bool isIncomingConnection,
-                        struct Interface* externalInterface)
+int InterfaceController_registerPeer(struct InterfaceController* ifController,
+                                     uint8_t herPublicKey[32],
+                                     String* password,
+                                     bool requireAuth,
+                                     bool isIncomingConnection,
+                                     struct Interface* externalInterface)
 {
-    struct Context* ic = Identity_check((struct Context*) ifController);
+    // This function is overridden by some tests...
+    if (ifController->registerPeer) {
+        return ifController->registerPeer(ifController, herPublicKey, password, requireAuth,
+                                          isIncomingConnection, externalInterface);
+    }
+
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
 
     if (Map_OfIFCPeerByExernalIf_indexForKey(&externalInterface, &ic->peerMap) > -1) {
         return 0;
@@ -440,7 +414,8 @@ static int registerPeer(struct InterfaceController* ifController,
     }
 
     struct Allocator* epAllocator = externalInterface->allocator;
-    struct IFCPeer* ep = Allocator_calloc(epAllocator, sizeof(struct IFCPeer), 1);
+    struct InterfaceController_Peer* ep =
+        Allocator_calloc(epAllocator, sizeof(struct InterfaceController_Peer), 1);
     ep->bytesOut = 0;
     ep->bytesIn = 0;
     ep->external = externalInterface;
@@ -449,11 +424,11 @@ static int registerPeer(struct InterfaceController* ifController,
     Identity_set(ep);
     Allocator_onFree(epAllocator, closeInterface, ep);
 
-    // If the other end need not supply a valid password to connect
-    // we will set the connection state to HANDSHAKE because we don't
-    // want the connection to be trashed after the first invalid packet.
-    if (!requireAuth) {
-        ep->state = InterfaceController_PeerState_HANDSHAKE;
+    // If the other end need needs to supply a valid password to connect
+    // we will set the connection state to UNAUTHENTICATED so that if the
+    // packet is invalid, the connection will be dropped right away.
+    if (requireAuth) {
+        ep->state = InterfaceController_PeerState_UNAUTHENTICATED;
     }
 
     ep->cryptoAuthIf = CryptoAuth_wrapInterface(externalInterface,
@@ -510,32 +485,35 @@ static int registerPeer(struct InterfaceController* ifController,
     return 0;
 }
 
-static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
+struct InterfaceController_Peer* InterfaceController_getPeer(struct InterfaceController* ifc,
+                                                             struct Interface* iface)
 {
+    if (ifc->getPeer) { return ifc->getPeer(ifc, iface); }
     struct Interface* cryptoAuthIf = CryptoAuth_getConnectedInterface(iface);
-    struct IFCPeer* p = Identity_check((struct IFCPeer*) cryptoAuthIf->receiverContext);
-    return p->state;
+    return Identity_check((struct InterfaceController_Peer*) cryptoAuthIf->receiverContext);
 }
 
-static void populateBeacon(struct InterfaceController* ifc, struct Headers_Beacon* beacon)
+void InterfaceController_populateBeacon(struct InterfaceController* ifc,
+                                        struct Headers_Beacon* beacon)
 {
-    struct Context* ic = Identity_check((struct Context*) ifc);
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) ifc);
     beacon->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
     Bits_memcpyConst(beacon->password, ic->beaconPassword, Headers_Beacon_PASSWORD_LEN);
     Bits_memcpyConst(beacon->publicKey, ic->ca->publicKey, 32);
 }
 
-static int getPeerStats(struct InterfaceController* ifController,
-                        struct Allocator* alloc,
-                        struct InterfaceController_peerStats** statsOut)
+int InterfaceController_getPeerStats(struct InterfaceController* ifController,
+                                     struct Allocator* alloc,
+                                     struct InterfaceController_peerStats** statsOut)
 {
-    struct Context* ic = Identity_check((struct Context*) ifController);
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
     int count = ic->peerMap.count;
     struct InterfaceController_peerStats* stats =
         Allocator_malloc(alloc, sizeof(struct InterfaceController_peerStats)*count);
 
     for (int i = 0; i < count; i++) {
-        struct IFCPeer* peer = ic->peerMap.values[i];
+        struct InterfaceController_Peer* peer = ic->peerMap.values[i];
         struct InterfaceController_peerStats* s = &stats[i];
         s->pubKey = CryptoAuth_getHerPublicKey(peer->cryptoAuthIf);
         s->bytesOut = peer->bytesOut;
@@ -558,12 +536,14 @@ static int getPeerStats(struct InterfaceController* ifController,
     return count;
 }
 
-static int disconnectPeer(struct InterfaceController* ifController, uint8_t herPublicKey[32])
+int InterfaceController_disconnectPeer(struct InterfaceController* ifController,
+                                       uint8_t herPublicKey[32])
 {
-    struct Context* ic = Identity_check((struct Context*) ifController);
+    struct InterfaceController_pvt* ic =
+        Identity_check((struct InterfaceController_pvt*) ifController);
 
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
-        struct IFCPeer* peer = ic->peerMap.values[i];
+        struct InterfaceController_Peer* peer = ic->peerMap.values[i];
         if (!Bits_memcmp(herPublicKey, CryptoAuth_getHerPublicKey(peer->cryptoAuthIf), 32)) {
           Allocator_free(peer->external->allocator);
           return 0;
@@ -572,25 +552,19 @@ static int disconnectPeer(struct InterfaceController* ifController, uint8_t herP
     return InterfaceController_disconnectPeer_NOTFOUND;
 }
 
-struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca,
-                                                           struct SwitchCore* switchCore,
-                                                           struct RouterModule* routerModule,
-                                                           struct RumorMill* rumorMill,
-                                                           struct Log* logger,
-                                                           struct EventBase* eventBase,
-                                                           struct SwitchPinger* switchPinger,
-                                                           struct Random* rand,
-                                                           struct Allocator* allocator)
+struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
+                                                    struct SwitchCore* switchCore,
+                                                    struct RouterModule* routerModule,
+                                                    struct RumorMill* rumorMill,
+                                                    struct Log* logger,
+                                                    struct EventBase* eventBase,
+                                                    struct SwitchPinger* switchPinger,
+                                                    struct Random* rand,
+                                                    struct Allocator* allocator)
 {
-    struct Context* out = Allocator_malloc(allocator, sizeof(struct Context));
-    Bits_memcpyConst(out, (&(struct Context) {
-        .pub = {
-            .registerPeer = registerPeer,
-            .disconnectPeer = disconnectPeer,
-            .getPeerState = getPeerState,
-            .populateBeacon = populateBeacon,
-            .getPeerStats = getPeerStats,
-        },
+    struct InterfaceController_pvt* out =
+        Allocator_malloc(allocator, sizeof(struct InterfaceController_pvt));
+    Bits_memcpyConst(out, (&(struct InterfaceController_pvt) {
         .peerMap = {
             .allocator = allocator
         },
@@ -615,7 +589,7 @@ struct InterfaceController* DefaultInterfaceController_new(struct CryptoAuth* ca
                                   allocator)
             : NULL
 
-    }), sizeof(struct Context));
+    }), sizeof(struct InterfaceController_pvt));
     Identity_set(out);
 
     // Add the beaconing password.
