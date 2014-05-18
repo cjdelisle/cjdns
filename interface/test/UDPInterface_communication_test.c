@@ -76,9 +76,7 @@ int main(int argc, char** argv)
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
     // mock interface controller.
-    struct InterfaceController ic = {
-        .registerPeer = registerPeer
-    };
+    struct InterfaceController ic = { .registerPeer = registerPeer };
 
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("127.0.0.1", &addr));

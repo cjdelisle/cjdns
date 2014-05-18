@@ -62,9 +62,12 @@ static int registerPeer(struct InterfaceController* ic,
     return 0;
 }
 
-static enum InterfaceController_PeerState getPeerState(struct Interface* iface)
+static struct InterfaceController_Peer* getPeer(struct InterfaceController* ifc,
+                                                struct Interface* iface)
 {
-    return InterfaceController_PeerState_HANDSHAKE;
+    return Allocator_clone(iface->allocator, (&(struct InterfaceController_Peer) {
+        .state = InterfaceController_PeerState_NEW
+    }));
 }
 
 int main()
@@ -76,7 +79,7 @@ int main()
     struct Context ctx = {
         .ic = {
             .registerPeer = registerPeer,
-            .getPeerState = getPeerState
+            .getPeer = getPeer
         }
     };
 
