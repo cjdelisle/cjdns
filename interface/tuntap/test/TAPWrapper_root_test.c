@@ -84,7 +84,6 @@ static uint8_t receiveMessageUDP(struct Message* msg, struct Interface* iface)
     }
     // Got the message, test successful.
     struct Allocator* alloc = iface->receiverContext;
-sleep(10);
     Allocator_free(alloc);
     return 0;
 }
