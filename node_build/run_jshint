@@ -20,7 +20,9 @@ main()
     JSHINT="`pwd`/node_modules/jshint/bin/jshint"
     
     echo "Running JSHint"
-    ${JSHINT} --reporter=node_build/JSHintReporter.js . || return 1
+    ${JSHINT} --config node_build/.jshintrc \
+              --exclude-path .jshintignore \
+              --reporter node_build/JSHintReporter.js . || return 1
 
     return 0
 }
