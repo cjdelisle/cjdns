@@ -69,13 +69,16 @@ install -d "$WORK_DIR"
 ## SETUP NDK
 cd "$SRC_DIR"
 if [ -z "$NDK" ]; then
-    echo "${NDKVER}-linux-${ARCH}.tar.bz2"
-    [[ -f "${NDKVER}-linux-${ARCH}.tar.bz2" ]] || wget "http://dl.google.com/android/ndk/${NDKVER}-linux-${ARCH}.tar.bz2" || (echo "Can't find download for your system" && exit 1)
-    [[ -d "${NDKVER}" ]] || (tar jxf "${NDKVER}-linux-${ARCH}.tar.bz2" || exit 1)
-    NDK="$NDKVER"
-else
-    [[ -d "$NDK" ]] || (echo "The NDK variable is not pointing to a valid directory" ; exit 1)
+    if [ -z "$ANDROID_NDK" ]; then
+        echo "${NDKVER}-linux-${ARCH}.tar.bz2"
+        [[ -f "${NDKVER}-linux-${ARCH}.tar.bz2" ]] || wget "http://dl.google.com/android/ndk/${NDKVER}-linux-${ARCH}.tar.bz2" || (echo "Can't find download for your system" && exit 1)
+        [[ -d "${NDKVER}" ]] || (tar jxf "${NDKVER}-linux-${ARCH}.tar.bz2" || exit 1)
+        NDK="$NDKVER"
+    else
+        NDK="$ANDROID_NDK"
+    fi
 fi
+[[ -d "$NDK" ]] || (echo "The NDK variable is not pointing to a valid directory" ; exit 1)
 [[ -e "$NDK_DIR" ]] && rm "$NDK_DIR" >> /dev/null 2>&1
 ln -s "$NDK" "$NDK_DIR"
 
