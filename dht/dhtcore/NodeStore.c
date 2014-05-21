@@ -1137,7 +1137,7 @@ static bool markBestNodes(struct NodeStore_pvt* store,
                     break;
                 }
                 if ( (newNode->marked && !nodeList->nodes[i]->marked) ||
-                     (Node_getReach(nodeList->nodes[i]) < Node_getReach(newNode)) ) {
+                      whichIsWorse(nodeList->nodes[i], newNode, store) == nodeList->nodes[i] ) {
                     // If we've already marked nodes because they're a bestParent,
                     // lets give them priority in the bucket since we need to keep
                     // them either way.
