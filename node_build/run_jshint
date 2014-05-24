@@ -15,11 +15,11 @@ main()
 {
     pwd | grep 'node_build' && cd ..
 
-    echo "Installing JSHint"
-    npm install jshint || return 1
+    echo "Installing JSHint..."
+    npm install jshint -s || return 1
     JSHINT="`pwd`/node_modules/jshint/bin/jshint"
-    
-    echo "Running JSHint"
+
+    echo "Running JSHint..."
     ${JSHINT} --config node_build/.jshintrc \
               --exclude-path .jshintignore \
               --reporter node_build/JSHintReporter.js . || return 1
