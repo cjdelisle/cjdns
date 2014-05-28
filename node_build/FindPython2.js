@@ -39,7 +39,6 @@ var find = module.exports.find = function (tempFile, callback) {
             });
             py.on('error', function (err) {
                 if (err !== 'ENOENT') { console.log('error starting python ' + err); }
-                cont();
             });
             // Don't worry about errors, try the next.
         }).nThen;
