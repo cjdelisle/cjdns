@@ -25,7 +25,15 @@ var CanCompile = require('./CanCompile');
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
 var CROSS = process.env['CROSS'] || '';
-var GCC = process.env['CC'] || 'gcc';
+var GCC = process.env['CC'];
+
+if (!GCC) {
+    if (SYSTEM === 'freebsd') {
+        GCC = 'gcc47';
+    } else {
+        GCC = 'gcc';
+    }
+}
 
 var BUILDDIR = process.env['BUILDDIR'];
 if (BUILDDIR === undefined) {
@@ -83,7 +91,8 @@ Builder.configure({
 
     var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
     builder.config.cflags.push('-D','Log_'+logLevel);
-    if (process.env['NO_PIE'] === undefined) {
+    var usePie = process.env['NO_PIE'] === undefined && SYSTEM !== 'freebsd'
+    if (usePie) {
         builder.config.cflags.push('-fPIE');
     }
     if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
@@ -105,7 +114,7 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] === undefined) {
+    if (usePie) {
         builder.config.ldflags.push(
             '-pie'
         );
