@@ -91,7 +91,7 @@ Builder.configure({
 
     var logLevel = process.env['Log_LEVEL'] || 'DEBUG';
     builder.config.cflags.push('-D','Log_'+logLevel);
-    var usePie = process.env['NO_PIE'] === undefined && SYSTEM !== 'freebsd'
+    var usePie = process.env['NO_PIE'] === undefined && SYSTEM !== 'freebsd';
     if (usePie) {
         builder.config.cflags.push('-fPIE');
     }
