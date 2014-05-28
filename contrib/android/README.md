@@ -9,13 +9,16 @@
 * **Python 2**: Required to build a dependency during the build process.
 * **Android NDK** (optional): Required to compile the project for Android (will be downloaded if not available.)
 
-### Build Instructions ##
+### Configure Build ###
 
-1. **Configure Location of Android NDK** (optional): If you have a version of the Android NDK installed, and it isn't pointed to by the (standard) variable: _$ANDROID_NDK_, set the _$NDK_ variable in your shell to point to the directory it's located. (eg: `export NDK="/opt/android-ndk"`)
-2. **Configure Alternative Repository** (optional): To use an alternative repository, open _cjdroid-build.sh_ and edit _REPO=https://github.com/cjdelisle/cjdns.git_ to point to the URL of your desired repository. (eg: _REPO="http://newrepo"_)
+* **Configure Location of Android NDK**: If you have a version of the Android NDK installed, and it isn't pointed to by the (standard) variable: _$ANDROID_NDK_, set the _$NDK_ variable in your shell to point to the directory it's located. (eg: `export NDK="/opt/android-ndk"`)
+* **Configure Alternative Repository**: To use an alternative repository, open _cjdroid-build.sh_ and edit _REPO=https://github.com/cjdelisle/cjdns.git_ to point to the URL of your desired repository. (eg: _REPO="http://newrepo"_)
   * **NOTE**: You must remove the _cjdns-android/cjdns_ folder if it exists after changing the repo before you can run _cjdroid-build.sh_ again.
-3. **Configure Alternative Branch** (optional): To use a branch other than _master_, open _cjdroid-build.sh_ and edit _BRANCH="master"_ to use the name of your desired branch. (eg: _BRANCH="newbranch"_)
-4. **Build**: Run _cjdroid-build.sh_ and wait until it completes.
+* **Configure Alternative Branch**: To use a branch other than _master_, open _cjdroid-build.sh_ and edit _BRANCH="master"_ to use the name of your desired branch. (eg: _BRANCH="newbranch"_)
+
+### Build and Package ###
+
+Run _cjdroid-build.sh_ and wait until it completes.
 
 ## Deploy CJDNS for Android ##
 
@@ -26,7 +29,7 @@
 
 ### Setup Instructions ###
 
-After building _cjdroute_, the _cjdroid-build.sh_ script will generate a compressed file named _cjdroid-${version}.tar.gz_, except with the commit version in place of ${version} (eg: _cjdroid-0.3.2380.tar.gz_)
+After _cjdroid-build.sh_ finishes building _cjdroute_, it will generate a compressed file in the current directory named _cjdroid-${version}.tar.gz_ with the current commit in place of ${version} (eg: _cjdroid-0.3.2380.tar.gz_)
 
 1. Copy the compressed file to your Android device using a method you're comfortable with, such as running: `adb push cjdroid-${version}.tar.gz /sdcard/`
 2. Get a shell running on your Android device:
