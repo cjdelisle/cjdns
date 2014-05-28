@@ -29,7 +29,7 @@
 #include "util/log/WriterLog.h"
 #include "util/events/EventBase.h"
 #include "net/SwitchPinger.h"
-#include "net/DefaultInterfaceController.h"
+#include "interface/InterfaceController.h"
 
 #include "crypto_scalarmult_curve25519.h"
 
@@ -134,15 +134,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 
     // Interfaces.
     struct InterfaceController* ifController =
-        DefaultInterfaceController_new(ca,
-                                       switchCore,
-                                       routerModule,
-                                       rumorMill,
-                                       logger,
-                                       base,
-                                       sp,
-                                       rand,
-                                       allocator);
+        InterfaceController_new(ca, switchCore, routerModule, rumorMill,
+                                logger, base, sp, rand, allocator);
 
     struct TestFramework* tf = Allocator_clone(allocator, (&(struct TestFramework) {
         .alloc = allocator,

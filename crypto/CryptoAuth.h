@@ -176,6 +176,9 @@ void CryptoAuth_resetIfTimeout(struct Interface* iface);
 /** The CryptoAuth session has successfully done a handshake and received at least one message. */
 #define CryptoAuth_ESTABLISHED 4
 
+/** The number of states */
+#define CryptoAuth_STATE_COUNT 5
+
 static inline char* CryptoAuth_stateString(int state)
 {
     switch (state) {

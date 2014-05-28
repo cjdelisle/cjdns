@@ -172,11 +172,10 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
     Message_shift(msg, -(mif->pub.keySize + 4), NULL);
 
     // into the core.
-    uint8_t ret = p->internalIf.receiveMessage(msg, &p->internalIf);
+    uint8_t ret = Interface_receiveMessage(&p->internalIf, msg);
 
-    enum InterfaceController_PeerState state =
-        InterfaceController_getPeerState(mif->ic, &p->internalIf);
-    if (state == InterfaceController_PeerState_UNAUTHENTICATED) {
+    struct InterfaceController_Peer* icPeer = InterfaceController_getPeer(mif->ic, &p->internalIf);
+    if (icPeer->state == InterfaceController_PeerState_UNAUTHENTICATED) {
         // some random stray packet wandered in to the interface....
         // This removes all of the state associated with the endpoint.
         Allocator_free(p->internalIf.allocator);
