@@ -14,11 +14,13 @@ conflocations = ["/etc/cjdroute.conf",
     os.getenv("HOME") + "/cjdroute.conf",
     os.getenv("HOME") + "/cjdns/cjdroute.conf",
     "/usr/local/opt/cjdns/cjdroute.conf"]
-    
-cjdnslocations = ["/opt/cjdns",
+
+cjdroutelocations = ["/opt/cjdns",
     os.getenv("HOME") + "/cjdns",
     os.getenv("HOME") + "/cjdns-git",
     "/usr/local/opt/cjdns"]
+
+cjdroutelocations += os.getenv("PATH").split(":")
 
 cjdnsadmin = {}
 
@@ -37,7 +39,7 @@ if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
             elif r.lower() == "y" or r == "":
                 break
             else:
-                print "Invalid response, please enter either y or n"    
+                print "Invalid response, please enter either y or n"
     else:
         while True:
             r = raw_input(os.getenv("HOME") + "/.cjdnsadmin appears to be a file. Overwrite? [y/N] ")
@@ -49,22 +51,22 @@ if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
                 print "Invalid response, please enter either y or n"
 else:
     print "This script will attempt to create " + os.getenv("HOME") + "/.cjdnsadmin"
-    
+
 def validjson(conf):
     print "Making valid JSON out of " + conf
     print "First, we need to find the cleanconfig program"
-    cleanconfig = ""
+    cjdroute = ""
     i = 0
-    while not os.path.isfile(cleanconfig):
-        if i < len(cjdnslocations):
-            cleanconfig = cjdnslocations[i] + "/cleanconfig"
+    while not os.path.isfile(cjdroute):
+        if i < len(cjdroutelocations):
+            cjdroute = cjdroutelocations[i] + "/cjdroute"
             i += 1
         else:
-            print "Failed to find cleanconfig"
+            print "Failed to find cjdroute"
             print "Please tell me where it is"
-            cleanconfig = raw_input("HINT: <cjdns git>/cleanconfig: ")
-    print "Using " + cleanconfig
-    process = subprocess.Popen([cleanconfig], stdin=open(conf), stdout=subprocess.PIPE)
+            cjdroute = raw_input("ie. <cjdns git>/cjdroute: ")
+    print "Using " + cjdroute
+    process = subprocess.Popen([cjdroute, "--cleanconf"], stdin=open(conf), stdout=subprocess.PIPE)
     cleanconf = process.stdout.read()
     try:
         return json.loads(cleanconf)
@@ -72,7 +74,7 @@ def validjson(conf):
         open("debug.log", "w+").write(cleanconf)
         print "Failed to parse! Check debug.log"
         sys.exit(1)
-    
+
 done = False
 i = 0
 while not done:
