@@ -137,10 +137,12 @@ var send = function (response, content) {
 
 var runTest = function (fileName, args, response, timeoutMilliseconds) {
     Fs.chmodSync(fileName, '755');
+setTimeout(function () {
     spawnProc(fileName, args, function(code, out, err) {
         send(response, JSON.stringify({ returnCode: code, stdout: out, stderr: err }));
-        Fs.unlink(fileName);
+        //Fs.unlink(fileName);
     }, timeoutMilliseconds);
+}, 100);
 };
 
 var server = function (url, tempDir) {

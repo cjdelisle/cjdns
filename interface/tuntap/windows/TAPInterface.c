@@ -126,9 +126,7 @@ static void setEnabled(HANDLE tap, int status, struct Except* eh)
 union TAPInterface_buffer {
     struct {
         uint32_t length_be;
-        // account for ethernet misallignment
-        uint16_t pad;
-        uint8_t data[2042];
+        uint8_t data[2044];
     } components;
     uint8_t bytes[2048];
 };
@@ -166,14 +164,25 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
                           int framing)
 {
     for (;;) {
-        uint8_t* readTo = (framing == thread_copy_ADD_FRAMING)
-            ? from->buff.components.data : from->buff.bytes;
-        uint8_t* writeFrom = (framing == thread_copy_REMOVE_FRAMING)
-            ? from->buff.components.data : from->buff.bytes;
+        // Read from one socket into this buffer
+        uint8_t* readTo;
 
-        DWORD bytesToRead = 2042;
-        if (framing == thread_copy_REMOVE_FRAMING) {
+        // Write from this buffer into the other socket
+        uint8_t* writeFrom;
+
+        DWORD bytesToRead = 2044;
+
+        if (framing == thread_copy_ADD_FRAMING) {
+            readTo = from->buff.components.data;
+            writeFrom = from->buff.bytes;
+        } else {
+            Assert_true(framing == thread_copy_REMOVE_FRAMING);
+            readTo = from->buff.bytes;
+            writeFrom = from->buff.components.data;
+
             if (!from->bytes) {
+                // If we're reading from the pipe, we want to read only 4 bytes
+                // and use that to determine how many bytes we actually want to read.
                 bytesToRead = 4;
             } else {
                 bytesToRead = from->bytes;
@@ -184,7 +193,8 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
         if (from->state == TAPInterface_FdAndOl_state_AWAITING_READ) {
             if (!GetOverlappedResult(from->fd, &from->ol, &bytesRead, FALSE)) {
                 switch (GetLastError()) {
-                    case ERROR_IO_PENDING: return from->fd;
+                    case ERROR_IO_PENDING:
+                    case ERROR_IO_INCOMPLETE: return from->fd;
                     default:;
                 }
                 printf("GetOverlappedResult(read, %s): %s\n",
@@ -198,7 +208,8 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
             DWORD bytesWritten;
             if (!GetOverlappedResult(to->fd, &from->ol, &bytesWritten, FALSE)) {
                 switch (GetLastError()) {
-                    case ERROR_IO_PENDING: return to->fd;
+                    case ERROR_IO_PENDING:
+                    case ERROR_IO_INCOMPLETE: return to->fd;
                     default:;
                 }
                 printf("GetOverlappedResult(write, %s): %s\n",
@@ -206,22 +217,19 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
                 Assert_true(0);
             }
             from->state = 0;
-            if (bytesWritten < from->bytes) {
-                from->bytes -= bytesWritten;
-                from->offset += bytesWritten;
-                goto writeMore;
-            } else {
-                Assert_true(bytesWritten == from->bytes);
-                from->bytes = 0;
-                from->offset = 0;
-                printf("write to %s with %d bytes completed\n", to->name, (int)bytesWritten);
-                // successfully finished a write, loop back and try again.
-                continue;
-            }
+
+            // TODO(cjd): Assuming windows will fill-or-kill a write if it's async.
+            Assert_true(bytesWritten == from->bytes);
+            from->bytes = 0;
+            from->offset = 0;
+            printf("write to %s with %d bytes completed\n", to->name, (int)bytesWritten);
+            // successfully finished a write, loop back and try again.
+            continue;
 
         } else if (!ReadFile(from->fd, &readTo[from->offset], bytesToRead, &bytesRead, &from->ol)) {
             switch (GetLastError()) {
-                case ERROR_IO_PENDING: {
+                case ERROR_IO_PENDING:
+                case ERROR_IO_INCOMPLETE: {
                     from->state = TAPInterface_FdAndOl_state_AWAITING_READ;
                     printf("read pending from %s\n", from->name);
                     return from->fd;
@@ -240,12 +248,9 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
 
         if (framing == thread_copy_REMOVE_FRAMING) {
             if (!from->bytes) {
-                if (bytesRead < 4) {
-                    from->offset += bytesRead;
-                    continue;
-                }
+                Assert_true(bytesRead == 4);
                 from->bytes = Endian_bigEndianToHost32(from->buff.components.length_be) + 4;
-                Assert_true(from->bytes <= 2042);
+                Assert_true(from->bytes <= 2044);
             }
 
             if (bytesRead < from->bytes) {
@@ -255,43 +260,35 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
             }
 
         } else {
-            from->bytes = bytesRead;
-            from->bytes += 2;
-            from->buff.components.length_be = Endian_hostToBigEndian32(((uint32_t)from->bytes));
-            from->bytes += 4;
+            from->buff.components.length_be = Endian_hostToBigEndian32(bytesRead);
+            from->bytes = bytesRead + 4;
         }
 
         from->offset = 0;
-        writeMore:
-        for (;;) {
-            DWORD bytes;
-            if (!WriteFile(to->fd,
-                           &writeFrom[from->offset],
-                           from->bytes - (writeFrom - from->buff.bytes),
-                           &bytes,
-                           &from->ol))
-            {
-                switch (GetLastError()) {
-                    case ERROR_IO_PENDING: {
-                        from->state = TAPInterface_FdAndOl_state_AWAITING_WRITE;
-                        return to->fd;
-                    }
-                    default:;
+        DWORD bytes;
+        if (!WriteFile(to->fd,
+                       /*&*/writeFrom, /*[from->offset],*/
+                       from->bytes, /* - (writeFrom - from->buff.bytes), */
+                       &bytes,
+                       &from->ol))
+        {
+            switch (GetLastError()) {
+                case ERROR_IO_PENDING:
+                case ERROR_IO_INCOMPLETE: {
+                    from->state = TAPInterface_FdAndOl_state_AWAITING_WRITE;
+                    return to->fd;
                 }
-                printf("WriteFile(%s): %s\n", to->name, WinFail_strerror(GetLastError()));
-                Assert_true(0);
-            } else {
-                if (bytes < from->bytes) {
-                    from->bytes += bytes;
-                    from->offset += bytes;
-                    continue;
-                }
-                Assert_true(bytes == from->bytes);
-                printf("write to %s with %d bytes completed immedietly\n", to->name, (int)bytes);
-                from->bytes = 0;
-                from->offset = 0;
-                break;
+                default:;
             }
+            printf("WriteFile(%s): %s\n", to->name, WinFail_strerror(GetLastError()));
+            Assert_true(0);
+        } else {
+            // TODO(cjd): Writing this in the hopes that windows has the common decency to
+            //            fill-or-kill a write request if it's async...
+            Assert_true(bytes == from->bytes);
+            printf("write to %s with %d bytes completed immedietly\n", to->name, (int)bytes);
+            from->bytes = 0;
+            from->offset = 0;
         }
     }
 }

@@ -14,6 +14,10 @@
  */
 #include "interface/Interface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/windows/TAPInterface.h"
+#include "interface/tuntap/TAPWrapper.h"
+#include "interface/tuntap/NDPServer.h"
+#include "util/CString.h"
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
@@ -23,5 +27,17 @@ struct Interface* TUNInterface_new(const char* interfaceName,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
-    return NULL;
+    char* ifName;
+    struct Interface* tap = TAPInterface_new(interfaceName, &ifName, eh, logger, base, alloc);
+    CString_strncpy(assignedInterfaceName, ifName, TUNInterface_IFNAMSIZ);
+    if (isTapMode) { return tap; }
+    struct TAPWrapper* tapWrapper = TAPWrapper_new(tap, logger, alloc);
+    struct NDPServer* ndp =
+        NDPServer_new(&tapWrapper->generic, logger, TAPWrapper_LOCAL_MAC, alloc);
+
+    // TODO(cjd): this is not right
+    ndp->advertisePrefix[0] = 0xfc;
+    ndp->prefixLen = 8;
+
+    return &ndp->generic;
 }
