@@ -211,4 +211,6 @@ cjdns.subscribe(function (err, resp) {
     }
 });
 
-app.listen(8084);
+app.listen(8084,'127.0.0.1',function(){
+  console.log('\n****************\nCJDNS admin is started on http://localhost:8084/ \n****************\n ');
+});

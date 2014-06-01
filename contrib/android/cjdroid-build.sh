@@ -26,7 +26,7 @@
 #   http://forum.xda-developers.com/index.php?tab=all
 #
 #  2. tun device:
-#   Most if not all 4.0+ phones include tun support. If your device
+#   Most (if not all) 4.0+ phones include tun support. If yours
 #   uses 2.x, CyanogenMod and some stock ROMs include support, but
 #   many don't. If your phone doesn't have a TUN device at /dev/tun,
 #   download the link below (or find 'com.aed.tun.installer' to
@@ -48,7 +48,7 @@
 #  Use a different branch:
 #   Below change: BRANCH="newbranch"
 
-## Configurable Variables (note: remove 'cjdns-android/cjdns' before running this script when changing to a different repo)
+## Configurable Variables
 REPO="https://github.com/cjdelisle/cjdns/"
 BRANCH="master"
 BUILD_DIR="$(pwd)/cjdns-android"
@@ -69,13 +69,16 @@ install -d "$WORK_DIR"
 ## SETUP NDK
 cd "$SRC_DIR"
 if [ -z "$NDK" ]; then
-    echo "${NDKVER}-linux-${ARCH}.tar.bz2"
-    [[ -f "${NDKVER}-linux-${ARCH}.tar.bz2" ]] || wget "http://dl.google.com/android/ndk/${NDKVER}-linux-${ARCH}.tar.bz2" || (echo "Can't find download for your system" && exit 1)
-    [[ -d "${NDKVER}" ]] || (tar jxf "${NDKVER}-linux-${ARCH}.tar.bz2" || exit 1)
-    NDK="$NDKVER"
-else
-    [[ -d "$NDK" ]] || (echo "The NDK variable is not pointing to a valid directory" ; exit 1)
+    if [ -z "$ANDROID_NDK" ]; then
+        echo "${NDKVER}-linux-${ARCH}.tar.bz2"
+        [[ -f "${NDKVER}-linux-${ARCH}.tar.bz2" ]] || wget "http://dl.google.com/android/ndk/${NDKVER}-linux-${ARCH}.tar.bz2" || (echo "Can't find download for your system" && exit 1)
+        [[ -d "${NDKVER}" ]] || (tar jxf "${NDKVER}-linux-${ARCH}.tar.bz2" || exit 1)
+        NDK="$NDKVER"
+    else
+        NDK="$ANDROID_NDK"
+    fi
 fi
+[[ -d "$NDK" ]] || (echo "The NDK variable is not pointing to a valid directory" ; exit 1)
 [[ -e "$NDK_DIR" ]] && rm "$NDK_DIR" >> /dev/null 2>&1
 ln -s "$NDK" "$NDK_DIR"
 

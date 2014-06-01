@@ -27,8 +27,22 @@ var TestRunner = require('./TestRunner');
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
 var CROSS = process.env['CROSS'] || '';
-var GCC = process.env['CC'] || 'gcc';
 var LOG_LEVEL = process.env['Log_LEVEL'] || 'DEBUG';
+
+var GCC = process.env['CC'];
+if (!GCC) {
+    if (SYSTEM === 'freebsd') {
+        GCC = 'gcc47';
+    } else {
+        GCC = 'gcc';
+    }
+}
+
+var BUILDDIR = process.env['BUILDDIR'];
+if (BUILDDIR === undefined) {
+    BUILDDIR = 'build_'+SYSTEM;
+}
+
 var OPTIMIZE = '-O2';
 
 
@@ -84,7 +98,7 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] === undefined && SYSTEM !== 'win32') {
+    if (process.env['NO_PIE'] === undefined && SYSTEM !== 'freebsd' && SYSTEM !== 'win32') {
         builder.config.cflags.push('-fPIE');
         builder.config.ldflags.push('-pie');
     }
@@ -149,7 +163,7 @@ Builder.configure({
 
     var uclibc = /uclibc/i.test(GCC);
     var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if (!uclibc || libssp) {
+    if ((!uclibc && SYSTEM !== 'win32') || libssp) {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
             // workaround is to give -fno-stack-protector first.
