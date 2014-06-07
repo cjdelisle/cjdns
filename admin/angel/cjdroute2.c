@@ -440,7 +440,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Log_LEVEL = KEYS, EXPECT TO SEE PRIVATE KEYS IN YOUR LOGS!\n");
     #endif
 
-    if (isatty(STDIN_FILENO) || argc < 2) {
+    if (argc < 2) {
         // Fall through.
     } else if (!CString_strcmp("angel", argv[1])) {
         return AngelInit_main(argc, argv);
@@ -482,9 +482,9 @@ int main(int argc, char** argv)
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
             return -1;
         }
-    } else if (argc >  2) {
+    } else if (argc > 2) {
         // more than one argument?
-        fprintf(stderr, "%s: too many arguments\n", argv[0]);
+        fprintf(stderr, "%s: too many arguments [%s]\n", argv[0], argv[1]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
         // because of '--pidfile $filename'?
         if (CString_strcmp(argv[1], "--pidfile") == 0)

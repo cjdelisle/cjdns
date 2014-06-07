@@ -167,18 +167,13 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
         // Read from one socket into this buffer
         uint8_t* readTo;
 
-        // Write from this buffer into the other socket
-        uint8_t* writeFrom;
-
         DWORD bytesToRead = 2044;
 
         if (framing == thread_copy_ADD_FRAMING) {
             readTo = from->buff.components.data;
-            writeFrom = from->buff.bytes;
         } else {
             Assert_true(framing == thread_copy_REMOVE_FRAMING);
             readTo = from->buff.bytes;
-            writeFrom = from->buff.components.data;
 
             if (!from->bytes) {
                 // If we're reading from the pipe, we want to read only 4 bytes
@@ -246,7 +241,11 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
                    from->name, (int)bytesRead);
         }
 
+        // Write from this buffer into the other socket
+        uint8_t* writeFrom;
+
         if (framing == thread_copy_REMOVE_FRAMING) {
+            writeFrom = from->buff.components.data;
             if (!from->bytes) {
                 Assert_true(bytesRead == 4);
                 from->bytes = Endian_bigEndianToHost32(from->buff.components.length_be) + 4;
@@ -260,6 +259,7 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
             }
 
         } else {
+            writeFrom = from->buff.bytes;
             from->buff.components.length_be = Endian_hostToBigEndian32(bytesRead);
             from->bytes = bytesRead + 4;
         }
@@ -304,6 +304,7 @@ static DWORD WINAPI thread_main(LPVOID param)
         if (WaitForMultipleObjects(2, handles, FALSE, 3000) == WAIT_FAILED) {
             printf("WaitForMultipleObjects(): %s\n", WinFail_strerror(GetLastError()));
         }
+        FlushFileBuffers(tc->pipe.fd);
     }
     return 0;
 }
@@ -350,15 +351,20 @@ struct Interface* TAPInterface_new(const char* preferredName,
 
     setEnabled(tc->tap.fd, 1, eh);
 
-    tc->pipe.fd =
-        CreateNamedPipeA("\\\\.\\pipe\\cjdns_pipe_abcdefg",
-                         PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
-                         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-                         PIPE_UNLIMITED_INSTANCES,
-                         65536,
-                         65536,
-                         0,
-                         NULL);
+    tc->pipe.fd = CreateNamedPipeA(
+        "\\\\.\\pipe\\cjdns_pipe_abcdefg",
+        PIPE_ACCESS_DUPLEX
+            | FILE_FLAG_FIRST_PIPE_INSTANCE
+            | FILE_FLAG_OVERLAPPED
+            | FILE_FLAG_WRITE_THROUGH,
+
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+        PIPE_UNLIMITED_INSTANCES,
+        65536,
+        65536,
+        0,
+        NULL
+    );
 
     struct Pipe* p = Pipe_named("abcdefg", base, eh, alloc);
     p->logger = logger;

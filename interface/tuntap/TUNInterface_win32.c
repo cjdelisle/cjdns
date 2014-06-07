@@ -17,6 +17,7 @@
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
+#include "interface/Aligner.h"
 #include "util/CString.h"
 
 struct Interface* TUNInterface_new(const char* interfaceName,
@@ -39,5 +40,8 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     ndp->advertisePrefix[0] = 0xfc;
     ndp->prefixLen = 8;
 
-    return &ndp->generic;
+    // This stuff never comes out aligned.
+    struct Aligner* align = Aligner_new(&ndp->generic, alloc, 4);
+
+    return &align->generic;
 }

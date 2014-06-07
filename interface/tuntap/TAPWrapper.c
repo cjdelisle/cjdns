@@ -39,8 +39,8 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
         return 0;
     }
 
-    // wacky 14 byte headers
-    Message_shift(msg, -2, NULL);
+    // wacky 14 byte headers, back off into outer-space to create the padding...
+    Message_shift(msg, 2, NULL);
 
     struct Ethernet eth;
     Message_pop(msg, &eth, sizeof(struct Ethernet), NULL);
@@ -89,7 +89,7 @@ static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
 
     Message_push(msg, &eth, sizeof(struct Ethernet), NULL);
 
-    Message_shift(msg, 2, NULL);
+    Message_shift(msg, -2, NULL);
 
     return Interface_sendMessage(tw->wrapped, msg);
 }
