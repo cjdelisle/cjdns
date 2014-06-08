@@ -270,7 +270,7 @@ Builder.configure({
             if (env.TARGET_ARCH) {
                 args.push('-Dtarget_arch='+env.TARGET_ARCH);
             }
-            args.push('--root-target=libuv');
+            //args.push('--root-target=libuv');
             if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
             if (SYSTEM === 'win32') { args.push('-DOS=win'); }
             var gyp = Spawn(python, args, {env:env});
@@ -281,10 +281,13 @@ Builder.configure({
                     '-j', builder.processors,
                     '-C', 'out',
                     'BUILDTYPE=Release',
-                    'CC='+builder.config.gcc
+                    'CC='+builder.config.gcc,
+                    'CXX='+builder.config.gcc,
+                    'V=1'
                 ];
                 if (!(/darwin|win32/.test(SYSTEM))) { args.push('CFLAGS=-fPIC'); }
                 var make;
+console.log(process.env);
                 if (builder.config.system == 'freebsd') {
                     make = Spawn('gmake', args);
                 } else {
@@ -308,7 +311,7 @@ Builder.configure({
     builder.buildExecutable('contrib/c/privatetopublic.c');
     builder.buildExecutable('contrib/c/sybilsim.c');
     builder.buildExecutable('contrib/c/makekeys.c');
- 
+
     builder.buildExecutable('crypto/random/randombytes.c');
 
     builder.lintFiles(function (fileName, file, callback) {
