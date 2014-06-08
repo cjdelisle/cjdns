@@ -208,6 +208,8 @@ typedef int uv_file;
 
 typedef SOCKET uv_os_sock_t;
 
+typedef HANDLE uv_os_file_t;
+
 typedef HANDLE uv_thread_t;
 
 typedef HANDLE uv_sem_t;
@@ -318,7 +320,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   UV_READ,                                                                    \
   UV_UDP_RECV,                                                                \
   UV_WAKEUP,                                                                  \
-  UV_SIGNAL_REQ,
+  UV_SIGNAL_REQ,                                                              \
+  UV_IOCP,
 
 #define UV_REQ_PRIVATE_FIELDS                                                 \
   union {                                                                     \
@@ -438,6 +441,11 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     struct { uv_pipe_server_fields };                                         \
     struct { uv_pipe_connection_fields };                                     \
   };
+
+#define UV_IOCP_PRIVATE_FIELDS                                                \
+  HANDLE handle;                                                              \
+  OVERLAPPED ol;                                                              \
+  uv_req_t req;                                                               \
 
 /* TODO: put the parser states in an union - TTY handles are always */
 /* half-duplex so read-state can safely overlap write-state. */

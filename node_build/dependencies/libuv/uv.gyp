@@ -87,6 +87,7 @@
             'src/win/handle.c',
             'src/win/handle-inl.h',
             'src/win/internal.h',
+            'src/win/iocp.c',
             'src/win/loop-watcher.c',
             'src/win/pipe.c',
             'src/win/thread.c',

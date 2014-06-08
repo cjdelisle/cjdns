@@ -125,6 +125,10 @@ INLINE static void uv_process_endgames(uv_loop_t* loop) {
         uv_poll_endgame(loop, (uv_poll_t*) handle);
         break;
 
+      case UV_IOCP:
+        uv_iocp_endgame(loop, (uv_iocp_t*) handle);
+        break;
+
       case UV_TIMER:
         uv_timer_endgame(loop, (uv_timer_t*) handle);
         break;
