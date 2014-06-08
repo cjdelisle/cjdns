@@ -55,7 +55,7 @@ int uv_iocp_stop(uv_iocp_t* handle) {
   }
   /* TODO(cjd): DeleteIoCompletionPort()? */
   handle->iocp_cb = NULL;
-  CloseFile(handle->iocp);
+  CloseHandle(handle->iocp);
   UNREGISTER_HANDLE_REQ(handle->loop, handle, &handle->req);
 }
 

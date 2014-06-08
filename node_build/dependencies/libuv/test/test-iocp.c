@@ -27,6 +27,7 @@
 #include "uv.h"
 #include "task.h"
 
+#include <fcntl.h>
 #include <direct.h>
 #include <io.h>
 #define unlink _unlink
@@ -97,11 +98,11 @@ TEST_IMPL(iocp_happypath) {
       ASSERT(iocp_cb_count == 1);
 
     } else {
-      CloseFile(file);
+      CloseHandle(file);
       continue;
     }
 
-    CloseFile(file);
+    CloseHandle(file);
     unlink("test_file");
     MAKE_VALGRIND_HAPPY();
     return 0;
