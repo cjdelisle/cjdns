@@ -35,25 +35,27 @@ void uv_iocp_endgame(uv_loop_t* loop, uv_iocp_t* handle) {
   uv__handle_close(handle);
 }
 
-void uv_iocp_close(uv_loop_t* loop, uv_iocp_t* handle) {
+int uv_iocp_close(uv_loop_t* loop, uv_iocp_t* handle) {
   uv_iocp_stop(handle);
   uv_want_endgame(loop, (uv_handle_t*) handle);
   uv__handle_closing(handle);
+  return 0;
 }
 
 void uv_process_iocp_req(uv_loop_t* loop, uv_req_t* req) {
   uv_iocp_t* handle = (uv_iocp_t*) req->data;
   if (handle->iocp_cb) {
-    handle->ipcp_cb(handle);
+    handle->iocp_cb(handle);
   }
 }
 
 int uv_iocp_stop(uv_iocp_t* handle) {
-  if (!uv__is_active(handle)) {
+  if (!handle->activecnt) {
     return UV_EINVAL;
   }
   /* TODO(cjd): DeleteIoCompletionPort()? */
   handle->iocp_cb = NULL;
+  CloseFile(handle->iocp);
   UNREGISTER_HANDLE_REQ(handle->loop, handle, &handle->req);
 }
 
@@ -64,8 +66,9 @@ int uv_iocp_start(uv_loop_t* loop,
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
   FILE_MODE_INFORMATION mode_info;
+  HANDLE iocp;
 
-  if (uv__is_active(handle) || uv__is_closing(handle)) {
+  if (handle->activecnt) {
     return UV_EINVAL;
   }
 
@@ -85,20 +88,20 @@ int uv_iocp_start(uv_loop_t* loop,
     return UV_EINVAL;
   } else {
     /* Try to associate with IOCP. */
-    if (CreateIoCompletionPort(fd,
-                               loop->iocp,
-                               (ULONG_PTR)handle,
-                               0) == NULL) {
+    iocp = CreateIoCompletionPort(fd, loop->iocp, (ULONG_PTR)handle, 0);
+    if (handle->iocp == NULL) {
       return uv_translate_sys_error(GetLastError());
     }
   }
 
+  memset(handle, 0, sizeof(uv_iocp_t));
   uv__handle_init(loop, (uv_handle_t*) handle, UV_IOCP);
   handle->handle = fd;
   handle->iocp_cb = cb;
-  uv_req_init(loop, handle->req);
+  handle->iocp = iocp;
+  uv_req_init(loop, &handle->req);
   handle->req.data = handle;
-  handle->overlapped = handle->req.overlapped;
+  handle->overlapped = &handle->req.overlapped;
   REGISTER_HANDLE_REQ(loop, handle, &handle->req);
 
   return 0;

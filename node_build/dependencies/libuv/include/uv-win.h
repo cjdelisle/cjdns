@@ -321,7 +321,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   UV_UDP_RECV,                                                                \
   UV_WAKEUP,                                                                  \
   UV_SIGNAL_REQ,                                                              \
-  UV_IOCP,
+  UV_IOCP_REQ,
 
 #define UV_REQ_PRIVATE_FIELDS                                                 \
   union {                                                                     \
@@ -446,6 +446,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   HANDLE handle;                                                              \
   OVERLAPPED ol;                                                              \
   uv_req_t req;                                                               \
+  HANDLE iocp;                                                                \
+  int activecnt;                                                              \
 
 /* TODO: put the parser states in an union - TTY handles are always */
 /* half-duplex so read-state can safely overlap write-state. */

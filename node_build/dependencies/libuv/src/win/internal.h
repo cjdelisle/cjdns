@@ -228,12 +228,10 @@ void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle);
 /*
  * IOCP
  */
-void uv_process_iocp_req(uv_loop_t* loop, uv_iocp_t* handle,
-    uv_req_t* req);
+void uv_process_iocp_req(uv_loop_t* loop, uv_req_t* req);
 
 int uv_iocp_close(uv_loop_t* loop, uv_iocp_t* handle);
 void uv_iocp_endgame(uv_loop_t* loop, uv_iocp_t* handle);
-
 
 
 /*
