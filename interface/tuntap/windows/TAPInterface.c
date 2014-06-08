@@ -13,15 +13,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// TODO(cjd): this is nasty, we need a wrapper.
+#include "util/events/libuv/UvWrapper.h"
+#include "util/events/libuv/EventBase_pvt.h"
+
 #include "exception/Except.h"
 #include "exception/WinFail.h"
 #include "memory/Allocator.h"
 #include "interface/tuntap/windows/TAPDevice.h"
 #include "interface/tuntap/windows/TAPInterface.h"
-#include "interface/FramingInterface.h"
+//#include "interface/FramingInterface.h"
 #include "util/events/EventBase.h"
-#include "util/events/Pipe.h"
+//#include "util/events/Pipe.h"
 #include "util/platform/netdev/NetDev.h"
+#include "wire/Error.h"
 
 /*
  * Portions of this code are copied from QEMU project which is licensed
@@ -122,7 +127,7 @@ static void setEnabled(HANDLE tap, int status, struct Except* eh)
         WinFail_fail(eh, "DeviceIoControl(TAP_IOCTL_SET_MEDIA_STATUS)", err);
     }
 }
-
+/*
 union TAPInterface_buffer {
     struct {
         uint32_t length_be;
@@ -153,10 +158,10 @@ struct TAPInterface_ThreadContext
 
 #include "util/Hex.h"
 
-/**
+/ **
  * Copy data from one file handle to another.
  * @return the handle which has blocked.
- */
+ * /
 #define thread_copy_ADD_FRAMING    1
 #define thread_copy_REMOVE_FRAMING 2
 static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
@@ -267,8 +272,8 @@ static HANDLE thread_copy(struct TAPInterface_FdAndOl* from,
         from->offset = 0;
         DWORD bytes;
         if (!WriteFile(to->fd,
-                       /*&*/writeFrom, /*[from->offset],*/
-                       from->bytes, /* - (writeFrom - from->buff.bytes), */
+                       / *&* /writeFrom, / *[from->offset],* /
+                       from->bytes, / * - (writeFrom - from->buff.bytes), * /
                        &bytes,
                        &from->ol))
         {
@@ -308,23 +313,163 @@ static DWORD WINAPI thread_main(LPVOID param)
     }
     return 0;
 }
+*/
+#define WRITE_MESSAGE_SLOTS 20
+struct TAPInterface_pvt
+{
+    struct TAPInterface pub;
 
-struct Interface* TAPInterface_new(const char* preferredName,
-                                   char** assignedName,
-                                   struct Except* eh,
-                                   struct Log* logger,
-                                   struct EventBase* base,
-                                   struct Allocator* alloc)
+    uv_iocp_t readIocp;
+    struct Message* readMsg;
+    long readLength;
+
+    uv_iocp_t writeIocp;
+    struct Message* writeMsgs[WRITE_MESSAGE_SLOTS];
+    /** This allocator holds messages pending write in memory until they are complete. */
+    struct Allocator* pendingWritesAlloc;
+    int writeMessageCount;
+
+    int isPendingWrite;
+
+    HANDLE handle;
+
+    struct Log* log;
+    struct Allocator* alloc;
+
+    struct EventBase* base;
+    Identity
+};
+
+
+static void readCallbackB(struct TAPInterface_pvt* tap);
+
+static void postRead(struct TAPInterface_pvt* tap)
+{
+    struct Allocator* alloc = Allocator_child(tap->alloc);
+    struct Message* msg = tap->readMsg = Message_new(1536, 512, alloc);
+    OVERLAPPED* readol = (OVERLAPPED*) tap->readIocp.overlapped;
+    tap->readLength = 0;
+    if (!ReadFile(tap->handle, msg->bytes, 1536, &tap->readLength, readol)) {
+        switch (GetLastError()) {
+            case ERROR_IO_PENDING:
+            case ERROR_IO_INCOMPLETE: break;
+            default: Assert_failure("ReadFile(tap): %s\n", WinFail_strerror(GetLastError()));
+        }
+        Log_debug(tap->log, "Posted read");
+
+    } else {
+        Log_debug(tap->log, "Read returned immediately");
+        readCallbackB(tap);
+    }
+}
+
+static void readCallbackB(struct TAPInterface_pvt* tap)
+{
+    struct Message* msg = tap->readMsg;
+    tap->readMsg = NULL;
+    msg->length = tap->readLength;
+    Interface_receiveMessage(&tap->pub.generic, msg);
+    postRead(tap);
+}
+
+static void readCallback(uv_iocp_t* readIocp)
+{
+    struct TAPInterface_pvt* tap =
+        Identity_check((struct TAPInterface_pvt*)
+            (((char*)readIocp) - offsetof(struct TAPInterface_pvt, readIocp)));
+    readCallbackB(tap);
+}
+
+static void writeCallbackB(struct TAPInterface_pvt* tap);
+
+static void postWrite(struct TAPInterface_pvt* tap)
+{
+    Assert_true(!tap->isPendingWrite);
+    struct Message* msg = tap->writeMsgs[0];
+    OVERLAPPED* writeol = (OVERLAPPED*) tap->writeIocp.overlapped;
+    if (!WriteFile(tap->handle, msg->bytes, msg->length, NULL, writeol)) {
+        switch (GetLastError()) {
+            case ERROR_IO_PENDING:
+            case ERROR_IO_INCOMPLETE: break;
+            default: Assert_failure("WriteFile(tap): %s\n", WinFail_strerror(GetLastError()));
+        }
+        Log_debug(tap->log, "Posted write");
+        tap->isPendingWrite = 1;
+    } else {
+        Log_debug(tap->log, "Write returned immediately");
+        writeCallbackB(tap);
+    }
+}
+
+static void writeCallbackB(struct TAPInterface_pvt* tap)
+{
+    Assert_true(tap->isPendingWrite);
+    tap->isPendingWrite = 0;
+    Assert_true(tap->writeMessageCount--);
+    if (tap->writeMessageCount) {
+        for (int i = 0; i < tap->writeMessageCount; i++) {
+            tap->writeMsgs[i] = tap->writeMsgs[i+1];
+        }
+        postWrite(tap);
+    } else {
+        Log_debug(tap->log, "All pending writes are complete");
+        Allocator_free(tap->pendingWritesAlloc);
+        tap->pendingWritesAlloc = NULL;
+    }
+}
+
+static void writeCallback(uv_iocp_t* writeIocp)
+{
+    struct TAPInterface_pvt* tap =
+        Identity_check((struct TAPInterface_pvt*)
+            (((char*)writeIocp) - offsetof(struct TAPInterface_pvt, writeIocp)));
+    writeCallbackB(tap);
+}
+
+static void initIocp(struct TAPInterface_pvt* tap, struct Except* eh)
+{
+    struct EventBase_pvt* ebp = EventBase_privatize(tap->base);
+    int ret;
+    if ((ret = uv_iocp_start(ebp->loop, &tap->readIocp, tap->handle, readCallback))) {
+        Except_throw(eh, "uv_iocp_start(readIocp): %s", uv_strerror(ret));
+    }
+    if ((ret = uv_iocp_start(ebp->loop, &tap->writeIocp, tap->handle, writeCallback))) {
+        Except_throw(eh, "uv_iocp_start(writeIocp): %s", uv_strerror(ret));
+    }
+}
+
+static uint8_t sendMessage(struct Message* msg, struct Interface* iface)
+{
+    struct TAPInterface_pvt* tap = Identity_check((struct TAPInterface_pvt*) iface);
+    if (tap->writeMessageCount >= WRITE_MESSAGE_SLOTS) {
+        Log_info(tap->log, "DROP message because the tap is lagging");
+        return Error_UNDELIVERABLE;
+    }
+    if (!tap->pendingWritesAlloc) {
+        tap->pendingWritesAlloc = Allocator_child(tap->alloc);
+    }
+    tap->writeMsgs[tap->writeMessageCount++] = msg;
+    Allocator_adopt(tap->pendingWritesAlloc, msg->alloc);
+    if (tap->writeMessageCount == 1) {
+        postWrite(tap);
+    }
+    return 0;
+}
+
+struct TAPInterface* TAPInterface_new(const char* preferredName,
+                                      struct Except* eh,
+                                      struct Log* logger,
+                                      struct EventBase* base,
+                                      struct Allocator* alloc)
 {
     Log_debug(logger, "Getting TAP-Windows device name");
 
     struct TAPDevice* dev = TAPDevice_find(preferredName, eh, alloc);
-    *assignedName = dev->name;
 
     NetDev_flushAddresses(dev->name, eh);
 
     Log_debug(logger, "Opening TAP-Windows device [%s] at location [%s]", dev->name, dev->path);
-
+/*
     struct TAPInterface_ThreadContext* tc =
         Allocator_calloc(alloc, sizeof(struct TAPInterface_ThreadContext), 1);
 
@@ -333,24 +478,37 @@ struct Interface* TAPInterface_new(const char* preferredName,
 
     tc->tap.name = "tap";
     tc->pipe.name = "pipe";
+*/
 
-    tc->tap.fd = CreateFile(dev->path,
-                            GENERIC_READ | GENERIC_WRITE,
-                            0,
-                            0,
-                            OPEN_EXISTING,
-                            FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
-                            0);
+    struct TAPInterface_pvt* tap = Allocator_calloc(alloc, sizeof(struct TAPInterface_pvt), 1);
+    Identity_set(tap);
+    tap->base = base;
+    tap->alloc = alloc;
+    tap->log = logger;
+    tap->pub.assignedName = dev->name;
 
-    if (tc->tap.fd == INVALID_HANDLE_VALUE) {
+    tap->handle = CreateFile(dev->path,
+                             GENERIC_READ | GENERIC_WRITE,
+                             0,
+                             0,
+                             OPEN_EXISTING,
+                             FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
+                             0);
+
+    if (tap->handle == INVALID_HANDLE_VALUE) {
         WinFail_fail(eh, "CreateFile(tapDevice)", GetLastError());
     }
 
+    initIocp(tap, eh);
+
+    // hack hack hack assignment of const pointer...
+    Bits_memcpyConst((void*)&tap->pub.generic.sendMessage, &sendMessage, sizeof(uintptr_t));
+
     struct TAPInterface_Version_pvt ver = { .major = 0 };
-    getVersion(tc->tap.fd, &ver, eh);
+    getVersion(tap->handle, &ver, eh);
 
-    setEnabled(tc->tap.fd, 1, eh);
-
+    setEnabled(tap->handle, 1, eh);
+/*
     tc->pipe.fd = CreateNamedPipeA(
         "\\\\.\\pipe\\cjdns_pipe_abcdefg",
         PIPE_ACCESS_DUPLEX
@@ -368,12 +526,13 @@ struct Interface* TAPInterface_new(const char* preferredName,
 
     struct Pipe* p = Pipe_named("abcdefg", base, eh, alloc);
     p->logger = logger;
-
+*/
 //    CreateThread(NULL, 0, piper, (LPVOID)&fh[1], 0, NULL);
-    CreateThread(NULL, 0, thread_main, (LPVOID)tc, 0, NULL);
+//    CreateThread(NULL, 0, thread_main, (LPVOID)tc, 0, NULL);
 
     Log_info(logger, "Opened TAP-Windows device [%s] version [%lu.%lu.%lu] at location [%s]",
              dev->name, ver.major, ver.minor, ver.debug, dev->path);
 
-    return FramingInterface_new(2048, &p->iface, alloc);
+    return &tap->pub;
+    //return FramingInterface_new(2048, &p->iface, alloc);
 }

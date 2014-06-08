@@ -17,7 +17,6 @@
 #include "interface/tuntap/windows/TAPInterface.h"
 #include "interface/tuntap/TAPWrapper.h"
 #include "interface/tuntap/NDPServer.h"
-#include "interface/Aligner.h"
 #include "util/CString.h"
 
 struct Interface* TUNInterface_new(const char* interfaceName,
@@ -28,11 +27,10 @@ struct Interface* TUNInterface_new(const char* interfaceName,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
-    char* ifName;
-    struct Interface* tap = TAPInterface_new(interfaceName, &ifName, eh, logger, base, alloc);
-    CString_strncpy(assignedInterfaceName, ifName, TUNInterface_IFNAMSIZ);
-    if (isTapMode) { return tap; }
-    struct TAPWrapper* tapWrapper = TAPWrapper_new(tap, logger, alloc);
+    struct TAPInterface* tap = TAPInterface_new(interfaceName, eh, logger, base, alloc);
+    CString_strncpy(assignedInterfaceName, tap->assignedName, TUNInterface_IFNAMSIZ);
+    if (isTapMode) { return &tap->generic; }
+    struct TAPWrapper* tapWrapper = TAPWrapper_new(&tap->generic, logger, alloc);
     struct NDPServer* ndp =
         NDPServer_new(&tapWrapper->generic, logger, TAPWrapper_LOCAL_MAC, alloc);
 
@@ -40,8 +38,5 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     ndp->advertisePrefix[0] = 0xfc;
     ndp->prefixLen = 8;
 
-    // This stuff never comes out aligned.
-    struct Aligner* align = Aligner_new(&ndp->generic, alloc, 4);
-
-    return &align->generic;
+    return &ndp->generic;
 }
