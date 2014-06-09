@@ -287,7 +287,6 @@ Builder.configure({
                 ];
                 if (!(/darwin|win32/.test(SYSTEM))) { args.push('CFLAGS=-fPIC'); }
                 var make;
-console.log(process.env);
                 if (builder.config.system == 'freebsd') {
                     make = Spawn('gmake', args);
                 } else {
