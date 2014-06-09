@@ -55,7 +55,6 @@ int uv_iocp_stop(uv_iocp_t* handle) {
   }
   /* TODO(cjd): DeleteIoCompletionPort()? */
   handle->iocp_cb = NULL;
-  CloseHandle(handle->iocp);
   UNREGISTER_HANDLE_REQ(handle->loop, handle, &handle->req);
 }
 
@@ -66,7 +65,6 @@ int uv_iocp_start(uv_loop_t* loop,
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
   FILE_MODE_INFORMATION mode_info;
-  HANDLE iocp;
 
   if (handle->activecnt) {
     return UV_EINVAL;
@@ -88,9 +86,12 @@ int uv_iocp_start(uv_loop_t* loop,
     return UV_EINVAL;
   } else {
     /* Try to associate with IOCP. */
-    iocp = CreateIoCompletionPort(fd, loop->iocp, (ULONG_PTR)handle, 0);
-    if (handle->iocp == NULL) {
-      return uv_translate_sys_error(GetLastError());
+    if (!CreateIoCompletionPort(fd, loop->iocp, (ULONG_PTR)handle, 0)) {
+      if (ERROR_INVALID_PARAMETER == GetLastError()) {
+        // Already associated.
+      } else {
+        return uv_translate_sys_error(GetLastError());
+      }
     }
   }
 
@@ -98,9 +99,9 @@ int uv_iocp_start(uv_loop_t* loop,
   uv__handle_init(loop, (uv_handle_t*) handle, UV_IOCP);
   handle->handle = fd;
   handle->iocp_cb = cb;
-  handle->iocp = iocp;
   uv_req_init(loop, &handle->req);
   handle->req.data = handle;
+  handle->req.type = UV_IOCP;
   handle->overlapped = &handle->req.overlapped;
   REGISTER_HANDLE_REQ(loop, handle, &handle->req);
 

@@ -446,7 +446,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   HANDLE handle;                                                              \
   OVERLAPPED ol;                                                              \
   uv_req_t req;                                                               \
-  HANDLE iocp;                                                                \
   int activecnt;                                                              \
 
 /* TODO: put the parser states in an union - TTY handles are always */
