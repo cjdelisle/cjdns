@@ -54,7 +54,7 @@ struct Interface
      * @return 0 If all goes well, non-zero in case of an error.
      *           See Error.h for more information about interface error codes.
      */
-    Interface_CONST_CALLBACK(sendMessage);
+    Interface_CALLBACK(sendMessage);
 
     /** Used to allocate this interface, the interface will close when this allocator is freed. */
     struct Allocator* const allocator;
