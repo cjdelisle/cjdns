@@ -285,7 +285,7 @@ var getObjectFile = function (cFile) {
 };
 
 var getExecutableFile = function (cFile) {
-    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.exe';
+    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_');
 };
 
 var getFlags = function (state, fileName, includeDirs) {
