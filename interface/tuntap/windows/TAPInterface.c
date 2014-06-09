@@ -187,10 +187,7 @@ static void writeCallbackB(struct TAPInterface_pvt* tap)
         Assert_failure("GetOverlappedResult(write, tap): %s\n", WinFail_strerror(GetLastError()));
     }
 
-
-if (!tap->isPendingWrite) {
     Assert_true(tap->isPendingWrite);
-}
     tap->isPendingWrite = 0;
     Assert_true(tap->writeMessageCount--);
 
