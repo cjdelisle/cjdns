@@ -16,7 +16,7 @@ if [[ "$1" = "windows" ]]; then
     SYSTEM=win32 CROSS=1 CC=i686-w64-mingw32-gcc AR=i686-w64-mingw32-ar RANLIB=i686-w64-mingw32-ranlib ./do
     exit
 elif [[ "$1" = "android" ]]; then
-    rm -rf build_android
+    rm -rf build_android/cjdns build_android/cjdroid
     install -d build_android
     git clone . build_android/cjdns
     ./contrib/android/cjdroid-build.sh $(git status | grep "On branch" | sed 's|On branch ||')
