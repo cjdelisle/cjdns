@@ -15,6 +15,12 @@ if [[ "$1" = "windows" ]]; then
     echo -e "\n\033[01;38;5;167mWARNING\033[00m: Windows support is not yet secure, and should currently be run for testing purposes only!!!\n"
     SYSTEM=win32 CROSS=1 CC=i686-w64-mingw32-gcc AR=i686-w64-mingw32-ar RANLIB=i686-w64-mingw32-ranlib ./do
     exit
+elif [[ "$1" = "android" ]]; then
+    rm -rf build_android
+    install -d build_android
+    git clone . build_android/cjdns
+    ./contrib/android/cjdroid-build.sh
+    exit
 fi
 
 [ -n "$PLATFORM" ] || PLATFORM=$(uname | tr '[:upper:]' '[:lower:]')
