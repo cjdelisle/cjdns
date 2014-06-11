@@ -19,7 +19,7 @@ elif [[ "$1" = "android" ]]; then
     rm -rf build_android
     install -d build_android
     git clone . build_android/cjdns
-    ./contrib/android/cjdroid-build.sh
+    ./contrib/android/cjdroid-build.sh $(git status | grep "On branch" | sed 's|On branch ||')
     exit
 fi
 
