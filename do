@@ -11,7 +11,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-[[ "$1" = "windows" ]] && echo -e "\033[01;38;5;167mWARNING\033[00m: Windows support is not yet secure, and should currently be run for testing purposes only!!!" && SYSTEM=win32 CROSS=1 CC=i686-w64-mingw32-gcc AR=i686-w64-mingw32-ar RANLIB=i686-w64-mingw32-ranlib ./do
+if [[ "$1" = "windows" ]]; then
+    echo -e "\n\033[01;38;5;167mWARNING\033[00m: Windows support is not yet secure, and should currently be run for testing purposes only!!!\n"
+    SYSTEM=win32 CROSS=1 CC=i686-w64-mingw32-gcc AR=i686-w64-mingw32-ar RANLIB=i686-w64-mingw32-ranlib ./do
+    exit
+fi
 
 [ -n "$PLATFORM" ] || PLATFORM=$(uname | tr '[:upper:]' '[:lower:]')
 [ -n "$MARCH" ] || MARCH=$(uname -m | sed "s/i./x/g")
