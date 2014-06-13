@@ -1803,7 +1803,7 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
     #endif
     struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
-    if (nl && Node_getReach(nl->child) > 0) {
+    if (nl && nl == Node_getBestParent(nl->child) && Node_getReach(nl->child) > 0) {
         handleBadNews(nl->child, 0, store);
     }
     verify(store);
