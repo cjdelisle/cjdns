@@ -49,64 +49,58 @@ static void iocp_cb(uv_iocp_t* handle)
   uv_stop(loop);
 }
 
-TEST_IMPL(iocp_happypath) {
+TEST_IMPL(iocp) {
   int r;
   HANDLE file;
 
-  /* Keep on trying until the read completes asynchronously. */
-  for (;;) {
-    unlink("test_file");
+  unlink("test_file");
 
-    loop = uv_default_loop();
+  loop = uv_default_loop();
 
-    r = uv_fs_open(loop, &open_req, "test_file", O_WRONLY | O_CREAT,
-        S_IWUSR | S_IRUSR, NULL);
-    ASSERT(r >= 0);
-    ASSERT(open_req.result >= 0);
-    uv_fs_req_cleanup(&open_req);
+  r = uv_fs_open(loop, &open_req, "test_file", O_WRONLY | O_CREAT,
+      S_IWUSR | S_IRUSR, NULL);
+  ASSERT(r >= 0);
+  ASSERT(open_req.result >= 0);
+  uv_fs_req_cleanup(&open_req);
 
-    r = uv_fs_write(loop, &write_req, open_req.result, test_buf,
-        sizeof(test_buf), -1, NULL);
-    ASSERT(r >= 0);
-    ASSERT(write_req.result >= 0);
-    uv_fs_req_cleanup(&write_req);
+  r = uv_fs_write(loop, &write_req, open_req.result, test_buf,
+      sizeof(test_buf), -1, NULL);
+  ASSERT(r >= 0);
+  ASSERT(write_req.result >= 0);
+  uv_fs_req_cleanup(&write_req);
 
-    r = uv_fs_close(loop, &close_req, open_req.result, NULL);
-    ASSERT(r == 0);
-    ASSERT(close_req.result == 0);
-    uv_fs_req_cleanup(&close_req);
+  r = uv_fs_close(loop, &close_req, open_req.result, NULL);
+  ASSERT(r == 0);
+  ASSERT(close_req.result == 0);
+  uv_fs_req_cleanup(&close_req);
 
-    /* Test. */
+  /* Test. */
 
-    file = CreateFile("test_file",
-                      GENERIC_READ | GENERIC_WRITE,
-                      0,
-                      0,
-                      OPEN_EXISTING,
-                      FILE_FLAG_OVERLAPPED,
-                      0);
+  file = CreateFile("test_file",
+                    GENERIC_READ | GENERIC_WRITE,
+                    0,
+                    0,
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    0);
 
-    uv_iocp_start(loop, &iocp_handle, file, iocp_cb);
+  uv_iocp_start(loop, &iocp_handle, file, iocp_cb);
 
-    if (!ReadFile(file,
-                  test_buf,
-                  sizeof(test_buf),
-                  NULL,
-                  (OVERLAPPED*) iocp_handle.overlapped)) {
-      ASSERT(GetLastError() == ERROR_IO_PENDING);
-      uv_run(loop, UV_RUN_DEFAULT);
-      ASSERT(iocp_cb_count == 1);
-
-    } else {
-      CloseHandle(file);
-      continue;
-    }
-
-    CloseHandle(file);
-    unlink("test_file");
-    MAKE_VALGRIND_HAPPY();
-    return 0;
+  if (!ReadFile(file,
+                test_buf,
+                sizeof(test_buf),
+                NULL,
+                (OVERLAPPED*) iocp_handle.overlapped)) {
+    ASSERT(GetLastError() == ERROR_IO_PENDING);
   }
+
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(iocp_cb_count == 1);
+
+  CloseHandle(file);
+  unlink("test_file");
+  MAKE_VALGRIND_HAPPY();
+  return 0;
 }
 
 #endif
