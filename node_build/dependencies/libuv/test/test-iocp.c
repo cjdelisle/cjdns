@@ -20,7 +20,7 @@
  */
 #ifndef _WIN32
 
-// This test makes no sense outside the context of windows.
+/* This test makes no sense outside the context of windows. */
 
 #else
 
