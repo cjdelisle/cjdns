@@ -198,7 +198,7 @@ emulated by Ethernet frames, UDP packets or other means.
 
 * Self Interface: A special Interface in each switch, packets sent for this
 interface are intended for the node which this switch is a part of. Upon
-reaching the ultimate hop in it's path, a packet is sent through the Self
+reaching the ultimate hop in its path, a packet is sent through the Self
 Interface so it can be handled by the next layer in the node.
 
 * Director: A binary codeword of arbitrary size which when received by the
@@ -207,9 +207,9 @@ switch will direct it to send the packet down a given Interface.
 * Route Label: An ordered set of Directors that describe a path through the
 network.
 
-* Encoding Scheme: The method by which a switch converts one of it's internal
+* Encoding Scheme: The method by which a switch converts one of its internal
 Interface ID (EG: array index) to a Director and converts a Director back to
-it's internal representation. Encoding schemes may be either fixed width or
+its internal representation. Encoding schemes may be either fixed width or
 variable width but in the case of variable width, the width must be
 self-describing as the Directors are concatenated in the Route Label without any
 kind of boundary markers.
@@ -228,12 +228,12 @@ Prefix is actually the bits furthest to the *right* of the Director.
 
 ### Operation
 
-When a packet comes in to the switch, the switch uses it's Encoding Scheme to
+When a packet comes in to the switch, the switch uses its Encoding Scheme to
 read the least significant bits of the Route Label in order to determine the
 Director and thus the Interface to send the packet down. The Route Label is
 shifted to the right by the number of bits in the Director, effectively
 *removing* the Director and exposing the Director belonging to the next switch
-in the path. Before sending the packet, the switch uses it's Encoding Scheme to
+in the path. Before sending the packet, the switch uses its Encoding Scheme to
 craft a Director representing the Interface which the packet came *from*, does
 a bitwise reversal of this Director and places it in the empty space at the left
 of the Route Label which was exposed by the previous bit shift. In this way, the
@@ -246,7 +246,7 @@ any knowledge of the Encoding Schemes used by other nodes.
 
 Supposing Alice wanted to send a packet to Fred via Bob, Charlie, Dave and
 Elinor, she would send a message to her switch with the first Director
-instructing her switch to send down it's interface to Bob, the second Director
+instructing her switch to send down its interface to Bob, the second Director
 instructing Bob's switch to send to Charlie and so on.
 
 NOTE: Spaces between bits are for illustration only, Route Labels have no
@@ -438,7 +438,7 @@ communication) how it encodes numbers.
 
 In order to give routers the ability to chain paths from a graph of linked nodes
 while still preserving Variable Width Encoding, a node is required to describe
-it's Encoding Scheme to other nodes and adhere to a few rules to make possible
+its Encoding Scheme to other nodes and adhere to a few rules to make possible
 the conversion of a Director to a wider bit width by other nodes.
 
 The Encoding Scheme Definition consists of a array of representations of the
@@ -482,7 +482,7 @@ Director from a wider form to a narrower by changing the Director Prefix and
 truncating zero bits from the left side.
 
 In order to remain compatible with these optimizations, a switch must disregard
-a change in the number of most significant zero bits in it's Director, in the
+a change in the number of most significant zero bits in its Director, in the
 case of multi-byte Directors this may influence byte order decisions. Obviously
 a switch implementor must design their Encoding Scheme so that a Director is
 unambiguous and cannot be confused with the least significant bits of the data
