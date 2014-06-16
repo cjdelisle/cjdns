@@ -59,7 +59,7 @@ entire nations isolated and breeding the hate and intolerance which the Internet
 promised to end.
 
 Cjdns was designed with the understanding that for the Internet to continue
-existing without borders, authority over it's processes must be decentralized.
+existing without borders, authority over its processes must be decentralized.
 This isn't, and can't be, just a dream - the future of the open Internet is at
 stake.
 
