@@ -178,7 +178,7 @@ Builder.configure({
         }
     });
 
-    var uclibc = /uclibc/i.test(GCC);
+    var uclibc = process.env['UCLIBC'] == '1';
     var libssp = process.env['SSP_SUPPORT'] == 'y';
     if (!uclibc || libssp) {
         builder.config.cflags.push(
@@ -189,7 +189,12 @@ Builder.configure({
             '-fstack-protector-all',
             '-Wstack-protector'
         );
-        if (uclibc) { builder.config.libs.push('-lssp'); }
+
+        // Static libssp provides __stack_chk_fail_local, which x86 needs in
+        // order to avoid expensively looking up the location of __stack_chk_fail.
+        var x86 = process.env['TARGET_ARCH'] == 'i386';
+        if (uclibc && !x86) { builder.config.libs.push('-lssp'); }
+        if (uclibc && x86) { builder.config.libs.push('-Wl,-Bstatic', '-lssp', '-Wl,-Bdynamic'); }
     } else {
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
