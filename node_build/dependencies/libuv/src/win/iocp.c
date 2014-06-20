@@ -107,4 +107,3 @@ int uv_iocp_start(uv_loop_t* loop,
 
   return 0;
 }
-
