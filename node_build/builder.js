@@ -651,7 +651,7 @@ var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
         hash.update(JSON.stringify(normalizedProcessEnv()));
     }).nThen(function (waitFor) {
         rebIfChg.forEach(function (data) { hash.update(data); });
-        callback(hash.digest('hex'))
+        callback(hash.digest('hex'));
     });
 };
 

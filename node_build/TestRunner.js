@@ -147,7 +147,7 @@ setTimeout(function () {
 
 var server = function (url, tempDir) {
     var params = parseURL(url);
-    var tempDir = tempDir || '/tmp';
+    tempDir = tempDir || '/tmp';
 
     console.log("Serving http://" + (params.host || '<any>') + ':' + params.port + params.path);
 
@@ -195,16 +195,16 @@ var main = function (argv)
     var cli = argv.indexOf("client");
     if (cli !== -1) {
         argv.splice(0,cli+1);
-        var url = argv.shift();
+        var cliUrl = argv.shift();
         var fileName = argv.shift();
-        return client(url, fileName, argv);
+        return client(cliUrl, fileName, argv);
     }
     var serv = argv.indexOf("server");
     if (serv !== -1) {
         argv.splice(0,serv+1);
-        var url = argv.shift();
+        var servUrl = argv.shift();
         var tempDir = argv.shift();
-        return server(url, tempDir);
+        return server(servUrl, tempDir);
     }
     return usage();
 };
