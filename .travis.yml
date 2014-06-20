@@ -15,4 +15,4 @@ script:
   - "uname -a"
   - "bash node_build/run_jshint"
     # travis has seccomp.h header but does not actually support seccomp.
-  - "bash Seccomp_NO=1 do"
+  - "bash do Seccomp_NO=1"
