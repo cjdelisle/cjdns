@@ -39,7 +39,7 @@ Example:
 def parse(args):
   """ parse the command line arguments """
 
-  try: 
+  try:
     return getopt.getopt(args, 'phc:', ['pretty','help','config='])
   except getopt.GetoptError:
     usage()

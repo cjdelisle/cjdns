@@ -21,7 +21,7 @@ def makeGraph():
     root=admin.whoami(cjdns)
     rootIP=root['IP']
 
-    G=nx.Graph()    
+    G=nx.Graph()
     G.add_node(rootIP[-4:],ip=rootIP)
 
     nodes=deque()
@@ -32,7 +32,7 @@ def makeGraph():
         numLinks=0
 	if 'result' in resp:
             link=resp['result']
-            if 'linkCount' in link: 
+            if 'linkCount' in link:
                 numLinks=int(resp['result']['linkCount'])
                 G.node[parentIP[-4:]]['version']=resp['result']['protocolVersion']
 
