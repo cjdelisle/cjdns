@@ -32,6 +32,6 @@ if (open(CFG, '<', $ENV{HOME} . "/.cjdnsadmin")) {
     print("    \"addr\": \"127.0.0.1\",\n");
     print("    \"port\": 11234,\n");
     print("    \"password\": \"You tell me! (you\'ll find it in your cjdroute.conf)\"\n");
-    print("}\n");  
+    print("}\n");
 }
 

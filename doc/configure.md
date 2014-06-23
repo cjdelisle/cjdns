@@ -3,7 +3,7 @@ Configuring cjdns
 
 In this document we are going to go over how to configure cjdns and what exactly each setting means. Note that this is a living document and this software is still in the alpha stages so things are subject to change.
 
-Let's start from the top of the file. First off you may notice it's JSON, except this JSON has comments. Technically that's not valid but it's also not uncommon. Cjdns strips out the comments before parsing it so no worries. 
+Let's start from the top of the file. First off you may notice it's JSON, except this JSON has comments. Technically that's not valid but it's also not uncommon. Cjdns strips out the comments before parsing it so no worries.
 
 Your Keys and Address
 ---------------------
@@ -32,7 +32,7 @@ The top part of the file specifies where the cjdns executable is, your encryptio
 Incoming Connections
 --------------------
 
-The `authorizedPasswords` section is the area where you can specify passwords to allow people to connect to you. Any system that presents a valid password will be allowed access. 
+The `authorizedPasswords` section is the area where you can specify passwords to allow people to connect to you. Any system that presents a valid password will be allowed access.
 **NOTE:** These passwords should be long and random. There is no reason to make them short, easily remembered words because they are only going to be used by cjdns.
 
 ````javascript
@@ -62,13 +62,13 @@ The `authorizedPasswords` section is the area where you can specify passwords to
         // "your.external.ip.goes.here:33808":{"password":"zxl6zgxpl4stnuybdt0xlg4tn2cdl5h","publicKey":"u2jf87mgqlxfzdnywp60z3tx6tkulvgh2nyc2jk1zc69zzt2s8u0.k"}
     ],
 ````
-- `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part. 
+- `password`: This is the password that another system can give to your node and be allowed to connect. You would place it in the `password` section in the next part.
 - `your.external.ip.goes.here:33808` This section is what you would give to a friend so that they could connect with you. We suggest you add a `"name":"so-and-so"` section to it as well (don't forget the comma between sections!) so that it is easy to see who you have allowed access to. If it later turns out that you no longer wish to have this user connect to you then it is a simple matter to find them and delete or comment out the correct line.
 
 Admin Interface
 ---------------
 
-The `admin ` section defines the settings for the administrative interface of cjdns. Many of the scripts in `/contrib/` use this to interact with cjdns. You probably wont need to use anything in there unless you are helping to test something out. 
+The `admin ` section defines the settings for the administrative interface of cjdns. Many of the scripts in `/contrib/` use this to interact with cjdns. You probably wont need to use anything in there unless you are helping to test something out.
 
 ````javascript
     // Settings for administering and extracting information from your router.
@@ -89,7 +89,7 @@ The `admin ` section defines the settings for the administrative interface of cj
 Connection Interface(s)
 -----------------------
 
-This specifies the settings for the connection interfaces to your node. Right now most people use the `UDPInterface` to connect to other cjdns peers over the internet or other traditional networks. You may also use `ETHInterface` to physically connect to another machine. Note that this is not a standard TCP/IP connection like you are used to. 
+This specifies the settings for the connection interfaces to your node. Right now most people use the `UDPInterface` to connect to other cjdns peers over the internet or other traditional networks. You may also use `ETHInterface` to physically connect to another machine. Note that this is not a standard TCP/IP connection like you are used to.
 
 ````javascript
     // Interfaces to connect to the switch core.
@@ -117,7 +117,7 @@ This specifies the settings for the connection interfaces to your node. Right no
             {
                 // Bind to this device (interface name, not MAC etc.)
                 "bind": "eth0",
-                
+
                 // Auto-connect to other cjdns nodes on the same network.
                 // Options:
                 //
@@ -133,7 +133,7 @@ This specifies the settings for the connection interfaces to your node. Right no
                 //      automatically.
                 //
                 "beacon": 2,
-                
+
                 // Node(s) to connect to manually.
                 "connectTo":
                 {
@@ -165,7 +165,7 @@ This specifies the settings for the connection interfaces to your node. Right no
 Router
 ------
 
-This is where you configure routing settings of your cjdns node. 
+This is where you configure routing settings of your cjdns node.
 
 ````javascript
     // Configuration for the router.
@@ -232,7 +232,7 @@ IP Tunneling will allow you to connect from the cjdns network to another outside
 Miscellaneous
 -------------
 
-This section contains the security section for configuring program options and a few other miscellaneous things that don't fit in with a broader category elsewhere. 
+This section contains the security section for configuring program options and a few other miscellaneous things that don't fit in with a broader category elsewhere.
 ````javascript
     // Tear down inactive CryptoAuth sessions after this number of seconds
     // to make them more forgiving in the event that they become desynchronized.

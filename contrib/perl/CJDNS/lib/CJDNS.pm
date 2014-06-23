@@ -106,7 +106,7 @@ sub _make_methods {
                 # { error: "none" } is a success case
                 if ($dec->{error} && $dec->{error} ne 'none') {
                     croak "[error] CJDNS method '$method_name': $dec->{error}";
-                } 
+                }
             }
             return $dec;
         };
@@ -129,7 +129,7 @@ sub capabilities {
             if ($self->{capabilities}->{$func}->{$attr}->{required}) {
                 $return .= "[required]";
             }
-            
+
             $return .= "\n";
         }
         $return .= "\n";

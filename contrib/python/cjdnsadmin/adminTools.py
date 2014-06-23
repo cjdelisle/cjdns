@@ -30,7 +30,7 @@ def whoami(cjdns):
     ver=resp['result']['protocolVersion']
     IP=PublicToIp6_convert(key)
     return {'IP':IP,'key':key,'version':ver}
-    
+
 def dumpTable(cjdns,verbose=False,unique_ip=False,nodes=[]):
     if nodes == []: nodes=[]
     rt = []
@@ -43,12 +43,12 @@ def dumpTable(cjdns,verbose=False,unique_ip=False,nodes=[]):
             if (not ip in nodes) and unique_ip:
                 nodes.append(ip)
                 rt.append(t)
-                if verbose:    
+                if verbose:
                     print(t['ip'] + ' ' + t['path'] + ' ' + str(t['link']) + ' ' + str(t['version']));
             if not unique_ip:
-                nodes.append(ip) 
+                nodes.append(ip)
                 rt.append(t)
-                if verbose:    
+                if verbose:
                     print(t['ip'] + ' ' + t['path'] + ' ' + str(t['link']) + ' ' + str(t['version']));
         if not 'more' in table:
             break
@@ -66,7 +66,7 @@ def peerStats(cjdns,up=False,verbose=False):
         ps = cjdns.InterfaceController_peerStats(i);
         peers = ps['peers']
         for p in peers:
-            if p['state'] == 'UNRESPONSIVE' and up:      
+            if p['state'] == 'UNRESPONSIVE' and up:
                 continue
             allPeers.append(p)
         if (not 'more' in ps):
@@ -109,4 +109,4 @@ def parseLabel(route):
     route = route[::-1].rstrip('0')[:-1]
     return {'route':route,'broute':broute}
 
-    
+

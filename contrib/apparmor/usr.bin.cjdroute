@@ -2,7 +2,7 @@
 # Written by Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
 
 # This profile was not tested for compatibility with IPv4-over-cjdns setups!
-# If it doesn't work for you, e.g. if it's outdated 
+# If it doesn't work for you, e.g. if it's outdated
 # or if you have a non-standard setup, running aa-logprof should fix it.
 
 #include <tunables/global>
