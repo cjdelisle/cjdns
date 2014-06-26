@@ -254,6 +254,9 @@ Builder.configure({
                 '-framework', 'CoreServices'
             );
         } else if (builder.config.systemName === 'freebsd') {
+            builder.config.cflags.push(
+                    '-Wno-overlength-strings'
+                    );
             builder.config.libs.push(
                 '-lkvm'
             );

@@ -93,7 +93,11 @@ static unsigned long getMaxMem(struct Except* eh)
     if (getrlimit(Security_MEMORY_RLIMIT, &lim)) {
         Except_throw(eh, "Failed to get memory limit [%s]", strerror(errno));
     }
-
+    if (lim.rlim_max == RLIM_INFINITY) {
+        // We aren't running with a limit, so we can't double it, that overflows
+        // the limit to a nonsensical value.
+        lim.rlim_max = RLIM_INFINITY / 5l;
+    }
     // First time around, we try a very small mapping just to make sure it works.
     size_t tryMapping = 100;
     if (lim.rlim_max > 0) {
