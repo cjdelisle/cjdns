@@ -29,7 +29,7 @@ var GCC = process.env['CC'];
 
 if (!GCC) {
     if (SYSTEM === 'freebsd') {
-        GCC = 'gcc47';
+        GCC = 'clang';
     } else {
         GCC = 'gcc';
     }
@@ -254,6 +254,9 @@ Builder.configure({
                 '-framework', 'CoreServices'
             );
         } else if (builder.config.systemName === 'freebsd') {
+            builder.config.cflags.push(
+                    '-Wno-overlength-strings'
+                    );
             builder.config.libs.push(
                 '-lkvm'
             );
