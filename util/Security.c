@@ -108,15 +108,16 @@ static unsigned long getMaxMem(struct Except* eh)
         tryMapping = lim.rlim_max * 2l;
     }
 
-    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
+    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (ptr != MAP_FAILED) {
         munmap(ptr, tryMapping);
         if (lim.rlim_max > 0) {
-            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes",
-                         tryMapping);
+            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes, "
+                    "while limit is [%zu] bytes", tryMapping, lim.rlim_max);
         }
     } else if (lim.rlim_max == 0) {
-        Except_throw(eh, "Testing of memory limit not possible, unable to map memory");
+        Except_throw(eh, "Testing of memory limit not possible, unable to map memory [%s]",
+                strerror(errno));
     }
 
     return lim.rlim_max;
