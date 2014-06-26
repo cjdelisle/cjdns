@@ -17,13 +17,11 @@
 
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("util/log/IndirectLog.c")
 
-struct IndirectLog
-{
-    struct Log pub;
-    struct Log* wrappedLog;
-};
+struct Log* IndirectLog_new(struct Allocator* alloc);
 
-struct IndirectLog* IndirectLog_new(struct Allocator* alloc);
+void IndirectLog_set(struct Log* indirectLog, struct Log* wrapped);
 
 #endif

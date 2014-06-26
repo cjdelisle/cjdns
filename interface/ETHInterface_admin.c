@@ -19,7 +19,6 @@
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
 #include "util/Base32.h"
-#include "util/Errno.h"
 
 struct Context
 {
@@ -46,7 +45,10 @@ static int isValidIfNum(struct Context* ctx, int64_t* interfaceNumber, char** er
     return false;
 }
 
-static void beginConnection(Dict* args, void* vcontext, String* txid)
+static void beginConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
 
@@ -94,7 +96,7 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&out, txid, ctx->admin);
 }
 
-static void newInterface(Dict* args, void* vcontext, String* txid)
+static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = vcontext;
     String* const bindDevice = Dict_getString(args, String_CONST("bindDevice"));
@@ -108,17 +110,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
-
-        if (jmp.code == ETHInterface_new_SOCKET_FAILED
-            || jmp.code == ETHInterface_new_BIND_FAILED)
-        {
-            char* err = Errno_getString();
-            Dict out2 = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
-            Admin_sendMessage(&out2, txid, ctx->admin);
-        } else {
-            Admin_sendMessage(&out, txid, ctx->admin);
-        }
-
+        Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
         return;
     }
@@ -138,7 +130,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
     ctx->ifCount++;
 }
 
-static void beacon(Dict* args, void* vcontext, String* txid)
+static void beacon(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     int64_t* stateP = Dict_getInt(args, String_CONST("state"));
     int64_t* ifNumP = Dict_getInt(args, String_CONST("interfaceNumber"));

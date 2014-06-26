@@ -15,8 +15,10 @@
 #ifndef ArrayReader_H
 #define ArrayReader_H
 
-#include "Reader.h"
+#include "io/Reader.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/ArrayReader.c")
 
 /**
  * Create a new Reader which reads a user supplied buffer.
@@ -26,7 +28,7 @@
  * @param allocator the memory allocator to use for allocating the writer and context.
  */
 struct Reader* ArrayReader_new(const void* bufferToRead,
-                               size_t length,
-                               const struct Allocator* allocator);
+                               unsigned long length,
+                               struct Allocator* allocator);
 
 #endif

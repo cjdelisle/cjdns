@@ -20,8 +20,6 @@
 #include "util/log/Log.h"
 #include "util/Security.h"
 
-#define string_strlen
-#include "util/platform/libc/string.h"
 
 struct Context
 {
@@ -35,7 +33,7 @@ static void sendError(char* errorMessage, String* txid, struct Admin* admin)
     Admin_sendMessage(&error, txid, admin);
 }
 
-static void setUser(Dict* args, void* vcontext, String* txid)
+static void setUser(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* const ctx = (struct Context*) vcontext;
     struct Jmp jmp;
@@ -49,17 +47,44 @@ static void setUser(Dict* args, void* vcontext, String* txid)
     sendError("none", txid, ctx->admin);
 }
 
-static void noFiles(Dict* args, void* vcontext, String* txid)
+static void dropPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
 {
-    struct Context* const ctx = (struct Context*) vcontext;
+    struct Context* const ctx = (struct Context*) vctx;
     struct Jmp jmp;
     Jmp_try(jmp) {
-        Security_noFiles(&jmp.handler);
+        Security_dropPermissions(requestAlloc, ctx->logger, &jmp.handler);
     } Jmp_catch {
         sendError(jmp.message, txid, ctx->admin);
         return;
     }
     sendError("none", txid, ctx->admin);
+}
+
+static void checkPermissionsB(struct Except* eh,
+                              String* txid,
+                              struct Admin* admin,
+                              struct Allocator* requestAlloc)
+{
+    struct Security_Permissions* sp = Security_checkPermissions(requestAlloc, eh);
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putInt(out, String_CONST("noOpenFiles"), sp->noOpenFiles, requestAlloc);
+    Dict_putInt(out, String_CONST("seccompExists"), sp->seccompExists, requestAlloc);
+    Dict_putInt(out, String_CONST("seccompEnforcing"), sp->seccompEnforcing, requestAlloc);
+    Dict_putInt(out, String_CONST("memoryLimitBytes"), sp->memoryLimitBytes, requestAlloc);
+    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
+    Admin_sendMessage(out, txid, admin);
+}
+
+static void checkPermissions(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* const ctx = (struct Context*) vctx;
+    struct Jmp jmp;
+    Jmp_try(jmp) {
+        checkPermissionsB(&jmp.handler, txid, ctx->admin, requestAlloc);
+    } Jmp_catch {
+        sendError(jmp.message, txid, ctx->admin);
+        return;
+    }
 }
 
 void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct Admin* admin)
@@ -72,5 +97,6 @@ void Security_admin_register(struct Allocator* alloc, struct Log* logger, struct
         { .name = "user", .required = 1, .type = "String" }
     };
     Admin_registerFunction("Security_setUser", setUser, ctx, true, setUserArgs, admin);
-    Admin_registerFunction("Security_noFiles", noFiles, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_dropPermissions", dropPermissions, ctx, true, NULL, admin);
+    Admin_registerFunction("Security_checkPermissions", checkPermissions, ctx, true, NULL, admin);
 }

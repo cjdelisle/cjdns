@@ -19,6 +19,11 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+static void unsplice()
+{
+    Assert_true(0x13 == LabelSplicer_unsplice(0x13, 1));
+}
+
 static void splice()
 {
     // 000000100
@@ -35,7 +40,7 @@ static void splice()
     printf("Splicing %" PRIu64 " with %" PRIu64 " yields %" PRIu64 ", expecting %" PRIu64 "\n",
            goHere, viaHere, out, expected);
 
-    Assert_always(expected == out);
+    Assert_true(expected == out);
 }
 
 static uint64_t routeToInterface(uint32_t number)
@@ -46,7 +51,7 @@ static uint64_t routeToInterface(uint32_t number)
 
 static void isOneHop()
 {
-    Assert_always(LabelSplicer_isOneHop(routeToInterface(0)));
+    Assert_true(LabelSplicer_isOneHop(routeToInterface(0)));
 }
 
 static void routesThrough()
@@ -55,7 +60,9 @@ static void routesThrough()
     uint64_t dest = 0x0000900aea95ca55llu;
     // 0000000000000000000000010110010100100110001110011100011001010101
     uint64_t mid =  0x000001652639c655llu;
-    Assert_always(!LabelSplicer_routesThrough(dest, mid));
+    Assert_true(!LabelSplicer_routesThrough(dest, mid));
+
+    Assert_true(LabelSplicer_routesThrough(dest, 1));
 }
 
 int main()
@@ -63,5 +70,6 @@ int main()
     splice();
     isOneHop();
     routesThrough();
+    unsplice();
     return 0;
 }

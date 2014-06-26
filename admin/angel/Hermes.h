@@ -21,6 +21,8 @@
 #include "interface/Interface.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("admin/angel/Hermes.c")
 
 /**
  * Hermes is the god of transitions and boundaries, moving freely between
@@ -46,13 +48,9 @@ typedef void (* Hermes_onResponse)(Dict* responseMessage, void* context);
  *              called, this prevents a race condition when the structure
  *              pointed to be context is freed after a call. The allocator
  *              need not be freed after the request is complete.
- * @param eh an exception handler which might raise:
- *           Hermes_callAngel_ESERIALIZE if serializing the message failed.
- *           Hermes_callAngel_ESEND if sending the message failed.
+ * @param eh an exception handler.
  * @param hermes the Hermes.
  */
-#define Hermes_callAngel_ESEND -2
-#define Hermes_callAngel_ESERIALIZE -1
 void Hermes_callAngel(Dict* message,
                       Hermes_onResponse onResponse,
                       void* onResponseContext,

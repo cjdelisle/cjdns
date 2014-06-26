@@ -16,6 +16,8 @@
 #define Timeout_H
 
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Timeout.c")
 #include <stdint.h>
 
 /** An event which will happen after a given number of milliseconds. */
@@ -35,7 +37,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
                                    struct EventBase* eventBase,
-                                   const struct Allocator* allocator);
+                                   struct Allocator* allocator);
 
 /**
  * Create a new interval event.
@@ -52,7 +54,7 @@ struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContex
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct EventBase* eventBase,
-                                    const struct Allocator* allocator);
+                                    struct Allocator* allocator);
 
 /**
  * Change an existing event to trigger after a new timeout.

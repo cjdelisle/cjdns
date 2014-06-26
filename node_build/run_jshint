@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+main()
+{
+    pwd | grep 'node_build' && cd ..
+
+    echo "Installing JSHint..."
+    npm install jshint -s || return 1
+    JSHINT="`pwd`/node_modules/jshint/bin/jshint"
+
+    echo "Running JSHint..."
+    ${JSHINT} --config node_build/.jshintrc \
+              --exclude-path .jshintignore \
+              --reporter node_build/JSHintReporter.js . || return 1
+
+    return 0
+}
+
+main

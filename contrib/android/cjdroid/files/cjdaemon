@@ -1,0 +1,77 @@
+#!/system/bin/sh
+
+CJDPATH="/sdcard/cjdns"
+
+# Create the daemon folder if it doesn't exist, then kill the script if it's still missing
+if [ ! -e "$CJDPATH" ]; then mkdir -p "$CJDPATH"; fi
+if [ ! -d "$CJDPATH" ]; then exit 1; fi
+
+if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then
+    if [ -d "/proc/$(cat /sdcard/cjdns/.cjdaemon.pid)" ]; then
+        #logging {{{
+            if [ $CJDLOG -eq 1 ]; then echo "$(date) - error: daemon already running" >> "${CJDPATH}/cjdaemon.log"; fi
+        #}}}
+        exit 1
+    fi
+fi
+
+# Set a pid file for the daemon so we know what to kill if it starts causing issues
+echo "$$" > "${CJDPATH}/.cjdaemon.pid"
+
+# Create the daemon config with default values if it doesn't exist, then source it and set any unset variables to their defaults
+if [ ! -f "${CJDPATH}/cjdaemon.conf" ]; then echo -e 'CJDCFG="cjdroute.conf"\nCJDLOG=0' > "${CJDPATH}/cjdaemon.conf"; fi
+if [ -f "${CJDPATH}/cjdaemon.conf" ]; then source "${CJDPATH}/cjdaemon.conf"; fi
+if [ -z "$CJDCFG" ]; then CJDCFG="cjdroute.conf"; fi
+if [ -z "$CJDLOG" ]; then CJDLOG=0; fi
+
+# Create the log if it doesn't exist, and if it can't be created disable logging
+if [ $CJDLOG -eq 1 ]; then if [ ! -f "${CJDPATH}/cjdaemon.log" ]; then touch "${CJDPATH}/cjdaemon.log" || CJDLOG=0; fi; fi
+
+# Function used to start cjdroute
+cjdstart() {
+    if [ -f "${CJDPATH}/.lock" ]; then
+        if [ -f "${CJDPATH}/${CJDCFG}" ] && [ $(pgrep cjdroute | wc -l) -eq 0 ]; then
+            cjdroute < "${CJDPATH}/${CJDCFG}" &> /dev/null 2>&1
+
+            #logging {{{
+                if [ $CJDLOG -eq 1 ]; then
+                    echo -n "$(date) - running: cjdroute < \"${CJDPATH}/${CJDCFG}\"... " >> "${CJDPATH}/cjdaemon.log"
+                    if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then echo "success!" >> "${CJDPATH}/cjdaemon.log"
+                    else echo "failed, cjdroute not running" >> "${CJDPATH}/cjdaemon.log"; fi
+                fi
+            #}}}
+        else
+            #logging {{{
+                if [ $CJDLOG -eq 1 ] && [ ! -f "${CJDPATH}/${CJDCFG}" ]; then echo -n "$(date) - error: failed to start cjdroute - config missing @ ${CJDPATH}/${CJDCFG}" >> "${CJDPATH}/cjdaemon.log"; fi
+            #}}}
+        fi
+    fi
+}
+
+# Function used to stop cjdroute
+cjdstop() {
+    if [ $(pgrep cjdroute | wc -l) -gt 0 ]; then
+        killall cjdroute
+
+        #logging {{{
+            if [ $CJDLOG -eq 1 ]; then
+                echo -n "$(date) - running: killall cjdroute" >> "${CJDPATH}/cjdaemon.log"
+                if [ $(pgrep cjdroute | wc -l) -eq 0 ]; then echo "success!" >> "${CJDPATH}/cjdaemon.log"; fi
+                else echo "failed, cjdroute is still running..." >> "${CJDPATH}/cjdaemon.log"
+            fi
+        #}}}
+    fi
+}
+
+# Run cjdstart when the phone wakes and cjdstop when it sleeps until the phone powers down
+while :; do
+    # Wait until the phone is awake, then start cjdroute
+    cat /sys/power/wait_for_fb_wake > /dev/null
+    cjdstart
+
+    sleep 1
+
+    # Wait until the phone sleeps, then stop cjdns
+    cat /sys/power/wait_for_fb_sleep > /dev/null
+    cjdstop
+done

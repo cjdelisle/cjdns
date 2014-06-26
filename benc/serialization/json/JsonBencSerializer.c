@@ -15,21 +15,23 @@
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "benc/Object.h"
+#include "benc/Dict.h"
+#include "benc/List.h"
+#include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Bits.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <errno.h>
 
-static int32_t parseGeneric(const struct Reader* reader,
-                            const struct Allocator* allocator,
+static int32_t parseGeneric(struct Reader* reader,
+                            struct Allocator* allocator,
                             Object** output);
-static int32_t serializeGenericWithPadding(const struct Writer* writer,
+static int32_t serializeGenericWithPadding(struct Writer* writer,
                                            size_t padSpaceCount,
                                            const Object* obj);
 
@@ -46,10 +48,10 @@ static const char* thirtyTwoSpaces = "                                ";
 #define PAD(padSpaces, padCounter, writer)                              \
     padCounter = 0;                                                     \
     while (32 < padSpaces + padCounter) {                               \
-        writer->write(thirtyTwoSpaces, 32, writer);                     \
+        Writer_write(writer, thirtyTwoSpaces, 32);                      \
         padCounter += 32;                                               \
     }                                                                   \
-    writer->write(thirtyTwoSpaces, padSpaces - padCounter, writer)
+    Writer_write(writer, thirtyTwoSpaces, padSpaces - padCounter)
 
 static inline int outOfContent()
 {
@@ -64,10 +66,10 @@ static inline int unparsable()
 #define UNPARSABLE unparsable()
 
 /** @see BencSerializer.h */
-static int32_t serializeString(const struct Writer* writer,
+static int32_t serializeString(struct Writer* writer,
                                const String* string)
 {
-    writer->write("\"", 1, writer);
+    Writer_write(writer, "\"", 1);
     size_t i;
     uint8_t chr;
     char buffer[4];
@@ -76,23 +78,23 @@ static int32_t serializeString(const struct Writer* writer,
         /* Nonprinting chars, \ and " are hex'd */
         if (chr < 126 && chr > 31 && chr != '\\' && chr != '"') {
             snprintf(buffer, 4, "%c", chr);
-            writer->write(buffer, 1, writer);
+            Writer_write(writer, buffer, 1);
         } else {
             snprintf(buffer, 4, "\\x%.2X", chr);
-            writer->write(buffer, 4, writer);
+            Writer_write(writer, buffer, 4);
         }
     }
-    return writer->write("\"", 1, writer);
+    return Writer_write(writer, "\"", 1);
 }
 
 /**
  * Read until 1 char after the target character.
  */
-static inline int readUntil(uint8_t target, const struct Reader* reader)
+static inline int readUntil(uint8_t target, struct Reader* reader)
 {
     uint8_t nextChar;
     do {
-        if (reader->read((char*)&nextChar, 1, reader)) {
+        if (Reader_read(reader, (char*)&nextChar, 1)) {
             printf("Unexpected end of input while looking for '%c'\n",target);
             return OUT_OF_CONTENT_TO_READ;
         }
@@ -100,8 +102,8 @@ static inline int readUntil(uint8_t target, const struct Reader* reader)
     return 0;
 }
 
-static inline int parseString(const struct Reader* reader,
-                              const struct Allocator* allocator,
+static inline int parseString(struct Reader* reader,
+                              struct Allocator* allocator,
                               String** output)
 {
     #define BUFF_SZ (1<<8)
@@ -110,7 +112,7 @@ static inline int parseString(const struct Reader* reader,
     int curSize = BUFF_SZ;
     struct Allocator* localAllocator = Allocator_child(allocator);
     uint8_t* buffer = Allocator_malloc(localAllocator, curSize);
-    if (readUntil('"', reader) || reader->read(buffer, 1, reader)) {
+    if (readUntil('"', reader) || Reader_read(reader, buffer, 1)) {
         printf("Unterminated string\n");
         Allocator_free(localAllocator);
         return OUT_OF_CONTENT_TO_READ;
@@ -118,9 +120,9 @@ static inline int parseString(const struct Reader* reader,
     for (int i = 0; i < BUFF_MAX - 1; i++) {
         if (buffer[i] == '\\') {
             // \x01 (skip the x)
-            reader->skip(1, reader);
+            Reader_skip(reader, 1);
             uint8_t hex[2];
-            if (reader->read((char*)hex, 2, reader)) {
+            if (Reader_read(reader, (char*)hex, 2)) {
                 printf("Unexpected end of input parsing escape sequence\n");
                 Allocator_free(localAllocator);
                 return OUT_OF_CONTENT_TO_READ;
@@ -141,7 +143,7 @@ static inline int parseString(const struct Reader* reader,
             curSize <<= 1;
             buffer = Allocator_realloc(localAllocator, buffer, curSize);
         }
-        if (reader->read(buffer + i + 1, 1, reader)) {
+        if (Reader_read(reader, buffer + i + 1, 1)) {
             if (i+1 <= 20) {
                 printf("Unterminated string \"%.*s\"\n", i+1, buffer);
             } else {
@@ -161,7 +163,7 @@ static inline int parseString(const struct Reader* reader,
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeint64_t(const struct Writer* writer,
+static int32_t serializeint64_t(struct Writer* writer,
                                 int64_t integer)
 {
     char buffer[32];
@@ -169,17 +171,17 @@ static int32_t serializeint64_t(const struct Writer* writer,
 
     snprintf(buffer, 32, "%" PRId64, integer);
 
-    return writer->write(buffer, strlen(buffer), writer);
+    return Writer_write(writer, buffer, CString_strlen(buffer));
 }
 
 /** @see BencSerializer.h */
-static int32_t parseint64_t(const struct Reader* reader,
+static int32_t parseint64_t(struct Reader* reader,
                             int64_t* output)
 {
     uint8_t buffer[32];
 
     for (int i = 0; i < 21; i++) {
-        int32_t status = reader->read(buffer + i, 0, reader);
+        int32_t status = Reader_read(reader, buffer + i, 0);
         if (i == 0 && buffer[i] == '-' && status == 0) {
             // It's just a negative number, no need to fail it.
             continue;
@@ -192,14 +194,14 @@ static int32_t parseint64_t(const struct Reader* reader,
                 printf("Failed to parse \"%s\": not a number\n",buffer);
                 return UNPARSABLE;
             }
-            if ((out == INT64_MAX || out == INT64_MIN) && Errno_get() == Errno_ERANGE) {
+            if ((out == INT64_MAX || out == INT64_MIN) && errno == ERANGE) {
                 printf("Failed to parse \"%s\": number too large/small\n",buffer);
                 return UNPARSABLE;
             }
             *output = out;
             return 0;
         }
-        reader->skip(1, reader);
+        Reader_skip(reader, 1);
     }
 
     // Larger than the max possible int64.
@@ -215,13 +217,13 @@ static int32_t parseint64_t(const struct Reader* reader,
  * @param padSpaceCount the number of spaces to place at the beginning of each line.
  * @param list the list to serialize
  */
-static int32_t serializeListWithPadding(const struct Writer* writer,
+static int32_t serializeListWithPadding(struct Writer* writer,
                                         const size_t padSpaceCount,
                                         const List* list)
 {
     int padCounter;
 
-    writer->write("[\n", 2, writer);
+    Writer_write(writer, "[\n", 2);
 
     const struct List_Item* entry = *list;
     while (entry != NULL) {
@@ -229,17 +231,17 @@ static int32_t serializeListWithPadding(const struct Writer* writer,
         serializeGenericWithPadding(writer, padSpaceCount + 2, entry->elem);
         entry = entry->next;
         if (entry != NULL) {
-            writer->write(",\n", 2, writer);
+            Writer_write(writer, ",\n", 2);
         }
     }
 
-    writer->write("\n", 1, writer);
+    Writer_write(writer, "\n", 1);
     PAD(padSpaceCount, padCounter, writer);
-    return writer->write("]", 1, writer);
+    return Writer_write(writer, "]", 1);
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeList(const struct Writer* writer,
+static int32_t serializeList(struct Writer* writer,
                              const List* list)
 {
     return serializeListWithPadding(writer, 0, list);
@@ -249,10 +251,10 @@ static int32_t serializeList(const struct Writer* writer,
  * Parse a comment in with "slash splat" or double slash notation,
  * leave the reader on the first character after the last end of comment mark.
  */
-static inline int parseComment(const struct Reader* reader)
+static inline int parseComment(struct Reader* reader)
 {
     char chars[2];
-    int ret = reader->read(&chars, 2, reader);
+    int ret = Reader_read(reader, &chars, 2);
     if (ret) {
         printf("Warning: expected comment\n");
         return OUT_OF_CONTENT_TO_READ;
@@ -265,7 +267,7 @@ static inline int parseComment(const struct Reader* reader)
         case '*':;
             do {
                 readUntil('*', reader);
-            } while (!(ret = reader->read(&chars, 1, reader)) && chars[0] != '/');
+            } while (!(ret = Reader_read(reader, &chars, 1)) && chars[0] != '/');
             if (ret) {
                 printf("Unterminated multiline comment\n");
                 return OUT_OF_CONTENT_TO_READ;
@@ -281,8 +283,8 @@ static inline int parseComment(const struct Reader* reader)
 }
 
 /** @see BencSerializer.h */
-static int32_t parseList(const struct Reader* reader,
-                         const struct Allocator* allocator,
+static int32_t parseList(struct Reader* reader,
+                         struct Allocator* allocator,
                          List* output)
 {
     char nextChar;
@@ -295,7 +297,7 @@ static int32_t parseList(const struct Reader* reader,
 
     for (;;) {
         for (;;) {
-            if (reader->read(&nextChar, 0, reader) != 0) {
+            if (Reader_read(reader, &nextChar, 0) != 0) {
                 printf("Unterminated list\n");
                 return OUT_OF_CONTENT_TO_READ;
             }
@@ -322,13 +324,13 @@ static int32_t parseList(const struct Reader* reader,
                     break;
 
                 case ']':
-                    reader->skip(1, reader);
+                    Reader_skip(reader, 1);
                     return 0;
 
                 default:
-                    // FIXME: silently skipping anything we don't understand
+                    // FIXME(gerard): silently skipping anything we don't understand
                     // might not be the best idea
-                    reader->skip(1, reader);
+                    Reader_skip(reader, 1);
                     continue;
             }
             break;
@@ -354,39 +356,39 @@ static int32_t parseList(const struct Reader* reader,
  * @param padSpaceCount the number of spaces to place at the beginning of each line.
  * @param dictionary the dictionary to serialize.
  */
-static int32_t serializeDictionaryWithPadding(const struct Writer* writer,
+static int32_t serializeDictionaryWithPadding(struct Writer* writer,
                                               size_t padSpaceCount,
                                               const Dict* dictionary)
 {
     int padCounter = 0;
-    writer->write("{\n", 2, writer);
+    Writer_write(writer, "{\n", 2);
     const struct Dict_Entry* entry = *dictionary;
     while (entry != NULL) {
         PAD(padSpaceCount + 2, padCounter, writer);
         serializeString(writer, entry->key);
-        writer->write(" : ", 3, writer);
+        Writer_write(writer, " : ", 3);
         serializeGenericWithPadding(writer, padSpaceCount + 2, entry->val);
         entry = entry->next;
         if (entry != NULL) {
-            writer->write(",\n", 2, writer);
+            Writer_write(writer, ",\n", 2);
         }
     }
 
-    writer->write("\n", 1, writer);
+    Writer_write(writer, "\n", 1);
     PAD(padSpaceCount, padCounter, writer);
-    return writer->write("}", 1, writer);
+    return Writer_write(writer, "}", 1);
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeDictionary(const struct Writer* writer,
+static int32_t serializeDictionary(struct Writer* writer,
                                    const Dict* dictionary)
 {
     return serializeDictionaryWithPadding(writer, 0, dictionary);
 }
 
 /** @see BencSerializer.h */
-static int32_t parseDictionary(const struct Reader* reader,
-                               const struct Allocator* allocator,
+static int32_t parseDictionary(struct Reader* reader,
+                               struct Allocator* allocator,
                                Dict* output)
 {
     uint8_t nextChar;
@@ -400,13 +402,13 @@ static int32_t parseDictionary(const struct Reader* reader,
 
     for (;;) {
         while (!ret) {
-            ret = reader->read(&nextChar, 0, reader);
+            ret = Reader_read(reader, &nextChar, 0);
             switch (nextChar) {
                 case '"':
                     break;
 
                 case '}':
-                    reader->skip(1, reader);
+                    Reader_skip(reader, 1);
                     *output = lastEntryPointer;
                     return 0;
 
@@ -415,7 +417,7 @@ static int32_t parseDictionary(const struct Reader* reader,
                     continue;
 
                 default:
-                    reader->skip(1, reader);
+                    Reader_skip(reader, 1);
                     continue;
             }
             break;
@@ -446,21 +448,21 @@ static int32_t parseDictionary(const struct Reader* reader,
     }
 }
 
-static int32_t parseGeneric(const struct Reader* reader,
-                            const struct Allocator* allocator,
+static int32_t parseGeneric(struct Reader* reader,
+                            struct Allocator* allocator,
                             Object** output)
 {
     int ret = 0;
     char firstChar;
 
     for (;;) {
-        ret = reader->read(&firstChar, 0, reader);
+        ret = Reader_read(reader, &firstChar, 0);
         switch (firstChar) {
             case ' ':
             case '\r':
             case '\n':
             case '\t':
-                reader->skip(1, reader);
+                Reader_skip(reader, 1);
                 continue;
 
             case '/':;
@@ -549,7 +551,7 @@ static int32_t parseGeneric(const struct Reader* reader,
  * @return -2 if the type of object cannot be determined, otherwise
  *            whatever is returned by the Writer.
  */
-static int32_t serializeGenericWithPadding(const struct Writer* writer,
+static int32_t serializeGenericWithPadding(struct Writer* writer,
                                            size_t padSpaceCount,
                                            const Object* obj)
 {

@@ -1,0 +1,13 @@
+The Ubuntu Package cjdns
+----------------------------
+
+This packaging is designed for use in daily builds and targets Ubuntu 12.04.
+I do not fill in the changelog because of that. 
+See the commit log on the repository if you need a changelog.
+
+This package includes Ubuntu-specific items like Upstart script.
+
+It does not yet include perl/python/etc libraries for cdjns administration 
+because I have no idea where to install them and how to do it properly.
+
+ -- Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>  Sat, 27 Jul 2013 14:12:18 +0400

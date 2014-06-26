@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "util/Endian.h"
+#include "util/Linker.h"
+Linker_require("util/platform/Sockaddr.c")
 
 #include <stdint.h>
 
@@ -48,7 +50,8 @@ const struct Sockaddr* const Sockaddr_LOOPBACK6;
  * Parse a sockaddr from a string, may be IP4 or IP6.
  *
  * @param str a string representation of the sockaddr.
- * @param output a sockaddr_storage to populate.
+ * @param output a sockaddr_storage to populate, if null then the validity of the string will be
+ *               checked only.
  * @return 0 if all goes well, -1 if there is an error.
  */
 int Sockaddr_parse(const char* str, struct Sockaddr_storage* out);
@@ -81,8 +84,8 @@ int Sockaddr_setPort(struct Sockaddr* sa, uint16_t port);
  * @param a sockaddr.
  * @return the AF number for this sockaddr.
  */
-const int Sockaddr_AF_INET;
-const int Sockaddr_AF_INET6;
+extern const int Sockaddr_AF_INET;
+extern const int Sockaddr_AF_INET6;
 int Sockaddr_getFamily(struct Sockaddr* sa);
 
 /**
@@ -95,21 +98,39 @@ int Sockaddr_getFamily(struct Sockaddr* sa);
  */
 int Sockaddr_getAddress(struct Sockaddr* sa, void* addrPtr);
 
+/**
+ * Get a new sockaddr from the native form, IE: sockaddr_in or sockaddr_in6.
+ */
 struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocator* alloc);
 
+/**
+ * Output the native form of a sockaddr.
+ */
 static inline void* Sockaddr_asNative(struct Sockaddr* sa)
 {
     return (void*)(&sa[1]);
 }
-
 static inline const void* Sockaddr_asNativeConst(const struct Sockaddr* sa)
 {
     return (const void*)(&sa[1]);
 }
 
+struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc);
+
+/**
+ * Contrast with Sockaddr_fromNative(), Sockaddr_fromBytes() takes
+ * input as the bytes of the address eg: Sockaddr_fromBytes({127,0,0,1}, Sockaddr_AF_INET, alloc)
+ */
+struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc);
+
 /**
  * Clone the sockaddr, the clone will use only as much memory as the type of sockaddr requires.
  */
 struct Sockaddr* Sockaddr_clone(const struct Sockaddr* addr, struct Allocator* alloc);
+
+/**
+ * Normalize inconsistent native sockaddr implementations
+ */
+void Sockaddr_normalizeNative(void* nativeSockaddr);
 
 #endif

@@ -16,7 +16,6 @@
 #include "admin/angel/InterfaceWaiter.h"
 #include "exception/Except.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
 #include "io/FileWriter.h"
@@ -35,7 +34,7 @@ struct Context
 static void timeout(void* vcontext)
 {
     struct Context* ctx = vcontext;
-    ctx->timedOut = true;
+    ctx->timedOut = 1;
     EventBase_endLoop(ctx->eventBase);
 }
 
@@ -60,8 +59,7 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
         .alloc = alloc
     };
 
-    struct Allocator* tempAlloc;
-    BufferAllocator_STACK(tempAlloc, 512);
+    struct Allocator* tempAlloc = Allocator_child(alloc);
 
     iface->receiverContext = &ctx;
     iface->receiveMessage = receiveMessage;
@@ -73,8 +71,7 @@ struct Message* InterfaceWaiter_waitForData(struct Interface* iface,
 
     Allocator_free(tempAlloc);
     if (ctx.timedOut) {
-        Except_raise(eh, InterfaceWaiter_waitForData_TIMEOUT,
-                     "InterfaceWaiter Timed out waiting for data.");
+        Except_throw(eh, "InterfaceWaiter Timed out waiting for data.");
     }
 
     Assert_true(ctx.message);

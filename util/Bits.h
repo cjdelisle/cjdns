@@ -17,12 +17,63 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
-#include "util/log/Log.h"
+#include "util/Gcc.h"
 
 #include <stdint.h>
-#include <stdbool.h>
+#include <stddef.h>
 
+/**
+ * Find first set bit in a 64 bit integer.
+ */
+static inline int Bits_ffs64(uint64_t number)
+{
+    if (!number) {
+        return 0;
+    }
+    int out = 1;
+    while (!(number & 1)) {
+        number >>= 1;
+        out++;
+    }
+    return out;
+}
+
+static inline int Bits_popCountx64(uint64_t number)
+{
+    int out = 0;
+    for (int i = 0; i < 64; i++) {
+        out += ((number >> i) & 1);
+    }
+    return out;
+}
+
+static inline int Bits_popCountx32(uint32_t number)
+{
+    int out = 0;
+    for (int i = 0; i < 32; i++) {
+        out += ((number >> i) & 1);
+    }
+    return out;
+}
+
+// TODO(cjd): this is hot, optimize this to use the ASM instruction.
 static inline int Bits_log2x64(uint64_t number)
+{
+    int out = 0;
+    while (number >>= 1) {
+        out++;
+    }
+    return out;
+}
+
+/** Largest possible number whose log2 is bitCount. */
+static inline uint64_t Bits_maxBits64(uint32_t bitCount)
+{
+    Assert_ifParanoid(bitCount < 64);
+    return (((uint64_t)1) << bitCount) - 1;
+}
+
+static inline int Bits_log2x32(uint32_t number)
 {
     int out = 0;
     while (number >>= 1) {
@@ -62,39 +113,47 @@ static inline uint64_t Bits_bitReverse64(uint64_t toReverse)
  * @length the nuber of bytes to check for zero'd-ness.
  * @return true if all bytes checked are zero.
  */
-static inline bool Bits_isZero(void* buffer, size_t length)
+static inline int Bits_isZero(void* buffer, size_t length)
 {
     uint8_t* buff = (uint8_t*) buffer;
     for (size_t i = 0; i < length; i++) {
         if (buff[i]) {
-            return false;
+            return 0;
         }
     }
-    return true;
+    return 1;
 }
 
 
 static inline void* Bits_memmove(void* dest, const void* src, size_t length)
 {
-    void* memmove(void* dest, const void* src, size_t length);
+    #ifndef memmove
+        void* memmove(void* dest, const void* src, size_t length);
+    #endif
     return memmove(dest, src, length);
 }
 
 static inline void* Bits_memset(void* location, int byte, size_t count)
 {
-    void* memset(void* location, int byte, size_t count);
+    #ifndef memset
+        void* memset(void* location, int byte, size_t count);
+    #endif
     return memset(location, byte, count);
 }
 
 static inline int Bits_memcmp(const void* loc1, const void* loc2, size_t length)
 {
-    int memcmp(const void* loc1, const void* loc2, size_t length);
+    #ifndef memcmp
+        int memcmp(const void* loc1, const void* loc2, size_t length);
+    #endif
     return memcmp(loc1, loc2, length);
 }
 
 static inline void* Bits_memcpyNoDebug(void* restrict out, const void* restrict in, size_t length)
 {
-    void* memcpy(void* restrict out, const void* restrict in, size_t length);
+    #ifndef memcpy
+        void* memcpy(void* restrict out, const void* restrict in, size_t length);
+    #endif
     return memcpy(out, in, length);
 }
 
@@ -117,8 +176,7 @@ static inline void* Bits_memcpyDebug(void* out,
     const char* outc = out;
     // Check that pointers don't alias.
     if (outc >= inc && outc < inc + length) {
-        fprintf(stderr, "%s:%d memcpy() pointers alias each other\n", file, line);
-        Assert_always(0);
+        Assert_failure(file, line, "memcpy() pointers alias each other");
     }
     return Bits_memcpyNoDebug(out, in, length);
 }
@@ -131,8 +189,8 @@ static inline void* Bits_memcpyDebug(void* out,
  * @param in the buffer to read from.
  * @param length the number of bytes to copy.
  */
-#ifdef Log_DEBUG
-    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, __FILE__, __LINE__)
+#ifdef PARANOIA
+    #define Bits_memcpy(a, b, c) Bits_memcpyDebug(a, b, c, Gcc_SHORT_FILE, Gcc_LINE)
 #else
     #define Bits_memcpy(a,b,c) Bits_memcpyNoDebug(a,b,c)
 #endif

@@ -16,9 +16,9 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "benc/Dict.h"
+#include "benc/List.h"
 #include "crypto/Key.h"
 #include "memory/Allocator.h"
-#include "memory/BufferAllocator.h"
 #include "tunnel/IpTunnel.h"
 #include "tunnel/IpTunnel_admin.h"
 #include "util/platform/Sockaddr.h"
@@ -48,7 +48,10 @@ static void sendError(char* error, String* txid, struct Admin* admin)
     Admin_sendMessage(&resp, txid, admin);
 }
 
-static void allowConnection(Dict* args, void* vcontext, String* txid)
+static void allowConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* context = (struct Context*) vcontext;
     String* publicKeyOfAuthorizedNode =
@@ -90,7 +93,7 @@ static void allowConnection(Dict* args, void* vcontext, String* txid)
 }
 
 
-static void connectTo(Dict* args, void* vcontext, String* txid)
+static void connectTo(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
     String* publicKeyOfNodeToConnectTo =
@@ -107,7 +110,10 @@ static void connectTo(Dict* args, void* vcontext, String* txid)
     sendResponse(conn, txid, context->admin);
 }
 
-static void removeConnection(Dict* args, void* vcontext, String* txid)
+static void removeConnection(Dict* args,
+                             void* vcontext,
+                             String* txid,
+                             struct Allocator* requestAlloc)
 {
     struct Context* context = vcontext;
 /*
@@ -120,11 +126,12 @@ static void removeConnection(Dict* args, void* vcontext, String* txid)
     sendError("not implemented", txid, context->admin);
 }
 
-static void listConnections(Dict* args, void* vcontext, String* txid)
+static void listConnections(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* alloc)
 {
     struct Context* context = vcontext;
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
     List* l = NULL;
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         l = List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
@@ -136,10 +143,11 @@ static void listConnections(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&resp, txid, context->admin);
 }
 
-static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admin* admin)
+static void showConn(struct IpTunnel_Connection* conn,
+                     String* txid,
+                     struct Admin* admin,
+                     struct Allocator* alloc)
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 1024);
     Dict* d = Dict_new(alloc);
 
     if (!Bits_isZero(conn->connectionIp6, 16)) {
@@ -167,14 +175,14 @@ static void showConn(struct IpTunnel_Connection* conn, String* txid, struct Admi
     Admin_sendMessage(d, txid, admin);
 }
 
-static void showConnection(Dict* args, void* vcontext, String* txid)
+static void showConnection(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = vcontext;
     int connNum = (int) *(Dict_getInt(args, String_CONST("connection")));
 
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
         if (connNum == context->ipTun->connectionList.connections[i].number) {
-            showConn(&context->ipTun->connectionList.connections[i], txid, context->admin);
+            showConn(&context->ipTun->connectionList.connections[i], txid, context->admin, alloc);
             return;
         }
     }

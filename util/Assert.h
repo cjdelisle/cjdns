@@ -15,9 +15,9 @@
 #ifndef Assert_H
 #define Assert_H
 
-#include "util/UniqueName.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("util/Assert.c")
 
 #define Assert_STRING(x) #x
 
@@ -28,22 +28,36 @@
  * Thanks to http://www.jaggersoft.com/pubs/CVu11_3.html
  */
 #define Assert_compileTime(isTrue) \
-    struct UniqueName_get() { unsigned int assertFailed : (isTrue); }
+    void Assert_compileTime(char x[1 - (!(isTrue))])
 
+Gcc_PRINTF(1, 2)
+Gcc_NORETURN
+void Assert_failure(const char* format, ...);
 
-/** Runtime assertion which is always applied. */
-#define Assert_always(expr) do { \
-        if (!(expr)) { \
-            fprintf(stderr, "%s:%d Assertion failed: %s\n", \
-                    __FILE__, __LINE__, Assert_STRING(expr)); \
-            abort(); \
-        } \
+#define Assert_fileLine(expr, file, line) do { \
+        if (!(expr)) {                                                                   \
+            Assert_failure("Assertion failure [%s:%d] [%s]\n", (file), (line),           \
+                           #expr);                                                       \
+        }                                                                                \
     } while (0)
 /* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
 
-// Turn off assertions when the code is more stable.
-#define Assert_true(expr) Assert_always(expr)
 
+/** Runtime assertion which is always applied. */
+#define Assert_true(expr) Assert_fileLine((expr), Gcc_SHORT_FILE, Gcc_LINE)
+
+#ifdef PARANOIA
+    #define Assert_ifParanoid(expr) Assert_true(expr)
 #else
-#include "util/UniqueName.h"
+    #define Assert_ifParanoid(expr) do { } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
+#endif
+
+#ifdef TESTING
+    #define Assert_ifTesting(expr) Assert_true(expr)
+#else
+    #define Assert_ifTesting(expr) do { } while (0)
+/* CHECKFILES_IGNORE a ; is expected after the while(0) but it will be supplied by the caller */
+#endif
+
 #endif

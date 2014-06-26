@@ -15,6 +15,7 @@
 #include "admin/AdminClient.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/cloner/Cloner.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "exception/Except.h"
@@ -23,43 +24,56 @@
 #include "io/Reader.h"
 #include "io/Writer.h"
 #include "util/Bits.h"
-#include "util/platform/libc/strlen.h"
 #include "util/Endian.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
 #include "wire/Message.h"
 
-#include <stdio.h>
 #include <crypto_hash_sha256.h>
 
-struct AdminClient
-{
-    /**
-     * This is unused but if there are ever public fields in AdminClient,
-     * this will be replaced with those and this structure will be moved to AdminClient.h
-     * currently it just prevents an empty struct error.
-     */
-    int placeholder;
-};
+#include <stdio.h>
+#include <stdlib.h>
 
-struct Result
+struct Request;
+
+typedef void (* AdminClient_RespHandler)(struct Request* req);
+
+struct Request
 {
-    struct AdminClient_Result public;
+    struct AdminClient_Result res;
+    struct AdminClient_Promise* promise;
+    AdminClient_RespHandler callback;
     struct Context* ctx;
     struct Allocator* alloc;
+
+    /** Need a special allocator for the timeout so it can be axed before the request is complete */
+    struct Allocator* timeoutAlloc;
+    struct Timeout* timeout;
+
+    Dict* requestMessage;
+
+    /** the handle in the ctx->outstandingRequests map */
+    uint32_t handle;
+
+    Identity
 };
+
+#define Map_NAME OfRequestByHandle
+#define Map_ENABLE_HANDLES
+#define Map_VALUE_TYPE struct Request*
+#include "util/Map.h"
 
 struct Context
 {
-    struct AdminClient public;
+    struct AdminClient pub;
     struct EventBase* eventBase;
-    struct Sockaddr* targetAddr;
-    struct Result* result;
     struct AddrInterface* addrIface;
+    struct Sockaddr* targetAddr;
     struct Log* logger;
     String* password;
+    struct Map_OfRequestByHandle outstandingRequests;
+    struct Allocator* alloc;
     Identity
 };
 
@@ -74,7 +88,7 @@ static int calculateAuth(Dict* message,
     uint32_t cookie = (cookieStr != NULL) ? strtoll(cookieStr->bytes, NULL, 10) : 0;
     snprintf((char*) passAndCookie, 64, "%s%u", password->bytes, cookie);
     uint8_t hash[32];
-    crypto_hash_sha256(hash, passAndCookie, strlen((char*) passAndCookie));
+    crypto_hash_sha256(hash, passAndCookie, CString_strlen((char*) passAndCookie));
     Hex_encode((uint8_t*)hashHex->bytes, 64, hash, 32);
 
     Dict_putString(message, String_new("hash", alloc), hashHex, alloc);
@@ -86,7 +100,7 @@ static int calculateAuth(Dict* message,
     if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
         return -1;
     }
-    int length = writer->bytesWritten(writer);
+    int length = writer->bytesWritten;
 
     // calculate the hash of the message with the password hash
     crypto_hash_sha256(hash, buffer, length);
@@ -97,120 +111,185 @@ static int calculateAuth(Dict* message,
     return 0;
 }
 
-static void done(struct Context* ctx, enum AdminClient_Error err)
+static void done(struct Request* req, enum AdminClient_Error err)
 {
-    ctx->result->public.err = err;
-    EventBase_endLoop(ctx->eventBase);
+    req->res.err = err;
+    req->callback(req);
+    Allocator_free(req->timeoutAlloc);
 }
 
-static void timeout(void* vcontext)
+static void timeout(void* vreq)
 {
-    done((struct Context*) vcontext, AdminClient_Error_TIMEOUT);
-}
-
-static void doCall(Dict* message, struct Result* res, bool getCookie)
-{
-    String* cookie = NULL;
-    if (!getCookie) {
-        Dict gc = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("cookie")), NULL);
-        doCall(&gc, res, true);
-        if (res->public.err != AdminClient_Error_NONE) {
-            return;
-        }
-        cookie = Dict_getString(res->public.responseDict, String_CONST("cookie"));
-        if (!cookie) {
-            res->public.err = AdminClient_Error_NO_COOKIE;
-        }
-    }
-
-    struct Writer* writer =
-        ArrayWriter_new(res->public.messageBytes, AdminClient_MAX_MESSAGE_SIZE, res->alloc);
-    if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-        res->public.err = AdminClient_Error_SERIALIZATION_FAILED;
-        return;
-    }
-
-    if (!getCookie) {
-        calculateAuth(message, res->ctx->password, cookie, res->alloc);
-
-        writer = ArrayWriter_new(res->public.messageBytes,
-                                 AdminClient_MAX_MESSAGE_SIZE,
-                                 res->alloc);
-        if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-            res->public.err = AdminClient_Error_SERIALIZATION_FAILED;
-            return;
-        }
-    }
-
-    struct Timeout* to =
-        Timeout_setTimeout(timeout, res->ctx, 5000, res->ctx->eventBase, res->alloc);
-
-    struct Message m = {
-        .bytes = res->public.messageBytes,
-        .padding = AdminClient_Result_PADDING_SIZE,
-        .length = writer->bytesWritten(writer)
-    };
-    Message_push(&m, res->ctx->targetAddr, res->ctx->targetAddr->addrLen);
-    res->ctx->addrIface->generic.sendMessage(&m, &res->ctx->addrIface->generic);
-
-    EventBase_beginLoop(res->ctx->eventBase);
-
-    Timeout_clearTimeout(to);
+    done((struct Request*) vreq, AdminClient_Error_TIMEOUT);
 }
 
 static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
 {
-    struct Context* ctx = Identity_cast((struct Context*) iface->receiverContext);
-    // Since this is a blocking api, one result per context.
-    struct Result* res = ctx->result;
+    struct Context* ctx = Identity_check((struct Context*) iface->receiverContext);
 
     struct Sockaddr_storage source;
-    Message_pop(msg, &source, ctx->targetAddr->addrLen);
+    Message_pop(msg, &source, ctx->targetAddr->addrLen, NULL);
     if (Bits_memcmp(&source, ctx->targetAddr, ctx->targetAddr->addrLen)) {
         Log_info(ctx->logger, "Got spurious message from [%s], expecting messages from [%s]",
-                 Sockaddr_print(&source.addr, res->alloc),
-                 Sockaddr_print(ctx->targetAddr, res->alloc));
+                 Sockaddr_print(&source.addr, msg->alloc),
+                 Sockaddr_print(ctx->targetAddr, msg->alloc));
         return 0;
     }
 
-    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, res->alloc);
-    Dict* d = Dict_new(res->alloc);
-    if (StandardBencSerializer_get()->parseDictionary(reader, res->alloc, d)) {
-        done(ctx, AdminClient_Error_DESERIALIZATION_FAILED);
-        return 0;
-    }
-    res->public.responseDict = d;
+    // we don't yet know with which message this data belongs,
+    // the message alloc lives the length of the message reception.
+    struct Allocator* alloc = Allocator_child(msg->alloc);
+
+    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, alloc);
+    Dict* d = Dict_new(alloc);
+    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, d)) { return 0; }
+
+    String* txid = Dict_getString(d, String_CONST("txid"));
+    if (!txid || txid->len != 8) { return 0; }
+
+    // look up the result
+    uint32_t handle = ~0u;
+    Hex_decode((uint8_t*)&handle, 4, txid->bytes, 8);
+    int idx = Map_OfRequestByHandle_indexForHandle(handle, &ctx->outstandingRequests);
+    if (idx < 0) { return 0; }
+
+    struct Request* req = ctx->outstandingRequests.values[idx];
+
+    // now this data will outlive the life of the message.
+    Allocator_adopt(req->promise->alloc, alloc);
+
+    req->res.responseDict = d;
 
     int len =
         (msg->length > AdminClient_MAX_MESSAGE_SIZE) ? AdminClient_MAX_MESSAGE_SIZE : msg->length;
-    Bits_memset(res->public.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
-    Bits_memcpy(res->public.messageBytes, msg->bytes, len);
-    done(ctx, AdminClient_Error_NONE);
+    Bits_memset(req->res.messageBytes, 0, AdminClient_MAX_MESSAGE_SIZE);
+    Bits_memcpy(req->res.messageBytes, msg->bytes, len);
+    done(req, AdminClient_Error_NONE);
     return 0;
 }
 
-struct AdminClient_Result* AdminClient_rpcCall(String* function,
-                                               Dict* args,
-                                               struct AdminClient* client,
-                                               struct Allocator* alloc)
+static int requestOnFree(struct Allocator_OnFreeJob* job)
 {
-    struct Context* ctx = Identity_cast((struct Context*) client);
+    struct Request* req = Identity_check((struct Request*) job->userData);
+    int idx = Map_OfRequestByHandle_indexForHandle(req->handle, &req->ctx->outstandingRequests);
+    if (idx > -1) {
+        Map_OfRequestByHandle_remove(idx, &req->ctx->outstandingRequests);
+    }
+    return 0;
+}
+
+static struct Request* sendRaw(Dict* messageDict,
+                               struct AdminClient_Promise* promise,
+                               struct Context* ctx,
+                               String* cookie,
+                               AdminClient_RespHandler callback)
+{
+    struct Allocator* reqAlloc = Allocator_child(promise->alloc);
+    struct Request* req = Allocator_clone(reqAlloc, (&(struct Request) {
+        .alloc = reqAlloc,
+        .ctx = ctx,
+        .promise = promise
+    }));
+    Identity_set(req);
+
+    int idx = Map_OfRequestByHandle_put(&req, &ctx->outstandingRequests);
+    req->handle = ctx->outstandingRequests.handles[idx];
+
+    String* id = String_newBinary(NULL, 8, req->alloc);
+    Hex_encode(id->bytes, 8, (int8_t*) &req->handle, 4);
+    Dict_putString(messageDict, String_CONST("txid"), id, req->alloc);
+
+    if (cookie) {
+        Assert_true(!calculateAuth(messageDict, ctx->password, cookie, req->alloc));
+    }
+
+    struct Writer* writer =
+        ArrayWriter_new(req->res.messageBytes, AdminClient_MAX_MESSAGE_SIZE, req->alloc);
+    if (StandardBencSerializer_get()->serializeDictionary(writer, messageDict)) {
+        done(req, AdminClient_Error_SERIALIZATION_FAILED);
+        return NULL;
+    }
+
+    req->timeoutAlloc = Allocator_child(req->alloc);
+    req->timeout = Timeout_setTimeout(timeout,
+                                      req,
+                                      ctx->pub.millisecondsToWait,
+                                      ctx->eventBase,
+                                      req->timeoutAlloc);
+    Allocator_onFree(req->timeoutAlloc, requestOnFree, req);
+
+    req->callback = callback;
+
+    struct Message m = {
+        .bytes = req->res.messageBytes,
+        .padding = AdminClient_Result_PADDING_SIZE,
+        .length = writer->bytesWritten
+    };
+    Message_push(&m, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
+
+    struct Allocator* child = Allocator_child(req->alloc);
+    struct Message* msg = Message_clone(&m, child);
+    Interface_sendMessage(&ctx->addrIface->generic, msg);
+    Allocator_free(child);
+
+    return req;
+}
+
+static void requestCallback(struct Request* req)
+{
+    if (req->promise->callback) {
+        req->promise->callback(req->promise, &req->res);
+    }
+    Allocator_free(req->promise->alloc);
+}
+
+static void cookieCallback(struct Request* req)
+{
+    if (req->res.err) {
+        requestCallback(req);
+        return;
+    }
+    String* cookie = Dict_getString(req->res.responseDict, String_CONST("cookie"));
+    if (!cookie) {
+        req->res.err = AdminClient_Error_NO_COOKIE;
+        requestCallback(req);
+        return;
+    }
+
+    Dict* message = req->requestMessage;
+    sendRaw(message, req->promise, req->ctx, cookie, requestCallback);
+    Allocator_free(req->alloc);
+}
+
+static struct AdminClient_Promise* doCall(Dict* message,
+                                          struct Context* ctx,
+                                          struct Allocator* alloc)
+{
+    struct Allocator* promiseAlloc = Allocator_child(alloc);
+    struct AdminClient_Promise* promise =
+        Allocator_calloc(promiseAlloc, sizeof(struct AdminClient_Promise), 1);
+    promise->alloc = promiseAlloc;
+
+    Dict gc = Dict_CONST(String_CONST("q"), String_OBJ(String_CONST("cookie")), NULL);
+    struct Request* req = sendRaw(&gc, promise, ctx, NULL, cookieCallback);
+
+    req->requestMessage = Cloner_cloneDict(message, promiseAlloc);
+    return promise;
+}
+
+struct AdminClient_Promise* AdminClient_rpcCall(String* function,
+                                                Dict* args,
+                                                struct AdminClient* client,
+                                                struct Allocator* alloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) client);
     Dict a = (args) ? *args : NULL;
     Dict message = Dict_CONST(
         String_CONST("q"), String_OBJ(String_CONST("auth")), Dict_CONST(
         String_CONST("aq"), String_OBJ(function), Dict_CONST(
         String_CONST("args"), Dict_OBJ(&a), NULL
     )));
-    struct Result* res = Allocator_clone(alloc, (&(struct Result) {
-        .public = {
-            .err = AdminClient_Error_NONE
-        },
-        .ctx = ctx,
-        .alloc = alloc
-    }));
-    ctx->result = res;
-    doCall(&message, res, false);
-    return &res->public;
+    return doCall(&message, ctx, alloc);
 }
 
 char* AdminClient_errorString(enum AdminClient_Error err)
@@ -247,6 +326,13 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
         .eventBase = eventBase,
         .logger = logger,
         .password = adminPassword,
+        .pub = {
+            .millisecondsToWait = 5000,
+        },
+        .outstandingRequests = {
+            .allocator = alloc
+        },
+        .alloc = alloc
     }));
     Identity_set(context);
 
@@ -266,5 +352,5 @@ struct AdminClient* AdminClient_new(struct Sockaddr* connectToAddress,
     context->addrIface->generic.receiveMessage = receiveMessage;
     context->addrIface->generic.receiverContext = context;
 
-    return &context->public;
+    return &context->pub;
 }

@@ -18,10 +18,10 @@
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
-
+#include "crypto/random/Random.h"
 #include "util/events/EventBase.h"
-
-#define Pinger_MAX_CONCURRENT_PINGS 256
+#include "util/Linker.h"
+Linker_require("util/Pinger.c")
 
 /**
  * On pong received callback.
@@ -57,6 +57,9 @@ struct Pinger_Ping
      */
     struct Allocator* pingAlloc;
 
+    /** How the ping will be identified on the wire. */
+    uint32_t handle;
+
     /**
      * This is NULL by default and is set by the caller of Pinger_ping(),
      * when sendPing() and onResponse() are called, whatever this is, will be passed to them.
@@ -69,6 +72,7 @@ struct Pinger_Ping
  * @param onResponse this function will be called when the ping is responded to or times out.
  * @param sendPing the function which will be called to send the ping out to the other node.
  * @param timeoutMilliseconds the number of milliseconds to wait before timeout.
+ * @param allocator cancel the ping by freeing this allocator.
  * @param pinger
  * @return a new Pinger_Ping if all goes well, NULL if there is no space.
  */
@@ -76,16 +80,8 @@ struct Pinger_Ping* Pinger_newPing(String* data,
                                    Pinger_ON_RESPONSE(onResponse),
                                    Pinger_SEND_PING(sendPing),
                                    uint32_t timeoutMilliseconds,
+                                   struct Allocator* allocator,
                                    struct Pinger* pinger);
-
-/**
- * Once the ping has been allocated, send it.
- * This is split into two functions so they caller can allocate a structure using thie ping's
- * allocator and guarantee that the structure will be cleaned up after the ping is complete.
- *
- * @param ping the ping to send.
- */
-void Pinger_sendPing(struct Pinger_Ping* ping);
 
 /**
  * Function to call when data comes in which appears to be a ping response.
@@ -103,6 +99,7 @@ void Pinger_pongReceived(String* data, struct Pinger* pinger);
  * @param alloc
  */
 struct Pinger* Pinger_new(struct EventBase* eventBase,
+                          struct Random* rand,
                           struct Log* logger,
                           struct Allocator* alloc);
 

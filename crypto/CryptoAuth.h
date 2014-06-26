@@ -22,6 +22,8 @@
 #include "util/Endian.h"
 #include "util/log/Log.h"
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("crypto/CryptoAuth.c")
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -65,7 +67,7 @@ struct CryptoAuth_Wrapper;
 #define CryptoAuth_addUser_DUPLICATE         -3
 int32_t CryptoAuth_addUser(String* password,
                            uint8_t authType,
-                           void* user,
+                           String* user,
                            struct CryptoAuth* context);
 
 /**
@@ -75,7 +77,16 @@ int32_t CryptoAuth_addUser(String* password,
  * @param user the identifier which was passed to addUser(), all users with this id will be removed.
  * @return the number of users removed.
  */
-int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
+int CryptoAuth_removeUsers(struct CryptoAuth* context, String* user);
+
+/**
+ * Get a list of all the users added via addUser.
+ *
+ * @param context the context used to call addUser.
+ * @param alloc the Allocator to use to create the usersOut array.
+ * @returns List* containing the user String's
+ */
+List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc);
 
 /**
  * Get the user object associated with the authenticated session or NULL if there is none.
@@ -86,7 +97,7 @@ int CryptoAuth_removeUsers(struct CryptoAuth* context, void* user);
  * @return the user object added by calling CryptoAuth_addUser() or NULL if this session is not
  *         authenticated.
  */
-void* CryptoAuth_getUser(struct Interface* iface);
+String* CryptoAuth_getUser(struct Interface* iface);
 
 /**
  * Create a new crypto authenticator.
@@ -108,20 +119,25 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
 /**
  * Wrap an interface with crypto authentication.
  *
+ * NOTE: Sending empty packets during the handshake is not allowed!
+ *       Empty packets are used for signaling during the handshake so they can
+ *       only be used while the session is in state ESTABLISHED.
+ *
  * @param toWarp the interface to wrap
  * @param herPublicKey the public key of the other party or NULL if unknown.
+ * @param herIp6 the ipv6 address of the other party
  * @param requireAuth if the remote end of this interface begins the connection, require
  *                    them to present valid authentication credentials to connect.
  *                    If this end begins the connection, this parameter has no effect.
- * @param authenticatePackets if true, all packets will be protected against forgery and replay
- *                            attacks, this is a seperate system from password and authType.
+ * @param name a name for this CA which will appear in logs.
  * @param context the CryptoAuth context.
  */
 struct Interface* CryptoAuth_wrapInterface(struct Interface* toWrap,
                                            const uint8_t herPublicKey[32],
+                                           const uint8_t herIp6[16],
                                            const bool requireAuth,
-                                           bool authenticatePackets,
-                                           struct CryptoAuth* context);
+                                           char* name,
+                                           struct CryptoAuth* ca);
 
 /**
  * Choose the authentication credentials to use.
@@ -143,6 +159,7 @@ uint8_t* CryptoAuth_getHerPublicKey(struct Interface* iface);
 /** Reset the session's state to CryptoAuth_NEW, a new connection will be negotiated. */
 void CryptoAuth_reset(struct Interface* iface);
 
+void CryptoAuth_resetIfTimeout(struct Interface* iface);
 
 /** New CryptoAuth session, has not sent or received anything. */
 #define CryptoAuth_NEW         0
@@ -158,6 +175,21 @@ void CryptoAuth_reset(struct Interface* iface);
 
 /** The CryptoAuth session has successfully done a handshake and received at least one message. */
 #define CryptoAuth_ESTABLISHED 4
+
+/** The number of states */
+#define CryptoAuth_STATE_COUNT 5
+
+static inline char* CryptoAuth_stateString(int state)
+{
+    switch (state) {
+        case CryptoAuth_NEW:         return "CryptoAuth_NEW";
+        case CryptoAuth_HANDSHAKE1:  return "CryptoAuth_HANDSHAKE1";
+        case CryptoAuth_HANDSHAKE2:  return "CryptoAuth_HANDSHAKE2";
+        case CryptoAuth_HANDSHAKE3:  return "CryptoAuth_HANDSHAKE3";
+        case CryptoAuth_ESTABLISHED: return "CryptoAuth_ESTABLISHED";
+        default: return "INVALID";
+    }
+}
 
 /**
  * Get the state of the CryptoAuth session.
@@ -180,5 +212,10 @@ int CryptoAuth_getState(struct Interface* iface);
  * @return the opposite.
  */
 struct Interface* CryptoAuth_getConnectedInterface(struct Interface* iface);
+
+/**
+ * Get the structure which is used to protect against packet replay attacks.
+ */
+struct ReplayProtector* CryptoAuth_getReplayProtector(struct Interface* iface);
 
 #endif

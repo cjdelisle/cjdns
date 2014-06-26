@@ -17,6 +17,9 @@
 
 #include "interface/Interface.h"
 #include "interface/InterfaceController.h"
+#include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("interface/MultiInterface.c")
 
 /*
  * An Interface such as Ethernet or UDP which may connect to multiple peers
@@ -41,5 +44,6 @@ struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void
 
 struct MultiInterface* MultiInterface_new(int keySize,
                                           struct Interface* external,
-                                          struct InterfaceController* ic);
+                                          struct InterfaceController* ic,
+                                          struct Log* logger);
 #endif

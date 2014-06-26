@@ -1,0 +1,28 @@
+# Last Modified: Wed Aug 28 16:23:24 2013
+# Written by Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
+
+# This profile was not tested for compatibility with IPv4-over-cjdns setups!
+# If it doesn't work for you, e.g. if it's outdated 
+# or if you have a non-standard setup, running aa-logprof should fix it.
+
+#include <tunables/global>
+
+/usr/bin/cjdroute {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  capability net_admin,
+  capability setuid,
+
+
+
+  / r,
+  /dev/net/tun rw,
+  /etc/passwd mr,
+  /proc/sys/kernel/random/uuid r,
+  /tmp/cjdns_pipe_* rw,
+  /usr/bin/cjdroute mrix,
+
+# if you choose to use a pidfile, you'll have to speficy it here as well
+
+}

@@ -17,6 +17,8 @@
 #include "interface/InterfaceController.h"
 #include "memory/Allocator.h"
 #include "util/Identity.h"
+#include "util/log/Log.h"
+#include "util/Hex.h"
 
 /*
  * An Interface such as Ethernet or UDP which may connect to multiple peers
@@ -85,26 +87,29 @@ struct MultiInterface_pvt
 
     struct MapKey* workSpace;
 
+    struct Log* logger;
+
     Identity
 };
 
 static uint8_t sendMessage(struct Message* msg, struct Interface* peerIface)
 {
-    struct Peer* p = Identity_cast((struct Peer*) peerIface);
-    Message_push(msg, p->key.bytes, p->key.keySize);
+    struct Peer* p = Identity_check((struct Peer*) peerIface);
+    Message_push(msg, p->key.bytes, p->key.keySize, NULL);
     return p->multiIface->iface->sendMessage(msg, p->multiIface->iface);
 }
 
-static void removePeer(void* vpeer)
+static int removePeer(struct Allocator_OnFreeJob* job)
 {
-    struct Peer* p = Identity_cast((struct Peer*) vpeer);
-    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) p->multiIface);
+    struct Peer* p = Identity_check((struct Peer*) job->userData);
+    struct MultiInterface_pvt* mif = Identity_check((struct MultiInterface_pvt*) p->multiIface);
     struct Map_OfPeersByKey* peerMap = &mif->peerMap;
     for (int i = 0; i < (int)peerMap->count; i++) {
         if (peerMap->values[i] == p) {
             Map_OfPeersByKey_remove(i, peerMap);
         }
     }
+    return 0;
 }
 
 static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
@@ -115,6 +120,12 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
     if (index >= 0) {
         return mif->peerMap.values[index];
     }
+
+    #ifdef Log_DEBUG
+        uint8_t keyHex[256] = {0};
+        Assert_true(Hex_encode(keyHex, 255, (uint8_t*)key, key->keySize+4));
+        Log_debug(mif->logger, "New incoming message from [%s]", keyHex);
+    #endif
 
     // Per peer allocator.
     struct Allocator* alloc = Allocator_child(mif->allocator);
@@ -150,22 +161,21 @@ static inline struct Peer* peerForKey(struct MultiInterface_pvt* mif,
 static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 {
     struct MultiInterface_pvt* mif =
-        Identity_cast((struct MultiInterface_pvt*) external->receiverContext);
+        Identity_check((struct MultiInterface_pvt*) external->receiverContext);
 
     // push the key size to the message.
-    Message_push(msg, &mif->pub.keySize, 4);
+    Message_push(msg, &mif->pub.keySize, 4, NULL);
 
     struct Peer* p = peerForKey(mif, (struct MapKey*) msg->bytes, true);
 
     // pop the key size and key
-    Message_shift(msg, -(mif->pub.keySize + 4));
+    Message_shift(msg, -(mif->pub.keySize + 4), NULL);
 
     // into the core.
-    uint8_t ret = p->internalIf.receiveMessage(msg, &p->internalIf);
+    uint8_t ret = Interface_receiveMessage(&p->internalIf, msg);
 
-    enum InterfaceController_PeerState state =
-        InterfaceController_getPeerState(mif->ic, &p->internalIf);
-    if (state == InterfaceController_PeerState_UNAUTHENTICATED) {
+    struct InterfaceController_Peer* icPeer = InterfaceController_getPeer(mif->ic, &p->internalIf);
+    if (icPeer->state == InterfaceController_PeerState_UNAUTHENTICATED) {
         // some random stray packet wandered in to the interface....
         // This removes all of the state associated with the endpoint.
         Allocator_free(p->internalIf.allocator);
@@ -176,7 +186,7 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* external)
 
 struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void* key)
 {
-    struct MultiInterface_pvt* mif = Identity_cast((struct MultiInterface_pvt*) mIface);
+    struct MultiInterface_pvt* mif = Identity_check((struct MultiInterface_pvt*) mIface);
     mif->workSpace->keySize = mif->pub.keySize;
     Bits_memcpy(mif->workSpace->bytes, key, mif->pub.keySize);
     struct Peer* p = peerForKey(mif, mif->workSpace, false);
@@ -185,7 +195,8 @@ struct Interface* MultiInterface_ifaceForKey(struct MultiInterface* mIface, void
 
 struct MultiInterface* MultiInterface_new(int keySize,
                                           struct Interface* external,
-                                          struct InterfaceController* ic)
+                                          struct InterfaceController* ic,
+                                          struct Log* logger)
 {
     Assert_true(!(keySize % 4));
     Assert_true(keySize > 4);
@@ -197,7 +208,8 @@ struct MultiInterface* MultiInterface_new(int keySize,
             },
             .peerMap = { .allocator = external->allocator },
             .ic = ic,
-            .allocator = external->allocator
+            .allocator = external->allocator,
+            .logger = logger
         }));
     Identity_set(out);
 

@@ -19,6 +19,8 @@
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("crypto/random/libuv/LibuvEntropyProvider.c")
 
 struct LibuvEntropyProvider;
 

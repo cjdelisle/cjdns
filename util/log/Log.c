@@ -14,15 +14,43 @@
  */
 
 #include "util/log/Log.h"
+#include "util/log/Log_impl.h"
+#include "util/CString.h"
 
-#ifdef Illumos
-    #define _XPG4_2
-#endif
-#include <strings.h>
+#include <stdarg.h>
 
-#ifdef WIN32
-    #define strcasecmp strcmp
-#endif
+void Log_print(struct Log* log,
+               enum Log_Level logLevel,
+               const char* file,
+               int line,
+               const char* format,
+               ...)
+{
+    static int inLogger;
+    static int droppedMessages;
+    if (inLogger++) {
+        // return prevent stack overflow.
+        droppedMessages++;
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+    log->print(log, logLevel, file, line, format, args);
+    va_end(args);
+
+    inLogger--;
+
+    if (droppedMessages && !inLogger) {
+        Log_print(log,
+                  Log_Level_ERROR,
+                  Gcc_SHORT_FILE,
+                  Gcc_LINE,
+                  "There were [%d] dropped log messages.",
+                  droppedMessages);
+        droppedMessages = 0;
+    }
+}
 
 char* Log_nameForLevel(enum Log_Level logLevel)
 {
@@ -40,7 +68,7 @@ char* Log_nameForLevel(enum Log_Level logLevel)
 enum Log_Level Log_levelForName(char* name)
 {
     for (enum Log_Level logLevel = Log_Level_KEYS; logLevel <= Log_Level_CRITICAL; logLevel++) {
-        if (!strcasecmp(name, Log_nameForLevel(logLevel))) {
+        if (!CString_strcasecmp(name, Log_nameForLevel(logLevel))) {
             return logLevel;
         }
     }

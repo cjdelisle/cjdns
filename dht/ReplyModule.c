@@ -12,7 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "util/platform/libc/string.h"
 
 #include "dht/CJDHTConstants.h"
 #include "dht/DHTMessage.h"
@@ -40,7 +39,7 @@ static int handleOutgoing(struct DHTMessage* message, void* vcontext);
  * @param registry the DHT module registry for signal handling.
  * @param allocator a means to allocate memory.
  */
-void ReplyModule_register(struct DHTModuleRegistry* registry, const struct Allocator* allocator)
+void ReplyModule_register(struct DHTModuleRegistry* registry, struct Allocator* allocator)
 {
     struct DHTModule* dm = Allocator_clone(allocator, (&(struct DHTModule) {
         .name = "ReplyModule",
@@ -63,7 +62,8 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
         .replyTo = message,
         .address = message->address,
-        .allocator = message->allocator
+        .allocator = message->allocator,
+        .binMessage = message->binMessage
     }));
 
     DHTModuleRegistry_handleOutgoing(reply, registry);

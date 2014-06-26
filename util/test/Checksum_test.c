@@ -28,10 +28,10 @@
     /* content */\
     "221a""0100""0001""0000""0000""0000""0564""6562""6f38""0000""1c00""01"
 
-const uint8_t* udpPacketHex = (uint8_t*) UDP_PACKET_HEX;
+static const uint8_t* udpPacketHex = (uint8_t*) UDP_PACKET_HEX;
 #define UDP_PACKET_SIZE ((sizeof(UDP_PACKET_HEX)-1)/2)
 
-void checksumAlgorithmTest()
+static void checksumAlgorithmTest()
 {
     uint8_t packetBuff[UDP_PACKET_SIZE + 1];
     uint8_t* packet = packetBuff + ((uintptr_t)packetBuff % 2);
@@ -46,7 +46,7 @@ void checksumAlgorithmTest()
 
     uint16_t calcatedSum = Checksum_engine(packet, 20);
     //printf("%2x == %2x", checksum, calcatedSum);
-    Assert_always(checksum == calcatedSum);
+    Assert_true(checksum == calcatedSum);
 }
 
 
@@ -63,10 +63,10 @@ void checksumAlgorithmTest()
     /* Content */ \
     "e4e4""0100""0001""0000""0000""0000""0000""0200" \
     "01"
-const uint8_t* udp6PacketHex = (uint8_t*) UDP6_PACKET_HEX;
+static const uint8_t* udp6PacketHex = (uint8_t*) UDP6_PACKET_HEX;
 #define UDP6_PACKET_SIZE ((sizeof(UDP6_PACKET_HEX)-1)/2)
 
-void udp6ChecksumTest()
+static void udp6ChecksumTest()
 {
     uint8_t packet[UDP6_PACKET_SIZE + 3];
     Hex_decode(packet, UDP6_PACKET_SIZE, udp6PacketHex, UDP6_PACKET_SIZE * 2);
@@ -84,7 +84,7 @@ void udp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_udpIp6(&packet[8], &packet[40], 25);
     printf("%2x == %2x", udp6Checksum, calcatedSum);
-    Assert_always(udp6Checksum == calcatedSum);
+    Assert_true(udp6Checksum == calcatedSum);
 }
 
 
@@ -102,11 +102,11 @@ void udp6ChecksumTest()
     "0000""0000""1011""1213""1415""1617""1819""1a1b" \
     "1c1d""1e1f""2021""2223""2425""2627""2829""2a2b" \
     "2c2d""2e2f""3031""3233""3435""3637"
-const uint8_t* ping6PacketHex = (uint8_t*) PING6_PACKET_HEX;
+static const uint8_t* ping6PacketHex = (uint8_t*) PING6_PACKET_HEX;
 #define PING6_PACKET_SIZE ((sizeof(PING6_PACKET_HEX)-1)/2)
 
 
-void icmp6ChecksumTest()
+static void icmp6ChecksumTest()
 {
     uint8_t packet[PING6_PACKET_SIZE];
     Hex_decode(packet, PING6_PACKET_SIZE, ping6PacketHex, PING6_PACKET_SIZE * 2);
@@ -119,7 +119,7 @@ void icmp6ChecksumTest()
 
     uint16_t calcatedSum = Checksum_icmp6(&packet[8], &packet[40], 64);
     //printf("%2x == %2x", checksum, calcatedSum);
-    Assert_always(checksum == calcatedSum);
+    Assert_true(checksum == calcatedSum);
 }
 
 

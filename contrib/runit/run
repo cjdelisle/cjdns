@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+
+exec 2>&1
+sleep 5
+exec /usr/bin/cjdroute < /etc/cjdns/cjdroute.conf

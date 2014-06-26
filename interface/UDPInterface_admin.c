@@ -19,7 +19,7 @@
 #include "memory/Allocator.h"
 #include "interface/InterfaceController.h"
 #include "util/events/EventBase.h"
-#include "util/Errno.h"
+#include "util/platform/Sockaddr.h"
 #include "crypto/Key.h"
 
 struct Context
@@ -34,7 +34,10 @@ struct Context
     struct UDPInterface** ifaces;
 };
 
-static void beginConnection(Dict* args, void* vcontext, String* txid)
+static void beginConnection(Dict* args,
+                            void* vcontext,
+                            String* txid,
+                            struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
 
@@ -44,6 +47,8 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
     int64_t* interfaceNumber = Dict_getInt(args, String_CONST("interfaceNumber"));
     uint32_t ifNum = (interfaceNumber) ? ((uint32_t) *interfaceNumber) : 0;
     String* error = NULL;
+
+    Log_debug(ctx->logger, "Peering with [%s]", publicKey->bytes);
 
     uint8_t pkBytes[32];
     int ret;
@@ -85,7 +90,8 @@ static void beginConnection(Dict* args, void* vcontext, String* txid)
 
 static void newInterface2(struct Context* ctx,
                           struct Sockaddr* addr,
-                          String* txid)
+                          String* txid,
+                          struct Allocator* requestAlloc)
 {
     struct Allocator* const alloc = Allocator_child(ctx->allocator);
     struct UDPInterface* udpIf = NULL;
@@ -95,18 +101,9 @@ static void newInterface2(struct Context* ctx,
     } Jmp_catch {
         String* errStr = String_CONST(jmp.message);
         Dict out = Dict_CONST(String_CONST("error"), String_OBJ(errStr), NULL);
-
-        if (jmp.code == UDPInterface_new_SOCKET_FAILED
-            || jmp.code == UDPInterface_new_BIND_FAILED)
-        {
-            char* err = Errno_getString();
-            Dict out2 = Dict_CONST(String_CONST("cause"), String_OBJ(String_CONST(err)), out);
-            Admin_sendMessage(&out2, txid, ctx->admin);
-        } else {
-            Admin_sendMessage(&out, txid, ctx->admin);
-        }
-
+        Admin_sendMessage(&out, txid, ctx->admin);
         Allocator_free(alloc);
+        return;
     }
 
     // sizeof(struct UDPInterface*) the size of a pointer.
@@ -115,16 +112,20 @@ static void newInterface2(struct Context* ctx,
                                     sizeof(struct UDPInterface*) * (ctx->ifCount + 1));
     ctx->ifaces[ctx->ifCount] = udpIf;
 
-    Dict out = Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST("none")), Dict_CONST(
-        String_CONST("interfaceNumber"), Int_OBJ(ctx->ifCount), NULL
-    ));
+    Dict* out = Dict_new(requestAlloc);
+    Dict_putString(out, String_CONST("error"), String_CONST("none"), requestAlloc);
+    Dict_putInt(out, String_CONST("interfaceNumber"), ctx->ifCount, requestAlloc);
+    char* printedAddr = Sockaddr_print(udpIf->addr, requestAlloc);
+    Dict_putString(out,
+                   String_CONST("bindAddress"),
+                   String_CONST(printedAddr),
+                   requestAlloc);
 
-    Admin_sendMessage(&out, txid, ctx->admin);
+    Admin_sendMessage(out, txid, ctx->admin);
     ctx->ifCount++;
 }
 
-static void newInterface(Dict* args, void* vcontext, String* txid)
+static void newInterface(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
     String* bindAddress = Dict_getString(args, String_CONST("bindAddress"));
@@ -136,7 +137,7 @@ static void newInterface(Dict* args, void* vcontext, String* txid)
         Admin_sendMessage(&out, txid, ctx->admin);
         return;
     }
-    newInterface2(ctx, &addr.addr, txid);
+    newInterface2(ctx, &addr.addr, txid, requestAlloc);
 }
 
 void UDPInterface_admin_register(struct EventBase* base,

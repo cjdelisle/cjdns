@@ -17,6 +17,8 @@
 
 #include "io/Reader.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/FileReader.c")
 
 #include <stdio.h>
 
@@ -27,6 +29,6 @@
  * @param allocator the memory allocator to use for allocating the reader and context.
  */
 struct Reader* FileReader_new(FILE* toRead,
-                              const struct Allocator* allocator);
+                              struct Allocator* allocator);
 
 #endif

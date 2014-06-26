@@ -1,10 +1,17 @@
-language: C
+language: c
 
-before_script:
-  - "sudo apt-get install cmake"
-  - "mkdir build && cd build"
-  - "cmake .."
-  - "make"
+branches:
+  only:
+    - crashey
+    - master
+    - stable-0.4
+    - stable-0.5
+    - stable-0.6
+
+compiler:
+  - gcc
 
 script:
-  - "sudo make test"
+  - "uname -a"
+  - "bash node_build/run_jshint"
+  - "bash do"

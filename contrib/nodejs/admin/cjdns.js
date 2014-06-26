@@ -1,20 +1,93 @@
 var dgram = require('dgram'),
     bencode = require('bencode'),
     sys = require('util'),
-    crypto = require('crypto');
+    crypto = require('crypto'),
+    path = require('path'),
+    fs = require('fs');
 
-var CJDNS = function (port, host, password) {
-    this.port = port;
-    this.host = host || 'localhost';
-    this.password = password;
+var CJDNS = function (config) {
+    if (!config.config) {
+        throw 'Please, add "config":"path/to/your/cjdroute.conf" to ~/.cjdnsadmin file!';
+    }
+    this.configFile = path.resolve(config.config.replace(/^~\//, process.env.HOME + '/'));
+    this.config = fs.readFileSync(this.configFile);
+
+    if (!this.config) {
+        throw 'Can\'t read config file! path: ' + this.configFile;
+    }
+
+    this.oldConfig = this.config;
+
+    this.parseConfig();
+
+    this.host = (this.config.admin.bind || 'localhost:11234').split(':');
+    this.port = this.host[1] || '80';
+    this.host = this.host[0];
+
+    this.password = this.config.admin.password;
 
     this.send({q: 'ping'}, function (err, msg) {
         if (msg && msg.q === 'pong') {
-            sys.log('CJDNS Admin backend found and ready to work!');
+            sys.log('Cjdns Admin backend found and ready to work!');
         } else {
             sys.log(msg);
         }
     });
+};
+
+CJDNS.prototype.parseConfig = function() {
+    var config;
+
+    eval('config = ' + this.config);
+
+    this.config = config;
+};
+
+CJDNS.prototype.checkConfig = function (config) {
+    return config && config.UDPInterface && config.UDPInterface[0] && config.UDPInterface[0].connectTo;
+};
+
+CJDNS.prototype.saveConfig = function(newConfig, callback) {
+    var cjdns = this,
+        conf,
+        reserveConf;
+
+    if (this.checkConfig(newConfig)) {
+        conf = JSON.parse(JSON.stringify(this.config));
+        conf.interfaces = newConfig;
+        this.config = JSON.parse(JSON.stringify(conf));
+        conf = JSON.stringify(conf, null, 4);
+
+        reserveConf = path.dirname(this.configFile) + '/' + path.basename(this.configFile) + '.' + (new Date()).getTime() + path.extname(this.configFile);
+
+        //save current version to yourConfDir/<confName>.<timestamp>.conf
+        fs.writeFile(
+            reserveConf,
+            this.oldConfig,
+            function (err, data) {
+                if (!err) {
+                    //save new config only if old conf saved!
+                    fs.writeFile(cjdns.configFile, conf, function (err, data) {
+                        callback(err, {
+                            msg: 'Old config saved to "' + reserveConf + '"'
+                        });
+                    });
+
+                    cjdns.oldConfig = conf;
+                } else {
+                    callback({
+                        error: 'Can\'t save old config!'
+                    },{
+                        msg: 'Can\'t save old config!'
+                    });
+                }
+            }
+        );
+    } else {
+        callback({
+            error: 'Config is not valid!'
+        });
+    }
 };
 
 CJDNS.prototype.send = function(data, callback, otherSocket) {

@@ -52,7 +52,7 @@ functions and their parameters.
     Type "help", "copyright", "credits" or "license" for more information.
     >>> from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
     >>> cjdns = connectWithAdminInfo();
-    >>> print(cjdns.functions);
+    >>> cjdns.functions();
     RouterModule_pingNode(required String path)
     UDPInterface_scrambleKeys(required String xorValue)
     ping()

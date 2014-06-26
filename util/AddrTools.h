@@ -59,7 +59,7 @@ static inline void AddrTools_printPath(uint8_t out[20], uint64_t path)
  */
 static inline int AddrTools_parsePath(uint64_t* out, const uint8_t netAddr[20])
 {
-    if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.') {
+    if (netAddr[4] != '.' || netAddr[9] != '.' || netAddr[14] != '.' || netAddr[19] != '\0') {
         return -1;
     }
 

@@ -16,9 +16,8 @@
 #define Log_H
 
 #include "util/Gcc.h"
-
-#include <stdarg.h>
-#include <stdint.h>
+#include "util/Linker.h"
+Linker_require("util/log/Log.c")
 
 enum Log_Level
 {
@@ -32,18 +31,6 @@ enum Log_Level
 };
 
 struct Log;
-
-typedef void (* Log_callback) (struct Log* log,
-                               enum Log_Level logLevel,
-                               const char* file,
-                               uint32_t line,
-                               const char* format,
-                               va_list args);
-
-struct Log
-{
-    Log_callback callback;
-};
 
 char* Log_nameForLevel(enum Log_Level logLevel);
 
@@ -73,23 +60,21 @@ enum Log_Level Log_levelForName(char* name);
     #define Log_CRITICAL
 #endif
 
-Gcc_PRINTF(5, 6)
-static inline void Log_internal(struct Log* logger,
-                                enum Log_Level level,
-                                const char* file,
-                                int lineNum,
-                                const char* format, ...)
-{
-    if (logger) {
-        va_list args;
-        va_start(args, format);
-        logger->callback(logger, level, file, lineNum, format, args);
-        va_end(args);
-    }
-}
+Gcc_PRINTF(5,6)
+void Log_print(struct Log* log,
+               enum Log_Level logLevel,
+               const char* file,
+               int line,
+               const char* format,
+               ...);
 
 #define Log_printf(log, level, ...) \
-    Log_internal(log, level, __FILE__, __LINE__, __VA_ARGS__)
+    do {                                                                   \
+        if (log) {                                                         \
+            Log_print(log, level, Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__);  \
+        }                                                                  \
+    } while (0)
+// CHECKFILES_IGNORE missing ;
 
 #ifdef Log_KEYS
     #define Log_keys(log, ...) \

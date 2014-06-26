@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+# You may redistribute this program and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation,
+# either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys;
+import math;
+from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+
+cjdns = connectWithAdminInfo();
+allRoutes = [];
+
+def parseRoute(path):
+    if (path == 0): return [-1];
+    if ((path & 15) == 1): return [1];
+    if (path & 1):
+        path >>= 1;
+        out = [(path & 7)];
+        if out[0] == 1: out[0] = 0;
+        path >>= 3;
+    elif ((path & 3) == 2):
+        path >>= 2;
+        out = [(path & 31)];
+        if out[0] != 0: out[0]+=1;
+        path >>= 5;
+    else:
+        path >>= 2;
+        out = [(path & 255)];
+        if out[0] != 0: out[0]+=1;
+        path >>= 8;
+
+    out.extend(parseRoute(path));
+    return out;
+
+
+i = 0;
+while True:
+    table = cjdns.NodeStore_dumpTable(i);
+    routes = table['routingTable'];
+    allRoutes += routes;
+    if (not 'more' in table):
+        break;
+    i += 1;
+
+# get the value of a route as cjdns sees it
+def getValue(node):
+    if (node['link'] == 0): return 0
+    return 64 - int(math.log(int(node['path'].replace(".", ""), 16), 2));
+
+# get only the routes which will actually be user
+ar = {};
+for route in allRoutes:
+    if route['ip'] not in ar or getValue(route) > getValue(ar[route['ip']]):
+        ar[route['ip']] = route;
+allRoutes = [];
+for k in ar.keys():
+    allRoutes.append(ar[k]);
+
+
+# get the actual arrays of interface indexes representing the path
+for route in allRoutes:
+    path = int(route['path'].replace(".", ""), 16);
+    route['r'] = parseRoute(path);
+
+
+
+penaltySum = 0;
+lengthSum = 0;
+
+
+for route in allRoutes:
+    r = route['r'];
+    penalty = 0;
+    for i in range(1,len(r)):
+        penalize = True;
+        for routeB in allRoutes:
+            rb = routeB['r'];
+            if len(rb) < i or rb == r: continue;
+            for j in range(0,i+1):
+                if (rb[j] != r[j]): break;
+                if (j == i): penalize = False;
+            if not penalize: break;
+        if penalize: penalty += 1;
+        penalty <<= 1;
+
+    output = str(penalty) + '\t' + route['ip'] + '@' + route['path'] + '  ' + str(r);
+    if (r[-1] == -1): output += ' INVALID';
+    print(output);
+    penaltySum += penalty;
+    lengthSum += len(r);
+
+avgPenalty = float(penaltySum) / len(allRoutes);
+avgLength = float(lengthSum) / len(allRoutes);
+print("average penalty " + str(avgPenalty));
+print("average length " + str(avgLength));
+print("trashroute index " + str(avgPenalty / avgLength));

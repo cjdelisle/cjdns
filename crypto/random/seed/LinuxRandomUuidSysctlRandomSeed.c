@@ -20,13 +20,12 @@
 #include <unistd.h>
 #include <sys/sysctl.h>
 
-#ifdef Linux
 static int getUUID(uint64_t output[2])
 {
     int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };
     size_t sixteen = 16;
 
-    Bits_memset(output, 0, sizeof(output));
+    Bits_memset(output, 0, 16);
     if (sysctl(mib, 3, output, &sixteen, NULL, 0)
         || Bits_isZero(output, 16))
     {
@@ -42,13 +41,6 @@ static int get(struct RandomSeed* randomSeed, uint64_t output[8])
     }
     return 0;
 }
-
-#else
-static int get(struct RandomSeed* randomSeed, uint64_t output[8])
-{
-    return -1;
-}
-#endif
 
 struct RandomSeed* LinuxRandomUuidSysctlRandomSeed_new(struct Allocator* alloc)
 {

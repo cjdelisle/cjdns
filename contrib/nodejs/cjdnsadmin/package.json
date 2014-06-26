@@ -1,0 +1,8 @@
+{
+  "name": "cjdns-ctrl",
+  "description": "Cjdns controller library, ported from python cjdnsadmin",
+  "version": "0.1.0",
+  "dependencies": {
+    "bencode": "x"
+  }
+}

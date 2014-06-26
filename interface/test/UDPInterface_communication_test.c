@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strlen
 #include "admin/testframework/AdminTestFramework.h"
 #include "admin/Admin.h"
 #include "admin/AdminClient.h"
@@ -23,15 +21,15 @@
 #include "interface/UDPInterface_pvt.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "interface/InterfaceController.h"
 #include "io/FileWriter.h"
 #include "io/Writer.h"
 #include "util/Assert.h"
 #include "util/log/Log.h"
 #include "util/log/WriterLog.h"
-#include "util/platform/libc/string.h"
 #include "util/events/Timeout.h"
+
+#include <stdlib.h>
 
 /*
  * Setup 2 UDPInterface's, test sending traffic between them.
@@ -59,7 +57,8 @@ static uint8_t receiveMessageB(struct Message* msg, struct Interface* iface)
 {
     if (receiveMessageACount) {
         // Got the message, test successful.
-        exit(0);
+        struct Allocator* alloc = iface->receiverContext;
+        Allocator_free(alloc);
     }
     return 0;
 }
@@ -71,15 +70,13 @@ static void fail(void* ignored)
 
 int main(int argc, char** argv)
 {
-    struct Allocator* alloc = CanaryAllocator_new(MallocAllocator_new(1<<20), NULL);
+    struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
     struct Log* logger = WriterLog_new(logWriter, alloc);
 
     // mock interface controller.
-    struct InterfaceController ic = {
-        .registerPeer = registerPeer
-    };
+    struct InterfaceController ic = { .registerPeer = registerPeer };
 
     struct Sockaddr_storage addr;
     Assert_true(!Sockaddr_parse("127.0.0.1", &addr));
@@ -90,18 +87,23 @@ int main(int argc, char** argv)
     struct Message* msg;
     Message_STACK(msg, 0, 128);
 
-    Message_push(msg, "Hello World", 12);
-    Message_push(msg, udpA->addr, udpA->addr->addrLen);
+    Message_push(msg, "Hello World", 12, NULL);
+    Message_push(msg, udpA->addr, udpA->addr->addrLen, NULL);
 
     struct Interface* ifA = &((struct UDPInterface_pvt*) udpA)->udpBase->generic;
     struct Interface* ifB = &((struct UDPInterface_pvt*) udpB)->udpBase->generic;
 
     ifA->receiveMessage = receiveMessageA;
     ifB->receiveMessage = receiveMessageB;
+    ifB->receiverContext = alloc;
 
+    struct Allocator* child = Allocator_child(alloc);
+    msg = Message_clone(msg, child);
     ifB->sendMessage(msg, ifB);
+    Allocator_free(child);
 
     Timeout_setTimeout(fail, NULL, 1000, base, alloc);
 
     EventBase_beginLoop(base);
+    return 0;
 }

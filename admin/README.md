@@ -174,33 +174,36 @@ allows you to call cjdns functions from shell scripts or the command line as fol
 
 ## Cjdns Functions:
 
-    user@ubnta8:~/wrk/cjdns$ ./contrib/python/cexec 'functions'
-    RouterModule_pingNode(required String path, Int timeout)
-    ETHInterface_beginConnection(required String publicKey, required String macAddress, Int interfaceNumber, String password)
-    IpTunnel_showConnection(required Int connection)
+    user@ubnta8:~/wrk/cjdns$ ./contrib/python/cexec 'functions()' | sort
     Admin_asyncEnabled()
-    Security_setUser(required String user)
-    AuthorizedPasswords_flush()
-    IpTunnel_allowConnection(required String publicKeyOfAuthorizedNode, String ip6Address, String ip4Address)
-    UDPInterface_new(String bindAddress)
-    RouterModule_lookup(required String address)
-    ETHInterface_new(String bindDevice)
-    Core_initTunnel(String desiredTunName)
-    ping()
-    AdminLog_unsubscribe(required String streamId)
-    AuthorizedPasswords_add(required String password, Int authType)
-    IpTunnel_removeConnection(required Int connection)
-    IpTunnel_connectTo(required String publicKeyOfNodeToConnectTo)
-    NodeStore_dumpTable(required Int page)
-    SwitchPinger_ping(required String path, String data, Int timeout)
-    AdminLog_subscribe(Int line, String file, String level)
-    ETHInterface_beacon(Int interfaceNumber, Int state)
-    memory()
-    Admin_availableFunctions(Int page)
-    UDPInterface_beginConnection(required String publicKey, required String address, Int interfaceNumber, String password)
-    Security_noFiles()
+    Admin_availableFunctions(page='')
+    AdminLog_subscribe(line='', file=0, level=0)
+    AdminLog_unsubscribe(streamId)
+    AuthorizedPasswords_add(password, user, authType='')
+    AuthorizedPasswords_list()
+    AuthorizedPasswords_remove(user)
     Core_exit()
+    Core_initTunnel(desiredTunName=0)
+    ETHInterface_beacon(interfaceNumber='', state='')
+    ETHInterface_beginConnection(publicKey, macAddress, interfaceNumber='', password=0)
+    ETHInterface_new(bindDevice)
+    InterfaceController_disconnectPeer(pubkey)
+    InterfaceController_peerStats(page='')
+    IpTunnel_allowConnection(publicKeyOfAuthorizedNode, ip6Address=0, ip4Address=0)
+    IpTunnel_connectTo(publicKeyOfNodeToConnectTo)
     IpTunnel_listConnections()
+    IpTunnel_removeConnection(connection)
+    IpTunnel_showConnection(connection)
+    memory()
+    NodeStore_dumpTable(page)
+    ping()
+    RouterModule_lookup(address)
+    RouterModule_pingNode(path, timeout='')
+    Security_noFiles()
+    Security_setUser(user)
+    SwitchPinger_ping(path, data=0, timeout='')
+    UDPInterface_beginConnection(publicKey, address, interfaceNumber='', password=0)
+    UDPInterface_new(bindAddress=0)
 
 
 ###RouterModule_pingNode()
@@ -801,6 +804,7 @@ Examples:
 Parameters:
 
 * String **password** a password which will allow neighbors to make direct connections.
+* String **user** a friendly string to identify this password.
 * Int **authType** (optional) the method for authenticating,
 defaults to `1` (only currently supported method).
 
@@ -808,39 +812,31 @@ Returns:
 
 * **error**:`none` if everything went well.
 * **error**:`Specified auth type is not supported.` if the auth type is specified and not `1`.
-* **error**:`Password already added.` if you try to add the same password twice.
+* **error**:`Password already added.` if you try to add the same user or password twice.
 * **error**:`Out of memory to store password.` if the buffer for storing
 authorized passwords is full.
 
 Examples:
 
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3', 1)
+    $ ./contrib/python/cexec 'AuthorizedPasswords_add(user="test",password="yh14wl2ffgcqq6bvut12xrz7g3")'
     {'error': 'none'}
 
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3', 300)
+    $ ./contrib/python/cexec 'AuthorizedPasswords_add(user="test2",password="2yh14wl2ffgcqq6bvut12xrz7g3",authType=300)'
     {'error': 'Specified auth type is not supported.'}
 
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3')
+    $ ./contrib/python/cexec 'AuthorizedPasswords_add(user="test",password="yh14wl2ffgcqq6bvut12xrz7g3")'
     {'error': 'Password already added.'}
 
-
-### AuthorizedPasswords_flush()
+### AuthorizedPasswords_list()
 
 **Auth Required**
 
-Remove all Authorized passwords from the system.
+Get a list of all the authorized users.
 
 Example:
 
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3')
-    {'error': 'none'}
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3')
-    {'error': 'Password already added.'}
-    >>> cjdns.AuthorizedPasswords_flush()
-    {'error': 'none'}
-    >>> cjdns.AuthorizedPasswords_add('yh14wl2ffgcqq6bvut12xrz7g3')
-    {'error': 'none'}
-
+    $ ./contrib/python/cexec 'AuthorizedPasswords_list()'
+    {'total': 2, 'users': ['Test User1', 'Local Peers'], 'txid': 'W0DUG0D50K'}
 
 ### memory()
 

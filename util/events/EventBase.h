@@ -16,11 +16,9 @@
 #define EventBase_H
 
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/EventBase.c")
 
-// slow process of removing the libevent headers from places where they are not needed.
-//struct EventBase; // CHECKFILES_IGNORE
-
-//#define EventBase event_base
 struct EventBase
 {
     int unused;

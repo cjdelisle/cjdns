@@ -16,11 +16,17 @@
 #define SwitchPinger_H
 
 #include "benc/String.h"
+#include "dht/Address.h"
+#include "crypto/random/Random.h"
 #include "interface/Interface.h"
+#include "util/events/EventBase.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("net/SwitchPinger.c")
 
 #include <stdint.h>
-#include "util/events/EventBase.h"
+
+#define SwitchPinger_DEFAULT_MAX_CONCURRENT_PINGS 50
 
 enum SwitchPinger_Result
 {
@@ -35,6 +41,9 @@ enum SwitchPinger_Result
 
     /** Instead of a normal response, got an error control packet. */
     SwitchPinger_Result_ERROR_RESPONSE,
+
+    /** A sub-set of ERROR_RESPONSE where the route contains a loop. */
+    SwitchPinger_Result_LOOP_ROUTE,
 
     /** Ping timeout. */
     SwitchPinger_Result_TIMEOUT
@@ -84,23 +93,23 @@ String* SwitchPinger_resultString(enum SwitchPinger_Result result);
  * @param label the HOST ORDER label of the node to send the ping message to.
  * @param data the content of the ping to send, if NULL, an empty string will be
  *             returned in the response.
+ * @param timeoutMilliseconds how long to wait before failing the ping.
+ * @param onResponse the callback after the on pong or timeout.
+ * @param alloc free this to cancel the ping.
+ * @param ctx the pinger
  */
 struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
                                                String* data,
                                                uint32_t timeoutMilliseconds,
                                                SwitchPinger_ResponseCallback onResponse,
-                                               struct SwitchPinger* sp);
-
-/**
- * Send a ping message after allocating a callback structure for it.
- *
- * @param ping the ping to send.
- */
-void SwitchPinger_sendPing(struct SwitchPinger_Ping* ping);
+                                               struct Allocator* alloc,
+                                               struct SwitchPinger* ctx);
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,
                                       struct EventBase* eventBase,
+                                      struct Random* rand,
                                       struct Log* logger,
+                                      struct Address* myAddr,
                                       struct Allocator* alloc);
 
 #endif

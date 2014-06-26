@@ -14,6 +14,7 @@
  */
 #include "crypto/random/Random.h"
 #include "crypto/random/seed/RandomSeed.h"
+#include "crypto/random/seed/SystemRandomSeed.h"
 #include "memory/Allocator.h"
 #include "util/Bits.h"
 #include "util/Assert.h"
@@ -149,7 +150,7 @@ struct Random
 void Random_addRandom(struct Random* rand, uint32_t randomNumber)
 {
     Identity_check(rand);
-    #define rotl(a,b) (((a) << (b)) | ((a) >> (32 - (b))))
+    #define rotl(a,b) (((a) << (b)) | ((a) >> (31 - (b))))
     rand->seedGen->elements.collectedEntropy[rand->addRandomCounter % 8] ^=
         rotl(randomNumber, rand->addRandomCounter / 8);
     if (++rand->addRandomCounter >= 256) {
@@ -231,7 +232,7 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
     union Random_SeedGen* seedGen = Allocator_calloc(alloc, sizeof(union Random_SeedGen), 1);
 
     if (RandomSeed_get(seed, seedGen->buff)) {
-        Except_raise(eh, -1, "Unable to initialize secure random number generator");
+        Except_throw(eh, "Unable to initialize secure random number generator");
     }
 
     struct Random* rand = Allocator_calloc(alloc, sizeof(struct Random), 1);
@@ -250,6 +251,6 @@ struct Random* Random_newWithSeed(struct Allocator* alloc,
 
 struct Random* Random_new(struct Allocator* alloc, struct Log* logger, struct Except* eh)
 {
-    struct RandomSeed* rs = RandomSeed_new(NULL, logger, alloc);
+    struct RandomSeed* rs = SystemRandomSeed_new(NULL, 0, logger, alloc);
     return Random_newWithSeed(alloc, logger, rs, eh);
 }

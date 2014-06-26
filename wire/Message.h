@@ -15,12 +15,12 @@
 #ifndef Message_H
 #define Message_H
 
-#include "util/Assert.h"
-#include <stdbool.h>
+#include "exception/Except.h"
 #include <stdint.h>
 
 #include "memory/Allocator.h"
 #include "util/Bits.h"
+#include "util/UniqueName.h"
 
 struct Message
 {
@@ -32,25 +32,51 @@ struct Message
 
     /** The content. */
     uint8_t* bytes;
+
+    /** Amount of bytes of storage space available in the message. */
+    uint32_t capacity;
+
+    /** The allocator which allocated space for this message. */
+    struct Allocator* alloc;
 };
 
 #define Message_STACK(name, messageLength, amountOfPadding) \
     uint8_t UniqueName_get()[messageLength + amountOfPadding]; \
     name = &(struct Message){                                  \
         .length = messageLength,                               \
-        .bytes = UniqueName_get() + amountOfPadding,           \
-        .padding = amountOfPadding                             \
+        .bytes = UniqueName_last() + amountOfPadding,          \
+        .padding = amountOfPadding,                            \
+        .capacity = messageLength                              \
     }
+
+static inline struct Message* Message_new(uint32_t messageLength,
+                                          uint32_t amountOfPadding,
+                                          struct Allocator* alloc)
+{
+    uint8_t* buff = Allocator_malloc(alloc, messageLength + amountOfPadding);
+    struct Message* out = Allocator_malloc(alloc, sizeof(struct Message));
+    out->bytes = &buff[amountOfPadding];
+    out->length = out->capacity = messageLength;
+    out->padding = amountOfPadding;
+    out->alloc = alloc;
+    return out;
+}
 
 static inline struct Message* Message_clone(struct Message* toClone,
                                             struct Allocator* allocator)
 {
-    uint8_t* allocation = Allocator_malloc(allocator, toClone->length + toClone->padding);
-    Bits_memcpy(allocation, toClone->bytes - toClone->padding, toClone->length + toClone->padding);
+    uint32_t len = toClone->length + toClone->padding;
+    if (len < (toClone->capacity + toClone->padding)) {
+        len = (toClone->capacity + toClone->padding);
+    }
+    uint8_t* allocation = Allocator_malloc(allocator, len);
+    Bits_memcpy(allocation, toClone->bytes - toClone->padding, len);
     return Allocator_clone(allocator, (&(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
-        .bytes = allocation + toClone->padding
+        .bytes = allocation + toClone->padding,
+        .capacity = toClone->length,
+        .alloc = allocator
     }));
 }
 
@@ -74,35 +100,71 @@ static inline void Message_copyOver(struct Message* output,
  * Pretend to shift the content forward by amount.
  * Really it shifts the bytes value backward.
  */
-static inline bool Message_shift(struct Message* toShift, int32_t amount)
+static inline int Message_shift(struct Message* toShift, int32_t amount, struct Except* eh)
 {
-    if (amount > 0) {
-        Assert_true(toShift->padding >= amount);
-    } else {
-        Assert_true(toShift->length >= (-amount));
+    if (amount > 0 && toShift->padding < amount) {
+        Except_throw(eh, "buffer overflow");
+    } else if (toShift->length < (-amount)) {
+        Except_throw(eh, "buffer underflow");
     }
 
     toShift->length += amount;
+    toShift->capacity += amount;
     toShift->bytes -= amount;
     toShift->padding -= amount;
 
-    return true;
+    return 1;
+}
+
+static inline void Message_reset(struct Message* toShift)
+{
+    toShift->length = toShift->capacity;
+    Message_shift(toShift, -toShift->length, NULL);
 }
 
 static inline void Message_push(struct Message* restrict msg,
                                 const void* restrict object,
-                                size_t size)
+                                size_t size,
+                                struct Except* eh)
 {
-    Message_shift(msg, (int)size);
+    Message_shift(msg, (int)size, eh);
     Bits_memcpy(msg->bytes, object, size);
 }
 
 static inline void Message_pop(struct Message* restrict msg,
                                void* restrict object,
-                               size_t size)
+                               size_t size,
+                               struct Except* eh)
 {
-    Bits_memcpy(object, msg->bytes, size);
-    Message_shift(msg, -((int)size));
+    Message_shift(msg, -((int)size), eh);
+    Bits_memcpy(object, &msg->bytes[-((int)size)], size);
 }
+
+#define Message_popGeneric(size) \
+    static inline uint ## size ## _t Message_pop ## size (struct Message* msg, struct Except* eh) \
+    {                                                                                             \
+        uint ## size ## _t out;                                                                   \
+        Message_pop(msg, &out, (size)/8, eh);                                                     \
+        return Endian_bigEndianToHost ## size (out);                                              \
+    }
+
+Message_popGeneric(8)
+Message_popGeneric(16)
+Message_popGeneric(32)
+Message_popGeneric(64)
+
+
+#define Message_pushGeneric(size) \
+    static inline void Message_push ## size                                               \
+        (struct Message* msg, uint ## size ## _t dat, struct Except* eh)                  \
+    {                                                                                     \
+        uint ## size ## _t x = Endian_hostToBigEndian ## size (dat);                      \
+        Message_push(msg, &x, (size)/8, eh);                                              \
+    }
+
+Message_pushGeneric(8)
+Message_pushGeneric(16)
+Message_pushGeneric(32)
+Message_pushGeneric(64)
 
 #endif

@@ -36,7 +36,7 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     return 0;
 }
 
-int testInputHandler()
+static int testInputHandler()
 {
     struct DHTMessage theMessage;
 
@@ -83,6 +83,7 @@ int testInputHandler()
     } else if (context2.ret == -2) {
         printf("wrong message received by second handler.");
     } else {
+        Allocator_free(allocator);
         return 0;
     }
     return -1;

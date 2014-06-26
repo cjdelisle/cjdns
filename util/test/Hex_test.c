@@ -12,12 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strlen
-#define string_strstr
-#define string_strcmp
 #include "crypto/random/Random.h"
-#include "memory/BufferAllocator.h"
-#include "util/platform/libc/string.h"
+#include "memory/MallocAllocator.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 #include "util/Assert.h"
@@ -26,8 +22,7 @@
 
 int main()
 {
-    struct Allocator* alloc;
-    BufferAllocator_STACK(alloc, 2048);
+    struct Allocator* alloc = MallocAllocator_new(20000);
     struct Random* rand = Random_new(alloc, NULL, NULL);
 
     uint8_t bytes[32];
@@ -35,12 +30,15 @@ int main()
 
     uint8_t hex[64] = {0};
 
-    Assert_always(Hex_encode(hex, 65, bytes, 32) == 64);
+    Assert_true(Hex_encode(hex, 65, bytes, 32) == 64);
 
     //printf("hex encoded: %s\n", hex);
 
     uint8_t bytes2[32];
-    Assert_always(Hex_decode(bytes2, 32, hex, 64) == 32);
+    Assert_true(Hex_decode(bytes2, 32, hex, 64) == 32);
 
-    Assert_always(Bits_memcmp(bytes, bytes2, 32) == 0);
+    Assert_true(Bits_memcmp(bytes, bytes2, 32) == 0);
+
+    Allocator_free(alloc);
+    return 0;
 }

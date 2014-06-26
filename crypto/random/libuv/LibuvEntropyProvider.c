@@ -12,6 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
@@ -20,7 +21,6 @@
 #include "util/Identity.h"
 #include "util/log/Log.h"
 
-#include <uv.h>
 #include <inttypes.h>
 
 /**
@@ -42,7 +42,7 @@ struct LibuvEntropyProvider
 static void takeSample(void* vLibuvEntropyProvider)
 {
     struct LibuvEntropyProvider* lep =
-        Identity_cast((struct LibuvEntropyProvider*) vLibuvEntropyProvider);
+        Identity_check((struct LibuvEntropyProvider*) vLibuvEntropyProvider);
     uint64_t nanotime = uv_hrtime();
     Log_keys(lep->logger, "Adding high-res time [%" PRIu64 "] to random generator", nanotime);
     uint32_t input = (uint32_t) (nanotime ^ (nanotime >> 32));

@@ -17,7 +17,7 @@
 
 #include <stdint.h>
 
-bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
+int AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[32])
 {
     uint8_t hash[crypto_hash_sha512_BYTES];
     crypto_hash_sha512(hash, key, 32);
@@ -26,7 +26,7 @@ bool AddressCalc_addressForPublicKey(uint8_t addressOut[16], const uint8_t key[3
     return hash[0] == 0xFC;
 }
 
-bool AddressCalc_validKey(const uint8_t key[32])
+int AddressCalc_validKey(const uint8_t key[32])
 {
     uint8_t hash[crypto_hash_sha512_BYTES];
     crypto_hash_sha512(hash, key, 32);
@@ -34,7 +34,7 @@ bool AddressCalc_validKey(const uint8_t key[32])
     return hash[0] == 0xFC;
 }
 
-bool AddressCalc_validAddress(const uint8_t address[16])
+int AddressCalc_validAddress(const uint8_t address[16])
 {
     return address[0] == 0xFC;
 }

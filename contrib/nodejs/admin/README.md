@@ -1,4 +1,4 @@
-# Admin panel for CJDNS
+# Admin panel for cjdns
 #### Does not support Internet Explorer 6, 7, or 8
 
 ### Usage
@@ -9,11 +9,13 @@ You should install [Node.js](http://nodejs.org) first.
 ##### Install dependencies
 
     cd {cjdns-path}/contrib/nodejs/admin
-    nmp install
+    npm install
 
 ##### Create ~/.cjdnsadmin
 
-    echo '{"addr":"127.0.0.1","port":11234,"password":"your admin password from cjdroute.conf"}' > ~/.cjdnsadmin
+You should create ~/.cjdnsadmin file with path to your cjdns config:
+
+    echo '{"config":"path to your config file"}' > ~/.cjdnsadmin
 
 ##### Start service
 
@@ -21,5 +23,3 @@ You should install [Node.js](http://nodejs.org) first.
 
 ##### Whoa!
 Open `http://localhost:8084` in your favorite browser. Hope, it's not IE < 9.
-
-{"addr": "127.0.0.1","port": 11234,"password": "40q0xsq1mu0ym5ubmg9h1vknq5hnvfc"}

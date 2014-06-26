@@ -15,8 +15,10 @@
 #ifndef FileWriter_H
 #define FileWriter_H
 
-#include "Writer.h"
+#include "io/Writer.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/FileWriter.c")
 #include <stdio.h>
 
 /**
@@ -25,6 +27,6 @@
  * @param writeTo the file/stream which should be written to.
  * @param allocator the memory allocator to use for allocating the writer and context.
  */
-struct Writer* FileWriter_new(FILE* writeTo, const struct Allocator* allocator);
+struct Writer* FileWriter_new(FILE* writeTo, struct Allocator* allocator);
 
 #endif

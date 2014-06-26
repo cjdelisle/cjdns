@@ -16,31 +16,45 @@
 #define Identity_H
 
 #include "util/Assert.h"
+#include "util/CompileTimeRandom.h"
 
-#ifndef Identity_MAGIC
-    #define Identity_MAGIC ((uint32_t) 0x01234567)
-#endif
+<?js file.Identity_hash = "0x" + CompileTimeRandom_hexString(16) + "ull"; ?>
 
-#ifdef Identity_CHECK
+#define Identity_MAGIC ((unsigned long) <?js return file.Identity_hash ?>)
+
+#if defined(Identity_CHECK)
 
     /** This goes in each structure which will be checked. */
     #define Identity \
-        uint32_t Identity_verifier;
+        unsigned long Identity_verifier;
 
     #define Identity_set(pointer) \
         (pointer)->Identity_verifier = Identity_MAGIC
 
     #define Identity_check(pointer) \
-        Assert_always((pointer)->Identity_verifier == Identity_MAGIC)
+        (__extension__ ({                                                      \
+            __typeof__(pointer) Identity_ptr = (pointer);                      \
+            Assert_true(Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Identity_ptr;                                                      \
+        }))
 
-    #define Identity_cast(pointer) \
-        (pointer); Identity_check(pointer)
+    #define Identity_ncheck(pointer) \
+        (__extension__ ({                                                                       \
+            __typeof__(pointer) Identity_ptr = (pointer);                                       \
+            Assert_true(!Identity_ptr || Identity_ptr->Identity_verifier == Identity_MAGIC);  \
+            Identity_ptr;                                                                       \
+        }))
 
 #else
     #define Identity
     #define Identity_set(pointer)
-    #define Identity_check(pointer)
-    #define Identity_cast(pointer) (pointer)
+
+    #define Identity_check(pointer) \
+        (__extension__ ({                                                      \
+            (pointer);                                                         \
+        }))
+
+    #define Identity_ncheck(pointer) Identity_check(pointer)
 #endif
 
 #endif

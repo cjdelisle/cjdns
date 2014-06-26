@@ -1,0 +1,9 @@
+# Last Modified: Sun Jul 14 17:59:22 2013
+#include <tunables/global>
+
+/usr/bin/cjdns {
+  #include <abstractions/base>
+
+  /usr/bin/cjdns mr,
+
+}

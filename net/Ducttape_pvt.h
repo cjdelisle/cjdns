@@ -45,7 +45,7 @@ enum Ducttape_SessionLayer {
 struct Ducttape_pvt
 {
     /** the public fields. */
-    struct Ducttape public;
+    struct Ducttape pub;
 
     /** The network module for the DHT. */
     struct DHTModule module;
@@ -56,12 +56,16 @@ struct Ducttape_pvt
     /** The DHT router module. */
     struct RouterModule* routerModule;
 
+    struct SearchRunner* searchRunner;
 
     /** The interface which interacts with the switch core. */
     struct Interface switchInterface;
 
     /** The interface which is used by the operator of the node to communicate in the network. */
     struct Interface* userIf;
+
+    /** An interface which receives messages that are sent to fc00::1 from the TUN. */
+    struct Interface magicInterface;
 
     struct Address myAddr;
 
@@ -71,22 +75,10 @@ struct Ducttape_pvt
 
     struct Log* logger;
 
-    // Changes on a message-by-message basis.
+    /** For tunneling IPv4 and ICANN IPv6 packets. */
+    struct IpTunnel* ipTunnel;
 
-    /** This is set by incomingFromSwitch. */
-    struct Headers_SwitchHeader* switchHeader;
-
-    /** This is set in core() and expected by incomingForMe(). */
-    struct Headers_IP6Header* ip6Header;
-
-    /**
-     * If not NULL, we know which node we want to forward the message to so an extra lookup
-     * can be avoided.
-     */
-    struct Node* forwardTo;
-
-    /** The current session, used for getting the key, ipv6, and version of the other party. */
-    struct SessionManager_Session* session;
+    struct Allocator* alloc;
 
     /** Number of milliseconds to wait between searches for a node to send arbitrary data to. */
     uint32_t timeBetweenSearches;
@@ -94,30 +86,38 @@ struct Ducttape_pvt
     /** Absolute time of last search for node to send arbitrary data to. */
     uint64_t timeOfLastSearch;
 
-    /** The interface for the SwitchPinger. */
-    struct Interface* switchPingerIf;
+    Identity
+};
 
+
+struct Ducttape_MessageHeader
+{
     /**
      * This is to tell the code whether it is in the outer later of encryption or the inner layer.
      */
     enum Ducttape_SessionLayer layer;
 
-    /** For tunneling IPv4 and ICANN IPv6 packets. */
-    struct IpTunnel* ipTunnel;
+    struct Headers_SwitchHeader* switchHeader;
+    struct Headers_IP6Header* ip6Header;
 
-    struct Allocator* alloc;
+    uint32_t nextHopReceiveHandle;
 
-    /** True if the message being handled currently is a layer 3 CryptoAuth init message. */
-    bool initMessage;
+    uint32_t receiveHandle;
 
+    uint64_t switchLabel;
+
+#ifdef Version_2_COMPAT
     /**
      * Cache the session handle and version so that if an incoming (stray) packet fails to
      * authenticate it won't assasinate the session.
      */
     uint32_t currentSessionSendHandle_be;
     uint32_t currentSessionVersion;
+#endif
 
     Identity
 };
+
+#define Ducttape_MessageHeader_SIZE ((int)sizeof(struct Ducttape_MessageHeader))
 
 #endif

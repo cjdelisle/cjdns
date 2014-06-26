@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+
+LOG=/var/log/cjdns
+test -d "$LOG" || mkdir -p -m2750 "$LOG" && chown cjdns:adm "$LOG"
+exec chpst -u cjdns svlogd -tt "$LOG"

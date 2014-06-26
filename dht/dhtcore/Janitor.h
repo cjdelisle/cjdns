@@ -18,9 +18,14 @@
 #include "crypto/random/Random.h"
 #include "dht/Address.h"
 #include "dht/dhtcore/RouterModule.h"
+#include "dht/dhtcore/SearchRunner.h"
 #include "dht/dhtcore/NodeStore.h"
+#include "dht/dhtcore/RumorMill.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
+#include "util/log/Log.h"
+#include "util/Linker.h"
+Linker_require("dht/dhtcore/Janitor.c")
 
 #include <stdint.h>
 
@@ -30,6 +35,9 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
                             uint64_t globalMaintainenceMilliseconds,
                             struct RouterModule* routerModule,
                             struct NodeStore* nodeStore,
+                            struct SearchRunner* searchRunner,
+                            struct RumorMill* rumorMill,
+                            struct Log* logger,
                             struct Allocator* alloc,
                             struct EventBase* eventBase,
                             struct Random* rand);

@@ -12,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
 #define string_strlen // some systems implement strcmp as a macro using strlen.
 #include "admin/angel/AngelInit.h"
 #include "admin/angel/Core.h"
-#include "util/platform/libc/string.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -25,9 +23,9 @@ int main(int argc, char** argv)
 {
     if (isatty(STDIN_FILENO) || argc < 2) {
         // Fall through.
-    } else if (!strcmp("angel", argv[1])) {
+    } else if (!CString_strcmp("angel", argv[1])) {
         return AngelInit_main(argc, argv);
-    } else if (!strcmp("core", argv[1])) {
+    } else if (!CString_strcmp("core", argv[1])) {
         return Core_main(argc, argv);
     }
     printf("This is internal to cjdns, it should not be started manually.\n");

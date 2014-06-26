@@ -12,9 +12,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#define Version_COMPAT(one, twoRange) <?js \
+    file.Version_COMPAT = file.Version_COMPAT || []; \
+    file.Version_COMPAT[one] = twoRange;             \
+?>
+
 #include "util/version/Version.h"
 
-const uint8_t* Version_gitVersion()
+static const uint8_t VERSION_MATRIX[Version_CURRENT_PROTOCOL+1][Version_CURRENT_PROTOCOL+1] =
+<?js
+    var matrix = [];
+    for (var i = 0; i <= Version_CURRENT_PROTOCOL; i++) {
+        var row = matrix[matrix.length] = [];
+        for (var j = 0; j <= Version_CURRENT_PROTOCOL; j++) {
+            if (j == i) {
+                row[j] = 1;
+            } else {
+                row[j] =
+                    (file.Version_COMPAT[Math.max(i, j)].indexOf(Math.min(i,j)) > -1) ? 1 : 0;
+            }
+        }
+    }
+    return JSON.stringify(matrix).replace(/\[/g,'{').replace(/\]/g,'}');
+?>;
+
+int Version_isCompatible(uint32_t one, uint32_t two)
 {
-    return (uint8_t*) GIT_VERSION;
+    if (one > Version_CURRENT_PROTOCOL) { one = Version_CURRENT_PROTOCOL; }
+    if (two > Version_CURRENT_PROTOCOL) { two = Version_CURRENT_PROTOCOL; }
+
+    return VERSION_MATRIX[one][two];
 }

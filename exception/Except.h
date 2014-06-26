@@ -16,20 +16,25 @@
 #define Except_H
 
 #include "util/Gcc.h"
-
-#include <stdarg.h>
+#include "util/Linker.h"
+Linker_require("exception/Except.c")
 
 #define Except_BUFFER_SZ 1024
 
+struct Except;
 struct Except
 {
-    void (* exception)(char* message, int code, struct Except* handler);
+    struct Except* next;
+
+    void (* exception)(char* message, struct Except* handler);
 
     char message[Except_BUFFER_SZ];
 };
 
 Gcc_NORETURN
-Gcc_PRINTF(3, 4)
-void Except_raise(struct Except* eh, int code, char* format, ...);
+Gcc_PRINTF(4, 5)
+void Except__throw(char* file, int line, struct Except* eh, char* format, ...);
+#define Except_throw(...) Except__throw(Gcc_SHORT_FILE, Gcc_LINE, __VA_ARGS__)
+
 
 #endif

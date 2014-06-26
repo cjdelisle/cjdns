@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.cjdelisle.cjdns</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/cjdroute</string>
+	</array>
+	<key>UserName</key>
+	<string>root</string>
+	<key>StandardInPath</key>
+	<string>/etc/cjdroute.conf</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+</dict>
+</plist>

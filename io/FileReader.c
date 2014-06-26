@@ -15,32 +15,31 @@
 #include "io/Reader.h"
 #include "io/FileReader.h"
 #include "memory/Allocator.h"
-#include "util/Bits.h"
+#include "util/Identity.h"
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 
-struct Context {
+struct FileReader {
+    struct Reader generic;
     FILE* toRead;
-    bool failed;
-    size_t bytesRead;
-    struct Reader reader;
+    int failed;
+    Identity
 };
 
 /** @see Reader->read() */
-static int read(void* readInto, size_t length, const struct Reader* reader)
+static int read(struct Reader* reader, void* readInto, unsigned long length)
 {
-    struct Context* context = (struct Context*) reader->context;
+    struct FileReader* context = Identity_check((struct FileReader*) reader);
 
-    bool peek = false;
+    int peek = 0;
     if (length == 0) {
-        peek = true;
+        peek = 1;
         length++;
     }
 
     if (context->failed || fread((char*)readInto, 1, length, context->toRead) != length) {
-        context->failed = true;
+        context->failed = 1;
         return -1;
     }
 
@@ -49,21 +48,14 @@ static int read(void* readInto, size_t length, const struct Reader* reader)
         length--;
     }
 
-    context->bytesRead += length;
+    context->generic.bytesRead += length;
     return 0;
 }
 
-/** @see Reader->bytesRead() */
-static size_t bytesRead(const struct Reader* reader)
-{
-    // ftell() is unreliable.
-    return ((struct Context*) reader->context)->bytesRead;
-}
-
 /** @see Reader->skip() */
-static void skip(size_t length, const struct Reader* reader)
+static void skip(struct Reader* reader, unsigned long length)
 {
-    struct Context* context = (struct Context*) reader->context;
+    struct FileReader* context = Identity_check((struct FileReader*) reader);
 
     #define BUFF_SZ 256
     uint8_t buff[BUFF_SZ];
@@ -71,25 +63,22 @@ static void skip(size_t length, const struct Reader* reader)
     // fseek() and ftell() are unreliable.
     size_t amount;
     while ((amount = (length > BUFF_SZ) ? BUFF_SZ : length) && !context->failed) {
-        context->failed = read(buff, amount, reader);
+        context->failed = read(reader, buff, amount);
         length -= amount;
     }
 }
 
 /** @see FileReader.h */
-struct Reader* FileReader_new(FILE* toRead, const struct Allocator* allocator)
+struct Reader* FileReader_new(FILE* toRead, struct Allocator* allocator)
 {
-    struct Context* context = Allocator_calloc(allocator, sizeof(struct Context), 1);
+    struct FileReader* context = Allocator_clone(allocator, (&(struct FileReader) {
+        .generic = {
+            .read = read,
+            .skip = skip
+        },
+        .toRead = toRead
+    }));
+    Identity_set(context);
 
-    context->toRead = toRead;
-
-    struct Reader localReader = {
-        .context = context,
-        .read = read,
-        .skip = skip,
-        .bytesRead = bytesRead
-    };
-    Bits_memcpyConst(&context->reader, &localReader, sizeof(struct Reader));
-
-    return &context->reader;
+    return &context->generic;
 }

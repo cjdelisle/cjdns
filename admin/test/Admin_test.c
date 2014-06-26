@@ -18,8 +18,8 @@
 #include "benc/Int.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
-#include "util/Errno.h"
-#include "util/platform/libc/strlen.h"
+
+#include <stdio.h>
 
 struct Context {
     struct AdminTestFramework* framework;
@@ -27,7 +27,7 @@ struct Context {
     bool called;
 };
 
-static void adminFunc(Dict* input, void* vcontext, String* txid)
+static void adminFunc(Dict* input, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = vcontext;
     ctx->called = true;
@@ -35,24 +35,35 @@ static void adminFunc(Dict* input, void* vcontext, String* txid)
     Admin_sendMessage(&d, txid, ctx->framework->admin);
 }
 
+static void standardClientCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct Context* ctx = p->userData;
+    //printf("%d\n", res->err);
+    Assert_true(!res->err);
+    Assert_true(Dict_getInt(res->responseDict, String_CONST("called!")));
+    Assert_true(ctx->called);
+
+    EventBase_endLoop(ctx->framework->eventBase);
+}
+
 static void standardClient(struct Context* ctx)
 {
     ctx->called = false;
-    struct AdminClient_Result* res =
+    struct AdminClient_Promise* promise =
         AdminClient_rpcCall(String_CONST("adminFunc"),
                             NULL,
                             ctx->framework->client,
                             ctx->framework->alloc);
 
-    printf("%d\n", res->err);
-    Assert_always(!res->err);
-    Assert_always(Dict_getInt(res->responseDict, String_CONST("called!")));
-    Assert_always(ctx->called);
+    promise->callback = standardClientCallback;
+    promise->userData = ctx;
+
+    EventBase_beginLoop(ctx->framework->eventBase);
 }
 
 int main(int argc, char** argv)
 {
-    struct AdminTestFramework* framework = AdminTestFramework_setUp(argc, argv);
+    struct AdminTestFramework* framework = AdminTestFramework_setUp(argc, argv, "Admin_test");
     struct Context ctx = {
         .framework = framework
     };
@@ -61,4 +72,5 @@ int main(int argc, char** argv)
     standardClient(&ctx);
 
     AdminTestFramework_tearDown(framework);
+    return 0;
 }

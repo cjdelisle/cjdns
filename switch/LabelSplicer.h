@@ -17,11 +17,22 @@
 
 #include "switch/NumberCompress.h"
 #include "util/Bits.h"
-#include "util/Endian.h"
 
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * Convert a full path (represention we can use) to a representaiton which a node
+ * along that path can use.
+ *
+ * @param fullPath the full route to the destination
+ * @param midPath a path to a node which falls somewhere within fullPath
+ * @return a version of fullPath which is sutible for use by node at midPath
+ */
+static inline uint64_t LabelSplicer_unsplice(uint64_t fullPath, uint64_t midPath)
+{
+    return fullPath >> Bits_log2x64(midPath);
+}
 
 /**
  * Splice a label and a label fragment together.
@@ -31,7 +42,7 @@ static inline uint64_t LabelSplicer_splice(uint64_t goHere, uint64_t viaHere)
 {
     uint64_t log2ViaHere = Bits_log2x64(viaHere);
 
-    if (Bits_log2x64(goHere) + log2ViaHere > 60) {
+    if (Bits_log2x64(goHere) + log2ViaHere > 59) {
         // Too big, can't splice.
         return UINT64_MAX;
     }
@@ -90,6 +101,8 @@ static inline bool LabelSplicer_routesThrough(uint64_t destination, uint64_t mid
 {
     if (midPath > destination) {
         return false;
+    } if (midPath < 2) {
+        return true;
     }
     uint64_t mask = UINT64_MAX >> (64 - Bits_log2x64(midPath));
     return (destination & mask) == (midPath & mask);

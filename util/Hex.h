@@ -15,6 +15,9 @@
 #ifndef Hex_H
 #define Hex_H
 
+#include "util/Linker.h"
+Linker_require("util/Hex.c")
+
 #include <stdint.h>
 #include <stdbool.h>
 

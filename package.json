@@ -1,0 +1,9 @@
+{
+    "name": "cjdns-build",
+    "version": "0.1.0",
+    "dependencies": {
+        "nthen": "~0.1.1",
+        "node.extend": "~1.0.8",
+        "jshint": "2.4.1"
+    }
+}

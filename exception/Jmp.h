@@ -40,20 +40,16 @@ struct Jmp {
     /** The exception message if in the catch block, otherwise undefined. */
     char* message;
 
-    /** The code if inside of the catch block, otherwise undefined. */
-    int code;
-
     /** Internal setjmp buffer. */
     jmp_buf buf;
 };
 
 /** Internal callback, this should not be called directly. */
 Gcc_NORETURN
-static void Jmp_callback(char* message, int code, struct Except* handler)
+static void Jmp_callback(char* message, struct Except* handler)
 {
     struct Jmp* jmp = (struct Jmp*) handler;
     jmp->message = message;
-    jmp->code = code;
     longjmp(jmp->buf, 1);
 }
 

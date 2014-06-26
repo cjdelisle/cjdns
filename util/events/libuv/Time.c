@@ -12,16 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef Time_H
-#define Time_H
-
+#include "util/events/libuv/UvWrapper.h"
+#include "util/events/Time.h"
 #include "util/events/libuv/EventBase_pvt.h"
 
-#include <uv.h>
+uint64_t Time_hrtime()
+{
+    return uv_hrtime();
+}
 
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
     return uv_now(base->loop) + base->baseTime;
 }
 
@@ -29,5 +31,3 @@ uint64_t Time_currentTimeSeconds(struct EventBase* eventBase)
 {
     return Time_currentTimeMilliseconds(eventBase) / 1024;
 }
-
-#endif

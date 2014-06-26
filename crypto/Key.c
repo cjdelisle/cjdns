@@ -17,6 +17,8 @@
 #include "util/Base32.h"
 #include "crypto/AddressCalc.h"
 
+#include <stddef.h>
+
 char* Key_parse_strerror(int error)
 {
     switch (error) {

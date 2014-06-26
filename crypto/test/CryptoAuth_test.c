@@ -12,17 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strncmp
-#define string_strlen
 #include "crypto/random/Random.h"
 #include "crypto/CryptoAuth.h"
-#include "crypto/test/Exports.h"
 #include "io/FileWriter.h"
-#include "benc/Object.h"
+#include "benc/String.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
-#include "util/platform/libc/string.h"
 #include "util/events/EventBase.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -53,11 +47,11 @@ static struct Message msg;
 
 #define BUFFER_SIZE 400
 static uint8_t* textBuff;
-#define ALIGNED_LEN(x) (strlen(x) + 4 - (strlen(x) % 4))
+#define ALIGNED_LEN(x) (CString_strlen(x) + 4 - (CString_strlen(x) % 4))
 #define MK_MSG(x) \
     Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
-    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, strlen(x));         \
-    msg.length = strlen(x);                                                     \
+    Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, CString_strlen(x));         \
+    msg.length = CString_strlen(x);                                                     \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
     msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 
@@ -66,50 +60,59 @@ static uint8_t* if2Msg;
 
 static char* userObj = "This represents a user";
 
+static bool suppressMessages = false;
+static int if1Messages = 0;
+static int if2Messages = 0;
+
 
 static uint8_t sendMessageToIf2(struct Message* message, struct Interface* iface)
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-    printf("sent message -->  nonce=%d\n", nonce);
-    Assert_always(message->length + message->padding <= BUFFER_SIZE);
-    if2->receiveMessage(message, if2);
+    printf("sent message -->  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
+    if (!suppressMessages) {
+        Assert_true(message->length + message->padding <= BUFFER_SIZE);
+        if2->receiveMessage(message, if2);
+    }
     return Error_NONE;
 }
 
 static uint8_t sendMessageToIf1(struct Message* message, struct Interface* iface)
 {
     uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-    printf("sent message <--  nonce=%d\n", nonce);
-    Assert_always(message->length + message->padding <= BUFFER_SIZE);
-    if1->receiveMessage(message, if1);
+    printf("sent message <--  nonce=%d%s\n", nonce, suppressMessages ? " SUPPRESSED" : "");
+    if (!suppressMessages) {
+        Assert_true(message->length + message->padding <= BUFFER_SIZE);
+        if1->receiveMessage(message, if1);
+    }
     return Error_NONE;
 }
 
 static uint8_t recvMessageOnIf1(struct Message* message, struct Interface* iface)
 {
+    if1Messages++;
     fputs("if1 got message! ", stdout);
     fwrite(message->bytes, 1, message->length, stdout);
     puts("");
-    if1Msg = message->bytes;
+    if1Msg = Message_clone(message, iface->allocator)->bytes;
     return Error_NONE;
 }
 
 static uint8_t recvMessageOnIf2(struct Message* message, struct Interface* iface)
 {
+    if2Messages++;
     fputs("if2 got message! ", stdout);
     fwrite(message->bytes, 1, message->length, stdout);
     puts("");
-    if2Msg = message->bytes;
+    if2Msg = Message_clone(message, iface->allocator)->bytes;
     return Error_NONE;
 }
 
-int init(const uint8_t* privateKey,
-         uint8_t* publicKey,
-         const uint8_t* password,
-         bool authenticatePackets)
+static int init(const uint8_t* privateKey,
+                uint8_t* publicKey,
+                const uint8_t* password)
 {
     printf("\nSetting up:\n");
-    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(1048576), NULL);
+    struct Allocator* allocator = MallocAllocator_new(1048576);
     textBuff = Allocator_malloc(allocator, BUFFER_SIZE);
     struct Writer* logwriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logwriter, allocator);
@@ -123,21 +126,21 @@ int init(const uint8_t* privateKey,
         .receiveMessage = recvMessageOnIf2,
         .allocator = allocator
     }));
-    cif1 = CryptoAuth_wrapInterface(if1, publicKey, false, false, ca1);
+    cif1 = CryptoAuth_wrapInterface(if1, publicKey, NULL, false, "cif1", ca1);
     cif1->receiveMessage = recvMessageOnIf1;
 
 
     ca2 = CryptoAuth_new(allocator, privateKey, base, logger, rand);
     if (password) {
-        String passStr = {.bytes=(char*)password,.len=strlen((char*)password)};
+        String passStr = {.bytes=(char*)password,.len=CString_strlen((char*)password)};
         CryptoAuth_setAuth(&passStr, 1, cif1);
-        CryptoAuth_addUser(&passStr, 1, userObj, ca2);
+        CryptoAuth_addUser(&passStr, 1, String_new(userObj, allocator), ca2);
     }
     if2 = Allocator_clone(allocator, (&(struct Interface) {
         .sendMessage = sendMessageToIf1,
         .allocator = allocator
     }));
-    cif2 = CryptoAuth_wrapInterface(if2, NULL, false, authenticatePackets, ca2);
+    cif2 = CryptoAuth_wrapInterface(if2, NULL, NULL, false, "cif2", ca2);
     cif2->receiveMessage = recvMessageOnIf2;
 
     return 0;
@@ -145,7 +148,7 @@ int init(const uint8_t* privateKey,
 
 static int simpleInit()
 {
-    return init(NULL, NULL, NULL, false);
+    return init(NULL, NULL, NULL);
 }
 
 static int sendToIf1(const char* x)
@@ -153,10 +156,14 @@ static int sendToIf1(const char* x)
     if1Msg = NULL;
     MK_MSG(x);
     cif2->sendMessage(&msg, cif2);
-    Assert_always(if1Msg);
-    if (strcmp((char*)if1Msg, x) != 0) {
-        printf("expected %s, got %s\n", x, (char*)if1Msg);
-        return -1;
+    if (!suppressMessages) {
+        Assert_true(if1Msg);
+        if (CString_strncmp((char*)if1Msg, x, CString_strlen(x)) != 0) {
+            printf("expected %s, got %s\n", x, (char*)if1Msg);
+            Assert_true(0);
+        }
+    } else {
+        Assert_true(!if1Msg);
     }
     return 0;
 }
@@ -166,15 +173,19 @@ static int sendToIf2(const char* x)
     if2Msg = NULL;
     MK_MSG(x);
     cif1->sendMessage(&msg, cif1);
-    Assert_always(if2Msg);
-    if (strncmp((char*)if2Msg, x, strlen(x)) != 0) {
-        printf("expected %s, got %s\n", x, (char*)if2Msg);
-        return -1;
+    if (!suppressMessages) {
+        Assert_true(if2Msg);
+        if (CString_strncmp((char*)if2Msg, x, CString_strlen(x)) != 0) {
+            printf("expected %s, got %s\n", x, (char*)if2Msg);
+            Assert_true(0);
+        }
+    } else {
+        Assert_true(!if2Msg);
     }
     return 0;
 }
 
-int normal()
+static int normal()
 {
     simpleInit();
     return
@@ -184,7 +195,7 @@ int normal()
       | sendToIf1("goodbye");
 }
 
-int repeatKey()
+static int repeatKey()
 {
     simpleInit();
     return
@@ -195,9 +206,9 @@ int repeatKey()
       | sendToIf1("goodbye");
 }
 
-int repeatHello()
+static int repeatHello()
 {
-    init(privateKey, publicKey, NULL, false);
+    init(privateKey, publicKey, NULL);
     return
         sendToIf2("hello world")
       | sendToIf2("r u thar?")
@@ -206,7 +217,7 @@ int repeatHello()
       | sendToIf1("goodbye");
 }
 
-int chatter()
+static int chatter()
 {
     simpleInit();
     return
@@ -225,9 +236,9 @@ int chatter()
       | sendToIf1("goodbye");
 }
 
-int auth()
+static int auth()
 {
-    init(privateKey, publicKey, (uint8_t*)"password", false);
+    init(privateKey, publicKey, (uint8_t*)"password");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -235,9 +246,9 @@ int auth()
       | sendToIf1("goodbye");
 }
 
-int authWithoutKey()
+static int authWithoutKey()
 {
-    init(NULL, NULL, (uint8_t*)"password", false);
+    init(NULL, NULL, (uint8_t*)"password");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -245,9 +256,9 @@ int authWithoutKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305()
+static int poly1305()
 {
-    init(privateKey, publicKey, NULL, true);
+    init(privateKey, publicKey, NULL);
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -255,9 +266,9 @@ int poly1305()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKey()
+static int poly1305UnknownKey()
 {
-    init(NULL, NULL, NULL, true);
+    init(NULL, NULL, NULL);
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -265,9 +276,9 @@ int poly1305UnknownKey()
       | sendToIf1("goodbye");
 }
 
-int poly1305AndPassword()
+static int poly1305AndPassword()
 {
-    init(privateKey, publicKey, (uint8_t*)"aPassword", true);
+    init(privateKey, publicKey, (uint8_t*)"aPassword");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -275,9 +286,9 @@ int poly1305AndPassword()
       | sendToIf1("goodbye");
 }
 
-int poly1305UnknownKeyAndPassword()
+static int poly1305UnknownKeyAndPassword()
 {
-    init(NULL, NULL, (uint8_t*)"anotherPassword", true);
+    init(NULL, NULL, (uint8_t*)"anotherPassword");
     return
         sendToIf2("hello world")
       | sendToIf1("hello cjdns")
@@ -285,57 +296,45 @@ int poly1305UnknownKeyAndPassword()
       | sendToIf1("goodbye");
 }
 
-int reset()
+static void connectToMe()
 {
     simpleInit();
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
-
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    sendToIf1("hello world");
+    sendToIf1("hello cjdns");
+    sendToIf2("hai");
+    sendToIf1("goodbye");
 }
 
-int authAndReset()
+static void connectToMeDropMsg()
 {
-    printf("\n\nSetting up authAndReset()\n");
-    init(privateKey, publicKey, (uint8_t*)"password", false);
-    int ret =
-        sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("brb");
+    simpleInit();
+    // send a message which is lost in the network.
+    suppressMessages = true;
+    sendToIf1("hello world");
+    suppressMessages = false;
 
-    CryptoAuth_reset(cif2);
-    return
-        ret
-      | sendToIf1("hi again")
-      | sendToIf2("hello world")
-      | sendToIf1("hello cjdns")
-      | sendToIf2("hai")
-      | sendToIf1("goodbye");
+    // Now we learn their key some other way...
+    uint8_t* pk = CryptoAuth_getHerPublicKey(cif2);
+    Bits_memcpyConst(pk, ca1->publicKey, 32);
+
+    sendToIf1("hello again world");
+    sendToIf2("hai");
+    sendToIf1("goodbye");
 }
 
 int main()
 {
-    return normal()
-        | repeatKey()
-        | repeatHello()
-        | chatter()
-        | auth()
-        | authWithoutKey()
-        | poly1305()
-        | poly1305UnknownKey()
-        | poly1305AndPassword()
-        | poly1305UnknownKeyAndPassword()
-        | reset()
-        | authAndReset();
+    normal();
+    repeatKey();
+    repeatHello();
+    chatter();
+    auth();
+    authWithoutKey();
+    poly1305();
+    poly1305UnknownKey();
+    poly1305AndPassword();
+    poly1305UnknownKeyAndPassword();
+    connectToMe();
+    connectToMeDropMsg();
+    return 0;
 }

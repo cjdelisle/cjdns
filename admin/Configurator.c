@@ -17,17 +17,35 @@
 #include "benc/String.h"
 #include "benc/Dict.h"
 #include "benc/Int.h"
+#include "benc/List.h"
 #include "memory/Allocator.h"
 #include "util/events/Event.h"
-#include "util/platform/libc/strlen.h"
+#include "util/Bits.h"
 #include "util/log/Log.h"
+#include "util/platform/Sockaddr.h"
+
+#include <stdlib.h>
+#include <stdbool.h>
 
 struct Context
 {
     struct Log* logger;
     struct Allocator* alloc;
     struct AdminClient* client;
+
+    struct Allocator* currentReqAlloc;
+    struct AdminClient_Result* currentResult;
+
+    struct EventBase* base;
 };
+
+static void rpcCallback(struct AdminClient_Promise* p, struct AdminClient_Result* res)
+{
+    struct Context* ctx = p->userData;
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->currentResult = res;
+    EventBase_endLoop(ctx->base);
+}
 
 static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allocator* alloc)
 {
@@ -37,10 +55,14 @@ static void die(struct AdminClient_Result* res, struct Context* ctx, struct Allo
     #endif
 
     Dict d = NULL;
-    struct AdminClient_Result* exitRes =
+    struct AdminClient_Promise* exitPromise =
         AdminClient_rpcCall(String_CONST("Core_exit"), &d, ctx->client, alloc);
+    exitPromise->callback = rpcCallback;
+    exitPromise->userData = ctx;
 
-    if (exitRes->err) {
+    EventBase_beginLoop(ctx->base);
+
+    if (ctx->currentResult->err) {
         Log_critical(ctx->logger, "Failed to stop the core.");
     }
     Log_critical(ctx->logger, "Aborting.");
@@ -53,7 +75,17 @@ static int rpcCall0(String* function,
                     struct Allocator* alloc,
                     bool exitIfError)
 {
-    struct AdminClient_Result* res = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    ctx->currentReqAlloc = Allocator_child(alloc);
+    ctx->currentResult = NULL;
+    struct AdminClient_Promise* promise = AdminClient_rpcCall(function, args, ctx->client, alloc);
+    promise->callback = rpcCallback;
+    promise->userData = ctx;
+
+    EventBase_beginLoop(ctx->base);
+
+    struct AdminClient_Result* res = ctx->currentResult;
+    Assert_true(res);
+
     if (res->err) {
         Log_critical(ctx->logger,
                       "Failed to make function call [%s], error: [%s]",
@@ -62,6 +94,7 @@ static int rpcCall0(String* function,
         die(res, ctx, alloc);
     }
     String* error = Dict_getString(res->responseDict, String_CONST("error"));
+    int ret = 0;
     if (error && !String_equals(error, String_CONST("none"))) {
         if (exitIfError) {
             Log_critical(ctx->logger,
@@ -72,9 +105,12 @@ static int rpcCall0(String* function,
         }
         Log_warn(ctx->logger, "Got error [%s] calling [%s], ignoring.",
                  error->bytes, function->bytes);
-        return 1;
+        ret = 1;
     }
-    return 0;
+
+    Allocator_free(ctx->currentReqAlloc);
+    ctx->currentReqAlloc = NULL;
+    return ret;
 }
 
 static void rpcCall(String* function, Dict* args, struct Context* ctx, struct Allocator* alloc)
@@ -99,21 +135,58 @@ static void authorizedPasswords(List* list, struct Context* ctx)
         }
     }
 
-    Log_info(ctx->logger, "Flushing existing authorized passwords");
-    rpcCall(String_CONST("AuthorizedPasswords_flush"), NULL, ctx, ctx->alloc);
-
     for (uint32_t i = 0; i < count; i++) {
+        struct Allocator* child = Allocator_child(ctx->alloc);
         Dict* d = List_getDict(list, i);
         String* passwd = Dict_getString(d, String_CONST("password"));
-        Log_info(ctx->logger, "Adding authorized password #[%d].", i);
+        String* user = Dict_getString(d, String_CONST("user"));
+        if (!user) {
+          user = String_printf(child, "password [%d]", i);
+        }
+
+        Log_info(ctx->logger, "Adding authorized password #[%d] for user [%s].", i, user->bytes);
 
         Dict args = Dict_CONST(
             String_CONST("authType"), Int_OBJ(1), Dict_CONST(
-            String_CONST("password"), String_OBJ(passwd), NULL
-        ));
-        struct Allocator* child = Allocator_child(ctx->alloc);
+            String_CONST("password"), String_OBJ(passwd), Dict_CONST(
+            String_CONST("user"), String_OBJ(user), NULL
+        )));
         rpcCall(String_CONST("AuthorizedPasswords_add"), &args, ctx, child);
         Allocator_free(child);
+    }
+}
+
+static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
+{
+    List* servers = Dict_getList(dns, String_CONST("servers"));
+    int count = List_size(servers);
+    for (int i = 0; i < count; i++) {
+        String* server = List_getString(servers, i);
+        if (!server) {
+            Except_throw(eh, "dns.servers[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addServer"), d, ctx, ctx->alloc);
+    }
+
+    List* keys = Dict_getList(dns, String_CONST("keys"));
+    count = List_size(keys);
+    for (int i = 0; i < count; i++) {
+        String* key = List_getString(keys, i);
+        if (!key) {
+            Except_throw(eh, "dns.keys[%d] is not a string", i);
+        }
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_addKey"), d, ctx, ctx->alloc);
+    }
+
+    int64_t* minSigs = Dict_getInt(dns, String_CONST("minSignatures"));
+    if (minSigs) {
+        Dict* d = Dict_new(ctx->alloc);
+        Dict_putInt(d, String_CONST("count"), *minSigs, ctx->alloc);
+        rpcCall(String_CONST("RainflyClient_minSignatures"), d, ctx, ctx->alloc);
     }
 }
 
@@ -143,6 +216,7 @@ static void udpInterface(Dict* config, struct Context* ctx)
         Dict* connectTo = Dict_getDict(udp, String_CONST("connectTo"));
         if (connectTo) {
             struct Dict_Entry* entry = *connectTo;
+            struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
             while (entry != NULL) {
                 String* key = (String*) entry->key;
                 if (entry->val->type != Object_DICT) {
@@ -151,16 +225,35 @@ static void udpInterface(Dict* config, struct Context* ctx)
                     exit(-1);
                 }
                 Dict* value = entry->val->as.dictionary;
-
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
+                key = String_clone(key, perCallAlloc);
+                char* lastColon = CString_strrchr(key->bytes, ':');
 
-                struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+                if (!Sockaddr_parse(key->bytes, NULL)) {
+                    // it's a sockaddr, fall through
+                } else if (lastColon) {
+                    // try it as a hostname.
+                    int port = atoi(lastColon+1);
+                    if (!port) {
+                        Log_critical(ctx->logger, "Couldn't get port number from [%s]", key->bytes);
+                        exit(-1);
+                    }
+                    *lastColon = '\0';
+                    struct Sockaddr* adr = Sockaddr_fromName(key->bytes, perCallAlloc);
+                    if (adr != NULL) {
+                        Sockaddr_setPort(adr, port);
+                        key = String_new(Sockaddr_print(adr, perCallAlloc), perCallAlloc);
+                    } else {
+                        Log_warn(ctx->logger, "Failed to lookup hostname [%s]", key->bytes);
+                        entry = entry->next;
+                        continue;
+                    }
+                }
                 Dict_putString(value, String_CONST("address"), key, perCallAlloc);
                 rpcCall(String_CONST("UDPInterface_beginConnection"), value, ctx, perCallAlloc);
-                Allocator_free(perCallAlloc);
-
                 entry = entry->next;
             }
+            Allocator_free(perCallAlloc);
         }
     }
 }
@@ -238,17 +331,21 @@ static void ethInterface(Dict* config, struct Context* ctx)
         }
         // Setup the interface.
         String* deviceStr = Dict_getString(eth, String_CONST("bind"));
+        Log_info(ctx->logger, "Setting up ETHInterface [%d].", i);
         Dict* d = Dict_new(ctx->alloc);
         if (deviceStr) {
+            Log_info(ctx->logger, "Binding to device [%s].", deviceStr->bytes);
             Dict_putString(d, String_CONST("bindDevice"), deviceStr, ctx->alloc);
         }
         if (rpcCall0(String_CONST("ETHInterface_new"), d, ctx, ctx->alloc, false)) {
+            Log_warn(ctx->logger, "Failed to create ETHInterface.");
             continue;
         }
 
         // Make the connections.
         Dict* connectTo = Dict_getDict(eth, String_CONST("connectTo"));
         if (connectTo) {
+            Log_info(ctx->logger, "ETHInterface should connect to a specific node.");
             struct Dict_Entry* entry = *connectTo;
             while (entry != NULL) {
                 String* key = (String*) entry->key;
@@ -262,7 +359,10 @@ static void ethInterface(Dict* config, struct Context* ctx)
                 Log_keys(ctx->logger, "Attempting to connect to node [%s].", key->bytes);
 
                 struct Allocator* perCallAlloc = Allocator_child(ctx->alloc);
+                // Turn the dict from the config into our RPC args dict by filling in all
+                // the arguments,
                 Dict_putString(value, String_CONST("macAddress"), key, perCallAlloc);
+                Dict_putInt(value, String_CONST("interfaceNumber"), i, perCallAlloc);
                 rpcCall(String_CONST("ETHInterface_beginConnection"), value, ctx, perCallAlloc);
                 Allocator_free(perCallAlloc);
 
@@ -276,7 +376,10 @@ static void ethInterface(Dict* config, struct Context* ctx)
             if (beacon > 3 || beacon < 0) {
                 Log_error(ctx->logger, "interfaces.ETHInterface.beacon may only be 0, 1,or 2");
             } else {
-                Dict d = Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL);
+                // We can cast beacon to an int here because we know it's small enough
+                Log_info(ctx->logger, "Setting beacon mode on ETHInterface to [%d].", (int) beacon);
+                Dict d = Dict_CONST(String_CONST("interfaceNumber"), Int_OBJ(i),
+                         Dict_CONST(String_CONST("state"), Int_OBJ(beacon), NULL));
                 rpcCall(String_CONST("ETHInterface_beacon"), &d, ctx, ctx->alloc);
             }
         }
@@ -286,24 +389,12 @@ static void ethInterface(Dict* config, struct Context* ctx)
 
 static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
-    bool noFiles = false;
-    for (int i = 0; i < List_size(securityConf); i++) {
-        if (String_equals(String_CONST("nofiles"), List_getString(securityConf, i))) {
-            noFiles = true;
-        } else {
-            Dict* userDict = List_getDict(securityConf, i);
-            String* userName = Dict_getString(userDict, String_CONST("setuser"));
-            if (userName) {
-                Dict d = Dict_CONST(String_CONST("user"), String_OBJ(userName), NULL);
-                // If this call returns an error, it is ok.
-                rpcCall0(String_CONST("Security_setUser"), &d, ctx, tempAlloc, false);
-            }
-        }
-    }
-    if (noFiles) {
-        Dict d = NULL;
-        rpcCall(String_CONST("Security_noFiles"), &d, ctx, tempAlloc);
-    }
+    Dict* d = Dict_new(tempAlloc);
+    Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
+    // it's ok if this fails
+    rpcCall0(String_CONST("Security_setUser"), d, ctx, tempAlloc, false);
+    d = Dict_new(tempAlloc);
+    rpcCall(String_CONST("Security_dropPermissions"), d, ctx, tempAlloc);
 }
 
 void Configurator_config(Dict* config,
@@ -313,11 +404,17 @@ void Configurator_config(Dict* config,
                          struct Log* logger,
                          struct Allocator* alloc)
 {
+    struct Except* eh = NULL;
     struct Allocator* tempAlloc = Allocator_child(alloc);
     struct AdminClient* client =
         AdminClient_new(sockAddr, adminPassword, eventBase, logger, tempAlloc);
 
-    struct Context ctx = { .logger = logger, .alloc = tempAlloc, .client = client };
+    struct Context ctx = {
+        .logger = logger,
+        .alloc = tempAlloc,
+        .client = client,
+        .base = eventBase,
+    };
 
     List* authedPasswords = Dict_getList(config, String_CONST("authorizedPasswords"));
     if (authedPasswords) {
@@ -336,6 +433,9 @@ void Configurator_config(Dict* config,
 
     List* securityList = Dict_getList(config, String_CONST("security"));
     security(securityList, tempAlloc, &ctx);
+
+    Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
+    dns(dnsConf, &ctx, eh);
 
     Allocator_free(tempAlloc);
 }

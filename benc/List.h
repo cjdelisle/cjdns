@@ -17,6 +17,8 @@
 
 #include "memory/Allocator.h"
 #include "benc/Object.h"
+#include "util/Linker.h"
+Linker_require("benc/List.c")
 
 struct List_Item;
 struct List_Item {
@@ -40,7 +42,7 @@ int32_t List_size(const List* list);
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the integer.
  */
-List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator);
+List* List_addInt(List* list, int64_t toAdd, struct Allocator* allocator);
 
 /**
  * Add a string to a list, if the list does not exist then it is allocated.
@@ -51,7 +53,7 @@ List* List_addInt(List* list, int64_t toAdd, const struct Allocator* allocator);
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the string.
  */
-List* List_addString(List* list, String* toAdd, const struct Allocator* allocator);
+List* List_addString(List* list, String* toAdd, struct Allocator* allocator);
 
 /**
  * Add a dictionary to a list, if the list does not exist then it is allocated.
@@ -62,7 +64,7 @@ List* List_addString(List* list, String* toAdd, const struct Allocator* allocato
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the dictionary.
  */
-List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator);
+List* List_addDict(List* list, Dict* toAdd, struct Allocator* allocator);
 
 /**
  * Add a list as an item to another list, if the list does not exist then it is allocated.
@@ -73,7 +75,7 @@ List* List_addDict(List* list, Dict* toAdd, const struct Allocator* allocator);
  * @param allocator the means of getting memory space for storing the list entry.
  * @return the list after adding the item.
  */
-List* List_addList(List* list, List* toAdd, const struct Allocator* allocator);
+List* List_addList(List* list, List* toAdd, struct Allocator* allocator);
 
 /**
  * Get an integer from a list.

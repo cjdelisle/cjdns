@@ -15,42 +15,34 @@
 #ifndef Reader_H
 #define Reader_H
 
-/* size_t */
-#include <stdlib.h>
 #include <stdint.h>
 
 /**
  * Reader interface which reads data from a source and fails safe rather than overreading.
  */
 struct Reader {
-    /** The internal state of the Reader. */
-    void* const context;
-
     /**
      * Read some content from a buffer or other source.
      *
+     * @param thisReader the Reader which is being called.
      * @param readInto a pointer to a memory location which will have content written to it.
      * @param length the number of bytes to read. If this number is 0 then the next
      *               byte will be returned without incrementing the pointer.
-     * @param thisReader the Reader which is being called. Use: reader->read(X, Y, reader);
      * @return 0 if read went well, -1 if the content ran out and no more could be read.
      */
-    int (* const read)(void* readInto, size_t length, const struct Reader* thisReader);
+    int (* const read)(struct Reader* thisReader, void* readInto, unsigned long length);
 
     /**
      * Advance the pointer a number of bytes without reading any.
      * This function will happily skip off the end of the source and the next read will fail.
      *
-     * @param byteCount how far to advance the pointer
-     * @param thisReader the Reader which is being called. Use: reader->skip(Y, reader);
+     * @param thisReader the Reader which is being called.
+     * @param byteCount how far to advance the pointer.
      */
-    void (* const skip)(size_t byteCount, const struct Reader* thisReader);
+    void (* const skip)(struct Reader* thisReader, unsigned long byteCount);
 
-    /**
-     * @param thisReader the reader itself.
-     * @return the total number of bytes which have been read OR SKIPPED by this reader.
-     */
-    size_t (* const bytesRead)(const struct Reader* thisReader);
+    /** The total number of bytes which have been read OR SKIPPED by this reader. */
+    uint64_t bytesRead;
 };
 
 
@@ -58,7 +50,7 @@ struct Reader {
     static inline uint##bytes##_t Reader_read##bytes (struct Reader* reader) \
     {                                                                        \
         uint##bytes##_t num;                                                 \
-        reader->read(&num, bytes/8, reader);                                 \
+        reader->read(reader, &num, bytes/8);                                 \
         return num;                                                          \
     }
 
@@ -69,6 +61,12 @@ Reader_readGeneric(64)
 
 
 #define Reader_read(reader, readInto, bytes) \
-    reader->read(readInto, bytes, reader)
+    (reader)->read((reader), (readInto), (bytes))
+
+#define Reader_skip(reader, bytes) \
+    (reader)->skip((reader), (bytes))
+
+#define Reader_bytesRead(reader) \
+    ((reader)->bytesRead + 0)
 
 #endif

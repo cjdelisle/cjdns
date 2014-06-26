@@ -15,12 +15,13 @@
 
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "crypto/random/Random.h"
 #include "interface/ICMP6Generator_pvt.h"
 #include "wire/Headers.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
+
+#include <stdio.h>
 
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 
@@ -36,7 +37,7 @@ static struct Message* newMessage(struct Allocator* alloc, int messageSize)
 
 static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messageSize, uint32_t mtu)
 {
-    struct Allocator* alloc = CanaryAllocator_new(Allocator_child(mainAlloc), rand);
+    struct Allocator* alloc = Allocator_child(mainAlloc);
     struct Message* msg = newMessage(alloc, messageSize);
 
     uint8_t* sourceAddr = (uint8_t*) "sourceAddress123";
@@ -46,31 +47,31 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     for (int i = 0; i < messageSize; i++) {
         msg->bytes[i] = i & 0xff;
     }
-    CanaryAllocator_check(alloc);
-    ICMP6Generator_generate(msg, sourceAddr, destAddr, ICMP6Generator_Type_PACKET_TOO_BIG, mtu);
-    CanaryAllocator_check(alloc);
 
-    Assert_always(msg->length <= 1280);
+    ICMP6Generator_generate(msg, sourceAddr, destAddr, ICMP6Generator_Type_PACKET_TOO_BIG, mtu);
+
+
+    Assert_true(msg->length <= 1280);
 
     struct Headers_IP6Header* header = (struct Headers_IP6Header*) msg->bytes;
-    Message_shift(msg, -Headers_IP6Header_SIZE);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
 
-    Assert_always(!Bits_memcmp(sourceAddr, header->sourceAddr, 16));
-    Assert_always(!Bits_memcmp(destAddr, header->destinationAddr, 16));
-    Assert_always(Headers_getIpVersion(header) == 6);
-    Assert_always(header->flowLabelLow_be == 0);
-    Assert_always(Endian_bigEndianToHost16(header->payloadLength_be) == msg->length);
-    Assert_always(header->nextHeader == 58); // 58 -> icmp
-    Assert_always(header->hopLimit == 64);
+    Assert_true(!Bits_memcmp(sourceAddr, header->sourceAddr, 16));
+    Assert_true(!Bits_memcmp(destAddr, header->destinationAddr, 16));
+    Assert_true(Headers_getIpVersion(header) == 6);
+    Assert_true(header->flowLabelLow_be == 0);
+    Assert_true(Endian_bigEndianToHost16(header->payloadLength_be) == msg->length);
+    Assert_true(header->nextHeader == 58); // 58 -> icmp
+    Assert_true(header->hopLimit == 64);
 
     struct Headers_ICMP6Header* icmp = (struct Headers_ICMP6Header*) msg->bytes;
-    Message_shift(msg, -Headers_ICMP6Header_SIZE);
+    Message_shift(msg, -Headers_ICMP6Header_SIZE, NULL);
 
-    Assert_always(icmp->type == 2); // packet too big.
-    Assert_always(icmp->code == 0);
-    Assert_always(icmp->additional == Endian_hostToBigEndian32(mtu));
+    Assert_true(icmp->type == 2); // packet too big.
+    Assert_true(icmp->code == 0);
+    Assert_true(icmp->additional == Endian_hostToBigEndian32(mtu));
 
-    Assert_always(msg->length ==
+    Assert_true(msg->length ==
         MIN(messageSize,
             ICMP6Generator_MIN_IPV6_MTU
             - Headers_IP6Header_SIZE
@@ -80,7 +81,7 @@ static void mtuTest(struct Allocator* mainAlloc, struct Random* rand, int messag
     for (int i = 0; i < msg->length; i++) {
         out |= msg->bytes[i] ^ (i & 0xff);
     }
-    Assert_always(!out);
+    Assert_true(!out);
 
     Allocator_free(alloc);
 }
@@ -93,13 +94,13 @@ static uint8_t messageFromGenerator(struct Message* msg, struct Interface* iface
 
     int index = Headers_IP6Fragment_getOffset(frag);
 
-    Message_shift(msg, -Headers_IP6Header_SIZE);
-    Assert_always(Endian_bigEndianToHost16(ip6->payloadLength_be) == msg->length);
-    Message_shift(msg, -Headers_IP6Fragment_SIZE);
-    Assert_always(msg->length > 0);
+    Message_shift(msg, -Headers_IP6Header_SIZE, NULL);
+    Assert_true(Endian_bigEndianToHost16(ip6->payloadLength_be) == msg->length);
+    Message_shift(msg, -Headers_IP6Fragment_SIZE, NULL);
+    Assert_true(msg->length > 0);
 
     Bits_memcpy(&reassemblyBuff[index], msg->bytes, msg->length);
-    Message_shift(msg, (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE));
+    Message_shift(msg, (Headers_IP6Header_SIZE + Headers_IP6Fragment_SIZE), NULL);
 
     printf("Got message fragment with index [%d] length [%d] hasMoreFragments [%d]\n",
            index, msg->length, Headers_IP6Fragment_hasMoreFragments(frag));
@@ -111,7 +112,7 @@ static void fragTest(struct Allocator* mainAlloc,
                      int messageSize,
                      uint32_t mtu)
 {
-    struct Allocator* alloc = CanaryAllocator_new(Allocator_child(mainAlloc), rand);
+    struct Allocator* alloc = Allocator_child(mainAlloc);
     struct Message* msg = newMessage(alloc, messageSize);
     for (int i = 0; i < msg->length; i++) {
         msg->bytes[i] = i & 0xff;
@@ -132,12 +133,10 @@ static void fragTest(struct Allocator* mainAlloc,
     ig->internal.receiveMessage = messageFromGenerator;
     ig->internal.receiverContext = reassemblyBuff;
 
-    CanaryAllocator_check(alloc);
     ig->external.sendMessage(msg, &ig->external);
-    CanaryAllocator_check(alloc);
 
     for (int i = 0; i < (int)(messageSize - headersSize); i++) {
-        Assert_always(reassemblyBuff[i] == ((i + headersSize) & 0xff));
+        Assert_true(reassemblyBuff[i] == ((i + headersSize) & 0xff));
     }
 
     Allocator_free(alloc);
@@ -159,4 +158,7 @@ int main()
     fragTest(alloc, rand, 1300, 500);
     fragTest(alloc, rand, 1500, 200);
     fragTest(alloc, rand, 1500, 100);
+
+    Allocator_free(alloc);
+    return 0;
 }

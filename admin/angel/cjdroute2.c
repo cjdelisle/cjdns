@@ -12,11 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strcmp
-#define string_strrchr
-#define string_strlen
 #include "admin/Admin.h"
-#include "admin/angel/Waiter.h"
+#include "admin/AdminClient.h"
+#include "admin/angel/InterfaceWaiter.h"
 #include "admin/angel/AngelInit.h"
 #include "admin/angel/Core.h"
 #include "admin/AuthorizedPasswords.h"
@@ -30,8 +28,6 @@
 #include "dht/dhtcore/RouterModule_admin.h"
 #include "exception/Except.h"
 #include "interface/Interface.h"
-#include "interface/TUNInterface.h"
-#include "interface/TUNConfigurator.h"
 #include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
@@ -46,18 +42,18 @@
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
-#include "net/DefaultInterfaceController.h"
 #include "net/SwitchPinger.h"
 #include "net/SwitchPinger_admin.h"
 #include "switch/SwitchCore.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
+#include "util/ArchInfo.h"
+#include "util/SysInfo.h"
 #include "util/events/EventBase.h"
+#include "util/events/Pipe.h"
+#include "util/events/Process.h"
 #include "util/Assert.h"
 #include "util/Base32.h"
-#include "util/Errno.h"
 #include "util/Hex.h"
-#include "util/Pipe.h"
-#include "util/Process.h"
 #include "util/Security.h"
 #include "util/log/WriterLog.h"
 #include "util/version/Version.h"
@@ -170,7 +166,7 @@ static int genconf(struct Random* rand)
            "        \"password\": \"%s\"\n", adminPassword);
     printf("    },\n"
            "\n"
-           "\n\n" // TODO: Why is this needed and where are these newlines going?!!
+           "\n\n" // TODO(cjd): Why is this needed and where are these newlines going?!!
            "\n"
            "    // Interfaces to connect to the switch core.\n"
            "    \"interfaces\":\n"
@@ -285,19 +281,9 @@ static int genconf(struct Random* rand)
            "    // to make them more forgiving in the event that they become desynchronized.\n"
            "    \"resetAfterInactivitySeconds\": 100,\n"
            "\n"
-           "    // Save the pid of the running process to this file.\n"
-           "    // If this file cannot be opened for writing, the router will not start.\n"
-           "    //\"pidFile\": \"cjdroute.pid\",\n"
-           "\n"
            "    // Dropping permissions.\n"
            "    \"security\":\n"
            "    [\n"
-           "        // Set number of open files to zero, in Linux, this will succeed even if\n"
-           "        // files are already open and will not allow any files to be opened for the\n"
-           "        // duration of the program's operation.\n"
-           "        // Most security exploits require the use of files.\n"
-           "        \"nofiles\",\n"
-           "\n"
            "        // Change the user id to this user after starting up and getting resources.\n"
            "        {\n"
            "            \"setuser\": \"nobody\",\n"
@@ -317,15 +303,46 @@ static int genconf(struct Random* rand)
            "        // Uncomment to have cjdns log to stdout rather than making logs available\n"
            "        // via the admin socket.\n"
            "        // \"logTo\":\"stdout\"\n"
+           "    },\n"
+           "\n"
+           "    // If set to non-zero, cjdns will not fork to the background.\n"
+           "    // Recommended for use in conjunction with \"logTo\":\"stdout\".\n"
+           "    \"noBackground\":0,\n"
+           "\n");
+    printf("    // DNS, this server will be available at address fc00::1\n"
+           "    \"dns\":\n"
+           "    {\n"
+           "        // Who to trust\n"
+           "        \"keys\": [\n"
+           "            \"7kuc3jcyql3cm8lx5zdj8vc0tkz8679kyx83utbm1ub5bxpf4mf1.mittens.h\",\n"
+           "            \"tvlxu5rbcj76rfdmsw9xd3kjn79fhv6kpvl2hzv98637j4rdj1b1.tom.h\",\n"
+           "            \"kkxfwnm3upf0jv35jq4lx0dn0z3m9bh71gv84cdjlcp68w1qckt1.maru.h\",\n"
+           "            \"02wmqfu7v0kdq17fwv68hk646bdvhcr8ybk2ycy7ddzv21n5nb60.scruffy.h\"\n"
+           "        ],\n"
+           "\n"
+           "        // Who to ask, if a request fails the next one will be tried\n"
+           "        \"servers\": [\n"
+           "            \"[fc71:ec46:57a0:2bbc:537d:b680:3630:93e4]:9001\",\n"
+           "            \"[fc8e:9a1c:27c3:281b:29b1:1a04:3701:c125]:9001\",\n"
+           "            \"[fcad:0450:4a40:9778:14e2:e442:6678:3161]:9001\",\n"
+           "            \"[fc2f:baa8:4a89:2db5:6789:aa75:07e6:4cb2]:9001\"\n"
+           "        ],\n"
+           "\n"
+           "        // At least this many of \"keys\" must agree or else the request will fail.\n"
+           "        \"minSignatures\":2\n"
            "    }\n"
+           "\n"
            "}\n");
 
     return 0;
 }
 
-static int usage(char* appName)
+static int usage(struct Allocator* alloc, char* appName)
 {
-    printf("Usage: %s [--help] [--genconf] [--bench] [--version]\n"
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), alloc);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
+    printf("Cjdns %s %s\n"
+           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -342,7 +359,7 @@ static int usage(char* appName)
            "    sudo %s < cjdroute.conf\n"
            "\n"
            "For more information about other functions and non-standard setups, see README.md\n",
-           appName, appName, appName);
+           archInfo, sysInfo, appName, appName, appName);
 
     return 0;
 }
@@ -357,6 +374,66 @@ static int benchmark()
     return 0;
 }
 
+struct CheckRunningInstanceContext
+{
+    struct EventBase* base;
+    struct Allocator* alloc;
+    struct AdminClient_Result* res;
+};
+
+static void checkRunningInstanceCallback(struct AdminClient_Promise* p,
+                                         struct AdminClient_Result* res)
+{
+    struct CheckRunningInstanceContext* ctx = p->userData;
+    // Prevent this from freeing until after we drop out of the loop.
+    Allocator_adopt(ctx->alloc, p->alloc);
+    ctx->res = res;
+    EventBase_endLoop(ctx->base);
+}
+
+static void checkRunningInstance(struct Allocator* allocator,
+                                 struct EventBase* base,
+                                 String* addr,
+                                 String* password,
+                                 struct Log* logger,
+                                 struct Except* eh)
+{
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct Sockaddr_storage pingAddrStorage;
+    if (Sockaddr_parse(addr->bytes, &pingAddrStorage)) {
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+                     addr->bytes);
+    }
+    struct AdminClient* adminClient =
+        AdminClient_new(&pingAddrStorage.addr, password, base, logger, alloc);
+
+    // 100 milliseconds is plenty to wait for a process to respond on the same machine.
+    adminClient->millisecondsToWait = 100;
+
+    Dict* pingArgs = Dict_new(alloc);
+
+    struct AdminClient_Promise* pingPromise =
+        AdminClient_rpcCall(String_new("ping", alloc), pingArgs, adminClient, alloc);
+
+    struct CheckRunningInstanceContext* ctx =
+        Allocator_malloc(alloc, sizeof(struct CheckRunningInstanceContext));
+    ctx->base = base;
+    ctx->alloc = alloc;
+    ctx->res = NULL;
+
+    pingPromise->callback = checkRunningInstanceCallback;
+    pingPromise->userData = ctx;
+
+    EventBase_beginLoop(base);
+
+    Assert_true(ctx->res);
+    if (ctx->res->err != AdminClient_Error_TIMEOUT) {
+        Except_throw(eh, "Startup failed: cjdroute is already running. [%d]", ctx->res->err);
+    }
+
+    Allocator_free(alloc);
+}
+
 int main(int argc, char** argv)
 {
     #ifdef Log_KEYS
@@ -365,35 +442,41 @@ int main(int argc, char** argv)
 
     if (isatty(STDIN_FILENO) || argc < 2) {
         // Fall through.
-    } else if (!strcmp("angel", argv[1])) {
+    } else if (!CString_strcmp("angel", argv[1])) {
         return AngelInit_main(argc, argv);
-    } else if (!strcmp("core", argv[1])) {
+    } else if (!CString_strcmp("core", argv[1])) {
         return Core_main(argc, argv);
     }
 
-    Assert_true(argc > 0);
+    Assert_ifParanoid(argc > 0);
     struct Except* eh = NULL;
 
-    // Allow it to allocate 4MB
-    struct Allocator* allocator = MallocAllocator_new(1<<22);
+    // Allow it to allocate 8MB
+    struct Allocator* allocator = MallocAllocator_new(1<<23);
     struct Random* rand = Random_new(allocator, NULL, eh);
     struct EventBase* eventBase = EventBase_new(allocator);
 
     if (argc == 2) {
         // one argument
-        if (strcmp(argv[1], "--help") == 0) {
-            return usage(argv[0]);
-        } else if (strcmp(argv[1], "--genconf") == 0) {
+        if ((CString_strcmp(argv[1], "--help") == 0) || (CString_strcmp(argv[1], "-h") == 0)) {
+            return usage(allocator, argv[0]);
+        } else if (CString_strcmp(argv[1], "--genconf") == 0) {
             return genconf(rand);
-        } else if (strcmp(argv[1], "--pidfile") == 0) {
-            // Performed after reading the configuration
-        } else if (strcmp(argv[1], "--reconf") == 0) {
-            // Performed after reading the configuration
-        } else if (strcmp(argv[1], "--bench") == 0) {
-            return benchmark();
-        } else if (strcmp(argv[1], "--version") == 0) {
-            printf("Cjdns Git Version ID: %s\n", Version_gitVersion());
+        } else if (CString_strcmp(argv[1], "--pidfile") == 0) {
+            // deprecated
+            fprintf(stderr, "'--pidfile' option is deprecated.\n");
             return 0;
+        } else if (CString_strcmp(argv[1], "--reconf") == 0) {
+            // Performed after reading the configuration
+        } else if (CString_strcmp(argv[1], "--bench") == 0) {
+            return benchmark();
+        } else if ((CString_strcmp(argv[1], "--version") == 0)
+            || (CString_strcmp(argv[1], "-v") == 0))
+        {
+            printf("Cjdns protocol version: %d\n", Version_CURRENT_PROTOCOL);
+            return 0;
+        } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
+            // Performed after reading configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -403,6 +486,11 @@ int main(int argc, char** argv)
         // more than one argument?
         fprintf(stderr, "%s: too many arguments\n", argv[0]);
         fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
+        // because of '--pidfile $filename'?
+        if (CString_strcmp(argv[1], "--pidfile") == 0)
+        {
+            fprintf(stderr, "\n'--pidfile' option is deprecated.\n");
+        }
         return -1;
     }
 
@@ -410,7 +498,7 @@ int main(int argc, char** argv)
         // We were started from a terminal
         // The chances an user wants to type in a configuration
         // bij hand are pretty slim so we show him the usage
-        return usage(argv[0]);
+        return usage(allocator, argv[0]);
     } else {
         // We assume stdin is a configuration file and that we should
         // start routing
@@ -423,36 +511,15 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    if (argc == 2 && CString_strcmp(argv[1], "--cleanconf") == 0) {
+        struct Writer* stdoutWriter = FileWriter_new(stdout, allocator);
+        JsonBencSerializer_get()->serializeDictionary(stdoutWriter, &config);
+        printf("\n");
+        return 0;
+    }
+
     struct Writer* logWriter = FileWriter_new(stdout, allocator);
     struct Log* logger = WriterLog_new(logWriter, allocator);
-
-    // --------------------- Setup Pipes to Angel --------------------- //
-    int pipeToAngel[2];
-    int pipeFromAngel[2];
-    if (Pipe_createUniPipe(pipeToAngel) || Pipe_createUniPipe(pipeFromAngel)) {
-        Except_raise(eh, -1, "Failed to create pipes to angel [%s]", Errno_getString());
-    }
-
-    char pipeToAngelStr[8];
-    snprintf(pipeToAngelStr, 8, "%d", pipeToAngel[0]);
-    char pipeFromAngelStr[8];
-    snprintf(pipeFromAngelStr, 8, "%d", pipeFromAngel[1]);
-    char* args[] = { "angel", pipeToAngelStr, pipeFromAngelStr, NULL };
-
-    // --------------------- Spawn Angel --------------------- //
-    String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
-
-    char* corePath = Process_getPath(allocator);
-    if (!corePath) {
-        Except_raise(eh, -1, "Can't find a usable cjdns core executable, "
-                             "make sure it is in the same directory as cjdroute");
-    }
-
-    if (!privateKey) {
-        Except_raise(eh, -1, "Need to specify privateKey.");
-    }
-    Log_info(logger, "Forking angel to background.");
-    Process_spawn(corePath, args);
 
     // --------------------- Get Admin  --------------------- //
     Dict* configAdmin = Dict_getDict(&config, String_CONST("admin"));
@@ -461,11 +528,47 @@ int main(int argc, char** argv)
     if (!adminPass) {
         adminPass = String_newBinary(NULL, 32, allocator);
         Random_base32(rand, (uint8_t*) adminPass->bytes, 32);
-        adminPass->len = strlen(adminPass->bytes);
+        adminPass->len = CString_strlen(adminPass->bytes);
     }
     if (!adminBind) {
-        adminBind = String_new("127.0.0.1:0", allocator);
+        Except_throw(eh, "You must specify admin.bind in the cjdroute.conf file.");
     }
+
+    // --------------------- Welcome to cjdns ---------------------- //
+    char* archInfo = ArchInfo_describe(ArchInfo_detect(), allocator);
+    char* sysInfo = SysInfo_describe(SysInfo_detect(), allocator);
+    Log_info(logger, "Cjdns %s %s", archInfo, sysInfo);
+
+    // --------------------- Check for running instance  --------------------- //
+
+    Log_info(logger, "Checking for running instance...");
+    checkRunningInstance(allocator, eventBase, adminBind, adminPass, logger, eh);
+
+    // --------------------- Setup Pipes to Angel --------------------- //
+    char angelPipeName[64] = "client-angel-";
+    Random_base32(rand, (uint8_t*)angelPipeName+13, 31);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 0);
+    struct Pipe* angelPipe = Pipe_named(angelPipeName, eventBase, eh, allocator);
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
+    angelPipe->logger = logger;
+
+    char* args[] = { "angel", angelPipeName, NULL };
+
+    // --------------------- Spawn Angel --------------------- //
+    String* privateKey = Dict_getString(&config, String_CONST("privateKey"));
+
+    char* corePath = Process_getPath(allocator);
+
+    if (!corePath) {
+        Except_throw(eh, "Can't find a usable cjdns core executable, "
+                         "make sure it is in the same directory as cjdroute");
+    }
+
+    if (!privateKey) {
+        Except_throw(eh, "Need to specify privateKey.");
+    }
+    Log_info(logger, "Forking angel to background.");
+    Process_spawn(corePath, args, eventBase, allocator);
 
     // --------------------- Get user for angel to setuid() ---------------------- //
     String* securityUser = NULL;
@@ -501,21 +604,29 @@ int main(int argc, char** argv)
     uint8_t buff[CONFIG_BUFF_SIZE] = {0};
     struct Writer* toAngelWriter = ArrayWriter_new(buff, CONFIG_BUFF_SIZE - 1, allocator);
     if (StandardBencSerializer_get()->serializeDictionary(toAngelWriter, preConf)) {
-        Except_raise(eh, -1, "Failed to serialize pre-configuration");
+        Except_throw(eh, "Failed to serialize pre-configuration");
     }
-    write(pipeToAngel[1], buff, toAngelWriter->bytesWritten(toAngelWriter));
+    struct Message* toAngelMsg = &(struct Message) {
+        .bytes = buff,
+        .length = toAngelWriter->bytesWritten
+    };
+    toAngelMsg = Message_clone(toAngelMsg, allocator);
+    Interface_sendMessage(&angelPipe->iface, toAngelMsg);
+
     Log_keys(logger, "Sent [%s] to angel process.", buff);
 
     // --------------------- Get Response from Angel --------------------- //
 
-    uint32_t amount = Waiter_getData(buff, CONFIG_BUFF_SIZE, pipeFromAngel[0], eventBase, eh);
+    struct Message* fromAngelMsg =
+        InterfaceWaiter_waitForData(&angelPipe->iface, eventBase, allocator, eh);
     Dict responseFromAngel;
-    struct Reader* responseFromAngelReader = ArrayReader_new(buff, amount, allocator);
+    struct Reader* responseFromAngelReader =
+        ArrayReader_new(fromAngelMsg->bytes, fromAngelMsg->length, allocator);
     if (StandardBencSerializer_get()->parseDictionary(responseFromAngelReader,
                                                       allocator,
                                                       &responseFromAngel))
     {
-        Except_raise(eh, -1, "Failed to parse pre-configuration response [%s]", buff);
+        Except_throw(eh, "Failed to parse pre-configuration response [%s]", buff);
     }
 
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
@@ -523,16 +634,16 @@ int main(int argc, char** argv)
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
 
     if (!adminBind) {
-        Except_raise(eh, -1, "didn't get address and port back from angel");
+        Except_throw(eh, "didn't get address and port back from angel");
     }
     struct Sockaddr_storage adminAddr;
     if (Sockaddr_parse(adminBind->bytes, &adminAddr)) {
-        Except_raise(eh, -1, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
+        Except_throw(eh, "Unable to parse [%s] as an ip address port, eg: 127.0.0.1:11234",
                      adminBind->bytes);
     }
 
-    // sanity check
-    Assert_true(EventBase_eventCount(eventBase) == 0);
+    // sanity check, Pipe_named() creates 2 events, see above.
+    Assert_ifParanoid(EventBase_eventCount(eventBase) == 2);
 
     // --------------------- Configuration ------------------------- //
     Configurator_config(&config,
@@ -542,5 +653,13 @@ int main(int argc, char** argv)
                         logger,
                         allocator);
 
+    // --------------------- noBackground ------------------------ //
+
+    int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
+    if (noBackground && *noBackground) {
+        EventBase_beginLoop(eventBase);
+    }
+
+    //Allocator_free(allocator);
     return 0;
 }

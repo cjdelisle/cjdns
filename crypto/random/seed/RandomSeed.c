@@ -19,29 +19,6 @@
 
 #include <crypto_hash_sha512.h>
 
-#include "crypto/random/seed/RtlGenRandomSeed.h"
-#include "crypto/random/seed/BsdKernArndSysctlRandomSeed.h"
-#include "crypto/random/seed/DevUrandomRandomSeed.h"
-#include "crypto/random/seed/LinuxRandomUuidSysctlRandomSeed.h"
-#include "crypto/random/seed/ProcSysKernelRandomUuidRandomSeed.h"
-
-static RandomSeed_Provider PROVIDERS[] = {
-    /** windows */
-    RtlGenRandomSeed_new,
-
-    /** bsd syscall(KERN_ARND) */
-    BsdKernArndSysctlRandomSeed_new,
-
-    /** /dev/urandom */
-    DevUrandomRandomSeed_new,
-
-    /** linux syscall(RANDOM_UUID) */
-    LinuxRandomUuidSysctlRandomSeed_new,
-
-    /** linux /proc/sys/kernel/random/uuid */
-    ProcSysKernelRandomUuidRandomSeed_new
-};
-
 struct RandomSeed_pvt
 {
     struct RandomSeed pub;
@@ -51,28 +28,36 @@ struct RandomSeed_pvt
     Identity
 };
 
+struct RandomSeed_Buffer
+{
+    uint64_t output[8];
+    uint64_t input[8];
+};
+#define RandomSeed_Buffer_SIZE 128
+Assert_compileTime(sizeof(struct RandomSeed_Buffer) == RandomSeed_Buffer_SIZE);
+
 static int get(struct RandomSeed* rs, uint64_t buffer[8])
 {
-    struct RandomSeed_pvt* ctx = Identity_cast((struct RandomSeed_pvt*) rs);
+    struct RandomSeed_pvt* ctx = Identity_check((struct RandomSeed_pvt*) rs);
     Log_info(ctx->logger, "Attempting to seed random number generator");
 
     // each provider overwrites input and output is a rolling hash.
-    struct {
-        uint64_t output[8];
-        uint64_t input[8];
-    } buff = { .output = {0} };
+    struct RandomSeed_Buffer buff = { .output = {0} };
 
     int successCount = 0;
     for (int i = 0; i < ctx->rsCount; i++) {
         if (!ctx->rsList[i]->get(ctx->rsList[i], buff.input)) {
             Log_info(ctx->logger, "Trying random seed [%s] Success", ctx->rsList[i]->name);
-            crypto_hash_sha512((uint8_t*)buff.output, (uint8_t*)&buff, sizeof(buff));
+            crypto_hash_sha512((uint8_t*)buff.output,
+                               (uint8_t*)&buff,
+                               RandomSeed_Buffer_SIZE);
             successCount++;
         } else {
             Log_info(ctx->logger, "Trying random seed [%s] Failed", ctx->rsList[i]->name);
         }
     }
-    Bits_memcpyConst(buffer, buff.output, sizeof(buff.output));
+    Assert_true(sizeof(buff.output) == 64);
+    Bits_memcpyConst(buffer, buff.output, 64);
 
     if (successCount > 0) {
         Log_info(ctx->logger, "Seeding random number generator succeeded with [%d] sources",
@@ -90,32 +75,20 @@ int RandomSeed_get(struct RandomSeed* rs, uint64_t buffer[8])
 }
 
 struct RandomSeed* RandomSeed_new(RandomSeed_Provider* providers,
+                                  int providerCount,
                                   struct Log* logger,
                                   struct Allocator* alloc)
 {
-    int providerCount = sizeof(PROVIDERS) / sizeof(RandomSeed_Provider);
-    if (providers) {
-        for (int i = 0; providers[i]; i++) {
-            providerCount++;
-        }
-    }
-
     struct RandomSeed** rsList = Allocator_calloc(alloc, sizeof(struct RandomSeed), providerCount);
     int i = 0;
-    if (providers) {
-        for (int j = 0; providers[j]; j++) {
-            struct RandomSeed* rs = providers[j](alloc);
-            if (rs) {
-                rsList[i++] = rs;
-            }
-        }
-    }
-    for (int j = 0; j < (int)(sizeof(PROVIDERS) / sizeof(RandomSeed_Provider)); j++) {
-        struct RandomSeed* rs = PROVIDERS[j](alloc);
+    for (int j = 0; j < providerCount; j++) {
+        struct RandomSeed* rs = providers[j](alloc);
         if (rs) {
             rsList[i++] = rs;
         }
     }
+
+    Assert_true(i > 0);
 
     struct RandomSeed_pvt* out = Allocator_malloc(alloc, sizeof(struct RandomSeed_pvt));
 

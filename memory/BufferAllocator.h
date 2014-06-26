@@ -17,6 +17,9 @@
 
 #include "memory/Allocator.h"
 #include "util/UniqueName.h"
+#include "util/Gcc.h"
+#include "util/Linker.h"
+Linker_require("memory/BufferAllocator.c")
 
 /**
  * Create a new Allocator which allocates from to a user supplied buffer.
@@ -28,27 +31,16 @@
  * @param length the size of the array. If more is written than this length,
  *               further allocations will fail and return NULL.
  */
-struct Allocator* BufferAllocator_newWithIdentity(void* buffer,
-                                                  size_t length,
-                                                  char* file,
-                                                  int line);
+struct Allocator* BufferAllocator__new(void* buffer,
+                                       unsigned long length,
+                                       char* file,
+                                       int line);
 
-#define BufferAllocator_new(buffer, length) \
-    BufferAllocator_newWithIdentity(buffer, length, __FILE__, __LINE__)
+#define BufferAllocator_new(a,b) BufferAllocator__new((a),(b),Gcc_SHORT_FILE,Gcc_LINE)
 
 // This relies on the fact that UniqueName is only unique on a per-line basis.
 #define BufferAllocator_STACK(name, length) \
     uint8_t UniqueName_get()[length]; \
-    name = BufferAllocator_new(UniqueName_get(), length);
-
-/**
- * @param bufferAllocator the buffer allocator to set this on.
- * @param electronicThumb in an out-of-memory event, this function will be called just
- *                        before the process is aborted.
- * @param towel a context which electronicThumb will be called with.
- */
-void BufferAllocator_onOOM(const struct Allocator* bufferAllocator,
-                           void (* electronicThumb)(void* towel),
-                           void* towel);
+    name = BufferAllocator_new(UniqueName_last(), length);
 
 #endif

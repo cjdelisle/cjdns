@@ -16,8 +16,13 @@
 #define Time_H
 
 #include "util/events/EventBase.h"
+#include "util/Linker.h"
+Linker_require("util/events/libuv/Time.c")
 
 #include <stdint.h>
+
+/** Nanosecond time which has no relationship to any wall clock. */
+uint64_t Time_hrtime();
 
 uint64_t Time_currentTimeMilliseconds(struct EventBase* eventBase);
 

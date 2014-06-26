@@ -12,8 +12,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-//#include "util/platform/libc/string.h"
-
 #include "dht/Address.h"
 #include "dht/dhtcore/SearchStore.h"
 #include "util/Bits.h"
@@ -28,9 +26,6 @@
 struct SearchStore_Search_pvt
 {
     struct SearchStore_Search pub;
-
-    /** Location of the pointer to this search in the array. */
-    uint16_t searchIndex;
 
     /** Numbert of Address's in searchStack. */
     uint16_t searchStackSize;
@@ -51,25 +46,12 @@ struct SearchStore_Search_pvt
 /*--------------------Functions--------------------*/
 
 /** See: SearchStore.h */
-struct SearchStore* SearchStore_new(struct Allocator* allocator,
-                                    struct AverageRoller* gmrtRoller,
-                                    struct EventBase* eventBase,
-                                    struct Random* rand,
-                                    struct Log* logger)
+struct SearchStore* SearchStore_new(struct Allocator* allocator, struct Log* logger)
 {
     return Allocator_clone(allocator, (&(struct SearchStore) {
         .allocator = allocator,
-        .gmrtRoller = gmrtRoller,
-        .eventBase = eventBase,
-        .logger = logger,
-        .rand = rand
+        .logger = logger
     }));
-}
-
-static void freeSearch(void* vsearch)
-{
-    struct SearchStore_Search_pvt* search = vsearch;
-    search->pub.store->searches[search->searchIndex] = NULL;
 }
 
 /** See: SearchStore.h */
@@ -77,67 +59,17 @@ struct SearchStore_Search* SearchStore_newSearch(uint8_t searchTarget[16],
                                                  struct SearchStore* store,
                                                  struct Allocator* alloc)
 {
-    uint32_t i;
-    for (i = 0; i < SearchStore_MAX_SEARCHES && store->searches[i] != NULL; i++) ;
-    if (i == SearchStore_MAX_SEARCHES) {
-        // too many searches
-        return NULL;
-    }
-
     struct SearchStore_Search_pvt* search =
         Allocator_clone(alloc, (&(struct SearchStore_Search_pvt) {
             .pub = {
                 .callbackContext = NULL,
                 .store = store,
                 .alloc = alloc
-            },
-            .searchIndex = i
+            }
         }));
     Bits_memcpyConst(search->searchTarget, searchTarget, Address_SEARCH_TARGET_SIZE);
-    store->searches[i] = &search->pub;
-
-    Allocator_onFree(alloc, freeSearch, search);
 
     return &search->pub;
-}
-
-/** Node index for finding a node from a search. */
-struct SearchStore_NodeIndex
-{
-    /** Index of the search. */
-    uint16_t search;
-
-    /** Index of the node in the search. */
-    uint16_t node;
-
-    /** A random number which is used to check the response against the search node. */
-    uint32_t magic;
-};
-
-/** See: SearchStore.h */
-struct SearchStore_Node* SearchStore_getNode(String* txid, struct SearchStore* store)
-{
-    struct SearchStore_NodeIndex index;
-    if (txid->len != sizeof(struct SearchStore_NodeIndex)) {
-        // wacky txid
-        return NULL;
-    }
-    Bits_memcpyConst(&index, txid->bytes, sizeof(struct SearchStore_NodeIndex));
-    if (index.search >= SearchStore_MAX_SEARCHES || index.node >= SearchStore_SEARCH_NODES) {
-        // out of bounds.
-        return NULL;
-    }
-    struct SearchStore_Search_pvt* search =
-        (struct SearchStore_Search_pvt*) store->searches[index.search];
-    if (search == NULL) {
-        return NULL;
-    }
-    struct SearchStore_Node* n = &search->nodesAsked[index.node];
-    if (!String_equals(txid, n->txid)) {
-       // http://www.youtube.com/watch?v=x9pJqvs96nA
-       return NULL;
-    }
-    return n;
 }
 
 /** See: SearchStore.h */
@@ -170,37 +102,17 @@ int SearchStore_addNodeToSearch(struct Address* addr, struct SearchStore_Search*
 }
 
 /** See: SearchStore.h */
-uint32_t SearchStore_replyReceived(struct SearchStore_Node* node)
-{
-    struct SearchStore* store = node->search->store;
-    uint32_t delay = Time_currentTimeMilliseconds(store->eventBase) - node->timeOfRequest;
-    AverageRoller_update(store->gmrtRoller, delay);
-    Log_debug(store->logger,
-               "Received response in %u milliseconds, gmrt now %u\n",
-               delay,
-               AverageRoller_getAverage(store->gmrtRoller));
-    return delay;
-}
-
-/** See: SearchStore.h */
 struct SearchStore_Node* SearchStore_getNextNode(struct SearchStore_Search* search)
 {
     struct SearchStore_Search_pvt* pvtSearch = (struct SearchStore_Search_pvt*) search;
     if (!pvtSearch->searchStackSize) {
         return NULL;
     }
-    struct SearchStore_NodeIndex ni = {
-        .search = pvtSearch->searchIndex,
-        .node = pvtSearch->nodesAskedIndex,
-        .magic = Random_uint32(search->store->rand)
-    };
 
     struct SearchStore_Node* nn = &pvtSearch->nodesAsked[pvtSearch->nodesAskedIndex];
     Bits_memcpyConst(&nn->address,
                      &pvtSearch->searchStack[--pvtSearch->searchStackSize],
                      sizeof(struct Address));
-    nn->txid = String_newBinary((char*)&ni, sizeof(struct SearchStore_NodeIndex), search->alloc);
-    nn->timeOfRequest = Time_currentTimeMilliseconds(search->store->eventBase);
     nn->search = search;
 
     pvtSearch->nodesAskedIndex = (pvtSearch->nodesAskedIndex + 1) % SearchStore_SEARCH_NODES;

@@ -16,19 +16,17 @@
 #include "benc/String.h"
 #include "util/Bits.h"
 
-#define string_strlen
-#include "util/platform/libc/string.h"
 #include <stdio.h>
 #include <stdarg.h>
 
 /** @see Object.h */
-String* String_new(const char* bytes, const struct Allocator* allocator)
+String* String_new(const char* bytes, struct Allocator* allocator)
 {
-    return String_newBinary(bytes, strlen(bytes), allocator);
+    return String_newBinary(bytes, CString_strlen(bytes), allocator);
 }
 
 /** @see Object.h */
-String* String_newBinary(const char* bytes, size_t length, const struct Allocator* allocator)
+String* String_newBinary(const char* bytes, unsigned long length, struct Allocator* allocator)
 {
     char* copy = Allocator_malloc(allocator, length + 1);
     // Make the string null terminated so it will print nicely.
@@ -44,17 +42,17 @@ String* String_newBinary(const char* bytes, size_t length, const struct Allocato
     return string;
 }
 
-String* String_vprintf(const struct Allocator* allocator, const char* format, va_list args)
+String* String_vprintf(struct Allocator* allocator, const char* format, va_list args)
 {
     #define String_BUFFER_SZ 1024
     char buff[String_BUFFER_SZ];
     vsnprintf(buff, String_BUFFER_SZ, format, args);
-    size_t length = strlen(buff);
+    size_t length = CString_strlen(buff);
     return String_newBinary(buff, length, allocator);
     #undef String_BUFFER_SZ
 }
 
-String* String_printf(const struct Allocator* allocator, const char* format, ...)
+String* String_printf(struct Allocator* allocator, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -80,7 +78,7 @@ int String_compare(const String* a, const String* b)
     return a->len - b->len;
 }
 
-bool String_equals(const String* a, const String* b)
+int String_equals(const String* a, const String* b)
 {
     if (a == NULL || b == NULL) {
         return a == NULL && b == NULL;

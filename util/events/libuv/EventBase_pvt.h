@@ -27,25 +27,23 @@ struct EventBase_pvt
 
     uv_loop_t* loop;
 
-    /**
-     * This allocator is used to allocate critical structures which might
-     * break libuv if they are freed from inside of a callback.
-     * When the normal allocator is freed, all callbacks are deleted and
-     * when libuv is finished deallocating them, it is removed and this
-     * allocator is freed.
-     */
-    struct Allocator* asyncAllocator;
-
-    /** Normal alloc which frees synchronously. */
     struct Allocator* alloc;
 
-    /** True if the eventBase is preparing to be freed. */
-    int freeBase;
+    /** True if the loop is running. */
+    int running;
+
+    /**
+     * The onFree job which is passed from onFree() to EventLoop_begin()
+     * so it can be completed after the loop has ended.
+     */
+    struct Allocator_OnFreeJob* onFree;
 
     /** Number of milliseconds since epoch when the clock was calibrated. */
     uint64_t baseTime;
 
     Identity
 };
+
+struct EventBase_pvt* EventBase_privatize(struct EventBase* base);
 
 #endif

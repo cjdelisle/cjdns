@@ -12,17 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strncpy
-#define string_strlen
+#include "crypto/AddressCalc.h"
 #include "memory/MallocAllocator.h"
-#include "memory/CanaryAllocator.h"
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 
 #include "test/TestFramework.h"
 
 #include <stdio.h>
+
+#define PADDING 512
 
 int main()
 {
@@ -76,9 +76,9 @@ int main()
         TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL)->ducttape;
 
     // This has to be limited because we are checking for an OOM issue.
-    struct Allocator* allocator = CanaryAllocator_new(MallocAllocator_new(85000), NULL);
-    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + strlen(evilBenc);
-    uint8_t* buff = Allocator_calloc(allocator, buffLen, 1);
+    struct Allocator* allocator = MallocAllocator_new(85000);
+    uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + CString_strlen(evilBenc);
+    uint8_t* buff = Allocator_calloc(allocator, buffLen + PADDING, 1);
 
     struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
     uint8_t* herPublicKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
@@ -87,15 +87,17 @@ int main()
     struct Headers_UDPHeader* udp = (struct Headers_UDPHeader*) (ip6 + 1);
     ip6->hopLimit = 0;
     ip6->nextHeader = 17;
-    udp->sourceAndDestPorts = 0;
-    udp->length_be = Endian_hostToBigEndian16(strlen(evilBenc));
+    udp->srcPort_be = 0;
+    udp->destPort_be = 0;
+    udp->length_be = Endian_hostToBigEndian16(CString_strlen(evilBenc));
 
-    strncpy((char*)(udp + 1), evilBenc, strlen(evilBenc));
+    CString_strncpy((char*)(udp + 1), evilBenc, CString_strlen(evilBenc));
 
-    struct Message m = { .bytes = buff, .length = buffLen, .padding = 0 };
+    struct Message m = { .bytes = buff+PADDING, .length = buffLen, .padding = PADDING };
 
     Ducttape_injectIncomingForMe(&m, dt, herPublicKey);
 
     Allocator_free(alloc);
     Allocator_free(allocator);
+    return 0;
 }

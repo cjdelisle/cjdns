@@ -12,18 +12,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define string_strrchr
-#define string_strchr
-#define string_strlen
+#include "util/events/libuv/UvWrapper.h"
 #include "benc/String.h"
 #include "memory/Allocator.h"
 #include "util/platform/Sockaddr.h"
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 #include "util/Bits.h"
 #include "util/Hex.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <uv.h>
 
 struct Sockaddr_pvt
 {
@@ -72,14 +72,19 @@ struct Sockaddr* Sockaddr_fromNative(const void* ss, int addrLen, struct Allocat
     struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
     Bits_memcpy(&out->ss, ss, addrLen);
     out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
+    Sockaddr_normalizeNative(&out->ss);
     return &out->pub;
 }
 
 int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
 {
+    struct Sockaddr_storage unusedOut;
+    if (!out) {
+        out = &unusedOut;
+    }
     Bits_memset(out, 0, sizeof(struct Sockaddr_storage));
-    char* lastColon = strrchr(str, ':');
-    if (!lastColon || lastColon == strchr(str, ':')) {
+    char* lastColon = CString_strrchr(str, ':');
+    if (!lastColon || lastColon == CString_strchr(str, ':')) {
         // IPv4
         int port = 0;
         int addrLen;
@@ -90,7 +95,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
                 return -1;
             }
         } else {
-            addrLen = strlen(str);
+            addrLen = CString_strlen(str);
         }
         uint8_t addr[16] = {0};
         if (addrLen > 15 || addrLen < 7) {
@@ -98,7 +103,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         }
         Bits_memcpy(addr, str, addrLen);
         struct sockaddr_in* in = ((struct sockaddr_in*) Sockaddr_asNative(&out->addr));
-        if (uv_inet_pton(AF_INET, (char*) addr, &in->sin_addr).code != UV_OK) {
+        if (uv_inet_pton(AF_INET, (char*) addr, &in->sin_addr) != 0) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in) + Sockaddr_OVERHEAD;
@@ -111,7 +116,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         if (*str == '[') {
             str++;
             {
-                char* endBracket = strchr(str, ']');
+                char* endBracket = CString_strchr(str, ']');
                 if (!endBracket) {
                     return -1;
                 }
@@ -124,7 +129,7 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
                 }
             }
         } else {
-            addrLen = strlen(str);
+            addrLen = CString_strlen(str);
         }
         uint8_t addr[40] = {0};
         if (addrLen > 39 || addrLen < 2) {
@@ -132,8 +137,8 @@ int Sockaddr_parse(const char* str, struct Sockaddr_storage* out)
         }
         Bits_memcpy(addr, str, addrLen);
         struct sockaddr_in6* in6 = (struct sockaddr_in6*) Sockaddr_asNative(&out->addr);
-        uv_err_t ret = uv_inet_pton(AF_INET6, (char*) addr, &in6->sin6_addr);
-        if (ret.code != UV_OK) {
+        int ret = uv_inet_pton(AF_INET6, (char*) addr, &in6->sin6_addr);
+        if (ret != 0) {
             return -1;
         }
         out->addr.addrLen = sizeof(struct sockaddr_in6) + Sockaddr_OVERHEAD;
@@ -180,20 +185,20 @@ char* Sockaddr_print(struct Sockaddr* sockaddr, struct Allocator* alloc)
 
     #define BUFF_SZ 64
     char printedAddr[BUFF_SZ] = {0};
-    uv_err_t ret = uv_inet_ntop(addr->ss.ss_family, inAddr, printedAddr, BUFF_SZ - 1);
-    if (ret.code != UV_OK) {
+    int ret = uv_inet_ntop(addr->ss.ss_family, inAddr, printedAddr, BUFF_SZ - 1);
+    if (ret != 0) {
         return "invalid";
     }
 
     if (port) {
-        int totalLength = strlen(printedAddr) + strlen("[]:65535") + 1;
+        int totalLength = CString_strlen(printedAddr) + CString_strlen("[]:65535") + 1;
         char* out = Allocator_malloc(alloc, totalLength);
         const char* format = (addr->ss.ss_family == AF_INET6) ? "[%s]:%u" : "%s:%u";
         snprintf(out, totalLength, format, printedAddr, port);
         return out;
     }
 
-    int totalLength = strlen(printedAddr) + 1;
+    int totalLength = CString_strlen(printedAddr) + 1;
     char* out = Allocator_calloc(alloc, totalLength, 1);
     Bits_memcpy(out, printedAddr, totalLength);
     return out;
@@ -257,4 +262,50 @@ int Sockaddr_getFamily(struct Sockaddr* sockaddr)
     }
     struct Sockaddr_pvt* sa = (struct Sockaddr_pvt*) sockaddr;
     return sa->ss.ss_family;
+}
+
+struct Sockaddr* Sockaddr_fromBytes(const uint8_t* bytes, int addrFamily, struct Allocator* alloc)
+{
+    struct sockaddr_storage ss;
+    Bits_memset(&ss, 0, sizeof(struct sockaddr_storage));
+    int addrLen;
+    switch (addrFamily) {
+        case AF_INET: {
+            ss.ss_family = AF_INET;
+            Bits_memcpyConst(&((struct sockaddr_in*)&ss)->sin_addr, bytes, 4);
+            addrLen = sizeof(struct sockaddr_in);
+            break;
+        }
+        case AF_INET6: {
+            ss.ss_family = AF_INET6;
+            Bits_memcpyConst(&((struct sockaddr_in6*)&ss)->sin6_addr, bytes, 16);
+            addrLen = sizeof(struct sockaddr_in6);
+            break;
+        }
+        default: return NULL;
+    }
+
+    struct Sockaddr_pvt* out = Allocator_malloc(alloc, addrLen + Sockaddr_OVERHEAD);
+    Bits_memcpy(&out->ss, &ss, addrLen);
+    out->pub.addrLen = addrLen + Sockaddr_OVERHEAD;
+    return &out->pub;
+}
+
+void Sockaddr_normalizeNative(void* nativeSockaddr)
+{
+#if defined(freebsd) || defined(openbsd) || defined(darwin)
+    ((struct sockaddr*)nativeSockaddr)->sa_len = 0;
+#endif
+}
+
+struct Sockaddr* Sockaddr_fromName(char* name, struct Allocator* alloc)
+{
+    struct addrinfo* servinfo;
+    if (getaddrinfo(name, 0, NULL, &servinfo) == 0) {
+        struct Sockaddr* adr;
+        adr = Sockaddr_fromNative(servinfo->ai_addr, servinfo->ai_addrlen, alloc);
+        freeaddrinfo(servinfo);
+        return adr;
+    }
+    return NULL;
 }

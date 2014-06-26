@@ -15,39 +15,33 @@
 #ifndef Writer_H
 #define Writer_H
 
-/* size_t */
-#include <stdlib.h>
-/* uint64_t */
 #include <stdint.h>
 
 /**
  * Writer interface which writes data to a destination and fails safe rather than overflowing.
  */
 struct Writer {
-    /** The internal state of the Writer. */
-    void* const context;
-
     /**
      * Write some content from a buffer or other source.
      *
+     * @param w the Writer which is being called.
      * @param toWrite a pointer to a memory location where content will be sourced from.
      * @param length the number of bytes to write.
-     * @param this the Writer which is being called. Use: writer->write(X, Y, writer);
      * @return 0 if write went well, -1 if there is no more space to write.
      *           if a write fails then all subsequent writes will fail with the same error
      *           so writing a large piece of content then a small footer does not require
      *           checking if the content wrote correctly before writing the footer.
      */
-    int (* const write)(const void* toWrite, size_t length, const struct Writer* this);
+    int (* const write)(struct Writer* w, const void* toWrite, unsigned long length);
 
-    uint64_t (* const bytesWritten)(const struct Writer* writer);
+    uint64_t bytesWritten;
 };
 
 #define Writer_writeGeneric(bytes) \
     static inline int Writer_write##bytes (struct Writer* writer, uint##bytes##_t number) \
     {                                                                                     \
         uint##bytes##_t num = number;                                                     \
-        return writer->write(&num, bytes/8, writer);                                      \
+        return writer->write(writer, &num, bytes/8);                                      \
     }
 
 Writer_writeGeneric(8)
@@ -56,6 +50,9 @@ Writer_writeGeneric(32)
 Writer_writeGeneric(64)
 
 #define Writer_write(writer, bytes, amount) \
-    writer->write(bytes, amount, writer);
+    ((writer)->write((writer), (bytes), (amount)))
+
+#define Writer_bytesWritten(writer) \
+    ((writer)->bytesWritten + 0)
 
 #endif

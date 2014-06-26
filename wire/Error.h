@@ -42,5 +42,29 @@
 /** Message could not be sent to its destination through no fault of the sender. */
 #define Error_UNDELIVERABLE        8
 
+/** The route enters and leaves through the same interface in one switch. */
+#define Error_LOOP_ROUTE           9
+
+/** The switch is unable to represent the return path. */
+#define Error_RETURN_PATH_INVALID 10
+
+static inline char* Error_strerror(int err)
+{
+    switch (err) {
+        case Error_NONE:                return "Error_NONE";
+        case Error_MALFORMED_ADDRESS:   return "Error_MALFORMED_ADDRESS";
+        case Error_FLOOD:               return "Error_FLOOD";
+        case Error_LINK_LIMIT_EXCEEDED: return "Error_LINK_LIMIT_EXCEEDED";
+        case Error_OVERSIZE_MESSAGE:    return "Error_OVERSIZE_MESSAGE";
+        case Error_UNDERSIZE_MESSAGE:   return "Error_UNDERSIZE_MESSAGE";
+        case Error_AUTHENTICATION:      return "Error_AUTHENTICATION";
+        case Error_INVALID:             return "Error_INVALID";
+        case Error_UNDELIVERABLE:       return "Error_UNDELIVERABLE";
+        case Error_LOOP_ROUTE:          return "Error_LOOP_ROUTE";
+        case Error_RETURN_PATH_INVALID: return "Error_RETURN_PATH_INVALID";
+        default: return "UNKNOWN";
+    }
+}
+
 
 #endif

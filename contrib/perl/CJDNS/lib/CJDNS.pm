@@ -2,7 +2,7 @@ package CJDNS;
 
 use Bencode qw(bencode bdecode);
 use Carp qw/croak/;
-use Digest::SHA2;
+use Digest::SHA qw(sha256_hex);
 use IO::Socket;
 
 # buffer size for reading from teh sawkets.
@@ -10,7 +10,6 @@ use constant BUFFER_SIZE => 8192;
 
 our @ISA = qw();
 our $VERSION = '0.01';
-our $sha2 = new Digest::SHA2 256;
 
 # turn on autoflush for this class.
 our $| = 1;
@@ -31,7 +30,7 @@ sub new {
     );
 
     unless ($self->_ping) {
-        die "Can't ping CJDNS admin interface at udp://$addr:$port\n";
+        die "Can't ping cjdns admin interface at udp://$addr:$port\n";
     }
 
     $self->_make_methods;
@@ -64,7 +63,7 @@ sub _make_methods {
         $page++;
     }
 
-    # first let's start by loading them as named into the CJDNS namespace.
+    # first let's start by loading them as named into the cjdns namespace.
 
     foreach my $method_name (keys %$availableFunctions) {
         my $prototype = $availableFunctions->{$method_name};
@@ -85,14 +84,14 @@ sub _make_methods {
             my $req = {
                 q => 'auth',
                 aq => $method_name,
-                hash => $self->_sha2_hexdigest($self->{password} . $cookie),
+                hash => sha256_hex($self->{password} . $cookie),
                 cookie => " $cookie",
                 args => \%args,
             };
 
             # replace $req->{hash} with a hash of the bencoded request.
             my $req_benc = bencode($req);
-            $req->{hash} = $self->_sha2_hexdigest($req_benc);
+            $req->{hash} = sha256_hex($req_benc);
 
             # then re-encode thusly:
             $req_benc = bencode($req);
@@ -104,7 +103,8 @@ sub _make_methods {
             my $dec = bdecode($to_decode);
 
             if (ref($dec)) {
-                if ($dec->{error}) {
+                # { error: "none" } is a success case
+                if ($dec->{error} && $dec->{error} ne 'none') {
                     croak "[error] CJDNS method '$method_name': $dec->{error}";
                 } 
             }
@@ -119,7 +119,7 @@ sub _make_methods {
 
 sub capabilities {
     my ($self) = @_;
-    my $return = "CJDNS Administration Protocol Capabilities\n";
+    my $return = "Cjdns Administration Protocol Capabilities\n";
     $return .= "------------------------------------------\n";
     foreach my $func (keys %{$self->{capabilities}}) {
         $return .= " $func\n";
@@ -135,13 +135,6 @@ sub capabilities {
         $return .= "\n";
     }
     return $return;
-}
-
-sub _sha2_hexdigest {
-    my ($self, $string) = @_;
-    $sha2->reset();
-    $sha2->add($string);
-    return $sha2->hexdigest;
 }
 
 sub _ping {
@@ -169,17 +162,17 @@ __END__
 
 =head1 NAME
 
-CJDNS - Perl interface to the CJDNS Administration Interface
+Cjdns - Perl interface to the Cjdns Administration Interface
 
 =head1 SYNOPSIS
 
   use CJDNS;
   my $cjdns = CJDNS->new('localhost', '12345', 'abc123');
-  printf("CJDNS' routing table is using %d bytes of memory!\n", $cjdns->memory->{bytes});
+  printf("Cjdns' routing table is using %d bytes of memory!\n", $cjdns->memory->{bytes});
 
 =head1 DESCRIPTION
 
-Perl interface to the CJDNS Administration system
+Perl interface to the cjdns Administration system
 
 =head1 SEE ALSO
 

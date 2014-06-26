@@ -16,6 +16,8 @@
 #define TestFramework_H
 
 #include "net/Ducttape.h"
+#include "util/Linker.h"
+Linker_require("test/TestFramework.c")
 
 struct TestFramework
 {
@@ -29,8 +31,20 @@ struct TestFramework
     struct RouterModule* router;
     struct SwitchPinger* switchPinger;
     struct InterfaceController* ifController;
+
+    /** The last message which this node sent. */
+    struct Message* lastMsg;
+
+    /**
+     * A backup of the last message which this node sent.
+     * Used to check if the framework alters the message after sending it.
+     */
+    struct Message* lastMsgBackup;
+
     uint8_t* publicKey;
     uint8_t* ip;
+
+    Identity
 };
 
 #define TestFramework_KEY_SIZE 8
@@ -43,5 +57,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
 void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server);
 
 void TestFramework_craftIPHeader(struct Message* msg, uint8_t srcAddr[16], uint8_t destAddr[16]);
+
+/** Check if the last message sent was altered after having been sent. */
+void TestFramework_assertLastMessageUnaltered(struct TestFramework* tf);
 
 #endif

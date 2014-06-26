@@ -20,7 +20,7 @@
 #include "util/Assert.h"
 
 /**
- * Type one, error.
+ * Type two, error.
  */
 #define Control_ERROR_be Endian_hostToBigEndian16(2)
 #define Control_Error_HEADER_SIZE 4
@@ -36,9 +36,8 @@ struct Control_Error
 };
 Assert_compileTime(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
 
-
 /**
- * Type two, ping.
+ * Type three, ping.
  */
 #define Control_PING_be Endian_hostToBigEndian16(3)
 #define Control_Ping_HEADER_SIZE 8
@@ -63,7 +62,7 @@ struct Control_Ping
 Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE + 4);
 
 /**
- * Type three, pong.
+ * Type four, pong.
  * A pong is identical to a ping.
  */
 #define Control_PONG_be Endian_hostToBigEndian16(4)
@@ -73,16 +72,47 @@ Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE + 4);
 #define Control_Pong_MAGIC Endian_hostToBigEndian32(0x9d74e35b)
 
 
+/**
+ * Type five, key request/response.
+ * Request a node's public key, for use in debugging.
+ *
+ * Any data (up to 64 bytes) following the end of the KeyPing structure
+ * is the cookie which must be reflected.
+ */
+#define Control_KEYPING_be Endian_hostToBigEndian16(5)
+#define Control_KeyPing_MIN_SIZE 40
+#define Control_KeyPing_MAGIC Endian_hostToBigEndian32(0x01234567)
+struct Control_KeyPing
+{
+    /** Magic: equal to Control_KeyPing_MAGIC in a ping and Control_KeyPong_MAGIC in a pong. */
+    uint32_t magic;
+
+    /** The version of the sending node. */
+    uint32_t version_be;
+
+    /** The permanent public key. */
+    uint8_t key[32];
+};
+Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_MIN_SIZE);
+
+#define Control_KEYPONG_be Endian_hostToBigEndian16(6)
+#define Control_KeyPong_MIN_SIZE Control_KeyPing_MIN_SIZE
+#define Control_KeyPong_MAGIC Endian_hostToBigEndian32(0x89abcdef)
+
 static inline char* Control_typeString(uint16_t type_be)
 {
     if (type_be == Control_ERROR_be) {
-        return "error";
+        return "ERROR";
     } else if (type_be == Control_PING_be) {
-        return "ping";
+        return "PING";
     } else if (type_be == Control_PONG_be) {
-        return "pong";
+        return "PONG";
+    } else if (type_be == Control_KEYPING_be) {
+        return "KEYPING";
+    } else if (type_be == Control_KEYPONG_be) {
+        return "KEYPONG";
     } else {
-        return "unknown";
+        return "UNKNOWN";
     }
 }
 
@@ -106,7 +136,6 @@ struct Control
     /**
      * This should be the one's complement checksum
      * of the control packet with 0'd checksum field.
-     * TODO...
      */
     uint16_t checksum_be;
 
@@ -114,20 +143,17 @@ struct Control
     uint16_t type_be;
 
     union {
-        /** Type one, error. */
         struct Control_Error error;
-
-        /** Type two, ping. */
         struct Control_Ping ping;
-
-        /** Type three, pong. */
         struct Control_Ping pong;
+        struct Control_KeyPing keyPing;
+        struct Control_Ping keyPong;
 
         /** The control packet content. */
         uint8_t bytes[4];
     } content;
 };
-// Control_Error is the largest structure and thus defines the length of the "content" union.
-Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_Error_MIN_SIZE);
+// Control_KeyPing is the largest structure and thus defines the length of the "content" union.
+Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_KeyPing_MIN_SIZE);
 
 #endif

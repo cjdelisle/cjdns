@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# This is a wrapper for ./do that sets architecture variables properly
+# I've failed to implement this in debian/rules
+
+export PLATFORM="${DEB_BUILD_ARCH_OS}"
+export MARCH="${DEB_HOST_GNU_CPU}"
+# work around cjdns being unspecific about x86 compiler targets such as i686
+echo "${DEB_HOST_GNU_CPU}" | grep -q 'i.86' && export MARCH="x86"
+
+# Unset CFLAGS set by debhelper to fix a number of issues.
+# It usually contains something like this:
+# -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security
+# The problems with this are:
+#    -g is already passed
+#    -O2 and optimizations in general are not yet supported upstream
+#    -fstack-protector breaks build because it's passed AFTER -fstack-protector-all
+export CFLAGS=""
+
+./do

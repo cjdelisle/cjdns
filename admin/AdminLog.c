@@ -12,6 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+// needed for String_vprintf()
+#include <stdarg.h>
+
 #include "admin/Admin.h"
 #include "admin/AdminLog.h"
 #include "benc/Dict.h"
@@ -20,14 +23,10 @@
 #include "io/Writer.h"
 #include "memory/BufferAllocator.h"
 #include "util/log/Log.h"
+#include "util/log/Log_impl.h"
 #include "util/Hex.h"
 
-#define string_strcmp
-#define string_strrchr
-#define string_strlen
-#include "util/platform/libc/string.h"
 
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -76,7 +75,7 @@ struct AdminLog
 
 static inline const char* getShortName(const char* fullFilePath)
 {
-    const char* out = strrchr(fullFilePath, '/');
+    const char* out = CString_strrchr(fullFilePath, '/');
     if (out) {
         return out + 1;
     }
@@ -96,7 +95,7 @@ static inline bool isMatch(struct Subscription* subscription,
             }
         } else {
             const char* shortFileName = getShortName(file);
-            if (strcmp(shortFileName, subscription->file)) {
+            if (CString_strcmp(shortFileName, subscription->file)) {
                 return false;
             }
 
@@ -165,7 +164,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 {
     Allocator_free(sub->alloc);
     log->subscriptionCount--;
-    if (log->subscriptionCount == 0) {
+    if (log->subscriptionCount == 0 || sub == &log->subscriptions[log->subscriptionCount]) {
         return;
     }
     Bits_memcpyConst(sub,
@@ -176,7 +175,7 @@ static void removeSubscription(struct AdminLog* log, struct Subscription* sub)
 static void doLog(struct Log* genericLog,
                   enum Log_Level logLevel,
                   const char* fullFilePath,
-                  uint32_t line,
+                  int line,
                   const char* format,
                   va_list args)
 {
@@ -184,6 +183,7 @@ static void doLog(struct Log* genericLog,
     Dict* message = NULL;
     #define ALLOC_BUFFER_SZ 4096
     uint8_t allocBuffer[ALLOC_BUFFER_SZ];
+
     for (int i = 0; i < (int)log->subscriptionCount; i++) {
         if (isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) {
             if (!message) {
@@ -205,7 +205,7 @@ static void doLog(struct Log* genericLog,
     }
 }
 
-static void subscribe(Dict* args, void* vcontext, String* txid)
+static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* levelName = Dict_getString(args, String_CONST("level"));
@@ -228,7 +228,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
         if (file) {
             int i;
             for (i = 0; i < FILE_NAME_COUNT; i++) {
-                if (log->fileNames[i] && !strcmp(log->fileNames[i], file)) {
+                if (log->fileNames[i] && !CString_strcmp(log->fileNames[i], file)) {
                     file = log->fileNames[i];
                     sub->internalName = true;
                     break;
@@ -260,7 +260,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid)
     Admin_sendMessage(&response, txid, log->admin);
 }
 
-static void unsubscribe(Dict* args, void* vcontext, String* txid)
+static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct AdminLog* log = (struct AdminLog*) vcontext;
     String* streamIdHex = Dict_getString(args, String_CONST("streamId"));
@@ -289,7 +289,7 @@ struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, s
 {
     struct AdminLog* log = Allocator_clone(alloc, (&(struct AdminLog) {
         .pub = {
-            .callback = doLog
+            .print = doLog
         },
         .admin = admin,
         .alloc = alloc,

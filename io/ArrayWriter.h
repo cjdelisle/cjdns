@@ -15,8 +15,10 @@
 #ifndef ArrayWriter_H
 #define ArrayWriter_H
 
-#include "Writer.h"
+#include "io/Writer.h"
 #include "memory/Allocator.h"
+#include "util/Linker.h"
+Linker_require("io/ArrayWriter.c")
 
 /**
  * Create a new Writer which writes to a user supplied buffer.
@@ -26,7 +28,7 @@
  * @param allocator the memory allocator to use for allocating the writer and context.
  */
 struct Writer* ArrayWriter_new(void* writeTo,
-                               size_t length,
-                               const struct Allocator* allocator);
+                               unsigned long length,
+                               struct Allocator* allocator);
 
 #endif

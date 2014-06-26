@@ -15,7 +15,6 @@
 #include "interface/Interface.h"
 #include "wire/Message.h"
 
-
 static uint8_t transferMessage(struct Message* msg, struct Interface* iface)
 {
     struct Interface* other = (struct Interface*) iface->receiverContext;

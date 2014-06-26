@@ -12,24 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdio.h>
-/* for parseint64_t */
-#include <limits.h>
-
 #include "util/Bits.h"
 #include "memory/Allocator.h"
 #include "io/Reader.h"
 #include "io/Writer.h"
-#include "benc/Object.h"
+#include "benc/Dict.h"
+#include "benc/List.h"
 #include "benc/serialization/BencSerializer.h"
-#include "util/Errno.h"
-#define string_strlen
-#include "util/platform/libc/string.h"
+#include "util/CString.h"
 
-static int32_t parseGeneric(const struct Reader* reader,
-                            const struct Allocator* allocator,
+#include <stdio.h>
+/* for parseint64_t */
+#include <limits.h>
+#include <stdlib.h> // strtol()
+#include <errno.h>
+
+static int32_t parseGeneric(struct Reader* reader,
+                            struct Allocator* allocator,
                             Object** output);
-static int32_t serializeGeneric(const struct Writer* writer,
+static int32_t serializeGeneric(struct Writer* writer,
                                 const Object* obj);
 
 /**
@@ -38,26 +39,26 @@ static int32_t serializeGeneric(const struct Writer* writer,
  * @param writer the place to write the integer to.
  * @param integer the number to write.
  */
-static int32_t writeint64_t(const struct Writer* writer,
+static int32_t writeint64_t(struct Writer* writer,
                             int64_t integer)
 {
     char buffer[32] = {0};
     snprintf(buffer, 32, "%" PRId64, integer);
-    return writer->write(buffer, strlen(buffer), writer);
+    return Writer_write(writer, buffer, CString_strlen(buffer));
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeString(const struct Writer* writer,
+static int32_t serializeString(struct Writer* writer,
                                const String* string)
 {
     writeint64_t(writer, string->len);
-    writer->write(":", 1, writer);
-    return writer->write(string->bytes, string->len, writer);
+    Writer_write(writer, ":", 1);
+    return Writer_write(writer, string->bytes, string->len);
 }
 
 /** @see BencSerializer.h */
-static int32_t parseString(const struct Reader* reader,
-                           const struct Allocator* allocator,
+static int32_t parseString(struct Reader* reader,
+                           struct Allocator* allocator,
                            String** output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -72,7 +73,7 @@ static int32_t parseString(const struct Reader* reader,
     /* Parse the size of the string. */
     size_t i = 0;
     for (i = 0; ; i++) {
-        ret = reader->read(&nextChar, 1, reader);
+        ret = Reader_read(reader, &nextChar, 1);
         if (ret != 0) {
             return OUT_OF_CONTENT_TO_READ;
         }
@@ -99,7 +100,7 @@ static int32_t parseString(const struct Reader* reader,
     /* Put a null terminator after the end so it can be treated as a normal string. */
     bytes[length] = '\0';
 
-    if (reader->read(bytes, length, reader) != 0) {
+    if (Reader_read(reader, bytes, length) != 0) {
         return OUT_OF_CONTENT_TO_READ;
     }
     string->bytes = bytes;
@@ -115,16 +116,16 @@ static int32_t parseString(const struct Reader* reader,
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeint64_t(const struct Writer* writer,
-                                const int64_t integer)
+static int32_t serializeint64_t(struct Writer* writer,
+                                int64_t integer)
 {
-    writer->write("i", 1, writer);
+    Writer_write(writer, "i", 1);
     writeint64_t(writer, integer);
-    return writer->write("e", 1, writer);
+    return Writer_write(writer, "e", 1);
 }
 
 /** @see BencSerializer.h */
-static int32_t parseint64_t(const struct Reader* reader,
+static int32_t parseint64_t(struct Reader* reader,
                             int64_t* output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -132,7 +133,7 @@ static int32_t parseint64_t(const struct Reader* reader,
     char buffer[32];
     int i;
     for (i = 0; ; i++) {
-        if (reader->read(buffer + i, 1, reader) != 0) {
+        if (Reader_read(reader, buffer + i, 1) != 0) {
             return OUT_OF_CONTENT_TO_READ;
         }
         if (i == 0) {
@@ -166,7 +167,7 @@ static int32_t parseint64_t(const struct Reader* reader,
     if (out == 0 && buffer[1] != '0' && (buffer[1] != '-' || buffer[2] != '0')) {
         return UNPARSABLE;
     }
-    if ((out == LONG_MAX || out == LONG_MIN) && Errno_get() == Errno_ERANGE) {
+    if ((out == LONG_MAX || out == LONG_MIN) && errno == ERANGE) {
         /* errno (holds nose) */
         return UNPARSABLE;
     }
@@ -179,10 +180,10 @@ static int32_t parseint64_t(const struct Reader* reader,
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeList(const struct Writer* writer,
+static int32_t serializeList(struct Writer* writer,
                              const List* list)
 {
-    int ret = writer->write("l", 1, writer);
+    int ret = Writer_write(writer, "l", 1);
     if (list) {
         const struct List_Item* entry = *list;
         while (ret == 0 && entry != NULL) {
@@ -191,21 +192,21 @@ static int32_t serializeList(const struct Writer* writer,
         }
     }
     if (ret == 0) {
-        ret = writer->write("e", 1, writer);
+        ret = Writer_write(writer, "e", 1);
     }
     return ret;
 }
 
 /** @see BencSerializer.h */
-static int32_t parseList(const struct Reader* reader,
-                         const struct Allocator* allocator,
+static int32_t parseList(struct Reader* reader,
+                         struct Allocator* allocator,
                          List* output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
     #define UNPARSABLE -3
 
     char nextChar;
-    if (reader->read(&nextChar, 1, reader) != 0) {
+    if (Reader_read(reader, &nextChar, 1) != 0) {
         return OUT_OF_CONTENT_TO_READ;
     }
     if (nextChar != 'l') {
@@ -217,7 +218,7 @@ static int32_t parseList(const struct Reader* reader,
     struct List_Item** lastEntryPointer = output;
     int ret;
 
-    if (reader->read(&nextChar, 0, reader) != 0) {
+    if (Reader_read(reader, &nextChar, 0) != 0) {
         return OUT_OF_CONTENT_TO_READ;
     }
     *lastEntryPointer = NULL;
@@ -234,7 +235,7 @@ static int32_t parseList(const struct Reader* reader,
         *lastEntryPointer = thisEntry;
         lastEntryPointer = &(thisEntry->next);
 
-        if (reader->read(&nextChar, 0, reader) != 0) {
+        if (Reader_read(reader, &nextChar, 0) != 0) {
             return OUT_OF_CONTENT_TO_READ;
         }
     }
@@ -244,7 +245,7 @@ static int32_t parseList(const struct Reader* reader,
     }
 
     /* move the pointer to after the 'e' at the end of the list. */
-    reader->skip(1, reader);
+    Reader_skip(reader, 1);
 
     return 0;
 
@@ -253,29 +254,29 @@ static int32_t parseList(const struct Reader* reader,
 }
 
 /** @see BencSerializer.h */
-static int32_t serializeDictionary(const struct Writer* writer,
+static int32_t serializeDictionary(struct Writer* writer,
                                    const Dict* dictionary)
 {
     const struct Dict_Entry* entry = *dictionary;
-    writer->write("d", 1, writer);
+    Writer_write(writer, "d", 1);
     while (entry != NULL) {
         serializeString(writer, entry->key);
         serializeGeneric(writer, entry->val);
         entry = entry->next;
     }
-    return writer->write("e", 1, writer);
+    return Writer_write(writer, "e", 1);
 }
 
 /** @see BencSerializer.h */
-static int32_t parseDictionary(const struct Reader* reader,
-                               const struct Allocator* allocator,
+static int32_t parseDictionary(struct Reader* reader,
+                               struct Allocator* allocator,
                                Dict* output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
     #define UNPARSABLE -3
 
     char nextChar;
-    if (reader->read(&nextChar, 1, reader) < 0) {
+    if (Reader_read(reader, &nextChar, 1) < 0) {
         return OUT_OF_CONTENT_TO_READ;
     }
     if (nextChar != 'd') {
@@ -291,7 +292,7 @@ static int32_t parseDictionary(const struct Reader* reader,
 
     for (;;) {
         /* Peek at the next char. */
-        if (reader->read(&nextChar, 0, reader) < 0) {
+        if (Reader_read(reader, &nextChar, 0) < 0) {
             /* Ran over read buffer. */
             return OUT_OF_CONTENT_TO_READ;
         }
@@ -320,7 +321,7 @@ static int32_t parseDictionary(const struct Reader* reader,
     }
 
     /* We got an 'e', leave the pointer on the next char after it. */
-    reader->skip(1, reader);
+    Reader_skip(reader, 1);
 
     *output = lastEntryPointer;
 
@@ -340,8 +341,8 @@ static int32_t parseDictionary(const struct Reader* reader,
  * @param allocator the means of storing the parsed data.
  * @param output a pointer which will be pointed to the output.
  */
-static int32_t parseGeneric(const struct Reader* reader,
-                            const struct Allocator* allocator,
+static int32_t parseGeneric(struct Reader* reader,
+                            struct Allocator* allocator,
                             Object** output)
 {
     #define OUT_OF_CONTENT_TO_READ -2
@@ -349,7 +350,7 @@ static int32_t parseGeneric(const struct Reader* reader,
 
     int ret;
     char firstChar;
-    ret = reader->read(&firstChar, 0, reader);
+    ret = Reader_read(reader, &firstChar, 0);
     if (ret != 0) {
         return OUT_OF_CONTENT_TO_READ;
     }
@@ -412,7 +413,7 @@ static int32_t parseGeneric(const struct Reader* reader,
  * @return -2 if the type of object cannot be determined, otherwise
  *            whatever is returned by the Writer.
  */
-static int32_t serializeGeneric(const struct Writer* writer,
+static int32_t serializeGeneric(struct Writer* writer,
                                 const Object* obj)
 {
     switch (obj->type)

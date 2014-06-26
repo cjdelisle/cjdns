@@ -12,12 +12,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "util/events/libuv/UvWrapper.h"
 #include "memory/Allocator.h"
 #include "util/events/libuv/EventBase_pvt.h"
 #include "util/events/Timeout.h"
 #include "util/Identity.h"
-
-#include <uv.h>
 
 struct Timeout
 {
@@ -27,9 +26,11 @@ struct Timeout
 
     void* callbackContext;
 
-    struct Allocator* asyncAllocator;
+    uint64_t milliseconds;
 
-    int freeing;
+    int isInterval;
+
+    struct Allocator* alloc;
 
     Identity
 };
@@ -39,24 +40,24 @@ struct Timeout
  */
 static void handleEvent(uv_timer_t* handle, int status)
 {
-    struct Timeout* timeout = Identity_cast((struct Timeout*) handle->data);
+    struct Timeout* timeout = Identity_check((struct Timeout*) handle);
+    if (!timeout->isInterval) {
+        Timeout_clearTimeout(timeout);
+    }
     timeout->callback(timeout->callbackContext);
 }
 
 static void onFree2(uv_handle_t* timer)
 {
-    struct Timeout* timeout = Identity_cast((struct Timeout*) timer->data);
-    Allocator_free(timeout->asyncAllocator);
+    Allocator_onFreeComplete(timer->data);
 }
 
-static void onFree(void* vtimeout)
+static int onFree(struct Allocator_OnFreeJob* job)
 {
-    struct Timeout* t = Identity_cast((struct Timeout*) vtimeout);
-    if (t->freeing) {
-        return;
-    }
-    t->freeing = 1;
+    struct Timeout* t = Identity_check((struct Timeout*) job->userData);
+    t->timer.data = job;
     uv_close((uv_handle_t*) &t->timer, onFree2);
+    return Allocator_ONFREE_ASYNC;
 }
 
 /**
@@ -77,15 +78,17 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
                                   const uint64_t milliseconds,
                                   const uint32_t interval,
                                   struct EventBase* eventBase,
-                                  const struct Allocator* allocator)
+                                  struct Allocator* allocator)
 {
-    struct EventBase_pvt* base = Identity_cast((struct EventBase_pvt*) eventBase);
-    struct Allocator* asyncAllocator = Allocator_child(base->asyncAllocator);
-    struct Timeout* timeout = Allocator_calloc(asyncAllocator, sizeof(struct Timeout), 1);
+    struct EventBase_pvt* base = EventBase_privatize(eventBase);
+    struct Allocator* alloc = Allocator_child(allocator);
+    struct Timeout* timeout = Allocator_calloc(alloc, sizeof(struct Timeout), 1);
 
-    timeout->asyncAllocator = asyncAllocator;
     timeout->callback = callback;
     timeout->callbackContext = callbackContext;
+    timeout->milliseconds = milliseconds;
+    timeout->alloc = alloc;
+    timeout->isInterval = interval;
     Identity_set(timeout);
 
     uv_timer_init(base->loop, &timeout->timer);
@@ -93,7 +96,7 @@ static struct Timeout* setTimeout(void (* const callback)(void* callbackContext)
 
     timeout->timer.data = timeout;
 
-    Allocator_onFree(allocator, onFree, timeout);
+    Allocator_onFree(alloc, onFree, timeout);
 
     return timeout;
 }
@@ -103,7 +106,7 @@ struct Timeout* Timeout_setTimeout(void (* const callback)(void* callbackContext
                                    void* const callbackContext,
                                    const uint64_t milliseconds,
                                    struct EventBase* eventBase,
-                                   const struct Allocator* allocator)
+                                   struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 0, eventBase, allocator);
 }
@@ -113,7 +116,7 @@ struct Timeout* Timeout_setInterval(void (* const callback)(void* callbackContex
                                     void* const callbackContext,
                                     const uint64_t milliseconds,
                                     struct EventBase* eventBase,
-                                    const struct Allocator* allocator)
+                                    struct Allocator* allocator)
 {
     return setTimeout(callback, callbackContext, milliseconds, 1, eventBase, allocator);
 }
@@ -129,7 +132,7 @@ void Timeout_resetTimeout(struct Timeout* timeout,
 /** See: Timeout.h */
 void Timeout_clearTimeout(struct Timeout* timeout)
 {
-    if (!timeout->freeing && !uv_is_closing((uv_handle_t*) &timeout->timer)) {
+    if (!uv_is_closing((uv_handle_t*) &timeout->timer)) {
         uv_timer_stop(&timeout->timer);
     }
 }

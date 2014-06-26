@@ -15,17 +15,32 @@
 #ifndef Security_H
 #define Security_H
 
+#include "memory/Allocator.h"
 #include "exception/Except.h"
 #include "util/log/Log.h"
+#include "util/Linker.h"
+#ifdef win32
+    Linker_require("util/Security_Windows.c")
+#else
+    Linker_require("util/Security.c")
+#endif
 
-#define Security_setUser_NO_SUCH_USER -1
-#define Security_setUser_PERMISSION -2
-#define Security_setUser_INTERNAL -3
+#include <stdint.h>
 
-void Security_setUser(char* userName, struct Log* logger, struct Except* eh);
+struct Security_Permissions
+{
+    int noOpenFiles;
+    int seccompExists;
+    int seccompEnforcing;
+    uint64_t memoryLimitBytes;
+};
 
-void Security_noFiles(struct Except* eh);
+/** @return Security_setUser_PERMISSION if the user does not have sufficient permissions. */
+#define Security_setUser_PERMISSION -1
+int Security_setUser(char* userName, struct Log* logger, struct Except* eh);
 
-void Security_maxMemory(uint32_t maxMemory, struct Except* eh);
+void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh);
+
+struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, struct Except* eh);
 
 #endif

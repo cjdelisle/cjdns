@@ -15,6 +15,9 @@
 #ifndef InterfaceConnector_H
 #define InterfaceConnector_H
 
+#include "util/Linker.h"
+Linker_require("interface/InterfaceConnector.c")
+
 /**
  * Connect two interfaces together like a double female adapter.
  * Any traffic coming in on one will be forwarded to the other.

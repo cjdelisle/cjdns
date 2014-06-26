@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cjdns Admin panel</title>
+
+    <link rel="stylesheet" href="/css/bootstrap.min.css" />
+    <script src="/js/jquery-2.0.2.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script src="/js/common.js"></script>
+    <script src="/js/config.js"></script>
+</head>
+<body>
+    <div class="navbar navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container">
+                <a class="brand" href="/">
+                    <span class="hype-logo"></span>
+                </a>
+                <div class="nav-collapse">
+                    <ul class="nav">
+                        <li><a href="/">Admin</a></li>
+                        <li><a href="/map">Map</a></li>
+                        <li><a href="/logs">Logs</a></li>
+                        <li class="active"><a>Config</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="hero-unit">
+            <h3>Peers</h3>
+            <div id="peers" class="form-block"></div>
+            <span id="add" class="btn btn-success">Add peer</span>
+            <span id="save" class="btn btn-success pull-right">Save config</span>
+
+            <div id="configOutput"></div>
+        </div>
+    </div>
+</body>
+</html>
