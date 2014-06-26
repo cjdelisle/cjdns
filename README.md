@@ -193,7 +193,7 @@ work verbatim.
 
 ### 0. Install dependencies
 
-On both platforms, installing [Node.js](http://nodejs.org/), although preferable, 
+On both platforms, installing [Node.js](http://nodejs.org/), although preferable,
 is not strictly necessary. If Node.js is unavailable or an unacceptable version,
 it will be downloaded and installed in the source tree.
 
@@ -203,7 +203,7 @@ it will be downloaded and installed in the source tree.
 
 #### OS X:
 
-On OS X, you must install the Command Line Developer Tools. If 
+On OS X, you must install the Command Line Developer Tools. If
 you already have a recent version of Xcode (>= OS X 10.9 and >= Xcode 5.0.1), run the
 following command:
 
@@ -213,7 +213,7 @@ If Xcode is not installed, you can either install it through the App
 Store and run the command above, or make a free Apple Developer account here:
 [https://developer.apple.com/downloads/index.action](https://developer.apple.com/downloads/index.action).
 Then sign in, search for Command Line Tools, and install the latest package
-compatible with your version of OS X. If you encounter issues, there is a 
+compatible with your version of OS X. If you encounter issues, there is a
 thorough [stackoverflow post](http://stackoverflow.com/a/9329325) on installing
 the Command Line Tools.
 
@@ -335,7 +335,7 @@ A conf file with multiple friend-nodes, setup OUTbound, should look like:
         "password": "thisIsNotARealConnection_1",
         "publicKey": "thisIsJustForAnExampleDoNotUseThisInYourConfFile_1.k"
     }
-    
+
     //friend_2 (IPv4: 5.1.2.3; IPv6 fcbb:5bac:66e4:713:cb00:e446:c317:fc39)
     "5.1.2.3:5678":
     {
@@ -357,13 +357,13 @@ In your conf file, you will see:
     [
         // A unique string which is known to the client and server.
         {"password": "thisisauniquestring_001"}
-        
+
         // More passwords should look like this.
         // {"password": "thisisauniquestring_002"}
         // {"password": "thisisauniquestring_003"}
         // {"password": "thisisauniquestring_004"}
         ...
-        
+
         // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
 
     ],
@@ -375,7 +375,7 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
     [
         // A unique string which is known to the client and server.
         {"password": "thisisauniquestring_001"}
-        
+
         // More passwords should look like this.
     //friend_3 (IPv4: 0.1.2.3; IPv6 fcaa:5bac:66e4:713:cb00:e446:c317:fc39)
 {"password": "thisisauniquestring_002"}
@@ -383,7 +383,7 @@ A conf file with multiple friend-nodes, setup INbound, should look like:
 {"password": "thisisauniquestring_003"}
         // {"password": "thisisauniquestring_004"}
         ...
-        
+
         // "your.external.ip.goes.here:45678":{"password": "thisisauniquestring_001","publicKey":thisisauniqueKEY_001.k"}
 
     ],
@@ -397,13 +397,13 @@ You need to give friend_3 (who is making the INbound connection) the following 4
 
                 `// Bind to this port.
                 "bind": "0.0.0.0:yourportnumberishere",`
-                
+
 3. Their unique password that you uncommented or created: "password": "thisisauniquestring_002"
 4. Your public key: "publicKey":thisisauniqueKEY_001.k"
 
 
 
-Please note that you and your friend can *initiate* a 
+Please note that you and your friend can *initiate* a
 connection either outbound (from YOU --> FRIEND) or inbound (from FRIEND --> YOU)
 but traffic flows both ways once the connection is established.
 

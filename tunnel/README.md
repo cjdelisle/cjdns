@@ -55,14 +55,14 @@ section of the `IpTunnel` block in your cjdroute.conf like this:
 Then restart cjdns and after a few moments you should see it add IP addresses to your TUN device by running
 `ifconfig` for example:
 
-    tun0      Link encap:UNSPEC  HWaddr 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00  
+    tun0      Link encap:UNSPEC  HWaddr 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
               inet addr:192.168.10.4  P-t-P:192.168.10.4  Mask:255.255.255.255
               inet6 addr: fc88:dfd0:89d4:abfe:de2:a17a:6ed5:6fb1/8 Scope:Global
               inet6 addr: 2a02:2498:e000:20::144:4/0 Scope:Global                 <--- new address
               UP POINTOPOINT RUNNING NOARP MULTICAST  MTU:1312  Metric:1
               RX packets:22950 errors:0 dropped:0 overruns:0 frame:0
               TX packets:22891 errors:0 dropped:0 overruns:0 carrier:0
-              collisions:0 txqueuelen:500 
+              collisions:0 txqueuelen:500
               RX bytes:22689370 (22.6 MB)  TX bytes:2460363 (2.4 MB)
 
 Then you can try pinging a computer out on the internet like `ipv6.google.com` and see if

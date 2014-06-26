@@ -243,7 +243,7 @@ Examples:
     {'version': '2b62b9ae911f1044e45f3f28fdd63d0d5a7fc512', 'result': 'pong', 'ms': 0}
 
     >>> cjdns.RouterModule_pingNode('a')
-    {'error': "Unexpected length, must be either 39 char ipv6 address (with leading zeros) 
+    {'error': "Unexpected length, must be either 39 char ipv6 address (with leading zeros)
     eg: 'fc4f:000d:e499:8f5b:c49f:6e6b:01ae:3120' or 19 char path eg: '0123.4567.89ab.cdef'"}
 
     >>> cjdns.RouterModule_pingNode('aaaaaaaaaaaaaaaaaaa')

@@ -202,7 +202,7 @@ def connect(ipAddr, port, password):
         rargList = [arg for arg,atts in items if atts['required']]
         argList = rargList + [arg for arg,atts in items if not atts['required']]
 
-        # for each optional arg setup a default value with 
+        # for each optional arg setup a default value with
         # a type which will be ignored by the core.
         oargList = {}
         for (arg,atts) in items:
