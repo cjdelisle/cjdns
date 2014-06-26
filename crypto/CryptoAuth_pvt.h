@@ -33,6 +33,7 @@ struct CryptoAuth_Auth {
     uint8_t secret[32];
 
     String* user;
+    uint8_t* restrictedToip6;
 };
 
 struct CryptoAuth_pvt
@@ -71,6 +72,7 @@ struct CryptoAuth_Wrapper
      * with the password this will be the object, otherwise it will be null.
      */
     String* user;
+    uint8_t* restrictedToip6;
 
     /** The shared secret. */
     uint8_t sharedSecret[32];

@@ -188,14 +188,14 @@ static inline void getPasswordHash_typeOne(uint8_t output[32],
 static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
                                uint8_t hashOutput[32],
                                struct CryptoAuth_Wrapper* wrapper,
-                               String** userPtr)
+                               struct CryptoAuth_Auth** retAuth)
 {
     struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
     if (auth != NULL) {
         uint16_t deriv = Headers_getAuthChallengeDerivations(&cauth->handshake.auth);
         getPasswordHash_typeOne(hashOutput, deriv, auth);
         if (deriv == 0) {
-            *userPtr = auth->user;
+            *retAuth = auth;
         }
         return hashOutput;
     }
@@ -409,13 +409,26 @@ static uint8_t encryptHandshake(struct Message* message,
 
     if (!knowHerKey(wrapper)) {
         return genReverseHandshake(message, wrapper, header);
-    } else if (!Bits_isZero(wrapper->herIp6, 16)) {
+    }
+    uint8_t calculatedIp6[16];
+    AddressCalc_addressForPublicKey(calculatedIp6, wrapper->herPerminentPubKey);
+    if (!Bits_isZero(wrapper->herIp6, 16)) {
         // If someone starts a CA session and then discovers the key later and memcpy's it into the
         // result of getHerPublicKey() then we want to make sure they didn't memcpy in an invalid
         // key.
-        uint8_t calculatedIp6[16];
-        AddressCalc_addressForPublicKey(calculatedIp6, wrapper->herPerminentPubKey);
         Assert_true(!Bits_memcmp(wrapper->herIp6, calculatedIp6, 16));
+    }
+    uint8_t* restrictedToip6 = wrapper->restrictedToip6;
+    if (restrictedToip6) {
+        cryptoAuthDebug0(wrapper,"Restricted to ipv6, checking");
+        if (Bits_memcmp(calculatedIp6, restrictedToip6, 16)) {
+            cryptoAuthDebug0(wrapper,
+                 "DROP packet restricted ipv6 not matching ip6 for session");
+            return Error_AUTHENTICATION;
+        } else {
+            cryptoAuthDebug0(wrapper,
+                 "This password's ipv6 configuration matches");
+        }
     }
 
     if (wrapper->bufferedMessage) {
@@ -699,8 +712,14 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     }
 
     String* user = NULL;
+    struct CryptoAuth_Auth* auth = NULL;
     uint8_t passwordHashStore[32];
-    uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &user);
+    uint8_t* passwordHash = tryAuth(header, passwordHashStore, wrapper, &auth);
+    uint8_t* restrictedToip6 = NULL;
+    if (auth) {
+        user = auth->user;
+        restrictedToip6 = auth->restrictedToip6;
+    }
     if (wrapper->requireAuth && !user) {
         cryptoAuthDebug0(wrapper, "DROP message because auth was not given");
         return Error_AUTHENTICATION;
@@ -709,7 +728,6 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         cryptoAuthDebug0(wrapper, "DROP message with unrecognized authenticator");
         return Error_AUTHENTICATION;
     }
-
     // What the nextNonce will become if this packet is valid.
     uint32_t nextNonce;
 
@@ -851,6 +869,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
             wrapper->nextNonce = nextNonce;
 
             wrapper->user = user;
+            wrapper->restrictedToip6 = restrictedToip6;
             Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
         } else {
             // It's a (possibly repeat) key packet and we have begun sending run data.
@@ -890,6 +909,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Assert_true(wrapper->nextNonce <= nextNonce);
         wrapper->nextNonce = nextNonce;
         wrapper->user = user;
+        wrapper->restrictedToip6 = restrictedToip6;
         Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
 
     } else if (Bits_memcmp(header->handshake.publicKey, wrapper->context->pub.publicKey, 32) < 0) {
@@ -902,6 +922,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Assert_true(wrapper->nextNonce <= nextNonce);
         wrapper->nextNonce = nextNonce;
         wrapper->user = user;
+        wrapper->restrictedToip6 = restrictedToip6;
         Bits_memcpyConst(wrapper->herTempPubKey, header->handshake.encryptedTempKey, 32);
 
     } else {
@@ -1028,9 +1049,9 @@ struct CryptoAuth* CryptoAuth_new(struct Allocator* allocator,
     struct CryptoAuth_pvt* ca = Allocator_calloc(allocator, sizeof(struct CryptoAuth_pvt), 1);
     ca->allocator = allocator;
 
-    ca->passwords = Allocator_calloc(allocator, sizeof(struct CryptoAuth_Auth), 256);
+    ca->passwords = Allocator_calloc(allocator, sizeof(struct CryptoAuth_Auth), 232);
     ca->passwordCount = 0;
-    ca->passwordCapacity = 256;
+    ca->passwordCapacity = 232;
     ca->eventBase = eventBase;
     ca->logger = logger;
     ca->pub.resetAfterInactivitySeconds = CryptoAuth_DEFAULT_RESET_AFTER_INACTIVITY_SECONDS;
@@ -1063,6 +1084,15 @@ int32_t CryptoAuth_addUser(String* password,
                            String* user,
                            struct CryptoAuth* ca)
 {
+     return CryptoAuth_addUser_ipv6(password, authType, user, NULL, ca);
+}
+
+int32_t CryptoAuth_addUser_ipv6(String* password,
+                           uint8_t authType,
+                           String* user,
+                           String* ipv6,
+                           struct CryptoAuth* ca)
+{
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     if (authType != 1) {
         return CryptoAuth_addUser_INVALID_AUTHTYPE;
@@ -1080,6 +1110,16 @@ int32_t CryptoAuth_addUser(String* password,
         }
     }
     a.user = String_new(user->bytes, context->allocator);
+    if (ipv6) {
+        a.restrictedToip6 = Allocator_malloc(context->allocator, 16);
+        if (AddrTools_parseIp(a.restrictedToip6,ipv6->bytes) < 0) {
+            Log_debug(context->logger, "Ipv6 parsing error!");
+            // assure there will be no connection with a broken ipv6
+            Bits_memset (a.restrictedToip6,0xff,16);
+        }
+    } else {
+        a.restrictedToip6 = NULL;
+    }
     Bits_memcpyConst(&context->passwords[context->passwordCount],
                      &a,
                      sizeof(struct CryptoAuth_Auth));
