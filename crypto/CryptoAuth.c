@@ -1088,10 +1088,10 @@ int32_t CryptoAuth_addUser(String* password,
 }
 
 int32_t CryptoAuth_addUser_ipv6(String* password,
-                           uint8_t authType,
-                           String* user,
-                           String* ipv6,
-                           struct CryptoAuth* ca)
+                                uint8_t authType,
+                                String* user,
+                                String* ipv6,
+                                struct CryptoAuth* ca)
 {
     struct CryptoAuth_pvt* context = Identity_check((struct CryptoAuth_pvt*) ca);
     if (authType != 1) {
@@ -1114,8 +1114,7 @@ int32_t CryptoAuth_addUser_ipv6(String* password,
         a.restrictedToip6 = Allocator_malloc(context->allocator, 16);
         if (AddrTools_parseIp(a.restrictedToip6,ipv6->bytes) < 0) {
             Log_debug(context->logger, "Ipv6 parsing error!");
-            // assure there will be no connection with a broken ipv6
-            Bits_memset (a.restrictedToip6,0xff,16);
+            return CryptoAuth_addUser_INVALID_IP;
         }
     } else {
         a.restrictedToip6 = NULL;

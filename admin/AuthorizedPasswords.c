@@ -64,6 +64,9 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
         case CryptoAuth_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
             break;
+        case CryptoAuth_addUser_INVALID_IP:
+            sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
+            break;
         default:
             sendResponse(String_CONST("Unknown error."), context->admin, txid, alloc);
     }

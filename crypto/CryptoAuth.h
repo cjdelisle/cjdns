@@ -56,15 +56,19 @@ struct CryptoAuth_Wrapper;
  * @param user The thing to associate with this user, will be returned by CryptoAuth_getUser().
  *             If this is NULL and requireAuthentication is enabled, authentication will fail.
  *             Duplicate user entires are OK.
+ * @param ipv6 If not NULL, only allow connections to this CryptoAuth from the key which hashes
+ *             to the given IPv6 address.
  * @param context The CryptoAuth context.
  * @return 0 if all goes well,
  *         CryptoAuth_addUser_INVALID_AUTHTYPE if the authentication method is not supported,
  *         CryptoAuth_addUser_OUT_OF_SPACE if there is not enough space to store the entry,
  *         CryptoAuth_addUser_DUPLICATE if the same *password* already exists.
+ *         CryptoAuth_addUser_INVALID_IP if the ipv6 is not valid.
  */
 #define CryptoAuth_addUser_INVALID_AUTHTYPE  -1
 #define CryptoAuth_addUser_OUT_OF_SPACE      -2
 #define CryptoAuth_addUser_DUPLICATE         -3
+#define CryptoAuth_addUser_INVALID_IP        -4
 int32_t CryptoAuth_addUser_ipv6(String* password,
                            uint8_t authType,
                            String* user,
