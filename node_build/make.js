@@ -29,7 +29,7 @@ var GCC = process.env['CC'];
 
 if (!GCC) {
     if (SYSTEM === 'freebsd') {
-        GCC = 'clang';
+        GCC = 'gcc47';
     } else {
         GCC = 'gcc';
     }
