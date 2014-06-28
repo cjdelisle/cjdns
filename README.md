@@ -465,7 +465,7 @@ You can access the admin API with:
   [contrib/perl/CJDNS/README](contrib/perl/CJDNS/README).
 
 
-[IRC Web]: http://chat.efnet.org:9090/?channels=#cjdns
+[IRC Web]: http://chat.efnet.org/irc.cgi?chan=%23cjdns
 [Hyperboria]: http://hyperboria.net
 [Project Meshnet]: https://projectmeshnet.org
 [/r/darknetplan]: http://www.reddit.com/r/darknetplan
