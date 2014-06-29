@@ -186,6 +186,11 @@ var checkFile = module.exports.checkFile = function (file, callback) {
     });
 };
 
+var lint = module.exports.lint = function (fileName, fileContent, callback) {
+    var out = parseFile(fileName, fileContent);
+    callback(out, !!out);
+};
+
 var checkFiles = module.exports.checkFiles = function (files, callback) {
     var sema = Semaphore.create(64);
     var errors = '';

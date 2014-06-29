@@ -32,3 +32,10 @@ void randombytes(unsigned char *x,unsigned long long xlen)
     xlen -= i;
   }
 }
+
+int random()
+{
+   int out;
+   randombytes((unsigned char*) &out, sizeof(int));
+   return out;
+}

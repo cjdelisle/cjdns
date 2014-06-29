@@ -12,27 +12,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TAPInterface_H
-#define TAPInterface_H
+#ifndef TUNTools_H
+#define TUNTools_H
 
-#include "exception/Except.h"
+#include "interface/addressable/AddrInterface.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/platform/Sockaddr.h"
 #include "util/events/EventBase.h"
-#include "interface/Interface.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/windows/TAPInterface.c")
+Linker_require("interface/tuntap/test/TUNTools.c")
 
-struct TAPInterface
-{
-    struct Interface generic;
-    char* assignedName;
-};
+struct AddrInterface* TUNTools_setupUDP(struct EventBase* base,
+                                        struct Sockaddr* bindAddr,
+                                        struct Allocator* allocator,
+                                        struct Log* logger);
 
-struct TAPInterface* TAPInterface_new(const char* preferredName,
-                                      struct Except* eh,
-                                      struct Log* logger,
-                                      struct EventBase* base,
-                                      struct Allocator* alloc);
+struct Timeout* TUNTools_sendHelloWorld(struct AddrInterface* iface,
+                                        struct Sockaddr* dest,
+                                        struct EventBase* base,
+                                        struct Allocator* alloc);
 
 #endif

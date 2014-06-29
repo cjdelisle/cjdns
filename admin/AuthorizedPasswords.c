@@ -38,6 +38,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
     String* passwd = Dict_getString(args, String_CONST("password"));
     int64_t* authType = Dict_getInt(args, String_CONST("authType"));
     String* user = Dict_getString(args, String_CONST("user"));
+    String* ipv6 = Dict_getString(args, String_CONST("ipv6"));
     int64_t one = 1;
     if (!authType) {
         authType = &one;
@@ -46,7 +47,7 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
                      context->admin, txid, alloc);
         return;
     }
-    int32_t ret = CryptoAuth_addUser(passwd, *authType, user, context->ca);
+    int32_t ret = CryptoAuth_addUser_ipv6(passwd, *authType, user, ipv6, context->ca);
 
     switch (ret) {
         case 0:
@@ -62,6 +63,9 @@ static void add(Dict* args, void* vcontext, String* txid, struct Allocator* allo
             break;
         case CryptoAuth_addUser_DUPLICATE:
             sendResponse(String_CONST("Password already added."), context->admin, txid, alloc);
+            break;
+        case CryptoAuth_addUser_INVALID_IP:
+            sendResponse(String_CONST("Invalid IPv6 Address"), context->admin, txid, alloc);
             break;
         default:
             sendResponse(String_CONST("Unknown error."), context->admin, txid, alloc);
@@ -112,6 +116,7 @@ void AuthorizedPasswords_init(struct Admin* admin,
         ((struct Admin_FunctionArg[]){
             { .name = "password", .required = 1, .type = "String" },
             { .name = "user", .required = 1, .type = "String" },
+            { .name = "ipv6", .required = 0, .type = "String" },
             { .name = "authType", .required = 0, .type = "Int" }
         }), admin);
     Admin_registerFunction("AuthorizedPasswords_remove", remove, context, true,

@@ -96,6 +96,9 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
       uv_poll_close(loop, (uv_poll_t*) handle);
       return;
 
+    case UV_IOCP:
+      uv_iocp_close(loop, (uv_iocp_t*) handle);
+
     case UV_TIMER:
       uv_timer_stop((uv_timer_t*)handle);
       uv__handle_closing(handle);

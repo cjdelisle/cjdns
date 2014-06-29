@@ -33,7 +33,7 @@ function ConfigFile:read(path)
     local f = assert(io.open(self.path, 'r'))
     self.text = assert(f:read("*all"))
     f:close()
-    
+
     self.text, _ = self.text:gsub("//[^\n]*\n", "") -- Single line comments
     self.text, _ = self.text:gsub("/%*.-%*/", "") -- Multi-line comments
 end

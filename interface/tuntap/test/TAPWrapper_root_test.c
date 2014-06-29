@@ -22,6 +22,7 @@
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/TUNMessageType.h"
+#include "interface/tuntap/NDPServer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "io/FileWriter.h"
@@ -34,14 +35,11 @@
 #include "wire/Headers.h"
 #include "util/platform/netdev/NetDev.h"
 #include "test/RootTest.h"
+#include "interface/tuntap/test/TUNTools.h"
+#include "interface/tuntap/TAPWrapper.h"
 
 #include <unistd.h>
 #include <stdlib.h>
-
-#ifdef win32
-    #include <windows.h>
-    #define sleep(x) Sleep(1000*x)
-#endif
 
 static const uint8_t testAddrA[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
 static const uint8_t testAddrB[] = {0xfd,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
@@ -68,8 +66,8 @@ static uint8_t receiveMessageTUN(struct Message* msg, struct Interface* iface)
         return 0;
     }
 
-    Assert_true(!Bits_memcmp(header->destinationAddr, testAddrB, 16));
-    Assert_true(!Bits_memcmp(header->sourceAddr, testAddrA, 16));
+    if (Bits_memcmp(header->destinationAddr, testAddrB, 16)) { return 0; }
+    if (Bits_memcmp(header->sourceAddr, testAddrA, 16)) { return 0; }
 
     Bits_memcpyConst(header->destinationAddr, testAddrA, 16);
     Bits_memcpyConst(header->sourceAddr, testAddrB, 16);
@@ -95,69 +93,44 @@ static void fail(void* ignored)
     Assert_true(!"timeout");
 }
 
-static struct AddrInterface* setupUDP(struct EventBase* base,
-                                      struct Sockaddr* bindAddr,
-                                      struct Allocator* allocator,
-                                      struct Log* logger)
-{
-    struct Jmp jmp;
-    Jmp_try(jmp) {
-        return UDPAddrInterface_new(base, bindAddr, allocator, &jmp.handler, logger);
-    } Jmp_catch {
-        sleep(1);
-        return NULL;
-    }
-}
-
 int main(int argc, char** argv)
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
     struct EventBase* base = EventBase_new(alloc);
     struct Writer* logWriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logWriter, alloc);
+    struct Log* log = WriterLog_new(logWriter, alloc);
 
     struct Sockaddr* addrA = Sockaddr_fromBytes(testAddrA, Sockaddr_AF_INET6, alloc);
 
     char assignedIfName[TUNInterface_IFNAMSIZ];
-    struct Interface* tun = TUNInterface_new(NULL, assignedIfName, base, logger, NULL, alloc);
-    NetDev_addAddress(assignedIfName, addrA, 126, logger, NULL);
+    struct Interface* tap = TUNInterface_new(NULL, assignedIfName, 1, base, log, NULL, alloc);
+    struct TAPWrapper* tapWrapper = TAPWrapper_new(tap, log, alloc);
+
+    // Now setup the NDP server so the tun will work correctly.
+    struct NDPServer* ndp = NDPServer_new(&tapWrapper->generic, log, TAPWrapper_LOCAL_MAC, alloc);
+    ndp->advertisePrefix[0] = 0xfd;
+    ndp->prefixLen = 8;
+
+    struct Interface* tun = &ndp->generic;
+
+    NetDev_addAddress(assignedIfName, addrA, 126, log, NULL);
 
     struct Sockaddr_storage addr;
-    Assert_true(!Sockaddr_parse("[fd00::1]", &addr));
+    Assert_true(!Sockaddr_parse("[::]", &addr));
 
-    #ifdef freebsd
-        // tun is not setup synchronously in bsd but it lets you bind to the tun's
-        // address anyway.
-        sleep(1);
-    #endif
-
-    // Mac OSX and BSD do not set up their TUN devices synchronously.
-    // We'll just keep on trying until this works.
-    struct AddrInterface* udp = NULL;
-    for (int i = 0; i < 20; i++) {
-        if ((udp = setupUDP(base, &addr.addr, alloc, logger))) {
-            break;
-        }
-    }
-    Assert_true(udp);
+    struct AddrInterface* udp = TUNTools_setupUDP(base, &addr.addr, alloc, log);
 
     struct Sockaddr* dest = Sockaddr_clone(udp->addr, alloc);
     uint8_t* addrBytes;
     Assert_true(16 == Sockaddr_getAddress(dest, &addrBytes));
     Bits_memcpy(addrBytes, testAddrB, 16);
 
-    struct Message* msg;
-    Message_STACK(msg, 0, 64);
-    Message_push(msg, "Hello World", 12, NULL);
-    Message_push(msg, dest, dest->addrLen, NULL);
-
     udp->generic.receiveMessage = receiveMessageUDP;
     udp->generic.receiverContext = alloc;
     tun->receiveMessage = receiveMessageTUN;
 
-    udp->generic.sendMessage(msg, &udp->generic);
-
-    Timeout_setTimeout(fail, NULL, 10000, base, alloc);
+    TUNTools_sendHelloWorld(udp, dest, base, alloc);
+    Timeout_setTimeout(fail, NULL, 10000000, base, alloc);
 
     EventBase_beginLoop(base);
     return 0;

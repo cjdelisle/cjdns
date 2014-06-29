@@ -57,14 +57,15 @@ Assert_compileTime(sizeof(struct NDPHeader_NeighborAdvert) == NDPHeader_Neighbor
 #define NDPHeader_NeighborAdvert_bits_OVERRIDE  (1<<5)
 
 
-struct NDPHeader_NeighborAdvert_MacOpt {
-    uint8_t two; // type
+#define NDPHeader_MacOpt_type_SELF 1
+#define NDPHeader_MacOpt_type_TARGET 2
+struct NDPHeader_MacOpt {
+    uint8_t type; // two for target addr and one for source addr
     uint8_t one; // length in 8 byte increments
     uint8_t mac[6];
 };
-#define NDPHeader_NeighborAdvert_MacOpt_SIZE 8
-Assert_compileTime(
-    sizeof(struct NDPHeader_NeighborAdvert_MacOpt) == NDPHeader_NeighborAdvert_MacOpt_SIZE);
+#define NDPHeader_MacOpt_SIZE 8
+Assert_compileTime(sizeof(struct NDPHeader_MacOpt) == NDPHeader_MacOpt_SIZE);
 
 struct NDPHeader_RouterAdvert {
     uint8_t oneThirtyFour;

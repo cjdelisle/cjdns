@@ -12,21 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef NDPServer_H
-#define NDPServer_H
-
+#ifndef Aligner_H
+#define Aligner_H
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
 #include "util/Linker.h"
-Linker_require("interface/tuntap/windows/NDPServer.c")
+Linker_require("interface/Aligner.c")
 
-struct NDPServer
+struct Aligner
 {
     struct Interface generic;
-    uint8_t advertisePrefix[16];
-    uint8_t prefixLen;
 };
 
-struct NDPServer* NDPServer_new(struct Interface* external, struct Allocator* alloc);
+struct Aligner* Aligner_new(struct Interface* external,
+                            struct Allocator* alloc,
+                            uint32_t alignmentBytes);
 
 #endif

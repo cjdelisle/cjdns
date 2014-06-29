@@ -16,7 +16,7 @@ class Cjdns {
         }
         return $output;
     }
-    
+
     function receive($txid) {
         while(!isset($this->responses[$txid])) {
             $data = fread($this->socket, $this->buffersize);
@@ -45,7 +45,7 @@ class Cjdns {
         fwrite($this->socket, bencode($message));
         return $txid;
     }
-    
+
     private function getCookie() {
         $data = $this->receive($this->send_raw(array("q" => "cookie")));
         return $data['cookie'];
@@ -73,7 +73,7 @@ class Cjdns {
         $this->send_raw($request);
         return $this->receive($txid);
     }
-    
+
     function __construct($password=NULL, $host="127.0.0.1", $port=11234) {
         $this->socket = stream_socket_client("udp://".$host.":".$port, $errorno, $errorstr);
         if(!$this->socket) {
@@ -101,7 +101,7 @@ class Cjdns {
             }
         }
     }
-    
+
     function __destructor() {
         socket_close($this->socket);
     }

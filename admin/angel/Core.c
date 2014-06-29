@@ -287,7 +287,7 @@ void Core_initTunnel(String* desiredDeviceName,
     char assignedTunName[TUNInterface_IFNAMSIZ];
     char* desiredName = (desiredDeviceName) ? desiredDeviceName->bytes : NULL;
     struct Interface* tun =
-        TUNInterface_new(desiredName, assignedTunName, eventBase, logger, eh, alloc);
+        TUNInterface_new(desiredName, assignedTunName, 0, eventBase, logger, eh, alloc);
 
     IpTunnel_setTunName(assignedTunName, ipTunnel);
 

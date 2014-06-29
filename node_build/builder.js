@@ -44,7 +44,7 @@ var Semaphore = require('./Semaphore');
 // performance seems to be when running 1.25x the number of jobs as
 // cpu cores. On BSD and iphone systems, os.cpus() is not reliable so
 // if it returns undefined let's just assume 1
-var WORKERS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
+var PROCESSORS = Math.floor((typeof Os.cpus() == 'undefined' ? 1 : Os.cpus().length) * 1.25);
 
 var error = function (message)
 {
@@ -71,7 +71,7 @@ var expandArgs = function (args) {
     return out;
 };
 
-var sema = Semaphore.create(WORKERS);
+var sema = Semaphore.create(PROCESSORS);
 var compiler = function (compilerPath, args, callback, content) {
     args = expandArgs(args);
     sema.take(function (returnAfter) {
@@ -119,14 +119,39 @@ var mkBuilder = function (state) {
         cc: function (args, callback) {
             compiler(builder.config.gcc, args, callback);
         },
-        buildExecutable: function (cFile, outputFile, callback) {
-            compile(cFile, outputFile, builder, callback);
+        buildExecutable: function (cFile, outputFile) {
+            if (!outputFile) {
+                outputFile = cFile.replace(/^.*\/([^\/\.]*).*$/, function (a,b) { return b; });
+            }
+            if (state.system === 'win32' && !(/\.exe$/.test(outputFile))) { outputFile += '.exe'; }
+            var temp = state.buildDir+'/'+getExecutableFile(cFile);
+            compile(cFile, temp, builder, builder.waitFor());
+            builder.executables.push([temp, outputFile]);
+        },
+        buildTest: function (cFile, testRunner) {
+            var outFile = state.buildDir+'/'+getExecutableFile(cFile);
+            compile(cFile, outFile, builder, builder.waitFor());
+            builder.tests.push(function (cb) { testRunner(outFile, cb); });
+        },
+        lintFiles: function (linter) {
+            builder.linters.push(linter);
         },
         config: state,
         tmpFile: function (name) {
             return tmpFile(state, name);
         },
-        rebuiltFiles: []
+        rebuiltFiles: [],
+
+        // Test executables (arrays containing name in build dir and test runner)
+        tests: [],
+
+        // Executables (arrays containing name in build dir and final name)
+        executables: [],
+
+        linters: [],
+
+        // Concurrency...
+        processors: PROCESSORS
     };
     return builder;
 };
@@ -259,6 +284,10 @@ var getObjectFile = function (cFile) {
     return cFile.replace(/[^a-zA-Z0-9_-]/g, '_')+'.o';
 };
 
+var getExecutableFile = function (cFile) {
+    return cFile.replace(/[^a-zA-Z0-9_-]/g, '_');
+};
+
 var getFlags = function (state, fileName, includeDirs) {
     var flags = [];
     flags.push.apply(flags, state.cflags);
@@ -351,15 +380,11 @@ var compileFile = function (fileName, builder, tempDir, callback)
         //debug("Preprocess");
         preprocess(fileContent, builder, fileObj, fileName, waitFor(function (err, output) {
             if (err) { throw err; }
-            if (state.useTempFiles) {
-                Fs.writeFile(preprocessed, output, waitFor(function (err) {
-                    if (err) { throw err; }
-                }));
-                // important, this will prevent the file from also being piped to gcc.
-                fileContent = undefined;
-            } else {
-                fileContent = output;
-            }
+            Fs.writeFile(preprocessed, output, waitFor(function (err) {
+                if (err) { throw err; }
+            }));
+            // important, this will prevent the file from also being piped to gcc.
+            fileContent = undefined;
         }));
 
         Fs.exists(outFile, waitFor(function (exists) {
@@ -374,11 +399,7 @@ var compileFile = function (fileName, builder, tempDir, callback)
         //debug("CC");
         var flags = ['-c','-x','cpp-output','-o',outFile];
         flags.push.apply(flags, getFlags(state, fileName, false));
-        if (state.useTempFiles) {
-            flags.push(preprocessed);
-        } else {
-            flags.push('-');
-        }
+        flags.push(preprocessed);
         cc(state.gcc, flags, waitFor(function (err) {
             if (err) { throw err; }
             fileObj.obj = outFile;
@@ -425,7 +446,7 @@ var getMTimes = function (files, mtimes, callback)
 
 var removeFile = function (state, fileName, callback)
 {
-    debug("remove " + fileName);
+    //debug("remove " + fileName);
     nThen(function (waitFor) {
         // And every file which includes it
         Object.keys(state.files).forEach(function (file) {
@@ -539,7 +560,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         tempDir = tmpFile(state);
         Fs.mkdir(tempDir, waitFor(function (err) {
             if (err) { throw err; }
@@ -555,12 +575,8 @@ var compile = function (file, outputFile, builder, callback) {
         for (var i = 0; i < linkOrder.length; i++) {
             linkOrder[i] = state.buildDir + '/' + getObjectFile(linkOrder[i]);
         }
-        var ldArgs = [];
-        ldArgs.push.apply(ldArgs, state.ldflags);
-        ldArgs.push.apply(ldArgs, ['-o', outputFile]);
-        ldArgs.push.apply(ldArgs, linkOrder);
-        ldArgs.push.apply(ldArgs, state.libs);
-        debug('\033[1;31mLinking C executable ' + outputFile + '\033[0m');
+        var ldArgs = [ state.ldflags, '-o', outputFile, linkOrder, state.libs ];
+        debug('\033[1;31mLinking C executable ' + file + '\033[0m');
 
         cc(state.gcc, ldArgs, waitFor(function (err, ret) {
             if (err) { throw err; }
@@ -568,7 +584,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     }).nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         Fs.readdir(tempDir, waitFor(function(err, files) {
             if (err) { throw err; }
             files.forEach(function(file) {
@@ -580,7 +595,6 @@ var compile = function (file, outputFile, builder, callback) {
 
     }).nThen(function(waitFor) {
 
-        if (!state.useTempFiles) { return; }
         Fs.rmdir(tempDir, waitFor(function(err) {
             if (err) { throw err; }
         }));
@@ -592,8 +606,8 @@ var compile = function (file, outputFile, builder, callback) {
     });
 };
 
-var getStatePrototype = function () {
-    return {
+var getStatePrototype = function (params) {
+    return Extend({
         includeDirs: ['.'],
         files: {},
         mtimes: {},
@@ -602,36 +616,78 @@ var getStatePrototype = function () {
         ldflags: [],
         libs: [],
 
-        // Using temp files instead of pipes shaves about 400ms off a clean build.
-        // TODO(cjd): Understand why our use of pipes is not good.
-        tempDir: '/tmp',
-        useTempFiles: true,
+        rebuildIfChanges: [],
+        rebuildIfChangesHash: undefined,
 
-        systemName: 'linux'
-    };
+        tempDir: '/tmp',
+
+        system: 'linux'
+    }, params);
 };
 
-module.exports.configure = function (params, configure) {
+/**
+ * Get a copy of process.env with a few entries which are constantly changing removed.
+ * This prevents isStaleState from returning true every time one builds in a different
+ * window.
+ */
+var normalizedProcessEnv = function () {
+    var out = Extend({}, process.env);
+    delete out.WINDOWID;
+    delete out.OLDPWD;
+    return out;
+};
+
+var getRebuildIfChangesHash = function (rebuildIfChanges, callback) {
+    var ret = false;
+    var hash = Crypto.createHash('sha256');
+    var rebIfChg = [];
+    nThen(function (waitFor) {
+        rebuildIfChanges.forEach(function (fileName, i) {
+            Fs.readFile(fileName, waitFor(function (err, ret) {
+                if (err) { throw err; }
+                rebIfChg[i] = ret;
+            }));
+        });
+        hash.update(JSON.stringify(normalizedProcessEnv()));
+    }).nThen(function (waitFor) {
+        rebIfChg.forEach(function (data) { hash.update(data); });
+        callback(hash.digest('hex'));
+    });
+};
+
+process.on('exit', function () {
+    console.log("Total build time: " + Math.floor(process.uptime() * 1000) + "ms.");
+});
+
+var stage = function (st, builder, waitFor) {
+    builder.waitFor = waitFor;
+    st(builder, waitFor);
+};
+
+var throwIfErr = function (err) { if (err) { throw err; } };
+
+var configure = module.exports.configure = function (params, configFunc) {
 
     // Track time taken for various steps
     var time = makeTime();
     time();
 
-    if (typeof(params.buildDir) !== 'string') {
-        throw new Error("buildDir not specified");
+    if (typeof(params.system) !== 'string') {
+        throw new Error("system not specified");
     }
+    // TODO(cjd): deprecated name
+    params.systemName = params.system;
 
-    var rebuildIfChangesHash = '';
-    if (typeof(params.rebuildIfChanges) !== 'undefined') {
-        rebuildIfChangesHash =
-            Crypto.createHash('sha256').update(params.rebuildIfChanges).digest('hex');
-    }
+    params.buildDir = params.buildDir || 'build_' + params.system;
 
     var state;
     var builder;
     var buildStage = function () {};
     var testStage = function () {};
     var packStage = function () {};
+    var successStage = function () {};
+    var failureStage = function () {};
+    var completeStage = function () {};
 
     nThen(function(waitFor) {
         // make the build directory
@@ -649,14 +705,23 @@ module.exports.configure = function (params, configure) {
             if (!exists) { return; }
             Fs.readFile(params.buildDir + '/state.json', waitFor(function (err, ret) {
                 if (err) { throw err; }
-                var storedState = JSON.parse(ret);
-                if (storedState.rebuildIfChangesHash === rebuildIfChangesHash) {
-                    state = storedState;
-                } else {
-                    debug("rebuildIfChanges changed, rebuilding");
-                }
+                state = JSON.parse(ret);
             }));
         }));
+
+    }).nThen(function(waitFor) {
+
+        if (!state || !state.rebuildIfChanges) {
+            // no state
+            state = undefined;
+        } else {
+            getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
+                if (rich !== state.rebuildIfChangesHash) {
+                    debug("rebuildIfChanges changed, rebuilding");
+                    state = undefined;
+                }
+            }));
+        }
 
     }).nThen(function(waitFor) {
 
@@ -667,26 +732,41 @@ module.exports.configure = function (params, configure) {
             builder = mkBuilder(state);
             return;
         }
-        state = getStatePrototype();
+        state = getStatePrototype(params);
         builder = mkBuilder(state);
-
-        configure(builder, waitFor);
+        configFunc(builder, waitFor);
 
     }).nThen(function(waitFor) {
-
-        state.buildDir = params.buildDir;
 
         debug("Configure " + time() + "ms");
 
+        if (state.rebuildIfChangesHash) { return; }
+
+        if (state.rebuildIfChanges.indexOf(module.parent.filename) === -1) {
+            // Always always rebuild if the makefile was changed.
+            state.rebuildIfChanges.push(module.parent.filename);
+        }
+        getRebuildIfChangesHash(state.rebuildIfChanges, waitFor(function (rich) {
+            state.rebuildIfChangesHash = rich;
+        }));
+
     }).nThen(function(waitFor) {
 
-        state.rebuildIfChangesHash = rebuildIfChangesHash;
         state.oldmtimes = state.mtimes;
         state.mtimes = {};
 
         Object.keys(state.oldmtimes).forEach(function (fileName) {
             Fs.stat(fileName, waitFor(function (err, stat) {
-                if (err) { throw err; }
+                if (err) {
+                    if (err.code === 'ENOENT') {
+                        // Doesn't matter as long as it's not referenced...
+                        debug("File ["+fileName+"] was removed");
+                        delete state.files[fileName];
+                        return;
+                    } else {
+                        throw err;
+                    }
+                }
                 state.mtimes[fileName] = stat.mtime.getTime();
                 if (state.oldmtimes[fileName] !== stat.mtime.getTime()) {
                     debug(fileName + ' is out of date, rebuilding');
@@ -701,7 +781,7 @@ module.exports.configure = function (params, configure) {
 
     }).nThen(function(waitFor) {
 
-        buildStage(builder, waitFor);
+        stage(buildStage, builder, waitFor);
 
     }).nThen(function(waitFor) {
 
@@ -720,17 +800,65 @@ module.exports.configure = function (params, configure) {
             builder.rebuiltFiles.push(fileName);
         });
 
-        testStage(builder, waitFor);
+    }).nThen(function(waitFor) {
+
+        builder.tests.forEach(function (test) {
+            test(waitFor(function (output, failure) {
+                debug(output);
+                if (failure) { builder.failure = true; }
+            }));
+        });
+
+    }).nThen(function (waitFor) {
+
+        if (builder.linters.length === 0) { return; }
+        debug("Checking codestyle");
+        var sema = Semaphore.create(64);
+        builder.rebuiltFiles.forEach(function (fileName) {
+            sema.take(waitFor(function (returnAfter) {
+                Fs.readFile(fileName, waitFor(function (err, ret) {
+                    if (err) { throw err; }
+                    ret = ret.toString('utf8');
+                    nThen(function (waitFor) {
+                        builder.linters.forEach(function (linter) {
+                            linter(fileName, ret, waitFor(function (out, isErr) {
+                                if (isErr) {
+                                    debug(out);
+                                    builder.failure = true;
+                                }
+                            }));
+                        });
+                    }).nThen(returnAfter(waitFor()));
+                }));
+            }));
+        });
 
     }).nThen(function(waitFor) {
+
+        stage(testStage, builder, waitFor);
+
+    }).nThen(function(waitFor) {
+
+        if (builder.failure) { return; }
 
         debug("Test " + time() + "ms");
 
+        builder.executables.forEach(function (array) {
+            Fs.rename(array[0], array[1], waitFor(function (err) {
+                // TODO(cjd): It would be better to know in advance whether to expect the file.
+                if (err && err.code !== 'ENOENT') { throw err; }
+            }));
+        });
+
     }).nThen(function(waitFor) {
 
-        packStage(builder, waitFor);
+        if (builder.failure) { return; }
+
+        stage(packStage, builder, waitFor);
 
     }).nThen(function(waitFor) {
+
+        if (builder.failure) { return; }
 
         debug("Pack " + time() + "ms");
 
@@ -742,6 +870,8 @@ module.exports.configure = function (params, configure) {
 
     }).nThen(function(waitFor) {
 
+        if (builder.failure) { return; }
+
         // save state
         var stateJson = JSON.stringify(state, null, '  ');
         Fs.writeFile(state.buildDir+'/state.json', stateJson, waitFor(function(err) {
@@ -749,21 +879,27 @@ module.exports.configure = function (params, configure) {
             debug("Save State " + time() + "ms");
         }));
 
+    }).nThen(function (waitFor) {
+
+        if (builder.failure) { return; }
+        stage(successStage, builder, waitFor);
+
+    }).nThen(function (waitFor) {
+
+        if (!builder.failure) { return; }
+        stage(failureStage, builder, waitFor);
+
+    }).nThen(function (waitFor) {
+        stage(completeStage, builder, waitFor);
     });
 
-    return {
-        build: function (build) {
-            buildStage = build;
-            return {
-                test: function (test) {
-                    testStage = test;
-                    return {
-                        pack: function (pack) {
-                            packStage = pack;
-                        }
-                    };
-                }
-            };
-        }
+    var out = {
+        build: function (x) { buildStage = x; return out; },
+        test: function (x) { testStage = x; return out; },
+        pack: function (x) { packStage = x; return out; },
+        failure: function (x) { failureStage = x; return out; },
+        success: function (x) { successStage = x; return out; },
+        complete: function (x) { completeStage = x; return out; },
     };
+    return out;
 };

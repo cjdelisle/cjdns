@@ -97,7 +97,7 @@ var getData = function()
              out.push({
                  name: list[i].ip,
                  path: parsePath(list[i].path),
-                 link: list[i].link 
+                 link: list[i].link
              });
          }
          out.sort(function(a, b) { return b.path - a.path });

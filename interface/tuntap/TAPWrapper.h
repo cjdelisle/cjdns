@@ -12,27 +12,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef FramingInterface_H
-#define FramingInterface_H
+#ifndef TAPWrapper_H
+#define TAPWrapper_H
 
 #include "interface/Interface.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "wire/Ethernet.h"
 #include "util/Linker.h"
-Linker_require("interface/FramingInterface.c")
+Linker_require("interface/tuntap/TAPWrapper.c")
+
+struct TAPWrapper
+{
+    struct Interface generic;
+
+    /** This is the peer's MAC address (zero before initialization). */
+    uint8_t peerAddress[Ethernet_ADDRLEN];
+};
 
 /**
- * Framed message format:
- * [4 bytes length][ <length> bytes content ....... ]
- * The length is of only the content, not including the beginning 4 bytes
- * which represents the length itself.
- *
- * @param maxMessageSize how large of a framed message to allow
- * @param wrappedIface the stream interface which will be used to
- *                     communicate framed messages to a peer.
- * @param alloc
+ * This is the address which we will report to the peer as our address.
+ * As per IEEE-802 it is non-multicast and non-locally-assigned, and it begins with fc :)
  */
-struct Interface* FramingInterface_new(uint32_t maxMessageSize,
-                                       struct Interface* wrappedIface,
-                                       struct Allocator* alloc);
+#define TAPWrapper_LOCAL_MAC "\xfc\x00\x00\x00\x00\x00"
+
+struct TAPWrapper* TAPWrapper_new(struct Interface* external,
+                                  struct Log* log,
+                                  struct Allocator* alloc);
 
 #endif
