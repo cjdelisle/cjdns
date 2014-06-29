@@ -28,11 +28,14 @@
 
 #define __USE_MISC // for MAP_ANONYMOUS
 #include <sys/mman.h>
+#include <stdio.h>
 
 // Apple
 #ifndef MAP_ANONYMOUS
     #define MAP_ANONYMOUS MAP_ANON
 #endif
+
+static const unsigned long cfgMaxMemoryBytes = 100000000;
 
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
 {
@@ -87,45 +90,55 @@ static void noFiles(struct Except* eh)
     #error RLIMIT_AS and RLIMIT_DATA are not defined
 #endif
 
-static unsigned long getMaxMem(struct Except* eh)
+static unsigned long getReportedMaxMemory(struct Except* eh)
 {
+    // Just report the reported maximum allowed memory.
+    // If no limit, returns 0;
     struct rlimit lim = { 0, 0 };
     if (getrlimit(Security_MEMORY_RLIMIT, &lim)) {
         Except_throw(eh, "Failed to get memory limit [%s]", strerror(errno));
     }
 
 #if defined(RLIM_INFINITY)
-    if (lim.rlim_max == RLIM_INFINITY)
-    {
-        //  We use zero internally as an indicator of infinite limit
-        lim.rlim_max = 0;
+    if (lim.rlim_max == RLIM_INFINITY) {
+        return 0;
     }
 #endif // RLIM_INFINITY
 
-    // First time around, we try a very small mapping just to make sure it works.
-    size_t tryMapping = 100;
-    if (lim.rlim_max > 0) {
-        tryMapping = lim.rlim_max * 2l;
-    }
-
-    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (ptr != MAP_FAILED) {
-        munmap(ptr, tryMapping);
-        if (lim.rlim_max > 0) {
-            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes, "
-                    "while limit is [%zu] bytes", tryMapping, lim.rlim_max);
-        }
-    } else if (lim.rlim_max == 0) {
-        Except_throw(eh, "Testing of memory limit not possible, unable to map memory [%s]",
-                strerror(errno));
+    if (lim.rlim_max + 1 < lim.rlim_max) { // Systems without RLIM_INFINITY.
+        return 0;
     }
 
     return lim.rlim_max;
 }
 
-static void maxMemory(unsigned long max, struct Except* eh)
+static unsigned long getMaxMemory(struct Except* eh)
+{ /* Determine the amount of memory allowed to process. */
+    unsigned long reportedMemory = getReportedMaxMemory(eh);
+    // First time around, we try a very small mapping just to make sure it works.
+    size_t tryMapping = 100;
+    if (reportedMemory > 0) {
+        tryMapping = reportedMemory * 2l;
+    }
+
+    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr != MAP_FAILED) {
+        munmap(ptr, tryMapping);
+        if (reportedMemory > 0) {
+            Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes, "
+                    "while limit is [%zu] bytes", tryMapping, reportedMemory);
+        }
+    } else if (reportedMemory == 0) {
+        Except_throw(eh, "Testing of memory limit not possible, unable to map memory [%s]",
+                strerror(errno));
+    }
+
+    return reportedMemory;
+}
+
+static void setMaxMemory(unsigned long max, struct Except* eh)
 {
-    unsigned long realMax = getMaxMem(eh);
+    unsigned long realMax = getReportedMaxMemory(eh);
     if (realMax > 0 && realMax < max) {
         Except_throw(eh, "Failed to limit available memory to [%lu] "
                          "because existing limit is [%lu]", max, realMax);
@@ -138,7 +151,7 @@ static void maxMemory(unsigned long max, struct Except* eh)
         Except_throw(eh, "Available memory was modifyable after limiting");
     }
 
-    realMax = getMaxMem(eh);
+    realMax = getMaxMemory(eh);
     if (realMax != max) {
         Except_throw(eh, "Limiting available memory failed");
     }
@@ -152,14 +165,14 @@ struct Security_Permissions* Security_checkPermissions(struct Allocator* alloc, 
     out->noOpenFiles = !canOpenFiles();
     out->seccompExists = Seccomp_exists();
     out->seccompEnforcing = Seccomp_isWorking();
-    out->memoryLimitBytes = getMaxMem(eh);
+    out->memoryLimitBytes = getMaxMemory(eh);
 
     return out;
 }
 
 void Security_dropPermissions(struct Allocator* tempAlloc, struct Log* logger, struct Except* eh)
 {
-    maxMemory(100000000, eh);
+    setMaxMemory(cfgMaxMemoryBytes, eh);
     noFiles(eh);
     Seccomp_dropPermissions(tempAlloc, logger, eh);
 }
