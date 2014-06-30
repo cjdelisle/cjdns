@@ -126,7 +126,7 @@ static unsigned long getMaxMemory(struct Except* eh)
         munmap(ptr, tryMapping);
         if (reportedMemory > 0) {
             Except_throw(eh, "Memory limit is not enforced, successfully mapped [%zu] bytes, "
-                    "while limit is [%zu] bytes", tryMapping, reportedMemory);
+                    "while limit is [%lu] bytes", tryMapping, reportedMemory);
         }
     } else if (reportedMemory == 0) {
         Except_throw(eh, "Testing of memory limit not possible, unable to map memory [%s]",
