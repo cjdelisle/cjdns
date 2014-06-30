@@ -243,7 +243,10 @@ Builder.configure({
             builder.config.libs.push(
                 '-framework', 'CoreServices'
             );
-        } else if (builder.config.system === 'freebsd') {
+        } else if (builder.config.systemName === 'freebsd') {
+            builder.config.cflags.push(
+                    '-Wno-overlength-strings'
+                    );
             builder.config.libs.push(
                 '-lkvm'
             );
