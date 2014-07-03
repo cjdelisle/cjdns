@@ -18,8 +18,7 @@
 
 ### Build ###
 
- * To clone a fresh repo and build, run `./cjdroid-build.sh` or `./cjdroid-build.sh branchname`.
- * To use the current repo and branch, you can run `./do android` from the cjdns directory.
+To clone a fresh repo and build, run `./cjdroid-build.sh` or `./cjdroid-build.sh branchname`.
 
 ## DEPLOYMENT INSTRUCTIONS ##
 
