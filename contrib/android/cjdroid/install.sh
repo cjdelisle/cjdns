@@ -1,4 +1,4 @@
-#!/system/xbin/bash
+#!/system/bin/sh
 
 if [ ! "${0%/*}" = $(echo $0 | sed 's|^.*/||') ]; then cd "${0%/*}"; fi
 
