@@ -1,6 +1,6 @@
-#!/system/xbin/bash
+#!/system/bin/sh
 
-cd ${0%/*}
+if [ ! "${0%/*}" = $(echo $0 | sed 's|^.*/||') ]; then cd "${0%/*}"; fi
 
 if [ ! `whoami` = "root" ]; then echo "Please run this script as root"; exit 1; fi
 
