@@ -262,6 +262,7 @@ def connectWithAdminInfo(path = None):
         print('    "port": 11234,')
         print('    "password": "You tell me! (Search in ~/cjdroute.conf)')
         print('}')
+        raise
 
     data = json.load(adminInfo)
     adminInfo.close()
