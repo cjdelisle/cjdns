@@ -249,9 +249,10 @@ def connectWithAdminInfo(path = None):
     """Connect to cjdns admin with data from user file"""
 
     if path is None:
-        path = os.getenv("HOME") + '/.cjdnsadmin'
+        path = os.path.expanduser('~/.cjdnsadmin')
     try:
-        adminInfo = open(path, 'r')
+        with open(path, 'r') as adminInfo:
+            data = json.load(adminInfo)
     except IOError:
         print('Please create a file named .cjdnsadmin in your ')
         print('home directory with')
@@ -260,9 +261,8 @@ def connectWithAdminInfo(path = None):
         print('{')
         print('    "addr": "127.0.0.1",')
         print('    "port": 11234,')
-        print('    "password": "You tell me! (Search in ~/cjdroute.conf)')
+        print('    "password": "You tell me! (Search in ~/cjdroute.conf)"')
         print('}')
+        raise
 
-    data = json.load(adminInfo)
-    adminInfo.close()
     return connect(data['addr'], data['port'], data['password'])
