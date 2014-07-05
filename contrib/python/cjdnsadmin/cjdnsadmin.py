@@ -249,7 +249,7 @@ def connectWithAdminInfo(path = None):
     """Connect to cjdns admin with data from user file"""
 
     if path is None:
-        path = os.getenv("HOME") + '/.cjdnsadmin'
+        path = os.path.expanduser('~/.cjdnsadmin')
     try:
         with open(path, 'r') as adminInfo:
             data = json.load(adminInfo)
