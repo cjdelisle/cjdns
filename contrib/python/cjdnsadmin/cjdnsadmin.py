@@ -260,7 +260,7 @@ def connectWithAdminInfo(path = None):
         print('{')
         print('    "addr": "127.0.0.1",')
         print('    "port": 11234,')
-        print('    "password": "You tell me! (Search in ~/cjdroute.conf)')
+        print('    "password": "You tell me! (Search in ~/cjdroute.conf)"')
         print('}')
         raise
 
