@@ -54,6 +54,8 @@ var detect = module.exports.detect = function (async, file, builder)
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
         console.log("SECCOMP disabled");
+    } else if (builder.config.systemRelease < "3.5") {
+        console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
         var done = async();
         var CanCompile = require('../node_build/CanCompile');
