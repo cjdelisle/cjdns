@@ -13,6 +13,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+var Semver = require('semver');
+
 var TEST_PROGRAM = [
     "#include <sys/resource.h>",
     "#include <sys/prctl.h>",
@@ -54,7 +56,7 @@ var detect = module.exports.detect = function (async, file, builder)
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
         console.log("SECCOMP disabled");
-    } else if (builder.config.systemRelease < "3.5") {
+    } else if (Semver.lt(builder.config.systemRelease, "3.5.0")) {
         console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
         var done = async();
