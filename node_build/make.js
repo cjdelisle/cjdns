@@ -24,6 +24,7 @@ var CanCompile = require('./CanCompile');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.platform;
+var SYSTEM_RELEASE = Os.release();
 var CROSS = process.env['CROSS'] || '';
 var GCC = process.env['CC'];
 
@@ -58,6 +59,7 @@ Builder.configure({
 }, function(builder, waitFor) {
 
     builder.config.systemName = SYSTEM;
+    builder.config.systemRelease = SYSTEM_RELEASE;
     builder.config.gcc = GCC;
 
     builder.config.tempDir = '/tmp';
