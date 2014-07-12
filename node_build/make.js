@@ -250,6 +250,13 @@ Builder.configure({
             builder.config.libs.push(
                 '-lkvm'
             );
+        } else if (builder.config.systemName === 'sunos') {
+            builder.config.libs.push(
+                '-lsocket',
+                '-lsendfile',
+                '-lkstat',
+                '-lnsl'
+            );
         }
         builder.config.includeDirs.push(
             dependencyDir+'/libuv/include/'
