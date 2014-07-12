@@ -134,7 +134,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_raise(eh, TUNInterface_new_INTERNAL, error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     struct lifreq ifr = {
@@ -173,7 +173,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNInterface_new_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     close(ipFd);
