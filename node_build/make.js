@@ -163,7 +163,7 @@ Builder.configure({
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if ((!uclibc && SYSTEM !== 'win32') || libssp) {
+    if ((!uclibc && SYSTEM !== 'win32' && SYSTEM !== 'sunos') || libssp) {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
             // workaround is to give -fno-stack-protector first.
