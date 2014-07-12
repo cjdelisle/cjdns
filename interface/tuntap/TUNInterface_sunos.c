@@ -63,7 +63,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    Message_shift(message, 4);
+    Message_shift(message, 4, NULL);
     ((uint16_t*) message->bytes)[0] = 0;
     ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[4]);
 
@@ -74,7 +74,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct TUNInterface_Illumos_pvt* ctx = Identity_check((struct TUNInterface_Illumos_pvt*)iface);
 
-    Message_shift(message, -4);
+    Message_shift(message, -4, NULL);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];
     if (ethertype != Ethernet_TYPE_IP6 && ethertype != Ethernet_TYPE_IP4) {
         Assert_true(!"Unsupported ethertype");
