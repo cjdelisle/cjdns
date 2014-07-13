@@ -37,6 +37,17 @@ def ask(question, default):
             print "Invalid response, please enter either y or n"
 
 
+def find_cjdroute_bin():
+    for path in cjdroutelocations:
+        path += "/cjdroute"
+        if os.path.isfile(path):
+            return path
+
+    print "Failed to find cjdroute"
+    print "Please tell me where it is"
+    return raw_input("ie. <cjdns git>/cjdroute: ")
+
+
 if os.path.isfile(cjdnsadmin_path):
     validjson = False
     try:
@@ -56,16 +67,7 @@ else:
 def validjson(conf):
     print "Making valid JSON out of " + conf
     print "First, we need to find the cleanconfig program"
-    cjdroute = ""
-    i = 0
-    while not os.path.isfile(cjdroute):
-        if i < len(cjdroutelocations):
-            cjdroute = cjdroutelocations[i] + "/cjdroute"
-            i += 1
-        else:
-            print "Failed to find cjdroute"
-            print "Please tell me where it is"
-            cjdroute = raw_input("ie. <cjdns git>/cjdroute: ")
+    cjdroute = find_cjdroute_bin()
     print "Using " + cjdroute
     process = subprocess.Popen([cjdroute, "--cleanconf"], stdin=open(conf), stdout=subprocess.PIPE)
     cleanconf = process.stdout.read()
