@@ -82,8 +82,10 @@ def validjson(conf):
     try:
         return json.loads(cleanconf)
     except ValueError:
-        open("debug.log", "w+").write(cleanconf)
-        print "Failed to parse! Check debug.log"
+        print "Failed to parse!"
+        print "-" * 8
+        print cleanconf
+        print "-" * 8
         sys.exit(1)
 
 conf = find_cjdroute_conf()
