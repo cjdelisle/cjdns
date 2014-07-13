@@ -61,7 +61,7 @@ def load_cjdroute_conf(conf):
         with open(conf) as conffile:
             return json.load(conffile)
     except ValueError:
-        return validjson(conf)
+        return cleanup_config(conf)
     except IOError:
         print "Error opening " + conf + ". Do we have permission to access it?"
         print "Hint: Try running this as root"
@@ -81,7 +81,7 @@ except IOError:
     print "This script will attempt to create " + cjdnsadmin_path
 
 
-def validjson(conf):
+def cleanup_config(conf):
     print "Making valid JSON out of " + conf
     print "First, we need to find the cleanconfig program"
     cjdroute = find_cjdroute_bin()
