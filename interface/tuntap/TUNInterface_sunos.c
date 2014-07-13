@@ -32,11 +32,17 @@
 #include <stddef.h>
 #include <net/if.h>
 #include <ctype.h>
-#include <net/if_tun.h>
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <fcntl.h>
 #include <net/route.h>
+
+/**
+ * Since some illumos distributions (namely SmartOS) don't ship `net/if_tun.h`,
+ * define those IOCTL constants here.
+ */
+#define TUNNEWPPA (('T'<<16) | 0x0001)
+#define TUNSETPPA (('T'<<16) | 0x0002)
 
 struct TUNInterface_Illumos_pvt
 {
