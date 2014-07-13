@@ -74,9 +74,8 @@ def cleanup_config(conf):
     cjdroute = find_cjdroute_bin()
     print "Using " + cjdroute
     process = subprocess.Popen([cjdroute, "--cleanconf"], stdin=open(conf), stdout=subprocess.PIPE)
-    cleanconf = process.stdout.read()
     try:
-        return json.loads(cleanconf)
+        return json.load(process.stdout)
     except ValueError:
         print "Failed to parse!"
         print "-" * 8
@@ -108,7 +107,6 @@ cjdnsadmin["addr"] = addr
 cjdnsadmin["port"] = int(port)
 cjdnsadmin["password"] = cjdrouteconf['admin']['password']
 cjdnsadmin["config"] = conf
-adminfile = open(cjdnsadmin_path, "w+")
-adminfile.write(json.dumps(cjdnsadmin, indent=4))
-adminfile.close()
+with open(cjdnsadmin_path, "w+") as adminfile:
+    json.dump(cjdnsadmin, adminfile, indent=4)
 print "Done! Give it a shot, why dont ya"
