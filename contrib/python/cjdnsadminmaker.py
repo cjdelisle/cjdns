@@ -11,13 +11,13 @@ import subprocess
 
 ## Wanted: Everyone's favorite place to store their shit.
 conflocations = ["/etc/cjdroute.conf",
-    os.getenv("HOME") + "/cjdroute.conf",
-    os.getenv("HOME") + "/cjdns/cjdroute.conf",
+    "~/cjdroute.conf",
+    "~/cjdns/cjdroute.conf",
     "/usr/local/opt/cjdns/cjdroute.conf"]
 
 cjdroutelocations = ["/opt/cjdns",
-    os.getenv("HOME") + "/cjdns",
-    os.getenv("HOME") + "/cjdns-git",
+    "~/cjdns",
+    "~/cjdns-git",
     "/usr/local/opt/cjdns"]
 
 cjdroutelocations += os.getenv("PATH").split(":")
@@ -37,7 +37,7 @@ def ask(question, default):
 
 def find_cjdroute_bin():
     for path in cjdroutelocations:
-        path += "/cjdroute"
+        path = os.path.expanduser(path) + "/cjdroute"
         if os.path.isfile(path):
             return path
 
@@ -48,6 +48,7 @@ def find_cjdroute_bin():
 
 def find_cjdroute_conf():
     for path in conflocations:
+        path = os.path.expanduser(path)
         if os.path.isfile(path):
             return path
 
