@@ -67,21 +67,18 @@ def load_cjdroute_conf(conf):
         sys.exit(1)
 
 
-if os.path.isfile(cjdnsadmin_path):
-    validjson = False
-    try:
-        cjdnsadmin = json.load(open(cjdnsadmin_path))
-        validjson = True
-    except ValueError:
-        pass
-    if validjson:
-        if not ask("%s appears to be a valid JSON file. Update? [Y/n]" % cjdnsadmin_path, "y"):
-            sys.exit()
-    else:
-        if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
-            sys.exit()
-else:
+try:
+    with open(cjdnsadmin_path) as cjdnsadmin_file:
+        json.load(cjdnsadmin_file)
+
+    if not ask("%s appears to be a valid JSON file. Update? [Y/n]" % cjdnsadmin_path, "y"):
+        sys.exit()
+except ValueError:
+    if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
+        sys.exit()
+except IOError:
     print "This script will attempt to create " + cjdnsadmin_path
+
 
 def validjson(conf):
     print "Making valid JSON out of " + conf
