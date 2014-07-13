@@ -24,8 +24,6 @@ cjdroutelocations += os.getenv("PATH").split(":")
 
 cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin")
 
-cjdnsadmin = {}
-
 
 def ask(question, default):
     while True:
@@ -54,6 +52,19 @@ def find_cjdroute_conf():
             return path
 
     return raw_input("Can't find cjdroute.conf, please give the path to it here: ")
+
+
+def load_cjdroute_conf(conf):
+    print "Loading " + conf
+    try:
+        with open(conf) as conffile:
+            return json.load(conffile)
+    except ValueError:
+        return validjson(conf)
+    except IOError:
+        print "Error opening " + conf + ". Do we have permission to access it?"
+        print "Hint: Try running this as root"
+        sys.exit(1)
 
 
 if os.path.isfile(cjdnsadmin_path):
@@ -89,22 +100,16 @@ def validjson(conf):
         sys.exit(1)
 
 conf = find_cjdroute_conf()
-if os.path.isfile(conf):
-    print "Loading " + conf
-    try:
-        cjdrouteconf = json.load(open(conf))
-    except ValueError:
-        cjdrouteconf = validjson(conf)
-    except IOError:
-        print "Error opening " + conf + ". Do we have permission to access it?"
-        print "Hint: Try running this as root"
-        sys.exit(1)
-    addr, port = cjdrouteconf['admin']['bind'].split(":")
-    cjdnsadmin["addr"] = addr
-    cjdnsadmin["port"] = int(port)
-    cjdnsadmin["password"] = cjdrouteconf['admin']['password']
-    cjdnsadmin["config"] = conf
-    adminfile = open(cjdnsadmin_path, "w+")
-    adminfile.write(json.dumps(cjdnsadmin, indent=4))
-    adminfile.close()
-    print "Done! Give it a shot, why dont ya"
+cjdrouteconf = load_cjdroute_conf(conf)
+
+addr, port = cjdrouteconf['admin']['bind'].split(":")
+
+cjdnsadmin = {}
+cjdnsadmin["addr"] = addr
+cjdnsadmin["port"] = int(port)
+cjdnsadmin["password"] = cjdrouteconf['admin']['password']
+cjdnsadmin["config"] = conf
+adminfile = open(cjdnsadmin_path, "w+")
+adminfile.write(json.dumps(cjdnsadmin, indent=4))
+adminfile.close()
+print "Done! Give it a shot, why dont ya"
