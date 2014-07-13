@@ -22,18 +22,20 @@ cjdroutelocations = ["/opt/cjdns",
 
 cjdroutelocations += os.getenv("PATH").split(":")
 
+cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin")
+
 cjdnsadmin = {}
 
-if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
+if os.path.isfile(cjdnsadmin_path):
     validjson = False
     try:
-        cjdnsadmin = json.load(open(os.getenv("HOME") + "/.cjdnsadmin"))
+        cjdnsadmin = json.load(open(cjdnsadmin_path))
         validjson = True
     except ValueError:
         pass
     if validjson:
         while True:
-            r = raw_input(os.getenv("HOME") + "/.cjdnsadmin appears to be a valid JSON file. Update? [Y/n] ")
+            r = raw_input("%s appears to be a valid JSON file. Update? [Y/n] " % cjdnsadmin_path)
             if r.lower() == "n":
                 sys.exit()
             elif r.lower() == "y" or r == "":
@@ -42,7 +44,7 @@ if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
                 print "Invalid response, please enter either y or n"
     else:
         while True:
-            r = raw_input(os.getenv("HOME") + "/.cjdnsadmin appears to be a file. Overwrite? [y/N] ")
+            r = raw_input("%s appears to be a file. Overwrite? [y/N] " % cjdnsadmin_path)
             if r.lower() == "n" or r == "":
                 sys.exit()
             elif r.lower() == "y":
@@ -50,7 +52,7 @@ if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
             else:
                 print "Invalid response, please enter either y or n"
 else:
-    print "This script will attempt to create " + os.getenv("HOME") + "/.cjdnsadmin"
+    print "This script will attempt to create " + cjdnsadmin_path
 
 def validjson(conf):
     print "Making valid JSON out of " + conf
@@ -99,7 +101,7 @@ while not done:
         cjdnsadmin["port"] = int(port)
         cjdnsadmin["password"] = cjdrouteconf['admin']['password']
         cjdnsadmin["config"] = conf
-        adminfile = open(os.getenv("HOME") + "/.cjdnsadmin", "w+")
+        adminfile = open(cjdnsadmin_path, "w+")
         adminfile.write(json.dumps(cjdnsadmin, indent=4))
         adminfile.close()
         print "Done! Give it a shot, why dont ya"
