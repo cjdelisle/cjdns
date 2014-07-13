@@ -3,6 +3,7 @@
 /build_openbsd
 /build_win32
 /build_darwin
+/build_sunos
 /benc2json*
 /cjdroute*
 /cleanconfig*
