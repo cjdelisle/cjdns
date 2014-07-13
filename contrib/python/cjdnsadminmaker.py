@@ -48,6 +48,14 @@ def find_cjdroute_bin():
     return raw_input("ie. <cjdns git>/cjdroute: ")
 
 
+def find_cjdroute_conf():
+    for path in conflocations:
+        if os.path.isfile(path):
+            return path
+
+    return raw_input("Can't find cjdroute.conf, please give the path to it here: ")
+
+
 if os.path.isfile(cjdnsadmin_path):
     validjson = False
     try:
@@ -78,32 +86,23 @@ def validjson(conf):
         print "Failed to parse! Check debug.log"
         sys.exit(1)
 
-done = False
-i = 0
-while not done:
-    if i <= len(conflocations):
-        conf = conflocations[i]
-        i += 1
-    else:
-        conf = raw_input("Can't find cjdroute.conf, please give the path to it here: ")
+conf = find_cjdroute_conf()
+if os.path.isfile(conf):
+    print "Loading " + conf
+    try:
+        cjdrouteconf = json.load(open(conf))
+    except ValueError:
+        cjdrouteconf = validjson(conf)
+    except IOError:
+        print "Error opening " + conf + ". Do we have permission to access it?"
+        print "Hint: Try running this as root"
         sys.exit(1)
-    if os.path.isfile(conf):
-        print "Loading " + conf
-        try:
-            cjdrouteconf = json.load(open(conf))
-        except ValueError:
-            cjdrouteconf = validjson(conf)
-        except IOError:
-            print "Error opening " + conf + ". Do we have permission to access it?"
-            print "Hint: Try running this as root"
-            sys.exit(1)
-        addr, port = cjdrouteconf['admin']['bind'].split(":")
-        cjdnsadmin["addr"] = addr
-        cjdnsadmin["port"] = int(port)
-        cjdnsadmin["password"] = cjdrouteconf['admin']['password']
-        cjdnsadmin["config"] = conf
-        adminfile = open(cjdnsadmin_path, "w+")
-        adminfile.write(json.dumps(cjdnsadmin, indent=4))
-        adminfile.close()
-        print "Done! Give it a shot, why dont ya"
-        done = True
+    addr, port = cjdrouteconf['admin']['bind'].split(":")
+    cjdnsadmin["addr"] = addr
+    cjdnsadmin["port"] = int(port)
+    cjdnsadmin["password"] = cjdrouteconf['admin']['password']
+    cjdnsadmin["config"] = conf
+    adminfile = open(cjdnsadmin_path, "w+")
+    adminfile.write(json.dumps(cjdnsadmin, indent=4))
+    adminfile.close()
+    print "Done! Give it a shot, why dont ya"
