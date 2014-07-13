@@ -68,19 +68,6 @@ def load_cjdroute_conf(conf):
         sys.exit(1)
 
 
-try:
-    with open(cjdnsadmin_path) as cjdnsadmin_file:
-        json.load(cjdnsadmin_file)
-
-    if not ask("%s appears to be a valid JSON file. Update? [Y/n]" % cjdnsadmin_path, "y"):
-        sys.exit()
-except ValueError:
-    if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
-        sys.exit()
-except IOError:
-    print "This script will attempt to create " + cjdnsadmin_path
-
-
 def cleanup_config(conf):
     print "Making valid JSON out of " + conf
     print "First, we need to find the cleanconfig program"
@@ -96,6 +83,20 @@ def cleanup_config(conf):
         print cleanconf
         print "-" * 8
         sys.exit(1)
+
+
+try:
+    with open(cjdnsadmin_path) as cjdnsadmin_file:
+        json.load(cjdnsadmin_file)
+
+    if not ask("%s appears to be a valid JSON file. Update? [Y/n]" % cjdnsadmin_path, "y"):
+        sys.exit()
+except ValueError:
+    if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
+        sys.exit()
+except IOError:
+    print "This script will attempt to create " + cjdnsadmin_path
+
 
 conf = find_cjdroute_conf()
 cjdrouteconf = load_cjdroute_conf(conf)
