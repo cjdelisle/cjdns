@@ -37,9 +37,6 @@ def addNode(host,port,password,key):
 addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
         "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
 
-addNode("google.com",13245,"googlesuxmunkeybalz",
-        "thisisakey.k")
-
 def lookup(node):
     for info in socket.getaddrinfo(node.host,node.port,
                                    socket.AF_UNSPEC,socket.SOCK_DGRAM):
@@ -55,9 +52,9 @@ def lookup(node):
         except KeyError: pass
         break
 
-isUnresponsive = re.compile("Pinging unresponsive peer \\[(.*\\.k)\\]\\.")
+isUnresponsive = re.compile("Pinging unresponsive peer \\[(.*\\.k)\\] lag \\[.*\\]")
 
-assert(isUnresponsive.match("Pinging unresponsive peer [lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3.k]."))
+assert(isUnresponsive.match("Pinging unresponsive peer [6fmmn3qurcjg6d8hplq1rrcsspfhvm1900s13f3p5bv2bb4f4mm0.k] lag [207147]"))
 
 def doLog(message):
     print(message)
@@ -74,11 +71,11 @@ def doLog(message):
 
 def recieve(cjdns,txid):
     while True:
-        doLog(cjdns.getMessage(txid))
+        doLog(cjdns.getMessage(txid)["message"])
 
 cjdns = connectWithAdminInfo()
 
-sub = cjdns.AdminLog_subscribe(206, 'DefaultInterfaceController.c', 'DEBUG')
+sub = cjdns.AdminLog_subscribe(252, 'InterfaceController.c', 'DEBUG')
 
 if (sub['error'] == 'none'):
     for node in nodes.values():
