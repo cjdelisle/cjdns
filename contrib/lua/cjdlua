@@ -2,12 +2,12 @@
 
 --[[ Variables ]]--
 
-local confpath 	= "../../cjdroute.conf"
-local cjdns 	= require "cjdns/init"
-local conf 	= cjdns.ConfigFile.new(confpath)
-local admin 	= conf:makeInterface()
-local keypunch 	= ""
-local params 	= ""
+local confpath = "../../cjdroute.conf"
+local cjdns    = require "cjdns/init"
+local conf     = cjdns.ConfigFile.new(confpath)
+local admin    = conf:makeInterface()
+local keypunch = ""
+local params   = ""
 
 -- Make some new stuff up.
 randomQuote = "<@cjd> I fucking hate Ducttape.c :( \n"
