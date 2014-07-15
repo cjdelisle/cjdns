@@ -11,96 +11,102 @@ import subprocess
 
 ## Wanted: Everyone's favorite place to store their shit.
 conflocations = ["/etc/cjdroute.conf",
-    os.getenv("HOME") + "/cjdroute.conf",
-    os.getenv("HOME") + "/cjdns/cjdroute.conf",
+    "~/cjdroute.conf",
+    "~/cjdns/cjdroute.conf",
     "/usr/local/opt/cjdns/cjdroute.conf"]
 
 cjdroutelocations = ["/opt/cjdns",
-    os.getenv("HOME") + "/cjdns",
-    os.getenv("HOME") + "/cjdns-git",
+    "~/cjdns",
+    "~/cjdns-git",
     "/usr/local/opt/cjdns"]
 
 cjdroutelocations += os.getenv("PATH").split(":")
 
-cjdnsadmin = {}
+cjdnsadmin_path = os.path.expanduser("~/.cjdnsadmin")
 
-if os.path.isfile(os.getenv("HOME") + "/.cjdnsadmin"):
-    validjson = False
+
+def ask(question, default):
+    while True:
+        r = raw_input("%s " % question).lower() or default
+
+        if r in "yn":
+            return r == "y"
+        else:
+            print "Invalid response, please enter either y or n"
+
+
+def find_cjdroute_bin():
+    for path in cjdroutelocations:
+        path = os.path.expanduser(path) + "/cjdroute"
+        if os.path.isfile(path):
+            return path
+
+    print "Failed to find cjdroute"
+    print "Please tell me where it is"
+    return raw_input("ie. <cjdns git>/cjdroute: ")
+
+
+def find_cjdroute_conf():
+    for path in conflocations:
+        path = os.path.expanduser(path)
+        if os.path.isfile(path):
+            return path
+
+    return raw_input("Can't find cjdroute.conf, please give the path to it here: ")
+
+
+def load_cjdroute_conf(conf):
+    print "Loading " + conf
     try:
-        cjdnsadmin = json.load(open(os.getenv("HOME") + "/.cjdnsadmin"))
-        validjson = True
+        with open(conf) as conffile:
+            return json.load(conffile)
     except ValueError:
-        pass
-    if validjson:
-        while True:
-            r = raw_input(os.getenv("HOME") + "/.cjdnsadmin appears to be a valid JSON file. Update? [Y/n] ")
-            if r.lower() == "n":
-                sys.exit()
-            elif r.lower() == "y" or r == "":
-                break
-            else:
-                print "Invalid response, please enter either y or n"
-    else:
-        while True:
-            r = raw_input(os.getenv("HOME") + "/.cjdnsadmin appears to be a file. Overwrite? [y/N] ")
-            if r.lower() == "n" or r == "":
-                sys.exit()
-            elif r.lower() == "y":
-                break
-            else:
-                print "Invalid response, please enter either y or n"
-else:
-    print "This script will attempt to create " + os.getenv("HOME") + "/.cjdnsadmin"
+        return cleanup_config(conf)
+    except IOError:
+        print "Error opening " + conf + ". Do we have permission to access it?"
+        print "Hint: Try running this as root"
+        sys.exit(1)
 
-def validjson(conf):
+
+def cleanup_config(conf):
     print "Making valid JSON out of " + conf
     print "First, we need to find the cleanconfig program"
-    cjdroute = ""
-    i = 0
-    while not os.path.isfile(cjdroute):
-        if i < len(cjdroutelocations):
-            cjdroute = cjdroutelocations[i] + "/cjdroute"
-            i += 1
-        else:
-            print "Failed to find cjdroute"
-            print "Please tell me where it is"
-            cjdroute = raw_input("ie. <cjdns git>/cjdroute: ")
+    cjdroute = find_cjdroute_bin()
     print "Using " + cjdroute
     process = subprocess.Popen([cjdroute, "--cleanconf"], stdin=open(conf), stdout=subprocess.PIPE)
-    cleanconf = process.stdout.read()
     try:
-        return json.loads(cleanconf)
+        return json.load(process.stdout)
     except ValueError:
-        open("debug.log", "w+").write(cleanconf)
-        print "Failed to parse! Check debug.log"
+        print "Failed to parse!"
+        print "-" * 8
+        print cleanconf
+        print "-" * 8
         sys.exit(1)
 
-done = False
-i = 0
-while not done:
-    if i <= len(conflocations):
-        conf = conflocations[i]
-        i += 1
-    else:
-        conf = raw_input("Can't find cjdroute.conf, please give the path to it here: ")
-        sys.exit(1)
-    if os.path.isfile(conf):
-        print "Loading " + conf
-        try:
-            cjdrouteconf = json.load(open(conf))
-        except ValueError:
-            cjdrouteconf = validjson(conf)
-        except IOError:
-            print "Error opening " + conf + ". Do we have permission to access it?"
-            print "Hint: Try running this as root"
-            sys.exit(1)
-        addr, port = cjdrouteconf['admin']['bind'].split(":")
-        cjdnsadmin["addr"] = addr
-        cjdnsadmin["port"] = int(port)
-        cjdnsadmin["password"] = cjdrouteconf['admin']['password']
-        cjdnsadmin["config"] = conf
-        adminfile = open(os.getenv("HOME") + "/.cjdnsadmin", "w+")
-        adminfile.write(json.dumps(cjdnsadmin, indent=4))
-        adminfile.close()
-        print "Done! Give it a shot, why dont ya"
-        done = True
+
+try:
+    with open(cjdnsadmin_path) as cjdnsadmin_file:
+        json.load(cjdnsadmin_file)
+
+    if not ask("%s appears to be a valid JSON file. Update? [Y/n]" % cjdnsadmin_path, "y"):
+        sys.exit()
+except ValueError:
+    if not ask("%s appears to be a file. Overwrite? [y/N]" % cjdnsadmin_path, "n"):
+        sys.exit()
+except IOError:
+    print "This script will attempt to create " + cjdnsadmin_path
+
+
+conf = find_cjdroute_conf()
+cjdrouteconf = load_cjdroute_conf(conf)
+
+addr, port = cjdrouteconf['admin']['bind'].split(":")
+
+cjdnsadmin = {}
+cjdnsadmin["addr"] = addr
+cjdnsadmin["port"] = int(port)
+cjdnsadmin["password"] = cjdrouteconf['admin']['password']
+cjdnsadmin["config"] = conf
+with open(cjdnsadmin_path, "w+") as adminfile:
+    json.dump(cjdnsadmin, adminfile, indent=4)
+print "Done! Give it a shot, why dont ya"
