@@ -1,0 +1,225 @@
+#!/usr/bin/env lua
+
+--[[ Variables ]]--
+
+local confpath = "../../cjdroute.conf"
+local cjdns    = require "cjdns/init"
+local conf     = cjdns.ConfigFile.new(confpath)
+local admin    = conf:makeInterface()
+local keypunch = ""
+local params   = ""
+
+-- Make some new stuff up.
+randomQuote = "<@cjd> I fucking hate Ducttape.c :( \n"
+.. "<werecat> Well, it has to be better than krazyglue.c"
+-- "    It's not a product, its a process. -cjd"
+
+
+--[[ Functions ]]--
+
+function ping(path,timeout)
+	if timeout then timeout = timeout else timeout = 2000 end
+	local response, err = admin:auth({ q = "SwitchPinger_ping", path = path, timeout = timeout })
+
+	if err then -- ai:recv > timeout
+		local response   = {}
+		response.err     = err
+		response.path	 = path
+		response.result	 = "timeout"
+		return response
+	else
+		return response
+	end
+end
+
+function publictoip6(publicKey)
+	local process = io.popen("../../publictoip6 " .. publicKey, "r")
+	local ipv6    = process:read()
+	process:close()
+	return ipv6
+end
+
+function peerStats(include_ping)
+	local page = 0
+	local peers = {}
+
+	while page do
+		local response, err = admin:auth({
+			q = "InterfaceController_peerStats",
+			page = page
+			})
+
+		if err or response.error then
+			print(err, response.error)
+			page = nil
+		else
+			for i,peer in pairs(response.peers) do
+				peer.ipv6 = publictoip6(peer.publicKey)
+				if include_ping then
+					local pong = ping(peer.switchLabel,500)
+					if pong.result == 'pong' then
+						pong.ms = pong.ms
+					end
+					peer.version = pong.version
+				end
+				peers[#peers + 1] = peer
+			end
+
+			if response.more then
+				page = page + 1
+			else
+				page = nil
+			end
+		end
+	end
+
+	return peers
+end
+
+function bytesToSize (bytes, precision)
+	if precision == bytes then
+		return bytes -- for admin/graphing
+	end
+	if not precision then precision = 2 end
+	kilobyte = 1024;
+	megabyte = kilobyte * 1024;
+	gigabyte = megabyte * 1024;
+	terabyte = gigabyte * 1024;
+	if ((bytes >= 0) and (bytes < kilobyte)) then
+		return( bytes .. ' B')
+	elseif ((bytes >= kilobyte) and (bytes < megabyte)) then
+		return( math.floor(bytes / kilobyte, precision) .. ' KB')
+	elseif ((bytes >= megabyte) and (bytes < gigabyte)) then
+		return( math.floor(bytes / megabyte, precision) .. ' MB')
+	elseif ((bytes >= gigabyte) and (bytes < terabyte)) then
+		return( math.floor(bytes / gigabyte, precision) .. ' GB')
+	elseif (bytes >= terabyte) then
+		return( math.floor(bytes / terabyte, precision) .. ' TB')
+	else
+		return( bytes .. ' B')
+	end
+end
+
+function available_functions (t)
+	-- banner
+	-- print(meshLua_cmd.v['info'][1])
+	print(t.v['info'][1])
+	for k,v in pairs(t) do
+		-- skip banner.
+		if(k ~= "v") then print("\t"..k.." .. "..v['info'][1]) end
+	end
+end
+
+local meshLua_cmd = {}
+
+
+--[[ Menu ]]--
+
+meshLua_cmd = {
+	v = { info = { "\n\t--[[ Project Meshnet ]]--\n" ..  randomQuote .. "\n\n" } },
+
+
+	--[[ Other functions not include ]]--
+	-- h = { info = { "[h]yperboria - hype or not." },
+	-- b = { info = { "[b]roadcast meshbox-cjdns Wi-Fi" },
+	-- splash = { info = { "[splash] Turn Wi-Fi splash on: /www-federated-wiki/" },
+	-- ping = { info = { "[ping] all connected nodes" },
+
+	l = { -- fcf3:0de9:cb5e:5edd:d74d:9d67:1c94:fbf6 (Up: 39MB / Down: 38MB) (Ping: 30ms) [ESTABLISHED/Incoming]
+		info = { "[l]ist all connected nodes" },
+		exec = {
+		function(x)
+
+			local dkjson = require "dkjson"  -- http://dkolf.de/src/dkjson-lua.fsl/home
+			local cjdroute = io.open(confpath)
+			local conf, pos, err = dkjson.decode(cjdroute:read("*a"), 1, nil)
+
+			local page = 0
+			local totalpeers = 0
+			local node = {}
+			-- local pingtimeout = 500
+
+			while page do
+
+				local response, err = admin:auth({
+					q = "InterfaceController_peerStats",
+					page = page,
+				})
+
+
+				if response.total then
+					os.execute("echo " .. tonumber(response.total) .. " >/tmp/connectedpeers" )
+				end
+
+				for k,v in pairs(response.peers) do
+
+					node[#node+1] = {}
+					node[#node].ipv6 = publictoip6(v['publicKey'])
+					node[#node].switchLabel = v['switchLabel']
+					node[#node].state = v['state']
+					node[#node].ident = {
+						function (x)
+							if v['user'] ~= nil
+								and v['user'] == 'Local Peers'
+								then return('Auto/Beacon')
+							elseif v['isIncoming'] == 1
+								then return('Incoming')
+							elseif v['isIncoming'] == 0
+								then return('UDPInterface')
+							else
+								return('Unknown')
+							end
+						end }
+					node[#node].bytesOut = bytesToSize(v['bytesOut'], 2)
+					node[#node].bytesIn  = bytesToSize(v['bytesIn'], 2)
+					node[#node].pingtime = {
+						function (pingtimeout)
+							local pingtimeout = 500
+							local p = ping(v['switchLabel'],pingtimeout).ms
+							-- if p and p.ms and p.ms ~= nil then
+							if p ~= nil then
+								return(p)
+							elseif p >= pingtimout then
+								return('timeout')
+							end
+						end }
+
+					print (
+						'['..node[#node].state..'] \t'
+						..node[#node].ipv6..' (Up: '..node[#node].bytesOut..' / Down: '..node[#node].bytesIn..' / '
+						..'Ping: '..node[#node].pingtime[1]()..'ms / '
+						..'Mode: '..node[#node].ident[1]()..')'
+					)
+				end
+
+				if response.more then
+					page = page + 1
+				else
+					page = nil
+				end
+
+				end
+			-- returns json (Example (Either fill a table each page, or print for each page))
+			-- print(dkjson.encode({ peers = peerStats(true) }, { indent = true }))
+			end
+		}
+	}
+}
+
+--[[ Main ]]--
+
+if #arg == 0 then
+	available_functions(meshLua_cmd)
+	repeat
+		io.write("\n[meshLua]> ")
+		io.flush()
+		keypunch = io.read()
+	until keypunch:len() ~= 0
+end
+
+if arg[1] then
+	keypunch = arg[1]
+	params = table.concat(arg, " ", 2, end_index)
+end
+
+meshLua_cmd[keypunch]['exec'][1](params)
