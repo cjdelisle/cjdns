@@ -131,7 +131,7 @@ meshLua_cmd = {
 		function(x)
 
 			local dkjson = require "dkjson"  -- http://dkolf.de/src/dkjson-lua.fsl/home
-			local cjdroute = io.open("/etc/cjdroute.conf")
+			local cjdroute = io.open(confpath)
 			local conf, pos, err = dkjson.decode(cjdroute:read("*a"), 1, nil)
 
 			local page = 0
