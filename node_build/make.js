@@ -292,8 +292,8 @@ Builder.configure({
             if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
             if (SYSTEM === 'win32') { args.push('-DOS=win'); }
             var gyp = Spawn(python, args, {env:env});
-            gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
-            gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+            gyp.stdout.pipe(process.stdout);
+            gyp.stderr.pipe(process.stderr);
             gyp.on('close', waitFor(function () {
                 var args = [
                     '-j', builder.processors,
@@ -310,8 +310,8 @@ Builder.configure({
                 } else {
                     make = Spawn('make', args);
                 }
-                make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
-                make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+                make.stdout.pipe(process.stdout);
+                make.stderr.pipe(process.stderr);
                 make.on('close', waitFor(function () {
                     process.chdir(cwd);
                 }));
