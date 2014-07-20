@@ -284,7 +284,7 @@ Builder.configure({
                 var args = ['-j', WORKERS, '-C', 'out', 'BUILDTYPE=Release', 'CC='+builder.config.gcc];
                 if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
                 if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
-                var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make'
+                var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args);
                 make.on('error', function(err) {
                     if ('ENOENT' === err.code) {
