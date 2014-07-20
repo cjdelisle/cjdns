@@ -84,9 +84,15 @@ var compiler = function (compilerPath, args, callback, content) {
             callback(ret, out, err);
         }));
         gcc.on('error', function(err) {
+          if ('ENOENT' === err.code) {
+              console.error('\033[1;31mError: '+compilerPath+' is required!\033[0m');
+          }
+          else {
+              console.error('\033[1;31mFail run '+process.cwd()+': '+compilerPath+' '+args.join(' ')+'\033[0m');
+              console.error('Message:', err);
+          }
           // handle the error safely
           console.log(args);
-          console.log(err);
         });
         if (content) {
             gcc.stdin.write(content, function (err) {
