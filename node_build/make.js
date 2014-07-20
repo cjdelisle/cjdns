@@ -314,7 +314,7 @@ Builder.configure({
                         console.error('\033[1;31mFail run '+process.cwd()+': '+makeCommand+' '+args.join(' ')+'\033[0m');
                         console.error('Message:', err);
                     }
-                    process.exit(-1);
+                    waitFor.abort();
                 });
                 make.stdout.pipe(process.stdout);
                 make.stderr.pipe(process.stderr);
