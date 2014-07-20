@@ -284,12 +284,18 @@ Builder.configure({
                 var args = ['-j', WORKERS, '-C', 'out', 'BUILDTYPE=Release', 'CC='+builder.config.gcc];
                 if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
                 if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
-                var make;
-                if (builder.config.systemName == 'freebsd') {
-                    make = Spawn('gmake', args);
-                } else {
-                    make = Spawn('make', args);
-                }
+                var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make'
+                var make = Spawn(makeCommand, args);
+                make.on('error', function(err) {
+                    if ('ENOENT' === err.code) {
+                        console.error('\033[1;31mError: '+makeCommand+' is required!\033[0m');
+                    }
+                    else {
+                        console.error('\033[1;31mFail run '+process.cwd()+': '+makeCommand+' '+args.join(' ')+'\033[0m');
+                        console.error('Message:', err);
+                    }
+                    process.exit(-1);
+                });
                 make.stdout.pipe(process.stdout);
                 make.stderr.pipe(process.stderr);
                 make.on('close', waitFor(function () {
