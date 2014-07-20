@@ -287,20 +287,26 @@ Builder.configure({
             }
             if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
             var gyp = Spawn(python, args, {env:env});
-            gyp.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
-            gyp.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+            gyp.stdout.pipe(process.stdout);
+            gyp.stderr.pipe(process.stderr);
             gyp.on('close', waitFor(function () {
                 var args = ['-j', WORKERS, '-C', 'out', 'BUILDTYPE=Release', 'CC='+builder.config.gcc];
                 if (builder.config.systemName === 'win32') { args.push('PLATFORM=mingw32'); }
                 if (builder.config.systemName !== 'darwin') { args.push('CFLAGS=-fPIC'); }
-                var make;
-                if (builder.config.systemName == 'freebsd') {
-                    make = Spawn('gmake', args);
-                } else {
-                    make = Spawn('make', args);
-                }
-                make.stdout.on('data', function(dat) { process.stdout.write(dat.toString()); });
-                make.stderr.on('data', function(dat) { process.stderr.write(dat.toString()); });
+                var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
+                var make = Spawn(makeCommand, args);
+                make.on('error', function(err) {
+                    if ('ENOENT' === err.code) {
+                        console.error('\033[1;31mError: '+makeCommand+' is required!\033[0m');
+                    }
+                    else {
+                        console.error('\033[1;31mFail run '+process.cwd()+': '+makeCommand+' '+args.join(' ')+'\033[0m');
+                        console.error('Message:', err);
+                    }
+                    waitFor.abort();
+                });
+                make.stdout.pipe(process.stdout);
+                make.stderr.pipe(process.stderr);
                 make.on('close', waitFor(function () {
                     process.chdir(cwd);
                 }));
