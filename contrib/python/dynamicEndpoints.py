@@ -1,10 +1,32 @@
 #!/usr/bin/python2
 """
 dynamicEndpoints.py: make cjdns reliably connect to remote nodes with dynamic IP
-addresses, identified by a (possibly dynamic) DNS name.
+addresses, identified by a DNS name.
+
+Requires a config file with a section for each dynamic-IP node, like this:
+
+    [lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k]
+    hostname: verge.info.tm
+    port: 6324
+    password: ns6vn00hw0buhrtc4wbk8sv230
+    
+The section name (in square brackets) is the public key of the node. Then the
+hostname, port, and peering password for the node are given.
+
+By default, this program looks up the current Internet IP of each node defined
+in the config file, and add that node at that IP to the local cjdns instance.
+Unless the --noWait option is given, or the $nowait environment variable is
+true, the program then continues running, waiting for cjdns to log messages
+about those peers being unresponsive and updating the peers' Internet IP
+addresses as needed.
+
+If cjdns dies while the program is monitoring for messages, the program will
+hang indefinitely.
+
+Requires that the $HOME/.cjdnsadmin file be correctly set up. See
+cjdnsadminmaker.py if that is not the case.
 
 """
-
 
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
@@ -71,7 +93,7 @@ class DynamicEndpointWatcher(object):
     unresponsive, we look up its IP address and tell cjdns to go connect to it.
     """
     
-    def __init__(self, cjdns, configuration = None):
+    def __init__(self, cjdns, configuration):
         """
         Set up a new DynamicEndpointWatcher operating on the given CJDNS admin
         connection, using the specified ConfigParser parsed configuration.
@@ -96,28 +118,17 @@ class DynamicEndpointWatcher(object):
         self.sub = self.cjdns.AdminLog_subscribe(MESSAGE_LINE, MESSAGE_FILE,
             'DEBUG')
             
-        if configuration is not None:
-            # Add nodes from the given ConfigParser parser.
-            for section in configuration.sections():
-                # Each section is named with a node key, and contains a
-                # hostname, port, and password.
-                peerHostname = configuration.get(section, "hostname")
-                peerPort = configuration.get(section, "port")
-                peerPassword = configuration.get(section, "password")
-                
-                # Add the node
-                self.addNode(peerHostname, peerPort, peerPassword, section)
-                
-        else:
-            logging.warning(
-                "No configuration specified. Using an example peer.")
-                
-            # This is just an example. You probably want to use the config file.
-            # TODO: This also appears to be a public peer?
-            # IPv6 = fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c
-            self.addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
-                    "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
+        # Add nodes from the given ConfigParser parser.
+        for section in configuration.sections():
+            # Each section is named with a node key, and contains a
+            # hostname, port, and password.
+            peerHostname = configuration.get(section, "hostname")
+            peerPort = configuration.get(section, "port")
+            peerPassword = configuration.get(section, "password")
             
+            # Add the node
+            self.addNode(peerHostname, peerPort, peerPassword, section)
+                
         if self.sub['error'] == 'none':
             # We successfully subscribed to messages. Add all the nodes we're 
             # supposed to watch.
@@ -279,7 +290,7 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__, 
         formatter_class=argparse.RawDescriptionHelpFormatter)
         
-    parser.add_argument("configFile", type=argparse.FileType("r"), nargs="?",
+    parser.add_argument("configFile", type=argparse.FileType("r"),
         help="configuration file of hosts to read")
     parser.add_argument("--noWait", action="store_true",
         help="look up dynamic peers once and exit")
@@ -287,25 +298,21 @@ def main(argv):
     # Parse all the command-line arguments   
     options = parser.parse_args(argv[1:])
     
-    # Now we can load the config file if applicable.
-    if options.configFile is None:
-        # Say there is no parsed config file
-        parsedConfig = None
-    else:
-        # Maker a new parser to parse the config file
-        parsedConfig = ConfigParser.SafeConfigParser()
-        
-        # Be case sensitive
-        parsedConfig.optionxform = str
-        
-        # Read the config from the file
-        parsedConfig.readfp(options.configFile)
-        
+    # Now we can load the config file. It is now required.
+    
+    # Maker a new parser to parse the config file
+    parsedConfig = ConfigParser.SafeConfigParser()
+    
+    # Be case sensitive
+    parsedConfig.optionxform = str
+    
+    # Read the config from the file
+    parsedConfig.readfp(options.configFile)
     
     # Connect to the router
     cjdns = connectWithAdminInfo()
     
-    # Make a new monitor on that connection, with the config from the config
+    # Make a new watcher on that connection, with the config from the config
     # file. This automatically looks up all the peers and tries to connect to
     # them once.
     watcher = DynamicEndpointWatcher(cjdns, parsedConfig)
@@ -314,7 +321,8 @@ def main(argv):
         # We're not supposed to wait. Quit while we're ahead
         sys.exit(0)
     else:
-        # Monitor for unresponsive nodes
+        # Monitor for unresponsive nodes. This will loop until cjdns restarts, 
+        # at which point it will keep looping but won't actually work anymore.
         watcher.run()
         
     
