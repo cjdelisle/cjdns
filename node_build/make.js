@@ -26,7 +26,7 @@ var TestRunner = require('./TestRunner');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
-var CROSS = process.env['CROSS'] || '';
+var CROSS = (process.env['CROSS'] !== undefined);
 var LOG_LEVEL = process.env['Log_LEVEL'] || 'DEBUG';
 
 var GCC = process.env['CC'];
@@ -49,6 +49,9 @@ var OPTIMIZE = '-O2';
 Builder.configure({
     system: SYSTEM
 }, function(builder, waitFor) {
+
+    builder.config.systemName = SYSTEM;
+    builder.config.crossCompiling = CROSS;
 
     builder.config.gcc = GCC;
     builder.config.tempDir = '/tmp';
