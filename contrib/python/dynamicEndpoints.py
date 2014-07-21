@@ -1,4 +1,11 @@
 #!/usr/bin/python2
+"""
+dynamicEndpoints.py: make cjdns reliably connect to remote nodes with dynamic IP
+addresses, identified by a (possibly dynamic) DNS name.
+
+"""
+
+
 # You may redistribute this program and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
@@ -12,12 +19,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cjdnsadmin.cjdnsadmin import connectWithAdminInfo;
+from cjdnsadmin.publicToIp6 import PublicToIp6_convert;
 from cjdnsadmin.bencode import *
-import sys;
-import socket,re
+import sys
+import socket, re
 import select
 import time
 import os
+import logging
 
 # This holds a regex that matches the message we get from the roiuter when it
 # sees an unresponsive peer.
@@ -31,7 +40,14 @@ assert(IS_UNRESPONSIVE.match("Pinging unresponsive peer " +
 
 class Node(object):
     """
-    Represents a remote peer.
+    Represents a remote peer. A remoter peer has:
+        
+        - A hostname to repeatedly look up
+        - A port to connect to
+        - A password to connect with
+        - A public key to authenticate the remote peer with
+        - A last known Internet IP address.
+        
     """
     __slots__ = ("host","port","password","key","lastAddr")
     def __init__(self,host,port,password,key):
@@ -75,19 +91,24 @@ class DynamicEndpointWatcher(object):
             
         # This is just an example... should use a configuration file for this
         # probably.
+        # IPv6 = fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c
         self.addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
                 "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
+                
+        # This node (fc3c:371d:7ffd:bcfc:cdc7:db3c:94ae:e1bd) will be down.
+        self.addNode("asdf.wombats",1234,"blahblahblah",
+                "bkfy8ynwdwunt1dp1n54s700c85wtwsztf19u5f4wkxfl4lum030.k")
             
         if (self.sub['error'] == 'none'):
             for node in self.nodes.values():
                 self.lookup(node)
-            print("Peers added!")
+            logging.info("Peers added!")
             # This is not not not the wrong way to do things.
             if os.environ.get('nowait',False): raise SystemExit
-            print("Watching for unresponsive peers")
+            logging.info("Watching for unresponsive peers")
             self.recieve(self.sub['txid'])
         else:
-            print(self.sub)
+            logging.error(self.sub)
         
         
         
@@ -107,34 +128,63 @@ class DynamicEndpointWatcher(object):
         
         """
         
-        for info in socket.getaddrinfo(node.host,node.port,
-                                       socket.AF_UNSPEC,socket.SOCK_DGRAM):
+        
+        try:
+        
+            # Use AF_INET here to make sure we don't get an IPv6 address and try
+            # to connect to it when the cjdns UDPInterface is using only IPv4.
+            # TODO: Make cjdns bind its UDPInterface to IPv6 as well as IPv4.
+            for info in socket.getaddrinfo(node.host,node.port,
+                                           socket.AF_INET,socket.SOCK_DGRAM):
+                
+                # For every IP address the node has in DNS, with the port we
+                # wanted attached...
+                
+                
+                
+                # Save the address we get in a field in the node.
+                sockaddr = info[-1]
+                node.lastAddr = sockaddr
+                
+                # Grab the IP:port string
+                sockaddr = sockaddr[0] + ":" + str(sockaddr[1])
+                
+                # Announce we are going to connect
+                logging.info("Connecting to {} at {}".format(
+                    PublicToIp6_convert(node.key), sockaddr))
+                
+                # Tell CJDNS to begin a UDPInterface connection to the given
+                # IP:port, with the given public key and password. Always use
+                # the 0th UDPInterface, which is the default.
+                reply = self.cjdns.UDPInterface_beginConnection(
+                    password=node.password, publicKey=node.key,
+                    address=sockaddr)
+                    
+                if reply["error"] != "none":
+                    # The router didn't like our request. Complain.
+                    logging.error(
+                        "Router refuses to connect to remote peer. {}".format(
+                        reply["error"]))
+                        
+                    # Maybe try the next address?
+                    break
+                        
+                # Mark this node as no longer unresponsive
+                try: del self.unresponsive[node.key]
+                except KeyError: pass
+                
+                # Don't try any more addresses. Stop after the first.
+                return
+                
+        except socket.gaierror as e:
+            # The lookup failed at the OS level. Did we put in a bad hostname?
+            logging.error("Could not resolve DNS name {}: {}".format(
+                node.host, e))
             
-            # For every IP address the node has in DNS, with the port we wanted
-            # attached...
-            
-            # Save the last address in the list (which must exist) in a field in
-            # the node.
-            sockaddr = info[-1]
-            node.lastAddr = sockaddr
-            
-            # Grab the IP:port string
-            sockaddr = sockaddr[0] + ":" + str(sockaddr[1])
-            
-            # Announce we are going to connect
-            print("Connecting to {} {}".format(node.key,sockaddr))
-            
-            # Tell CJDNS to begin a UDPInterface connection to the given
-            # IP:port, with the given public key and password.
-            self.cjdns.UDPInterface_beginConnection(password=node.password,
-                publicKey=node.key, address=sockaddr)
-            
-            # Mark this node as no longer unresponsive
-            try: del self.unresponsive[node.key]
-            except KeyError: pass
-            
-            # Don't try any more addresses. Stop after the first.
-            break
+        # If we get here, we found no addresses that worked.
+        logging.error("No working addresses found for node {}".format(
+            PublicToIp6_convert(node.key)))
+        
             
     def doLog(self, message):
         """
@@ -143,7 +193,7 @@ class DynamicEndpointWatcher(object):
         
         """
         
-        print(message)
+        logging.debug(message)
         
         # Short-circuit messages that start with the wrong l;etter and can't
         # possibly match.
@@ -164,8 +214,13 @@ class DynamicEndpointWatcher(object):
         
         if not node:
             # Complain we aren't responsible for that node.
-            print("Unknown neighbor {} is down".format(node))
+            logging.warning("Unmonitored neighbor {} is down".format(
+                PublicToIp6_convert(downKey)))
             return
+        
+        # Otherwise, announce we are doing our job.    
+        logging.warning("Monitored neighbor {} is down.".format(
+             PublicToIp6_convert(downKey)))
             
         # If we are responsible for it, register it as unresponsive.
         self.unresponsive[downKey] = node
@@ -184,12 +239,27 @@ class DynamicEndpointWatcher(object):
             # Repeatedly get and process log messages.
             self.doLog(self.cjdns.getMessage(txid)["message"])
 
-# Connect to the router
-cjdns = connectWithAdminInfo()
+def main(argv):
+    """
+    Run the program.
+    """
+    
+    # Set up logging. See the logging module docs.
+    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
+    
+    # Connect to the router
+    cjdns = connectWithAdminInfo()
 
-# Start a new monitor on that connection. It will loop forever, checking
-# whatever nodes it wants to check.
-DynamicEndpointWatcher(cjdns)
+    # Start a new monitor on that connection. It will loop forever, checking
+    # whatever nodes it wants to check.
+    DynamicEndpointWatcher(cjdns)
+
+    
+
+if __name__ == "__main__":
+    # Run our main method
+    sys.exit(main(sys.argv))
+
 
 
 
