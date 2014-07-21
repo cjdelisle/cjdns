@@ -23,11 +23,16 @@
 #include "util/Linker.h"
 Linker_require("interface/tuntap/windows/TAPInterface.c")
 
-struct Interface* TAPInterface_new(const char* preferredName,
-                                   char** assignedName,
-                                   struct Except* eh,
-                                   struct Log* logger,
-                                   struct EventBase* base,
-                                   struct Allocator* alloc);
+struct TAPInterface
+{
+    struct Interface generic;
+    char* assignedName;
+};
+
+struct TAPInterface* TAPInterface_new(const char* preferredName,
+                                      struct Except* eh,
+                                      struct Log* logger,
+                                      struct EventBase* base,
+                                      struct Allocator* alloc);
 
 #endif

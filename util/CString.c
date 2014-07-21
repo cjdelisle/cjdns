@@ -16,7 +16,7 @@
 
 #include <string.h>
 
-#ifdef Illumos
+#if defined(Illumos) || defined(__sun)
     #define _XPG4_2
 #endif
 #include <strings.h>

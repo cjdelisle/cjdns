@@ -785,3 +785,16 @@ int uv__io_active(const uv__io_t* w, unsigned int events) {
   assert(0 != events);
   return 0 != (w->pevents & events);
 }
+
+/* IOCP only makes sense under windows. */
+int uv_iocp_stop(uv_iocp_t* handle) {
+  return UV_EINVAL;
+}
+
+/* IOCP only makes sense under windows. */
+int uv_iocp_start(uv_loop_t* loop,
+                  uv_iocp_t* handle,
+                  uv_os_file_t fd,
+                  uv_iocp_cb cb) {
+  return UV_EINVAL;
+}

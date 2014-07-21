@@ -55,11 +55,11 @@ def Base32_decode(input):
 
 
 def PublicToIp6_convert(pubKey):
-    if (pubKey[-2:] != ".k"): raise ValueError("key does not end with .k");
-    keyBytes = Base32_decode(pubKey[0:-2]);
-    hashOne = sha512(keyBytes).digest();
-    hashTwo = sha512(hashOne).hexdigest();
-    first16 = hashTwo[0:32];
-    out = '';
-    for i in range(0,8): out += first16[i*4 : i*4+4] + ":";
-    return out[:-1];
+    if pubKey[-2:] != ".k":
+        raise ValueError("key does not end with .k")
+
+    keyBytes = Base32_decode(pubKey[:-2])
+    hashOne = sha512(keyBytes).digest()
+    hashTwo = sha512(hashOne).hexdigest()
+
+    return ":".join([hashTwo[i:i+4] for i in range(0, 32, 4)])

@@ -46,12 +46,11 @@
 #   Remove 'cjdns-android/cjdns' and below change: REPO="https://newaddr"
 #
 #  Use a different branch:
-#   Below change: BRANCH="newbranch"
+#   Run: cjdroid-bulid.sh branchname
 
 ## Configurable Variables
 REPO="https://github.com/cjdelisle/cjdns/"
-BRANCH="master"
-BUILD_DIR="$(pwd)/cjdns-android"
+BUILD_DIR="$(pwd)/build_android"
 SRC_DIR="${BUILD_DIR}/source"
 NDK_DIR="${SRC_DIR}/ndk"
 WORK_DIR="${BUILD_DIR}/workspace"
@@ -95,25 +94,22 @@ if [ ! -x "${WORK_DIR}/android-arm-toolchain/bin/arm-linux-androideabi-gcc" ]; t
     # (android-9 includes pthread_rwlock_t which is used by libuv)
 fi
 
-##FETCH cjdns
+##CLONE OR PULL the repo and change branch if requested
 cd "$BUILD_DIR"
-if [ ! -d cjdns ]; then
-    git clone ${REPO} cjdns || exit 1
-    (cd cjdns && git checkout ${BRANCH}) || exit 1
-else
-    (cd cjdns && git pull && git checkout ${BRANCH}) || exit 1
-fi
+[[ ! -d cjdns ]] && (git clone $REPO cjdns || exit 1) || (cd cjdns && git pull --ff-only)
+[[ -n "$1" ]] && (git checkout "$1" || exit 1)
 
 ##SETUP toolchain vars
 export PATH="${WORK_DIR}/android-arm-toolchain/bin:${PATH}"
 
 ##BUILD cjdns (without tests)
-(cd cjdns; ./clean; CROSS_COMPILE=arm-linux-androideabi- ./cross-do) 2>&1 | tee cjdns-build.log || (echo "Failure while building, check cjdns-build.log"; exit 1)
+(cd "${BUILD_DIR}/cjdns"; ./clean; CROSS_COMPILE=arm-linux-androideabi- ./cross-do 2>&1 | tee cjdns-build.log) || (echo "Failure while building, check cjdns-build.log"; exit 1)
 [[ -x cjdns/cjdroute ]] && echo -e "\nBUILD COMPLETE! @ ${BUILD_DIR}/cjdns/cjdroute" || (echo -e "\nBUILD FAILED :("; exit 1)
 
 ##PACKAGE cjdroute and associated scripts for deployment
+[[ -n "$1" ]] && BRANCH="-${1}"
 VERSION=$(git -C cjdns describe --always | sed 's|-|.|g;s|[^\.]*\.||;s|\.[^\.]*$||')
-if [ ! -f "../cjdroid-${VERSION}.tar.gz" ]; then
+if [ ! -f "../cjdroid-${VERSION}${BRANCH}.tar.gz" ]; then
     if [ -d cjdns/contrib/android/cjdroid ]; then
         cp -R cjdns/contrib/android/cjdroid .
         if [ -f cjdns/cjdroute ]; then
@@ -122,28 +118,12 @@ if [ ! -f "../cjdroid-${VERSION}.tar.gz" ]; then
             echo "Error: Package not built because ${PWD}/cjdns/cjdroute does not exist"
             exit 1
         fi
-        tar cfz ../cjdroid-${VERSION}.tar.gz cjdroid
-        echo -e "\nSuccess: A deployable package has been created @ $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}.tar.gz"
+        tar cfz ../cjdroid-${VERSION}${BRANCH}.tar.gz cjdroid
+        echo -e "\nSuccess: A deployable package has been created @ $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}${BRANCH}.tar.gz"
     else
         echo "Error: Package not built because ${PWD}/cjdns/contrib/android/cjdroid does not exist"
         exit 1
     fi
 else
-    echo "Error: Package not built because $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}.tar.gz already exists"
+    echo "Error: Package not built because $(pwd | sed 's/\/[^\/]*$//g')/cjdroid-${VERSION}${BRANCH}.tar.gz already exists"
 fi
-
-##SAMPLES for deployment
-#- settings > developer options > root access > adb or adb+apps
-#  adb root
-#  adb shell "whoami"
-#- adb push build_linux/testcjdroute /data/local/
-#  adb shell "chmod 500 /data/local/testcjdroute"
-#  adb shell "/data/local/testcjdroute all"
-#- adb push cjdroute /data/local/
-
-#  adb shell "chmod 500 /data/local/cjdroute"
-#- logging.logTo = stdout
-#  noBackground = 1
-#  adb push cjdroute.conf /data/local/
-#  adb shell "chmod 400 /data/local/cjdroute.conf"
-#- adb shell "/data/local/cjdroute < /data/local/cjdroute.conf"

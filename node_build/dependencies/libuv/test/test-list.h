@@ -230,6 +230,7 @@ TEST_DECLARE   (environment_creation)
 TEST_DECLARE   (listen_with_simultaneous_accepts)
 TEST_DECLARE   (listen_no_simultaneous_accepts)
 TEST_DECLARE   (fs_stat_root)
+TEST_DECLARE   (iocp)
 #else
 TEST_DECLARE   (emfile)
 TEST_DECLARE   (close_fd)
@@ -469,6 +470,7 @@ TASK_LIST_START
   TEST_ENTRY  (listen_with_simultaneous_accepts)
   TEST_ENTRY  (listen_no_simultaneous_accepts)
   TEST_ENTRY  (fs_stat_root)
+  TEST_ENTRY  (iocp)
 #else
   TEST_ENTRY  (emfile)
   TEST_ENTRY  (close_fd)

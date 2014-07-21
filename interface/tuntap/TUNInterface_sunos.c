@@ -32,11 +32,17 @@
 #include <stddef.h>
 #include <net/if.h>
 #include <ctype.h>
-#include <net/if_tun.h>
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <fcntl.h>
 #include <net/route.h>
+
+/**
+ * Since some illumos distributions (namely SmartOS) don't ship `net/if_tun.h`,
+ * define those IOCTL constants here.
+ */
+#define TUNNEWPPA (('T'<<16) | 0x0001)
+#define TUNSETPPA (('T'<<16) | 0x0002)
 
 struct TUNInterface_Illumos_pvt
 {
@@ -63,7 +69,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    Message_shift(message, 4);
+    Message_shift(message, 4, NULL);
     ((uint16_t*) message->bytes)[0] = 0;
     ((uint16_t*) message->bytes)[1] = ethertypeForPacketType(message->bytes[4]);
 
@@ -74,7 +80,7 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 {
     struct TUNInterface_Illumos_pvt* ctx = Identity_check((struct TUNInterface_Illumos_pvt*)iface);
 
-    Message_shift(message, -4);
+    Message_shift(message, -4, NULL);
     uint16_t ethertype = ((uint16_t*) message->bytes)[-1];
     if (ethertype != Ethernet_TYPE_IP6 && ethertype != Ethernet_TYPE_IP4) {
         Assert_true(!"Unsupported ethertype");
@@ -85,11 +91,15 @@ static uint8_t sendMessage(struct Message* message, struct Interface* iface)
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
+    // tap mode is not supported at all by the sunos tun driver.
+    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+
     // Extract the number eg: 0 from tun0
     int ppa = 0;
     if (interfaceName) {
@@ -130,7 +140,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         } else if (tunFd2 < 0) {
             error = "open(\"/dev/tun\") (opening for plumbing interface)";
         }
-        Except_raise(eh, TUNInterface_new_INTERNAL, error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     struct lifreq ifr = {
@@ -141,7 +151,9 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     int maxNameSize = (LIFNAMSIZ < TUNInterface_IFNAMSIZ) ? LIFNAMSIZ : TUNInterface_IFNAMSIZ;
-    snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
+    if (assignedInterfaceName) {
+        snprintf(assignedInterfaceName, maxNameSize, "tun%d", ppa);
+    }
     snprintf(ifr.lifr_name, maxNameSize, "tun%d", ppa);
 
     char* error = NULL;
@@ -167,7 +179,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         close(ipFd);
         close(tunFd2);
         close(tunFd);
-        Except_raise(eh, TUNInterface_new_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     close(ipFd);

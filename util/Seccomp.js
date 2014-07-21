@@ -12,6 +12,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+var Os = require('os');
+var Semver = require('semver');
 
 var TEST_PROGRAM = [
     "#include <sys/resource.h>",
@@ -54,6 +56,8 @@ var detect = module.exports.detect = function (async, file, builder)
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
         console.log("SECCOMP disabled");
+    } else if (!builder.config.crossCompiling && Semver.lt(Os.release(), "3.5.0")) {
+        console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
         var done = async();
         var CanCompile = require('../node_build/CanCompile');

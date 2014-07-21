@@ -27,7 +27,6 @@
 #include <stddef.h>
 #include <net/if.h>
 #include <ctype.h>
-#include <net/if_tun.h>
 #include <sys/stropts.h>
 #include <sys/sockio.h>
 #include <fcntl.h>

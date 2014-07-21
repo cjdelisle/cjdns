@@ -20,6 +20,17 @@
 #include "util/Linker.h"
 Linker_require("interface/FramingInterface.c")
 
+/**
+ * Framed message format:
+ * [4 bytes length][ <length> bytes content ....... ]
+ * The length is of only the content, not including the beginning 4 bytes
+ * which represents the length itself.
+ *
+ * @param maxMessageSize how large of a framed message to allow
+ * @param wrappedIface the stream interface which will be used to
+ *                     communicate framed messages to a peer.
+ * @param alloc
+ */
 struct Interface* FramingInterface_new(uint32_t maxMessageSize,
                                        struct Interface* wrappedIface,
                                        struct Allocator* alloc);

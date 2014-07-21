@@ -43,6 +43,7 @@
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,
@@ -51,7 +52,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     uint32_t maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     Log_info(logger, "Initializing tun device [%s]", ((interfaceName) ? interfaceName : "auto"));
 
-    struct ifreq ifRequest = { .ifr_flags = IFF_TUN };
+    struct ifreq ifRequest = { .ifr_flags = (isTapMode) ? IFF_TAP : IFF_TUN };
     if (interfaceName) {
         if (strlen(interfaceName) > maxNameSize) {
             Except_throw(eh, "tunnel name too big, limit is [%d] characters", maxNameSize);
@@ -69,7 +70,9 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         close(fileno);
         Except_throw(eh, "ioctl(TUNSETIFF) [%s]", strerror(err));
     }
-    strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
+    if (assignedInterfaceName) {
+        strncpy(assignedInterfaceName, ifRequest.ifr_name, maxNameSize);
+    }
 
     struct Pipe* p = Pipe_forFiles(fileno, fileno, base, eh, alloc);
 

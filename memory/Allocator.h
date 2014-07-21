@@ -48,7 +48,7 @@ struct Allocator_OnFreeJob
  * Every function which allocates memory, either to return a structure or to do processing which
  * cannot be done on the stack takes an allocator as a parameter.
  *
- * In traditional C, each call to malloc() must be traced to a corrisponding free() call, a
+ * In traditional C, each call to malloc() must be traced to a corresponding free() call, a
  * laborious process which can be partially automated but inevitably leaves some memory leak
  * investigative work to the developer. Allocator attempts to move the memory freeing operations
  * close to the memory allocations thus making bugs easy to spot without searching over large
@@ -66,8 +66,8 @@ struct Allocator_OnFreeJob
  * have proven useful in preventing both memory leaks and dangling pointers.
  *
  * #1 Do not create new root allocators, create child allocators instead.
- * When you call MallocAllocator_new() or equivilant, you are creating a parentless allocator and
- * you must take responsability for it's freeing when you are finished with it. In cjdns there is
+ * When you call MallocAllocator_new() or equivalent, you are creating a parentless allocator and
+ * you must take responsibility for it's freeing when you are finished with it. In cjdns there is
  * only one call to a main allocator and all other allocators are spawned from it using
  * Allocator_child().
  * Exception: In certain code which interfaces with libuv, an alternate root allocator is necessary

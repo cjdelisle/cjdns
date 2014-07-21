@@ -195,6 +195,10 @@ INLINE static void uv_process_reqs(uv_loop_t* loop) {
         uv_process_poll_req(loop, (uv_poll_t*) req->data, req);
         break;
 
+      case UV_IOCP:
+        uv_process_iocp_req(loop, req);
+        break;
+
       case UV_GETADDRINFO:
         uv_process_getaddrinfo_req(loop, (uv_getaddrinfo_t*) req);
         break;

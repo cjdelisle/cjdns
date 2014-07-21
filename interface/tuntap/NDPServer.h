@@ -12,17 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "exception/Except.h"
-#include "util/Security.h"
+#ifndef NDPServer_H
+#define NDPServer_H
+
+#include "interface/Interface.h"
+#include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "wire/Ethernet.h"
+#include "util/Linker.h"
+Linker_require("interface/tuntap/NDPServer.c")
 
-// lol windows security
-
-int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
+struct NDPServer
 {
-    return 0;
-}
+    struct Interface generic;
+    uint8_t advertisePrefix[16];
+    uint8_t prefixLen;
+};
 
-void Security_dropPermissions(struct Except* eh)
-{
-}
+struct NDPServer* NDPServer_new(struct Interface* external,
+                                struct Log* log,
+                                uint8_t localMac[Ethernet_ADDRLEN],
+                                struct Allocator* alloc);
+
+#endif

@@ -17,11 +17,14 @@
 
 #include "util/Endian.h"
 
+/** It's not about to change but it makes for more readable code. */
+#define Ethernet_ADDRLEN 6
+
 struct Ethernet
 {
     uint16_t pad;
-    uint8_t destAddr[6];
-    uint8_t srcAddr[6];
+    uint8_t destAddr[Ethernet_ADDRLEN];
+    uint8_t srcAddr[Ethernet_ADDRLEN];
     uint16_t ethertype;
 };
 #define Ethernet_SIZE 16

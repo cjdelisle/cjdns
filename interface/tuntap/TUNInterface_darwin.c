@@ -43,11 +43,14 @@
 
 struct Interface* TUNInterface_new(const char* interfaceName,
                                    char assignedInterfaceName[TUNInterface_IFNAMSIZ],
+                                   int isTapMode,
                                    struct EventBase* base,
                                    struct Log* logger,
                                    struct Except* eh,
                                    struct Allocator* alloc)
 {
+    if (isTapMode) { Except_throw(eh, "tap mode not supported on this platform"); }
+
     int maxNameSize = (IFNAMSIZ < TUNInterface_IFNAMSIZ) ? IFNAMSIZ : TUNInterface_IFNAMSIZ;
     int tunUnit = 0; /* allocate dynamically by default */
 
@@ -95,6 +98,9 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         close(tunFd);
         Except_throw(eh, "connecting to utun device [%s]", strerror(err));
     }
+
+    char assignedIfName[TUNInterface_IFNAMSIZ];
+    if (!assignedInterfaceName) { assignedInterfaceName = assignedIfName; }
 
     /* retrieve the assigned utun interface name */
     if (getsockopt(tunFd, SYSPROTO_CONTROL, UTUN_OPT_IFNAME,
