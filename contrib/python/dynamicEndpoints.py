@@ -27,6 +27,8 @@ import select
 import time
 import os
 import logging
+import argparse
+import ConfigParser
 
 # This holds a regex that matches the message we get from the roiuter when it
 # sees an unresponsive peer.
@@ -36,6 +38,11 @@ IS_UNRESPONSIVE = re.compile(
 # Make sure that it works
 assert(IS_UNRESPONSIVE.match("Pinging unresponsive peer " +
     "[6fmmn3qurcjg6d8hplq1rrcsspfhvm1900s13f3p5bv2bb4f4mm0.k] lag [207147]"))
+    
+# What file and line do these messages come from? TODO: don't depend so tightly
+# on the other end of the codebase. Use the API to watch peers.
+MESSAGE_FILE = "InterfaceController.c"
+MESSAGE_LINE = 252
 
 
 class Node(object):
@@ -64,10 +71,10 @@ class DynamicEndpointWatcher(object):
     unresponsive, we look up its IP address and tell cjdns to go connect to it.
     """
     
-    def __init__(self, cjdns, configFile = None):
+    def __init__(self, cjdns, configuration = None):
         """
         Set up a new DynamicEndpointWatcher operating on the given CJDNS admin
-        connection, using the specified config file name.
+        connection, using the specified ConfigParser parsed configuration.
         
         """
         
@@ -86,29 +93,49 @@ class DynamicEndpointWatcher(object):
         # nodes. Note that this points specifically to a source line number in
         # the cjdns C code and is thus going to break whenever anyone touches
         # that file. TODO: check node responsiveness through the API.
-        self.sub = self.cjdns.AdminLog_subscribe(252, 'InterfaceController.c',
+        self.sub = self.cjdns.AdminLog_subscribe(MESSAGE_LINE, MESSAGE_FILE,
             'DEBUG')
             
-        # This is just an example... should use a configuration file for this
-        # probably.
-        # IPv6 = fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c
-        self.addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
-                "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
+        if configuration is not None:
+            # Add nodes from the given ConfigParser parser.
+            for section in configuration.sections():
+                # Each section is named with a node key, and contains a
+                # hostname, port, and password.
+                peerHostname = configuration.get(section, "hostname")
+                peerPort = configuration.get(section, "port")
+                peerPassword = configuration.get(section, "password")
                 
-        # This node (fc3c:371d:7ffd:bcfc:cdc7:db3c:94ae:e1bd) will be down.
-        self.addNode("asdf.wombats",1234,"blahblahblah",
-                "bkfy8ynwdwunt1dp1n54s700c85wtwsztf19u5f4wkxfl4lum030.k")
+                # Add the node
+                self.addNode(peerHostname, peerPort, peerPassword, section)
+                
+        else:
+            logging.warning(
+                "No configuration specified. Using an example peer.")
+                
+            # This is just an example. You probably want to use the config file.
+            # TODO: This also appears to be a public peer?
+            # IPv6 = fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c
+            self.addNode("verge.info.tm",6324,"ns6vn00hw0buhrtc4wbk8sv230",
+                    "lhjs0njqtvh1z4p2922bbyp2mksmyzf5lb63kvs3ppy78y1dj130.k")
             
-        if (self.sub['error'] == 'none'):
+        if self.sub['error'] == 'none':
+            # We successfully subscribed to messages. Add all the nodes we're 
+            # supposed to watch.
             for node in self.nodes.values():
                 self.lookup(node)
-            logging.info("Peers added!")
-            # This is not not not the wrong way to do things.
-            if os.environ.get('nowait',False): raise SystemExit
-            logging.info("Watching for unresponsive peers")
-            self.recieve(self.sub['txid'])
+            logging.info("{} peers added!".format(len(self.nodes)))
         else:
             logging.error(self.sub)
+            
+    def run(self):
+        """
+        Run forever, monitoring the peers we are responsible for.
+        """
+        
+        logging.info("Watching for unresponsive peers")
+        
+        # Watch for any messages from our log message subscription.
+        self.recieve(self.sub['txid'])
         
         
         
@@ -247,15 +274,51 @@ def main(argv):
     # Set up logging. See the logging module docs.
     logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
     
+    # Parse command-line arguments. Make sure to give our docstring as program
+    # help.
+    parser = argparse.ArgumentParser(description=__doc__, 
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+        
+    parser.add_argument("configFile", type=argparse.FileType("r"), nargs="?",
+        help="configuration file of hosts to read")
+    parser.add_argument("--noWait", action="store_true",
+        help="look up dynamic peers once and exit")
+     
+    # Parse all the command-line arguments   
+    options = parser.parse_args(argv[1:])
+    
+    # Now we can load the config file if applicable.
+    if options.configFile is None:
+        # Say there is no parsed config file
+        parsedConfig = None
+    else:
+        # Maker a new parser to parse the config file
+        parsedConfig = ConfigParser.SafeConfigParser()
+        
+        # Be case sensitive
+        parsedConfig.optionxform = str
+        
+        # Read the config from the file
+        parsedConfig.readfp(options.configFile)
+        
+    
     # Connect to the router
     cjdns = connectWithAdminInfo()
-
-    # Start a new monitor on that connection. It will loop forever, checking
-    # whatever nodes it wants to check.
-    DynamicEndpointWatcher(cjdns)
-
     
+    # Make a new monitor on that connection, with the config from the config
+    # file. This automatically looks up all the peers and tries to connect to
+    # them once.
+    watcher = DynamicEndpointWatcher(cjdns, parsedConfig)
 
+    if options.noWait or os.environ.get('nowait', False):
+        # We're not supposed to wait. Quit while we're ahead
+        sys.exit(0)
+    else:
+        # Monitor for unresponsive nodes
+        watcher.run()
+        
+    
+        
 if __name__ == "__main__":
     # Run our main method
     sys.exit(main(sys.argv))
