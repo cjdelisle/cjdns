@@ -342,7 +342,7 @@ static int usage(struct Allocator* alloc, char* appName)
     char* archInfo = ArchInfo_describe(ArchInfo_detect(), alloc);
     char* sysInfo = SysInfo_describe(SysInfo_detect(), alloc);
     printf("Cjdns %s %s\n"
-           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf]\n"
+           "Usage: %s [--help] [--genconf] [--bench] [--version] [--cleanconf] [--nobg]\n"
            "\n"
            "To get the router up and running.\n"
            "Step 1:\n"
@@ -477,6 +477,8 @@ int main(int argc, char** argv)
             return 0;
         } else if (CString_strcmp(argv[1], "--cleanconf") == 0) {
             // Performed after reading configuration
+        } else if (CString_strcmp(argv[1], "--nobg") == 0) {
+            // Performed while reading configuration
         } else {
             fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], argv[1]);
             fprintf(stderr, "Try `%s --help' for more information.\n", argv[0]);
@@ -516,6 +518,11 @@ int main(int argc, char** argv)
         JsonBencSerializer_get()->serializeDictionary(stdoutWriter, &config);
         printf("\n");
         return 0;
+    }
+
+    int forceNoBackground = 0;
+    if (argc == 2 && CString_strcmp(argv[1], "--nobg") == 0) {
+        forceNoBackground = 1;
     }
 
     struct Writer* logWriter = FileWriter_new(stdout, allocator);
@@ -656,7 +663,7 @@ int main(int argc, char** argv)
     // --------------------- noBackground ------------------------ //
 
     int64_t* noBackground = Dict_getInt(&config, String_CONST("noBackground"));
-    if (noBackground && *noBackground) {
+    if (forceNoBackground || (noBackground && *noBackground)) {
         EventBase_beginLoop(eventBase);
     }
 
