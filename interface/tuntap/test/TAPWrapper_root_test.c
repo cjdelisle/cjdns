@@ -18,7 +18,6 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/Int.h"
-#include "exception/Jmp.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "interface/tuntap/TUNInterface.h"
 #include "interface/tuntap/TUNMessageType.h"
