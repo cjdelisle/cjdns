@@ -26,6 +26,7 @@ var TestRunner = require('./TestRunner');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
+var CROSS = process.env['CROSS'] !== undefined;
 var GCC = process.env['CC'];
 
 if (!GCC) {
@@ -38,7 +39,7 @@ if (!GCC) {
 
 Builder.configure({
     systemName:     SYSTEM,
-    crossCompiling: process.env['CROSS'] !== undefined,
+    crossCompiling: CROSS,
     gcc:            GCC,
     tempDir:        '/tmp',
     optimizeLevel:  '-O2',
