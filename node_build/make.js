@@ -47,15 +47,11 @@ var OPTIMIZE = '-O2';
 
 
 Builder.configure({
-    system: SYSTEM
+    systemName: SYSTEM,
+    crossCompiling: CROSS,
+    gcc: GCC,
+    tempDir: '/tmp'
 }, function(builder, waitFor) {
-
-    builder.config.systemName = SYSTEM;
-    builder.config.crossCompiling = CROSS;
-
-    builder.config.gcc = GCC;
-    builder.config.tempDir = '/tmp';
-
     builder.config.cflags.push.apply(builder.config.cflags, [
         '-std=c99',
         '-Wall',
@@ -63,7 +59,7 @@ Builder.configure({
         '-Werror',
         '-Wno-pointer-sign',
         '-pedantic',
-        '-D',builder.config.system + '=1',
+        '-D',builder.config.systemName + '=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
 
@@ -87,12 +83,12 @@ Builder.configure({
 
     if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
 
-    if (SYSTEM === 'win32') {
+    if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
         builder.config.libs.push('-lssp');
     }
 
-    if (SYSTEM === 'linux') {
+    if (builder.config.systemName === 'linux') {
         builder.config.ldflags.push(
             '-Wl,-z,relro,-z,now,-z,noexecstack'
         );
@@ -101,12 +97,14 @@ Builder.configure({
         );
     }
 
-    if (process.env['NO_PIE'] === undefined && SYSTEM !== 'freebsd' && SYSTEM !== 'win32') {
+    if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
+        && builder.config.systemName !== 'win32')
+    {
         builder.config.cflags.push('-fPIE');
         builder.config.ldflags.push('-pie');
     }
 
-    if (/.*clang.*/.test(GCC) || SYSTEM === 'darwin') {
+    if (/.*clang.*/.test(GCC) || builder.config.systemName === 'darwin') {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
@@ -166,7 +164,9 @@ Builder.configure({
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if ((!uclibc && SYSTEM !== 'win32' && SYSTEM !== 'sunos') || libssp) {
+    if ((!uclibc && builder.config.systemName !== 'win32'
+        && builder.config.systemName !== 'sunos') || libssp)
+    {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
             // workaround is to give -fno-stack-protector first.
@@ -187,7 +187,9 @@ Builder.configure({
 
     var dependencyDir = builder.config.buildDir+'/dependencies';
     var libuvLib = dependencyDir+'/libuv/out/Release/libuv.a';
-    if (SYSTEM === 'win32') { libuvLib = dependencyDir+'/libuv/out/Release/obj.target/libuv.a'; }
+    if (builder.config.systemName === 'win32') {
+        libuvLib = dependencyDir+'/libuv/out/Release/obj.target/libuv.a';
+    }
 
     // Build dependencies
     nThen(function (waitFor) {
@@ -210,7 +212,7 @@ Builder.configure({
             process.chdir(dependencyDir+'/cnacl/');
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
-                if (builder.config.system !== 'win32') { args.unshift('-fPIC'); }
+                if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
                 args.unshift('-O2', '-fomit-frame-pointer');
                 cflags = process.env['CFLAGS'];
                 if (cflags) {
@@ -232,17 +234,17 @@ Builder.configure({
                 '-lpthread'
             );
         }
-        if (builder.config.system === 'win32') {
+        if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
                 '-lws2_32',
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );
-        } else if (builder.config.system === 'linux' && !(/.*android.*/).test(GCC)) {
+        } else if (builder.config.systemName === 'linux' && !(/.*android.*/).test(GCC)) {
             builder.config.libs.push(
                 '-lrt' // clock_gettime()
             );
-        } else if (builder.config.system === 'darwin') {
+        } else if (builder.config.systemName === 'darwin') {
             builder.config.libs.push(
                 '-framework', 'CoreServices'
             );
@@ -290,7 +292,7 @@ Builder.configure({
             }
             //args.push('--root-target=libuv');
             if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
-            if (SYSTEM === 'win32') { args.push('-DOS=win'); }
+            if (builder.config.systemName === 'win32') { args.push('-DOS=win'); }
             var gyp = Spawn(python, args, {env:env});
             gyp.stdout.pipe(process.stdout);
             gyp.stderr.pipe(process.stderr);
@@ -303,7 +305,9 @@ Builder.configure({
                     'CXX='+builder.config.gcc,
                     'V=1'
                 ];
-                if (!(/darwin|win32/.test(SYSTEM))) { args.push('CFLAGS=-fPIC'); }
+                if (!(/darwin|win32/.test(builder.config.systemName))) {
+                    args.push('CFLAGS=-fPIC');
+                }
                 var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args);
                 make.on('error', function(err) {

@@ -129,7 +129,9 @@ var mkBuilder = function (state) {
             if (!outputFile) {
                 outputFile = cFile.replace(/^.*\/([^\/\.]*).*$/, function (a,b) { return b; });
             }
-            if (state.system === 'win32' && !(/\.exe$/.test(outputFile))) { outputFile += '.exe'; }
+            if (state.systemName === 'win32' && !(/\.exe$/.test(outputFile))) {
+                outputFile += '.exe';
+            }
             var temp = state.buildDir+'/'+getExecutableFile(cFile);
             compile(cFile, temp, builder, builder.waitFor());
             builder.executables.push([temp, outputFile]);
@@ -627,7 +629,7 @@ var getStatePrototype = function (params) {
 
         tempDir: '/tmp',
 
-        system: 'linux'
+        systemName: 'linux'
     }, params);
 };
 
@@ -678,13 +680,11 @@ var configure = module.exports.configure = function (params, configFunc) {
     var time = makeTime();
     time();
 
-    if (typeof(params.system) !== 'string') {
+    if (typeof(params.systemName) !== 'string') {
         throw new Error("system not specified");
     }
-    // TODO(cjd): deprecated name
-    params.systemName = params.system;
 
-    params.buildDir = params.buildDir || 'build_' + params.system;
+    params.buildDir = params.buildDir || 'build_' + params.systemName;
 
     var state;
     var builder;
