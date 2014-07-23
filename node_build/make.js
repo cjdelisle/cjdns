@@ -26,10 +26,8 @@ var TestRunner = require('./TestRunner');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
-var CROSS = (process.env['CROSS'] !== undefined);
-var LOG_LEVEL = process.env['Log_LEVEL'] || 'DEBUG';
-
 var GCC = process.env['CC'];
+
 if (!GCC) {
     if (SYSTEM === 'freebsd') {
         GCC = 'gcc47';
@@ -38,19 +36,13 @@ if (!GCC) {
     }
 }
 
-var BUILDDIR = process.env['BUILDDIR'];
-if (BUILDDIR === undefined) {
-    BUILDDIR = 'build_'+SYSTEM;
-}
-
-var OPTIMIZE = '-O2';
-
-
 Builder.configure({
-    systemName: SYSTEM,
-    crossCompiling: CROSS,
-    gcc: GCC,
-    tempDir: '/tmp'
+    systemName:     SYSTEM,
+    crossCompiling: process.env['CROSS'] !== undefined,
+    gcc:            GCC,
+    tempDir:        '/tmp',
+    optimizeLevel:  '-O2',
+    logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
 }, function(builder, waitFor) {
     builder.config.cflags.push.apply(builder.config.cflags, [
         '-std=c99',
@@ -65,7 +57,7 @@ Builder.configure({
 
         '-D','HAS_BUILTIN_CONSTANT_P',
 
-        '-D','Log_'+LOG_LEVEL,
+        '-D','Log_'+builder.config.logLevel,
 
         '-g',
 
@@ -104,7 +96,7 @@ Builder.configure({
         builder.config.ldflags.push('-pie');
     }
 
-    if (/.*clang.*/.test(GCC) || builder.config.systemName === 'darwin') {
+    if (/.*clang.*/.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
@@ -138,7 +130,7 @@ Builder.configure({
         });
     }
 
-    if (/.*android.*/.test(GCC)) {
+    if (/.*android.*/.test(builder.config.gcc)) {
         builder.config.cflags.push(
             '-Dandroid=1'
         );
@@ -152,13 +144,13 @@ Builder.configure({
             console.log("Compiler supports link time optimization");
             builder.config.ldflags.push(
                 '-flto',
-                OPTIMIZE
+                builder.config.optimizeLevel
             );
             // No optimization while building since actual compile happens during linking.
             builder.config.cflags.push('-O0');
         } else {
             console.log("Link time optimization not supported [" + err + "]");
-            builder.config.cflags.push(OPTIMIZE);
+            builder.config.cflags.push(builder.config.optimizeLevel);
         }
     });
 
@@ -229,7 +221,7 @@ Builder.configure({
 
     }).nThen(function (waitFor) {
         builder.config.libs.push(libuvLib);
-        if (!(/.*android.*/.test(GCC))) {
+        if (!(/.*android.*/.test(builder.config.gcc))) {
             builder.config.libs.push(
                 '-lpthread'
             );
@@ -240,7 +232,9 @@ Builder.configure({
                 '-lpsapi',   // GetProcessMemoryInfo()
                 '-liphlpapi' // GetAdapterAddresses()
             );
-        } else if (builder.config.systemName === 'linux' && !(/.*android.*/).test(GCC)) {
+        } else if (builder.config.systemName === 'linux'
+            && !(/.*android.*/).test(builder.config.gcc))
+        {
             builder.config.libs.push(
                 '-lrt' // clock_gettime()
             );
@@ -291,7 +285,9 @@ Builder.configure({
                 args.push('-Dtarget_arch='+env.TARGET_ARCH);
             }
             //args.push('--root-target=libuv');
-            if (/.*android.*/.test(GCC)) { args.push('-Dtarget_arch=arm', '-DOS=android'); }
+            if (/.*android.*/.test(builder.config.gcc)) {
+                args.push('-Dtarget_arch=arm', '-DOS=android');
+            }
             if (builder.config.systemName === 'win32') { args.push('-DOS=win'); }
             var gyp = Spawn(python, args, {env:env});
             gyp.stdout.pipe(process.stdout);
