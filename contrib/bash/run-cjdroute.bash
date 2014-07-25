@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A script to start cjdruote with its config as an argument
+# A script to start cjdroute with its config as an argument
 
 # Config
 cjdroute_config='/etc/cjdroute.conf'
