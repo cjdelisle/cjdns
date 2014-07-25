@@ -4,9 +4,8 @@ Wants=network.target
 Before=network.target
 
 [Service]
-Type=forking
-ExecStart=/bin/sh -c "cjdroute < /etc/cjdroute.conf"
-GuessMainPID=yes
+Type=simple
+ExecStart=/bin/sh -c "cjdroute --nobg < /etc/cjdroute.conf"
 Restart=on-failure
 
 [Install]
