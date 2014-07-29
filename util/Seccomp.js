@@ -52,7 +52,7 @@ var detect = module.exports.detect = function (async, file, builder)
     console.log("Searching for SECCOMP");
 
     var hasSeccomp = false;
-    var osversion = Os.release().replace(/-/, '.').replace(/-.*/, '');
+    var osversion = Os.release().replace(/([0-9]{1,3}).([0-9]{1,3}).([0-9]{1,3})/, '$1.$2.$3');
     if (builder.config.systemName !== 'linux') {
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
