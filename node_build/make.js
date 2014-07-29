@@ -290,9 +290,7 @@ Builder.configure({
                 args.push('-Dtarget_arch=arm', '-DOS=android');
             }
             if (builder.config.systemName === 'win32') { args.push('-DOS=win'); }
-            var gyp = Spawn(python, args, {env:env});
-            gyp.stdout.pipe(process.stdout);
-            gyp.stderr.pipe(process.stderr);
+            var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
             gyp.on('close', waitFor(function () {
                 var args = [
                     '-j', builder.processors,
@@ -306,7 +304,7 @@ Builder.configure({
                     args.push('CFLAGS=-fPIC');
                 }
                 var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
-                var make = Spawn(makeCommand, args);
+                var make = Spawn(makeCommand, args, {stdio: 'inherit'});
                 make.on('error', function(err) {
                     if ('ENOENT' === err.code) {
                         console.error('\033[1;31mError: '+makeCommand+' is required!\033[0m');
@@ -317,8 +315,6 @@ Builder.configure({
                     }
                     waitFor.abort();
                 });
-                make.stdout.pipe(process.stdout);
-                make.stderr.pipe(process.stderr);
                 make.on('close', waitFor(function () {
                     process.chdir(cwd);
                 }));
