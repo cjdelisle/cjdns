@@ -52,11 +52,12 @@ var detect = module.exports.detect = function (async, file, builder)
     console.log("Searching for SECCOMP");
 
     var hasSeccomp = false;
+    var osversion = Os.release().replace(/-/, '.').replace(/-.*/, '');
     if (builder.config.systemName !== 'linux') {
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
         console.log("SECCOMP disabled");
-    } else if (!builder.config.crossCompiling && Semver.lt(Os.release(), "3.5.0")) {
+    } else if (!builder.config.crossCompiling && Semver.lt(osversion, "3.5.0")) {
         console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
         var done = async();
