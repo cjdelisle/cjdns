@@ -1,0 +1,29 @@
+# Last Modified: Wed Jul 30 11:22:23 CEST 2014
+# Written by Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
+# Modified by Claude
+
+# If something doesn't work for you, e.g. if it's outdated
+# or if you have a non-standard setup, running aa-logprof should fix it.
+
+#include <tunables/global>
+
+/usr/sbin/cjdroute {
+    #include <abstractions/base>
+    #include <abstractions/nameservice>
+
+    capability net_admin,
+    capability net_raw,
+    capability setuid,
+
+
+
+    / r,
+    /dev/net/tun rw,
+    /etc/passwd mr,
+    /proc/sys/kernel/random/uuid r,
+    /tmp/cjdns_pipe_* rw,
+    /usr/sbin/cjdroute mrix,
+
+    # if you choose to use a pidfile, you'll have to speficy it here as well
+
+}
