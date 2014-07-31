@@ -273,18 +273,22 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
  * @param parentScheme the label encoding scheme used by the parent node
  * @param parentChildLabel the cannonicalLabel for the link from parent to child
  * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
+ * @return a converted/spliced label or extendRoute_INVALID if it happens that the parent
  */
+#define extendRoute_INVALID ((uint64_t)~0)
 static uint64_t extendRoute(uint64_t routeLabel,
                             struct EncodingScheme* parentScheme,
                             uint64_t parentChildLabel,
                             int previousLinkEncoding)
 {
     uint64_t next = parentChildLabel;
+    Assert_true(next != EncodingScheme_convertLabel_INVALID);
     int nextLinkEncoding = EncodingScheme_getFormNum(parentScheme, next);
+    if (nextLinkEncoding == EncodingScheme_getFormNum_INVALID) { return extendRoute_INVALID; }
     if (previousLinkEncoding > nextLinkEncoding) {
         next = EncodingScheme_convertLabel(parentScheme, next, previousLinkEncoding);
+        Assert_true(next != EncodingScheme_convertLabel_INVALID);
     }
-    Assert_true(next != EncodingScheme_convertLabel_INVALID);
     return LabelSplicer_splice(next, routeLabel);
 }
 
@@ -355,7 +359,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
                                     newBestLink->cannonicalLabel,
                                     Node_getBestParent(newBest)->inverseLinkEncodingFormNumber);
 
-    if (bestPath == UINT64_MAX) {
+    if (bestPath == extendRoute_INVALID) {
         unreachable(node, store);
         return 1;
     }
@@ -891,6 +895,7 @@ static void asyncSplitLink(struct NodeStore_pvt* store,
                             splitLink->parent->encodingScheme,
                             splitLink->cannonicalLabel,
                             splitLinkParent->inverseLinkEncodingFormNumber);
+    Assert_true(asl->path != extendRoute_INVALID);
 }
 
 static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
@@ -942,7 +947,10 @@ static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
         logLink(store, closest, "Node at end of path appears to have changed");
 
         // This should never happen for a direct peer or for a direct decendent in a split link.
-        Assert_true(closestKnown != closest);
+        // This sometimes triggers because a link is split which contains an invalid encoding
+        // somewhere in the middle.
+        // It is not harmful to remove it becaue the route is not re-added.
+        Assert_ifTesting(closestKnown != closest);
 
         // This probably means the parent node has renumbered it's switch...
         RumorMill_addNode(store->renumberMill, &closest->parent->address);
@@ -1507,6 +1515,7 @@ uint64_t NodeStore_getRouteLabel(struct NodeStore* nodeStore,
             if (linkToParent == store->selfLink) {
                 return linkToChild->cannonicalLabel;
             }
+            // TODO(cjd): this could return ~0
             return extendRoute(pathToParent,
                                linkToChild->parent->encodingScheme,
                                linkToChild->cannonicalLabel,
@@ -1546,9 +1555,23 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
                                      linkToParent->child->encodingScheme,
                                      next,
                                      linkToParent->inverseLinkEncodingFormNumber);
-    if (optimized < UINT64_MAX) {
+    if (optimized != extendRoute_INVALID) {
         return optimized;
     }
+
+    #ifdef Log_DEBUG
+    do {
+        uint8_t pathStr[20];
+        uint8_t nextStr[20];
+        uint8_t bestPathStr[20];
+        AddrTools_printPath(pathStr, path);
+        AddrTools_printPath(nextStr, next);
+        AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
+        Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and best "
+                                 "path to closest known [%s]", pathStr, nextStr, bestPathStr);
+    } while (0);
+    #endif
+
     return path;
 }
 
