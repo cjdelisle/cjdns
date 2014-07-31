@@ -31,8 +31,12 @@ struct NodeStore_AsyncSplitLinks;
 struct NodeStore_AsyncSplitLinks
 {
     struct Node_Two* node;
+
+    /** The path to the node to discover, note this might == UINT64_MAX if the path is too long! */
     uint64_t path;
+
     int inverseLinkEncodingFormNumber;
+
     struct NodeStore_AsyncSplitLinks* next;
 };
 
@@ -274,8 +278,9 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
  * @param parentChildLabel the cannonicalLabel for the link from parent to child
  * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
  * @return a converted/spliced label or extendRoute_INVALID if it happens that the parent
+ *         or ~0 if the label is too long to represent.
  */
-#define extendRoute_INVALID ((uint64_t)~0)
+#define extendRoute_INVALID (((uint64_t)~0)-1)
 static uint64_t extendRoute(uint64_t routeLabel,
                             struct EncodingScheme* parentScheme,
                             uint64_t parentChildLabel,
@@ -359,10 +364,13 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
                                     newBestLink->cannonicalLabel,
                                     Node_getBestParent(newBest)->inverseLinkEncodingFormNumber);
 
-    if (bestPath == extendRoute_INVALID) {
+    if (bestPath == UINT64_MAX) {
+        // too long to splice.
         unreachable(node, store);
         return 1;
     }
+
+    Assert_true(bestPath != extendRoute_INVALID);
 
     /*#ifdef Log_DEBUG
         if (node->address.path != bestPath) {
@@ -884,8 +892,6 @@ static void asyncSplitLink(struct NodeStore_pvt* store,
     }
     struct NodeStore_AsyncSplitLinks* asl =
         Allocator_malloc(store->asyncSplitLinksAlloc, sizeof(struct NodeStore_AsyncSplitLinks));
-    asl->next = store->asyncSplitLinks;
-    store->asyncSplitLinks = asl;
 
     Assert_true(splitLinkParent->child == splitLink->parent);
 
@@ -895,7 +901,13 @@ static void asyncSplitLink(struct NodeStore_pvt* store,
                             splitLink->parent->encodingScheme,
                             splitLink->cannonicalLabel,
                             splitLinkParent->inverseLinkEncodingFormNumber);
+    // asl->path might == UINT64_MAX if splicing is not possible.
     Assert_true(asl->path != extendRoute_INVALID);
+
+    if (asl->path != UINT64_MAX) {
+        asl->next = store->asyncSplitLinks;
+        store->asyncSplitLinks = asl;
+    }
 }
 
 static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
@@ -1555,11 +1567,29 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
                                      linkToParent->child->encodingScheme,
                                      next,
                                      linkToParent->inverseLinkEncodingFormNumber);
-    if (optimized != extendRoute_INVALID) {
+    if (optimized != UINT64_MAX) {
         return optimized;
     }
 
-    #ifdef Log_DEBUG
+    if (optimized == extendRoute_INVALID) {
+        #ifdef Log_DEBUG
+        do {
+            uint8_t pathStr[20];
+            uint8_t nextStr[20];
+            uint8_t bestPathStr[20];
+            AddrTools_printPath(pathStr, path);
+            AddrTools_printPath(nextStr, next);
+            AddrTools_printPath(bestPathStr, linkToParent->child->address.path);
+            Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and "
+                                     "best path to closest known [%s]",
+                                     pathStr, nextStr, bestPathStr);
+        } while (0);
+        #endif
+        return path;
+    }
+
+    // path is too long...
+    /*#ifdef Log_DEBUG
     do {
         uint8_t pathStr[20];
         uint8_t nextStr[20];
@@ -1570,7 +1600,7 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
         Log_debug(store->logger, "Failed to optimize path [%s] with closest known [%s] and best "
                                  "path to closest known [%s]", pathStr, nextStr, bestPathStr);
     } while (0);
-    #endif
+    #endif*/
 
     return path;
 }
