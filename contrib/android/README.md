@@ -1,6 +1,8 @@
-# CJDNS Android #
+# CJDNS Android & Firefox OS #
 
 ## BUILD INSTRUCTIONS ##
+
+These instructions have been tested with various Androids, and Firefox OS build 20140627162151.
 
 ### Requirements ###
 
