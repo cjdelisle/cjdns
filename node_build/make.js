@@ -26,8 +26,9 @@ var TestRunner = require('./TestRunner');
 
 // ['linux','darwin','sunos','win32','freebsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
-var CROSS = process.env['CROSS'] !== undefined;
 var GCC = process.env['CC'];
+var CFLAGS = process.env['CFLAGS'];
+var LDFLAGS = process.env['LDFLAGS'];
 
 if (!GCC) {
     if (SYSTEM === 'freebsd') {
@@ -39,26 +40,26 @@ if (!GCC) {
 
 Builder.configure({
     systemName:     SYSTEM,
-    crossCompiling: CROSS,
+    crossCompiling: process.env['CROSS'] !== undefined,
     gcc:            GCC,
     tempDir:        '/tmp',
     optimizeLevel:  '-O2',
     logLevel:       process.env['Log_LEVEL'] || 'DEBUG'
-}, function(builder, waitFor) {
-    builder.config.cflags.push.apply(builder.config.cflags, [
+}, function (builder, waitFor) {
+    builder.config.cflags.push(
         '-std=c99',
         '-Wall',
         '-Wextra',
         '-Werror',
         '-Wno-pointer-sign',
         '-pedantic',
-        '-D',builder.config.systemName + '=1',
+        '-D', builder.config.systemName + '=1',
         '-Wno-unused-parameter',
         '-Wno-unused-result',
 
-        '-D','HAS_BUILTIN_CONSTANT_P',
+        '-D', 'HAS_BUILTIN_CONSTANT_P',
 
-        '-D','Log_'+builder.config.logLevel,
+        '-D', 'Log_' + builder.config.logLevel,
 
         '-g',
 
@@ -66,28 +67,24 @@ Builder.configure({
         // f8 = 241 peers max, fixed width 8 bit
         // v3x5x8 = 256 peers max, variable width, 3, 5 or 8 bits plus 1 or 2 bits of prefix
         // v4x8 = 256 peers max, variable width, 4, or 8 bits plus 1 bit prefix
-        '-D','NumberCompress_TYPE=v3x5x8',
+        '-D', 'NumberCompress_TYPE=v3x5x8',
 
         // disable for speed, enable for safety
-        '-D','Identity_CHECK=1',
-        '-D','Allocator_USE_CANARIES=1',
-        '-D','PARANOIA=1'
-    ]);
+        '-D', 'Identity_CHECK=1',
+        '-D', 'Allocator_USE_CANARIES=1',
+        '-D', 'PARANOIA=1'
+    );
 
-    if (process.env['TESTING']) { builder.config.cflags.push('-D', 'TESTING=1'); }
+    if (process.env['TESTING']) {
+        builder.config.cflags.push('-D', 'TESTING=1');
+    }
 
     if (builder.config.systemName === 'win32') {
         builder.config.cflags.push('-Wno-format');
         builder.config.libs.push('-lssp');
-    }
-
-    if (builder.config.systemName === 'linux') {
-        builder.config.ldflags.push(
-            '-Wl,-z,relro,-z,now,-z,noexecstack'
-        );
-        builder.config.cflags.push(
-            '-DHAS_ETH_INTERFACE=1'
-        );
+    } else if (builder.config.systemName === 'linux') {
+        builder.config.ldflags.push('-Wl,-z,relro,-z,now,-z,noexecstack');
+        builder.config.cflags.push('-DHAS_ETH_INTERFACE=1');
     }
 
     if (process.env['NO_PIE'] === undefined && builder.config.systemName !== 'freebsd'
@@ -97,7 +94,7 @@ Builder.configure({
         builder.config.ldflags.push('-pie');
     }
 
-    if (/.*clang.*/.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
+    if (/clang/i.test(builder.config.gcc) || builder.config.systemName === 'darwin') {
         // blows up when preprocessing before js preprocessor
         builder.config.cflags.push(
             '-Wno-invalid-pp-token',
@@ -113,28 +110,18 @@ Builder.configure({
 
     // Install any user-defined CFLAGS. Necessary if you are messing about with building cnacl
     // with NEON on the BBB
-    cflags = process.env['CFLAGS'];
-    if (cflags) {
-        flags = cflags.split(' ');
-        flags.forEach(function(flag) {
-            builder.config.cflags.push(flag);
-        });
+    if (CFLAGS) {
+        [].push.apply(builder.config.cflags, CFLAGS.split(' '));
     }
 
     // We also need to pass various architecture/floating point flags to GCC when invoked as
     // a linker.
-    ldflags = process.env['LDFLAGS'];
-    if (ldflags) {
-        flags = ldflags.split(' ');
-        flags.forEach(function(flag) {
-            builder.config.ldflags.push(flag);
-        });
+    if (LDFLAGS) {
+        [].push.apply(builder.config.ldflags, LDFLAGS.split(' '));
     }
 
-    if (/.*android.*/.test(builder.config.gcc)) {
-        builder.config.cflags.push(
-            '-Dandroid=1'
-        );
+    if (/android/i.test(builder.config.gcc)) {
+        builder.config.cflags.push('-Dandroid=1');
     }
 
     CanCompile.check(builder,
@@ -147,6 +134,7 @@ Builder.configure({
                 '-flto',
                 builder.config.optimizeLevel
             );
+
             // No optimization while building since actual compile happens during linking.
             builder.config.cflags.push('-O0');
         } else {
@@ -157,8 +145,8 @@ Builder.configure({
 
     var uclibc = process.env['UCLIBC'] == '1';
     var libssp = process.env['SSP_SUPPORT'] == 'y';
-    if ((!uclibc && builder.config.systemName !== 'win32'
-        && builder.config.systemName !== 'sunos') || libssp)
+    if ((!uclibc && builder.config.systemName !== 'win32' && builder.config.systemName !== 'sunos')
+        || libssp)
     {
         builder.config.cflags.push(
             // Broken GCC patch makes -fstack-protector-all not work
@@ -172,48 +160,57 @@ Builder.configure({
         // Static libssp provides __stack_chk_fail_local, which x86 needs in
         // order to avoid expensively looking up the location of __stack_chk_fail.
         var x86 = process.env['TARGET_ARCH'] == 'i386';
-        if (uclibc && !x86) { builder.config.libs.push('-lssp'); }
-        if (uclibc && x86) { builder.config.libs.push('-Wl,-Bstatic', '-lssp', '-Wl,-Bdynamic'); }
+        if (uclibc) {
+            if (x86) {
+                builder.config.libs.push('-Wl,-Bstatic', '-lssp', '-Wl,-Bdynamic');
+            } else {
+                builder.config.libs.push('-lssp');
+            }
+        }
     } else {
         console.log("Stack Smashing Protection (security feature) is disabled");
     }
 
-    var dependencyDir = builder.config.buildDir+'/dependencies';
-    var libuvLib = dependencyDir+'/libuv/out/Release/libuv.a';
+    var dependencyDir = builder.config.buildDir + '/dependencies';
+    var libuvLib = dependencyDir + '/libuv/out/Release/libuv.a';
     if (builder.config.systemName === 'win32') {
-        libuvLib = dependencyDir+'/libuv/out/Release/obj.target/libuv.a';
+        libuvLib = dependencyDir + '/libuv/out/Release/obj.target/libuv.a';
     }
 
     // Build dependencies
     nThen(function (waitFor) {
+
         Fs.exists(dependencyDir, waitFor(function (exists) {
             if (exists) { return; }
+
             console.log("Copy dependencies");
             Cp('./node_build/dependencies', dependencyDir, waitFor());
         }));
+
     }).nThen(function (waitFor) {
-        builder.config.libs.push(
-            dependencyDir+'/cnacl/jsbuild/libnacl.a'
-        );
-        builder.config.includeDirs.push(
-            dependencyDir+'/cnacl/jsbuild/include/'
-        );
-        Fs.exists(dependencyDir+'/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
+
+        builder.config.libs.push(dependencyDir + '/cnacl/jsbuild/libnacl.a');
+        builder.config.includeDirs.push(dependencyDir + '/cnacl/jsbuild/include/');
+
+        Fs.exists(dependencyDir + '/cnacl/jsbuild/libnacl.a', waitFor(function (exists) {
             if (exists) { return; }
+
             console.log("Build NaCl");
             var cwd = process.cwd();
-            process.chdir(dependencyDir+'/cnacl/');
+            process.chdir(dependencyDir + '/cnacl/');
+
             var NaCl = require(process.cwd() + '/node_build/make.js');
             NaCl.build(function (args, callback) {
-                if (builder.config.systemName !== 'win32') { args.unshift('-fPIC'); }
-                args.unshift('-O2', '-fomit-frame-pointer');
-                cflags = process.env['CFLAGS'];
-                if (cflags) {
-                    flags = cflags.split(' ');
-                    flags.forEach(function(flag) {
-                        args.push(flag);
-                    });
+                if (builder.config.systemName !== 'win32') {
+                    args.unshift('-fPIC');
                 }
+
+                args.unshift('-O2', '-fomit-frame-pointer');
+
+                if (CFLAGS) {
+                    [].apply.push(args, CFLAGS.split(' '));
+                }
+
                 builder.cc(args, callback);
             }, waitFor(function () {
                 process.chdir(cwd);
@@ -221,12 +218,12 @@ Builder.configure({
         }));
 
     }).nThen(function (waitFor) {
+
         builder.config.libs.push(libuvLib);
-        if (!(/.*android.*/.test(builder.config.gcc))) {
-            builder.config.libs.push(
-                '-lpthread'
-            );
+        if (!(/android/i.test(builder.config.gcc))) {
+            builder.config.libs.push('-lpthread');
         }
+
         if (builder.config.systemName === 'win32') {
             builder.config.libs.push(
                 '-lws2_32',
@@ -234,22 +231,14 @@ Builder.configure({
                 '-liphlpapi' // GetAdapterAddresses()
             );
         } else if (builder.config.systemName === 'linux'
-            && !(/.*android.*/).test(builder.config.gcc))
+            && !(/android/i).test(builder.config.gcc))
         {
-            builder.config.libs.push(
-                '-lrt' // clock_gettime()
-            );
+            builder.config.libs.push('-lrt'); // clock_gettime()
         } else if (builder.config.systemName === 'darwin') {
-            builder.config.libs.push(
-                '-framework', 'CoreServices'
-            );
+            builder.config.libs.push('-framework', 'CoreServices');
         } else if (builder.config.systemName === 'freebsd') {
-            builder.config.cflags.push(
-                    '-Wno-overlength-strings'
-                    );
-            builder.config.libs.push(
-                '-lkvm'
-            );
+            builder.config.cflags.push('-Wno-overlength-strings');
+            builder.config.libs.push('-lkvm');
         } else if (builder.config.systemName === 'sunos') {
             builder.config.libs.push(
                 '-lsocket',
@@ -258,67 +247,85 @@ Builder.configure({
                 '-lnsl'
             );
         }
-        builder.config.includeDirs.push(
-            dependencyDir+'/libuv/include/'
-        );
+
+        builder.config.includeDirs.push(dependencyDir + '/libuv/include/');
+
         var libuvBuilt;
         var python;
         nThen(function (waitFor) {
+
             Fs.exists(libuvLib, waitFor(function (exists) {
                 if (exists) { libuvBuilt = true; }
             }));
+
         }).nThen(function (waitFor) {
+
             if (libuvBuilt) { return; }
             FindPython2.find(builder.tmpFile(), waitFor(function (err, pythonExec) {
                 if (err) { throw err; }
                 python = pythonExec;
             }));
+
         }).nThen(function (waitFor) {
+
             if (libuvBuilt) { return; }
             console.log("Build Libuv");
             var cwd = process.cwd();
-            process.chdir(dependencyDir+'/libuv/');
+            process.chdir(dependencyDir + '/libuv/');
 
             var args = ['./gyp_uv.py'];
             var env = Extend({}, process.env);
             env.CC = builder.config.gcc;
+
             if (env.TARGET_ARCH) {
-                args.push('-Dtarget_arch='+env.TARGET_ARCH);
+                args.push('-Dtarget_arch=' + env.TARGET_ARCH);
             }
+
             //args.push('--root-target=libuv');
             if (/.*android.*/.test(builder.config.gcc)) {
                 args.push('-Dtarget_arch=arm', '-DOS=android');
             }
-            if (builder.config.systemName === 'win32') { args.push('-DOS=win'); }
+
+            if (builder.config.systemName === 'win32') {
+                args.push('-DOS=win');
+            }
+
             var gyp = Spawn(python, args, {env:env, stdio:'inherit'});
             gyp.on('close', waitFor(function () {
                 var args = [
                     '-j', builder.processors,
                     '-C', 'out',
                     'BUILDTYPE=Release',
-                    'CC='+builder.config.gcc,
-                    'CXX='+builder.config.gcc,
+                    'CC=' + builder.config.gcc,
+                    'CXX=' + builder.config.gcc,
                     'V=1'
                 ];
-                if (!(/darwin|win32/.test(builder.config.systemName))) {
+
+                if (!(/darwin|win32/i.test(builder.config.systemName))) {
                     args.push('CFLAGS=-fPIC');
                 }
+
                 var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args, {stdio: 'inherit'});
-                make.on('error', function(err) {
-                    if ('ENOENT' === err.code) {
-                        console.error('\033[1;31mError: '+makeCommand+' is required!\033[0m');
-                    }
-                    else {
-                        console.error('\033[1;31mFail run '+process.cwd()+': '+makeCommand+' '+args.join(' ')+'\033[0m');
+
+                make.on('error', function (err) {
+                    if (err.code === 'ENOENT') {
+                        console.error('\033[1;31mError: ' + makeCommand + ' is required!\033[0m');
+                    } else {
+                        console.error(
+                            '\033[1;31mFail run ' + process.cwd() + ': ' + makeCommand + ' '
+                            + args.join(' ') + '\033[0m'
+                        );
                         console.error('Message:', err);
                     }
                     waitFor.abort();
                 });
+
                 make.on('close', waitFor(function () {
                     process.chdir(cwd);
                 }));
             }));
+
         }).nThen(waitFor());
 
     }).nThen(waitFor());
@@ -335,11 +342,19 @@ Builder.configure({
     builder.buildExecutable('crypto/random/randombytes.c');
 
     builder.lintFiles(function (fileName, file, callback) {
-        if (/dependencies/.test(fileName)) { callback('', false); return; }
+        if (/dependencies/.test(fileName)) {
+            callback('', false);
+            return;
+        }
+
         Codestyle.lint(fileName, file, callback);
     });
 
-    if (CROSS) { console.log("Cross compiling.  Test disabled."); return; }
+    if (builder.config.crossCompiling) {
+        console.log("Cross compiling.  Test disabled.");
+        return;
+    }
+
     var testRunner = TestRunner.local(['all']);
     if (process.env['REMOTE_TEST']) {
         testRunner = TestRunner.remote(process.env['REMOTE_TEST'], ['all']);
