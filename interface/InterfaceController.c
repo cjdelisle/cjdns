@@ -173,9 +173,15 @@ static void onPingResponse(enum SwitchPinger_Result result,
 }
 
 // Called from the pingInteral timeout.
-static void pingCallback(void* vic)
+/*
+ * Send a ping packet to whomever needs a ping.
+ * @param ic the ifc
+ * @param neverForget if false, the node might be forgotten (freed).
+ *                    This will only happen for *incoming* connections for which the node
+ *                    in question has not responded in longer than forgetAfterMilliseconds.
+ */
+static void sendPing(struct InterfaceController_pvt* ic, bool neverForget)
 {
-    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
     ic->pingCount++;
 
@@ -203,7 +209,8 @@ static void pingCallback(void* vic)
               Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
         #endif
 
-        if (ep->isIncomingConnection
+        if (!neverForget
+            && ep->isIncomingConnection
             && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
         {
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
@@ -251,6 +258,12 @@ static void pingCallback(void* vic)
                   "Pinging %s peer [%s.k] lag [%u]",
                   (unresponsive ? "unresponsive" : "lazy"), key, lag);
     }
+}
+
+static void pingCallback(void* vic)
+{
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+    sendPing(ic, false);
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -308,7 +321,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 // limit it to 7, this will affect innocent packets but it doesn't matter much
                 // since this is mostly just an optimization and for keeping the tests happy.
                 if ((ic->pingCount + 1) % 7) {
-                    pingCallback(ic);
+                    sendPing(ic, true);
                 }
             }
         }
@@ -320,7 +333,8 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
         ep->timeOfLastMessage = Time_currentTimeMilliseconds(ic->eventBase);
     }
 
-    return ep->switchIf.receiveMessage(msg, &ep->switchIf);
+    Identity_check(ep);
+    return Interface_receiveMessage(&ep->switchIf, msg);
 }
 
 // This is directly called from SwitchCore, message is not encrypted.
@@ -479,7 +493,7 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
             Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
         // Kick the ping callback so that the node will be pinged ASAP.
-        pingCallback(ic);
+        sendPing(ic, true);
     }
 
     return 0;
