@@ -17,13 +17,10 @@
 #include "benc/Dict.h"
 #include "benc/List.h"
 #include "benc/Int.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
-#include "benc/serialization/BencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "crypto/random/Random.h"
 #include "exception/Jmp.h"
-#include "io/ArrayWriter.h"
-#include "io/ArrayReader.h"
 #include "interface/tuntap/TUNMessageType.h"
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
@@ -491,11 +488,10 @@ static uint8_t incomingControlMessage(struct Message* message,
 
     struct Allocator* alloc = Allocator_child(message->alloc);
 
-    struct Reader* r = ArrayReader_new(message->bytes, message->length, alloc);
-    Dict dStore;
-    Dict* d = &dStore;
-    if (StandardBencSerializer_get()->parseDictionary(r, alloc, d)) {
-        Log_info(context->logger, "Failed to parse message");
+    Dict* d = NULL;
+    char* err = BencMessageReader_readNoExcept(message, alloc, &d);
+    if (err) {
+        Log_info(context->logger, "Failed to parse message [%s]", err);
         return Error_INVALID;
     }
 

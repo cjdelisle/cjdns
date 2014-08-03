@@ -30,14 +30,12 @@
 #include "interface/Interface.h"
 #include "interface/UDPInterface_admin.h"
 #include "io/Reader.h"
-#include "io/ArrayReader.h"
-#include "io/ArrayWriter.h"
 #include "io/FileReader.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "util/log/Log.h"
 #include "memory/MallocAllocator.h"
@@ -618,18 +616,10 @@ int main(int argc, char** argv)
 
     struct Message* fromAngelMsg =
         InterfaceWaiter_waitForData(&angelPipe->iface, eventBase, allocator, eh);
-    Dict responseFromAngel;
-    struct Reader* responseFromAngelReader =
-        ArrayReader_new(fromAngelMsg->bytes, fromAngelMsg->length, allocator);
-    if (StandardBencSerializer_get()->parseDictionary(responseFromAngelReader,
-                                                      allocator,
-                                                      &responseFromAngel))
-    {
-        Except_throw(eh, "Failed to parse pre-configuration response");
-    }
+    Dict* responseFromAngel = BencMessageReader_read(fromAngelMsg, allocator, eh);
 
     // --------------------- Get Admin Addr/Port/Passwd --------------------- //
-    Dict* responseFromAngelAdmin = Dict_getDict(&responseFromAngel, String_CONST("admin"));
+    Dict* responseFromAngelAdmin = Dict_getDict(responseFromAngel, String_CONST("admin"));
     adminBind = Dict_getString(responseFromAngelAdmin, String_CONST("bind"));
 
     if (!adminBind) {

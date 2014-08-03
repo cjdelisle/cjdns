@@ -20,8 +20,7 @@
 #include "admin/angel/Hermes.h"
 #include "admin/AuthorizedPasswords.h"
 #include "benc/Int.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "crypto/AddressCalc.h"
 #include "crypto/random/Random.h"
 #include "crypto/random/libuv/LibuvEntropyProvider.h"
@@ -51,11 +50,6 @@
 #include "interface/RainflyClient_admin.h"
 #include "interface/DNSServer.h"
 #include "interface/addressable/PacketHeaderToUDPAddrInterface.h"
-#include "io/ArrayReader.h"
-#include "io/ArrayWriter.h"
-#include "io/FileWriter.h"
-#include "io/Reader.h"
-#include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
 #include "memory/Allocator_admin.h"
@@ -262,13 +256,7 @@ static Dict* getInitialConfig(struct Interface* iface,
                               struct Except* eh)
 {
     struct Message* m = InterfaceWaiter_waitForData(iface, eventBase, alloc, eh);
-    struct Reader* reader = ArrayReader_new(m->bytes, m->length, alloc);
-    Dict* config = Dict_new(alloc);
-    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, config)) {
-        Except_throw(eh, "Failed to parse initial configuration.");
-    }
-
-    return config;
+    return BencMessageReader_read(m, alloc, eh);
 }
 
 void Core_initTunnel(String* desiredDeviceName,

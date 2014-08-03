@@ -16,14 +16,9 @@
 #include "benc/String.h"
 #include "benc/Int.h"
 #include "benc/Dict.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "interface/addressable/AddrInterface.h"
-#include "io/Reader.h"
-#include "io/ArrayReader.h"
-#include "io/ArrayWriter.h"
-#include "io/Writer.h"
 #include "memory/Allocator.h"
 #include "util/Assert.h"
 #include "util/Bits.h"
@@ -430,24 +425,27 @@ static void handleMessage(struct Message* message,
         return;
     }
 
-    struct Reader* reader = ArrayReader_new(message->bytes, message->length, alloc);
-    Dict messageDict;
-    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, &messageDict)) {
+    int origMessageLen = message->length;
+    Dict* messageDict = NULL;
+    char* err = BencMessageReader_readNoExcept(message, alloc, &messageDict);
+    if (err) {
         Log_warn(admin->logger,
-                 "Unparsable data from [%s] content: [%s]",
-                 Sockaddr_print(src, alloc), message->bytes);
+                 "Unparsable data from [%s] content: [%s] error: [%s]",
+                 Sockaddr_print(src, alloc), message->bytes, err);
         return;
     }
 
-    int amount = reader->bytesRead;
-    if (amount < message->length) {
+    if (message->length) {
         Log_warn(admin->logger,
                  "Message from [%s] contained garbage after byte [%d] content: [%s]",
-                 Sockaddr_print(src, alloc), amount - 1, message->bytes);
+                 Sockaddr_print(src, alloc), message->length, message->bytes);
         return;
     }
 
-    handleRequest(&messageDict, message, src, alloc, admin);
+    // put the data back in the front of the message because it is used by the auth checker.
+    Message_shift(message, origMessageLen, NULL);
+
+    handleRequest(messageDict, message, src, alloc, admin);
 }
 
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)

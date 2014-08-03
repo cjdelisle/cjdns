@@ -15,15 +15,10 @@
 #include "admin/angel/Hermes.h"
 #include "benc/Dict.h"
 #include "benc/String.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
-#include "io/Reader.h"
-#include "io/ArrayReader.h"
-#include "io/Writer.h"
-#include "io/ArrayWriter.h"
 #include "util/events/Event.h"
 #include "util/events/EventBase.h"
 #include "util/log/Log.h"
@@ -91,14 +86,14 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
         Log_debug(hermes->logger, "Got message from angel");
     #endif
 
-    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, tempAlloc);
-    Dict d;
-    if (StandardBencSerializer_get()->parseDictionary(reader, tempAlloc, &d)) {
-        Log_warn(hermes->logger, "Failed to parse message from angel");
+    Dict* d = NULL;
+    char* err = BencMessageReader_readNoExcept(msg, tempAlloc, &d);
+    if (err) {
+        Log_warn(hermes->logger, "Failed to parse message from angel [%s]", err);
         return;
     }
 
-    String* txid = Dict_getString(&d, String_CONST("txid"));
+    String* txid = Dict_getString(d, String_CONST("txid"));
     uint32_t handle;
     if (!txid || txid->len != 8 || 4 != Hex_decode((uint8_t*)&handle, 4, (uint8_t*)txid->bytes, 8))
     {
@@ -113,7 +108,7 @@ static void receiveMessage2(struct Message* msg, struct Hermes* hermes, struct A
     }
 
     struct Request* req = Identity_check((struct Request*) hermes->requestSet.values[index]);
-    req->onResponse(&d, req->onResponseContext);
+    req->onResponse(d, req->onResponseContext);
     Allocator_free(req->alloc);
 }
 

@@ -68,7 +68,7 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
         "e";
     Assert_true(message->length == (int32_t) CString_strlen(expectedResponse));
     Assert_true(!Bits_memcmp(message->bytes, expectedResponse, message->length));
-    called = 1;
+    called = 2;
     return 0;
 }
 
@@ -140,24 +140,26 @@ int main()
 
     *checksum = Checksum_udpIp6(ip->sourceAddr, (uint8_t*) uh, length);
 
+    int origCap = message->capacity;
+    int origLen = message->length;
+
     ipTun->nodeInterface.receiveMessage = responseWithIpCallback;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_true(called);
+    Assert_true(called == 2);
     called = 0;
 
-    // Now create a message for someone else.
-    Message_shift(message,
-        Headers_UDPHeader_SIZE
-        + Headers_IP6Header_SIZE
-        + IpTunnel_PacketInfoHeader_SIZE,
-        NULL);
+    // This is a hack, reusing the message will cause breakage if IpTunnel is refactored.
+    Message_reset(message);
+    Message_shift(message, origCap, NULL);
+    message->length = origLen;
+
     Bits_memcpyConst(ip->sourceAddr, fakeIp6ToGive, 16);
     // This can't be zero.
     Bits_memset(ip->destinationAddr, 1, 16);
 
     ipTun->tunInterface.receiveMessage = messageToTun;
     ipTun->nodeInterface.sendMessage(message, &ipTun->nodeInterface);
-    Assert_true(called);
+    Assert_true(called == 1);
 
     Allocator_free(alloc);
     return 0;

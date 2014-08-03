@@ -17,12 +17,7 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
-#include "io/Reader.h"
-#include "io/ArrayReader.h"
-#include "io/Writer.h"
-#include "io/ArrayWriter.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
@@ -92,31 +87,16 @@ static int handleOutgoing(struct DHTMessage* message,
 static int handleIncoming(struct DHTMessage* message,
                           void* vcontext)
 {
-    message->asDict = Dict_new(message->allocator);
-
-    struct Reader* reader = ArrayReader_new(message->binMessage->bytes,
-                                            message->binMessage->length,
-                                            message->allocator);
-
-    int ret = SERIALIZER->parseDictionary(reader, message->allocator, message->asDict);
-    if (ret != 0) {
-        #ifdef Log_INFO
-            struct SerializationModule_context* context = vcontext;
-            Log_info(context->logger, "Failed to parse message [%d]", ret);
-        #endif
+    struct SerializationModule_context* context = vcontext;
+    char* err =
+        BencMessageReader_readNoExcept(message->binMessage, message->allocator, &message->asDict);
+    if (err) {
+        Log_info(context->logger, "Failed to parse message [%s]", err);
         return -2;
     }
-    if (message->binMessage->length != (int)reader->bytesRead) {
-        #ifdef Log_INFO
-            struct SerializationModule_context* context = vcontext;
-            Log_info(context->logger, "Message contains [%d] bytes of crap at the end",
-                     (int)(message->binMessage->length - (int)reader->bytesRead));
-        #endif
+    if (message->binMessage->length) {
+        Log_info(context->logger, "Message contains [%d] bytes of crap at the end",
+                 (int)message->binMessage->length);
     }
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
-    Assert_true(!(message->binMessage->capacity % 4));
-    Message_reset(message->binMessage);
-    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
-
     return 0;
 }

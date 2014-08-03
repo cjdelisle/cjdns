@@ -13,17 +13,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "admin/AdminClient.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/cloner/Cloner.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
 #include "exception/Except.h"
-#include "io/ArrayReader.h"
-#include "io/ArrayWriter.h"
-#include "io/Reader.h"
-#include "io/Writer.h"
 #include "util/Bits.h"
 #include "util/Endian.h"
 #include "util/Hex.h"
@@ -137,9 +132,11 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     // the message alloc lives the length of the message reception.
     struct Allocator* alloc = Allocator_child(msg->alloc);
 
-    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, alloc);
-    Dict* d = Dict_new(alloc);
-    if (StandardBencSerializer_get()->parseDictionary(reader, alloc, d)) { return 0; }
+    int origLen = msg->length;
+    Dict* d = NULL;
+    char* err = BencMessageReader_readNoExcept(msg, alloc, &d);
+    if (err) { return 0; }
+    Message_shift(msg, origLen, NULL);
 
     String* txid = Dict_getString(d, String_CONST("txid"));
     if (!txid || txid->len != 8) { return 0; }
