@@ -31,6 +31,7 @@ struct TestFramework
     struct RouterModule* router;
     struct SwitchPinger* switchPinger;
     struct InterfaceController* ifController;
+    struct NodeStore* nodeStore;
 
     /** The last message which this node sent. */
     struct Message* lastMsg;
@@ -52,6 +53,8 @@ struct TestFramework
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
+                                          struct EventBase* base,
+                                          struct Random* rand,
                                           struct Log* logger);
 
 void TestFramework_linkNodes(struct TestFramework* client, struct TestFramework* server);

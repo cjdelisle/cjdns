@@ -17,6 +17,7 @@
 #include "benc/Dict.h"
 #include "benc/String.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "crypto/random/Random.h"
 #include "interface/Interface.h"
@@ -68,22 +69,10 @@ static void sendConfToCore(struct Interface* toCoreInterface,
                            struct Except* eh,
                            struct Log* logger)
 {
-    #define CONFIG_BUFF_SIZE 1024
-    uint8_t buff[CONFIG_BUFF_SIZE + 32] = {0};
-    uint8_t* start = buff + 32;
-
-    struct Writer* writer = ArrayWriter_new(start, CONFIG_BUFF_SIZE - 33, tempAlloc);
-    if (StandardBencSerializer_get()->serializeDictionary(writer, config)) {
-        Except_throw(eh, "Failed to serialize pre-configuration for core.");
-    }
-    struct Message* m = &(struct Message) {
-        .bytes = start,
-        .length = writer->bytesWritten,
-        .padding = 32
-    };
-    m = Message_clone(m, tempAlloc);
-    Log_keys(logger, "Sent [%d] bytes to core [%s].", m->length, m->bytes);
-    toCoreInterface->sendMessage(m, toCoreInterface);
+    struct Message* msg = Message_new(0, 1024, tempAlloc);
+    BencMessageWriter_write(config, msg, eh);
+    Log_keys(logger, "Sent [%d] bytes to core", msg->length);
+    toCoreInterface->sendMessage(msg, toCoreInterface);
 }
 
 static void setUser(char* user, struct Log* logger, struct Except* eh)

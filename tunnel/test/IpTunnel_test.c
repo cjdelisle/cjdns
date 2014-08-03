@@ -57,9 +57,11 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
     Assert_true(Endian_bigEndianToHost16(uh->length_be) + Headers_UDPHeader_SIZE == length);
 
     Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
+
+    // Message needs to be padded out to a multiple of 8 bytes by zero extending the first length.
     char* expectedResponse =
         "d"
-          "9:addresses" "d"
+          "000009:addresses" "d"
             "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
           "e"
           "4:txid" "4:abcd"

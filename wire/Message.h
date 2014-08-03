@@ -34,7 +34,7 @@ struct Message
     uint8_t* bytes;
 
     /** Amount of bytes of storage space available in the message. */
-    uint32_t capacity;
+    int32_t capacity;
 
     /** The allocator which allocated space for this message. */
     struct Allocator* alloc;
@@ -62,21 +62,21 @@ static inline struct Message* Message_new(uint32_t messageLength,
     return out;
 }
 
-static inline struct Message* Message_clone(struct Message* toClone,
-                                            struct Allocator* allocator)
+static inline struct Message* Message_clone(struct Message* toClone, struct Allocator* alloc)
 {
-    uint32_t len = toClone->length + toClone->padding;
-    if (len < (toClone->capacity + toClone->padding)) {
-        len = (toClone->capacity + toClone->padding);
+    Assert_true(toClone->capacity >= toClone->length);
+    int32_t len = toClone->capacity + toClone->padding;
+    uint8_t* allocation = Allocator_malloc(alloc, len + 8);
+    while (((uintptr_t)allocation % 8) != (((uintptr_t)toClone->bytes - toClone->padding) % 8)) {
+        allocation++;
     }
-    uint8_t* allocation = Allocator_malloc(allocator, len);
     Bits_memcpy(allocation, toClone->bytes - toClone->padding, len);
-    return Allocator_clone(allocator, (&(struct Message) {
+    return Allocator_clone(alloc, (&(struct Message) {
         .length = toClone->length,
         .padding = toClone->padding,
         .bytes = allocation + toClone->padding,
-        .capacity = toClone->length,
-        .alloc = allocator
+        .capacity = toClone->capacity,
+        .alloc = alloc
     }));
 }
 
@@ -118,6 +118,7 @@ static inline int Message_shift(struct Message* toShift, int32_t amount, struct 
 
 static inline void Message_reset(struct Message* toShift)
 {
+    Assert_true(toShift->length <= toShift->capacity);
     toShift->length = toShift->capacity;
     Message_shift(toShift, -toShift->length, NULL);
 }
@@ -130,6 +131,8 @@ static inline void Message_push(struct Message* restrict msg,
     Message_shift(msg, (int)size, eh);
     if (object) {
         Bits_memcpy(msg->bytes, object, size);
+    } else {
+        Bits_memset(msg->bytes, 0x00, size);
     }
 }
 

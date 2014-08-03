@@ -139,26 +139,35 @@ static void onPingResponse(enum SwitchPinger_Result result,
     addr.path = ep->switchLabel;
     addr.protocolVersion = version;
 
-    ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
-
     #ifdef Log_DEBUG
         uint8_t addrStr[60];
         Address_print(addrStr, &addr);
+        uint8_t key[56];
+        Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     #endif
 
     if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
         Log_debug(ic->logger, "got switch pong from node [%s] with incompatible version [%d]",
-                  addrStr, version);
+                  key, version);
     } else {
-        Log_debug(ic->logger, "got switch pong from node with version [%d]", version);
+        Log_debug(ic->logger, "got switch pong from node [%s] with version [%d]", key, version);
     }
 
-    struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
-    if (!nn) {
-        RumorMill_addNode(ic->rumorMill, &addr);
-    } else if (!Node_getBestParent(nn)) {
-        RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
+    if (!ep->timeOfLastPing) {
+        // We've never heard from this machine before (or we've since forgotten about it)
+        // This is here because we want the tests to function without the janitor present.
+        // Other than that, it just makes a slightly more synchronous/guaranteed setup.
+        RouterModule_getPeers(&addr, 0, 0, ic->routerModule, ic->allocator);
+    } else {
+        struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
+        if (!nn) {
+            RumorMill_addNode(ic->rumorMill, &addr);
+        } else if (!Node_getBestParent(nn)) {
+            RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
+        }
     }
+
+    ep->timeOfLastPing = Time_currentTimeMilliseconds(ic->eventBase);
 
     #ifdef Log_DEBUG
         // This will be false if it times out.
@@ -172,18 +181,49 @@ static void onPingResponse(enum SwitchPinger_Result result,
     #endif
 }
 
-// Called from the pingInteral timeout.
 /*
- * Send a ping packet to whomever needs a ping.
- * @param ic the ifc
- * @param neverForget if false, the node might be forgotten (freed).
- *                    This will only happen for *incoming* connections for which the node
- *                    in question has not responded in longer than forgetAfterMilliseconds.
+ * Send a ping packet to one of the endpoints.
  */
-static void sendPing(struct InterfaceController_pvt* ic, bool neverForget)
+static void sendPing(struct InterfaceController_Peer* ep)
 {
-    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
+    struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
+
     ic->pingCount++;
+
+    struct SwitchPinger_Ping* ping =
+        SwitchPinger_newPing(ep->switchLabel,
+                             String_CONST(""),
+                             ic->timeoutMilliseconds,
+                             onPingResponse,
+                             ic->allocator,
+                             ic->switchPinger);
+
+    #ifdef Log_DEBUG
+        uint8_t key[56];
+        Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
+    #endif
+    if (!ping) {
+        Log_debug(ic->logger, "Failed to ping [%s.k], out of ping slots", key);
+        return;
+    } else {
+        Log_debug(ic->logger, "SwitchPing [%s.k]", key);
+    }
+
+    ping->onResponseContext = ep;
+}
+
+/**
+ * Check the table for nodes which might need to be pinged, ping a node if necessary.
+ * If a node has not responded in unresponsiveAfterMilliseconds then mark them as unresponsive
+ * and if the connection is incoming and the node has not responded in forgetAfterMilliseconds
+ * then drop them entirely.
+ * This is called every PING_INTERVAL_MILLISECONDS but pingCallback is a misleading name.
+ */
+static void pingCallback(void* vic)
+{
+    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+
+    uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
     for (uint32_t i = 0; i < ic->peerMap.count; i++) {
@@ -209,8 +249,7 @@ static void sendPing(struct InterfaceController_pvt* ic, bool neverForget)
               Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
         #endif
 
-        if (!neverForget
-            && ep->isIncomingConnection
+        if (ep->isIncomingConnection
             && now > ep->timeOfLastMessage + ic->forgetAfterMilliseconds)
         {
             Log_debug(ic->logger, "Unresponsive peer [%s.k] has not responded in [%u] "
@@ -233,37 +272,14 @@ static void sendPing(struct InterfaceController_pvt* ic, bool neverForget)
             ep->state = InterfaceController_PeerState_UNRESPONSIVE;
         }
 
-        struct SwitchPinger_Ping* ping =
-            SwitchPinger_newPing(ep->switchLabel,
-                                 String_CONST(""),
-                                 ic->timeoutMilliseconds,
-                                 onPingResponse,
-                                 ic->allocator,
-                                 ic->switchPinger);
-
         #ifdef Log_DEBUG
             uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
         #endif
-
-        if (!ping) {
-            Log_debug(ic->logger,
-                      "Failed to ping %s peer [%s.k] lag [%u], out of ping slots.",
-                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
-            return;
-        }
-
-        ping->onResponseContext = ep;
-
         Log_debug(ic->logger,
                   "Pinging %s peer [%s.k] lag [%u]",
                   (unresponsive ? "unresponsive" : "lazy"), key, lag);
+        sendPing(ep);
     }
-}
-
-static void pingCallback(void* vic)
-{
-    struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
-    sendPing(ic, false);
 }
 
 /** If there's already an endpoint with the same public key, merge the new one with the old one. */
@@ -321,7 +337,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 // limit it to 7, this will affect innocent packets but it doesn't matter much
                 // since this is mostly just an optimization and for keeping the tests happy.
                 if ((ic->pingCount + 1) % 7) {
-                    sendPing(ic, true);
+                    sendPing(ep);
                 }
             }
         }
@@ -334,6 +350,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
     }
 
     Identity_check(ep);
+    Assert_true(!(msg->capacity % 4));
     return Interface_receiveMessage(&ep->switchIf, msg);
 }
 
@@ -492,9 +509,14 @@ int InterfaceController_registerPeer(struct InterfaceController* ifController,
             AddrTools_printIp(printAddr, ip6);
             Log_info(ic->logger, "Adding peer [%s]", printAddr);
         #endif
-        // Kick the ping callback so that the node will be pinged ASAP.
-        sendPing(ic, true);
+    } else {
+        Log_info(ic->logger, "Adding peer with unknown key");
     }
+
+    // We can't just add the node directly to the routing table because we do not know
+    // the version. We'll send it a switch ping and when it responds, we will know it's
+    // key (if we don't already) and version number.
+    sendPing(ep);
 
     return 0;
 }

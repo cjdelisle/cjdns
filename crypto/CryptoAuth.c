@@ -970,6 +970,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     }
     Assert_true(received->padding >= 12 || "need at least 12 bytes of padding in incoming message");
     Assert_true(!((uintptr_t)received->bytes % 4) || !"alignment fault");
+    Assert_true(!(received->capacity % 4) || !"length fault");
 
     Message_shift(received, -4, NULL);
 

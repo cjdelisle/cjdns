@@ -19,6 +19,7 @@
 #include "dht/dhtcore/RouterModule.h"
 #include "dht/dhtcore/SearchRunner.h"
 #include "dht/SerializationModule.h"
+#include "dht/EncodingSchemeModule.h"
 #include "io/Writer.h"
 #include "io/FileWriter.h"
 #include "util/log/Log.h"
@@ -46,6 +47,10 @@ static uint8_t sendTo(struct Message* msg, struct Interface* iface)
 {
     struct TestFramework_Link* link =
         Identity_check((struct TestFramework_Link*)iface->senderContext);
+
+    Assert_true(!((uintptr_t)msg->bytes % 4) || !"alignment fault");
+    Assert_true(!(msg->capacity % 4) || !"length fault");
+    Assert_true(((int)msg->capacity >= msg->length) || !"length fault0");
 
     struct Interface* dest;
     struct TestFramework* srcTf;
@@ -77,6 +82,8 @@ static uint8_t sendTo(struct Message* msg, struct Interface* iface)
 
 struct TestFramework* TestFramework_setUp(char* privateKey,
                                           struct Allocator* allocator,
+                                          struct EventBase* base,
+                                          struct Random* rand,
                                           struct Log* logger)
 {
     if (!logger) {
@@ -84,8 +91,13 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         logger = WriterLog_new(logwriter, allocator);
     }
 
-    struct Random* rand = Random_new(allocator, logger, NULL);
-    struct EventBase* base = EventBase_new(allocator);
+    if (!rand) {
+        rand = Random_new(allocator, logger, NULL);
+    }
+
+    if (!base) {
+        base = EventBase_new(allocator);
+    }
 
     uint64_t pks[4];
     if (!privateKey) {
@@ -121,6 +133,8 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
                                                          rumorMill,
                                                          allocator);
 
+    EncodingSchemeModule_register(registry, logger, allocator);
+
     SerializationModule_register(registry, logger, allocator);
 
     struct IpTunnel* ipTun = IpTunnel_new(logger, base, allocator, rand, NULL);
@@ -149,6 +163,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
         .switchPinger = sp,
         .ifController = ifController,
         .publicKey = publicKey,
+        .nodeStore = nodeStore,
         .ip = myAddress->ip6.bytes
     }));
 

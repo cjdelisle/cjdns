@@ -18,6 +18,7 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "benc/Object.h"
+#include "wire/Message.h"
 
 /**
  * The reply module replies to all incoming queries.
@@ -58,6 +59,9 @@ static int handleIncoming(struct DHTMessage* message, void* vcontext)
     }
 
     struct DHTModuleRegistry* registry = (struct DHTModuleRegistry*) vcontext;
+
+    Message_reset(message->binMessage);
+    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
 
     struct DHTMessage* reply = Allocator_clone(message->allocator, (&(struct DHTMessage) {
         .replyTo = message,

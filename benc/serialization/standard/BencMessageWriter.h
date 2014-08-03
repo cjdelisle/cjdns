@@ -12,13 +12,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef StandardBencSerializer_H
-#define StandardBencSerializer_H
+#ifndef BencMessageWriter_H
+#define BencMessageWriter_H
 
-#include "benc/serialization/BencSerializer.h"
+#include "benc/Dict.h"
+#include "exception/Except.h"
+#include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/standard/StandardBencSerializer.c")
+Linker_require("benc/serialization/standard/BencMessageWriter.c")
 
-const struct BencSerializer* StandardBencSerializer_get();
+void BencMessageWriter_write(Dict* toWrite, struct Message* msg, struct Except* eh);
 
 #endif

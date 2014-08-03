@@ -17,6 +17,7 @@
 #include "benc/String.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "memory/Allocator.h"
 #include "interface/Interface.h"
 #include "io/Reader.h"
@@ -134,13 +135,6 @@ void Hermes_callAngel(Dict* message,
 {
     Identity_check(hermes);
 
-    #define PADDING 32
-    #define BUFF_SIZE 1024
-    struct {
-        uint8_t padding[PADDING];
-        uint8_t message[BUFF_SIZE];
-    } buff = { .padding = {0}, .message = {0} };
-
     struct Allocator* reqAlloc = Allocator_child(alloc);
     struct Request* req = Allocator_clone(reqAlloc, (&(struct Request) {
         .alloc = reqAlloc,
@@ -160,26 +154,13 @@ void Hermes_callAngel(Dict* message,
     Hex_encode(handleHex, 9, (uint8_t*)&handle, 4);
     Dict_putString(message, String_CONST("txid"), String_CONST((char*)handleHex), reqAlloc);
 
-    struct Writer* writer = ArrayWriter_new(buff.message, BUFF_SIZE, reqAlloc);
-    if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-        Except_throw(eh, "Failed to serialize message");
-    }
+    struct Message* m = Message_new(0, 1024, reqAlloc);
+    BencMessageWriter_write(message, m, eh);
 
     // Remove the txid string so there is not a dangling pointer in the message.
     Dict_remove(message, String_CONST("txid"));
 
-    // This is done in a strange way but it is to prevent "possible buffer overflow" errors
-    struct Message* m = &(struct Message) {
-        .bytes = (uint8_t*) &buff,
-        .length = writer->bytesWritten + PADDING,
-        .padding = 0
-    };
-    m->capacity = m->length;
-    Message_shift(m, -PADDING, NULL);
-
     Log_debug(hermes->logger, "Sending [%d] bytes to angel [%s].", m->length, m->bytes);
-
-    m = Message_clone(m, reqAlloc);
 
     int ret = Interface_sendMessage(hermes->iface, m);
     if (ret) {

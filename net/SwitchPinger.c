@@ -61,7 +61,7 @@ struct SwitchPinger
 
 struct Ping
 {
-    struct SwitchPinger_Ping public;
+    struct SwitchPinger_Ping pub;
     uint64_t label;
     String* data;
     struct SwitchPinger* context;
@@ -140,40 +140,37 @@ static void onPingResponse(String* data, uint32_t milliseconds, void* vping)
     }
 
     uint32_t version = p->context->incomingVersion;
-    p->onResponse(err, label, data, milliseconds, version, p->public.onResponseContext);
+    p->onResponse(err, label, data, milliseconds, version, p->pub.onResponseContext);
 }
 
 static void sendPing(String* data, void* sendPingContext)
 {
     struct Ping* p = Identity_check((struct Ping*) sendPingContext);
-    #define BUFFER_SZ 4096
-    uint8_t buffer[BUFFER_SZ];
-    struct Message msg = {
-        .length = data->len,
-        // Make it aligned along an 8 byte boundry (assuming the buffer is)
-        .bytes = &buffer[BUFFER_SZ - (data->len + 8 - (data->len % 8))]
-    };
-    msg.padding = msg.bytes - buffer;
-    Assert_true(data->len < (BUFFER_SZ / 2));
-    Bits_memcpy(msg.bytes, data->bytes, data->len);
 
-    Message_shift(&msg, Control_Ping_HEADER_SIZE, NULL);
-    struct Control_Ping* pingHeader = (struct Control_Ping*) msg.bytes;
+    struct Message* msg = Message_new(0, data->len + 512, p->pub.pingAlloc);
+    while ((data->len + msg->length) % 8) {
+        Message_push8(msg, 0, NULL);
+    }
+    msg->length = 0;
+    Message_push(msg, data->bytes, data->len, NULL);
+
+    Message_shift(msg, Control_Ping_HEADER_SIZE, NULL);
+    struct Control_Ping* pingHeader = (struct Control_Ping*) msg->bytes;
     pingHeader->magic = Control_Ping_MAGIC;
     pingHeader->version_be = Endian_hostToBigEndian32(Version_CURRENT_PROTOCOL);
 
-    Message_shift(&msg, Control_HEADER_SIZE, NULL);
-    struct Control* ctrl = (struct Control*) msg.bytes;
+    Message_shift(msg, Control_HEADER_SIZE, NULL);
+    struct Control* ctrl = (struct Control*) msg->bytes;
     ctrl->checksum_be = 0;
     ctrl->type_be = Control_PING_be;
-    ctrl->checksum_be = Checksum_engine(msg.bytes, msg.length);
+    ctrl->checksum_be = Checksum_engine(msg->bytes, msg->length);
 
-    Message_shift(&msg, Headers_SwitchHeader_SIZE, NULL);
-    struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg.bytes;
+    Message_shift(msg, Headers_SwitchHeader_SIZE, NULL);
+    struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) msg->bytes;
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
     Headers_setPriorityAndMessageType(switchHeader, 0, Headers_SwitchHeader_TYPE_CONTROL);
 
-    p->context->iface->sendMessage(&msg, p->context->iface);
+    p->context->iface->sendMessage(msg, p->context->iface);
 }
 
 static String* RESULT_STRING_OK =             String_CONST_SO("pong");
@@ -240,7 +237,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
         Pinger_newPing(data, onPingResponse, sendPing, timeoutMilliseconds, alloc, ctx->pinger);
 
     struct Ping* ping = Allocator_clone(pp->pingAlloc, (&(struct Ping) {
-        .public = {
+        .pub = {
             .pingAlloc = pp->pingAlloc
         },
         .label = label,
@@ -254,7 +251,7 @@ struct SwitchPinger_Ping* SwitchPinger_newPing(uint64_t label,
     pp->context = ping;
     ctx->outstandingPings++;
 
-    return &ping->public;
+    return &ping->pub;
 }
 
 struct SwitchPinger* SwitchPinger_new(struct Interface* iface,

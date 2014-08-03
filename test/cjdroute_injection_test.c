@@ -73,7 +73,7 @@ int main()
 
     struct Allocator* alloc = MallocAllocator_new(1<<22);
     struct Ducttape* dt =
-        TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL)->ducttape;
+        TestFramework_setUp("0123456789abcdefghijklmnopqrstuv", alloc, NULL, NULL, NULL)->ducttape;
 
     // This has to be limited because we are checking for an OOM issue.
     struct Allocator* allocator = MallocAllocator_new(85000);

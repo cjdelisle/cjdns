@@ -24,6 +24,9 @@
 #include "wire/Headers.h"
 #include "wire/Ethernet.h"
 #include "interface/tuntap/TUNMessageType.h"
+#include "util/Hex.h"
+#include "util/events/Time.h"
+#include "util/events/Timeout.h"
 
 #include <stdio.h>
 
@@ -59,6 +62,10 @@ static uint8_t incomingTunA(struct Message* msg, struct Interface* iface)
     return 0;
 }
 
+struct ThreeNodes;
+
+typedef void (RunTest)(struct ThreeNodes* ctx);
+
 struct ThreeNodes
 {
     struct Interface tunIfC;
@@ -70,24 +77,72 @@ struct ThreeNodes
     struct Interface tunIfA;
     struct TestFramework* nodeA;
     int messageFrom;
+
+    struct Timeout* checkLinkageTimeout;
+    struct Log* logger;
+    struct EventBase* base;
+
+#define ThreeNodes_state_AB_COMPLETE 1
+#define ThreeNodes_state_CB_COMPLETE 2
+    int state;
+
+    uint64_t startTime;
+
+    RunTest* runTest;
+
+    Identity
 };
 
-static struct ThreeNodes* setUp(struct Allocator* alloc)
+static void notLinkedYet(struct ThreeNodes* ctx)
 {
-    struct Writer* logwriter = FileWriter_new(stdout, alloc);
-    struct Log* logger = WriterLog_new(logwriter, alloc);
+    uint64_t now = Time_currentTimeMilliseconds(ctx->base);
+    if ((now - ctx->startTime) > 5000) {
+        Assert_failure("three nodes failed to link in 5 seconds");
+    }
+}
 
+static void checkLinkage(void* vThreeNodes)
+{
+    struct ThreeNodes* ctx = Identity_check((struct ThreeNodes*) vThreeNodes);
+
+    if (ctx->nodeA->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
+    if (ctx->state < ThreeNodes_state_AB_COMPLETE) {
+        ctx->state = ThreeNodes_state_AB_COMPLETE;
+        Log_debug(ctx->logger, "Link A and B complete");
+    }
+
+    if (ctx->nodeC->nodeStore->nodeCount < 1) { notLinkedYet(ctx); return; }
+    if (ctx->state < ThreeNodes_state_CB_COMPLETE) {
+        ctx->state = ThreeNodes_state_CB_COMPLETE;
+        Log_debug(ctx->logger, "Link C and B complete");
+    }
+
+    if (ctx->nodeB->nodeStore->nodeCount < 2) { notLinkedYet(ctx); return; }
+    Log_debug(ctx->logger, "Link C with B and A complete");
+    Log_debug(ctx->logger, "\n\nSetup Complete\n\n");
+
+    Timeout_clearTimeout(ctx->checkLinkageTimeout);
+
+    ctx->runTest(ctx);
+}
+
+static void start(struct Allocator* alloc,
+                  struct Log* logger,
+                  struct EventBase* base,
+                  struct Random* rand,
+                  RunTest* runTest)
+{
     struct TestFramework* a =
         TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
                             "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
-                            alloc, logger);
+                            alloc, base, rand, logger);
     //"publicKey": "kmzm4w0kj9bswd5qmx74nu7kusv5pj40vcsmp781j6xxgpd59z00.k",
     //"ipv6": "fc41:94b5:0925:7ba9:3959:11ab:a006:367a",
 
     struct TestFramework* b =
         TestFramework_setUp("\xea\x8d\x34\x04\xa9\x7c\xe4\xf9\xca\x7e\x24\xe6\xf1\x85\xb9\x3f"
                             "\x01\x37\xb7\xa1\xf5\x2c\xce\xc0\x2c\xae\x03\xf1\x83\x38\x13\x24",
-                            alloc, logger);
+                            alloc, base, rand, logger);
     // This address was found by brute force for one which falls between A and C without being
     // closer in either direction (XOR is bidirectional address space distance)
     // ipv6: fc2e:3273:644e:426f:283d:e3c7:c87c:41c1
@@ -95,47 +150,41 @@ static struct ThreeNodes* setUp(struct Allocator* alloc)
     struct TestFramework* c =
         TestFramework_setUp("\xd8\x54\x3e\x70\xb9\xae\x7c\x41\xbc\x18\xa4\x9a\x9c\xee\xca\x9c"
                             "\xdc\x45\x01\x96\x6b\xbd\x7e\x76\xcf\x3a\x9f\xbc\x12\xed\x8b\xb4",
-                            alloc, logger);
+                            alloc, base, rand, logger);
     //"publicKey": "vz21tg07061s8v9mckrvgtfds7j2u5lst8cwl6nqhp81njrh5wg0.k",
     //"ipv6": "fc1f:5b96:e1c5:625d:afde:2523:a7fa:383a",
 
     Log_debug(a->logger, "Linking A and B");
     TestFramework_linkNodes(b, a);
-    Log_debug(a->logger, "Linking A and B complete");
+
     Log_debug(a->logger, "Linking B and C");
     TestFramework_linkNodes(c, b);
-    Log_debug(a->logger, "Linking B and C complete");
 
-    struct ThreeNodes* out = Allocator_malloc(alloc, sizeof(struct ThreeNodes));
-
-    Bits_memcpyConst(out, (&(struct ThreeNodes) {
-        .tunIfC = {
-            .allocator = alloc,
-            .sendMessage = incomingTunC,
-            .senderContext = &out->messageFrom
-        },
-        .nodeC = c,
-        .tunIfB = {
-            .allocator = alloc,
-            .sendMessage = incomingTunB,
-            .senderContext = &out->messageFrom
-        },
-        .nodeB = b,
-        .tunIfA = {
-            .allocator = alloc,
-            .sendMessage = incomingTunA,
-            .senderContext = &out->messageFrom
-        },
-        .nodeA = a
-    }), sizeof(struct ThreeNodes));
+    struct ThreeNodes* out = Allocator_calloc(alloc, sizeof(struct ThreeNodes), 1);
+    Identity_set(out);
+    out->tunIfC.allocator = alloc;
+    out->tunIfB.allocator = alloc;
+    out->tunIfA.allocator = alloc;
+    out->tunIfC.sendMessage = incomingTunC;
+    out->tunIfB.sendMessage = incomingTunB;
+    out->tunIfA.sendMessage = incomingTunA;
+    out->tunIfC.senderContext = &out->messageFrom;
+    out->tunIfB.senderContext = &out->messageFrom;
+    out->tunIfA.senderContext = &out->messageFrom;
+    out->nodeC = c;
+    out->nodeB = b;
+    out->nodeA = a;
+    out->logger = logger;
+    out->checkLinkageTimeout = Timeout_setInterval(checkLinkage, out, 1, base, alloc);
+    out->base = base;
+    out->startTime = Time_currentTimeMilliseconds(base);
+    out->runTest = runTest;
 
     Ducttape_setUserInterface(c->ducttape, &out->tunIfC);
     Ducttape_setUserInterface(b->ducttape, &out->tunIfB);
     Ducttape_setUserInterface(a->ducttape, &out->tunIfA);
 
-    Log_debug(a->logger, "Setup complete.");
-
-    return out;
+    Log_debug(a->logger, "Waiting for nodes to link asynchronously...");
 }
 
 static void sendMessage(struct ThreeNodes* tn,
@@ -185,13 +234,8 @@ static void sendMessage(struct ThreeNodes* tn,
     tn->messageFrom = 0;
 }
 
-/** Check if nodes A and C can communicate via B without A knowing that C exists. */
-int main()
+static void runTest(struct ThreeNodes* tn)
 {
-    struct Allocator* alloc = MallocAllocator_new(1<<22);
-
-    struct ThreeNodes* tn = setUp(alloc);
-
     sendMessage(tn, "Hello World!", tn->nodeA, tn->nodeC);
     sendMessage(tn, "Hello cjdns!", tn->nodeC, tn->nodeA);
     sendMessage(tn, "send", tn->nodeA, tn->nodeC);
@@ -206,6 +250,21 @@ int main()
     sendMessage(tn, "can", tn->nodeC, tn->nodeA);
     sendMessage(tn, "establish", tn->nodeA, tn->nodeC);
 
+    Log_debug(tn->logger, "\n\nTest passed, shutting down\n\n");
+    EventBase_endLoop(tn->base);
+}
+
+/** Check if nodes A and C can communicate via B without A knowing that C exists. */
+int main()
+{
+    struct Allocator* alloc = MallocAllocator_new(1<<22);
+    struct Writer* logwriter = FileWriter_new(stdout, alloc);
+    struct Log* logger = WriterLog_new(logwriter, alloc);
+    struct Random* rand = Random_new(alloc, logger, NULL);
+    struct EventBase* base = EventBase_new(alloc);
+    start(alloc, logger, base, rand, runTest);
+
+    EventBase_beginLoop(base);
     Allocator_free(alloc);
     return 0;
 }

@@ -147,13 +147,12 @@ static struct Ducttape_MessageHeader* getDtHeader(struct Message* message, bool 
     return dtHeader;
 }
 
-static int handleOutgoing(struct DHTMessage* dmessage,
-                          void* vcontext)
+static int handleOutgoing(struct DHTMessage* dmessage, void* vcontext)
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*) vcontext);
 
-    // Stub out all of the crypto code because setting up a CA session
-    // with yourself causes problems.
+    // Sending a message to yourself?
+    // Short circuit because setting up a CA session with yourself causes problems.
     if (dmessage->address->path == 1) {
         struct Allocator* alloc = Allocator_child(context->alloc);
         Allocator_adopt(alloc, dmessage->binMessage->alloc);
@@ -399,6 +398,8 @@ static inline uint8_t sendToSwitch(struct Message* message,
     Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
 
     Assert_true(message->bytes == (uint8_t*)dtHeader->switchHeader);
+
+    Assert_true(!(message->capacity % 4));
 
     return context->switchInterface.receiveMessage(message, &context->switchInterface);
 }
@@ -1109,6 +1110,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         Log_info(context->logger, "runt");
         return Error_INVALID;
     }
+
+    Assert_true(!(message->capacity % 4));
 
     #ifdef Version_2_COMPAT
     translateVersion2(message, dtHeader);

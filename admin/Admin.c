@@ -18,6 +18,7 @@
 #include "benc/Dict.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "interface/addressable/AddrInterface.h"
 #include "io/Reader.h"
 #include "io/ArrayReader.h"
@@ -132,22 +133,10 @@ static int sendBenc(Dict* message,
                     struct Allocator* alloc,
                     struct Admin* admin)
 {
-    #define SEND_MESSAGE_PADDING 32
-    uint8_t buff[Admin_MAX_RESPONSE_SIZE + SEND_MESSAGE_PADDING];
-
-    struct Writer* w = ArrayWriter_new(buff + SEND_MESSAGE_PADDING,
-                                       Admin_MAX_RESPONSE_SIZE,
-                                       alloc);
-    StandardBencSerializer_get()->serializeDictionary(w, message);
-
-    struct Message m = {
-        .bytes = buff + SEND_MESSAGE_PADDING,
-        .length = w->bytesWritten,
-        .padding = SEND_MESSAGE_PADDING
-    };
-    struct Message* msg = Message_clone(&m, alloc);
-    int out = sendMessage(msg, dest, admin);
-    return out;
+    #define sendBenc_PADDING 32
+    struct Message* msg = Message_new(0, Admin_MAX_RESPONSE_SIZE + sendBenc_PADDING, alloc);
+    BencMessageWriter_write(message, msg, NULL);
+    return sendMessage(msg, dest, admin);
 }
 
 /**

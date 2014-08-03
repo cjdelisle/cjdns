@@ -52,6 +52,7 @@ static uint8_t* textBuff;
     Bits_memset(textBuff, 0, BUFFER_SIZE);                                      \
     Bits_memcpy(&textBuff[BUFFER_SIZE - ALIGNED_LEN(x)], x, CString_strlen(x));         \
     msg.length = CString_strlen(x);                                                     \
+    msg.capacity = ALIGNED_LEN(x);                                                      \
     msg.bytes = textBuff + BUFFER_SIZE - ALIGNED_LEN(x);                        \
     msg.padding = BUFFER_SIZE - ALIGNED_LEN(x)
 

@@ -21,6 +21,7 @@
 #include "benc/Int.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "memory/MallocAllocator.h"
@@ -74,20 +75,10 @@ static void initAngel(struct Pipe* asClientPipe,
 
     struct Allocator* tempAlloc = Allocator_child(alloc);
 
-    #define BUFFER_SZ 1023
-    uint8_t buff[BUFFER_SZ + 1] = {0};
-    struct Writer* w = ArrayWriter_new(buff, BUFFER_SZ, tempAlloc);
-    StandardBencSerializer_get()->serializeDictionary(w, &message);
+    struct Message* toAngel = Message_new(0, 1024, tempAlloc);
+    BencMessageWriter_write(&message, toAngel, NULL);
 
-    struct Message* toAngel = Allocator_malloc(tempAlloc, sizeof(struct Message) + w->bytesWritten);
-    toAngel->bytes = (uint8_t*) (&toAngel[1]);
-    toAngel->length = toAngel->capacity = w->bytesWritten;
-    toAngel->padding = 0;
-    toAngel->alloc = tempAlloc;
-    Bits_memcpy(toAngel->bytes, buff, toAngel->length);
-
-    Log_info(logger, "Writing intial configuration to angel on [%s] config: [%s]",
-             asClientPipe->name, buff);
+    Log_info(logger, "Writing intial configuration to angel on [%s]", asClientPipe->name);
     Interface_sendMessage(&asClientPipe->iface, toAngel);
 
     // This is client->angel->core data, we can throw this away.
@@ -98,27 +89,19 @@ static void initAngel(struct Pipe* asClientPipe,
     //Log_info(logger, "Init message from angel to core: [%s]", angelToCore->bytes);
 
     // Send response on behalf of core.
-    char* coreToAngelResponse = "        PADDING         "
-        "d"
-          "5:error" "4:none"
-        "e";
-
-    struct Message* m = &(struct Message) {
-        .bytes = (uint8_t*) coreToAngelResponse,
-        .length = CString_strlen(coreToAngelResponse),
-        .padding = 0,
-        .capacity = CString_strlen(coreToAngelResponse)
-    };
-    Message_shift(m, -24, NULL);
-    m = Message_clone(m, tempAlloc);
-
-    Interface_sendMessage(asCoreIface, m);
+    Dict* coreToAngelResp = Dict_new(tempAlloc);
+    Dict_putString(coreToAngelResp, String_CONST("error"), String_CONST("none"), tempAlloc);
+    struct Message* coreToAngelMsg = Message_new(0, 256, tempAlloc);
+    BencMessageWriter_write(coreToAngelResp, coreToAngelMsg, NULL);
+    Interface_sendMessage(asCoreIface, coreToAngelMsg);
 
     // This is angel->client data, it will tell us which port was bound.
     struct Message* angelToClient =
         InterfaceWaiter_waitForData(&asClientPipe->iface, eventBase, tempAlloc, NULL);
 
-    printf("Response from angel to client: [%s]\n", angelToClient->bytes);
+    uint8_t lastByte = angelToClient->bytes[angelToClient->length-1];
+    angelToClient->bytes[angelToClient->length-1] = '\0';
+    printf("Response from angel to client: [%s%c]\n", angelToClient->bytes, (char)lastByte);
 
     Allocator_free(tempAlloc);
 
@@ -192,19 +175,10 @@ struct AdminTestFramework* AdminTestFramework_setUp(int argc, char** argv, char*
 
 void AdminTestFramework_tearDown(struct AdminTestFramework* framework)
 {
-    char buff[128] = "           PADDING              "
-        "d"
-          "1:q" "10:Angel_exit"
-        "e";
-
-    char* start = CString_strchr(buff, 'd');
-    struct Message m = {
-        .bytes = (uint8_t*) start,
-        .length = CString_strlen(start),
-        .padding = start - buff
-    };
-    struct Message* mp = Message_clone(&m, framework->alloc);
-    Interface_sendMessage(framework->angelInterface, mp);
-
+    Dict* exitCmd = Dict_new(framework->alloc);
+    Dict_putString(exitCmd, String_CONST("q"), String_CONST("Angel_exit"), framework->alloc);
+    struct Message* msg = Message_new(0, 256, framework->alloc);
+    BencMessageWriter_write(exitCmd, msg, NULL);
+    Interface_sendMessage(framework->angelInterface, msg);
     Allocator_free(framework->alloc);
 }

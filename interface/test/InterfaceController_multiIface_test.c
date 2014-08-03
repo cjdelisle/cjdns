@@ -29,7 +29,7 @@ static int allocatorFreed(struct Allocator_OnFreeJob* job)
 int main()
 {
     struct Allocator* alloc = MallocAllocator_new(1<<20);
-    struct TestFramework* tf = TestFramework_setUp(NULL, alloc, NULL);
+    struct TestFramework* tf = TestFramework_setUp(NULL, alloc, NULL, NULL, NULL);
 
     struct Interface iface = {
         .allocator = alloc

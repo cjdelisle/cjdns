@@ -15,6 +15,7 @@
 #include "admin/AdminClient.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/cloner/Cloner.h"
 #include "interface/addressable/AddrInterface.h"
 #include "interface/addressable/UDPAddrInterface.h"
@@ -95,15 +96,11 @@ static int calculateAuth(Dict* message,
     Dict_putString(message, String_new("cookie", alloc), cookieStr, alloc);
 
     // serialize the message with the password hash
-    uint8_t buffer[AdminClient_MAX_MESSAGE_SIZE];
-    struct Writer* writer = ArrayWriter_new(buffer, AdminClient_MAX_MESSAGE_SIZE, alloc);
-    if (StandardBencSerializer_get()->serializeDictionary(writer, message)) {
-        return -1;
-    }
-    int length = writer->bytesWritten;
+    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE, alloc);
+    BencMessageWriter_write(message, msg, NULL);
 
     // calculate the hash of the message with the password hash
-    crypto_hash_sha256(hash, buffer, length);
+    crypto_hash_sha256(hash, msg->bytes, msg->length);
 
     // swap the hash of the message with the password hash into the location
     // where the password hash was.
@@ -203,12 +200,9 @@ static struct Request* sendRaw(Dict* messageDict,
         Assert_true(!calculateAuth(messageDict, ctx->password, cookie, req->alloc));
     }
 
-    struct Writer* writer =
-        ArrayWriter_new(req->res.messageBytes, AdminClient_MAX_MESSAGE_SIZE, req->alloc);
-    if (StandardBencSerializer_get()->serializeDictionary(writer, messageDict)) {
-        done(req, AdminClient_Error_SERIALIZATION_FAILED);
-        return NULL;
-    }
+    struct Allocator* child = Allocator_child(req->alloc);
+    struct Message* msg = Message_new(0, AdminClient_MAX_MESSAGE_SIZE + 256, child);
+    BencMessageWriter_write(messageDict, msg, NULL);
 
     req->timeoutAlloc = Allocator_child(req->alloc);
     req->timeout = Timeout_setTimeout(timeout,
@@ -220,15 +214,8 @@ static struct Request* sendRaw(Dict* messageDict,
 
     req->callback = callback;
 
-    struct Message m = {
-        .bytes = req->res.messageBytes,
-        .padding = AdminClient_Result_PADDING_SIZE,
-        .length = writer->bytesWritten
-    };
-    Message_push(&m, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
+    Message_push(msg, ctx->targetAddr, ctx->targetAddr->addrLen, NULL);
 
-    struct Allocator* child = Allocator_child(req->alloc);
-    struct Message* msg = Message_clone(&m, child);
     Interface_sendMessage(&ctx->addrIface->generic, msg);
     Allocator_free(child);
 

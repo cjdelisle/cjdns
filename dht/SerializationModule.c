@@ -23,6 +23,7 @@
 #include "io/ArrayWriter.h"
 #include "benc/serialization/BencSerializer.h"
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "util/Bits.h"
 #include "util/log/Log.h"
 #include "wire/Message.h"
@@ -72,14 +73,13 @@ void SerializationModule_register(struct DHTModuleRegistry* registry,
 static int handleOutgoing(struct DHTMessage* message,
                           void* vcontext)
 {
-    uint8_t buff[DHTMessage_MAX_SIZE];
-    struct Writer* writer = ArrayWriter_new(buff, DHTMessage_MAX_SIZE, message->allocator);
-    SERIALIZER->serializeDictionary(writer, message->asDict);
-    while ((writer->bytesWritten + message->binMessage->length) % 8) {
-        Message_push8(message->binMessage, 0, NULL);
-    }
-    message->binMessage->length = 0;
-    Message_push(message->binMessage, buff, writer->bytesWritten, NULL);
+   // This is always at the end of the message.
+    Assert_true(!message->binMessage->length);
+    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault0");
+
+    BencMessageWriter_write(message->asDict, message->binMessage, NULL);
+
+    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
 
     return 0;
 }
@@ -113,7 +113,10 @@ static int handleIncoming(struct DHTMessage* message,
                      (int)(message->binMessage->length - (int)reader->bytesRead));
         #endif
     }
+    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
+    Assert_true(!(message->binMessage->capacity % 4));
     Message_reset(message->binMessage);
+    Assert_true(!((uintptr_t)message->binMessage->bytes % 4) || !"alignment fault");
 
     return 0;
 }

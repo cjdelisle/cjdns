@@ -12,13 +12,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef StandardBencSerializer_H
-#define StandardBencSerializer_H
+#ifndef Base10_H
+#define Base10_H
 
-#include "benc/serialization/BencSerializer.h"
+#include "exception/Except.h"
+#include "wire/Message.h"
 #include "util/Linker.h"
-Linker_require("benc/serialization/standard/StandardBencSerializer.c")
+Linker_require("util/Base10.c")
 
-const struct BencSerializer* StandardBencSerializer_get();
+#include <stdint.h>
+
+void Base10_write(struct Message* msg, int64_t num, struct Except* eh);
+int64_t Base10_read(struct Message* msg, struct Except* eh);
 
 #endif

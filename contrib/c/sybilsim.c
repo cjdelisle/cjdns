@@ -13,6 +13,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
 #include "io/ArrayReader.h"
@@ -105,10 +106,7 @@ static void sendFirstMessageToCore(void* vcontext)
     }
     Dict_putDict(d, String_CONST("admin"), admin, alloc);
 
-    uint8_t buff[512];
-    struct Writer* writer = ArrayWriter_new(buff, 512, alloc);
-    Assert_true(!StandardBencSerializer_get()->serializeDictionary(writer, d));
-    Message_push(msg, buff, Writer_bytesWritten(writer), NULL);
+    BencMessageWriter_write(d, msg, NULL);
 
     Interface_receiveMessage(&ctx->angelIface, msg);
     Allocator_free(alloc);

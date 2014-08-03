@@ -143,7 +143,7 @@ int main()
     struct TestFramework* tf =
         TestFramework_setUp("\xad\x7e\xa3\x26\xaa\x01\x94\x0a\x25\xbc\x9e\x01\x26\x22\xdb\x69"
                             "\x4f\xd9\xb4\x17\x7c\xf3\xf8\x91\x16\xf3\xcf\xe8\x5c\x80\xe1\x4a",
-                            alloc, NULL);
+                            alloc, NULL, NULL, NULL);
 
     CryptoAuth_addUser(String_CONST("passwd"), 1, String_CONST("TEST"), tf->cryptoAuth);
 

@@ -36,7 +36,7 @@
 struct Interface
 {
     /** Arbitarary data which belongs to the wire side of this interface. */
-    void* const senderContext;
+    void* senderContext;
 
     /** The maximum allowable length for a message. */
     uint16_t maxMessageLength;
@@ -57,7 +57,7 @@ struct Interface
     Interface_CALLBACK(sendMessage);
 
     /** Used to allocate this interface, the interface will close when this allocator is freed. */
-    struct Allocator* const allocator;
+    struct Allocator* allocator;
 
 
 
