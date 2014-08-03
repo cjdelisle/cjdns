@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "benc/serialization/standard/StandardBencSerializer.h"
+#include "benc/serialization/standard/BencMessageReader.h"
 #include "benc/serialization/standard/BencMessageWriter.h"
 #include "benc/serialization/json/JsonBencSerializer.h"
 #include "benc/serialization/BencSerializer.h"
@@ -71,9 +71,7 @@ static uint8_t messageToAngel(struct Message* msg, struct Interface* iface)
     struct NodeContext* ctx = Identity_check((struct NodeContext*) iface);
     if (ctx->boundAddr) { return 0; }
     struct Allocator* alloc = Allocator_child(ctx->alloc);
-    struct Reader* reader = ArrayReader_new(msg->bytes, msg->length, alloc);
-    Dict* config = Dict_new(alloc);
-    Assert_true(!StandardBencSerializer_get()->parseDictionary(reader, alloc, config));
+    Dict* config = BencMessageReader_read(msg, alloc, NULL);
     Dict* admin = Dict_getDict(config, String_CONST("admin"));
     String* bind = Dict_getString(admin, String_CONST("bind"));
     struct Sockaddr_storage ss;

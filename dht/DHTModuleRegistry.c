@@ -15,21 +15,12 @@
 #include "dht/DHTModule.h"
 #include "dht/DHTModuleRegistry.h"
 #include "memory/Allocator.h"
-#include "io/Reader.h"
-#include "io/Writer.h"
-#include "benc/Object.h"
-#include "benc/serialization/BencSerializer.h"
-#include "benc/serialization/standard/StandardBencSerializer.h"
 #include "util/Assert.h"
 
 #include <stddef.h> // NULL
 
 #define DEBUG2(x, y)
 /* #define DEBUG2(x, y) fprintf(stderr, x, y); fflush(stderr) */
-
-/** This defines what format the registry will be serialized in. */
-#define SERIALIZER StandardBencSerializer_get()
-
 
 struct DHTModuleRegistry* DHTModuleRegistry_new(struct Allocator* allocator)
 {
@@ -82,7 +73,7 @@ void DHTModuleRegistry_handleIncoming(struct DHTMessage* message,
 
 static int dhtModuleHandleOutgoing(struct DHTModule* module, struct DHTMessage* message)
 {
-    Assert_ifParanoid(module != NULL);
+    Assert_ifParanoid(module);
     if (module->handleOutgoing) {
         DEBUG2(">> calling: %s->handleOutgoing\n", module->name);
         return module->handleOutgoing(message, module->context);
