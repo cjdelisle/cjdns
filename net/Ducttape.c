@@ -672,11 +672,12 @@ static inline int core(struct Message* message,
             struct SessionManager_Session* session =
                 SessionManager_getSession(ip6Header->sourceAddr, NULL, context->sm);
 
+            /* Per packet logging...
             #ifdef Log_DEBUG
                 uint8_t addr[40];
                 AddrTools_printIp(addr, ip6Header->sourceAddr);
                 Log_debug(context->logger, "Incoming layer3 message, ostensibly from [%s]", addr);
-            #endif
+            #endif */
 
             dtHeader->receiveHandle = Endian_bigEndianToHost32(session->receiveHandle_be);
             dtHeader->layer = Ducttape_SessionLayer_INNER;
@@ -719,11 +720,14 @@ static inline int core(struct Message* message,
             Address_print(nhAddr, &addr);
             if (Bits_memcmp(ip6Header->destinationAddr, addr.ip6.bytes, 16)) {
                 // Potentially forwarding for ourselves.
-                struct Address destination;
-                Bits_memcpyConst(destination.ip6.bytes, ip6Header->destinationAddr, 16);
-                uint8_t ipAddr[40];
-                Address_printIp(ipAddr, &destination);
-                Log_debug(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
+                /* per packet logging
+                #ifdef Log_DEBUG
+                    struct Address destination;
+                    Bits_memcpyConst(destination.ip6.bytes, ip6Header->destinationAddr, 16);
+                    uint8_t ipAddr[40];
+                    Address_printIp(ipAddr, &destination);
+                    Log_debug(context->logger, "Forwarding data to %s via %s\n", ipAddr, nhAddr);
+                #endif */
             } else {
                 // Definitely forwarding on behalf of someone else.
                 //Log_debug(context->logger, "Forwarding data to %s (last hop)\n", nhAddr);
@@ -886,7 +890,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
     if (layer == Ducttape_SessionLayer_OUTER) {
         return sendToSwitch(message, dtHeader, session, context);
     } else if (layer == Ducttape_SessionLayer_INNER) {
-        Log_debug(context->logger, "Sending layer3 message");
+        //Log_debug(context->logger, "Sending layer3 message");
         return outgoingFromMe(message, dtHeader, session, context);
     } else {
         Assert_true(0);
