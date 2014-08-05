@@ -174,6 +174,13 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
                         file, line);
         Assert_fileLine(link->cannonicalLabel < UINT64_MAX && link->cannonicalLabel > 0,
                         file, line);
+
+        // Make sure there isn't a link which has a completely wacky link encoding number.
+        // Also make sure links are all flushed if a node is discovered to have changed it's
+        // encoding scheme...
+        Assert_fileLine(link->inverseLinkEncodingFormNumber < link->parent->encodingScheme->count,
+                        file, line);
+
         struct Node_Link* rlink = NULL;
         for (rlink = link->child->reversePeers; rlink; rlink = rlink->nextPeer) {
             if (rlink == link) {
@@ -273,28 +280,33 @@ static void _check(struct NodeStore_pvt* store, char* file, int line)
  * it's size greater than or equal to the size of the return route through the parent node in the
  * link.
  *
- * @param routeLabel the label for reaching the parent node
+ * @param routeToParent the label for reaching the parent node
  * @param parentScheme the label encoding scheme used by the parent node
- * @param parentChildLabel the cannonicalLabel for the link from parent to child
+ * @param routeParentToChild the cannonicalLabel for the link from parent to child
  * @param previousLinkEncoding the encoding used for the parent's interface back to the grandparent
  * @return a converted/spliced label or extendRoute_INVALID if it happens that the parent
  *         or ~0 if the label is too long to represent.
  */
 #define extendRoute_INVALID (((uint64_t)~0)-1)
-static uint64_t extendRoute(uint64_t routeLabel,
+static uint64_t extendRoute(uint64_t routeToParent,
                             struct EncodingScheme* parentScheme,
-                            uint64_t parentChildLabel,
+                            uint64_t routeParentToChild,
                             int previousLinkEncoding)
 {
-    uint64_t next = parentChildLabel;
-    Assert_true(next != EncodingScheme_convertLabel_INVALID);
-    int nextLinkEncoding = EncodingScheme_getFormNum(parentScheme, next);
+    Assert_true(routeParentToChild != EncodingScheme_convertLabel_INVALID);
+
+    // Make sure they didn't send us a 'silly' route.
+    int nextLinkEncoding = EncodingScheme_getFormNum(parentScheme, routeParentToChild);
     if (nextLinkEncoding == EncodingScheme_getFormNum_INVALID) { return extendRoute_INVALID; }
+
+    // If the encoding to get to the parent uses more bits than the encoding to get from parent
+    // to child, we need to change the encoding...
     if (previousLinkEncoding > nextLinkEncoding) {
-        next = EncodingScheme_convertLabel(parentScheme, next, previousLinkEncoding);
-        Assert_true(next != EncodingScheme_convertLabel_INVALID);
+        routeParentToChild =
+            EncodingScheme_convertLabel(parentScheme, routeParentToChild, previousLinkEncoding);
+        Assert_true(routeParentToChild != EncodingScheme_convertLabel_INVALID);
     }
-    return LabelSplicer_splice(next, routeLabel);
+    return LabelSplicer_splice(routeParentToChild, routeToParent);
 }
 
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
@@ -1369,6 +1381,24 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
         Address_print(printedAddr, addr);
         Log_debug(store->logger, "Discover node [%s]", printedAddr);
     #endif
+
+    if (child && EncodingScheme_compare(child->encodingScheme, scheme)) {
+        // Shit.
+        // Box reset *and* they just updated and changed their encoding scheme.
+        RumorMill_addNode(store->renumberMill, &child->address);
+        if (addr->path > (child->address.path | (child->address.path << 3))) {
+            Log_debug(store->logger, "Node [%s] appears to have changed it's encoding scheme "
+                                     "but the message came from far away and we will not trust it",
+                      printedAddr);
+            return NULL;
+        } else {
+            Log_debug(store->logger, "Node [%s] appears to have changed it's encoding scheme "
+                                     "dropping him from the table and re-inserting",
+                      printedAddr);
+            destroyNode(child, store);
+            child = NULL;
+        }
+    }
 
     struct Allocator* alloc = NULL;
     if (!child) {
