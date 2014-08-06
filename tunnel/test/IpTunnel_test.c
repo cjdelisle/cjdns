@@ -58,16 +58,17 @@ static uint8_t responseWithIpCallback(struct Message* message, struct Interface*
 
     Message_shift(message, -Headers_UDPHeader_SIZE, NULL);
 
-    // Message needs to be padded out to a multiple of 8 bytes by zero extending the first length.
+    // We can't check that the message is an exact match because the padding depends on the
+    // alignment of the output but we can make sure the right content is there...
+    // Message should start with "d0000" (with some number of zeros)
     char* expectedResponse =
-        "d"
-          "000009:addresses" "d"
+        "9:addresses" "d"
             "3:ip6" "16:\xfd\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
           "e"
           "4:txid" "4:abcd"
         "e";
-    Assert_true(message->length == (int32_t) CString_strlen(expectedResponse));
-    Assert_true(!Bits_memcmp(message->bytes, expectedResponse, message->length));
+    Assert_true(message->length >= (int32_t) CString_strlen(expectedResponse));
+    Assert_true(CString_strstr(message->bytes, expectedResponse));
     called = 2;
     return 0;
 }
