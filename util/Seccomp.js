@@ -50,9 +50,9 @@ var seccomp_version_check = function (version) {
         if (version1.length === 0 && version2.length === 0) {
             return 0;
         } else if (version1.length === 0) {
-            return (version2[0] === 0) ? 0 : 1;
+            return (version2[0] === 0) ? 0 : -1;
         } else if (version2.length === 0) {
-            return (version1[0] === 0) ? 0 : -1;
+            return (version1[0] === 0) ? 0 : 1;
         } else if (version1[0] === version2[0]) {
             return compare_versions(version1.splice(1), version2.splice(1));
         } else {
