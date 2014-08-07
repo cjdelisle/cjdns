@@ -11,7 +11,7 @@ Install mingw32
 
 Build
 
-    SYSTEM=win32 CROSS=1 CC=i686-w64-mingw32-gcc AR=i686-w64-mingw32-ar RANLIB=i686-w64-mingw32-ranlib ./do
+    SYSTEM=win32 CROSS_COMPILE=i686-w64-mingw32- ./cross-do
 
 On Windows
 
