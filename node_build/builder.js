@@ -16,7 +16,6 @@ var Os = require('os');
 var Fs = require('fs');
 var Spawn = require('child_process').spawn;
 var nThen = require('nthen');
-var Extend = require('node.extend');
 var Crypto = require('crypto');
 var Semaphore = require('./Semaphore');
 
@@ -737,7 +736,7 @@ var compile = function (file, outputFile, builder, callback) {
 };
 
 var getStatePrototype = function (params) {
-    return Extend({
+    var base = {
         includeDirs: ['.'],
         files: {},
         mtimes: {},
@@ -752,7 +751,17 @@ var getStatePrototype = function (params) {
         tempDir: '/tmp',
 
         systemName: 'linux'
-    }, params);
+    };
+
+    for (var key in params) {
+        if (params.hasOwnProperty(key)) {
+            if (typeof params[key] !== 'object') {
+                base[key] = params[key];
+            }
+        }
+    }
+
+    return base;
 };
 
 /**
@@ -761,7 +770,7 @@ var getStatePrototype = function (params) {
  * window.
  */
 var normalizedProcessEnv = function () {
-    var out = Extend({}, process.env);
+    var out = process.env;
     delete out.WINDOWID;
     delete out.OLDPWD;
     return out;

@@ -17,7 +17,6 @@ var nThen = require('nthen');
 var Codestyle = require('./Codestyle');
 var Cp = require('./Cp');
 var Spawn = require('child_process').spawn;
-var Extend = require('node.extend');
 var Os = require('os');
 var FindPython2 = require('./FindPython2');
 var CanCompile = require('./CanCompile');
@@ -274,7 +273,7 @@ Builder.configure({
             process.chdir(dependencyDir + '/libuv/');
 
             var args = ['./gyp_uv.py'];
-            var env = Extend({}, process.env);
+            var env = process.env;
             env.CC = builder.config.gcc;
 
             if (env.TARGET_ARCH) {
