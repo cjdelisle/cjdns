@@ -74,7 +74,7 @@ var compare_versions = function (version1, version2) {
     }
 };
 
-var seccomp_version_check = module.exports.vec = function (version) {
+var seccomp_version_check = function (version) {
     var ver_list = version_to_array(version);
     return compare_versions(ver_list, [3, 5, 0]);
 };
