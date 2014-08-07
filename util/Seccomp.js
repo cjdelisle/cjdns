@@ -40,31 +40,42 @@ var pushLinks = function (builder) {
     builder.Seccomp_QUEUE = undefined;
 };
 
-var seccomp_version_check = function (version) {
-    // Compares two arrays of integers
-    // Returns
-    //   -1  for version1 <  version2
-    //    0  for version1 == version2
-    //    1  for version1 >  version2
-    var compare_versions = function (version1, version2) {
-        if (version1.length === 0 && version2.length === 0) {
-            return 0;
-        } else if (version1.length === 0) {
-            return (version2[0] === 0) ? 0 : -1;
-        } else if (version2.length === 0) {
-            return (version1[0] === 0) ? 0 : 1;
-        } else if (version1[0] === version2[0]) {
-            return compare_versions(version1.splice(1), version2.splice(1));
-        } else {
-            return (version1[0] < version2[0]) ? -1 : 1;
-        }
-    };
+// Turns a version string into an array of integers
+// 1.2.3-4-generic-x-5  -> [1, 2, 3, 4, 5]
+// 1.2.3-xx-14.2        -> [1, 2, 3, 14, 2]
+// 3.2.0-23-generic-pae -> [3, 2, 0, 23]
+var version_to_array = function (version) {
+    var ver_list =
+        version.replace(/[\-a-zA-Z]/g, '.').replace(/\.+/g, '.').replace(/\.$/, '').split('.');
 
-    var ver_list = version.replace(/-/g, '.').replace(/[a-zA-Z]/g, '0').split('.').slice(0, 3);
     for (var i = 0; i < ver_list.length; i++) {
         ver_list[i] = Number(ver_list[i]);
     }
 
+    return ver_list;
+};
+
+// Compares two arrays of integers
+// Returns
+//   -1  for version1 <  version2
+//    0  for version1 == version2
+//    1  for version1 >  version2
+var compare_versions = function (version1, version2) {
+    if (version1.length === 0 && version2.length === 0) {
+        return 0;
+    } else if (version1.length === 0) {
+        return (version2[0] === 0) ? 0 : 1;
+    } else if (version2.length === 0) {
+        return (version1[0] === 0) ? 0 : -1;
+    } else if (version1[0] === version2[0]) {
+        return compare_versions(version1.splice(1), version2.splice(1));
+    } else {
+        return (version1[0] < version2[0]) ? -1 : 1;
+    }
+};
+
+var seccomp_version_check = module.exports.vec = function (version) {
+    var ver_list = version_to_array(version);
     return compare_versions(ver_list, [3, 5, 0]);
 };
 
