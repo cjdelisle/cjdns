@@ -13,7 +13,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 var Os = require('os');
-var Semver = require('semver');
 
 var TEST_PROGRAM = [
     "#include <sys/resource.h>",
@@ -41,6 +40,34 @@ var pushLinks = function (builder) {
     builder.Seccomp_QUEUE = undefined;
 };
 
+var seccomp_version_check = function (version) {
+    // Compares two arrays of integers
+    // Returns
+    //   -1  for version1 <  version2
+    //    0  for version1 == version2
+    //    1  for version1 >  version2
+    var compare_versions = function (version1, version2) {
+        if (version1.length === 0 && version2.length === 0) {
+            return 0;
+        } else if (version1.length === 0) {
+            return (version2[0] === 0) ? 0 : 1;
+        } else if (version2.length === 0) {
+            return (version1[0] === 0) ? 0 : -1;
+        } else if (version1[0] === version2[0]) {
+            return compare_versions(version1.splice(1), version2.splice(1));
+        } else {
+            return (version1[0] < version2[0]) ? -1 : 1;
+        }
+    };
+
+    var ver_list = version.replace(/-/g, '.').replace(/[a-zA-Z]/g, '0').split('.').slice(0, 3);
+    for (var i = 0; i < ver_list.length; i++) {
+        ver_list[i] = Number(ver_list[i]);
+    }
+
+    return compare_versions(ver_list, [3, 5, 0]);
+};
+
 var detect = module.exports.detect = function (async, file, builder)
 {
     if (typeof(builder.Seccomp_QUEUE) !== 'undefined') {
@@ -58,13 +85,13 @@ var detect = module.exports.detect = function (async, file, builder)
     console.log("Searching for SECCOMP");
 
     var hasSeccomp = false;
-    var osversion = Os.release().replace(/([0-9]{1,3}).([0-9]{1,3}).([0-9]{1,3})/, '$1.$2.$3');
+    var osversion = Os.release();
 
     if (builder.config.systemName !== 'linux') {
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
         console.log("SECCOMP disabled");
-    } else if (!builder.config.crossCompiling && Semver.lt(osversion, "3.5.0")) {
+    } else if (!builder.config.crossCompiling && (seccomp_version_check(osversion) === -1)) {
         console.log("SECCOMP filtering is only available in Linux 3.5+");
     } else {
         var done = async();
