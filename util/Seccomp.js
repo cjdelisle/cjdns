@@ -37,13 +37,19 @@ var pushLinks = function (builder) {
             file.links.push("util/Seccomp_dummy.c");
         }
     });
+
     builder.Seccomp_QUEUE = undefined;
 };
 
 var detect = module.exports.detect = function (async, file, builder)
 {
-    if (typeof(builder.Seccomp_QUEUE) !== 'undefined') { builder.Seccomp_QUEUE.push(file); return; }
+    if (typeof(builder.Seccomp_QUEUE) !== 'undefined') {
+        builder.Seccomp_QUEUE.push(file);
+        return;
+    }
+
     builder.Seccomp_QUEUE = [ file ];
+
     if (typeof(builder.Seccomp_EXISTS) !== 'undefined') {
         pushLinks(builder);
         return;
@@ -53,6 +59,7 @@ var detect = module.exports.detect = function (async, file, builder)
 
     var hasSeccomp = false;
     var osversion = Os.release().replace(/([0-9]{1,3}).([0-9]{1,3}).([0-9]{1,3})/, '$1.$2.$3');
+
     if (builder.config.systemName !== 'linux') {
         console.log("SECCOMP is only available on linux");
     } else if (process.env['Seccomp_NO']) {
@@ -63,16 +70,21 @@ var detect = module.exports.detect = function (async, file, builder)
         var done = async();
         var CanCompile = require('../node_build/CanCompile');
         var cflags = [ builder.config.cflags, '-x', 'c' ];
+
         CanCompile.check(builder, TEST_PROGRAM, cflags, function (err, can) {
             builder.Seccomp_EXISTS = !!can;
+
             if (!can) {
                 console.log("Failed to get SECCOMP, compile failure: [" + err + "]");
             }
+
             pushLinks(builder);
             done();
         });
+
         return;
     }
+
     builder.Seccomp_EXISTS = hasSeccomp;
     pushLinks(builder);
 };
