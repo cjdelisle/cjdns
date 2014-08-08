@@ -46,7 +46,7 @@ var pushLinks = function (builder) {
 // 3.2.0-23-generic-pae -> [3, 2, 0, 23]
 var version_to_array = function (version) {
     var ver_list =
-        version.replace(/[\-a-zA-Z]/g, '.').replace(/\.+/g, '.').replace(/\.$/, '').split('.');
+        version.replace(/[^0-9]/g, '.').replace(/\.+/g, '.').replace(/\.$/, '').split('.');
 
     for (var i = 0; i < ver_list.length; i++) {
         ver_list[i] = Number(ver_list[i]);
