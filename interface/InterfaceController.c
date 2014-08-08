@@ -78,6 +78,8 @@ struct InterfaceController_pvt
     /** Router needed to inject newly added nodes to bootstrap the system. */
     struct RouterModule* const routerModule;
 
+    struct Random* const rand;
+
     struct RumorMill* const rumorMill;
 
     struct Log* const logger;
@@ -223,7 +225,9 @@ static void pingCallback(void* vic)
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
     // scan for endpoints have not sent anything recently.
-    for (uint32_t i = 0; i < ic->peerMap.count; i++) {
+    uint32_t startAt = Random_uint32(ic->rand) % ic->peerMap.count;
+    uint32_t stopAt = (startAt - 1) % ic->peerMap.count;
+    for (uint32_t i = startAt; i != stopAt; i = (i + 1) % ic->peerMap.count) {
         struct InterfaceController_Peer* ep = ic->peerMap.values[i];
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
@@ -253,7 +257,7 @@ static void pingCallback(void* vic)
                                   "seconds, dropping connection",
                                   key, ic->forgetAfterMilliseconds / 1024);
             Allocator_free(ep->external->allocator);
-            return;
+            continue;
         }
 
         bool unresponsive = (now > ep->timeOfLastMessage + ic->unresponsiveAfterMilliseconds);
@@ -262,7 +266,7 @@ static void pingCallback(void* vic)
             RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
 
             // Lets skip 87% of pings when they're really down.
-            if (ep->pingCount % 8) {
+            if (ep->pingCount++ % 8) {
                 continue;
             }
 
@@ -271,11 +275,15 @@ static void pingCallback(void* vic)
 
         #ifdef Log_DEBUG
             uint32_t lag = (now - ep->timeOfLastMessage) / 1024;
+            Log_debug(ic->logger,
+                      "Pinging %s peer [%s.k] lag [%u]",
+                      (unresponsive ? "unresponsive" : "lazy"), key, lag);
         #endif
-        Log_debug(ic->logger,
-                  "Pinging %s peer [%s.k] lag [%u]",
-                  (unresponsive ? "unresponsive" : "lazy"), key, lag);
+
         sendPing(ep);
+
+        // we only ping one node
+        return;
     }
 }
 
@@ -603,6 +611,7 @@ struct InterfaceController* InterfaceController_new(struct CryptoAuth* ca,
         },
         .allocator = allocator,
         .ca = ca,
+        .rand = rand,
         .switchCore = switchCore,
         .routerModule = routerModule,
         .rumorMill = rumorMill,
