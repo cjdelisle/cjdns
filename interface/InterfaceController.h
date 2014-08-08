@@ -127,6 +127,9 @@ struct InterfaceController_Peer
     /** Time when the last switch ping response was received from this node. */
     uint64_t timeOfLastPing;
 
+    /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
+    uint32_t pingCount;
+
     /** The handle which can be used to look up this endpoint in the endpoint set. */
     uint32_t handle;
 

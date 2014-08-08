@@ -96,9 +96,6 @@ struct InterfaceController_pvt
     /** After this number of milliseconds, an incoming connection is forgotten entirely. */
     uint32_t forgetAfterMilliseconds;
 
-    /** A counter to allow for 3/4 of all pings to be skipped when a node is definitely down. */
-    uint32_t pingCount;
-
     /** The timeout event to use for pinging potentially unresponsive neighbors. */
     struct Timeout* const pingInterval;
 
@@ -188,7 +185,7 @@ static void sendPing(struct InterfaceController_Peer* ep)
 {
     struct InterfaceController_pvt* ic = ifcontrollerForPeer(ep);
 
-    ic->pingCount++;
+    ep->pingCount++;
 
     struct SwitchPinger_Ping* ping =
         SwitchPinger_newPing(ep->switchLabel,
@@ -265,7 +262,7 @@ static void pingCallback(void* vic)
             RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
 
             // Lets skip 87% of pings when they're really down.
-            if (ic->pingCount % 8) {
+            if (ep->pingCount % 8) {
                 continue;
             }
 
@@ -336,7 +333,7 @@ static uint8_t receivedAfterCryptoAuth(struct Message* msg, struct Interface* cr
                 // prevent DoS by limiting the number of times this can be called per second
                 // limit it to 7, this will affect innocent packets but it doesn't matter much
                 // since this is mostly just an optimization and for keeping the tests happy.
-                if ((ic->pingCount + 1) % 7) {
+                if ((ep->pingCount + 1) % 7) {
                     sendPing(ep);
                 }
             }
