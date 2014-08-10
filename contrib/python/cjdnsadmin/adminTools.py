@@ -74,12 +74,16 @@ def peerStats(cjdns,up=False,verbose=False):
         i += 1
 
     if verbose:
+        STAT_FORMAT = '%s\t%s\tin %d\tout %d\t%s\tdup %d los %d oor %d'
+
         for peer in allPeers:
-            p = (PublicToIp6_convert(peer['publicKey']) + '\t' + peer['switchLabel'] + '\tin ' +
-                 str(peer['bytesIn']) + '\tout ' + str(peer['bytesOut']) + '\t' + peer['state'] +
-                 '\tdup ' + str(peer['duplicates']) +
-                 ' los ' + str(peer['lostPackets']) +
-                 ' oor ' + str(peer['receivedOutOfRange']));
+            ip = PublicToIp6_convert(peer['publicKey'])
+
+            p = STAT_FORMAT % (ip, peer['switchLabel'], peer['bytesIn'],
+                               peer['bytesOut'], peer['state'],
+                               peer['duplicates'], peer['lostPackets'],
+                               peer['receivedOutOfRange'])
+
             if 'user' in peer:
                 p += repr(peer['user'])
             print p;
