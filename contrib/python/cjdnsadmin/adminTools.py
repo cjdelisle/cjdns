@@ -85,8 +85,9 @@ def peerStats(cjdns,up=False,verbose=False):
                                peer['receivedOutOfRange'])
 
             if 'user' in peer:
-                p += repr(peer['user'])
-            print p;
+                p += '\t%r' % peer['user']
+
+            print p
     return allPeers
 
 def parseLabel(route):
