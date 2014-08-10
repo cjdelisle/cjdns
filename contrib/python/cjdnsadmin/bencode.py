@@ -23,8 +23,9 @@ def decode_string(x, f):
         n = int(x[f:colon])
     except (OverflowError, ValueError):
         n = long(x[f:colon])
-    if x[f] == '0' and colon != f+1:
-        raise ValueError
+# Leading zeros are FINE --cjd
+#    if x[f] == '0' and colon != f+1:
+#        raise ValueError
     colon += 1
     return (x[colon:colon+n], colon+n)
 

@@ -171,7 +171,7 @@ def connect(ipAddr, port, password):
     # Make sure it pongs.
     sock.send('d1:q4:pinge')
     data = sock.recv(BUFFER_SIZE)
-    if (data != 'd1:q4:ponge'):
+    if (not data.endswith('1:q4:ponge')):
         raise Exception(
             "Looks like " + ipAddr + ":" + str(port) +
             " is to a non-cjdns socket.")
