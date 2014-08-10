@@ -178,7 +178,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
         // Make sure there isn't a link which has a completely wacky link encoding number.
         // Also make sure links are all flushed if a node is discovered to have changed it's
         // encoding scheme...
-        Assert_fileLine(link->inverseLinkEncodingFormNumber < link->parent->encodingScheme->count,
+        Assert_fileLine(link->inverseLinkEncodingFormNumber < link->child->encodingScheme->count,
                         file, line);
 
         struct Node_Link* rlink = NULL;
