@@ -80,7 +80,8 @@ def peerStats(cjdns,up=False,verbose=False):
                  '\tdup ' + str(peer['duplicates']) +
                  ' los ' + str(peer['lostPackets']) +
                  ' oor ' + str(peer['receivedOutOfRange']));
-            if 'user' in peer: p += '"' + peer['user'] + '"';
+            if 'user' in peer:
+                p += repr(peer['user'])
             print p;
     return allPeers
 
