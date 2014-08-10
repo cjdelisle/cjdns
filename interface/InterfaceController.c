@@ -266,7 +266,8 @@ static void pingCallback(void* vic)
             RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
 
             // Lets skip 87% of pings when they're really down.
-            if (ep->pingCount++ % 8) {
+            if (ep->pingCount % 8) {
+                ep->pingCount++;
                 continue;
             }
 
