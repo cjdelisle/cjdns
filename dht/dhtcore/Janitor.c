@@ -436,7 +436,27 @@ static void maintanenceCycle(void* vcontext)
 
     struct Address addr = { .protocolVersion = 0 };
 
-    if (RumorMill_getNode(janitor->splitMill, &addr)) {
+    if (RumorMill_getNode(janitor->rumorMill, &addr)) {
+        // ping a node from the ping normal-priority queue
+        addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
+        if (NodeStore_optimizePath_INVALID != addr.path) {
+            struct RouterModule_Promise* rp =
+                RouterModule_getPeers(&addr,
+                                      Random_uint32(janitor->rand),
+                                      0,
+                                      janitor->routerModule,
+                                      janitor->allocator);
+            rp->callback = peersResponseCallback;
+            rp->userData = janitor;
+
+            #ifdef Log_DEBUG
+                uint8_t addrStr[60];
+                Address_print(addrStr, &addr);
+                Log_debug(janitor->logger, "Pinging possible node [%s] from "
+                                           "external RumorMill", addrStr);
+            #endif
+        }
+    } else if (RumorMill_getNode(janitor->splitMill, &addr)) {
         // ping a link-splitting node from the high-priority ping queue
         addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
         if (NodeStore_optimizePath_INVALID != addr.path) {
@@ -454,26 +474,6 @@ static void maintanenceCycle(void* vcontext)
                 Address_print(addrStr, &addr);
                 Log_debug(janitor->logger, "Pinging possible node [%s] from "
                                            "priority RumorMill", addrStr);
-            #endif
-        }
-    } else if (RumorMill_getNode(janitor->rumorMill, &addr)) {
-        // ping a node from the ping normal-priority queue
-        addr.path = NodeStore_optimizePath(janitor->nodeStore, addr.path);
-        if (NodeStore_optimizePath_INVALID != addr.path) {
-            struct RouterModule_Promise* rp =
-                RouterModule_getPeers(&addr,
-                                      Random_uint32(janitor->rand),
-                                      0,
-                                      janitor->routerModule,
-                                      janitor->allocator);
-            rp->callback = peersResponseCallback;
-            rp->userData = janitor;
-
-            #ifdef Log_DEBUG
-                uint8_t addrStr[60];
-                Address_print(addrStr, &addr);
-                Log_debug(janitor->logger, "Pinging possible node [%s] from "
-                                           "normal RumorMill", addrStr);
             #endif
         }
     } else if (RumorMill_getNode(janitor->idleMill, &addr)) {
