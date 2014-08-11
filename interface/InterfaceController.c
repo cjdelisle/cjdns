@@ -221,6 +221,7 @@ static void sendPing(struct InterfaceController_Peer* ep)
 static void pingCallback(void* vic)
 {
     struct InterfaceController_pvt* ic = Identity_check((struct InterfaceController_pvt*) vic);
+    if (!ic->peerMap.count) { return; }
 
     uint64_t now = Time_currentTimeMilliseconds(ic->eventBase);
 
