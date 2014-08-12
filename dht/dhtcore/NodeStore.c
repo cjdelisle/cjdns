@@ -1072,7 +1072,7 @@ static struct Node_Link* discoverLinkB(struct NodeStore_pvt* store,
             // child might actually decend from grandChild or some other wacky crap but when
             // we kill the link from parent to grandChild, things will wort themselves out...
             discoverLinkB(store, parentLink, childToGrandchild, grandChild,
-                          discoveredPath, parentLink->inverseLinkEncodingFormNumber);
+                          discoveredPath, splitLink->inverseLinkEncodingFormNumber);
         }
 
         check(store);
