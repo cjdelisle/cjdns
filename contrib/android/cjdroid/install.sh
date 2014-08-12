@@ -7,11 +7,8 @@ if [ ! "${0%/*}" = $(echo $0 | sed 's|^.*/||') ]; then cd "${0%/*}"; fi
 if [ ! `whoami` = "root" ]; then echo "Please run this script as root"; exit 1; fi
 
 # Check that /dev/net/tun exists and create it if it doesn't
-if [ ! -c /dev/net/tun ]; then
-    if [ ! -d /dev/net ]; then
-        mkdir /dev/net
-    fi
-    mknod /dev/net/tun c 10 200
+if [ ! -c /dev/tun ]; then
+    mknod /dev/tun c 10 200
 fi
 
 # Remount /system read/write
