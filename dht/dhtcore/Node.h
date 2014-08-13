@@ -109,6 +109,9 @@ struct Node_Link
      */
     struct Node_Link* nextPeer;
 
+    /** Used internally by NodeStore for creating a list used for splitting links. */
+    struct Node_Link* nextInSplitList;
+
     /**
      * The label which would be used to reach the child from the parent.
      * This label is in a cannonical state and must be altered so that the first Director uses
