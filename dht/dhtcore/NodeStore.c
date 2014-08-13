@@ -1056,8 +1056,10 @@ static void fixLinks(struct Node_Link* parentLinkList,
                      struct NodeStore_pvt* store)
 {
     while (parentLinkList) {
-        if (!parentLinkList->child) { continue; }
-        fixLink(parentLinkList, outLinks, store);
+        // else the parent link has been trashed by splitting another link.
+        if (parentLinkList->child) {
+            fixLink(parentLinkList, outLinks, store);
+        }
         struct Node_Link* next = parentLinkList->nextInSplitList;
         parentLinkList->nextInSplitList = NULL;
         parentLinkList = next;
