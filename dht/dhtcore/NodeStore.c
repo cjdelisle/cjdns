@@ -291,6 +291,21 @@ static uint64_t extendRoute(uint64_t routeToParent,
     return LabelSplicer_splice(routeParentToChild, routeToParent);
 }
 
+static void update(struct Node_Link* link,
+                   int64_t linkStateDiff,
+                   struct NodeStore_pvt* store)
+{
+    if (linkStateDiff + link->linkState > UINT32_MAX) {
+        link->linkState = UINT32_MAX;
+        logLink(store, link, "link state set to maximum");
+    } else if (linkStateDiff + link->linkState < 0) {
+        link->linkState = 0;
+        logLink(store, link, "link state set to zero");
+    } else {
+        link->linkState += linkStateDiff;
+    }
+}
+
 static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
@@ -310,7 +325,27 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
     RB_FOREACH_REVERSE(next, PeerRBTree, &node->peerTree) {
         if (Node_getBestParent(next->child) == next) { unreachable(next->child, store); }
     }
+
+    // We think the link is down, so reset the link state.
+    struct Node_Link* bp = Node_getBestParent(node);
+    if (bp) { update(bp, -UINT32_MAX, store); }
     Node_setParentReachAndPath(node, NULL, 0, UINT64_MAX);
+}
+
+/** Adds the reach of path A->B to path B->C to get the expected reach of A->C. */
+static uint32_t addReach(int32_t reachAB, int32_t reachBC)
+{
+    // uint64_t to avoid overflows when multiplying.
+    uint64_t reachAC = (reachAB * reachBC) / (reachAB + reachBC);
+    return reachAC;
+}
+
+/** Subtracts the reach of path A->B or B->C from path A->C, to get the other part. */
+static uint32_t subReach(int32_t reachAC, int32_t reachAB)
+{
+    // uint64_t to avoid overflows when multiplying.
+    uint64_t reachBC = (reachAC * reachAB) / (reachAB - reachAC);
+    return reachBC;
 }
 
 /**
@@ -321,13 +356,28 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
  */
 static uint32_t guessReachOfChild(struct Node_Link* link)
 {
-    // return 3/4 of the parent's reach if it's 1 hop, 1/2 otherwise.
-    uint32_t r = Node_getReach(link->parent) / 2;
+    uint32_t r;
+    if (LabelSplicer_isOneHop(link->cannonicalLabel)) {
+        // Single-hop link, so guess that it's 3/4 the parent's reach
+        r = (Node_getReach(link->parent) * 3) / 4;
+    }
+    else {
+        // Multi-hop link, so let's assume 1/2 the parent's reach.
+        r = Node_getReach(link->parent) / 2;
+    }
     if (r < (1<<12)) {
         r = Node_getReach(link->parent) - 1;
     } else if (r < (1<<16)) {
         r = Node_getReach(link->parent) - Bits_log2x64(link->cannonicalLabel);
     }
+
+    // Educated guess, parent's latency + link's latency (neither of which is known perfectly).
+    uint32_t guess = addReach(Node_getReach(link->parent), link->linkState);
+    if (guess < Node_getReach(link->parent) && guess > r) {
+        // Our guess is sensible, so use it.
+        r = guess;
+    }
+
     Assert_true(r < Node_getReach(link->parent) && r != 0);
     return r;
 }
@@ -464,7 +514,7 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
     struct Node_Link* rp = link->child->reversePeers;
     struct Node_Link* best = Node_getBestParent(node);
     while (rp) {
-        if (Node_getReach(rp->parent) >= Node_getReach(best->parent)) {
+        if (rp->linkState && Node_getReach(rp->parent) >= Node_getReach(best->parent)) {
             if (Node_getReach(rp->parent) > Node_getReach(best->parent)
                 || rp->parent->address.path < best->parent->address.path)
             {
@@ -610,23 +660,6 @@ void NodeStore_unlinkNodes(struct NodeStore* nodeStore, struct Node_Link* link)
     check(store);
 }
 
-static void update(struct Node_Link* link,
-                   int64_t linkStateDiff,
-                   struct NodeStore_pvt* store)
-{
-    /** TODO(cjd): Link state is not taken into account yet
-    if (linkStateDiff + link->linkState > UINT32_MAX) {
-        link->linkState = UINT32_MAX;
-        logLink(store, link, "link state set to maximum");
-    } else if (linkStateDiff + link->linkState < 0) {
-        link->linkState = UINT32_MAX;
-        logLink(store, link, "link state set to zero");
-    } else {
-        link->linkState += linkStateDiff;
-    }
-    */
-}
-
 /**
  * Link two nodes in the graph together.
  * If a parent of the child node is also a parent of the parent node, they are
@@ -717,6 +750,7 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     link->child = child;
     link->parent = parent;
     link->discoveredPath = discoveredPath;
+    link->linkState = 0;
     Identity_set(link);
 
     // reverse link
@@ -1870,6 +1904,11 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
     if (nl && nl == Node_getBestParent(nl->child) && Node_getReach(nl->child) > 0) {
         handleBadNews(nl->child, 0, store);
     }
+    if (nl && nl->parent != store->pub.selfNode) {
+        // XXX(arceliar): Temporary workaround to the above TODO(cjd) statement.
+        // This should often recursively find the problematic node.
+        RumorMill_addNode(store->renumberMill, &nl->parent->address);
+    }
     verify(store);
 }
 
@@ -1902,6 +1941,15 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
             handleNews(link->child, newReach, store);
         }
 
+        if (Node_getBestParent(link->child) == link) {
+            // Update linkState.
+            uint32_t guessedLinkState = subReach(newReach, Node_getReach(link->parent));
+            uint32_t linkStateDiff = (guessedLinkState > link->linkState)
+                                   ? (guessedLinkState - link->linkState)
+                                   : 1;
+            update(link, linkStateDiff, store);
+        }
+
         pathFrag = nextPath;
         link = nextLink;
     }
@@ -1913,6 +1961,8 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         Assert_ifParanoid(pathFrag == 1);
 
         handleNews(link->child, newReach, store);
+        uint32_t newLinkState = subReach(newReach, Node_getReach(link->parent));
+        update(link, newLinkState - link->linkState, store);
     }
 }
 
@@ -1940,7 +1990,30 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
 void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
-    struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
+    struct Node_Link* link = store->selfLink;
+    uint64_t pathFrag = path;
+    for (;;) {
+        struct Node_Link* nextLink = NULL;
+        uint64_t nextPath = firstHopInPath(pathFrag, &nextLink, link, store);
+        if (firstHopInPath_ERR(nextPath)) {
+            break;
+        }
+
+        // expecting behavior of nextLinkOnPath()
+        Assert_ifParanoid(nextLink->parent == link->child);
+
+        if (link != store->selfLink) {
+            // TODO(arceliar): Something sane. We don't know which link on the path is bad.
+            // For now, just penalize them all.
+            // The good ones will be rewarded again when they relay another ping.
+            update(link, -link->linkState/2, store);
+        }
+
+        pathFrag = nextPath;
+        link = nextLink;
+    }
+
+    link = NodeStore_linkForPath(nodeStore, path);
     if (!link || link->child->address.path != path) { return; }
     struct Node_Two* node = link->child;
     uint32_t newReach = reachAfterTimeout(Node_getReach(node));
@@ -1954,4 +2027,15 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
                   newReach);
     #endif
     handleNews(node, newReach, store);
+    if (newReach > 1024) {
+        // Keep checking until we're sure it's either OK or down.
+        RumorMill_addNode(store->renumberMill, &node->address);
+    }
+
+    if (link->parent != store->pub.selfNode) {
+        // All we know for sure is that link->child didn't respond.
+        // That could be because an earlier link is down.
+        // Same idea as the workaround in NodeStore_brokenPath();
+        RumorMill_addNode(store->renumberMill, &link->parent->address);
+    }
 }
