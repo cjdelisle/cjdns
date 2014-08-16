@@ -319,10 +319,10 @@ static inline uint8_t incomingForMe(struct Message* message,
         return Error_UNDELIVERABLE;
     }
 
-    // prevent router advertizement schenanigans
-    if (dtHeader->ip6Header->hopLimit == 255) {
-        dtHeader->ip6Header->hopLimit--;
-    }
+    // Force set the hopLimit to a specific number, in preparation for the new protocol
+    // which will nolonger include hopLimit so it will need to be set at the end.
+    // This is here to test how applications behave with a weird hop limit.
+    dtHeader->ip6Header->hopLimit = 42;
 
     // Now write a message to the TUN device.
     // Need to move the ipv6 header forward up to the content because there's a crypto header
@@ -567,7 +567,8 @@ static inline uint8_t incomingFromTun(struct Message* message,
         Message_shift(message, 20, NULL);
         Bits_memmoveConst(message->bytes, header, Headers_IP6Header_SIZE);
         Message_shift(message, -(20 + Headers_IP6Header_SIZE), NULL);
-        debugHandles0(context->logger, session, "layer3 sending run message");
+        // Per packet spam
+        //debugHandles0(context->logger, session, "layer3 sending run message");
     }
 
     // This comes out at outgoingFromCryptoAuth() then outgoingFromMe()
