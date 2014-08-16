@@ -2,7 +2,7 @@ Source: cjdns
 Section: comm
 Priority: extra
 Maintainer: Sergey "Shnatsel" Davidoff <shnatsel@gmail.com>
-Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.5) | wget, python2.7
+Build-Depends: debhelper (>= 8.0.0), nodejs (>= 0.8.15) | wget, python2.7
 Standards-Version: 3.9.2
 Homepage: https://github.com/cjdelisle/cjdns/
 Vcs-Git: git://github.com/cjdelisle/cjdns.git
