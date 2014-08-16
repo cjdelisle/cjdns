@@ -1034,11 +1034,12 @@ static void fixLink(struct Node_Link* parentLink,
                 // Order the list so that the next set of links will be split from
                 // smallest to largest and nothing will ever be split twice.
                 for (struct Node_Link** x = outLinks;; x = &(*x)->nextInSplitList) {
-                    if (!*x || (*x)->cannonicalLabel > childLink->cannonicalLabel) {
-                        childLink->nextInSplitList = *x;
-                        *x = childLink;
-                        break;
-                    }
+                    if (*x && (*x)->cannonicalLabel <= childLink->cannonicalLabel) { continue; }
+                    if (*x == childLink) { break; }
+                    Assert_true(!childLink->nextInSplitList);
+                    childLink->nextInSplitList = *x;
+                    *x = childLink;
+                    break;
                 }
             }
         }
