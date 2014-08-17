@@ -12,25 +12,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cjdnsadmin.cjdnsadmin import connectWithAdminInfo
+from cjdnsadmin.adminTools import streamRoutingTable
 import json
-from time import sleep
 
 cjdns = connectWithAdminInfo()
 
-nodes = {}
-while (1):
-    i = 0
-    newNodes = []
-    while True:
-        table = cjdns.NodeStore_dumpTable(i)
-        routes = table['routingTable']
-        for entry in routes:
-            if (not entry['ip'] in nodes):
-                nodes[entry['ip']] = 1
-                newNodes.append(entry)
-        if (not 'more' in table):
-            break
-        i += 1
-    for entry in newNodes:
-        print json.dumps(entry)
-    sleep(30)
+for node in streamRoutingTable(cjdns):
+    print json.dumps(node)

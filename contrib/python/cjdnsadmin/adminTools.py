@@ -11,6 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from time import sleep
 
 def connect(ip='',port=0,password=''):
     from cjdnsadmin import connect, connectWithAdminInfo
@@ -55,6 +56,25 @@ def dumpTable(cjdns,verbose=False,unique_ip=False,nodes=[]):
         i += 1
 
     return rt
+
+def streamRoutingTable(cjdns, delay=10):
+    nodes = {}
+    while (1):
+        i = 0
+        newNodes = []
+        while True:
+            table = cjdns.NodeStore_dumpTable(i)
+            routes = table['routingTable']
+            for entry in routes:
+                if (not entry['ip'] in nodes):
+                    nodes[entry['ip']] = 1
+                    newNodes.append(entry)
+            if (not 'more' in table):
+                break
+            i += 1
+        for entry in newNodes:
+            yield entry
+        sleep(delay)
 
 def peerStats(cjdns,up=False,verbose=False):
     from publicToIp6 import PublicToIp6_convert;
