@@ -58,22 +58,23 @@ def dumpTable(cjdns,verbose=False,unique_ip=False,nodes=[]):
     return rt
 
 def streamRoutingTable(cjdns, delay=10):
-    nodes = {}
-    while (1):
+    known = []
+
+    while True:
         i = 0
-        newNodes = []
         while True:
             table = cjdns.NodeStore_dumpTable(i)
             routes = table['routingTable']
             for entry in routes:
-                if (not entry['ip'] in nodes):
-                    nodes[entry['ip']] = 1
-                    newNodes.append(entry)
-            if (not 'more' in table):
+                if entry['ip'] not in known:
+                    known.append(entry['ip'])
+                    yield entry
+
+            if 'more' not in table:
                 break
+
             i += 1
-        for entry in newNodes:
-            yield entry
+
         sleep(delay)
 
 def peerStats(cjdns,up=False,verbose=False):
