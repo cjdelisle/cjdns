@@ -17,5 +17,8 @@ import json
 
 cjdns = connectWithAdminInfo()
 
-for node in streamRoutingTable(cjdns):
-    print json.dumps(node)
+try:
+    for node in streamRoutingTable(cjdns):
+        print json.dumps(node)
+except KeyboardInterrupt:
+    pass
