@@ -336,7 +336,8 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 static uint32_t addReach(int32_t reachAB, int32_t reachBC)
 {
     // uint64_t to avoid overflows when multiplying.
-    uint64_t reachAC = (reachAB * reachBC) / (reachAB + reachBC);
+    int64_t reachAC = (reachAB * reachBC) / (reachAB + reachBC);
+    if (reachAC > UINT32_MAX) { reachAC = UINT32_MAX; }
     return reachAC;
 }
 
@@ -344,7 +345,10 @@ static uint32_t addReach(int32_t reachAB, int32_t reachBC)
 static uint32_t subReach(int32_t reachAC, int32_t reachAB)
 {
     // uint64_t to avoid overflows when multiplying.
-    uint64_t reachBC = (reachAC * reachAB) / (reachAB - reachAC);
+    // Apparently it's possible for reachAB == reachAC in rare cases where we want to call this.
+    int64_t reachBC = (reachAC * reachAB) / (reachAB - reachAC || 1);
+    if (reachBC < 0) { reachBC *= -1; }
+    if (reachBC > UINT32_MAX) { reachBC = UINT32_MAX; }
     return reachBC;
 }
 
