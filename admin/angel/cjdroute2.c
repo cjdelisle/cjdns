@@ -165,8 +165,6 @@ static int genconf(struct Random* rand)
            "        \"password\": \"%s\"\n", adminPassword);
     printf("    },\n"
            "\n"
-           "\n\n" // TODO(cjd): Why is this needed and where are these newlines going?!!
-           "\n"
            "    // Interfaces to connect to the switch core.\n"
            "    \"interfaces\":\n"
            "    {\n"
