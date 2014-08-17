@@ -11,11 +11,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-import os
 from cjdnsadmin.cjdnsadmin import connectWithAdminInfo
 import json
-from pprint import pprint
 from time import sleep
 
 cjdns = connectWithAdminInfo()
