@@ -333,11 +333,17 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 }
 
 /** Adds the reach of path A->B to path B->C to get the expected reach of A->C. */
-static uint32_t addReach(int32_t reachAB, int32_t reachBC)
+static uint32_t addReach(uint32_t reachAB, uint32_t reachBC)
 {
-    // uint64_t to avoid overflows when multiplying.
-    int64_t reachAC = (reachAB * reachBC) / (reachAB + reachBC);
-    if (reachAC > UINT32_MAX) { reachAC = UINT32_MAX; }
+    if (!(reachAB | reachBC)) { return 0; }
+    int64_t reachAC;
+    if (!(reachAB + reachBC)) {
+        reachAC = reachAB * reachBC;
+    } else {
+        // int64_t to avoid overflows when multiplying.
+        reachAC = (reachAB * reachBC) / (reachAB + reachBC);
+    }
+    if (reachAC > UINT32_MAX) { return UINT32_MAX; }
     return reachAC;
 }
 
