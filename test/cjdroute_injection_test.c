@@ -17,7 +17,7 @@
 #include "memory/Allocator.h"
 #include "net/Ducttape.h"
 #include "util/CString.h"
-
+#include "wire/SwitchHeader.h"
 #include "test/TestFramework.h"
 
 #include <stdio.h>
@@ -80,7 +80,7 @@ int main()
     uint16_t buffLen = sizeof(struct Ducttape_IncomingForMe) + 8 + CString_strlen(evilBenc);
     uint8_t* buff = Allocator_calloc(allocator, buffLen + PADDING, 1);
 
-    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + Headers_SwitchHeader_SIZE);
+    struct Headers_IP6Header* ip6 = (struct Headers_IP6Header*) (buff + SwitchHeader_SIZE);
     uint8_t* herPublicKey = (uint8_t*) "0123456789abcdefghijklmnopqrstuv";
     AddressCalc_addressForPublicKey(ip6->sourceAddr, herPublicKey);
 

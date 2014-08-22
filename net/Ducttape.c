@@ -85,7 +85,7 @@ static inline uint8_t sendToRouter(struct Message* message,
                                    struct SessionManager_Session* session,
                                    struct Ducttape_pvt* context)
 {
-    int safeDistance = Headers_SwitchHeader_SIZE;
+    int safeDistance = SwitchHeader_SIZE;
 
     CryptoAuth_resetIfTimeout(session->internal);
     if (CryptoAuth_getState(session->internal) < CryptoAuth_HANDSHAKE3) {
@@ -113,12 +113,12 @@ static inline uint8_t sendToRouter(struct Message* message,
     Message_shift(message, safeDistance, NULL);
     if (dtHeader->switchHeader) {
         if (message->bytes != (uint8_t*)dtHeader->switchHeader) {
-            Bits_memmoveConst(message->bytes, dtHeader->switchHeader, Headers_SwitchHeader_SIZE);
-            dtHeader->switchHeader = (struct Headers_SwitchHeader*) message->bytes;
+            Bits_memmoveConst(message->bytes, dtHeader->switchHeader, SwitchHeader_SIZE);
+            dtHeader->switchHeader = (struct SwitchHeader*) message->bytes;
         }
     } else {
-        dtHeader->switchHeader = (struct Headers_SwitchHeader*) message->bytes;
-        Bits_memset(dtHeader->switchHeader, 0, Headers_SwitchHeader_SIZE);
+        dtHeader->switchHeader = (struct SwitchHeader*) message->bytes;
+        Bits_memset(dtHeader->switchHeader, 0, SwitchHeader_SIZE);
     }
     Message_shift(message, -safeDistance, NULL);
 
@@ -348,10 +348,10 @@ uint8_t Ducttape_injectIncomingForMe(struct Message* message,
 {
     struct Ducttape_pvt* context = Identity_check((struct Ducttape_pvt*)dt);
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
-    struct Headers_SwitchHeader sh;
-    Bits_memcpyConst(&sh, message->bytes, Headers_SwitchHeader_SIZE);
+    struct SwitchHeader sh;
+    Bits_memcpyConst(&sh, message->bytes, SwitchHeader_SIZE);
     dtHeader->switchHeader = &sh;
-    Message_shift(message, -Headers_SwitchHeader_SIZE, NULL);
+    Message_shift(message, -SwitchHeader_SIZE, NULL);
 
     struct Headers_IP6Header ip6;
     Bits_memcpyConst(&ip6, message->bytes, Headers_IP6Header_SIZE);
@@ -395,7 +395,7 @@ static inline uint8_t sendToSwitch(struct Message* message,
         #endif
     }
 
-    Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
+    Message_shift(message, SwitchHeader_SIZE, NULL);
 
     Assert_true(message->bytes == (uint8_t*)dtHeader->switchHeader);
 
@@ -909,7 +909,7 @@ static uint8_t outgoingFromCryptoAuth(struct Message* message, struct Interface*
  */
 static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                                     struct Message* message,
-                                    struct Headers_SwitchHeader* switchHeader,
+                                    struct SwitchHeader* switchHeader,
                                     struct Interface* switchIf)
 {
     uint8_t labelStr[20];
@@ -936,8 +936,8 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
         RouterModule_brokenPath(path, context->routerModule);
 
-        uint8_t causeType = Headers_getMessageType(&ctrl->content.error.cause);
-        if (causeType == Headers_SwitchHeader_TYPE_CONTROL) {
+        uint8_t causeType = SwitchHeader_getMessageType(&ctrl->content.error.cause);
+        if (causeType == SwitchHeader_TYPE_CONTROL) {
             if (message->length < Control_Error_MIN_SIZE + Control_HEADER_SIZE) {
                 Log_info(context->logger,
                           "error packet from [%s] containing runt cause packet",
@@ -972,7 +972,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                 // errors resulting from pings are forwarded back to the pinger.
                 pong = true;
             }
-        } else if (causeType != Headers_SwitchHeader_TYPE_DATA) {
+        } else if (causeType != SwitchHeader_TYPE_DATA) {
             Log_info(context->logger,
                       "error packet from [%s] containing cause of unknown type [%u]",
                       labelStr, causeType);
@@ -1004,7 +1004,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         ctrl->type_be = Control_PONG_be;
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-        Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
+        Message_shift(message, SwitchHeader_SIZE, NULL);
         Log_debug(context->logger, "got switch ping from [%s]", labelStr);
         switchIf->receiveMessage(message, switchIf);
 
@@ -1044,7 +1044,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         ctrl->type_be = Control_KEYPONG_be;
         ctrl->checksum_be = 0;
         ctrl->checksum_be = Checksum_engine(message->bytes, message->length);
-        Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
+        Message_shift(message, SwitchHeader_SIZE, NULL);
 
         Interface_receiveMessage(switchIf, message);
 
@@ -1056,7 +1056,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
     if (pong && context->pub.switchPingerIf.receiveMessage) {
         // Shift back over the header
-        Message_shift(message, Headers_SwitchHeader_SIZE, NULL);
+        Message_shift(message, SwitchHeader_SIZE, NULL);
         context->pub.switchPingerIf.receiveMessage(
             message, &context->pub.switchPingerIf);
     }
@@ -1100,14 +1100,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
 
     struct Ducttape_MessageHeader* dtHeader = getDtHeader(message, true);
 
-    struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) message->bytes;
-    Message_shift(message, -Headers_SwitchHeader_SIZE, NULL);
+    struct SwitchHeader* switchHeader = (struct SwitchHeader*) message->bytes;
+    Message_shift(message, -SwitchHeader_SIZE, NULL);
 
     // The label comes in reversed from the switch because the switch doesn't know that we aren't
     // another switch ready to parse more bits, bit reversing the label yields the source address.
     switchHeader->label_be = Bits_bitReverse64(switchHeader->label_be);
 
-    if (Headers_getMessageType(switchHeader) == Headers_SwitchHeader_TYPE_CONTROL) {
+    if (SwitchHeader_getMessageType(switchHeader) == SwitchHeader_TYPE_CONTROL) {
         return handleControlMessage(context, message, switchHeader, switchIf);
     }
 

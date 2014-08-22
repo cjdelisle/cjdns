@@ -97,7 +97,7 @@ struct Ducttape_MessageHeader
      */
     enum Ducttape_SessionLayer layer;
 
-    struct Headers_SwitchHeader* switchHeader;
+    struct SwitchHeader* switchHeader;
     struct Headers_IP6Header* ip6Header;
 
     uint32_t nextHopReceiveHandle;

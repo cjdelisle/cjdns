@@ -23,6 +23,7 @@
 #include "memory/Allocator.h"
 #include "tunnel/IpTunnel.h"
 #include "wire/Headers.h"
+#include "wire/SwitchHeader.h"
 #include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("net/Ducttape.c")
@@ -59,7 +60,7 @@ void Ducttape_setUserInterface(struct Ducttape* dt, struct Interface* userIf);
  */
 struct Ducttape_IncomingForMe
 {
-    struct Headers_SwitchHeader switchHeader;
+    struct SwitchHeader switchHeader;
     struct Headers_IP6Header ip6Header;
 };
 

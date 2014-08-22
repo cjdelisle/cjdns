@@ -45,7 +45,6 @@
 #include "interface/InterfaceConnector.h"
 #include "interface/InterfaceController_admin.h"
 #include "interface/FramingInterface.h"
-#include "interface/ICMP6Generator.h"
 #include "interface/RainflyClient.h"
 #include "interface/RainflyClient_admin.h"
 #include "interface/DNSServer.h"
@@ -72,6 +71,7 @@
 #include "util/Security.h"
 #include "util/version/Version.h"
 #include "interface/SessionManager_admin.h"
+#include "wire/SwitchHeader.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -103,7 +103,7 @@
     + Headers_UDPHeader_SIZE \
     + 4 /* Nonce */ \
     + 16 /* Poly1305 authenticator */ \
-    + Headers_SwitchHeader_SIZE \
+    + SwitchHeader_SIZE \
     + Headers_CryptoAuth_SIZE \
     + Headers_IP6Header_SIZE \
     + Headers_CryptoAuth_SIZE \

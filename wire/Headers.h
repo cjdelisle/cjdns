@@ -21,63 +21,6 @@
 #include <stdint.h>
 
 /**
- * The header which switches use to decide where to route traffic.
- *
- *                     1               2               3
- *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  0 |                                                               |
- *    +                         Switch Label                          +
- *  4 |                                                               |
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  8 |      Type     |                  Priority                     |
- *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- */
-#define Headers_SwitchHeader_TYPE_DATA 0
-#define Headers_SwitchHeader_TYPE_CONTROL 1
-
-#pragma pack(push)
-#pragma pack(4)
-struct Headers_SwitchHeader
-{
-    /** The label, this is how the switch decides where to send the packet. Big Endian. */
-    uint64_t label_be;
-
-    /**
-     * Top 8 bits: messageType
-     * See: MessageType.h
-     *
-     * Bottom 24 bits: priority
-     * Anti-flooding, this is a big endian uint32_t with the high 8 bits cut off.
-     *
-     * This entire number is in big endian encoding.
-     */
-    uint32_t lowBits_be;
-};
-#define Headers_SwitchHeader_SIZE 12
-Assert_compileTime(sizeof(struct Headers_SwitchHeader) == Headers_SwitchHeader_SIZE);
-#pragma pack(pop)
-
-
-static inline uint32_t Headers_getMessageType(const struct Headers_SwitchHeader* header)
-{
-    return Endian_bigEndianToHost32(header->lowBits_be) >> 24;
-}
-
-static inline uint32_t Headers_getPriority(const struct Headers_SwitchHeader* header)
-{
-    return Endian_bigEndianToHost32(header->lowBits_be) & ((1 << 24) - 1);
-}
-
-static inline void Headers_setPriorityAndMessageType(struct Headers_SwitchHeader* header,
-                                                     const uint32_t priority,
-                                                     const uint32_t messageType)
-{
-    header->lowBits_be =
-        Endian_hostToBigEndian32( (priority & ((1 << 24) - 1)) | messageType << 24 );
-}
-
-/**
  * Header for nodes authenticating to one another.
  *
  *                       1               2               3

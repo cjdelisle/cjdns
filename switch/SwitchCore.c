@@ -23,6 +23,7 @@
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
+#include "wire/SwitchHeader.h"
 #include "wire/Message.h"
 
 #include <inttypes.h>
@@ -82,32 +83,32 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
                                    struct Message* toSend,
                                    struct Log* logger)
 {
-    struct Headers_SwitchHeader* switchHeader = (struct Headers_SwitchHeader*) toSend->bytes;
+    struct SwitchHeader* switchHeader = (struct SwitchHeader*) toSend->bytes;
 
-    uint32_t priority = Headers_getPriority(switchHeader);
+    uint32_t priority = SwitchHeader_getPriority(switchHeader);
     if (switchIf->buffer + priority > switchIf->bufferMax) {
-        uint32_t messageType = Headers_getMessageType(switchHeader);
-        Headers_setPriorityAndMessageType(switchHeader, 0, messageType);
+        uint32_t messageType = SwitchHeader_getMessageType(switchHeader);
+        SwitchHeader_setPriorityAndMessageType(switchHeader, 0, messageType);
     }
 
     return Interface_sendMessage(switchIf->iface, toSend);
 }
 
 struct ErrorPacket {
-    struct Headers_SwitchHeader switchHeader;
+    struct SwitchHeader switchHeader;
     struct Control ctrl;
 };
 Assert_compileTime(
-    sizeof(struct ErrorPacket) == Headers_SwitchHeader_SIZE + sizeof(struct Control));
+    sizeof(struct ErrorPacket) == SwitchHeader_SIZE + sizeof(struct Control));
 
 static inline void sendError(struct SwitchInterface* iface,
                              struct Message* cause,
                              uint32_t code,
                              struct Log* logger)
 {
-    struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) cause->bytes;
+    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
 
-    if (Headers_getMessageType(header) == Headers_SwitchHeader_TYPE_CONTROL
+    if (SwitchHeader_getMessageType(header) == SwitchHeader_TYPE_CONTROL
         && ((struct ErrorPacket*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
     {
         // Errors never cause other errors to be sent.
@@ -120,20 +121,20 @@ static inline void sendError(struct SwitchInterface* iface,
 
     // Shift back so we can add another header.
     Message_shift(cause,
-                  Headers_SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
                   NULL);
     struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
-    Headers_setPriorityAndMessageType(&err->switchHeader,
-                                      Headers_getPriority(header),
-                                      Headers_SwitchHeader_TYPE_CONTROL);
+    SwitchHeader_setPriorityAndMessageType(&err->switchHeader,
+                                           SwitchHeader_getPriority(header),
+                                           SwitchHeader_TYPE_CONTROL);
     err->ctrl.type_be = Control_ERROR_be;
     err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
     err->ctrl.checksum_be = 0;
 
     err->ctrl.checksum_be =
-        Checksum_engine((uint8_t*) &err->ctrl, cause->length - Headers_SwitchHeader_SIZE);
+        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE);
 
     sendMessage(iface, cause, logger);
 }
@@ -150,13 +151,13 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         return Error_NONE;
     }
 
-    if (message->length < Headers_SwitchHeader_SIZE) {
+    if (message->length < SwitchHeader_SIZE) {
         Log_debug(sourceIf->core->logger, "DROP runt packet.");
         return Error_NONE;
     }
 
     struct SwitchCore* core = sourceIf->core;
-    struct Headers_SwitchHeader* header = (struct Headers_SwitchHeader*) message->bytes;
+    struct SwitchHeader* header = (struct SwitchHeader*) message->bytes;
     const uint64_t label = Endian_bigEndianToHost64(header->label_be);
     uint32_t bits = NumberCompress_bitsUsedForLabel(label);
     const uint32_t sourceIndex = sourceIf - core->interfaces;
@@ -267,7 +268,7 @@ static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
         Message_shift(message, Control_Error_MAX_SIZE, NULL);
         Bits_memcpy(message->bytes, messageClone, cloneLength);
         message->length = cloneLength;
-        header = (struct Headers_SwitchHeader*) message->bytes;
+        header = (struct SwitchHeader*) message->bytes;
         header->label_be = Endian_bigEndianToHost64(label);
         sendError(sourceIf, message, err, sourceIf->core->logger);
         return Error_NONE;
