@@ -46,14 +46,6 @@ struct Address_List* ReplySerializer_parse(struct Address* fromNode,
     String* versionsStr = Dict_getString(result, CJDHTConstants_NODE_PROTOCOLS);
     if (versionsStr) {
         versions = VersionList_parse(versionsStr, alloc);
-        #ifdef Version_1_COMPAT
-            // Version 1 lies about the versions of other nodes, assume they're all v1.
-            if (fromNode->protocolVersion < 2) {
-                for (int i = 0; i < (int)versions->length; i++) {
-                    versions->versions[i] = 1;
-                }
-            }
-        #endif
     }
     if (!versions || versions->length != (nodes->len / Address_SERIALIZED_SIZE)) {
         Log_debug(log, "Reply with missing or invalid versions");

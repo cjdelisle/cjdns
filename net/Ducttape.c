@@ -89,20 +89,10 @@ static inline uint8_t sendToRouter(struct Message* message,
 
     CryptoAuth_resetIfTimeout(session->internal);
     if (CryptoAuth_getState(session->internal) < CryptoAuth_HANDSHAKE3) {
-        // Bug 104, see Version.h
-        #ifdef Version_2_COMPAT
-        if (session->version >= 3) {
-        #endif
-            // Put the handle into the message so that it's authenticated.
-            // see: sendToSwitch()
-            //Log_debug(context->logger, "Sending receive handle under CryptoAuth");
-            Message_push(message, &session->receiveHandle_be, 4, NULL);
-        #ifdef Version_2_COMPAT
-        } else {
-            // Otherwise it will be added on the other side.
-            safeDistance += 4;
-        }
-        #endif
+        // Put the handle into the message so that it's authenticated.
+        // see: sendToSwitch()
+        //Log_debug(context->logger, "Sending receive handle under CryptoAuth");
+        Message_push(message, &session->receiveHandle_be, 4, NULL);
 
         safeDistance += Headers_CryptoAuth_SIZE;
     } else {
@@ -1063,32 +1053,6 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     return Error_NONE;
 }
 
-#ifdef Version_2_COMPAT
-static inline void translateVersion2(struct Message* message,
-                                     struct Ducttape_MessageHeader* dtHeader)
-{
-    uint32_t handle = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
-    uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[1]);
-    dtHeader->currentSessionVersion = 2;
-    if (handle & HANDLE_FLAG_BIT) {
-        // We have to doctor their handles to make them conform to the new protocol.
-        // see sendToSwitch() where they are un-doctored when being sent back.
-        handle &= ~HANDLE_FLAG_BIT;
-        ((uint32_t*)message->bytes)[0] = Endian_bigEndianToHost32(handle);
-        return;
-    }
-    // This has a 4 / 4294967296 risk of a false positive, losing a traffic packet
-    // between 2 version2 nodes because the first 4 bytes of the content are mistaken
-    // for a nonce.
-    if (nonce <= 3) {
-        dtHeader->currentSessionSendHandle_be = Endian_bigEndianToHost32(handle);
-        Message_shift(message, -4, NULL);
-        return;
-    }
-    dtHeader->currentSessionVersion = 3;
-}
-#endif
-
 /**
  * This is called as sendMessage() by the switch.
  * There is only one switch interface which sends all traffic.
@@ -1117,10 +1081,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     }
 
     Assert_true(!(message->capacity % 4));
-
-    #ifdef Version_2_COMPAT
-    translateVersion2(message, dtHeader);
-    #endif
 
     // #1 try to get the session using the handle.
 
