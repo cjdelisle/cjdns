@@ -36,28 +36,6 @@ struct SwitchInterface
     struct SwitchCore* core;
 
     struct Allocator_OnFreeJob* onFree;
-
-    /**
-     * How much traffic has flowed down an interface as the sum of all packet priority.
-     * If this number reaches bufferMax, further incoming traffic is dropped to prevent flooding.
-     * Users should periodically adjust the buffer toward zero to fairly meter out priority in
-     * congestion situations.
-     */
-    int64_t buffer;
-
-    /**
-     * How high the buffer is allowed to get before beginning to drop packets.
-     * For nodes in the core, this number should be large because a buffer
-     * limit of a core link will cause route flapping.
-     * For edge nodes it is a measure of how much the ISP trusts the end user not to flood.
-     */
-    int64_t bufferMax;
-
-    /**
-     * How congested an interface is.
-     * this number is subtraced from packet priority when the packet is sent down this interface.
-     */
-    uint32_t congestion;
 };
 
 struct SwitchCore
@@ -83,14 +61,6 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
                                    struct Message* toSend,
                                    struct Log* logger)
 {
-    struct SwitchHeader* switchHeader = (struct SwitchHeader*) toSend->bytes;
-
-    uint32_t priority = SwitchHeader_getPriority(switchHeader);
-    if (switchIf->buffer + priority > switchIf->bufferMax) {
-        uint32_t messageType = SwitchHeader_getMessageType(switchHeader);
-        SwitchHeader_setPriorityAndMessageType(switchHeader, 0, messageType);
-    }
-
     return Interface_sendMessage(switchIf->iface, toSend);
 }
 
@@ -98,8 +68,7 @@ struct ErrorPacket {
     struct SwitchHeader switchHeader;
     struct Control ctrl;
 };
-Assert_compileTime(
-    sizeof(struct ErrorPacket) == SwitchHeader_SIZE + sizeof(struct Control));
+Assert_compileTime(sizeof(struct ErrorPacket) == SwitchHeader_SIZE + sizeof(struct Control));
 
 static inline void sendError(struct SwitchInterface* iface,
                              struct Message* cause,
@@ -146,10 +115,6 @@ static inline void sendError(struct SwitchInterface* iface,
 static uint8_t receiveMessage(struct Message* message, struct Interface* iface)
 {
     struct SwitchInterface* sourceIf = (struct SwitchInterface*) iface->receiverContext;
-    if (sourceIf->buffer > sourceIf->bufferMax) {
-        Log_warn(sourceIf->core->logger, "DROP because node seems to be flooding.");
-        return Error_NONE;
-    }
 
     if (message->length < SwitchHeader_SIZE) {
         Log_debug(sourceIf->core->logger, "DROP runt packet.");
@@ -341,10 +306,7 @@ int SwitchCore_addInterface(struct Interface* iface,
 
     Bits_memcpyConst(newIf, (&(struct SwitchInterface) {
         .iface = iface,
-        .core = core,
-        .buffer = 0,
-        .bufferMax = trust,
-        .congestion = 0
+        .core = core
     }), sizeof(struct SwitchInterface));
 
     newIf->onFree = Allocator_onFree(iface->allocator, removeInterface, newIf);
@@ -364,10 +326,7 @@ int SwitchCore_setRouterInterface(struct Interface* iface, struct SwitchCore* co
 {
     Bits_memcpyConst(&core->interfaces[1], (&(struct SwitchInterface) {
         .iface = iface,
-        .core = core,
-        .buffer = 0,
-        .bufferMax = INT64_MAX,
-        .congestion = 0
+        .core = core
     }), sizeof(struct SwitchInterface));
 
     iface->receiverContext = &core->interfaces[1];
