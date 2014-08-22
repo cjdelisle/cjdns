@@ -70,8 +70,8 @@ static inline uint32_t SwitchHeader_getPriority(const struct SwitchHeader* heade
 }
 
 static inline void SwitchHeader_setPriorityAndMessageType(struct SwitchHeader* header,
-                                                     const uint32_t priority,
-                                                     const uint32_t messageType)
+                                                          const uint32_t priority,
+                                                          const uint32_t messageType)
 {
     header->lowBits_be =
         Endian_hostToBigEndian32( (priority & ((1 << 24) - 1)) | messageType << 24 );
