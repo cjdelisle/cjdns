@@ -24,7 +24,7 @@
  */
 #define Control_ERROR_be Endian_hostToBigEndian16(2)
 #define Control_Error_HEADER_SIZE 4
-#define Control_Error_MIN_SIZE (Control_Error_HEADER_SIZE + SwitchHeader_SIZE)
+#define Control_Error_MIN_SIZE (Control_Error_HEADER_SIZE + SwitchHeader_SIZE + 4)
 #define Control_Error_MAX_SIZE 256
 struct Control_Error
 {
@@ -33,6 +33,9 @@ struct Control_Error
 
     /** The header of the packet which caused the error. */
     struct SwitchHeader cause;
+
+    /** The handle which sits below the SwitchHeader. */
+    uint32_t causeHandle;
 };
 Assert_compileTime(sizeof(struct Control_Error) == Control_Error_MIN_SIZE);
 

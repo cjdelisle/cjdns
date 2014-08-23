@@ -17,6 +17,7 @@
 
 #include "util/Assert.h"
 #include "util/Endian.h"
+#include "util/version/Version.h"
 
 #include <stdint.h>
 
@@ -30,11 +31,22 @@
  *    +                         Switch Label                          +
  *  4 |                                                               |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  8 |      Type     |                  Priority                     |
+ *  8 |   Congest   |S|                  Priority                     |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * Versions <= 7 byte number 8 is message type but the only 2 defined types were 0 (data)
+ * and 1 (control).
+ * Versions >= 8, byte number 8 is a congestion indicator but the lowest bit is a flag (S)
+ * indicating that errors caused by this packet should be suppressed. Obviously an error message
+ * should not trigger another error message so error messages will have the flag set.
+ * Conveinently, all pre v8 versions will set the flag on every ctrl packet (including all errors).
+ * Versions >= 8 will set congest to non-zero as a way to tell themselves apart from versions < 8
+ * Versions < 8 are treating the byte as a number so all bits of congest will be zero.
  */
-#define SwitchHeader_TYPE_DATA 0
-#define SwitchHeader_TYPE_CONTROL 1
+#ifdef Version_7_COMPAT
+    #define SwitchHeader_TYPE_DATA 0
+    #define SwitchHeader_TYPE_CONTROL 1
+#endif
 
 #pragma pack(push)
 #pragma pack(4)
@@ -44,8 +56,8 @@ struct SwitchHeader
     uint64_t label_be;
 
     /**
-     * Top 8 bits: messageType
-     * See: MessageType.h
+     * Top 7 bits: congest
+     * Next bit: suppressErrors
      *
      * Bottom 24 bits: priority
      * Anti-flooding, this is a big endian uint32_t with the high 8 bits cut off.
@@ -58,10 +70,17 @@ struct SwitchHeader
 Assert_compileTime(sizeof(struct SwitchHeader) == SwitchHeader_SIZE);
 #pragma pack(pop)
 
-
-static inline uint32_t SwitchHeader_getMessageType(const struct SwitchHeader* header)
+static inline uint32_t SwitchHeader_getCongestion(const struct SwitchHeader* header)
 {
-    return Endian_bigEndianToHost32(header->lowBits_be) >> 24;
+    return Endian_bigEndianToHost32(header->lowBits_be) >> 25;
+}
+
+static inline void SwitchHeader_setCongestion(struct SwitchHeader* header, uint32_t cong)
+{
+    Assert_true(cong <= 127);
+    if (!cong) { cong++; }
+    header->lowBits_be &= Endian_hostToBigEndian32( ~0xfe000000 );
+    header->lowBits_be |= Endian_hostToBigEndian32( cong << 25 );
 }
 
 static inline uint32_t SwitchHeader_getPriority(const struct SwitchHeader* header)
@@ -69,12 +88,37 @@ static inline uint32_t SwitchHeader_getPriority(const struct SwitchHeader* heade
     return Endian_bigEndianToHost32(header->lowBits_be) & ((1 << 24) - 1);
 }
 
+static inline void SwitchHeader_setPriority(struct SwitchHeader* header, uint32_t priority)
+{
+    Assert_true(priority <= ((1 << 24) - 1) );
+    header->lowBits_be &= Endian_hostToBigEndian32( ~((1 << 24) - 1) );
+    header->lowBits_be |= Endian_hostToBigEndian32( priority & ((1 << 24) - 1) );
+}
+
+static inline bool SwitchHeader_getSuppressErrors(const struct SwitchHeader* header)
+{
+    return !!( Endian_hostToBigEndian32(1<<24) & header->lowBits_be );
+}
+
+static inline void SwitchHeader_setSuppressErrors(struct SwitchHeader* header, bool suppress)
+{
+    if (suppress) {
+        header->lowBits_be |= Endian_hostToBigEndian32(1<<24);
+    } else {
+        header->lowBits_be &= Endian_hostToBigEndian32(~(1<<24));
+    }
+}
+
+#ifdef Version_7_COMPAT
 static inline void SwitchHeader_setPriorityAndMessageType(struct SwitchHeader* header,
                                                           const uint32_t priority,
                                                           const uint32_t messageType)
 {
+    Assert_true(messageType < 2);
     header->lowBits_be =
         Endian_hostToBigEndian32( (priority & ((1 << 24) - 1)) | messageType << 24 );
 }
+#define SwitchHeader_getMessageType SwitchHeader_getSuppressErrors
+#endif
 
 #endif

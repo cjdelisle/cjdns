@@ -64,21 +64,21 @@ static inline uint16_t sendMessage(const struct SwitchInterface* switchIf,
     return Interface_sendMessage(switchIf->iface, toSend);
 }
 
-struct ErrorPacket {
+#ifdef Version_7_COMPAT
+struct ErrorPacket7 {
     struct SwitchHeader switchHeader;
     struct Control ctrl;
 };
-Assert_compileTime(sizeof(struct ErrorPacket) == SwitchHeader_SIZE + sizeof(struct Control));
-
-static inline void sendError(struct SwitchInterface* iface,
-                             struct Message* cause,
-                             uint32_t code,
-                             struct Log* logger)
+Assert_compileTime(sizeof(struct ErrorPacket7) == SwitchHeader_SIZE + sizeof(struct Control));
+static inline void sendError7(struct SwitchInterface* iface,
+                              struct Message* cause,
+                              uint32_t code,
+                              struct Log* logger)
 {
     struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
 
     if (SwitchHeader_getMessageType(header) == SwitchHeader_TYPE_CONTROL
-        && ((struct ErrorPacket*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
+        && ((struct ErrorPacket7*) cause->bytes)->ctrl.type_be == Control_ERROR_be)
     {
         // Errors never cause other errors to be sent.
         return;
@@ -92,7 +92,7 @@ static inline void sendError(struct SwitchInterface* iface,
     Message_shift(cause,
                   SwitchHeader_SIZE + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
                   NULL);
-    struct ErrorPacket* err = (struct ErrorPacket*) cause->bytes;
+    struct ErrorPacket7* err = (struct ErrorPacket7*) cause->bytes;
 
     err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
     SwitchHeader_setPriorityAndMessageType(&err->switchHeader,
@@ -106,6 +106,92 @@ static inline void sendError(struct SwitchInterface* iface,
         Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE);
 
     sendMessage(iface, cause, logger);
+}
+#endif
+
+struct ErrorPacket8 {
+    struct SwitchHeader switchHeader;
+    uint32_t handle;
+    struct Control ctrl;
+};
+Assert_compileTime(sizeof(struct ErrorPacket8) == SwitchHeader_SIZE + 4 + sizeof(struct Control));
+static inline void sendError8(struct SwitchInterface* iface,
+                              struct Message* cause,
+                              uint32_t code,
+                              struct Log* logger)
+{
+    if (cause->length < SwitchHeader_SIZE + 4) {
+        Log_debug(logger, "runt");
+        return;
+    }
+
+    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
+    uint32_t* handle = (uint32_t*) &header[1];
+
+    if (*handle == 0xffffffff) {
+        if (cause->length < Control_HEADER_SIZE) {
+            Log_debug(logger, "runt ctrl packet");
+            return;
+        }
+        if (((struct ErrorPacket8*) cause->bytes)->ctrl.type_be == Control_ERROR_be) {
+            // Errors never cause other errors.
+            Log_debug(logger, "v8 error caused by other error");
+            return;
+        }
+    }
+
+    // limit of 256 bytes
+    cause->length =
+        (cause->length < Control_Error_MAX_SIZE) ? cause->length : Control_Error_MAX_SIZE;
+
+    // Shift back so we can add another header.
+    Message_shift(cause,
+                  SwitchHeader_SIZE + 4 + Control_HEADER_SIZE + Control_Error_HEADER_SIZE,
+                  NULL);
+    struct ErrorPacket8* err = (struct ErrorPacket8*) cause->bytes;
+
+    err->switchHeader.label_be = Bits_bitReverse64(header->label_be);
+    SwitchHeader_setSuppressErrors(header, true);
+    SwitchHeader_setPriority(header, 0);
+    SwitchHeader_setCongestion(header, 0);
+
+    err->handle = 0xffffffff;
+    err->ctrl.type_be = Control_ERROR_be;
+    err->ctrl.content.error.errorType_be = Endian_hostToBigEndian32(code);
+    err->ctrl.checksum_be = 0;
+
+    err->ctrl.checksum_be =
+        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE);
+
+    sendMessage(iface, cause, logger);
+}
+
+static inline void sendError(struct SwitchInterface* iface,
+                             struct Message* cause,
+                             uint32_t code,
+                             struct Log* logger)
+{
+    struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
+
+    #ifdef Version_8_COMPAT
+        if (SwitchHeader_getCongestion(header)) {
+            // new version packet.
+            sendError8(iface, cause, code, logger);
+            return;
+        } else if (cause->length > SwitchHeader_SIZE + 4 &&
+            ((uint32_t*)(&header[1]))[0] == 0xffffffff)
+        {
+            // ctrl packet which is being sent to a possibly-old-version node.
+            sendError8(iface, cause, code, logger);
+            return;
+        }
+        #ifdef Version_7_COMPAT
+            sendError7(iface, cause, code, logger);
+            return;
+        #endif
+    #endif
+
+    sendError8(iface, cause, code, logger);
 }
 
 #define DEBUG_SRC_DST(logger, message) \

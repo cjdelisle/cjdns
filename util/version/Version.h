@@ -143,6 +143,9 @@ Version_COMPAT(1, ([0]))
  * February 21, 2013
  *
  * Remove compatibility layer for communicating with version 0 nodes.
+ *
+ * August 22, 2014
+ * The Version_2_COMPAT ifdefs were removed in e2a7ebc4d7c54b6b5fac2c0ba5c7882af8b238f2
  */
 Version_COMPAT(2, ([1]))
 
@@ -215,12 +218,25 @@ Version_COMPAT(6, ([5]))
  */
 Version_COMPAT(7, ([5,6]))
 
+/*
+ * Version 8:
+ * August 22, 2014
+ *
+ * Previous to version 8, switch headers had a "Type" field which indicated the data type.
+ * The data type is now inferred from the content of the packet and in the case of need to send
+ * a control (error) packet, the switch sends a "handle" which is set to 0xffffffff.
+ * Also switches previous to v8 zeroed the priority field, now it is left untouched.
+ */
+Version_COMPAT(8, ([5,6,7]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 7
+#define Version_CURRENT_PROTOCOL 8
 #define Version_5_COMPAT
 #define Version_6_COMPAT
+#define Version_7_COMPAT
+#define Version_8_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 5
 #define Version_DEFAULT_ASSUMPTION 5

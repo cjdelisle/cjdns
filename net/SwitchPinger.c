@@ -78,8 +78,18 @@ static uint8_t receiveMessage(struct Message* msg, struct Interface* iface)
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     ctx->incomingLabel = Endian_bigEndianToHost64(switchHeader->label_be);
     ctx->incomingVersion = 0;
-    Assert_true(SwitchHeader_getMessageType(switchHeader) == SwitchHeader_TYPE_CONTROL);
     Message_shift(msg, -SwitchHeader_SIZE, NULL);
+
+    uint32_t handle = Message_pop32(msg, NULL);
+    #ifdef Version_7_COMPAT
+    if (handle != 0xffffffff) {
+        Message_push32(msg, handle, NULL);
+        handle = 0xffffffff;
+        Assert_true(SwitchHeader_getMessageType(switchHeader) == SwitchHeader_TYPE_CONTROL);
+    }
+    #endif
+    Assert_true(handle == 0xffffffff);
+
     struct Control* ctrl = (struct Control*) msg->bytes;
     if (ctrl->type_be == Control_PONG_be) {
         Message_shift(msg, -Control_HEADER_SIZE, NULL);
@@ -165,10 +175,23 @@ static void sendPing(String* data, void* sendPingContext)
     ctrl->type_be = Control_PING_be;
     ctrl->checksum_be = Checksum_engine(msg->bytes, msg->length);
 
+    #ifdef Version_7_COMPAT
+        if (0) {
+    #endif
+    Message_push32(msg, 0xffffffff, NULL);
+    #ifdef Version_7_COMPAT
+        }
+    #endif
+
     Message_shift(msg, SwitchHeader_SIZE, NULL);
     struct SwitchHeader* switchHeader = (struct SwitchHeader*) msg->bytes;
     switchHeader->label_be = Endian_hostToBigEndian64(p->label);
-    SwitchHeader_setPriorityAndMessageType(switchHeader, 0, SwitchHeader_TYPE_CONTROL);
+
+    SwitchHeader_setPriority(switchHeader, 0);
+    SwitchHeader_setCongestion(switchHeader, 0);
+    #ifdef Version_7_COMPAT
+        SwitchHeader_setPriorityAndMessageType(switchHeader, 0, SwitchHeader_TYPE_CONTROL);
+    #endif
 
     p->context->iface->sendMessage(msg, p->context->iface);
 }
