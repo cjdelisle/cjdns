@@ -1077,8 +1077,8 @@ static void fixLink(struct Node_Link* parentLink,
                 // Order the list so that the next set of links will be split from
                 // smallest to largest and nothing will ever be split twice.
                 for (struct Node_Link** x = outLinks;; x = &(*x)->nextInSplitList) {
-                    if (*x && (*x)->cannonicalLabel <= childLink->cannonicalLabel) { continue; }
                     if (*x == childLink) { break; }
+                    if (*x && (*x)->cannonicalLabel <= childLink->cannonicalLabel) { continue; }
                     Assert_true(!childLink->nextInSplitList);
                     childLink->nextInSplitList = *x;
                     *x = childLink;
@@ -1100,12 +1100,14 @@ static void fixLinks(struct Node_Link* parentLinkList,
                      struct NodeStore_pvt* store)
 {
     while (parentLinkList) {
+        struct Node_Link* next = parentLinkList->nextInSplitList;
+        parentLinkList->nextInSplitList = NULL;
+
         // else the parent link has been trashed by splitting another link.
         if (parentLinkList->child) {
             fixLink(parentLinkList, outLinks, store);
         }
-        struct Node_Link* next = parentLinkList->nextInSplitList;
-        parentLinkList->nextInSplitList = NULL;
+
         parentLinkList = next;
     }
 }
