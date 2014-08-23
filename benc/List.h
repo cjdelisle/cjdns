@@ -26,6 +26,8 @@ struct List_Item {
     Object* elem;
 };
 
+List* List_new(struct Allocator* alloc);
+
 /**
  * Get the length of a list.
  *
@@ -40,9 +42,8 @@ int32_t List_size(const List* list);
  * @param list the list to add the integer item to, if NULL then it is allocated.
  * @param toAdd the integer to add to the list. int64_t is an alias for int64_t
  * @param allocator the means of getting memory space for storing the list entry.
- * @return the list after adding the integer.
  */
-List* List_addInt(List* list, int64_t toAdd, struct Allocator* allocator);
+void List_addInt(List* list, int64_t toAdd, struct Allocator* allocator);
 
 /**
  * Add a string to a list, if the list does not exist then it is allocated.
@@ -51,9 +52,8 @@ List* List_addInt(List* list, int64_t toAdd, struct Allocator* allocator);
  * @param list the list to add the string item to, if NULL then it is allocated.
  * @param toAdd the string to add to the list.
  * @param allocator the means of getting memory space for storing the list entry.
- * @return the list after adding the string.
  */
-List* List_addString(List* list, String* toAdd, struct Allocator* allocator);
+void List_addString(List* list, String* toAdd, struct Allocator* allocator);
 
 /**
  * Add a dictionary to a list, if the list does not exist then it is allocated.
@@ -62,9 +62,8 @@ List* List_addString(List* list, String* toAdd, struct Allocator* allocator);
  * @param list the list to add the string item to, if NULL then it is allocated.
  * @param toAdd the dictionary to add to the list.
  * @param allocator the means of getting memory space for storing the list entry.
- * @return the list after adding the dictionary.
  */
-List* List_addDict(List* list, Dict* toAdd, struct Allocator* allocator);
+void List_addDict(List* list, Dict* toAdd, struct Allocator* allocator);
 
 /**
  * Add a list as an item to another list, if the list does not exist then it is allocated.
@@ -73,9 +72,8 @@ List* List_addDict(List* list, Dict* toAdd, struct Allocator* allocator);
  * @param list the list to add the item to, if NULL then it is allocated.
  * @param toAdd the list to add as an item.
  * @param allocator the means of getting memory space for storing the list entry.
- * @return the list after adding the item.
  */
-List* List_addList(List* list, List* toAdd, struct Allocator* allocator);
+void List_addList(List* list, List* toAdd, struct Allocator* allocator);
 
 /**
  * Get an integer from a list.

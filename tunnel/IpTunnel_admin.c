@@ -132,15 +132,14 @@ static void listConnections(Dict* args,
                             struct Allocator* alloc)
 {
     struct Context* context = vcontext;
-    List* l = NULL;
+    List* l = List_new(alloc);
     for (int i = 0; i < (int)context->ipTun->connectionList.count; i++) {
-        l = List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
+        List_addInt(l, context->ipTun->connectionList.connections[i].number, alloc);
     }
-    Dict resp = Dict_CONST(
-        String_CONST("connections"), List_OBJ(l), Dict_CONST(
-        String_CONST("error"), String_OBJ(String_CONST("none")), NULL
-    ));
-    Admin_sendMessage(&resp, txid, context->admin);
+    Dict* resp = Dict_new(alloc);
+    Dict_putList(resp, String_CONST("connections"), l, alloc);
+    Dict_putString(resp, String_CONST("error"), String_CONST("none"), alloc);
+    Admin_sendMessage(resp, txid, context->admin);
 }
 
 static void showConn(struct IpTunnel_Connection* conn,

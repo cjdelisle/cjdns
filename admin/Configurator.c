@@ -199,8 +199,8 @@ static void udpInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getList(config, String_CONST("UDPInterface"));
     if (!ifaces) {
-        ifaces = List_addDict(ifaces,
-                Dict_getDict(config, String_CONST("UDPInterface")), ctx->alloc);
+        ifaces = List_new(ctx->alloc);
+        List_addDict(ifaces, Dict_getDict(config, String_CONST("UDPInterface")), ctx->alloc);
     }
 
     uint32_t count = List_size(ifaces);
@@ -324,8 +324,8 @@ static void ethInterface(Dict* config, struct Context* ctx)
 {
     List* ifaces = Dict_getList(config, String_CONST("ETHInterface"));
     if (!ifaces) {
-        ifaces = List_addDict(ifaces,
-                              Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
+        ifaces = List_new(ctx->alloc);
+        List_addDict(ifaces, Dict_getDict(config, String_CONST("ETHInterface")), ctx->alloc);
     }
 
     uint32_t count = List_size(ifaces);

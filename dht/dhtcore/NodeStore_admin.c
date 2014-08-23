@@ -32,63 +32,44 @@ struct Context {
     Identity
 };
 
-static void dumpTable_send(struct Context* ctx,
-                           struct List_Item* last,
-                           bool isMore,
-                           String* txid)
-{
-    Dict table = Dict_CONST(String_CONST("routingTable"), List_OBJ(&last), NULL);
-    if (isMore) {
-        table = Dict_CONST(String_CONST("more"), Int_OBJ(1), table);
-    } else {
-        int count = ctx->store->nodeCount;
-        table = Dict_CONST(String_CONST("count"), Int_OBJ(count), table);
-    }
-    Admin_sendMessage(&table, txid, ctx->admin);
-}
 
 #define ENTRIES_PER_PAGE 8
-static void dumpTable_addEntries(struct Context* ctx,
-                                 int i,
-                                 int j,
-                                 struct List_Item* last,
-                                 String* txid)
-{
-    uint8_t path[20];
-    uint8_t ip[40];
-    String* pathStr = &(String) { .len = 19, .bytes = (char*)path };
-    String* ipStr = &(String) { .len = 39, .bytes = (char*)ip };
-    Object* link = Int_OBJ(0xFFFFFFFF);
-    Object* version = Int_OBJ(Version_DEFAULT_ASSUMPTION);
-    Dict entry = Dict_CONST(
-        String_CONST("ip"), String_OBJ(ipStr), Dict_CONST(
-        String_CONST("link"), link, Dict_CONST(
-        String_CONST("path"), String_OBJ(pathStr), Dict_CONST(
-        String_CONST("version"), version, NULL
-    ))));
-
-    struct List_Item next = { .next = last, .elem = Dict_OBJ(&entry) };
-
-    if (i >= ctx->store->nodeCount || j >= ENTRIES_PER_PAGE) {
-        dumpTable_send(ctx, last, (j >= ENTRIES_PER_PAGE), txid);
-        return;
-    }
-
-    struct Node_Two* n = NodeStore_dumpTable(ctx->store, i);
-    link->as.number = Node_getReach(n);
-    version->as.number = n->address.protocolVersion;
-    Address_printIp(ip, &n->address);
-    AddrTools_printPath(path, n->address.path);
-
-    dumpTable_addEntries(ctx, i + 1, j + 1, &next, txid);
-}
-
 static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
 {
     struct Context* ctx = Identity_check((struct Context*) vcontext);
     int64_t* page = Dict_getInt(args, String_CONST("page"));
-    int i = (page) ? *page * ENTRIES_PER_PAGE : 0;
-    dumpTable_addEntries(ctx, i, 0, NULL, txid);
+    int ctr = (page) ? *page * ENTRIES_PER_PAGE : 0;
+
+    Dict* out = Dict_new(requestAlloc);
+    List* table = List_new(requestAlloc);
+    struct Node_Two* nn = NULL;
+    for (int i = 0; i < ctr+ENTRIES_PER_PAGE; i++) {
+        nn = NodeStore_getNextNode(ctx->store, nn);
+        if (!nn) { break; }
+        if (i < ctr) { continue; }
+        Dict* nodeDict = Dict_new(requestAlloc);
+
+        String* ip = String_newBinary(NULL, 39, requestAlloc);
+        Address_printIp(ip->bytes, &nn->address);
+        Dict_putString(nodeDict, String_CONST("ip"), ip, requestAlloc);
+
+        String* path = String_newBinary(NULL, 19, requestAlloc);
+        AddrTools_printPath(path->bytes, nn->address.path);
+        Dict_putString(nodeDict, String_CONST("path"), path, requestAlloc);
+
+        Dict_putInt(nodeDict, String_CONST("link"), Node_getReach(nn), requestAlloc);
+        Dict_putInt(nodeDict, String_CONST("version"), nn->address.protocolVersion, requestAlloc);
+
+        List_addDict(table, nodeDict, requestAlloc);
+    }
+    Dict_putList(out, String_CONST("routingTable"), table, requestAlloc);
+
+    if (nn) {
+        Dict_putInt(out, String_CONST("more"), 1, requestAlloc);
+    }
+    Dict_putInt(out, String_CONST("count"), ctx->store->nodeCount, requestAlloc);
+
+    Admin_sendMessage(out, txid, ctx->admin);
 }
 
 static int linkCount(struct Node_Two* parent)

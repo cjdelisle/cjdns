@@ -925,7 +925,9 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
         }
 
         uint64_t path = Endian_bigEndianToHost64(switchHeader->label_be);
-        RouterModule_brokenPath(path, context->routerModule);
+        if (!LabelSplicer_isOneHop(path)) {
+            RouterModule_brokenPath(path, context->routerModule);
+        }
 
         // Determine whether the "cause" packet is a control message.
         bool isCtrlCause = false;

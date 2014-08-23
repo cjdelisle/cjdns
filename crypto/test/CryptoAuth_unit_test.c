@@ -291,7 +291,7 @@ static void testGetUsers()
     List* users = NULL;
 
     users = CryptoAuth_getUsers(ca, allocator);
-    Assert_true(List_size(users) == -1);
+    Assert_true(List_size(users) == 0);
 
     CryptoAuth_addUser(String_CONST("pass1"), 1, String_CONST("user1"), ca);
     users = CryptoAuth_getUsers(ca, allocator);

@@ -39,7 +39,7 @@ typedef struct {
     enum Object_Type type;
     union {
         int64_t number;
-        String *string;
+        String* string;
         List* list;
         Dict* dictionary;
     } as;

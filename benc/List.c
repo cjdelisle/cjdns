@@ -19,85 +19,71 @@
 
 #include <stddef.h>
 
-int32_t List_size(const List* list)
+List* List_new(struct Allocator* alloc)
 {
-    if (list != NULL) {
-        struct List_Item* item = *list;
-        int32_t i;
-        for (i = 0; item != NULL; i++) {
-            item = item->next;
-        }
-        return i;
-    }
-    return -1;
+    return Allocator_calloc(alloc, sizeof(List*), 1);
 }
 
-static List* addObject(List* list, Object* item, struct Allocator* allocator)
+int32_t List_size(const List* list)
 {
-    if (list == NULL) {
-        List* newList = Allocator_calloc(allocator, sizeof(List), 1);
-        return addObject(newList, item, allocator);
+    Assert_true(list);
+    struct List_Item* item = *list;
+    uint32_t i = 0;
+    for (; item; i++) {
+        item = item->next;
     }
+    return i;
+}
+
+static void addObject(List* list, Object* item, struct Allocator* allocator)
+{
+    Assert_true(list);
 
     struct List_Item* entry = Allocator_malloc(allocator, sizeof(struct List_Item));
     entry->next = *list;
     entry->elem = item;
     *list = entry;
+}
 
-    return list;
+#define ADD(list, asType, typeName, thing, alloc) \
+    addObject(list, Allocator_clone(alloc, (&(Object) { \
+        .type = typeName,                               \
+        .as.asType = thing                              \
+    })), alloc)
+
+/** @see Object.h */
+void List_addInt(List* list, int64_t toAdd, struct Allocator* allocator)
+{
+    ADD(list, number, Object_INTEGER, toAdd, allocator);
 }
 
 /** @see Object.h */
-List* List_addInt(List* list, int64_t toAdd, struct Allocator* allocator)
+void List_addString(List* list, String* toAdd, struct Allocator* allocator)
 {
-    Object* obj = Allocator_clone(allocator, (&(Object) {
-        .type = Object_INTEGER,
-        .as.number = toAdd
-    }));
-    return addObject(list, obj, allocator);
+    ADD(list, string, Object_STRING, toAdd, allocator);
 }
 
 /** @see Object.h */
-List* List_addString(List* list, String* toAdd, struct Allocator* allocator)
+void List_addDict(List* list, Dict* toAdd, struct Allocator* allocator)
 {
-    Object* obj = Allocator_clone(allocator, (&(Object) {
-        .type = Object_STRING,
-        .as.string = toAdd
-    }));
-    return addObject(list, obj, allocator);
+    ADD(list, dictionary, Object_DICT, toAdd, allocator);
 }
 
 /** @see Object.h */
-List* List_addDict(List* list, Dict* toAdd, struct Allocator* allocator)
+void List_addList(List* list, List* toAdd, struct Allocator* allocator)
 {
-    Object* obj = Allocator_clone(allocator, (&(Object) {
-        .type = Object_DICT,
-        .as.dictionary = toAdd
-    }));
-    return addObject(list, obj, allocator);
-}
-
-/** @see Object.h */
-List* List_addList(List* list, List* toAdd, struct Allocator* allocator)
-{
-    Object* obj = Allocator_clone(allocator, (&(Object) {
-        .type = Object_LIST,
-        .as.list = toAdd
-    }));
-    return addObject(list, obj, allocator);
+    ADD(list, list, Object_LIST, toAdd, allocator);
 }
 
 static Object* getObject(const List* list, uint32_t index)
 {
-    if (list != NULL && *list != NULL) {
-        struct List_Item* entry = *list;
-        uint32_t i;
-        for (i = 0; entry != NULL; i++) {
-            if (i == index) {
-                return entry->elem;
-            }
-            entry = entry->next;
+    Assert_true(list);
+    struct List_Item* entry = *list;
+    for (uint32_t i = 0; entry; i++) {
+        if (i == index) {
+            return entry->elem;
         }
+        entry = entry->next;
     }
     return NULL;
 }
@@ -106,38 +92,36 @@ static Object* getObject(const List* list, uint32_t index)
 int64_t* List_getInt(const List* list, uint32_t index)
 {
     Object* o = getObject(list, index);
-    if (o != NULL && o->type == Object_INTEGER) {
+    if (o && o->type == Object_INTEGER) {
         return &(o->as.number);
     }
     return NULL;
 }
 
+#define GET(list, index, asType, typeName) \
+    do {                                                   \
+        Object* o = getObject(list, index);                \
+        if (o && o->type == typeName) {                    \
+            return o->as.asType;                           \
+        }                                                  \
+        return NULL;                                       \
+    } while (0)
+// CHECKFILES_IGNORE // expecting a ; or bracket
+
 /** @see Object.h */
 String* List_getString(const List* list, uint32_t index)
 {
-    Object* o = getObject(list, index);
-    if (o != NULL && o->type == Object_STRING) {
-        return o->as.string;
-    }
-    return NULL;
+    GET(list, index, string, Object_STRING);
 }
 
 /** @see Object.h */
 Dict* List_getDict(const List* list, uint32_t index)
 {
-    Object* o = getObject(list, index);
-    if (o != NULL && o->type == Object_DICT) {
-        return o->as.dictionary;
-    }
-    return NULL;
+    GET(list, index, dictionary, Object_DICT);
 }
 
 /** @see Object.h */
 List* List_getList(const List* list, uint32_t index)
 {
-    Object* o = getObject(list, index);
-    if (o != NULL && o->type == Object_LIST) {
-        return o->as.list;
-    }
-    return NULL;
+    GET(list, index, list, Object_LIST);
 }

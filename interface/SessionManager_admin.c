@@ -40,9 +40,9 @@ static void getHandles(Dict* args, void* vcontext, String* txid, struct Allocato
     uint32_t i = (page) ? *page * ENTRIES_PER_PAGE : 0;
     struct SessionManager_HandleList* hList = SessionManager_getHandleList(context->sm, alloc);
 
-    List* list = NULL;
+    List* list = List_new(alloc);
     for (int counter=0; i < hList->count && counter++ < ENTRIES_PER_PAGE; i++) {
-        list = List_addInt(list, hList->handles[i], alloc);
+        List_addInt(list, hList->handles[i], alloc);
     }
 
     Dict* r = Dict_new(alloc);

@@ -1157,11 +1157,10 @@ List* CryptoAuth_getUsers(struct CryptoAuth* context, struct Allocator* alloc)
     struct CryptoAuth_pvt* ctx = Identity_check((struct CryptoAuth_pvt*) context);
     uint32_t count = ctx->passwordCount;
 
-    List* users = NULL;
+    List* users = List_new(alloc);
 
-    for (uint32_t i = 0; i < count; i++ )
-    {
-        users = List_addString(users, String_clone(ctx->passwords[i].user, alloc), alloc);
+    for (uint32_t i = 0; i < count; i++) {
+        List_addString(users, String_clone(ctx->passwords[i].user, alloc), alloc);
     }
 
     return users;

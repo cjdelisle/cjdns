@@ -957,6 +957,11 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
     }
     #endif
 
+    if (closest == store->selfLink && !LabelSplicer_isOneHop(pathParentChild)) {
+        Log_debug(store->logger, "Attempting to create a link with no parent peer");
+        return NULL;
+    }
+
     if (parent == child) {
         if (pathParentChild == 1) {
             // Link is already known.
@@ -1114,19 +1119,16 @@ static void fixLinks(struct Node_Link* parentLinkList,
 
 
 static struct Node_Link* discoverLink(struct NodeStore_pvt* store,
-                                      struct Node_Link* closestKnown,
-                                      uint64_t pathKnownParentChild,
+                                      uint64_t path,
                                       struct Node_Two* child,
-                                      uint64_t discoveredPath,
                                       int inverseLinkEncodingFormNumber)
 {
     struct Node_Link* link =
-        discoverLinkC(store, closestKnown, pathKnownParentChild, child,
-                      discoveredPath, inverseLinkEncodingFormNumber);
+        discoverLinkC(store, store->selfLink, path, child, path, inverseLinkEncodingFormNumber);
 
     if (!link) { return NULL; }
 
-    uint64_t pathParentChild = findClosest(pathKnownParentChild, &link, closestKnown, store);
+    uint64_t pathParentChild = findClosest(path, &link, store->selfLink, store);
     // This should always be 1 because the link is gone only because it was just split!
     Assert_true(pathParentChild == 1);
 
@@ -1325,6 +1327,10 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 
 static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 {
+    // TODO(cjd): remove
+    Assert_true(Node_getBestParent(node) != store->selfLink
+        || !LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel));
+
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &node->peerTree) {
         Identity_check(link);
@@ -1440,10 +1446,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     struct Node_Link* link = NULL;
     for (;;) {
         link = discoverLink(store,
-                            store->selfLink,
                             addr->path,
                             child,
-                            addr->path,
                             inverseLinkEncodingFormNumber);
 
         if (link) { break; }
@@ -1728,6 +1732,15 @@ struct Node_Two* NodeStore_dumpTable(struct NodeStore* nodeStore, uint32_t index
     return NULL;
 }
 
+struct Node_Two* NodeStore_getNextNode(struct NodeStore* nodeStore, struct Node_Two* lastNode)
+{
+    struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
+    if (!lastNode) {
+        return Identity_ncheck(RB_MIN(NodeRBTree, &store->nodeTree));
+    }
+    return Identity_ncheck(NodeRBTree_RB_NEXT(lastNode));
+}
+
 static struct Node_Two* getBestCycleB(struct Node_Two* node,
                                       struct Address* target,
                                       struct NodeStore_pvt* store)
@@ -1982,7 +1995,7 @@ void NodeStore_pathResponse(struct NodeStore* nodeStore, uint64_t path, uint64_t
 {
     struct NodeStore_pvt* store = Identity_check((struct NodeStore_pvt*)nodeStore);
     struct Node_Link* link = NodeStore_linkForPath(nodeStore, path);
-    if (!link) { return; }
+    if (!link || link == store->selfLink) { return; }
     struct Node_Two* node = link->child;
     uint32_t newReach;
     if (node->address.path == path) {

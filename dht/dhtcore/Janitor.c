@@ -391,9 +391,9 @@ static void checkPeers(struct Janitor* janitor, struct Node_Two* n)
 // Iterate over all nodes in the table. Try to split any split-able links.
 static void splitLinks(struct Janitor* janitor)
 {
-    return; // Disabled until we figure out if it's still needed.
-    uint32_t index = 0;
-    struct Node_Two* node = NodeStore_dumpTable(janitor->nodeStore, index);
+    return; // TODO(cjd): Disabled until we figure out if it's still needed.
+
+    struct Node_Two* node = NodeStore_getNextNode(janitor->nodeStore, NULL);
     while (node) {
         struct Node_Link* bestParent = Node_getBestParent(node);
         if (bestParent) {
@@ -406,9 +406,20 @@ static void splitLinks(struct Janitor* janitor)
                 link = NodeStore_nextLink(node, link);
             }
         }
-        index++;
-        node = NodeStore_dumpTable(janitor->nodeStore, index);
+        node = NodeStore_getNextNode(janitor->nodeStore, node);
     }
+}
+
+static struct Node_Two* getRandomNode(struct Random* rand, struct NodeStore* store)
+{
+    uint32_t index = Random_uint32(rand) % (store->nodeCount);
+    struct Node_Two* node = NULL;
+    do {
+        node = NodeStore_getNextNode(store, node);
+    } while (index--);
+    // there's always the self node
+    Assert_true(node);
+    return node;
 }
 
 static void maintanenceCycle(void* vcontext)
@@ -477,26 +488,22 @@ static void maintanenceCycle(void* vcontext)
     } else if (Random_uint32(janitor->rand) % 4) {
         // 75% of the time, ping a random link from a random node.
         // There's not an obvious way to get a random link directly, so first get a random node.
-        uint32_t index = Random_uint32(janitor->rand) % (janitor->nodeStore->nodeCount);
-        struct Node_Two* node = NodeStore_dumpTable(janitor->nodeStore, index);
-        struct Node_Link* link = NULL;
-        if (node) {
-            // Count the number of links leading from this node.
+        struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
+        // Count the number of links leading from this node.
+        struct Node_Link* link = NodeStore_nextLink(node, NULL);
+        uint32_t linkCount = 0;
+        while (link) {
+            linkCount++;
+            link = NodeStore_nextLink(node, link);
+        }
+        if (linkCount) {
+            // Now pick one of these links at random.
+            uint32_t randLinkIndex = Random_uint32(janitor->rand) % linkCount;
             link = NodeStore_nextLink(node, NULL);
-            uint32_t linkCount = 0;
-            while (link) {
+            linkCount = 0;
+            while (linkCount < randLinkIndex) {
                 linkCount++;
                 link = NodeStore_nextLink(node, link);
-            }
-            if (linkCount) {
-                // Now pick one of these links at random.
-                uint32_t randLinkIndex = Random_uint32(janitor->rand) % linkCount;
-                link = NodeStore_nextLink(node, NULL);
-                linkCount = 0;
-                while (linkCount < randLinkIndex) {
-                    linkCount++;
-                    link = NodeStore_nextLink(node, link);
-                }
             }
         }
 

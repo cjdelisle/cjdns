@@ -231,7 +231,7 @@ List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc
     String* prefixLen = String_new("prefixLen", alloc);
     String* bitCount = String_new("bitCount", alloc);
     String* prefix = String_new("prefix", alloc);
-    List* scheme = NULL;
+    List* scheme = List_new(alloc);
     for (int i = 0; i < (int)list->count; i++) {
         Dict* form = Dict_new(alloc);
         Dict_putInt(form, prefixLen, list->forms[i].prefixLen, alloc);
@@ -240,7 +240,7 @@ List* EncodingScheme_asList(struct EncodingScheme* list, struct Allocator* alloc
         uint32_t prefix_be = Endian_hostToBigEndian32(list->forms[i].prefix);
         Hex_encode(pfx->bytes, 8, (uint8_t*)&prefix_be, 4);
         Dict_putString(form, prefix, pfx, alloc);
-        scheme = List_addDict(scheme, form, alloc);
+        List_addDict(scheme, form, alloc);
     }
     return scheme;
 }

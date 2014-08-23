@@ -119,10 +119,10 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
         struct Address_List* addrs =
             ReplySerializer_parse(from, responseDict, NULL, promise->alloc);
 
-        List* nodes = NULL;
+        List* nodes = List_new(promise->alloc);
         for (int i = 0; i < addrs->length; i++) {
             String* addr = Address_toString(&addrs->elems[i], promise->alloc);
-            nodes = List_addString(nodes, addr, promise->alloc);
+            List_addString(nodes, addr, promise->alloc);
         }
         Dict_putList(out, String_CONST("peers"), nodes, promise->alloc);
     }

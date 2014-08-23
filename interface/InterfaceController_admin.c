@@ -32,10 +32,9 @@ struct Context
 
 // typical peer record is around 140 benc chars, so can't have very many in 1023
 #define ENTRIES_PER_PAGE 6
-static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
+static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allocator* alloc)
 {
     struct Context* context = Identity_check((struct Context*)vcontext);
-    struct Allocator* alloc = Allocator_child(context->alloc);
     struct InterfaceController_peerStats* stats = NULL;
 
     int64_t* page = Dict_getInt(args, String_CONST("page"));
@@ -56,7 +55,7 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
     String* lostPackets = String_CONST("lostPackets");
     String* receivedOutOfRange = String_CONST("receivedOutOfRange");
 
-    List* list = NULL;
+    List* list = List_new(alloc);
     for (int counter=0; i < count && counter++ < ENTRIES_PER_PAGE; i++) {
         Dict* d = Dict_new(alloc);
         Dict_putInt(d, bytesIn, stats[i].bytesIn, alloc);
@@ -81,23 +80,18 @@ static void adminPeerStats(Dict* args, void* vcontext, String* txid, struct Allo
             Dict_putString(d, user, stats[i].user, alloc);
         }
 
-        list = List_addDict(list, d, alloc);
+        List_addDict(list, d, alloc);
     }
 
-    Dict response = Dict_CONST(
-        String_CONST("peers"), List_OBJ(list), Dict_CONST(
-        String_CONST("total"), Int_OBJ(count), NULL
-    ));
+    Dict* resp = Dict_new(alloc);
+    Dict_putList(resp, String_CONST("peers"), list, alloc);
+    Dict_putInt(resp, String_CONST("total"), count, alloc);
 
     if (i < count) {
-      response = Dict_CONST(
-        String_CONST("more"), Int_OBJ(1), response
-      );
+        Dict_putInt(resp, String_CONST("more"), 1, alloc);
     }
 
-    Admin_sendMessage(&response, txid, context->admin);
-
-    Allocator_free(alloc);
+    Admin_sendMessage(resp, txid, context->admin);
 }
 
 static void adminDisconnectPeer(Dict* args,
