@@ -164,27 +164,31 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
 {
     List* servers = Dict_getList(dns, String_CONST("servers"));
-    int count = List_size(servers);
-    for (int i = 0; i < count; i++) {
-        String* server = List_getString(servers, i);
-        if (!server) {
-            Except_throw(eh, "dns.servers[%d] is not a string", i);
+    if (servers) {
+        int count = List_size(servers);
+        for (int i = 0; i < count; i++) {
+            String* server = List_getString(servers, i);
+            if (!server) {
+                Except_throw(eh, "dns.servers[%d] is not a string", i);
+            }
+            Dict* d = Dict_new(ctx->alloc);
+            Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
+            rpcCall(String_CONST("RainflyClient_addServer"), d, ctx, ctx->alloc);
         }
-        Dict* d = Dict_new(ctx->alloc);
-        Dict_putString(d, String_CONST("addr"), server, ctx->alloc);
-        rpcCall(String_CONST("RainflyClient_addServer"), d, ctx, ctx->alloc);
     }
 
     List* keys = Dict_getList(dns, String_CONST("keys"));
-    count = List_size(keys);
-    for (int i = 0; i < count; i++) {
-        String* key = List_getString(keys, i);
-        if (!key) {
-            Except_throw(eh, "dns.keys[%d] is not a string", i);
+    if (keys) {
+        int count = List_size(keys);
+        for (int i = 0; i < count; i++) {
+            String* key = List_getString(keys, i);
+            if (!key) {
+                Except_throw(eh, "dns.keys[%d] is not a string", i);
+            }
+            Dict* d = Dict_new(ctx->alloc);
+            Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
+            rpcCall(String_CONST("RainflyClient_addKey"), d, ctx, ctx->alloc);
         }
-        Dict* d = Dict_new(ctx->alloc);
-        Dict_putString(d, String_CONST("ident"), key, ctx->alloc);
-        rpcCall(String_CONST("RainflyClient_addKey"), d, ctx, ctx->alloc);
     }
 
     int64_t* minSigs = Dict_getInt(dns, String_CONST("minSignatures"));
@@ -283,33 +287,37 @@ static void tunInterface(Dict* ifaceConf, struct Allocator* tempAlloc, struct Co
 static void ipTunnel(Dict* ifaceConf, struct Allocator* tempAlloc, struct Context* ctx)
 {
     List* incoming = Dict_getList(ifaceConf, String_CONST("allowedConnections"));
-    Dict* d;
-    for (int i = 0; (d = List_getDict(incoming, i)) != NULL; i++) {
-        String* key = Dict_getString(d, String_CONST("publicKey"));
-        String* ip4 = Dict_getString(d, String_CONST("ip4Address"));
-        String* ip6 = Dict_getString(d, String_CONST("ip6Address"));
-        if (!key) {
-            Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
-                                      "'publicKey' required.", i);
-            exit(1);
+    if (incoming) {
+        Dict* d;
+        for (int i = 0; (d = List_getDict(incoming, i)) != NULL; i++) {
+            String* key = Dict_getString(d, String_CONST("publicKey"));
+            String* ip4 = Dict_getString(d, String_CONST("ip4Address"));
+            String* ip6 = Dict_getString(d, String_CONST("ip6Address"));
+            if (!key) {
+                Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                          "'publicKey' required.", i);
+                exit(1);
+            }
+            if (!ip4 && !ip6) {
+                Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
+                                           "either ip4Address or ip6Address required.", i);
+                exit(1);
+            }
+            Log_debug(ctx->logger, "Allowing IpTunnel connections from [%s]", key->bytes);
+            Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
+            rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, true);
         }
-        if (!ip4 && !ip6) {
-            Log_critical(ctx->logger, "In router.ipTunnel.allowedConnections[%d]"
-                                       "either ip4Address or ip6Address required.", i);
-            exit(1);
-        }
-        Log_debug(ctx->logger, "Allowing IpTunnel connections from [%s]", key->bytes);
-        Dict_putString(d, String_CONST("publicKeyOfAuthorizedNode"), key, tempAlloc);
-        rpcCall0(String_CONST("IpTunnel_allowConnection"), d, ctx, tempAlloc, true);
     }
 
     List* outgoing = Dict_getList(ifaceConf, String_CONST("outgoingConnections"));
-    String* s;
-    for (int i = 0; (s = List_getString(outgoing, i)) != NULL; i++) {
-        Log_debug(ctx->logger, "Initiating IpTunnel connection to [%s]", s->bytes);
-        Dict requestDict =
-            Dict_CONST(String_CONST("publicKeyOfNodeToConnectTo"), String_OBJ(s), NULL);
-        rpcCall0(String_CONST("IpTunnel_connectTo"), &requestDict, ctx, tempAlloc, true);
+    if (outgoing) {
+        String* s;
+        for (int i = 0; (s = List_getString(outgoing, i)) != NULL; i++) {
+            Log_debug(ctx->logger, "Initiating IpTunnel connection to [%s]", s->bytes);
+            Dict requestDict =
+                Dict_CONST(String_CONST("publicKeyOfNodeToConnectTo"), String_OBJ(s), NULL);
+            rpcCall0(String_CONST("IpTunnel_connectTo"), &requestDict, ctx, tempAlloc, true);
+        }
     }
 }
 
@@ -392,7 +400,7 @@ static void ethInterface(Dict* config, struct Context* ctx)
 }
 #endif
 
-static void security(List* securityConf, struct Allocator* tempAlloc, struct Context* ctx)
+static void security(struct Allocator* tempAlloc, struct Context* ctx)
 {
     Dict* d = Dict_new(tempAlloc);
     Dict_putString(d, String_CONST("user"), String_CONST("nobody"), tempAlloc);
@@ -436,8 +444,7 @@ void Configurator_config(Dict* config,
     Dict* routerConf = Dict_getDict(config, String_CONST("router"));
     routerConfig(routerConf, tempAlloc, &ctx);
 
-    List* securityList = Dict_getList(config, String_CONST("security"));
-    security(securityList, tempAlloc, &ctx);
+    security(tempAlloc, &ctx);
 
     Dict* dnsConf = Dict_getDict(config, String_CONST("dns"));
     dns(dnsConf, &ctx, eh);
