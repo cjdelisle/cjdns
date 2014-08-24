@@ -1125,12 +1125,14 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = NULL;
 
     if (nonceOrHandle > 3) {
+        Message_shift(message, -4, NULL);
         if (nonceOrHandle == 0xffffffff) {
             return handleControlMessage(context, message, switchHeader, switchIf, true);
         }
+
         // Run message, it's a handle.
         session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
-        Message_shift(message, -4, NULL);
+
         if (session) {
             uint32_t nonce = Endian_bigEndianToHost32(((uint32_t*)message->bytes)[0]);
             if (nonce == ~0u) {
