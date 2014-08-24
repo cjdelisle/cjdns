@@ -72,6 +72,7 @@
 #include "util/version/Version.h"
 #include "interface/SessionManager_admin.h"
 #include "wire/SwitchHeader.h"
+#include "wire/CryptoHeader.h"
 
 #include <crypto_scalarmult_curve25519.h>
 
@@ -104,9 +105,9 @@
     + 4 /* Nonce */ \
     + 16 /* Poly1305 authenticator */ \
     + SwitchHeader_SIZE \
-    + Headers_CryptoAuth_SIZE \
+    + CryptoHeader_SIZE \
     + Headers_IP6Header_SIZE \
-    + Headers_CryptoAuth_SIZE \
+    + CryptoHeader_SIZE \
 )
 
 /** The default MTU, assuming the external MTU is 1492 (common for PPPoE DSL) */
@@ -114,7 +115,7 @@
     1492 \
   - WORST_CASE_OVERHEAD \
   + Headers_IP6Header_SIZE /* The OS subtracts the IP6 header. */ \
-  + Headers_CryptoAuth_SIZE /* Linux won't let set the MTU below 1280.
+  + CryptoHeader_SIZE /* Linux won't let set the MTU below 1280.
   TODO(cjd): make sure we never hand off to a node for which the CA session is expired. */ \
 )
 

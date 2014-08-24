@@ -21,14 +21,14 @@
 #include "util/log/Log.h"
 #include "memory/Allocator.h"
 #include "util/events/EventBase.h"
-#include "wire/Headers.h"
+#include "wire/CryptoHeader.h"
 #include "wire/Message.h"
 #include "util/Identity.h"
 
 #include <stdint.h>
 
 struct CryptoAuth_Auth {
-    union Headers_AuthChallenge challenge;
+    union CryptoHeader_Challenge challenge;
 
     uint8_t secret[32];
 

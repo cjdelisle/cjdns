@@ -125,8 +125,8 @@ static inline void hashPassword_sha256(struct CryptoAuth_Auth* auth, const Strin
     uint8_t tempBuff[32];
     crypto_hash_sha256(auth->secret, (uint8_t*) password->bytes, password->len);
     crypto_hash_sha256(tempBuff, auth->secret, 32);
-    Bits_memcpyConst(auth->challenge.bytes, tempBuff, Headers_AuthChallenge_SIZE);
-    Headers_setAuthChallengeDerivations(&auth->challenge, 0);
+    Bits_memcpyConst(auth->challenge.bytes, tempBuff, CryptoHeader_Challenge_SIZE);
+    CryptoHeader_setAuthChallengeDerivations(&auth->challenge, 0);
     auth->challenge.challenge.type = 1;
 }
 
@@ -151,14 +151,14 @@ static inline uint8_t* hashPassword(struct CryptoAuth_Auth* auth,
  * @param context the CryptoAuth engine to search in.
  * @return an Auth struct with a if one is found, otherwise NULL.
  */
-static inline struct CryptoAuth_Auth* getAuth(union Headers_AuthChallenge auth,
+static inline struct CryptoAuth_Auth* getAuth(union CryptoHeader_Challenge auth,
                                               struct CryptoAuth_pvt* context)
 {
     if (auth.challenge.type != 1) {
         return NULL;
     }
     for (uint32_t i = 0; i < context->passwordCount; i++) {
-        if (Bits_memcmp(auth.bytes, &context->passwords[i], Headers_AuthChallenge_KEYSIZE) == 0) {
+        if (Bits_memcmp(auth.bytes, &context->passwords[i], CryptoHeader_Challenge_KEYSIZE) == 0) {
             return &context->passwords[i];
         }
     }
@@ -185,14 +185,14 @@ static inline void getPasswordHash_typeOne(uint8_t output[32],
     }
 }
 
-static inline uint8_t* tryAuth(union Headers_CryptoAuth* cauth,
+static inline uint8_t* tryAuth(union CryptoHeader* cauth,
                                uint8_t hashOutput[32],
                                struct CryptoAuth_Wrapper* wrapper,
                                struct CryptoAuth_Auth** retAuth)
 {
     struct CryptoAuth_Auth* auth = getAuth(cauth->handshake.auth, wrapper->context);
     if (auth != NULL) {
-        uint16_t deriv = Headers_getAuthChallengeDerivations(&cauth->handshake.auth);
+        uint16_t deriv = CryptoHeader_getAuthChallengeDerivations(&cauth->handshake.auth);
         getPasswordHash_typeOne(hashOutput, deriv, auth);
         if (deriv == 0) {
             *retAuth = auth;
@@ -305,7 +305,7 @@ static inline void encrypt(uint32_t nonce,
 
 static inline void setRequiredPadding(struct CryptoAuth_Wrapper* wrapper)
 {
-    uint32_t padding = (wrapper->nextNonce < 4) ? 36 : sizeof(union Headers_CryptoAuth) + 32;
+    uint32_t padding = (wrapper->nextNonce < 4) ? 36 : sizeof(union CryptoHeader) + 32;
     wrapper->externalInterface.requiredPadding =
         wrapper->wrappedInterface->requiredPadding + padding;
     wrapper->externalInterface.maxMessageLength =
@@ -357,10 +357,10 @@ static void reset(struct CryptoAuth_Wrapper* wrapper)
  */
 static uint8_t genReverseHandshake(struct Message* message,
                                    struct CryptoAuth_Wrapper* wrapper,
-                                   union Headers_CryptoAuth* header)
+                                   union CryptoHeader* header)
 {
     reset(wrapper);
-    Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
+    Message_shift(message, -CryptoHeader_SIZE, NULL);
 
     // Buffer the packet so it can be sent ASAP
     if (wrapper->bufferedMessage != NULL) {
@@ -375,17 +375,17 @@ static uint8_t genReverseHandshake(struct Message* message,
     wrapper->bufferedMessage = Message_clone(message, bmalloc);
     Assert_ifParanoid(wrapper->nextNonce == 0);
 
-    Message_shift(message, Headers_CryptoAuth_SIZE, NULL);
-    header = (union Headers_CryptoAuth*) message->bytes;
+    Message_shift(message, CryptoHeader_SIZE, NULL);
+    header = (union CryptoHeader*) message->bytes;
     header->nonce = UINT32_MAX;
-    message->length = Headers_CryptoAuth_SIZE;
+    message->length = CryptoHeader_SIZE;
 
     // sessionState must be 0, auth and 24 byte nonce are garbaged and public key is set
     // now garbage the authenticator and the encrypted key which are not used.
     Random_bytes(wrapper->context->rand, (uint8_t*) &header->handshake.authenticator, 48);
 
     // This is a special packet which the user should never see.
-    Headers_setSetupPacket(&header->handshake.auth, 1);
+    CryptoHeader_setSetupPacket(&header->handshake.auth, 1);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
@@ -396,13 +396,13 @@ static uint8_t encryptHandshake(struct Message* message,
                                 struct CryptoAuth_Wrapper* wrapper,
                                 int setupMessage)
 {
-    Message_shift(message, sizeof(union Headers_CryptoAuth), NULL);
+    Message_shift(message, sizeof(union CryptoHeader), NULL);
 
-    union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
+    union CryptoHeader* header = (union CryptoHeader*) message->bytes;
 
     // garbage the auth challenge and set the nonce which follows it
     Random_bytes(wrapper->context->rand, (uint8_t*) &header->handshake.auth,
-                 sizeof(union Headers_AuthChallenge) + 24);
+                 sizeof(union CryptoHeader_Challenge) + 24);
 
     // set the permanent key
     Bits_memcpyConst(&header->handshake.publicKey, wrapper->context->pub.publicKey, 32);
@@ -456,15 +456,15 @@ static uint8_t encryptHandshake(struct Message* message,
         passwordHash = hashPassword(&auth, wrapper->password, wrapper->authType);
         Bits_memcpyConst(header->handshake.auth.bytes,
                          &auth.challenge,
-                         sizeof(union Headers_AuthChallenge));
+                         sizeof(union CryptoHeader_Challenge));
     }
     header->handshake.auth.challenge.type = wrapper->authType;
 
     // Packet authentication option is deprecated, it must always be enabled.
-    Headers_setPacketAuthRequired(&header->handshake.auth, 1);
+    CryptoHeader_setPacketAuthRequired(&header->handshake.auth, 1);
 
     // This is a special packet which the user should never see.
-    Headers_setSetupPacket(&header->handshake.auth, setupMessage);
+    CryptoHeader_setSetupPacket(&header->handshake.auth, setupMessage);
 
     // Set the session state
     uint32_t sessionState_be = Endian_hostToBigEndian32(wrapper->nextNonce);
@@ -539,7 +539,7 @@ static uint8_t encryptHandshake(struct Message* message,
     }
 
     // Shift message over the encryptedTempKey field.
-    Message_shift(message, 32 - Headers_CryptoAuth_SIZE, NULL);
+    Message_shift(message, 32 - CryptoHeader_SIZE, NULL);
 
     encryptRndNonce(header->handshake.nonce, message, sharedSecret);
 
@@ -559,7 +559,7 @@ static uint8_t encryptHandshake(struct Message* message,
     #endif
 
     // Shift it back -- encryptRndNonce adds 16 bytes of authenticator.
-    Message_shift(message, Headers_CryptoAuth_SIZE - 32 - 16, NULL);
+    Message_shift(message, CryptoHeader_SIZE - 32 - 16, NULL);
 
     return wrapper->wrappedInterface->sendMessage(message, wrapper->wrappedInterface);
 }
@@ -576,7 +576,7 @@ static inline uint8_t encryptMessage(struct Message* message,
 
     Message_shift(message, 4, NULL);
 
-    union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) message->bytes;
+    union CryptoHeader* header = (union CryptoHeader*) message->bytes;
     header->nonce = Endian_hostToBigEndian32(wrapper->nextNonce);
     wrapper->nextNonce++;
 
@@ -665,9 +665,9 @@ static inline bool decryptMessage(struct CryptoAuth_Wrapper* wrapper,
 static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
                                 const uint32_t nonce,
                                 struct Message* message,
-                                union Headers_CryptoAuth* header)
+                                union CryptoHeader* header)
 {
-    if (message->length < Headers_CryptoAuth_SIZE) {
+    if (message->length < CryptoHeader_SIZE) {
         cryptoAuthDebug0(wrapper, "DROP runt");
         return Error_UNDERSIZE_MESSAGE;
     }
@@ -701,7 +701,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         if (!knowHerKey(wrapper)) {
             Bits_memcpyConst(wrapper->herPerminentPubKey, header->handshake.publicKey, 32);
         }
-        Message_shift(message, -Headers_CryptoAuth_SIZE, NULL);
+        Message_shift(message, -CryptoHeader_SIZE, NULL);
         message->length = 0;
         reset(wrapper);
         wrapper->user = NULL;
@@ -791,7 +791,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     }
 
     // Shift it on top of the authenticator before the encrypted public key
-    Message_shift(message, 48 - Headers_CryptoAuth_SIZE, NULL);
+    Message_shift(message, 48 - CryptoHeader_SIZE, NULL);
 
     #ifdef Log_KEYS
         uint8_t sharedSecretHex[65];
@@ -811,7 +811,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
     // Decrypt her temp public key and the message.
     if (decryptRndNonce(header->handshake.nonce, message, sharedSecret) != 0) {
         // just in case
-        Bits_memset(header, 0, Headers_CryptoAuth_SIZE);
+        Bits_memset(header, 0, CryptoHeader_SIZE);
         cryptoAuthDebug(wrapper, "DROP message with nonce [%d], decryption failed", nonce);
         return Error_AUTHENTICATION;
     }
@@ -947,7 +947,7 @@ static uint8_t decryptHandshake(struct CryptoAuth_Wrapper* wrapper,
         Allocator_free(bm->alloc);
     }
 
-    if (message->length == 0 && Headers_isSetupPacket(&header->handshake.auth)) {
+    if (message->length == 0 && CryptoHeader_isSetupPacket(&header->handshake.auth)) {
         return Error_NONE;
     }
 
@@ -962,7 +962,7 @@ static uint8_t receiveMessage(struct Message* received, struct Interface* interf
     struct CryptoAuth_Wrapper* wrapper =
         Identity_check((struct CryptoAuth_Wrapper*) interface->receiverContext);
 
-    union Headers_CryptoAuth* header = (union Headers_CryptoAuth*) received->bytes;
+    union CryptoHeader* header = (union CryptoHeader*) received->bytes;
 
     if (received->length < 20) {
         cryptoAuthDebug0(wrapper, "DROP runt");

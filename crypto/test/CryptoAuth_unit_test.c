@@ -145,11 +145,11 @@ static void testHello(uint8_t* password, uint8_t* expectedOutput)
     struct CryptoAuth_Wrapper* wrapper =
         setUp(NULL, (uint8_t*) "wxyzabcdefghijklmnopqrstuv987654", password, &outMessage);
 
-    uint8_t msgBuff[Headers_CryptoAuth_SIZE + 12];
+    uint8_t msgBuff[CryptoHeader_SIZE + 12];
     struct Message msg = {
         .length = 12,
-        .padding = Headers_CryptoAuth_SIZE,
-        .bytes = msgBuff + Headers_CryptoAuth_SIZE
+        .padding = CryptoHeader_SIZE,
+        .bytes = msgBuff + CryptoHeader_SIZE
     };
     Bits_memcpyConst(msg.bytes, hello, 12);
     CryptoAuth_encryptHandshake(&msg, wrapper, 0);
@@ -240,11 +240,11 @@ static void repeatHello()
     Bits_memcpyConst(wrapper.herPerminentPubKey, publicKey, 32);
 
     uint8_t* hello = (uint8_t*) "Hello World";
-    uint8_t msgBuff[Headers_CryptoAuth_SIZE + 12];
+    uint8_t msgBuff[CryptoHeader_SIZE + 12];
     struct Message msg = {
         .length = 12,
-        .padding = Headers_CryptoAuth_SIZE,
-        .bytes = msgBuff + Headers_CryptoAuth_SIZE
+        .padding = CryptoHeader_SIZE,
+        .bytes = msgBuff + CryptoHeader_SIZE
     };
     struct Message msg2;
     Bits_memcpyConst(&msg2, &msg, sizeof(struct Message));

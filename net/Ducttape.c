@@ -41,6 +41,7 @@
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
+#include "wire/CryptoHeader.h"
 #include "wire/Ethernet.h"
 
 #include <stdint.h>
@@ -94,7 +95,7 @@ static inline uint8_t sendToRouter(struct Message* message,
         //Log_debug(context->logger, "Sending receive handle under CryptoAuth");
         Message_push(message, &session->receiveHandle_be, 4, NULL);
 
-        safeDistance += Headers_CryptoAuth_SIZE;
+        safeDistance += CryptoHeader_SIZE;
     } else {
         // 16 for the authenticator, 4 for the nonce and 4 for the handle
         safeDistance += 24;
@@ -537,9 +538,9 @@ static inline uint8_t incomingFromTun(struct Message* message,
     CryptoAuth_resetIfTimeout(session->internal);
     if (CryptoAuth_getState(session->internal) < CryptoAuth_HANDSHAKE3) {
         // shift, copy, shift because shifting asserts that there is enough buffer space.
-        Message_shift(message, Headers_CryptoAuth_SIZE + 4, NULL);
+        Message_shift(message, CryptoHeader_SIZE + 4, NULL);
         Bits_memcpyConst(message->bytes, header, Headers_IP6Header_SIZE);
-        Message_shift(message, -(Headers_IP6Header_SIZE + Headers_CryptoAuth_SIZE + 4), NULL);
+        Message_shift(message, -(Headers_IP6Header_SIZE + CryptoHeader_SIZE + 4), NULL);
         // now push the receive handle *under* the CA header.
         Message_push(message, &session->receiveHandle_be, 4, NULL);
         debugHandles0(context->logger, session, "layer3 sending start message");
@@ -1149,8 +1150,8 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");
         }
-    } else if (message->length >= Headers_CryptoAuth_SIZE) {
-        union Headers_CryptoAuth* caHeader = (union Headers_CryptoAuth*) message->bytes;
+    } else if (message->length >= CryptoHeader_SIZE) {
+        union CryptoHeader* caHeader = (union CryptoHeader*) message->bytes;
         uint8_t ip6[16];
         uint8_t* herKey = caHeader->handshake.publicKey;
         AddressCalc_addressForPublicKey(ip6, herKey);
