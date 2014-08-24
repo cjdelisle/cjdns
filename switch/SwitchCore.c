@@ -126,18 +126,10 @@ static inline void sendError8(struct SwitchInterface* iface,
     }
 
     struct SwitchHeader* header = (struct SwitchHeader*) cause->bytes;
-    uint32_t* handle = (uint32_t*) &header[1];
 
-    if (*handle == 0xffffffff) {
-        if (cause->length < Control_HEADER_SIZE) {
-            Log_debug(logger, "runt ctrl packet");
-            return;
-        }
-        if (((struct ErrorPacket8*) cause->bytes)->ctrl.type_be == Control_ERROR_be) {
-            // Errors never cause other errors.
-            Log_debug(logger, "v8 error caused by other error");
-            return;
-        }
+    if (SwitchHeader_getSuppressErrors(header)) {
+        // don't send errors if they're asking us to suppress them!
+        return;
     }
 
     // limit of 256 bytes
