@@ -17,17 +17,24 @@ var Cjdns = require('../cjdnsadmin/cjdnsadmin');
 
 Cjdns.connectWithAdminInfo(function (cjdns) {
 
+    var list = [];
+
     var again = function (i) {
         cjdns.NodeStore_dumpTable(i, function (err, table) {
             if (err) { throw err; }
             var j;
             for (j = 0; j < table.routingTable.length; j++) {
                 var r = table.routingTable[j];
-                console.log(r['ip'] + ' ' + r['path'] + ' ' + r['link'] + ' ' + r['version']);
+                list.push(r);
             }
             if (j) {
                 again(i+1);
             } else {
+                list.sort(function (a,b) { return a.path < b.path ? -1 : 1; });
+                list.forEach(function (r) {
+                    console.log(r.ip + ' ' + r.path + ' ' + r.link + ' ' + r.version);
+                });
+
                 console.log(table.count + ' nodes ' + table.peers + ' peers');
                 cjdns.disconnect();
             }
