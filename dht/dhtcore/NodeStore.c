@@ -927,6 +927,12 @@ static void freePendingLinks(struct NodeStore_pvt* store)
     }
 }
 
+static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
+{
+    return Node_getBestParent(node) != store->selfLink
+        || !LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
+}
+
 static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
                                        struct Node_Link* closestKnown,
                                        uint64_t pathKnownParentChild,
@@ -1014,6 +1020,13 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         checkNode(child, store);
         RB_INSERT(NodeRBTree, &store->nodeTree, child);
         store->pub.nodeCount++;
+
+        if (isPeer(child, store)) {
+            uint8_t address[60];
+            Address_print(address, &child->address);
+            Log_debug(store->logger, "Created peer [%s]", address);
+            store->pub.peerCount++;
+        }
     }
 
     check(store);
@@ -1156,6 +1169,12 @@ static struct Node_Two* whichIsWorse(struct Node_Two* one,
                                      struct Node_Two* two,
                                      struct NodeStore_pvt* store)
 {
+    // a peer is nevar worse
+    int peers = isPeer(one, store) - isPeer(two, store);
+    if (peers) {
+        return (peers > 0) ? two : one;
+    }
+
     if (one->address.protocolVersion != two->address.protocolVersion) {
         if (one->address.protocolVersion < Version_CURRENT_PROTOCOL) {
             if (two->address.protocolVersion >= Version_CURRENT_PROTOCOL) {
@@ -1327,10 +1346,11 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
 
 static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    // TODO(cjd): remove
-    Assert_true(Node_getBestParent(node) != store->selfLink
-        || !LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel));
-
+    bool peer = isPeer(node, store);
+    #ifdef Log_DEBUG
+        uint8_t address[60];
+        Address_print(address, &node->address);
+    #endif
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &node->peerTree) {
         Identity_check(link);
@@ -1356,6 +1376,10 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     Assert_ifParanoid(node == RB_FIND(NodeRBTree, &store->nodeTree, node));
     RB_REMOVE(NodeRBTree, &store->nodeTree, node);
     store->pub.nodeCount--;
+    if (peer) {
+        Log_debug(store->logger, "Destroyed peer [%s]", address);
+        store->pub.peerCount--;
+    }
 
     Allocator_free(node->alloc);
 }
@@ -1495,8 +1519,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
     handleNews(link->child, reach, store);
     freePendingLinks(store);
 
-    while (store->pub.nodeCount >= store->pub.nodeCapacity
-        || store->pub.linkCount >= store->pub.linkCapacity)
+    while (store->pub.nodeCount - store->pub.peerCount > store->pub.nodeCapacity
+        || store->pub.linkCount > store->pub.linkCapacity)
     {
         struct Node_Two* worst = getWorstNode(store);
         #ifdef Log_DEBUG
@@ -1505,6 +1529,9 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
             Log_debug(store->logger, "store full, removing worst node: [%s] nodes [%d] links [%d]",
                       worstAddr, store->pub.nodeCount, store->pub.linkCount);
         #endif
+
+        Assert_true(!isPeer(worst, store));
+
         destroyNode(worst, store);
         freePendingLinks(store);
     }
@@ -1926,14 +1953,25 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         Log_debug(store->logger, "NodeStore_brokenPath(%s)", pathStr);
     #endif
     struct Node_Link* nl = NodeStore_linkForPath(nodeStore, path);
-    if (nl && nl == Node_getBestParent(nl->child) && Node_getReach(nl->child) > 0) {
+
+    if (!nl) { return; }
+
+    if (isPeer(nl->child, store)) {
+        destroyNode(nl->child, store);
+        verify(store);
+        return;
+    }
+
+    if (nl == Node_getBestParent(nl->child) && Node_getReach(nl->child) > 0) {
         handleBadNews(nl->child, 0, store);
     }
-    if (nl && nl->parent != store->pub.selfNode) {
+
+    if (nl->parent != store->pub.selfNode) {
         // XXX(arceliar): Temporary workaround to the above TODO(cjd) statement.
         // This should often recursively find the problematic node.
         RumorMill_addNode(store->renumberMill, &nl->parent->address);
     }
+
     verify(store);
 }
 
@@ -2025,7 +2063,7 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
         }
 
         // expecting behavior of nextLinkOnPath()
-        Assert_ifParanoid(nextLink->parent == link->child);
+        Assert_true(nextLink->parent == link->child);
 
         if (link != store->selfLink) {
             // TODO(arceliar): Something sane. We don't know which link on the path is bad.

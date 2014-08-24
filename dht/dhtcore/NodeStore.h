@@ -33,6 +33,8 @@ struct NodeStore
 
     struct Node_Two* selfNode;
 
+    int peerCount;
+
     int nodeCount;
     int nodeCapacity;
 
@@ -41,7 +43,7 @@ struct NodeStore
 };
 
 #define NodeStore_DEFAULT_NODE_CAPACITY 128
-#define NodeStore_DEFAULT_LINK_CAPACITY 1024
+#define NodeStore_DEFAULT_LINK_CAPACITY 2048
 
 /**
  * Create a new NodeStore.
