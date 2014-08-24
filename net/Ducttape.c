@@ -1125,6 +1125,9 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
     struct SessionManager_Session* session = NULL;
 
     if (nonceOrHandle > 3) {
+        if (nonceOrHandle == 0xffffffff) {
+            return handleControlMessage(context, message, switchHeader, switchIf, true);
+        }
         // Run message, it's a handle.
         session = SessionManager_sessionForHandle(nonceOrHandle, context->sm);
         Message_shift(message, -4, NULL);
@@ -1141,8 +1144,6 @@ static uint8_t incomingFromSwitch(struct Message* message, struct Interface* swi
                                  nonce);
             */
             dtHeader->receiveHandle = nonceOrHandle;
-        } else if (nonceOrHandle == 0xffffffff) {
-            return handleControlMessage(context, message, switchHeader, switchIf, true);
         } else {
             Log_debug(context->logger, "Got message with unrecognized handle");
         }
