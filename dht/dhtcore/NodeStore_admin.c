@@ -68,6 +68,7 @@ static void dumpTable(Dict* args, void* vcontext, String* txid, struct Allocator
         Dict_putInt(out, String_CONST("more"), 1, requestAlloc);
     }
     Dict_putInt(out, String_CONST("count"), ctx->store->nodeCount, requestAlloc);
+    Dict_putInt(out, String_CONST("peers"), ctx->store->peerCount, requestAlloc);
 
     Admin_sendMessage(out, txid, ctx->admin);
 }

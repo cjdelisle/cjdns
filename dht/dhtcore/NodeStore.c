@@ -929,8 +929,8 @@ static void freePendingLinks(struct NodeStore_pvt* store)
 
 static bool isPeer(struct Node_Two* node, struct NodeStore_pvt* store)
 {
-    return Node_getBestParent(node) != store->selfLink
-        || !LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
+    return Node_getBestParent(node)->parent == store->pub.selfNode
+        && LabelSplicer_isOneHop(Node_getBestParent(node)->cannonicalLabel);
 }
 
 static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,

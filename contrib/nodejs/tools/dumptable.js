@@ -28,7 +28,7 @@ Cjdns.connectWithAdminInfo(function (cjdns) {
             if (j) {
                 again(i+1);
             } else {
-                console.log(table.count + ' nodes');
+                console.log(table.count + ' nodes ' + table.peers + ' peers');
                 cjdns.disconnect();
             }
         });
