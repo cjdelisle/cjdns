@@ -1456,6 +1456,8 @@ struct Node_Link* NodeStore_discoverNode(struct NodeStore* nodeStore,
             destroyNode(child, store);
             child = NULL;
         }
+    } else if (child && child->address.protocolVersion != addr->protocolVersion) {
+        child->address.protocolVersion = addr->protocolVersion;
     }
 
     struct Allocator* alloc = NULL;
