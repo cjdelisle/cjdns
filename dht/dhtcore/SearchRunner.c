@@ -150,8 +150,8 @@ static void searchReplyCallback(struct RouterModule_Promise* promise,
         }
 
         struct Node_Two* nn =
-            NodeStore_closestNode(search->runner->nodeStore, nodeList->elems[i].path);
-        if (!nn || Bits_memcmp(nn->address.key, nodeList->elems[i].key, 32)) {
+            RouterModule_lookup(nodeList->elems[i].ip6.bytes, search->runner->router);
+        if (!nn) {
             RumorMill_addNode(search->runner->rumorMill, &nodeList->elems[i]);
         }
 
