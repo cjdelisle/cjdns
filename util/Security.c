@@ -121,7 +121,7 @@ static unsigned long getMaxMemory(struct Except* eh)
         tryMapping = reportedMemory * 2l;
     }
 
-    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
     if (ptr != MAP_FAILED) {
         munmap(ptr, tryMapping);
         if (reportedMemory > 0) {
