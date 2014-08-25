@@ -207,7 +207,7 @@ Builder.configure({
                 args.unshift('-O2', '-fomit-frame-pointer');
 
                 if (CFLAGS) {
-                    [].apply.push(args, CFLAGS.split(' '));
+                    [].push.apply(args, CFLAGS.split(' '));
                 }
 
                 builder.cc(args, callback);
