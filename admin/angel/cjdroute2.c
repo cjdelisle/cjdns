@@ -577,7 +577,7 @@ int main(int argc, char** argv)
     // --------------------- Get user for angel to setuid() ---------------------- //
     String* securityUser = NULL;
     List* securityConf = Dict_getList(&config, String_CONST("security"));
-    for (int i = 0; i < List_size(securityConf); i++) {
+    for (int i = 0; securityConf && i < List_size(securityConf); i++) {
         securityUser = Dict_getString(List_getDict(securityConf, i), String_CONST("setuser"));
         if (securityUser) {
             int64_t* ea = Dict_getInt(List_getDict(securityConf, i), String_CONST("exemptAngel"));
