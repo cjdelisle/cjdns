@@ -30,11 +30,6 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-// Apple
-#ifndef MAP_ANONYMOUS
-    #define MAP_ANONYMOUS MAP_ANON
-#endif
-
 static const unsigned long cfgMaxMemoryBytes = 100000000;
 
 int Security_setUser(char* userName, struct Log* logger, struct Except* eh)
@@ -121,7 +116,14 @@ static unsigned long getMaxMemory(struct Except* eh)
         tryMapping = reportedMemory * 2l;
     }
 
-    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, -1, 0);
+    // Apple doesn't handle MAP_ANON | MAP_PRIVATE for some (unknown) reason.
+    // And apple doesn't have MAP_ANONYMOUS, only MAP_ANON.
+    #ifdef darwin
+        #define FLAGS MAP_ANON
+    #else
+        #define FLAGS MAP_PRIVATE | MAP_ANONYMOUS
+    #endif
+    void* ptr = mmap(NULL, tryMapping, PROT_READ | PROT_WRITE, FLAGS, -1, 0);
     if (ptr != MAP_FAILED) {
         munmap(ptr, tryMapping);
         if (reportedMemory > 0) {
