@@ -105,7 +105,7 @@ die() {
 # get a sha256sum implementation.
 getsha256sum() {
     expected="01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
-    for hasher in sha256sum gsha256sum 'shasum -a 256' 'openssl sha256'
+    for hasher in sha256sum gsha256sum sha256 'shasum -a 256' 'openssl sha256'
     do
         #echo "trying ${hasher} ${testFile}"
         echo '' | ${hasher} - 2>/dev/null | grep -q ${expected} && SHA256SUM=${hasher} && return 0
