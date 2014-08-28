@@ -19,24 +19,29 @@
 
 #include <inttypes.h>
 
-struct InterRouter
-{
-    // What goes here?
-};
-
 /**
  * The RouteHeader is hidden from the switches by the l2 encryption layer but it is seen
  * by every router which hands off the packet.
+ *
+ *                     1               2               3
+ *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  0 | ver |           MTU           |            Flow ID            |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  4 |                                                               |
+ *    +                                                               +
+ *  8 |                                                               |
+ *    +                        Destination IP6                        +
+ * 12 |                                                               |
+ *    +                                                               +
+ * 16 |                                                               |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * Ver is 3 bits representing the protocol version *modulo 8*, 
  */
 struct RouteHeader
 {
-    /**
-     * This is to be initialized to what the sending node believes is the full path MTU
-     * (or 0xffff if unsure) and clamped to the MTU of each path by the routers which forward
-     * the packet.
-     * Little endian.
-     */
-    uint16_t mtu_le;
+    uint16_t versionAndMtu_be;
 
     /**
      * An arbitrary value created by hashing information which represents the dataflow such
@@ -58,6 +63,28 @@ struct RouteHeader
 };
 #define RouteHeader_SIZE 20
 Assert_compileTime(sizeof(struct RouteHeader) == RouteHeader_SIZE);
+
+
+static inline void RouteHeader_setVersion(struct RouteHeader* hdr, uint8_t version)
+{
+    type->versionAndMtu_be = (type->versionAndMtu_be & Endian_hostToBigEndian16(0x1fff)) |
+        Endian_hostToBigEndian16((version % 8) << 13);
+}
+
+static inline uint8_t RouteHeader_getVersion(struct RouteHeader* hdr)
+{
+    return Endian_bigEndianToHost16(type->versionAndMtu_be) >> 13;
+}
+
+static inline uint16_t RouteHeader_getMTU(struct RouteHeader* hdr)
+{
+    return Endian_bigEndianToHost16(type->versionAndMtu_be) >> 13;
+}
+
+     * This is to be initialized to what the sending node believes is the full path MTU
+     * (or 0xffff if unsure) and clamped to the MTU of each path by the routers which forward
+     * the packet.
+
 
 #endif
 
@@ -86,6 +113,12 @@ Assert_compileTime(sizeof(struct RouteHeader) == RouteHeader_SIZE);
 #include "util/Endian.h"
 
 /**
+ *                     1               2               3
+ *     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  0 | ver |R| unused|    unused     |         Content Type          |
+ *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
  * The DataHeader is protected from the switches by the l2 encryption layer and from the
  * routers by the l3 layer of encryption. It's primary uses are to tell the endpoint enough
  * information to route the packet to the correct cjdns subsystem and (maybe) reconstruct
@@ -98,11 +131,17 @@ struct DataHeader
      * milliseconds it has something else to send back, this is acceptable, otherwise it should
      * synthisize a control packet to respond with.
      */
-    #define DataHeader_highBits_RESPOND_TO_ME   Endian_hostToLittleEndian16(1<<15)
+    #define DataHeader_RESPOND_TO_ME (1<<7)
 
-    uint16_t highBits_le;
+    /**
+     * Version is set to the version of the data as per Version.h
+     * If the number is over 255, it wraps
+     */
+    uint8_t versionAndFlags;
 
-    // TODO What goes here?
+    uint8_t unused;
+
+    uint16_t contentType_be;
 };
 #define DataHeader_SIZE 4
 Assert_compileTime(sizeof(struct DataHeader) == DataHeader_SIZE);
@@ -149,30 +188,41 @@ enum DataHeader_ContentType
      * cjdns on other machines, providing they first agree on which numbers to use via
      * CTRL messages.
      */
-    DataHeader_ContentType_AVAILABLE =     257,
-    DataHeader_ContentType_AVAILABLE_MAX = 32767
+    DataHeader_ContentType_AVAILABLE =     257),
+    DataHeader_ContentType_AVAILABLE_MAX = 0xffff
 };
 
 static inline enum DataHeader_ContentType DataHeader_getContentType(struct DataHeader* hdr)
 {
-    return Endian_littleEndianToHost16( hdr->highBits_le & ~DataHeader_highBits_RESPOND_TO_ME );
+    return Endian_bigEndianToHost16(hdr->contentType_be);
 }
 
 static inline void DataHeader_setContentType(struct DataHeader* hdr,
                                              enum DataHeader_ContentType type)
 {
     Assert_true(type <= DataHeader_ContentType_AVAILABLE_MAX);
-    hdr->highBits_le = (hdr->highBits_le & DataHeader_highBits_RESPOND_TO_ME) |
-        Endian_hostToLittleEndian16(type);
+    hdr->contentType_be = Endian_hostToBigEndian16(type);
 }
 
 static inline void DataHeader_setRespondToMe(struct DataHeader* hdr, bool rtm)
 {
-    type->highBits_le = (type->highBits_le & ~DataHeader_highBits_RESPOND_TO_ME) |
-        (rtm) ? DataHeader_highBits_RESPOND_TO_ME : 0;
+    type->versionAndFlags = (type->versionAndFlags & ~DataHeader_RESPOND_TO_ME) |
+        (rtm) ? DataHeader_RESPOND_TO_ME : 0;
 }
 
 static inline bool DataHeader_getRespondToMe(struct DataHeader* hdr)
 {
-    return type->highBits_le & DataHeader_highBits_RESPOND_TO_ME;
+    return type->versionAndFlags & DataHeader_RESPOND_TO_ME;
 }
+
+static inline void DataHeader_setVersion(struct DataHeader* hdr, uint8_t version)
+{
+    type->versionAndFlags = (type->versionAndFlags & 0x1f) | ((version % 8) << 5);
+}
+
+static inline uint8_t DataHeader_getVersion(struct DataHeader* hdr)
+{
+    return type->versionAndFlags >> 5;
+}
+
+#endif

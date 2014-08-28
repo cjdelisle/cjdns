@@ -26,8 +26,8 @@ Direct over phy (future):
 
 ## LayerB
 Switch Layer, this layer is seen by all switches along a direct path as well as the routers
-at the ends of the path but no information in this layer is directly passed to routers
-downstream in the forwarding path.
+at the ends of the path but when a router forwards the packet on, headers at this layer are
+replaced with new ones just as the Ethernet header is replaced by each IP router.
 
 This layer contains:
 
@@ -40,12 +40,10 @@ No data in this layer is directly forwarded on to the final endpoints or downstr
 and no data at this layer or below it can be accessed by the switches due to a CryptoAuth header
 which begins this layer. Since the width of a CryptoSessionHeader depends on the state of the
 CryptoAuth session represented, a router should only forward packets to another router after
-the CryptoAuth session with that router has entered into the ESTABLISHED state in to prevent
+the CryptoAuth session with that router has entered into the ESTABLISHED state in order to prevent
 fluctuating MTU.
 
-    [ CryptoSessionHeader ][ InterRouter ]
-
-NOTE: In versions previous to v9, InterRouter was omitted.
+    [ CryptoSessionHeader ]
 
 ### LayerC Control Packet
 In order for switches to send error and other control messages, a branch of *LayerC* exists which
@@ -70,7 +68,7 @@ NOTE: In versions previous to v9, RouteHeader is replaced with an IPv6 header.
 
 ## LayerE
 Data layer, this layer is only of interest to the sender and the recipient. It it protected by
-a CryptoAuth header which prevents intermediate routers from accessing the data therein.
+a CryptoAuth layer which prevents intermediate routers from accessing the data therein.
 
 This layer contains:
 
@@ -108,9 +106,8 @@ CryptoAuth session state.
     [ CryptoAuth ]            20
     [ SwitchHeader ]          12
     [ CryptoSessionHeader ]   24
-    [ InterRouter ]            4?
     [ RouteHeader ]           20
     [ CryptoSessionHeader ]   24/124
-    [ DataHeader ]             4?
+    [ DataHeader ]             4
     [ TCP/UDP/other ]
     [ user's data ]
