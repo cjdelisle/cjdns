@@ -23,7 +23,7 @@ var CanCompile = require('./CanCompile');
 var Builder = require('./builder');
 var TestRunner = require('./TestRunner');
 
-// ['linux','darwin','sunos','win32','freebsd']
+// ['linux','darwin','sunos','win32','freebsd','openbsd']
 var SYSTEM = process.env['SYSTEM'] || process.platform;
 var GCC = process.env['CC'];
 var CFLAGS = process.env['CFLAGS'];
