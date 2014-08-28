@@ -32,6 +32,8 @@ var LDFLAGS = process.env['LDFLAGS'];
 if (!GCC) {
     if (SYSTEM === 'freebsd') {
         GCC = 'gcc47';
+    } else if (SYSTEM === 'openbsd') {
+        GCC = 'egcc';
     } else {
         GCC = 'gcc';
     }
