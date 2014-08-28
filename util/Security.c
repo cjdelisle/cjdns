@@ -120,6 +120,8 @@ static unsigned long getMaxMemory(struct Except* eh)
     // And apple doesn't have MAP_ANONYMOUS, only MAP_ANON.
     #ifdef darwin
         #define FLAGS MAP_ANON
+    #elif openbsd
+        #define FLAGS MAP_PRIVATE | MAP_ANON
     #else
         #define FLAGS MAP_PRIVATE | MAP_ANONYMOUS
     #endif
