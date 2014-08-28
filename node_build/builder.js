@@ -43,7 +43,8 @@ var Semaphore = require('./Semaphore');
 // performance seems to be when running 1.25x the number of jobs as
 // cpu cores. On BSD and iphone systems, os.cpus() is not reliable so
 // if it returns undefined let's just assume 1
-var PROCESSORS = Math.floor((typeof Os.cpus() === 'undefined' ? 1 : Os.cpus().length) * 1.25);
+var cpus = Os.cpus(); // workaround, nodejs seems to be broken on openbsd (undefined result after second call)
+var PROCESSORS = Math.floor((typeof cpus === 'undefined' ? 1 : cpus.length) * 1.25);
 
 var error = function (message)
 {
