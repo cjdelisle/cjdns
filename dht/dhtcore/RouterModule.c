@@ -603,6 +603,22 @@ struct RouterModule_Promise* RouterModule_pingNode(struct Address* addr,
     return promise;
 }
 
+struct RouterModule_Promise* RouterModule_findNode(struct Address* whoToAsk,
+                                                   uint8_t target[16],
+                                                   uint32_t timeoutMilliseconds,
+                                                   struct RouterModule* module,
+                                                   struct Allocator* alloc)
+{
+    struct RouterModule_Promise* promise =
+        RouterModule_newMessage(whoToAsk, timeoutMilliseconds, module, alloc);
+    Dict* d = Dict_new(promise->alloc);
+    Dict_putString(d, CJDHTConstants_QUERY, CJDHTConstants_QUERY_FN, promise->alloc);
+    String* targetStr = String_newBinary(target, 16, promise->alloc);
+    Dict_putString(d, CJDHTConstants_TARGET, targetStr, promise->alloc);
+    RouterModule_sendMessage(promise, d);
+    return promise;
+}
+
 struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
                                                    uint64_t nearbyLabel,
                                                    uint32_t timeoutMilliseconds,

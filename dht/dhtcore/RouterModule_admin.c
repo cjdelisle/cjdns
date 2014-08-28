@@ -105,14 +105,15 @@ static void pingResponse(struct RouterModule_Promise* promise,
     Admin_sendMessage(resp, ping->txid, ping->ctx->admin);
 }
 
-static void getPeersResponse(struct RouterModule_Promise* promise,
-                             uint32_t lag,
-                             struct Address* from,
-                             Dict* responseDict)
+static void genericResponse(struct RouterModule_Promise* promise,
+                            uint32_t lag,
+                            struct Address* from,
+                            Dict* responseDict,
+                            String* name)
 {
     struct Ping* ping = Identity_check((struct Ping*)promise->userData);
     Dict* out = Dict_new(promise->alloc);
-    String* result = (responseDict) ? String_CONST("peers") : String_CONST("timeout");
+    String* result = (responseDict) ? name : String_CONST("timeout");
     Dict_putString(out, String_CONST("result"), result, promise->alloc);
 
     if (responseDict) {
@@ -124,7 +125,7 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
             String* addr = Address_toString(&addrs->elems[i], promise->alloc);
             List_addString(nodes, addr, promise->alloc);
         }
-        Dict_putList(out, String_CONST("peers"), nodes, promise->alloc);
+        Dict_putList(out, name, nodes, promise->alloc);
     }
 
     Dict_putInt(out, String_CONST("ms"), lag, promise->alloc);
@@ -132,6 +133,22 @@ static void getPeersResponse(struct RouterModule_Promise* promise,
     Dict_putString(out, String_CONST("error"), String_CONST("none"), promise->alloc);
 
     Admin_sendMessage(out, ping->txid, ping->ctx->admin);
+}
+
+static void getPeersResponse(struct RouterModule_Promise* promise,
+                             uint32_t lag,
+                             struct Address* from,
+                             Dict* responseDict)
+{
+    genericResponse(promise, lag, from, responseDict, String_CONST("peers"));
+}
+
+static void findNodeResponse(struct RouterModule_Promise* promise,
+                             uint32_t lag,
+                             struct Address* from,
+                             Dict* responseDict)
+{
+    genericResponse(promise, lag, from, responseDict, String_CONST("nodes"));
 }
 
 static struct Address* getNode(String* pathStr,
@@ -230,6 +247,42 @@ static void getPeers(Dict* args, void* vctx, String* txid, struct Allocator* req
     rp->callback = getPeersResponse;
 }
 
+static void findNode(Dict* args, void* vctx, String* txid, struct Allocator* requestAlloc)
+{
+    struct Context* ctx = Identity_check((struct Context*) vctx);
+    String* nodeToQueryStr = Dict_getString(args, String_CONST("nodeToQuery"));
+    String* targetStr = Dict_getString(args, String_CONST("target"));
+    int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
+    uint32_t timeout = (timeoutPtr && *timeoutPtr > 0) ? *timeoutPtr : 0;
+
+    char* err = NULL;
+    struct Address* nodeToQuery = getNode(nodeToQueryStr, ctx, &err, requestAlloc);
+    uint8_t target[16];
+
+    if (!err) {
+        if (targetStr->len != 39 || AddrTools_parseIp(target, targetStr->bytes)) {
+            err = "parse_target";
+        }
+    }
+
+    if (err) {
+        Dict errDict = Dict_CONST(String_CONST("error"), String_OBJ(String_CONST(err)), NULL);
+        Admin_sendMessage(&errDict, txid, ctx->admin);
+        return;
+    }
+
+    struct RouterModule_Promise* rp =
+        RouterModule_findNode(nodeToQuery, target, timeout, ctx->router, ctx->allocator);
+
+    struct Ping* ping = Allocator_calloc(rp->alloc, sizeof(struct Ping), 1);
+    Identity_set(ping);
+    ping->txid = String_clone(txid, rp->alloc);
+    ping->rp = rp;
+    ping->ctx = ctx;
+    rp->userData = ping;
+    rp->callback = findNodeResponse;
+}
+
 void RouterModule_admin_register(struct RouterModule* module,
                                  struct Admin* admin,
                                  struct Allocator* alloc)
@@ -259,5 +312,12 @@ void RouterModule_admin_register(struct RouterModule* module,
             { .name = "path", .required = 1, .type = "String" },
             { .name = "timeout", .required = 0, .type = "Int" },
             { .name = "nearbyPath", .required = 0, .type = "String" }
+        }), admin);
+
+    Admin_registerFunction("RouterModule_findNode", findNode, ctx, true,
+        ((struct Admin_FunctionArg[]) {
+            { .name = "nodeToQuery", .required = 1, .type = "String" },
+            { .name = "target", .required = 1, .type = "String" },
+            { .name = "timeout", .required = 0, .type = "Int" }
         }), admin);
 }
