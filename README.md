@@ -234,7 +234,9 @@ Or if you use neither and would like to install the binaries from their websites
 
 Sadly, OpenBSD is a bit experimental right now.
 
-    pkg_add git node
+    pkg_add git node gcc
+
+Select version gcc-4.8.1p2 or more recent.
 
 ### 1. Retrieve cjdns from GitHub
 
