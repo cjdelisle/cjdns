@@ -14,7 +14,7 @@
  */
 #include "exception/Except.h"
 #include "interface/Interface.h"
-#include "interface/TUNConfigurator.h"
+#include "interface/tuntap/TUNInterface.h"
 
 #include <errno.h>
 #include <ctype.h>
