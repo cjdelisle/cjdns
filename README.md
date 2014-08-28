@@ -230,6 +230,12 @@ Or if you use neither and would like to install the binaries from their websites
 - Node.js: [http://nodejs.org/download/](http://nodejs.org/download/)
 - git: [http://git-scm.com/download](http://git-scm.com/download)
 
+#### OpenBSD:
+
+Sadly, OpenBSD is a bit experimental right now.
+
+    pkg_add git node
+
 ### 1. Retrieve cjdns from GitHub
 
 Clone the repository from GitHub and change to the source directory:
