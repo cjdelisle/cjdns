@@ -118,7 +118,10 @@ static inline void SwitchHeader_setPriorityAndMessageType(struct SwitchHeader* h
     header->lowBits_be =
         Endian_hostToBigEndian32( (priority & ((1 << 24) - 1)) | messageType << 24 );
 }
-#define SwitchHeader_getMessageType SwitchHeader_getSuppressErrors
+static inline uint32_t SwitchHeader_getMessageType(struct SwitchHeader* header)
+{
+    return Endian_bigEndianToHost32(header->lowBits_be) >> 24;
+}
 #endif
 
 #endif
