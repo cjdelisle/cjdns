@@ -111,7 +111,9 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
     Bits_memcpyConst(output, best, sizeof(struct Address));
 
     rm->pub.count--;
-    Bits_memcpyConst(best, &rm->addresses[rm->pub.count], sizeof(struct Address));
+    if (&rm->addresses[rm->pub.count] != best) {
+        Bits_memcpyConst(best, &rm->addresses[rm->pub.count], sizeof(struct Address));
+    }
     return true;
 }
 
