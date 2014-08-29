@@ -33,7 +33,6 @@ struct RumorMill_pvt
     struct Address* selfAddr;
 
     struct Address* addresses;
-    int count;
     int capacity;
 
     Identity
@@ -44,7 +43,7 @@ static inline bool hasNode(struct RumorMill* mill, struct Address* addr)
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     for (int i = 0; i < rm->pub.count; i++) {
         if (rm->addresses[i].path == addr->path ||
-            !Bits_memcmp(&rm->addresses[i], addr->ip6.bytes, Address_SEARCH_TARGET_SIZE))
+            !Bits_memcmp(rm->addresses[i].ip6.bytes, addr->ip6.bytes, 16))
         {
             return true;
         }
@@ -91,10 +90,10 @@ static struct Address* getBest(struct RumorMill_pvt* rm)
 
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr)
 {
+    Address_getPrefix(addr);
     if (hasNode(mill, addr)) { return; } // Avoid duplicates
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!Bits_memcmp(addr->key, rm->selfAddr->key, 32)) { return; }
-    Address_getPrefix(addr);
     struct Address* replace;
     if (rm->pub.count < rm->capacity) {
         replace = &rm->addresses[rm->pub.count++];
@@ -108,11 +107,11 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
 {
     struct RumorMill_pvt* rm = Identity_check((struct RumorMill_pvt*) mill);
     if (!rm->pub.count) { return false; }
-    struct Address temp;
     struct Address* best = getBest(rm);
-    Bits_memcpyConst(&temp, &rm->addresses[--rm->pub.count], sizeof(struct Address));
     Bits_memcpyConst(output, best, sizeof(struct Address));
-    Bits_memcpyConst(best, &temp, sizeof(struct Address));
+
+    rm->pub.count--;
+    Bits_memcpyConst(best, &rm->addresses[rm->pub.count], sizeof(struct Address));
     return true;
 }
 

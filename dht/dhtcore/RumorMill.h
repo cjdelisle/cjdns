@@ -30,7 +30,6 @@ Linker_require("dht/dhtcore/RumorMill.c")
 struct RumorMill
 {
     int count;
-    int capacity;
 };
 
 void RumorMill_addNode(struct RumorMill* mill, struct Address* addr);
