@@ -138,6 +138,14 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
     for (link = node->reversePeers; link; link = link->nextPeer) {
         Assert_fileLine(link->child == node, file, line);
         Assert_fileLine(RB_FIND(PeerRBTree, &link->parent->peerTree, link) == link, file, line);
+        // This is for you arc
+        int ok = 0;
+        struct Node_Link* nl = NULL;
+        while ((nl = NodeStore_nextLink(link->parent, nl))) {
+            if (nl == link) { ok = 1; break; }
+        }
+        Assert_fileLine(ok, file, line);
+        //
     }
 
     struct Node_Link* lastLink = NULL;
@@ -1699,8 +1707,7 @@ uint64_t NodeStore_optimizePath(struct NodeStore* nodeStore, uint64_t path)
 struct Node_Link* NodeStore_nextLink(struct Node_Two* parent, struct Node_Link* startLink)
 {
     if (!startLink) {
-        startLink = RB_MIN(PeerRBTree, &parent->peerTree);
-        if (!startLink) { return NULL; }
+        return RB_MIN(PeerRBTree, &parent->peerTree);
     }
     return PeerRBTree_RB_NEXT(startLink);
 }
