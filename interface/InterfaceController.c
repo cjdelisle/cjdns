@@ -227,8 +227,10 @@ static void pingCallback(void* vic)
 
     // scan for endpoints have not sent anything recently.
     uint32_t startAt = Random_uint32(ic->rand) % ic->peerMap.count;
-    uint32_t stopAt = (startAt - 1) % ic->peerMap.count;
-    for (uint32_t i = startAt; i != stopAt; i = (i + 1) % ic->peerMap.count) {
+    for (uint32_t i = startAt, count = 0; !count || i != startAt;) {
+        i = (i + 1) % ic->peerMap.count;
+        count++;
+
         struct InterfaceController_Peer* ep = ic->peerMap.values[i];
 
         if (now < ep->timeOfLastMessage + ic->pingAfterMilliseconds) {
