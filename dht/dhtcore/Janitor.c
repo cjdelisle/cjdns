@@ -483,13 +483,15 @@ static void maintanenceCycle(void* vcontext)
             {
                 addr.path = path;
             }
-            getPeersMill(janitor, &addr);
-            #ifdef Log_DEBUG
-                uint8_t addrStr[60];
-                Address_print(addrStr, &addr);
-                Log_debug(janitor->logger, "Pinging random node link [%s] for maintenance.",
-                                                                                   addrStr);
-            #endif
+            if (addr.path < UINT64_MAX) {
+                getPeersMill(janitor, &addr);
+                #ifdef Log_DEBUG
+                    uint8_t addrStr[60];
+                    Address_print(addrStr, &addr);
+                    Log_debug(janitor->logger, "Pinging random node link [%s] for maintenance.",
+                                                                                       addrStr);
+                #endif
+            }
         }
 
     } else if (RumorMill_getNode(janitor->nodeMill, &addr)) {
