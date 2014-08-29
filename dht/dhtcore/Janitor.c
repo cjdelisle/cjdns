@@ -404,17 +404,14 @@ static struct Node_Two* getRandomNode(struct Random* rand, struct NodeStore* sto
 
 static void getPeersMill(struct Janitor* janitor, struct Address* addr)
 {
-    addr->path = NodeStore_optimizePath(janitor->nodeStore, addr->path);
-    if (NodeStore_optimizePath_INVALID != addr->path) {
-        struct RouterModule_Promise* rp =
-            RouterModule_getPeers(addr,
-                                  Random_uint32(janitor->rand),
-                                  0,
-                                  janitor->routerModule,
-                                  janitor->allocator);
-        rp->callback = peersResponseCallback;
-        rp->userData = janitor;
-    }
+    struct RouterModule_Promise* rp =
+        RouterModule_getPeers(addr,
+                              Random_uint32(janitor->rand),
+                              0,
+                              janitor->routerModule,
+                              janitor->allocator);
+    rp->callback = peersResponseCallback;
+    rp->userData = janitor;
 }
 
 static void maintanenceCycle(void* vcontext)
