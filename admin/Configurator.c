@@ -164,7 +164,7 @@ static void authorizedPasswords(List* list, struct Context* ctx)
 static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
 {
     List* servers = Dict_getList(dns, String_CONST("servers"));
-    int count = List_size(servers);
+    int count = servers ? List_size(servers) : 0;
     for (int i = 0; i < count; i++) {
         String* server = List_getString(servers, i);
         if (!server) {
@@ -176,7 +176,7 @@ static void dns(Dict* dns, struct Context* ctx, struct Except* eh)
     }
 
     List* keys = Dict_getList(dns, String_CONST("keys"));
-    count = List_size(keys);
+    count = keys ? List_size(keys) : 0;
     for (int i = 0; i < count; i++) {
         String* key = List_getString(keys, i);
         if (!key) {
