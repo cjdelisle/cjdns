@@ -234,7 +234,7 @@ Or if you use neither and would like to install the binaries from their websites
 
 Sadly, OpenBSD is a bit experimental right now.
 
-    pkg_add git node gcc bash
+    pkg_add git node gcc gmake bash
 
 Select version gcc-4.8.1p2 or more recent.
 
