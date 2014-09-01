@@ -3,8 +3,8 @@
 # Set the main directory for things to run (if changed, also change in cjdaemon and cjdctl)
 CJDPATH="/sdcard/cjdns"
 
-if [ -f "${CJDPATH}/.cjdaemon.pid" ]; then
-    rm "${CJDPATH}/.cjdaemon.pid"
+if [ -f "$CJDPATH"/.cjdaemon.pid ]; then
+    rm "$CJDPATH"/.cjdaemon.pid
 fi
 
 cjdaemon
