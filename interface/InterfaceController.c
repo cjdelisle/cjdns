@@ -243,7 +243,12 @@ static void pingCallback(void* vic)
             // state but the *direct peer* has somehow been dropped from the routing table
             // usually because of a call to NodeStore_brokenPath()
             struct Node_Two* peerNode = RouterModule_nodeForPath(ep->switchLabel, ic->routerModule);
-            if (peerNode && Node_getBestParent(peerNode)) {
+            // It exists, it's parent is the self-node, and it's label is equal to the switchLabel.
+            if (peerNode
+                && Node_getBestParent(peerNode)
+                && Node_getBestParent(peerNode)->parent->address.path == 1
+                && Node_getBestParent(peerNode)->cannonicalLabel == ep->switchLabel)
+            {
                 continue;
             }
         }
