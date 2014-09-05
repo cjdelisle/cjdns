@@ -1987,11 +1987,12 @@ void NodeStore_brokenPath(uint64_t path, struct NodeStore* nodeStore)
         handleBadNews(nl->child, 0, store);
     }
 
+    /* This workaround can lock the rumorMill in a bad state.
     if (nl->parent != store->pub.selfNode) {
         // XXX(arceliar): Temporary workaround to the above TODO(cjd) statement.
         // This should often recursively find the problematic node.
         RumorMill_addNode(store->renumberMill, &nl->parent->address);
-    }
+    }*/
 
     verify(store);
 }
@@ -2116,10 +2117,11 @@ void NodeStore_pathTimeout(struct NodeStore* nodeStore, uint64_t path)
         RumorMill_addNode(store->renumberMill, &node->address);
     }
 
+    /* This workaround can lock the rumorMill in a bad state.
     if (link->parent != store->pub.selfNode) {
         // All we know for sure is that link->child didn't respond.
         // That could be because an earlier link is down.
         // Same idea as the workaround in NodeStore_brokenPath();
         RumorMill_addNode(store->renumberMill, &link->parent->address);
-    }
+    }*/
 }
