@@ -759,6 +759,8 @@ static struct Node_Link* linkNodes(struct Node_Two* parent,
     }
     #endif
 
+    Assert_true(cannonicalLabel <= discoveredPath);
+
     struct Node_Link* link = getLink(store);
 
     // set it up
@@ -989,7 +991,10 @@ static struct Node_Link* discoverLinkC(struct NodeStore_pvt* store,
         // lets not bother storing this link, a link with the same parent and child is
         // invalid according to verify() and it's just going to take up space in the store
         // we'll return closest which is a perfectly valid path to the same node.
-        return closest;
+
+        // We could reasonably return the closest since it is the same node but it causes
+        // problems with an assertion in discoverLink.
+        return NULL;
     }
 
     if (EncodingScheme_isSelfRoute(parent->encodingScheme, pathParentChild)) {
@@ -1096,9 +1101,15 @@ static void fixLink(struct Node_Link* parentLink,
             Assert_true(childToGrandchild != 1);
             Assert_true(splitLink->cannonicalLabel != parentLink->cannonicalLabel);
 
+            // We forgot what was the discovered path for the link when we split (destroyed)
+            // it so we'll just assume the worst among these two possibilities.
+            // There is an assertion that discoveredPath is never < cannonicalLabel so we must.
+            uint64_t discoveredPath = parentLink->discoveredPath;
+            if (childToGrandchild > discoveredPath) { discoveredPath = childToGrandchild; }
+
             struct Node_Link* childLink =
                 discoverLinkC(store, parentLink, childToGrandchild, grandChild,
-                              parentLink->discoveredPath, splitLink->inverseLinkEncodingFormNumber);
+                              discoveredPath, splitLink->inverseLinkEncodingFormNumber);
 
             if (childLink) {
                 // Order the list so that the next set of links will be split from

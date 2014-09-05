@@ -306,7 +306,7 @@ Builder.configure({
                     args.push('CFLAGS=-fPIC');
                 }
 
-                var makeCommand = builder.config.systemName == 'freebsd' ? 'gmake' : 'make';
+                var makeCommand = ['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0 ? 'gmake' : 'make';
                 var make = Spawn(makeCommand, args, {stdio: 'inherit'});
 
                 make.on('error', function (err) {

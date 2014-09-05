@@ -83,7 +83,8 @@ Assert_compileTime(sizeof(struct Control_Ping) == Control_Ping_MIN_SIZE + 4);
  * is the cookie which must be reflected.
  */
 #define Control_KEYPING_be Endian_hostToBigEndian16(5)
-#define Control_KeyPing_MIN_SIZE 40
+#define Control_KeyPing_HEADER_SIZE 40
+#define Control_KeyPing_MAX_SIZE (Control_KeyPing_HEADER_SIZE + 64)
 #define Control_KeyPing_MAGIC Endian_hostToBigEndian32(0x01234567)
 struct Control_KeyPing
 {
@@ -96,10 +97,11 @@ struct Control_KeyPing
     /** The permanent public key. */
     uint8_t key[32];
 };
-Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control_KeyPing) == Control_KeyPing_HEADER_SIZE);
 
 #define Control_KEYPONG_be Endian_hostToBigEndian16(6)
-#define Control_KeyPong_MIN_SIZE Control_KeyPing_MIN_SIZE
+#define Control_KeyPong_HEADER_SIZE Control_KeyPing_HEADER_SIZE
+#define Control_KeyPong_MAX_SIZE Control_KeyPing_MAX_SIZE
 #define Control_KeyPong_MAGIC Endian_hostToBigEndian32(0x89abcdef)
 
 static inline char* Control_typeString(uint16_t type_be)
@@ -157,6 +159,6 @@ struct Control
     } content;
 };
 // Control_KeyPing is the largest structure and thus defines the length of the "content" union.
-Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_KeyPing_MIN_SIZE);
+Assert_compileTime(sizeof(struct Control) == Control_HEADER_SIZE + Control_KeyPing_HEADER_SIZE);
 
 #endif

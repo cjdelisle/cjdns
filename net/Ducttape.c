@@ -956,7 +956,7 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
                 return Error_NONE;
             }
             struct Control* causeCtrl = (struct Control*) &(&ctrl->content.error.cause)[1];
-            if (causeCtrl->type_be != Control_PING_be) {
+            if (causeCtrl->type_be != Control_PING_be && causeCtrl->type_be != Control_KEYPING_be) {
                 #ifdef Log_INFO
                     uint32_t errorType =
                         Endian_bigEndianToHost32(ctrl->content.error.errorType_be);
@@ -1030,8 +1030,10 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
 
         Message_shift(message, -Control_HEADER_SIZE, NULL);
 
-        if (message->length < Control_KeyPing_MIN_SIZE) {
-            Log_info(context->logger, "DROP runt keyping");
+        if (message->length < Control_KeyPing_HEADER_SIZE
+            || message->length > Control_KeyPing_MAX_SIZE)
+        {
+            Log_info(context->logger, "DROP incorrect size keyping");
             return Error_INVALID;
         }
 
@@ -1046,11 +1048,6 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
             String* addrStr = Address_toString(&herAddr, message->alloc);
             Log_debug(context->logger, "got switch keyPing from [%s]", addrStr->bytes);
         #endif
-
-        if (message->length > Control_KeyPing_MIN_SIZE + 64) {
-            Log_debug(context->logger, "DROP oversize keyping message");
-            return Error_INVALID;
-        }
 
         keyPing->magic = Control_KeyPong_MAGIC;
         uint32_t herVersion = Endian_bigEndianToHost32(keyPing->version_be);
