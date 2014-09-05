@@ -118,14 +118,9 @@ static inline struct InterfaceController_pvt* ifcontrollerForPeer(
     return Identity_check((struct InterfaceController_pvt*) ep->switchIf.senderContext);
 }
 
-static void onPingResponse(enum SwitchPinger_Result result,
-                           uint64_t label,
-                           String* data,
-                           uint32_t millisecondsLag,
-                           uint32_t version,
-                           void* onResponseContext)
+static void onPingResponse(struct SwitchPinger_Response* resp, void* onResponseContext)
 {
-    if (SwitchPinger_Result_OK != result) {
+    if (SwitchPinger_Result_OK != resp->res) {
         return;
     }
     struct InterfaceController_Peer* ep =
@@ -136,7 +131,7 @@ static void onPingResponse(enum SwitchPinger_Result result,
     Bits_memset(&addr, 0, sizeof(struct Address));
     Bits_memcpyConst(addr.key, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     addr.path = ep->switchLabel;
-    addr.protocolVersion = version;
+    addr.protocolVersion = resp->version;
 
     #ifdef Log_DEBUG
         uint8_t addrStr[60];
@@ -145,11 +140,12 @@ static void onPingResponse(enum SwitchPinger_Result result,
         Base32_encode(key, 56, CryptoAuth_getHerPublicKey(ep->cryptoAuthIf), 32);
     #endif
 
-    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, version)) {
+    if (!Version_isCompatible(Version_CURRENT_PROTOCOL, resp->version)) {
         Log_debug(ic->logger, "got switch pong from node [%s] with incompatible version [%d]",
-                  key, version);
+                  key, resp->version);
     } else {
-        Log_debug(ic->logger, "got switch pong from node [%s] with version [%d]", key, version);
+        Log_debug(ic->logger, "got switch pong from node [%s] with version [%d]",
+                  key, resp->version);
     }
 
     if (!ep->timeOfLastPing) {
@@ -158,11 +154,11 @@ static void onPingResponse(enum SwitchPinger_Result result,
         // Other than that, it just makes a slightly more synchronous/guaranteed setup.
         RouterModule_getPeers(&addr, 0, 0, ic->routerModule, ic->allocator);
     } else {
-        struct Node_Two* nn = RouterModule_nodeForPath(label, ic->routerModule);
+        struct Node_Two* nn = RouterModule_nodeForPath(resp->label, ic->routerModule);
         if (!nn) {
             RumorMill_addNode(ic->rumorMill, &addr);
         } else if (!Node_getBestParent(nn)) {
-            RouterModule_peerIsReachable(label, millisecondsLag, ic->routerModule);
+            RouterModule_peerIsReachable(resp->label, resp->milliseconds, ic->routerModule);
         }
     }
 
@@ -172,11 +168,11 @@ static void onPingResponse(enum SwitchPinger_Result result,
         // This will be false if it times out.
         //Assert_true(label == ep->switchLabel);
         uint8_t path[20];
-        AddrTools_printPath(path, label);
+        AddrTools_printPath(path, resp->label);
         uint8_t sl[20];
         AddrTools_printPath(sl, ep->switchLabel);
         Log_debug(ic->logger, "Received [%s] from lazy endpoint [%s]  [%s]",
-                  SwitchPinger_resultString(result)->bytes, path, sl);
+                  SwitchPinger_resultString(resp->res)->bytes, path, sl);
     #endif
 }
 
@@ -304,6 +300,8 @@ static void moveEndpointIfNeeded(struct InterfaceController_Peer* ep,
         if (thisEp != ep && !Bits_memcmp(thisKey, key, 32)) {
             Log_info(ic->logger, "Moving endpoint to merge new session with old.");
 
+            // flush out the new entry if needed.
+            RouterModule_brokenPath(ep->switchLabel, ic->routerModule);
             ep->switchLabel = thisEp->switchLabel;
             SwitchCore_swapInterfaces(&thisEp->switchIf, &ep->switchIf);
             Allocator_free(thisEp->external->allocator);

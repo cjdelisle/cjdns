@@ -49,24 +49,33 @@ enum SwitchPinger_Result
     SwitchPinger_Result_TIMEOUT
 };
 
+struct SwitchPinger_Ping;
 
-/**
- * Callback which will be called when the ping response comes back.
- *
- * @param result SwitchPinger_Result_OK if all went well,
- *                     otherwise SwitchPinger_Result_*
- * @param label the label as of the responding node in host order.
- * @param data the content of the ping response.
- * @param millisecondsLag the number of milliseconds since the original ping was sent.
- * @param nodeVersion the version of the node which was pinged.
- * @param onResponseContext a context which was provided to SwitchPinger_ping().
- */
-typedef void (* SwitchPinger_ResponseCallback)(enum SwitchPinger_Result result,
-                                               uint64_t label,
-                                               String* data,
-                                               uint32_t millisecondsLag,
-                                               uint32_t nodeVersion,
-                                               void* onResponseContext);
+struct SwitchPinger_Response
+{
+    /** SwitchPinger_Result_OK if all went well, otherwise SwitchPinger_Result_*  */
+    enum SwitchPinger_Result res;
+
+    /** the label as of the responding node in host order. */
+    uint64_t label;
+
+    /** the content of the ping response. */
+    String* data;
+
+    /** the number of milliseconds since the original ping was sent. */
+    uint64_t milliseconds;
+
+    /** the version of the node which was pinged. */
+    uint32_t version;
+
+    /** The key for the node which was pinged, if not a keyPing then this is set to 0. */
+    uint8_t key[32];
+
+    struct SwitchPinger_Ping* ping;
+};
+
+/** Callback which will be called when the ping response comes back. */
+typedef void (* SwitchPinger_ResponseCallback)(struct SwitchPinger_Response* resp, void* userData);
 
 struct SwitchPinger_Ping
 {
@@ -75,6 +84,9 @@ struct SwitchPinger_Ping
      * allocate space which will be freed when the ping completes.
      */
     struct Allocator* pingAlloc;
+
+    /** If true then a key-ping will be sent instead of a legacy ping, default false. */
+    bool keyPing;
 
     /**
      * This is NULL by default and is set by the caller of Pinger_ping(),

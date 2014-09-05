@@ -20,6 +20,7 @@
 #include "net/SwitchPinger.h"
 #include "util/Endian.h"
 #include "util/AddrTools.h"
+#include "crypto/Key.h"
 
 #define DEFAULT_TIMEOUT 2000
 
@@ -37,40 +38,33 @@ struct Ping
     String* path;
 };
 
-static void adminPingOnResponse(enum SwitchPinger_Result result,
-                                uint64_t label,
-                                String* data,
-                                uint32_t millisecondsLag,
-                                uint32_t version,
-                                void* vping)
+static void adminPingOnResponse(struct SwitchPinger_Response* resp, void* vping)
 {
+    struct Allocator* pingAlloc = resp->ping->pingAlloc;
     struct Ping* ping = vping;
-    String* resultStr = SwitchPinger_resultString(result);
-    uint8_t path[20];
-    AddrTools_printPath(path, label);
-    String* pathStr = &(String) { .bytes = (char*) path, .len = 19 };
 
-    Dict response = Dict_CONST(
-        String_CONST("version"), Int_OBJ(version), NULL
-    );
+    Dict* rd = Dict_new(pingAlloc);
 
-    Dict d = Dict_CONST(String_CONST("rpath"), String_OBJ(pathStr), response);
-    if (result == SwitchPinger_Result_LABEL_MISMATCH) {
-        response = d;
+    if (resp->res == SwitchPinger_Result_LABEL_MISMATCH) {
+        uint8_t path[20] = {0};
+        AddrTools_printPath(path, resp->label);
+        String* pathStr = String_new(path, pingAlloc);
+        Dict_putString(rd, String_CONST("rpath"), pathStr, pingAlloc);
     }
 
-    response = Dict_CONST(String_CONST("result"), String_OBJ(resultStr), response);
-
-    response = Dict_CONST(String_CONST("path"), String_OBJ(ping->path), response);
-
-    response = Dict_CONST(String_CONST("ms"), Int_OBJ(millisecondsLag), response);
-
-    d = Dict_CONST(String_CONST("data"), String_OBJ(data), response);
-    if (data) {
-        response = d;
+    Dict_putInt(rd, String_CONST("version"), resp->version, pingAlloc);
+    Dict_putInt(rd, String_CONST("ms"), resp->milliseconds, pingAlloc);
+    Dict_putString(rd, String_CONST("result"), SwitchPinger_resultString(resp->res), pingAlloc);
+    Dict_putString(rd, String_CONST("path"), ping->path, pingAlloc);
+    if (resp->data) {
+        Dict_putString(rd, String_CONST("data"), resp->data, pingAlloc);
     }
 
-    Admin_sendMessage(&response, ping->txid, ping->context->admin);
+    if (!Bits_isZero(resp->key, 32)) {
+        Dict_putString(rd, String_CONST("key"), Key_stringify(resp->key, pingAlloc), pingAlloc);
+    }
+
+    Admin_sendMessage(rd, ping->txid, ping->context->admin);
 }
 
 static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator* requestAlloc)
@@ -79,6 +73,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
     String* pathStr = Dict_getString(args, String_CONST("path"));
     int64_t* timeoutPtr = Dict_getInt(args, String_CONST("timeout"));
     String* data = Dict_getString(args, String_CONST("data"));
+    int64_t* keyPing = Dict_getInt(args, String_CONST("keyPing"));
     uint32_t timeout = (timeoutPtr) ? *timeoutPtr : DEFAULT_TIMEOUT;
     uint64_t path;
     String* err = NULL;
@@ -91,6 +86,7 @@ static void adminPing(Dict* args, void* vcontext, String* txid, struct Allocator
                                                               adminPingOnResponse,
                                                               context->alloc,
                                                               context->switchPinger);
+        if (keyPing && *keyPing) { ping->keyPing = true; }
         if (!ping) {
             err = String_CONST("no open slots to store ping, try later.");
         } else {
@@ -122,6 +118,7 @@ void SwitchPinger_admin_register(struct SwitchPinger* sp,
         ((struct Admin_FunctionArg[]) {
             { .name = "path", .required = 1, .type = "String" },
             { .name = "timeout", .required = 0, .type = "Int" },
-            { .name = "data", .required = 0, .type = "String" }
+            { .name = "data", .required = 0, .type = "String" },
+            { .name = "keyPing", .required = 0, .type = "Int" }
         }), admin);
 }
