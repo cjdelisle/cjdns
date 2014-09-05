@@ -228,7 +228,7 @@ static void keyspaceMaintainenceGlobal(struct Janitor* janitor)
         // See if we know a valid next hop.
         struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (!node) {
+        if (!node || !Node_getBestParent(node)) {
             if (foundHole) {
                 // We don't already know a node for this keyspace address, and we've
                 // already found at least one hole.
@@ -266,7 +266,7 @@ static void keyspaceMaintainenceLocal(struct Janitor* janitor)
     }
 
     struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
-    if (node) {
+    if (node && Node_getBestParent(node)) {
         // We know a valid next hop, so let's ping it to check its health.
         // TODO(arceliar): try to find better path? (how?)
         RouterModule_pingNode(&node->address, 0, janitor->routerModule, janitor->allocator);
@@ -298,7 +298,7 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         {
             struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
                                                           addresses->elems[i].ip6.bytes);
-            if (node) {
+            if (node && Node_getBestParent(node)) {
                 RumorMill_addNode(janitor->linkMill, &addresses->elems[i]);
             } else {
                 RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
