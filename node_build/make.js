@@ -237,7 +237,7 @@ Builder.configure({
             builder.config.libs.push('-lrt'); // clock_gettime()
         } else if (builder.config.systemName === 'darwin') {
             builder.config.libs.push('-framework', 'CoreServices');
-        } else if (builder.config.systemName === 'freebsd') {
+        } else if (['freebsd', 'openbsd'].indexOf(builder.config.systemName) >= 0) {
             builder.config.cflags.push('-Wno-overlength-strings');
             builder.config.libs.push('-lkvm');
         } else if (builder.config.systemName === 'sunos') {
