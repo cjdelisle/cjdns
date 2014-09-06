@@ -15,6 +15,9 @@
 #include "exception/Except.h"
 #include "interface/Interface.h"
 #include "interface/tuntap/TUNInterface.h"
+#include "interface/tuntap/BSDMessageTypeWrapper.h"
+#include "util/AddrTools.h"
+#include "util/events/Pipe.h"
 
 #include <errno.h>
 #include <ctype.h>
@@ -72,13 +75,13 @@ struct Interface* TUNInterface_new(const char* interfaceName,
         if (tunFd < 0) {
             error = "open(\"/dev/tunX\")";
         }
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     // Since devices are numbered rather than named, it's not possible to have tun0 and cjdns0
     // so we'll skip the pretty names and call everything tunX
     if (assignedInterfaceName) {
-        snprintf(assignedInterfaceName, TUNConfigurator_IFNAMSIZ, "tun%d", ppa);
+        snprintf(assignedInterfaceName, TUNInterface_IFNAMSIZ, "tun%d", ppa);
     }
 
     char* error = NULL;
@@ -86,7 +89,7 @@ struct Interface* TUNInterface_new(const char* interfaceName,
     if (error) {
         int err = errno;
         close(tunFd);
-        Except_raise(eh, TUNConfigurator_initTun_INTERNAL, "%s [%s]", error, strerror(err));
+        Except_throw(eh, "%s [%s]", error, strerror(err));
     }
 
     struct Pipe* p = Pipe_forFiles(tunFd, tunFd, base, eh, alloc);
