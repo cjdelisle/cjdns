@@ -639,7 +639,7 @@ struct RouterModule_Promise* RouterModule_getPeers(struct Address* addr,
 }
 
 struct Node_Two* RouterModule_lookup(uint8_t targetAddr[Address_SEARCH_TARGET_SIZE],
-                                 struct RouterModule* module)
+                                     struct RouterModule* module)
 {
     struct Address addr = { .path = 0 };
     Bits_memcpyConst(addr.ip6.bytes, targetAddr, Address_SEARCH_TARGET_SIZE);
