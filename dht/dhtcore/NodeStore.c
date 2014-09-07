@@ -1837,7 +1837,10 @@ struct Node_Two* NodeStore_getBest(struct Address* targetAddress, struct NodeSto
 
     for (int i = 0; i < 10000; i++) {
         int ret = getBestCycle(store->pub.selfNode, targetAddress, &n, i, 0, store);
-        if (n || !ret) { return n; }
+        if (n || !ret) {
+            if (n) { Assert_true(Node_getBestParent(n)); }
+            return n;
+        }
     }
 
     return NULL;
