@@ -175,7 +175,12 @@ var connect = module.exports.connect = function (addr, port, pass, callback) {
             throw new Error("Response [" + msg + "] with no txid");
         }
         var handler = sock.handlers[response.txid];
-        if (!handler) { return; }
+        if (!handler) {
+            if (sock.defaultHandler) {
+                sock.defaultHandler(undefined, response);
+            }
+            return;
+        }
         clearTimeout(handler.timeout);
         delete sock.handlers[response.txid];
         handler.callback(undefined, response);
@@ -189,6 +194,7 @@ var connect = module.exports.connect = function (addr, port, pass, callback) {
     }).nThen(function (waitFor) {
         getFunctions(sock, addr, port, pass, function (cjdns) {
             cjdns.disconnect = function () { sock.close() };
+            cjdns.setDefaultHandler = function (handler) { sock.defaultHandler = handler; };
             callback(cjdns);
         });
     });
