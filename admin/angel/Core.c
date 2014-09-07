@@ -355,7 +355,7 @@ void Core_init(struct Allocator* alloc,
     if (logTo && String_equals(logTo, String_CONST("stdout"))) {
         // do nothing, continue logging to stdout.
     } else {
-        struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand);
+        struct Log* adminLogger = AdminLog_registerNew(admin, alloc, rand, eventBase);
         IndirectLog_set(logger, adminLogger);
         logger = adminLogger;
     }

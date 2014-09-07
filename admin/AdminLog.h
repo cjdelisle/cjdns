@@ -19,9 +19,13 @@
 #include "crypto/random/Random.h"
 #include "memory/Allocator.h"
 #include "util/log/Log.h"
+#include "util/events/EventBase.h"
 #include "util/Linker.h"
 Linker_require("admin/AdminLog.c")
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, struct Random* rand);
+struct Log* AdminLog_registerNew(struct Admin* admin,
+                                 struct Allocator* alloc,
+                                 struct Random* rand,
+                                 struct EventBase* base);
 
 #endif

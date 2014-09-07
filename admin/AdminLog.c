@@ -25,12 +25,7 @@
 #include "util/log/Log.h"
 #include "util/log/Log_impl.h"
 #include "util/Hex.h"
-
-
-#include <stdint.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdbool.h>
+#include "util/events/Time.h"
 
 #define MAX_SUBSCRIPTIONS 64
 #define FILE_NAME_COUNT 32
@@ -40,17 +35,14 @@ struct Subscription
     /** The log level to match against, all higher levels will also be matched. */
     enum Log_Level level;
 
-    /**
-     * true if the file name is the internal name
-     * which can be compared using a pointer equality check
-     */
-    bool internalName : 1;
-
     /** The line number within the file or 0 to match all lines. */
-    int lineNum : 31;
+    int lineNum;
 
     /** The name of the file to match against or null to match any file. */
     const char* file;
+
+    /** True if file can be compared with pointer comparison instead of strcmp. */
+    bool internalFile;
 
     /** The transaction ID of the message which solicited this stream of logs. */
     String* txid;
@@ -67,10 +59,10 @@ struct AdminLog
     struct Log pub;
     struct Subscription subscriptions[MAX_SUBSCRIPTIONS];
     uint32_t subscriptionCount;
-    const char* fileNames[FILE_NAME_COUNT];
     struct Admin* admin;
     struct Allocator* alloc;
     struct Random* rand;
+    struct EventBase* base;
 };
 
 static inline const char* getShortName(const char* fullFilePath)
@@ -89,30 +81,15 @@ static inline bool isMatch(struct Subscription* subscription,
                            int line)
 {
     if (subscription->file) {
-        if (subscription->internalName) {
-            if (file != subscription->file) {
-                return false;
-            }
-        } else {
-            const char* shortFileName = getShortName(file);
-            if (CString_strcmp(shortFileName, subscription->file)) {
-                return false;
-            }
-
+        if (subscription->file == file) {
+            // fall through
+        } else if (!subscription->internalFile && !CString_strcmp(file, subscription->file)) {
             // It's the same name but so we'll swap the name for the internal name and then
             // it can be compared quickly with a pointer comparison.
-            subscription->file = shortFileName;
-            subscription->internalName = true;
-            for (int i = 0; i < FILE_NAME_COUNT; i++) {
-                if (logger->fileNames[i] == shortFileName) {
-                    break;
-                }
-                if (logger->fileNames[i] == NULL) {
-                    logger->fileNames[i] = shortFileName;
-                    logger->fileNames[(i + 1) % FILE_NAME_COUNT] = NULL;
-                    break;
-                }
-            }
+            subscription->file = file;
+            subscription->internalFile = true;
+        } else {
+            return false;
         }
     }
 
@@ -134,8 +111,7 @@ static Dict* makeLogMessage(struct Subscription* subscription,
                             va_list vaArgs,
                             struct Allocator* alloc)
 {
-    time_t now;
-    time(&now);
+    int64_t now = (int64_t) Time_currentTimeSeconds(logger->base);
 
     Dict* out = Dict_new(alloc);
     char* buff = Allocator_malloc(alloc, 20);
@@ -181,27 +157,29 @@ static void doLog(struct Log* genericLog,
 {
     struct AdminLog* log = (struct AdminLog*) genericLog;
     Dict* message = NULL;
-    #define ALLOC_BUFFER_SZ 4096
-    uint8_t allocBuffer[ALLOC_BUFFER_SZ];
+    struct Allocator* logLineAlloc = NULL;
 
     for (int i = 0; i < (int)log->subscriptionCount; i++) {
-        if (isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) {
-            if (!message) {
-                struct Allocator* alloc = BufferAllocator_new(allocBuffer, ALLOC_BUFFER_SZ);
-                message = makeLogMessage(&log->subscriptions[i],
-                                         log,
-                                         logLevel,
-                                         fullFilePath,
-                                         line,
-                                         format,
-                                         args,
-                                         alloc);
-            }
-            int ret = Admin_sendMessage(message, log->subscriptions[i].txid, log->admin);
-            if (ret) {
-                removeSubscription(log, &log->subscriptions[i]);
-            }
+        if (!isMatch(&log->subscriptions[i], log, logLevel, fullFilePath, line)) { continue; }
+
+        if (!message) {
+            logLineAlloc = Allocator_child(log->alloc);
+            message = makeLogMessage(&log->subscriptions[i],
+                                     log,
+                                     logLevel,
+                                     fullFilePath,
+                                     line,
+                                     format,
+                                     args,
+                                     logLineAlloc);
         }
+
+        if (Admin_sendMessage(message, log->subscriptions[i].txid, log->admin)) {
+            removeSubscription(log, &log->subscriptions[i]);
+        }
+    }
+    if (logLineAlloc) {
+        Allocator_free(logLineAlloc);
     }
 }
 
@@ -225,21 +203,7 @@ static void subscribe(Dict* args, void* vcontext, String* txid, struct Allocator
         struct Subscription* sub = &log->subscriptions[log->subscriptionCount];
         sub->level = level;
         sub->alloc = Allocator_child(log->alloc);
-        if (file) {
-            int i;
-            for (i = 0; i < FILE_NAME_COUNT; i++) {
-                if (log->fileNames[i] && !CString_strcmp(log->fileNames[i], file)) {
-                    file = log->fileNames[i];
-                    sub->internalName = true;
-                    break;
-                }
-            }
-            if (i == FILE_NAME_COUNT) {
-                file = String_new(file, sub->alloc)->bytes;
-                sub->internalName = false;
-            }
-        }
-        sub->file = file;
+        sub->file = (file) ? String_new(file, sub->alloc)->bytes : NULL;
         sub->lineNum = (lineNumPtr) ? *lineNumPtr : 0;
         sub->txid = String_clone(txid, sub->alloc);
         Random_bytes(log->rand, (uint8_t*) sub->streamId, 8);
@@ -285,7 +249,10 @@ static void unsubscribe(Dict* args, void* vcontext, String* txid, struct Allocat
     Admin_sendMessage(&response, txid, log->admin);
 }
 
-struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, struct Random* rand)
+struct Log* AdminLog_registerNew(struct Admin* admin,
+                                 struct Allocator* alloc,
+                                 struct Random* rand,
+                                 struct EventBase* base)
 {
     struct AdminLog* log = Allocator_clone(alloc, (&(struct AdminLog) {
         .pub = {
@@ -293,7 +260,8 @@ struct Log* AdminLog_registerNew(struct Admin* admin, struct Allocator* alloc, s
         },
         .admin = admin,
         .alloc = alloc,
-        .rand = rand
+        .rand = rand,
+        .base = base
     }));
 
     Admin_registerFunction("AdminLog_subscribe", subscribe, log, true,
