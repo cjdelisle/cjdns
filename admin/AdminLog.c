@@ -65,15 +65,6 @@ struct AdminLog
     struct EventBase* base;
 };
 
-static inline const char* getShortName(const char* fullFilePath)
-{
-    const char* out = CString_strrchr(fullFilePath, '/');
-    if (out) {
-        return out + 1;
-    }
-    return fullFilePath;
-}
-
 static inline bool isMatch(struct Subscription* subscription,
                            struct AdminLog* logger,
                            enum Log_Level logLevel,
@@ -102,10 +93,17 @@ static inline bool isMatch(struct Subscription* subscription,
     return true;
 }
 
+static String* STREAM_ID = String_CONST_SO("streamId");
+static String* TIME =      String_CONST_SO("time");
+static String* LEVEL =     String_CONST_SO("level");
+static String* FILE =      String_CONST_SO("file");
+static String* LINE =      String_CONST_SO("line");
+static String* MESSAGE =   String_CONST_SO("message");
+
 static Dict* makeLogMessage(struct Subscription* subscription,
                             struct AdminLog* logger,
                             enum Log_Level logLevel,
-                            const char* fullFilePath,
+                            const char* file,
                             uint32_t line,
                             const char* format,
                             va_list vaArgs,
@@ -114,24 +112,22 @@ static Dict* makeLogMessage(struct Subscription* subscription,
     int64_t now = (int64_t) Time_currentTimeSeconds(logger->base);
 
     Dict* out = Dict_new(alloc);
-    char* buff = Allocator_malloc(alloc, 20);
-    Hex_encode((uint8_t*)buff, 20, subscription->streamId, 8);
-    Dict_putString(out, String_new("streamId", alloc), String_new(buff, alloc), alloc);
-    Dict_putInt(out, String_new("time", alloc), now, alloc);
-    Dict_putString(out,
-                   String_new("level", alloc),
-                   String_new(Log_nameForLevel(logLevel), alloc),
-                   alloc);
-    const char* shortName = getShortName(fullFilePath);
-    Dict_putString(out, String_new("file", alloc), String_new((char*)shortName, alloc), alloc);
-    Dict_putInt(out, String_new("line", alloc), line, alloc);
+
+    String* streamId = String_newBinary(NULL, 20, alloc);
+    Hex_encode(streamId->bytes, 20, subscription->streamId, 8);
+    Dict_putString(out, STREAM_ID, streamId, alloc);
+
+    Dict_putInt(out, TIME, now, alloc);
+    Dict_putString(out, LEVEL, String_new(Log_nameForLevel(logLevel), alloc), alloc);
+    Dict_putString(out, FILE, String_new(file, alloc), alloc);
+    Dict_putInt(out, LINE, line, alloc);
     String* message = String_vprintf(alloc, format, vaArgs);
 
     // Strip all of the annoying \n marks in the log entries.
     if (message->len > 0 && message->bytes[message->len - 1] == '\n') {
         message->len--;
     }
-    Dict_putString(out, String_new("message", alloc), message, alloc);
+    Dict_putString(out, MESSAGE, message, alloc);
 
     return out;
 }
