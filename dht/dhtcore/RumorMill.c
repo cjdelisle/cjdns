@@ -38,6 +38,8 @@ struct RumorMill_pvt
 
     struct Log* log;
 
+    const char* name;
+
     Identity
 };
 
@@ -87,7 +89,8 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
     if (Defined(Log_DEBUG)) {
         uint8_t addrStr[60];
         Address_print(addrStr, addr);
-        Log_debug(rm->log, "RumorMill_addNode(%s) from [%s:%d]", addrStr, file, line);
+        Log_debug(rm->log, "[%s] addNode(%s) count[%d] from [%s:%d]",
+                           rm->name, addrStr, rm->pub.count, file, line);
     }
 
     for (int i = 0; i < rm->pub.count; i++) {
@@ -126,7 +129,8 @@ bool RumorMill_getNode(struct RumorMill* mill, struct Address* output)
 struct RumorMill* RumorMill_new(struct Allocator* allocator,
                                 struct Address* selfAddr,
                                 int capacity,
-                                struct Log* log)
+                                struct Log* log,
+                                const char* name)
 {
     struct Allocator* alloc = Allocator_child(allocator);
     Address_getPrefix(selfAddr);
@@ -136,6 +140,7 @@ struct RumorMill* RumorMill_new(struct Allocator* allocator,
     rm->capacity = capacity;
     rm->selfAddr = Allocator_clone(alloc, selfAddr);
     rm->log = log;
+    rm->name = name;
     Identity_set(rm);
 
     return &rm->pub;

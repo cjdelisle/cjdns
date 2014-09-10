@@ -41,9 +41,16 @@ void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char
 
 bool RumorMill_getNode(struct RumorMill* mill, struct Address* output);
 
+/**
+ * Create a new RumorMill.
+ *
+ * The name parameter is used for logging and must be a string constant which will outlive the
+ * life of the mill.
+ */
 struct RumorMill* RumorMill_new(struct Allocator* allocator,
                                 struct Address* selfAddr,
                                 int capacity,
-                                struct Log* log);
+                                struct Log* log,
+                                const char* name);
 
 #endif
