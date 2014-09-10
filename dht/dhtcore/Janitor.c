@@ -566,11 +566,14 @@ struct Janitor* Janitor_new(uint64_t localMaintainenceMilliseconds,
     }));
     Identity_set(janitor);
 
-    janitor->linkMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64);
+    janitor->linkMill =
+        RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64, logger);
 
-    janitor->nodeMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64);
+    janitor->nodeMill =
+        RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64, logger);
 
-    janitor->searchMill = RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64);
+    janitor->searchMill =
+        RumorMill_new(janitor->allocator, janitor->nodeStore->selfAddress, 64, logger);
 
     janitor->timeOfNextGlobalMaintainence = Time_currentTimeMilliseconds(eventBase);
 

@@ -118,7 +118,7 @@ struct TestFramework* TestFramework_setUp(char* privateKey,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(allocator);
     ReplyModule_register(registry, allocator);
 
-    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64);
+    struct RumorMill* rumorMill = RumorMill_new(allocator, myAddress, 64, logger);
 
     struct NodeStore* nodeStore = NodeStore_new(myAddress, allocator, logger, rumorMill);
 

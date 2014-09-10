@@ -17,6 +17,8 @@
 
 #include "dht/Address.h"
 #include "memory/Allocator.h"
+#include "util/log/Log.h"
+#include "util/Gcc.h"
 #include "util/Linker.h"
 Linker_require("dht/dhtcore/RumorMill.c")
 
@@ -32,10 +34,16 @@ struct RumorMill
     int count;
 };
 
-void RumorMill_addNode(struct RumorMill* mill, struct Address* addr);
+void RumorMill__addNode(struct RumorMill* mill, struct Address* addr, const char* file, int line);
+
+#define RumorMill_addNode(mill, addr) \
+    RumorMill__addNode((mill), (addr), Gcc_FILE, Gcc_LINE);
 
 bool RumorMill_getNode(struct RumorMill* mill, struct Address* output);
 
-struct RumorMill* RumorMill_new(struct Allocator* alloc, struct Address* selfAddr, int capacity);
+struct RumorMill* RumorMill_new(struct Allocator* allocator,
+                                struct Address* selfAddr,
+                                int capacity,
+                                struct Log* log);
 
 #endif

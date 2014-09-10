@@ -371,7 +371,7 @@ void Core_init(struct Allocator* alloc,
     struct DHTModuleRegistry* registry = DHTModuleRegistry_new(alloc);
     ReplyModule_register(registry, alloc);
 
-    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY);
+    struct RumorMill* rumorMill = RumorMill_new(alloc, &addr, RUMORMILL_CAPACITY, logger);
 
     struct NodeStore* nodeStore = NodeStore_new(&addr, alloc, logger, rumorMill);
 
