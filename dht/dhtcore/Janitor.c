@@ -441,7 +441,8 @@ static void maintanenceCycle(void* vcontext)
             Log_debug(janitor->logger, "Pinging possible node [%s] from "
                                        "external RumorMill", addrStr);
         #endif
-    } else if (RumorMill_getNode(janitor->linkMill, &addr)) {
+    } else if (Random_uint32(janitor->rand) % 4 && RumorMill_getNode(janitor->linkMill, &addr)) {
+        // TODO(cjd): the rand % 4 is a hack to break a bad state situation.
         // ping a link-splitting node from the high-priority ping queue
         getPeersMill(janitor, &addr);
         #ifdef Log_DEBUG
