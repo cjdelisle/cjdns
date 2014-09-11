@@ -228,7 +228,7 @@ static void keyspaceMaintainenceGlobal(struct Janitor* janitor)
         // See if we know a valid next hop.
         struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
 
-        if (!node || !Node_getBestParent(node)) {
+        if (!node) {
             if (foundHole) {
                 // We don't already know a node for this keyspace address, and we've
                 // already found at least one hole.
@@ -266,7 +266,7 @@ static void keyspaceMaintainenceLocal(struct Janitor* janitor)
     }
 
     struct Node_Two* node = RouterModule_lookup(addr.ip6.bytes, janitor->routerModule);
-    if (node && Node_getBestParent(node)) {
+    if (node) {
         // We know a valid next hop, so let's ping it to check its health.
         // TODO(arceliar): try to find better path? (how?)
         RouterModule_pingNode(&node->address, 0, janitor->routerModule, janitor->allocator);
@@ -291,6 +291,10 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
 
     int loopCount = 0;
     for (int i = 0; addresses && i < addresses->length; i++) {
+
+        // they're telling us about themselves, how helpful...
+        if (!Bits_memcmp(addresses->elems[i].key, from->key, 32)) { continue; }
+
         struct Node_Link* nl = NodeStore_linkForPath(janitor->nodeStore, addresses->elems[i].path);
         if (!nl || Bits_memcmp(nl->child->address.ip6.bytes,
                                addresses->elems[i].ip6.bytes,
@@ -298,14 +302,12 @@ static void peersResponseCallback(struct RouterModule_Promise* promise,
         {
             struct Node_Two* node = NodeStore_nodeForAddr(janitor->nodeStore,
                                                           addresses->elems[i].ip6.bytes);
-            if (node && Node_getBestParent(node)) {
+            if (node) {
                 RumorMill_addNode(janitor->linkMill, &addresses->elems[i]);
             } else {
                 RumorMill_addNode(janitor->nodeMill, &addresses->elems[i]);
             }
         } else if (!Address_isSameIp(&addresses->elems[i], &nl->child->address)) {
-            // they're telling us about themselves, how helpful...
-            if (nl && nl->child == parent) { continue; }
             if (nl->parent != parent) {
                 #ifdef Log_INFO
                     uint8_t newAddr[60];
@@ -441,7 +443,7 @@ static void maintanenceCycle(void* vcontext)
             Log_debug(janitor->logger, "Pinging possible node [%s] from "
                                        "external RumorMill", addrStr);
         #endif
-    } else if (Random_uint32(janitor->rand) % 4 && RumorMill_getNode(janitor->linkMill, &addr)) {
+    } else if (Random_uint8(janitor->rand) % 4 && RumorMill_getNode(janitor->linkMill, &addr)) {
         // TODO(cjd): the rand % 4 is a hack to break a bad state situation.
         // ping a link-splitting node from the high-priority ping queue
         getPeersMill(janitor, &addr);
@@ -452,7 +454,7 @@ static void maintanenceCycle(void* vcontext)
                                        "link-finding RumorMill", addrStr);
         #endif
 
-    } else if (Random_uint32(janitor->rand) % 4) {
+    } else if (Random_uint8(janitor->rand) % 4) {
         // 75% of the time, ping a random link from a random node.
         // There's not an obvious way to get a random link directly, so first get a random node.
         struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
