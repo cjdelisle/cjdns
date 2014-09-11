@@ -23,7 +23,6 @@ void Node_setReach(struct Node_Two* node, uint32_t newReach)
     if (newReach) {
         Assert_true(Node_getBestParent(node));
         Assert_true(node->address.path < UINT64_MAX);
-        Assert_true(newReach > 512);
     } else {
         Assert_true(!Node_getBestParent(node));
         Assert_true(node->address.path == UINT64_MAX);
@@ -38,7 +37,7 @@ void Node_setParentReachAndPath(struct Node_Two* node,
 {
     if (bestParent) {
         Assert_true(bestParent->child == node);
-        Assert_true(reach > 512);
+        Assert_true(reach);
         Assert_true(path != UINT64_MAX);
         // make an exception for the self-node
         if (Node_getReach(bestParent->parent) <= reach) {
