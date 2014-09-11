@@ -185,8 +185,7 @@ static void _checkNode(struct Node_Two* node, struct NodeStore_pvt* store, char*
             || node == store->pub.selfNode, file, line);
 
         Assert_fileLine(node->address.path != UINT64_MAX, file, line);
-        // Should never get as low as 512...
-        Assert_fileLine(Node_getReach(node) > 512, file, line);
+        Assert_fileLine(Node_getReach(node) > 0, file, line);
 
         struct Node_Two* nn = node;
         do {
