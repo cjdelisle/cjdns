@@ -486,7 +486,6 @@ static void handleGoodNews(struct Node_Two* node,
 {
     // TODO(cjd): Paths longer than 1024 will blow up, handle more gracefully
     Assert_true(newReach != UINT32_MAX);
-    Assert_true(newReach > 1023);
 
     Assert_true(newReach > Node_getReach(node));
 
@@ -515,18 +514,19 @@ static void handleGoodNews(struct Node_Two* node,
  * The news has hit (in handleBadNewsOne) and now all of the nodes in the affected zone have
  * been knocked down. Now lets see if there's a better path for any of them.
  */
-static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store)
+static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store, bool firstCall)
 {
     struct Node_Link* next = NULL;
     RB_FOREACH_REVERSE(next, PeerRBTree, &link->child->peerTree) {
         if (!next) { continue; }
         if (Node_getBestParent(next->child) != next) { continue; }
         if (next == store->selfLink) { continue; }
-        handleBadNewsTwo(next, store);
+        handleBadNewsTwo(next, store, false);
     }
 
-    // node was relinked by a recursion of this function.
-    if (Node_getBestParent(link->child) != link) { return; }
+    if (firstCall) { return; }
+
+    Assert_true(Node_getBestParent(link->child) == link);
 
     struct Node_Two* node = link->child;
     struct Node_Link* rp = link->child->reversePeers;
@@ -541,7 +541,6 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
         }
         rp = rp->nextPeer;
     }
-
 
     if (best == Node_getBestParent(node)) { return; }
 
@@ -559,31 +558,25 @@ static void handleBadNewsTwo(struct Node_Link* link, struct NodeStore_pvt* store
  * This way they don't all cling to eachother for safety making
  * endless routing loops and stupid processing.
  */
-static uint32_t handleBadNewsOne(struct Node_Link* link,
-                                 uint32_t newReach,
-                                 struct NodeStore_pvt* store)
+static void handleBadNewsOne(struct Node_Link* link,
+                             uint32_t newReach,
+                             struct NodeStore_pvt* store)
 {
     struct Node_Link* next = NULL;
-    uint32_t highestRet = 0;
     RB_FOREACH_REVERSE(next, PeerRBTree, &link->child->peerTree) {
         if (Node_getBestParent(next->child) != next) { continue; }
         if (next == store->selfLink) { continue; }
         if (Node_getReach(next->child) < newReach) { continue; }
 
-        uint32_t ret = handleBadNewsOne(next, newReach, store);
-        if (ret > highestRet) { highestRet = ret; }
+        handleBadNewsOne(next, newReach ? (newReach - 1) : 0, store);
     }
-    if (!highestRet) { highestRet = newReach; }
 
     Assert_true(link->child != store->pub.selfNode);
-    if (!highestRet) {
+    if (!newReach) {
         unreachable(link->child, store);
     } else {
-        Node_setReach(link->child, highestRet);
+        Node_setReach(link->child, newReach);
     }
-
-    if (highestRet < 1023) { highestRet = 1023; }
-    return highestRet+1;
 }
 
 static void handleBadNews(struct Node_Two* node,
@@ -598,12 +591,11 @@ static void handleBadNews(struct Node_Two* node,
     // no bestParent implies a reach of 0
     Assert_true(bp && bp != store->selfLink);
 
-    Assert_true(!newReach || newReach > 1023);
     handleBadNewsOne(bp, newReach, store);
 
     check(store);
 
-    handleBadNewsTwo(bp, store);
+    handleBadNewsTwo(bp, store, true);
 
     check(store);
 }
@@ -613,7 +605,6 @@ static void handleNews(struct Node_Two* node, uint32_t newReach, struct NodeStor
     // This is because reach is used to prevent loops so it must be 1 more for each hop closer
     // to the root.
     if (newReach > (UINT32_MAX - 1024)) { newReach = (UINT32_MAX - 1024); }
-    if (newReach < 1024) { newReach = 1024; }
 
     check(store);
     if (newReach < Node_getReach(node)) {
