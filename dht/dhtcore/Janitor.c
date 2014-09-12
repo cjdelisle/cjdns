@@ -513,8 +513,10 @@ static bool tryRandomLink(struct Janitor* janitor)
                 Log_debug(janitor->logger, "Pinging random node link [%s] for maintenance.",
                                                                                    addrStr);
             #endif
+            return true;
         }
     }
+    return false;
 }
 
 static void maintanenceCycle(void* vcontext)
