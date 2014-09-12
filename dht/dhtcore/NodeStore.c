@@ -244,10 +244,13 @@ static void _verify(struct NodeStore_pvt* store, char* file, int line)
         return;
     }
     Assert_true(Node_getBestParent(store->pub.selfNode) == store->selfLink || !store->selfLink);
+    int linkedNodes = 0;
     struct Node_Two* nn = NULL;
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         _verifyNode(nn, store, file, line);
+        if (Node_getBestParent(nn)) { linkedNodes++; }
     }
+    Assert_fileLine(linkedNodes == store->pub.linkedNodes, file, line);
 }
 #define verify(store) _verify(store, Gcc_SHORT_FILE, Gcc_LINE)
 
@@ -336,7 +339,10 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 
     // We think the link is down, so reset the link state.
     struct Node_Link* bp = Node_getBestParent(node);
-    if (bp) { update(bp, -UINT32_MAX, store); }
+    if (bp) {
+        update(bp, -UINT32_MAX, store);
+        store->pub.linkedNodes--;
+    }
     Node_setParentReachAndPath(node, NULL, 0, UINT64_MAX);
 }
 
@@ -449,6 +455,7 @@ static int updateBestParentCycle(struct Node_Link* newBestLink,
         nextReach = Node_getReach(node);
     }
 
+    if (!Node_getBestParent(node)) { store->pub.linkedNodes++; }
     Node_setParentReachAndPath(node, newBestLink, nextReach, bestPath);
 
     checkNode(node, store);
@@ -1357,6 +1364,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     if (Defined(Log_DEBUG)) {
         Address_print(address_debug, &node->address);
     }
+
     struct Node_Link* link;
     RB_FOREACH(link, PeerRBTree, &node->peerTree) {
         Identity_check(link);
@@ -1367,6 +1375,7 @@ static void destroyNode(struct Node_Two* node, struct NodeStore_pvt* store)
     // of times as we kill off all of it's parent links.
     // This is an optimization:
     if (!Defined(PARANOIA)) {
+        store->pub.linkedNodes--;
         Node_setParentReachAndPath(node, NULL, 0, UINT64_MAX);
     }
 
@@ -1732,6 +1741,7 @@ struct NodeStore* NodeStore_new(struct Address* myAddress,
     selfNode->encodingScheme = NumberCompress_defineScheme(alloc);
     selfNode->alloc = alloc;
     Identity_set(selfNode);
+    out->pub.linkedNodes = 1;
     out->pub.selfNode = selfNode;
     struct Node_Link* selfLink = linkNodes(selfNode, selfNode, 1, 0xffffffffu, 0, 1, out);
     Node_setParentReachAndPath(selfNode, selfLink, UINT32_MAX, 1);

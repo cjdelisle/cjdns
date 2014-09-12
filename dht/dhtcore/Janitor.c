@@ -30,6 +30,7 @@
 #include "util/Hex.h"
 #include "util/events/Timeout.h"
 #include "util/events/Time.h"
+#include "util/Defined.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -413,6 +414,109 @@ static void getPeersMill(struct Janitor* janitor, struct Address* addr)
     rp->userData = janitor;
 }
 
+#define debugAddr(janitor, msg, addr) \
+    if (Defined(Log_DEBUG)) {                                                  \
+        uint8_t addrStr[60];                                                   \
+        Address_print(addrStr, (addr));                                        \
+        Log_debug((janitor)->logger, "%s [%s]", (msg), addrStr);               \
+    }                                                                          \
+    do { } while (0)
+// CHECKFILES_IGNORE expecting a { or ;
+
+static bool tryExistingNode(struct Janitor* janitor)
+{
+    struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
+    while (node && (node->address.path == UINT64_MAX || node->address.path == 1)) {
+        node = NodeStore_getNextNode(janitor->nodeStore, node);
+    }
+    if (node) {
+        getPeersMill(janitor, &node->address);
+        debugAddr(janitor, "Pinging existing node", &node->address);
+        return true;
+    }
+    return false;
+}
+
+static bool tryNodeMill(struct Janitor* janitor)
+{
+    struct Address addr = { .protocolVersion = 0 };
+    if (RumorMill_getNode(janitor->nodeMill, &addr)) {
+        // ping a node from the low-priority ping queue
+        getPeersMill(janitor, &addr);
+        debugAddr(janitor, "Pinging possible node from node-finding RumorMill", &addr);
+        return true;
+    }
+    return false;
+}
+
+static bool tryExternalMill(struct Janitor* janitor)
+{
+    struct Address addr = { .protocolVersion = 0 };
+    if (RumorMill_getNode(janitor->rumorMill, &addr)) {
+        // ping a node from the externally accessible queue
+        getPeersMill(janitor, &addr);
+        debugAddr(janitor, "Pinging possible node from external RumorMill", &addr);
+        return true;
+    }
+    return false;
+}
+
+static bool tryLinkMill(struct Janitor* janitor)
+{
+    struct Address addr = { .protocolVersion = 0 };
+    if (RumorMill_getNode(janitor->linkMill, &addr)) {
+        // ping a node from the externally accessible queue
+        getPeersMill(janitor, &addr);
+        debugAddr(janitor, "Pinging possible node from link-finding RumorMill", &addr);
+        return true;
+    }
+    return false;
+}
+
+static bool tryRandomLink(struct Janitor* janitor)
+{
+    // There's not an obvious way to get a random link directly, so first get a random node.
+    struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
+    // Count the number of links leading from this node.
+    struct Node_Link* link = NodeStore_nextLink(node, NULL);
+    uint32_t linkCount = 0;
+    while (link) {
+        linkCount++;
+        link = NodeStore_nextLink(node, link);
+    }
+    if (linkCount) {
+        // Now pick one of these links at random.
+        uint32_t randLinkIndex = Random_uint32(janitor->rand) % linkCount;
+        link = NodeStore_nextLink(node, NULL);
+        linkCount = 0;
+        while (linkCount < randLinkIndex) {
+            linkCount++;
+            link = NodeStore_nextLink(node, link);
+        }
+    }
+
+    if (link && link->parent != link->child) {
+        struct Address addr = link->child->address;
+        uint64_t path = NodeStore_getRouteLabel(janitor->nodeStore,
+                                                link->parent->address.path,
+                                                link->cannonicalLabel);
+        if (path != NodeStore_getRouteLabel_PARENT_NOT_FOUND &&
+            path != NodeStore_getRouteLabel_CHILD_NOT_FOUND)
+        {
+            addr.path = path;
+        }
+        if (addr.path < UINT64_MAX) {
+            getPeersMill(janitor, &addr);
+            #ifdef Log_DEBUG
+                uint8_t addrStr[60];
+                Address_print(addrStr, &addr);
+                Log_debug(janitor->logger, "Pinging random node link [%s] for maintenance.",
+                                                                                   addrStr);
+            #endif
+        }
+    }
+}
+
 static void maintanenceCycle(void* vcontext)
 {
     struct Janitor* const janitor = Identity_check((struct Janitor*) vcontext);
@@ -434,78 +538,24 @@ static void maintanenceCycle(void* vcontext)
 
     struct Address addr = { .protocolVersion = 0 };
 
-    if (RumorMill_getNode(janitor->rumorMill, &addr)) {
-        // ping a node from the externally accessible queue
-        getPeersMill(janitor, &addr);
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Pinging possible node [%s] from "
-                                       "external RumorMill", addrStr);
-        #endif
-    } else if (Random_uint8(janitor->rand) % 4 && RumorMill_getNode(janitor->linkMill, &addr)) {
-        // TODO(cjd): the rand % 4 is a hack to break a bad state situation.
-        // ping a link-splitting node from the high-priority ping queue
-        getPeersMill(janitor, &addr);
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Pinging possible node [%s] from "
-                                       "link-finding RumorMill", addrStr);
-        #endif
+    if (tryExternalMill(janitor)) {
+        // always try the external mill first, this is low-traffic.
 
-    } else if (Random_uint8(janitor->rand) % 4) {
+    } else if (Random_uint8(janitor->rand) < janitor->nodeStore->linkedNodes &&
+        tryExistingNode(janitor))
+    {
+        // up to 50% of the time, try to ping an existing node or find a new one.
+
+    } else if (!(Random_uint8(janitor->rand) % 4) && tryLinkMill(janitor)) {
+        // 25% of the time, try to optimize a link
+
+    } else if (Random_uint8(janitor->rand) % 4 && tryRandomLink(janitor)) {
         // 75% of the time, ping a random link from a random node.
-        // There's not an obvious way to get a random link directly, so first get a random node.
-        struct Node_Two* node = getRandomNode(janitor->rand, janitor->nodeStore);
-        // Count the number of links leading from this node.
-        struct Node_Link* link = NodeStore_nextLink(node, NULL);
-        uint32_t linkCount = 0;
-        while (link) {
-            linkCount++;
-            link = NodeStore_nextLink(node, link);
-        }
-        if (linkCount) {
-            // Now pick one of these links at random.
-            uint32_t randLinkIndex = Random_uint32(janitor->rand) % linkCount;
-            link = NodeStore_nextLink(node, NULL);
-            linkCount = 0;
-            while (linkCount < randLinkIndex) {
-                linkCount++;
-                link = NodeStore_nextLink(node, link);
-            }
-        }
 
-        if (link && link->parent != link->child) {
-            struct Address addr = link->child->address;
-            uint64_t path = NodeStore_getRouteLabel(janitor->nodeStore,
-                                                    link->parent->address.path,
-                                                    link->cannonicalLabel);
-            if (path != NodeStore_getRouteLabel_PARENT_NOT_FOUND &&
-                path != NodeStore_getRouteLabel_CHILD_NOT_FOUND)
-            {
-                addr.path = path;
-            }
-            if (addr.path < UINT64_MAX) {
-                getPeersMill(janitor, &addr);
-                #ifdef Log_DEBUG
-                    uint8_t addrStr[60];
-                    Address_print(addrStr, &addr);
-                    Log_debug(janitor->logger, "Pinging random node link [%s] for maintenance.",
-                                                                                       addrStr);
-                #endif
-            }
-        }
-
-    } else if (RumorMill_getNode(janitor->nodeMill, &addr)) {
-        // ping a node from the low-priority ping queue
-        getPeersMill(janitor, &addr);
-        #ifdef Log_DEBUG
-            uint8_t addrStr[60];
-            Address_print(addrStr, &addr);
-            Log_debug(janitor->logger, "Pinging possible node [%s] from "
-                                       "node-finding RumorMill", addrStr);
-        #endif
+    } else if (tryNodeMill(janitor)) {
+        // the rest of the time, try to find a new node.
+    } else {
+        Log_debug(janitor->logger, "Could not find anything to do");
     }
 
     // random search

@@ -34,6 +34,7 @@ struct NodeStore
     struct Node_Two* selfNode;
 
     int peerCount;
+    int linkedNodes;
 
     int nodeCount;
     int nodeCapacity;
