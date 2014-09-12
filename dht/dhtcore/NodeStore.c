@@ -349,25 +349,21 @@ static void unreachable(struct Node_Two* node, struct NodeStore_pvt* store)
 /** Adds the reach of path A->B to path B->C to get the expected reach of A->C. */
 static uint32_t addReach(uint32_t reachAB, uint32_t reachBC)
 {
-    int64_t reachAC;
-    if (!(reachAB + reachBC)) {
-        reachAC = reachAB * reachBC;
-    } else {
-        // int64_t to avoid overflows when multiplying.
-        reachAC = (reachAB * reachBC) / ((int64_t)reachAB + reachBC);
-    }
+    uint64_t b = reachAB;
+    uint64_t c = reachBC;
+    uint64_t reachAC = (b * c) / (b + c);
     if (reachAC > UINT32_MAX) { return UINT32_MAX; }
     return reachAC;
 }
 
-/** Subtracts the reach of path A->B or B->C from path A->C, to get the other part. */
-static uint32_t subReach(int32_t reachAC, int32_t reachAB)
+/** Subtracts the reach of path A->B from path A->B->C, to get reach of B->C. */
+static uint32_t subReach(uint32_t reachAB, uint32_t reachAC)
 {
-    // uint64_t to avoid overflows when multiplying.
-    // Apparently it's possible for reachAB == reachAC in rare cases where we want to call this.
-    int64_t reachBC = (reachAC * reachAB) / (reachAB - reachAC || 1);
-    if (reachBC < 0) { reachBC *= -1; }
-    if (reachBC > UINT32_MAX) { reachBC = UINT32_MAX; }
+    if (reachAB <= reachAC) { return UINT32_MAX; }
+    uint64_t b = reachAB;
+    uint64_t c = reachAC;
+    uint64_t reachBC = (b * c) / (b - c);
+    if (reachBC > UINT32_MAX) { return UINT32_MAX; }
     return reachBC;
 }
 
@@ -2025,7 +2021,7 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
 
         if (Node_getBestParent(link->child) == link) {
             // Update linkState.
-            uint32_t guessedLinkState = subReach(newReach, Node_getReach(link->parent));
+            uint32_t guessedLinkState = subReach(Node_getReach(link->parent), newReach);
             uint32_t linkStateDiff = (guessedLinkState > link->linkState)
                                    ? (guessedLinkState - link->linkState)
                                    : 1;
@@ -2043,7 +2039,7 @@ static void updatePathReach(struct NodeStore_pvt* store, const uint64_t path, ui
         Assert_ifParanoid(pathFrag == 1);
 
         handleNews(link->child, newReach, store);
-        uint32_t newLinkState = subReach(newReach, Node_getReach(link->parent));
+        uint32_t newLinkState = subReach(Node_getReach(link->parent), newReach);
         update(link, newLinkState - link->linkState, store);
     }
 }
