@@ -153,7 +153,7 @@ static inline void sendError8(struct SwitchInterface* iface,
     err->ctrl.checksum_be = 0;
 
     err->ctrl.checksum_be =
-        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE);
+        Checksum_engine((uint8_t*) &err->ctrl, cause->length - SwitchHeader_SIZE - 4);
 
     sendMessage(iface, cause, logger);
 }

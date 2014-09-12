@@ -38,6 +38,7 @@
 #include "util/Assert.h"
 #include "tunnel/IpTunnel.h"
 #include "util/events/Time.h"
+#include "util/Defined.h"
 #include "wire/Control.h"
 #include "wire/Error.h"
 #include "wire/Headers.h"
@@ -914,8 +915,13 @@ static uint8_t handleControlMessage(struct Ducttape_pvt* context,
     struct Control* ctrl = (struct Control*) message->bytes;
 
     if (Checksum_engine(message->bytes, message->length)) {
-        Log_info(context->logger, "DROP ctrl packet from [%s] with invalid checksum.", labelStr);
-        return Error_NONE;
+        if (Defined(Version_8_COMPAT) && isFormV8) {
+            Log_debug(context->logger, "ctrl packet from [%s] with invalid checksum v8compat",
+                                       labelStr);
+        } else {
+            Log_info(context->logger, "DROP ctrl packet from [%s] with invalid checksum", labelStr);
+            return Error_NONE;
+        }
     }
 
     bool pong = false;

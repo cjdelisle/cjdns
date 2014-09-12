@@ -229,14 +229,23 @@ Version_COMPAT(7, ([5,6]))
  */
 Version_COMPAT(8, ([5,6,7]))
 
+/*
+ * Version 9:
+ * September 12, 2014
+ *
+ * Version 8 was sending improper checksums on error frames, corrected in v9.
+ */
+Version_COMPAT(9, ([5,6,7,8]))
+
 /**
  * The current protocol version.
  */
-#define Version_CURRENT_PROTOCOL 8
+#define Version_CURRENT_PROTOCOL 9
 #define Version_5_COMPAT
 #define Version_6_COMPAT
 #define Version_7_COMPAT
 #define Version_8_COMPAT
+#define Version_9_COMPAT
 
 #define Version_MINIMUM_COMPATIBLE 5
 #define Version_DEFAULT_ASSUMPTION 5
