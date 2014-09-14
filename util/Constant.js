@@ -51,7 +51,7 @@ var testBase2 = function () {
         var numB = Number('0x' + base2ToHex(b2));
         if (num !== numB) { throw new Error(num + " --> " + b2 + " --> " + numB); }
     }
-}
+};
 
 var base2 = module.exports.base2 = function (numStr) {
     var type = "uint8_t";
