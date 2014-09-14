@@ -1297,7 +1297,6 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
     RB_FOREACH(nn, NodeRBTree, &store->nodeTree) {
         // first cycle we clear all markings as we go and set markings
         // so markings remain if they are behind us
-        nn->marked = 0;
         struct Node_Link* parentLink = Node_getBestParent(nn);
         if (parentLink) {
             parentLink->parent->marked = 1;
@@ -1318,7 +1317,10 @@ static struct Node_Two* getWorstNode(struct NodeStore_pvt* store)
         if (parentLink) {
             parentLink->parent->marked = 1;
         }
-        if (nn->marked) { continue; }
+        if (nn->marked) {
+            nn->marked = false;
+            continue;
+        }
         if (!worst || whichIsWorse(nn, worst, store) == nn) {
             worst = nn;
         }
